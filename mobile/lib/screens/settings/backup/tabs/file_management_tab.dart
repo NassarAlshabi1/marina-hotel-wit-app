@@ -101,8 +101,8 @@ class FileManagementTab extends ConsumerWidget {
     final crossAxisCount = width < 360
         ? 1
         : width < 600
-        ? 2
-        : 3;
+            ? 2
+            : 3;
 
     return GridView.builder(
       shrinkWrap: true,

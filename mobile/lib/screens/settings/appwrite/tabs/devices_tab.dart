@@ -121,9 +121,8 @@ class AppwriteDevicesTab extends ConsumerWidget {
   ) {
     return devicesAsync.when(
       data: (devices) {
-        final filtered = devices
-            .where((device) => device.id != currentId)
-            .toList();
+        final filtered =
+            devices.where((device) => device.id != currentId).toList();
 
         if (filtered.isEmpty) {
           return const EmptyStateWidget(

@@ -46,7 +46,8 @@ class SalaryEntitlementService {
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
     final employees = await (_db.select(
       _db.employees,
-    )..where((e) => e.status.equals('active'))).get();
+    )..where((e) => e.status.equals('active')))
+        .get();
 
     final entitlements = <SalaryEntitlement>[];
     for (final employee in employees) {
@@ -74,7 +75,8 @@ class SalaryEntitlementService {
 
     final expenses = await (_db.select(
       _db.expenses,
-    )..where((e) => e.relatedId.equals(employee.id))).get();
+    )..where((e) => e.relatedId.equals(employee.id)))
+        .get();
 
     double totalWithdrawals = 0;
     double totalDeductions = 0;

@@ -109,9 +109,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate = isFrom
-        ? (_fromDate ?? DateTime.now())
-        : (_toDate ?? DateTime.now());
+    final initialDate =
+        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -155,14 +154,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : null;
-    final selectedType =
-        widget.showTypeFilter &&
+    final fromStr =
+        _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : null;
+    final toStr =
+        _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
+    final selectedType = widget.showTypeFilter &&
             _selectedType != null &&
             _selectedType!.isNotEmpty
         ? _selectedType
@@ -184,14 +180,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     final employeeMap = <int, Employee>{};
     if (widget.includeEmployeeDetails) {
-      final employeeIds = expenses
-          .map((e) => e.relatedId)
-          .whereType<int>()
-          .toSet();
+      final employeeIds =
+          expenses.map((e) => e.relatedId).whereType<int>().toSet();
       if (employeeIds.isNotEmpty) {
         final employees = await (db.select(
           db.employees,
-        )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
+        )..where((tbl) => tbl.id.isIn(employeeIds.toList())))
+            .get();
         for (final employee in employees) {
           employeeMap[employee.id] = employee;
         }
@@ -201,9 +196,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     for (final expense in expenses) {
-      final employee = expense.relatedId != null
-          ? employeeMap[expense.relatedId!]
-          : null;
+      final employee =
+          expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
       final date = _parseExpenseDate(expense.date);
       totalAmount += expense.amount;
       rows.add(
@@ -230,9 +224,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedTypeLabel = _selectedType?.isNotEmpty == true
-        ? _selectedType!
-        : 'الكل';
+    final selectedTypeLabel =
+        _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
 
     pw.Widget metaRow(String label, String value) {
       return pw.Padding(
@@ -507,51 +500,54 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
-                      icon: Icons.receipt_long,
-                    )
-                  : ListView.separated(
-                      itemCount: _rows.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final row = _rows[index];
-                        return Card(
-                          elevation: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                      ? const EmptyState(
+                          title: 'لا توجد بيانات',
+                          message:
+                              'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
+                          icon: Icons.receipt_long,
+                        )
+                      : ListView.separated(
+                          itemCount: _rows.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final row = _rows[index];
+                            return Card(
+                              elevation: 1,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      _dateLabelFormat.format(row.date),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          _dateLabelFormat.format(row.date),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                            '${_currencyFmt.format(row.amount)}'),
+                                      ],
                                     ),
-                                    Text('${_currencyFmt.format(row.amount)}'),
+                                    const SizedBox(height: 8),
+                                    Text('النوع: ${row.type}'),
+                                    const SizedBox(height: 4),
+                                    Text('الوصف: ${row.description}'),
+                                    if (widget.includeEmployeeDetails &&
+                                        row.employee != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text('الموظف: ${row.employee!.name}'),
+                                    ],
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text('النوع: ${row.type}'),
-                                const SizedBox(height: 4),
-                                Text('الوصف: ${row.description}'),
-                                if (widget.includeEmployeeDetails &&
-                                    row.employee != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text('الموظف: ${row.employee!.name}'),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
@@ -597,9 +593,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     required DateTime? value,
     required VoidCallback onPressed,
   }) {
-    final text = value != null
-        ? DateFormat('yyyy-MM-dd').format(value)
-        : 'غير محدد';
+    final text =
+        value != null ? DateFormat('yyyy-MM-dd').format(value) : 'غير محدد';
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
@@ -612,9 +607,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
     final hasTime = trimmed.length > 10;
-    final normalized = hasTime
-        ? trimmed.replaceFirst(' ', 'T')
-        : '${trimmed}T00:00:00';
+    final normalized =
+        hasTime ? trimmed.replaceFirst(' ', 'T') : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
     } catch (_) {

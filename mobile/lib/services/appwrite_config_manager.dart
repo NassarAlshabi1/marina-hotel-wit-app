@@ -85,16 +85,16 @@ class AppwriteConfigManager {
   }
 
   static Map<String, String> get currentConfig => {
-    'endpoint': _endpoint,
-    'projectId': _projectId,
-    'databaseId': _databaseId,
-    'apiKey': _apiKeyValue,
-  };
+        'endpoint': _endpoint,
+        'projectId': _projectId,
+        'databaseId': _databaseId,
+        'apiKey': _apiKeyValue,
+      };
 
   static Map<String, String> get defaultConfig => {
-    'endpoint': AppwriteConfig.endpoint,
-    'projectId': AppwriteConfig.projectId,
-    'databaseId': AppwriteConfig.databaseId,
-    'apiKey': '',
-  };
+        'endpoint': AppwriteConfig.endpoint,
+        'projectId': AppwriteConfig.projectId,
+        'databaseId': AppwriteConfig.databaseId,
+        'apiKey': '',
+      };
 }

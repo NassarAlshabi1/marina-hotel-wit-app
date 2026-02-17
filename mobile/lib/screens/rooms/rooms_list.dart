@@ -24,8 +24,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   Widget build(BuildContext context) {
     final roomsStream = ref.watch(roomsListProvider);
     final auth = ref.watch(authProvider);
-    final canRooms =
-        auth.currentUser?.permissions.contains('all') == true ||
+    final canRooms = auth.currentUser?.permissions.contains('all') == true ||
         auth.currentUser?.userType == 'admin' ||
         (auth.currentUser?.permissions.contains('rooms') ?? false);
     return wrapWithSyncOnExit(

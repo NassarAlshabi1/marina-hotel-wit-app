@@ -80,9 +80,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate = isFrom
-        ? (_fromDate ?? DateTime.now())
-        : (_toDate ?? DateTime.now());
+    final initialDate =
+        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -127,27 +126,24 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : null;
+    final fromStr =
+        _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : null;
+    final toStr =
+        _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
     final payments = await paymentsDao.listForReport(
       from: fromStr,
       to: toStr,
       roomNumber: _selectedRoom,
     );
 
-    final bookingIds = payments
-        .map((p) => p.bookingLocalId)
-        .whereType<int>()
-        .toSet();
+    final bookingIds =
+        payments.map((p) => p.bookingLocalId).whereType<int>().toSet();
     final bookings = bookingIds.isEmpty
         ? <Booking>[]
         : await (db.select(
             db.bookings,
-          )..where((tbl) => tbl.id.isIn(bookingIds))).get();
+          )..where((tbl) => tbl.id.isIn(bookingIds)))
+            .get();
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final roomNumbers = <String>{};
@@ -161,7 +157,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         ? <Room>[]
         : await (db.select(
             db.rooms,
-          )..where((tbl) => tbl.roomNumber.isIn(roomNumbers.toList()))).get();
+          )..where((tbl) => tbl.roomNumber.isIn(roomNumbers.toList())))
+            .get();
     final roomsMap = {for (final r in rooms) r.roomNumber: r};
 
     final rows = <_PaymentReportRow>[];
@@ -174,9 +171,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
       final paymentDate = _parseDateTime(payment.paymentDate);
-      final bookingCode = booking != null
-          ? _formatBookingCode(booking.id)
-          : null;
+      final bookingCode =
+          booking != null ? _formatBookingCode(booking.id) : null;
       totalPaid += payment.amount;
       if (booking != null) {
         relevantBookingIds.add(booking.id);
@@ -209,11 +205,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         bookingTotals[bookingId] = total > 0 ? total : 0;
       }
 
-      final allPaymentsForBookings =
-          await (db.select(db.payments)..where(
-                (tbl) => tbl.bookingLocalId.isIn(relevantBookingIds.toList()),
-              ))
-              .get();
+      final allPaymentsForBookings = await (db.select(db.payments)
+            ..where(
+              (tbl) => tbl.bookingLocalId.isIn(relevantBookingIds.toList()),
+            ))
+          .get();
       final paidByBooking = <int, double>{};
       for (final p in allPaymentsForBookings) {
         final id = p.bookingLocalId;
@@ -247,9 +243,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedRoomLabel = _selectedRoom?.isNotEmpty == true
-        ? _selectedRoom!
-        : '';
+    final selectedRoomLabel =
+        _selectedRoom?.isNotEmpty == true ? _selectedRoom! : '';
 
     final dataRows = [
       for (final entry in _rows.asMap().entries)
@@ -478,65 +473,70 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
-                      icon: Icons.receipt_long,
-                    )
-                  : ListView.separated(
-                      itemCount: _rows.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final row = _rows[index];
-                        return Card(
-                          elevation: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                      ? const EmptyState(
+                          title: 'لا توجد بيانات',
+                          message:
+                              'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
+                          icon: Icons.receipt_long,
+                        )
+                      : ListView.separated(
+                          itemCount: _rows.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final row = _rows[index];
+                            return Card(
+                              elevation: 1,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      _dateLabelFormat.format(row.paymentDate),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          _dateLabelFormat
+                                              .format(row.paymentDate),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                            '${_currencyFmt.format(row.amount)}'),
+                                      ],
                                     ),
-                                    Text('${_currencyFmt.format(row.amount)}'),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text('الغرفة: ${row.roomNumber}'),
-                                const SizedBox(height: 4),
-                                Text('اسم الدافع: ${row.payerName}'),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'طريقة الدفع: ${row.payment.paymentMethod}',
-                                ),
-                                const SizedBox(height: 4),
-                                Text('رقم الحجز: ${row.bookingCode}'),
-                                if (row.booking != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text('اسم الضيف: ${row.booking!.guestName}'),
-                                  if (row.booking!.discount > 0) ...[
+                                    const SizedBox(height: 8),
+                                    Text('الغرفة: ${row.roomNumber}'),
+                                    const SizedBox(height: 4),
+                                    Text('اسم الدافع: ${row.payerName}'),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'التخفيض: ${_currencyFmt.format(row.booking!.discount)}',
-                                      style: TextStyle(
-                                        color: Colors.green.shade700,
-                                      ),
+                                      'طريقة الدفع: ${row.payment.paymentMethod}',
                                     ),
+                                    const SizedBox(height: 4),
+                                    Text('رقم الحجز: ${row.bookingCode}'),
+                                    if (row.booking != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                          'اسم الضيف: ${row.booking!.guestName}'),
+                                      if (row.booking!.discount > 0) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'التخفيض: ${_currencyFmt.format(row.booking!.discount)}',
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ],
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
@@ -605,9 +605,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     required DateTime? value,
     required VoidCallback onPressed,
   }) {
-    final text = value != null
-        ? DateFormat('yyyy-MM-dd').format(value)
-        : 'غير محدد';
+    final text =
+        value != null ? DateFormat('yyyy-MM-dd').format(value) : 'غير محدد';
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
@@ -618,9 +617,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   DateTime _parseDateTime(String value) {
-    final normalized = value.contains('T')
-        ? value
-        : value.replaceFirst(' ', 'T');
+    final normalized =
+        value.contains('T') ? value : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {

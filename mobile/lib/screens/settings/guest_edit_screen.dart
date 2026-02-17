@@ -157,13 +157,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
         final discountStartDateText =
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
-        final discountStartDate = discountStartDateText.isNotEmpty
-            ? discountStartDateText
-            : null;
+        final discountStartDate =
+            discountStartDateText.isNotEmpty ? discountStartDateText : null;
         final checkinDateText =
             _checkinDateControllers[booking.id]?.text.trim() ?? '';
-        final checkinDateChanged =
-            checkinDateText.isNotEmpty &&
+        final checkinDateChanged = checkinDateText.isNotEmpty &&
             checkinDateText != booking.checkinDate.split('T').first;
 
         await bookingsRepo.update(
@@ -239,11 +237,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required int bookingId,
     required String newRoomNumber,
   }) async {
-    final payments =
-        await (db.select(db.payments)
-              ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
-              ..where((tbl) => tbl.deletedAt.isNull()))
-            .get();
+    final payments = await (db.select(db.payments)
+          ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
+          ..where((tbl) => tbl.deletedAt.isNull()))
+        .get();
 
     for (final payment in payments) {
       await paymentsRepo.update(payment.id, roomNumber: newRoomNumber);
@@ -349,8 +346,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.person,
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                            ? 'الاسم مطلوب'
-                            : null,
+                                ? 'الاسم مطلوب'
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -381,8 +378,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.flag,
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                            ? 'الجنسية مطلوبة'
-                            : null,
+                                ? 'الجنسية مطلوبة'
+                                : null,
                       ),
                     ],
                   ),
@@ -568,13 +565,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 ),
               ),
               data: (rooms) {
-                final availableRooms =
-                    rooms
-                        .where(
-                          (room) => StatusUtils.isRoomAvailable(room.status),
-                        )
-                        .toList()
-                      ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+                final availableRooms = rooms
+                    .where(
+                      (room) => StatusUtils.isRoomAvailable(room.status),
+                    )
+                    .toList()
+                  ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
                 final currentValue = _roomSelections[booking.id]!;
                 final items = <DropdownMenuItem<String>>[];
@@ -621,8 +617,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
-                          ? 'مطلوب'
-                          : null,
+                              ? 'مطلوب'
+                              : null,
                     ),
                     if (isChanged)
                       Padding(
@@ -660,8 +656,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         prefixIcon: const Icon(Icons.login),
                         hintText: 'اضغط لتعديل تاريخ الدخول',
                         border: const OutlineInputBorder(),
-                        suffixIcon:
-                            _checkinDateControllers[booking.id]!.text !=
+                        suffixIcon: _checkinDateControllers[booking.id]!.text !=
                                 booking.checkinDate.split('T').first
                             ? const Icon(Icons.edit, color: Colors.orange)
                             : null,
@@ -746,8 +741,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         prefixIcon: const Icon(Icons.calendar_today),
                         hintText:
                             _discountTypeSelections[booking.id] == 'per_night'
-                            ? 'اضغط لاختيار التاريخ (اختياري)'
-                            : 'غير متاح للتخفيض الإجمالي',
+                                ? 'اضغط لاختيار التاريخ (اختياري)'
+                                : 'غير متاح للتخفيض الإجمالي',
                         border: const OutlineInputBorder(),
                         enabled:
                             _discountTypeSelections[booking.id] == 'per_night',

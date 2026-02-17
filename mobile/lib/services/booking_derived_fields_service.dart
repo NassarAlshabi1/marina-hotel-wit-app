@@ -11,11 +11,10 @@ class BookingDerivedFieldsService {
   final AppDatabase db;
 
   Future<void> refreshForBookingId(int bookingId, {DateTime? now}) async {
-    final booking =
-        await (db.select(db.bookings)
-              ..where((b) => b.id.equals(bookingId))
-              ..where((b) => b.deletedAt.isNull()))
-            .getSingleOrNull();
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId))
+          ..where((b) => b.deletedAt.isNull()))
+        .getSingleOrNull();
     if (booking == null) {
       return;
     }
@@ -50,14 +49,13 @@ class BookingDerivedFieldsService {
     final totalNights = segments.length;
     final expectedNightsValue =
         plannedCheckout != null && actualCheckout == null
-        ? totalNights
-        : booking.expectedNights;
+            ? totalNights
+            : booking.expectedNights;
 
-    final room =
-        await (db.select(db.rooms)
-              ..where((r) => r.roomNumber.equals(booking.roomNumber))
-              ..where((r) => r.deletedAt.isNull()))
-            .getSingleOrNull();
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.roomNumber.equals(booking.roomNumber))
+          ..where((r) => r.deletedAt.isNull()))
+        .getSingleOrNull();
 
     final nightlyRate = room?.price ?? 0.0;
     final discount = booking.discount;
@@ -116,16 +114,14 @@ class BookingDerivedFieldsService {
       totalDue = double.parse(subtotal.toStringAsFixed(2));
     }
 
-    final payments =
-        await (db.select(db.payments)
-              ..where(
-                (p) =>
-                    (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
-              )
-              ..where((p) => p.revenueType.equals('room'))
-              ..where((p) => p.deletedAt.isNull()))
-            .get();
+    final payments = await (db.select(db.payments)
+          ..where(
+            (p) => (p.bookingLocalId.equals(booking.id) |
+                p.bookingUuidCache.equals(booking.localUuid)),
+          )
+          ..where((p) => p.revenueType.equals('room'))
+          ..where((p) => p.deletedAt.isNull()))
+        .get();
 
     final totalPaid = double.parse(
       payments.fold<double>(0.0, (sum, p) => sum + p.amount).toStringAsFixed(2),
@@ -137,8 +133,7 @@ class BookingDerivedFieldsService {
     final remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
 
     final isFullyPaid = remaining <= 0.009;
-    final isOverdue =
-        bookingActive &&
+    final isOverdue = bookingActive &&
         plannedCheckout != null &&
         moment.isAfter(plannedCheckout);
     final needsReview = isOverdue || remaining > 0.009;
@@ -157,7 +152,8 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       await (db.update(
         db.bookings,
-      )..where((b) => b.id.equals(booking.id))).write(
+      )..where((b) => b.id.equals(booking.id)))
+          .write(
         BookingsCompanion(
           expectedNights: d.Value(expectedNightsValue),
           calculatedNights: d.Value(totalNights),
@@ -181,7 +177,8 @@ class BookingDerivedFieldsService {
 
       await (db.delete(
         db.bookingNights,
-      )..where((t) => t.bookingLocalId.equals(booking.id))).go();
+      )..where((t) => t.bookingLocalId.equals(booking.id)))
+          .go();
 
       await db.batch((batch) {
         int sequence = 0;
@@ -219,9 +216,8 @@ class BookingDerivedFieldsService {
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
-        : normalized;
+    final withSeconds =
+        normalized.length == 16 ? '${normalized}:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {

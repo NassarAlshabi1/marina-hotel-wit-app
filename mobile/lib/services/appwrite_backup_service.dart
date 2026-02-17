@@ -21,7 +21,7 @@ class AppwriteBackupResult {
 
 class AppwriteBackupService {
   AppwriteBackupService({AppwriteService? appwriteService})
-    : _appwriteService = appwriteService ?? AppwriteService();
+      : _appwriteService = appwriteService ?? AppwriteService();
 
   final AppwriteService _appwriteService;
 
@@ -54,9 +54,8 @@ class AppwriteBackupService {
         collectionId: id,
         useCache: false,
       );
-      collections[id] = docs
-          .map((doc) => {r'$id': doc.$id, ...doc.data})
-          .toList();
+      collections[id] =
+          docs.map((doc) => {r'$id': doc.$id, ...doc.data}).toList();
       counts[id] = docs.length;
     }
 

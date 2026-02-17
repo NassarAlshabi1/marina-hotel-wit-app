@@ -4,8 +4,8 @@ import 'auto_backup_manager.dart';
 import 'local_db.dart';
 
 /// مدد لتتبع التغييرات في قاعدة البيانات للنسخ التلقائي
-typedef TablePredicate<TTable extends Table> =
-    Expression<bool> Function(TTable table);
+typedef TablePredicate<TTable extends Table> = Expression<bool> Function(
+    TTable table);
 
 extension DatabaseAutoBackupExtension on AppDatabase {
   /// تهيئة تتبع التغييرات للنسخ التلقائي
@@ -18,7 +18,7 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
   /// تتبع إدراج سجل جديد
   Future<int>
-  insertWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+      insertWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table,
     Insertable<TData> entity, {
     InsertMode? mode,
@@ -40,7 +40,7 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
   /// تتبع تحديث سجل
   Future<bool>
-  updateWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+      updateWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table,
     Insertable<TData> entity, {
     TablePredicate<TTable>? where,
@@ -66,7 +66,7 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
   /// تتبع حذف سجل
   Future<int>
-  deleteWithBackupTrigger<TTable extends Table, TData extends DataClass>(
+      deleteWithBackupTrigger<TTable extends Table, TData extends DataClass>(
     TableInfo<TTable, TData> table, {
     TablePredicate<TTable>? where,
     Map<String, dynamic>? recordData,

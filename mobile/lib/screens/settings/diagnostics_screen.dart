@@ -153,10 +153,10 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? _buildErrorState()
-          : _snapshot == null
-          ? const Center(child: Text('لا توجد بيانات'))
-          : _buildContent(),
+              ? _buildErrorState()
+              : _snapshot == null
+                  ? const Center(child: Text('لا توجد بيانات'))
+                  : _buildContent(),
     );
   }
 

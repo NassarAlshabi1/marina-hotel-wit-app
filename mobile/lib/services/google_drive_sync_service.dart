@@ -78,8 +78,7 @@ class DriveSyncShard {
       totalParts: json['totalParts'] as int? ?? 1,
       size: json['size'] as int? ?? 0,
       checksum: json['checksum'] as String? ?? '',
-      modifiedAt:
-          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
+      modifiedAt: DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       version: json['version'] as int? ?? 1,
     );
@@ -167,11 +166,10 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  }) : _googleSignIn =
-           googleSignIn ??
-           GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
-       _driveApi = driveApi,
-       _shardSizeBytes = shardSizeBytes;
+  })  : _googleSignIn = googleSignIn ??
+            GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
+        _driveApi = driveApi,
+        _shardSizeBytes = shardSizeBytes;
 
   final GoogleSignIn _googleSignIn;
   drive.DriveApi? _driveApi;
@@ -207,7 +205,7 @@ class GoogleDriveSyncService {
     try {
       final account =
           await _googleSignIn.signInSilently(suppressErrors: true) ??
-          await _googleSignIn.signIn();
+              await _googleSignIn.signIn();
       if (account == null) {
         return null;
       }
@@ -278,9 +276,8 @@ class GoogleDriveSyncService {
         q: 'name="$_kIndexFileName" and trashed=false',
         $fields: 'files(id,modifiedTime)',
       );
-      final indexFile = (indexList.files ?? []).isNotEmpty
-          ? indexList.files!.first
-          : null;
+      final indexFile =
+          (indexList.files ?? []).isNotEmpty ? indexList.files!.first : null;
       if (indexFile?.modifiedTime != null) {
         return indexFile!.modifiedTime;
       }
@@ -291,9 +288,8 @@ class GoogleDriveSyncService {
         $fields: 'files(id,modifiedTime)',
         orderBy: 'modifiedTime desc',
       );
-      final snapFile = (snapList.files ?? []).isNotEmpty
-          ? snapList.files!.first
-          : null;
+      final snapFile =
+          (snapList.files ?? []).isNotEmpty ? snapList.files!.first : null;
       return snapFile?.modifiedTime;
     } catch (error) {
       debugPrint('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
@@ -423,8 +419,7 @@ class GoogleDriveSyncService {
       return _driveApi!;
     }
 
-    final account =
-        await _googleSignIn.signInSilently(suppressErrors: true) ??
+    final account = await _googleSignIn.signInSilently(suppressErrors: true) ??
         (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
 
     if (account == null) {
@@ -612,12 +607,10 @@ class GoogleDriveSyncService {
     drive.DriveApi api,
     String fileId,
   ) async {
-    final media =
-        await api.files.get(
-              fileId,
-              downloadOptions: drive.DownloadOptions.fullMedia,
-            )
-            as drive.Media;
+    final media = await api.files.get(
+      fileId,
+      downloadOptions: drive.DownloadOptions.fullMedia,
+    ) as drive.Media;
     final builder = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
       builder.add(chunk);

@@ -452,8 +452,8 @@ class AppwriteSchemaVerifier {
       'total': totalCollections,
       'found': foundCollections,
       'missing': missingCollections,
-      'percentage': ((foundCollections / totalCollections) * 100)
-          .toStringAsFixed(1),
+      'percentage':
+          ((foundCollections / totalCollections) * 100).toStringAsFixed(1),
     };
 
     debugPrint('═══════════════════════════════════════');

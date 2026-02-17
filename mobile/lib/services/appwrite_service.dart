@@ -813,8 +813,7 @@ class AppwriteService {
 
       // حساب الحالة النهائية
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] =
-          tests['ping'] == true &&
+      results['overall_success'] = tests['ping'] == true &&
           (tests['write'] == true || tests['write'] == null) &&
           (tests['read'] == true || tests['read'] == null) &&
           (tests['delete'] == true || tests['delete'] == null);

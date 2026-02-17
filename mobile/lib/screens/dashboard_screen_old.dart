@@ -87,8 +87,8 @@ class DashboardScreen extends ConsumerWidget {
                   final crossAxisCount = screenWidth < 360
                       ? 1
                       : screenWidth < 600
-                      ? 2
-                      : 3;
+                          ? 2
+                          : 3;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,16 +168,14 @@ class DashboardScreen extends ConsumerWidget {
                 final Color backgroundColor = isOccupied
                     ? Colors.red.shade600
                     : (isAvailable
-                          ? Colors.green.shade600
-                          : Colors.grey.shade500);
+                        ? Colors.green.shade600
+                        : Colors.grey.shade500);
                 final bool useDarkText =
                     backgroundColor.computeLuminance() > 0.5;
-                final Color foregroundColor = useDarkText
-                    ? Colors.black
-                    : Colors.white;
-                final String tooltipText = room != null
-                    ? room.status
-                    : 'غير مسجل في النظام';
+                final Color foregroundColor =
+                    useDarkText ? Colors.black : Colors.white;
+                final String tooltipText =
+                    room != null ? room.status : 'غير مسجل في النظام';
 
                 return Tooltip(
                   message: tooltipText,

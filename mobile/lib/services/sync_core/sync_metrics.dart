@@ -24,22 +24,23 @@ class SyncSession {
   Duration get duration => (endTime ?? DateTime.now()).difference(startTime);
 
   Map<String, dynamic> toJson() => {
-    'startTime': startTime.toIso8601String(),
-    'endTime': endTime?.toIso8601String(),
-    'success': success,
-    'error': error,
-    'recordsSynced': recordsSynced,
-    'conflictsResolved': conflictsResolved,
-  };
+        'startTime': startTime.toIso8601String(),
+        'endTime': endTime?.toIso8601String(),
+        'success': success,
+        'error': error,
+        'recordsSynced': recordsSynced,
+        'conflictsResolved': conflictsResolved,
+      };
 
   factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
-    startTime: DateTime.parse(json['startTime']),
-    endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
-    success: json['success'] ?? false,
-    error: json['error'],
-    recordsSynced: json['recordsSynced'] ?? 0,
-    conflictsResolved: json['conflictsResolved'] ?? 0,
-  );
+        startTime: DateTime.parse(json['startTime']),
+        endTime:
+            json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
+        success: json['success'] ?? false,
+        error: json['error'],
+        recordsSynced: json['recordsSynced'] ?? 0,
+        conflictsResolved: json['conflictsResolved'] ?? 0,
+      );
 }
 
 /// إحصائيات المزامنة

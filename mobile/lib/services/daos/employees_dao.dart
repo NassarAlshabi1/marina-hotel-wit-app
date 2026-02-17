@@ -46,11 +46,13 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   Stream<Employee?> watchById(int id) =>
       (select(employees)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<Employee?> getByLocalUuid(String localUuid) => (select(
-    employees,
-  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        employees,
+      )..where((t) => t.localUuid.equals(localUuid)))
+          .getSingleOrNull();
   Stream<Employee?> watchByLocalUuid(String localUuid) => (select(
-    employees,
-  )..where((t) => t.localUuid.equals(localUuid))).watchSingleOrNull();
+        employees,
+      )..where((t) => t.localUuid.equals(localUuid)))
+          .watchSingleOrNull();
 
   Future<int> insertOne(
     EmployeesCompanion data, {
@@ -95,7 +97,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         employees,
-      )..where((t) => t.id.equals(id))).write(comp);
+      )..where((t) => t.id.equals(id)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -124,7 +127,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         employees,
-      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
+      )..where((t) => t.localUuid.equals(localUuid)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -142,14 +146,14 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(employees)..where((t) => t.id.equals(id)))
-          .write(
-            EmployeesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(employees)..where((t) => t.id.equals(id))).write(
+        EmployeesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'delete',
@@ -173,7 +177,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await (select(
         employees,
-      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+      )..where((t) => t.serverId.equals(parsedServerId)))
+          .getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
@@ -182,7 +187,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         employees,
-      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+      )..where((t) => t.serverId.equals(parsedServerId)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -204,7 +210,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     if (parsedServerId == null) return Future.value(null);
     return (select(
       employees,
-    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    )..where((t) => t.serverId.equals(parsedServerId)))
+        .getSingleOrNull();
   }
 
   int? _parseServerId(String? value) {
@@ -215,11 +222,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
-    final row =
-        await (select(employees)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+    final row = await (select(employees)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
     if (row == null) return null;
     return adapters.employees.toJsonForSource(row, src: Source.appwrite);
   }

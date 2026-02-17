@@ -268,25 +268,25 @@ class _IncomeExpenseReportScreenState
 
     final incomeRows = _detailedMode
         ? _incomeEntries
-              .map(
-                (e) => [
-                  _dateFormat.format(e.date),
-                  e.description,
-                  EnhancedPdfUtils.formatNumber(e.amount),
-                ],
-              )
-              .toList()
+            .map(
+              (e) => [
+                _dateFormat.format(e.date),
+                e.description,
+                EnhancedPdfUtils.formatNumber(e.amount),
+              ],
+            )
+            .toList()
         : const <List<String>>[];
     final expenseRows = _detailedMode
         ? _expenseEntries
-              .map(
-                (e) => [
-                  _dateFormat.format(e.date),
-                  e.description.isNotEmpty ? e.description : e.type,
-                  EnhancedPdfUtils.formatNumber(e.amount),
-                ],
-              )
-              .toList()
+            .map(
+              (e) => [
+                _dateFormat.format(e.date),
+                e.description.isNotEmpty ? e.description : e.type,
+                EnhancedPdfUtils.formatNumber(e.amount),
+              ],
+            )
+            .toList()
         : const <List<String>>[];
 
     final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate);
@@ -621,12 +621,12 @@ class _IncomeExpenseReportScreenState
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لا يوجد دخل أو مصروفات ضمن الفترة المحددة.',
-                      icon: Icons.receipt_long,
-                    )
-                  : _buildDetails(),
+                      ? const EmptyState(
+                          title: 'لا توجد بيانات',
+                          message: 'لا يوجد دخل أو مصروفات ضمن الفترة المحددة.',
+                          icon: Icons.receipt_long,
+                        )
+                      : _buildDetails(),
             ),
           ],
         ),
@@ -673,9 +673,8 @@ class _IncomeExpenseReportScreenState
         SizedBox(
           width: 160,
           child: NeuStatCard(
-            icon: _net >= 0
-                ? Icons.rocket_launch_rounded
-                : Icons.warning_rounded,
+            icon:
+                _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
             title: 'صافي الربح',
             value: _currencyFormat.format(_net),
             iconColor: _net >= 0 ? Colors.teal : Colors.red,

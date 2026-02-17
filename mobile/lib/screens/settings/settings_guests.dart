@@ -156,11 +156,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
 
     final sortedGuests =
-        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
-          (a, b) => b.bookings.first.checkinDate.compareTo(
-            a.bookings.first.checkinDate,
-          ),
-        );
+        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()
+          ..sort(
+            (a, b) => b.bookings.first.checkinDate.compareTo(
+              a.bookings.first.checkinDate,
+            ),
+          );
     return sortedGuests;
   }
 
@@ -310,9 +311,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
-    final lastVisit = guest.bookings.isNotEmpty
-        ? guest.bookings.first.checkinDate
-        : '';
+    final lastVisit =
+        guest.bookings.isNotEmpty ? guest.bookings.first.checkinDate : '';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -326,9 +326,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: activeBookings > 0
-                      ? Colors.green
-                      : Colors.blue,
+                  backgroundColor:
+                      activeBookings > 0 ? Colors.green : Colors.blue,
                   child: Text(
                     guest.name.isNotEmpty ? guest.name[0].toUpperCase() : '؟',
                     style: const TextStyle(
@@ -545,8 +544,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     leading: CircleAvatar(
                       backgroundColor:
                           StatusUtils.isActiveBooking(booking.status)
-                          ? Colors.green
-                          : Colors.blue,
+                              ? Colors.green
+                              : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),

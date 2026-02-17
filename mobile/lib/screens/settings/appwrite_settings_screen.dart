@@ -186,9 +186,8 @@ class _AppwriteSettingsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: state.isConnected
-                                ? Colors.green
-                                : Colors.red,
+                            color:
+                                state.isConnected ? Colors.green : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[

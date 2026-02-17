@@ -168,9 +168,9 @@ class PhpApiService {
       'method': method,
       'path': path,
       'data': data?.toString().substring(
-        0,
-        (data.toString().length).clamp(0, 500),
-      ),
+            0,
+            (data.toString().length).clamp(0, 500),
+          ),
       'statusCode': statusCode,
       'timestamp': DateTime.now().toIso8601String(),
     });

@@ -42,14 +42,14 @@ class ApiConfig {
   }
 
   Map<String, dynamic> toJson() => {
-    'baseUrl': baseUrl,
-    'apiKey': apiKey,
-    'connectTimeout': connectTimeout,
-    'receiveTimeout': receiveTimeout,
-    'enableLogging': enableLogging,
-    'useSsl': useSsl,
-    'customHeaders': customHeaders,
-  };
+        'baseUrl': baseUrl,
+        'apiKey': apiKey,
+        'connectTimeout': connectTimeout,
+        'receiveTimeout': receiveTimeout,
+        'enableLogging': enableLogging,
+        'useSsl': useSsl,
+        'customHeaders': customHeaders,
+      };
 
   factory ApiConfig.fromJson(Map<String, dynamic> json) {
     return ApiConfig(
@@ -219,13 +219,13 @@ class ServerInfo {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'url': url,
-    'apiKey': apiKey,
-    'addedAt': addedAt.toIso8601String(),
-    'isDefault': isDefault,
-  };
+        'id': id,
+        'name': name,
+        'url': url,
+        'apiKey': apiKey,
+        'addedAt': addedAt.toIso8601String(),
+        'isDefault': isDefault,
+      };
 
   factory ServerInfo.fromJson(Map<String, dynamic> json) {
     return ServerInfo(
