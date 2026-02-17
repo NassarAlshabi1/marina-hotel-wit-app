@@ -16,6 +16,7 @@ import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
+import 'data_protection_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -165,6 +166,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const ComprehensiveBackupScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'حماية البيانات',
+              subtitle: 'إعدادات المزامنة (Push/Pull)',
+              icon: Icons.security,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DataProtectionScreen(),
                 ),
               ),
             ),

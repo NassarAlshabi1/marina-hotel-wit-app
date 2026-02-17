@@ -28,7 +28,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   bool _scheduledEnabled = false;
   bool _googleDriveSyncEnabled = false;
   bool _googleDriveSyncDisableOnStart = false;
-  bool _googleDrivePushEnabled = false;
+  bool _googleDrivePushEnabled = true;   // Push مفعّل افتراضياً
+  bool _googleDrivePullEnabled = false;  // Pull معطل افتراضياً (وضع Push فقط)
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 21, minute: 0);
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60];
   final Map<ConflictResolution, String> _conflictDescriptions = {
@@ -65,7 +66,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final googleDriveSyncDisableOnStart =
         prefs.getBool('google_drive_sync_disable_on_start') ?? false;
     final googleDrivePushEnabled =
-        prefs.getBool('gd_unified_push_enabled') ?? false;
+        prefs.getBool('gd_unified_push_enabled') ?? true;   // Push مفعّل افتراضياً
+    final googleDrivePullEnabled =
+        prefs.getBool('gd_unified_pull_enabled') ?? false;  // Pull معطل افتراضياً (Push فقط)
     if (!mounted) return;
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
@@ -78,6 +81,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _googleDriveSyncEnabled = googleDriveSyncEnabled;
       _googleDriveSyncDisableOnStart = googleDriveSyncDisableOnStart;
       _googleDrivePushEnabled = googleDrivePushEnabled;
+      _googleDrivePullEnabled = googleDrivePullEnabled;
     });
   }
 
@@ -310,6 +314,44 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد الرفع: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _syncBusy = false);
+    }
+  }
+
+  Future<void> _toggleGoogleDrivePullEnabled(bool enabled) async {
+    if (!_googleDriveSyncEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('فعّل مزامنة Google Drive أولاً'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _syncBusy = true);
+    try {
+      await GoogleDriveUnifiedSyncCoordinator.instance.setPullEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _googleDrivePullEnabled = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'تم تفعيل السحب من Google Drive - ستُنزّل التغييرات من السحابة'
+                : 'تم إيقاف السحب من Google Drive - لن تُنزّل أي تغييرات من السحابة (رفع فقط)',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير إعداد السحب: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -920,6 +962,21 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             onChanged: (!_googleDriveSyncEnabled || _syncBusy)
                 ? null
                 : _toggleGoogleDrivePushEnabled,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCard(
+          SwitchListTile(
+            title: const Text('تفعيل السحب من Google Drive'),
+            subtitle: Text(
+              _googleDrivePullEnabled
+                  ? 'سينزل التغييرات من السحابة (Pull مفعّل)'
+                  : 'السحب معطل - لن تُنزّل أي تغييرات من السحابة (رفع فقط / Push only)',
+            ),
+            value: _googleDrivePullEnabled,
+            onChanged: (!_googleDriveSyncEnabled || _syncBusy)
+                ? null
+                : _toggleGoogleDrivePullEnabled,
           ),
         ),
         const SizedBox(height: 12),
