@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:pdf/pdf.dart' show PdfPageFormat, PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -279,9 +279,9 @@ class _IncomeExpenseReportScreenState
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          _buildPdfSummaryItem('إجمالي الدخل', _incomeTotal, PdfColors.green700, fonts),
-          _buildPdfSummaryItem('إجمالي المصروفات', _expenseTotal, PdfColors.red700, fonts),
-          _buildPdfSummaryItem('صافي الربح', _net, _net >= 0 ? PdfColors.blue700 : PdfColors.red700, fonts),
+          _buildPdfSummaryItem('إجمالي الدخل', _incomeTotal, PdfColors.green700, fonts.bold),
+          _buildPdfSummaryItem('إجمالي المصروفات', _expenseTotal, PdfColors.red700, fonts.bold),
+          _buildPdfSummaryItem('صافي الربح', _net, _net >= 0 ? PdfColors.blue700 : PdfColors.red700, fonts.bold),
         ],
       )
     );
