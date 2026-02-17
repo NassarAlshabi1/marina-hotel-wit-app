@@ -14,6 +14,7 @@ import '../utils/time.dart';
 import '../widgets/dashboard_sync_button.dart';
 import '../utils/currency_formatter.dart';
 import '../providers/appwrite_providers.dart' as appwrite;
+import '../services/google_drive_unified_sync_coordinator.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -741,6 +742,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       final appwriteSync = ref.read(appwrite.appwriteSyncManagerProvider);
       await appwriteSync.sync(push: true, pull: false);
+
+      try {
+        await GoogleDriveUnifiedSyncCoordinator.instance.performSync(
+          trigger: SyncTrigger.localChange,
+          mode: SyncMode.smart,
+        );
+      } catch (_) {}
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
