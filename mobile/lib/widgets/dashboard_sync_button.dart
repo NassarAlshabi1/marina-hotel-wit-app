@@ -812,8 +812,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+                    horizontal: 10,
+                    vertical: 6,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -823,18 +823,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           turns: _pullAnimationController,
                           child: Icon(
                             buttonIcon,
-                            size: 18,
+                            size: 14,
                             color: Colors.white,
                           ),
                         )
                       else
-                        Icon(buttonIcon, size: 18, color: Colors.white),
-                      const SizedBox(width: 8),
+                        Icon(buttonIcon, size: 14, color: Colors.white),
+                      const SizedBox(width: 6),
                       Text(
                         buttonText,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -939,8 +939,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+                    horizontal: 10,
+                    vertical: 6,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -950,18 +950,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           turns: _pushAnimationController,
                           child: Icon(
                             buttonIcon,
-                            size: 18,
+                            size: 14,
                             color: Colors.white,
                           ),
                         )
                       else
-                        Icon(buttonIcon, size: 18, color: Colors.white),
-                      const SizedBox(width: 8),
+                        Icon(buttonIcon, size: 14, color: Colors.white),
+                      const SizedBox(width: 6),
                       Text(
                         buttonText,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1070,7 +1070,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     hasLocalChanges || hasRemoteChanges
                         ? Icons.sync_problem
                         : (_isPulling || _isPushing ? Icons.sync : Icons.check_circle),
-                    size: 14,
+                    size: 12,
                     color: _isPulling || _isPushing
                         ? Colors.blue
                         : (hasLocalChanges || hasRemoteChanges)
