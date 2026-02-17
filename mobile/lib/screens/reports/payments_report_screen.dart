@@ -349,9 +349,39 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       return '$sanitizedTitle-$timestamp.pdf';
     }
 
+    final pdfBytes = await doc.save();
+    final fileName = generateFileName('مدفوعات النزلاء');
+
+    // محاولة الحفظ المباشر في التنزيلات
+    try {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (await downloadDir.exists()) {
+        final file = File('${downloadDir.path}/$fileName');
+        await file.writeAsBytes(pdfBytes);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم حفظ التقرير في: ${file.path}'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'فتح',
+                textColor: Colors.white,
+                onPressed: () => Printing.sharePdf(bytes: pdfBytes, filename: fileName),
+              ),
+            ),
+          );
+        }
+        return; // تم الحفظ بنجاح
+      }
+    } catch (e) {
+      debugPrint('تعذر الحفظ المباشر في التنزيلات: $e');
+      // الاستمرار للخيار الاحتياطي
+    }
+
+    // الخيار الاحتياطي: المشاركة
     await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: generateFileName('مدفوعات النزلاء'),
+      bytes: pdfBytes,
+      filename: fileName,
     );
   }
 
