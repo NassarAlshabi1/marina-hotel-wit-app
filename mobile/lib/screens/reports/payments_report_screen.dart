@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart'; // للوصول لـ compute
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -37,7 +38,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   bool _loading = false;
   
   final List<_PaymentReportRow> _rows = [];
-  double _totalAmount = 0; // المبلغ الإجمالي المفلتر
+  double _totalAmount = 0;
 
   @override
   void initState() {
@@ -53,7 +54,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    // الافتراضي من بداية اليوم إلى نهايته
     _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     
@@ -78,7 +78,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
       });
-      _fetchReport(); // تحديث تلقائي عند تغيير التاريخ
+      _fetchReport();
     }
   }
 
@@ -89,13 +89,55 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     });
     try {
       final db = ref.read(coreProviders.dbProvider);
-      final result = await _loadPaymentsReport(db);
+      
+      final outboxDao = OutboxDao(db);
+      final paymentsDao = PaymentsDao(db, outboxDao);
+      
+      final fromStr = _fromDate != null
+          ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+          : null;
+      final toStr = _toDate != null
+          ? DateFormat('yyyy-MM-dd').format(_toDate!)
+          : null;
+
+      final roomQuery = _roomSearchController.text.trim();
+      
+      // 1. جلب البيانات الخام من قاعدة البيانات (سريع)
+      final payments = await paymentsDao.listForReport(
+        from: fromStr,
+        to: toStr,
+        roomNumber: roomQuery.isNotEmpty ? roomQuery : null,
+      );
+
+      final bookingIds = payments
+          .map((p) => p.bookingLocalId)
+          .whereType<int>()
+          .toSet();
+
+      final bookings = bookingIds.isEmpty
+          ? <Booking>[]
+          : await (db.select(db.bookings)
+            ..where((tbl) => tbl.id.isIn(bookingIds.toList()))).get();
+
+      // تجهيز البيانات للنقل للخلفية (Isolate)
+      // يجب تحويل كائنات Drift إلى Map بسيطة لأنها قد تحتوي على حقول لا تنتقل عبر Isolates بسهولة
+      final paymentMaps = payments.map((p) => p.toJson()).toList();
+      final bookingMaps = bookings.map((b) => b.toJson()).toList();
+
+      // 2. المعالجة الثقيلة في الخلفية
+      final result = await compute(_processPaymentsData, _PaymentProcessParams(
+        payments: paymentMaps,
+        bookings: bookingMaps,
+      ));
+
       setState(() {
         _rows
           ..clear()
           ..addAll(result.rows);
         _totalAmount = result.totalPaid;
       });
+    } catch (e) {
+      debugPrint('Error loading payments report: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -105,74 +147,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     }
   }
 
-  Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
-    final outboxDao = OutboxDao(db);
-    final paymentsDao = PaymentsDao(db, outboxDao);
-    
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : null;
-
-    final roomQuery = _roomSearchController.text.trim();
-    
-    final payments = await paymentsDao.listForReport(
-      from: fromStr,
-      to: toStr,
-      roomNumber: roomQuery.isNotEmpty ? roomQuery : null,
-    );
-
-    // تمت إزالة فلتر نوع التحصيلة
-
-    // جلب معلومات الحجوزات المرتبطة
-    final bookingIds = payments
-        .map((p) => p.bookingLocalId)
-        .whereType<int>()
-        .toSet();
-
-    final bookings = bookingIds.isEmpty
-        ? <Booking>[]
-        : await (db.select(db.bookings)
-          ..where((tbl) => tbl.id.isIn(bookingIds.toList()))).get();
-          
-    final bookingMap = {for (final b in bookings) b.id: b};
-
-    final rows = <_PaymentReportRow>[];
-    double totalPaid = 0;
-
-    for (final payment in payments) {
-      final booking = bookingMap[payment.bookingLocalId];
-      final payerName = booking?.guestName ?? payment.revenueType; // اسم النزيل أو نوع الإيراد كاحتياطي
-      final roomNumber = payment.roomNumber ?? booking?.roomNumber ?? 'غير محدد';
-      final paymentDate = DateTime.tryParse(payment.paymentDate) ?? DateTime.now();
-      
-      totalPaid += payment.amount;
-      
-      rows.add(
-        _PaymentReportRow(
-          paymentDate: paymentDate,
-          amount: payment.amount,
-          roomNumber: roomNumber,
-          payerName: payerName,
-          paymentMethod: payment.paymentMethod,
-        ),
-      );
-    }
-
-    return _PaymentsReportResult(
-      rows: rows,
-      totalPaid: totalPaid,
-    );
-  }
-
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
     
-    // جلب بيانات الفندق
     final prefs = await SharedPreferences.getInstance();
     final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
     final hotelPhone = prefs.getString('hotel_phone') ?? '';
@@ -194,7 +173,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     
     final roomLabel = _roomSearchController.text.isNotEmpty ? _roomSearchController.text : 'الكل';
 
-    // الترويسة
     pw.Widget buildReportHeader() {
       return pw.Container(
         width: double.infinity,
@@ -207,7 +185,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            // معلومات الفندق
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -221,7 +198,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   pw.Text('عنوان: $hotelAddress', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
               ],
             ),
-            // العنوان الرئيسي للتقرير
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
@@ -236,7 +212,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 ),
               ],
             ),
-             // الشعار
             if (logoImage != null)
               pw.Container(
                 height: 50,
@@ -244,13 +219,12 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 child: pw.Image(logoImage),
               )
             else
-              pw.SizedBox(width: 50), // spacer
+              pw.SizedBox(width: 50),
           ],
         ),
       );
     }
     
-    // بطاقة معلومات الفلترة
     final metaInfo = EnhancedPdfUtils.buildInfoCard(
       title: 'معايير التقرير',
       fonts: fonts,
@@ -267,7 +241,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       ],
     );
 
-    // الجدول - إزالة عمود "التحصيلة"
     final headers = ['التاريخ', 'الغرفة', 'النزيل', 'طريقة الدفع', 'المبلغ'];
     
     final dataRows = <List<String>>[];
@@ -281,7 +254,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       ]);
     }
     
-    // صف المجموع
     final totalRow = [
       'الإجمالي',
       '',
@@ -313,11 +285,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             headers: headers,
             data: dataRows,
             fonts: fonts,
-            headerColor: PdfColors.blue800, // لون أزرق غامق للترويسة
+            headerColor: PdfColors.blue800, 
             alternateRowColor: PdfColors.grey100,
           ),
           pw.SizedBox(height: 12),
-          // مربع المجموع الكبير
           pw.Container(
             alignment: pw.Alignment.centerLeft,
             child: pw.Container(
@@ -352,7 +323,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final pdfBytes = await doc.save();
     final fileName = generateFileName('مدفوعات النزلاء');
 
-    // محاولة الحفظ المباشر في التنزيلات
     try {
       final downloadDir = Directory('/storage/emulated/0/Download');
       if (await downloadDir.exists()) {
@@ -371,14 +341,12 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             ),
           );
         }
-        return; // تم الحفظ بنجاح
+        return; 
       }
     } catch (e) {
       debugPrint('تعذر الحفظ المباشر في التنزيلات: $e');
-      // الاستمرار للخيار الاحتياطي
     }
 
-    // الخيار الاحتياطي: المشاركة
     await Printing.sharePdf(
       bytes: pdfBytes,
       filename: fileName,
@@ -387,15 +355,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ارتفاع موحد للحقول والأزرار لجعلها متناسقة
     const double inputsHeight = 42; 
 
     return AppScaffold(
       title: 'تقرير مدفوعات النزلاء',
-      actions: [], // إزالة زر الطباعة من الـ ActionBar ونقله للفلاتر
+      actions: [],
       body: Column(
         children: [
-          // قسم الفلاتر
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -410,7 +376,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             ),
             child: Column(
               children: [
-                // الصف الأول: التواريخ + أزرار البحث والطباعة
                 Row(
                   children: [
                     Expanded(
@@ -433,7 +398,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // زر البحث
                     SizedBox(
                       height: inputsHeight,
                       width: inputsHeight,
@@ -449,7 +413,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // زر الطباعة
                     SizedBox(
                       height: inputsHeight,
                       width: inputsHeight,
@@ -458,7 +421,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                          style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           elevation: 0,
-                          backgroundColor: Colors.red[700], // لون مميز للـ PDF
+                          backgroundColor: Colors.red[700], 
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Icon(Icons.picture_as_pdf, size: 20),
@@ -467,10 +430,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                // الصف الثاني: الغرفة فقط (نحتاج لملء المساحة أو جعلها أقصر)
                 Row(
                   children: [
-                    // رقم الغرفة
                     Expanded(
                       child: SizedBox(
                         height: inputsHeight,
@@ -501,7 +462,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             ),
           ),
           
-          // ملخص الإجمالي
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -529,7 +489,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             ),
           ),
 
-          // القائمة
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -564,7 +523,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         height: height,
-        padding: const EdgeInsets.symmetric(horizontal: 10), // تقليل البادنج الجانبي
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade400),
           borderRadius: BorderRadius.circular(8),
@@ -578,7 +537,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600), // تصغير تسمية التاريخ
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                 ),
                 Text(
                   date != null ? DateFormat('yyyy/MM/dd').format(date) : 'غير محدد',
@@ -623,7 +582,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${row.paymentMethod}', // إزالة revenueType
+                        '${row.paymentMethod}',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[600],
@@ -663,6 +622,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 }
 
+class _PaymentProcessParams {
+  final List<Map<String, dynamic>> payments;
+  final List<Map<String, dynamic>> bookings;
+
+  _PaymentProcessParams({required this.payments, required this.bookings});
+}
+
 class _PaymentReportRow {
   _PaymentReportRow({
     required this.paymentDate,
@@ -687,4 +653,64 @@ class _PaymentsReportResult {
 
   final List<_PaymentReportRow> rows;
   final double totalPaid;
+}
+
+// دالة منفصلة top-level للمعالجة في الخلفية
+_PaymentsReportResult _processPaymentsData(_PaymentProcessParams params) {
+  final bookingMap = {
+    for (final b in params.bookings) b['id']: b
+  };
+
+  final rows = <_PaymentReportRow>[];
+  double totalPaid = 0;
+
+  for (final p in params.payments) {
+    final bookingId = p['booking_local_id']; // Drift key convention
+    final booking = bookingId != null ? bookingMap[bookingId] : null;
+    
+    // استخراج اسم الضيف
+    String payerName = 'غير محدد';
+    if (booking != null && booking['guest_name'] != null) {
+      payerName = booking['guest_name'];
+    } else if (p['revenue_type'] != null) {
+      payerName = p['revenue_type'];
+    }
+
+    // استخراج رقم الغرفة
+    String roomNumber = 'غير محدد';
+    if (p['room_number'] != null) {
+      roomNumber = p['room_number'];
+    } else if (booking != null && booking['room_number'] != null) {
+      roomNumber = booking['room_number'];
+    }
+
+    // التاريخ
+    DateTime paymentDate = DateTime.now();
+    if (p['payment_date'] != null) {
+      try {
+        String val = p['payment_date'].toString();
+        paymentDate = DateTime.parse(val.contains('T') ? val : val.replaceFirst(' ', 'T'));
+      } catch (_) {}
+    }
+
+    final amount = ((p['amount'] ?? 0) as num).toDouble();
+    final paymentMethod = (p['payment_method'] ?? '').toString();
+
+    totalPaid += amount;
+
+    rows.add(
+      _PaymentReportRow(
+        paymentDate: paymentDate,
+        amount: amount,
+        roomNumber: roomNumber,
+        payerName: payerName,
+        paymentMethod: paymentMethod,
+      ),
+    );
+  }
+
+  // ترتيب حسب التاريخ تنازلياً
+  rows.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+  return _PaymentsReportResult(rows: rows, totalPaid: totalPaid);
 }

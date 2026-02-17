@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart'; // للوصول لـ compute
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -142,13 +143,62 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     });
     try {
       final db = ref.read(coreProviders.dbProvider);
-      final result = await _loadExpensesReport(db);
+      
+      final outboxDao = OutboxDao(db);
+      final expensesDao = ExpensesDao(db, outboxDao);
+      
+      final fromStr = _fromDate != null
+          ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+          : null;
+      final toStr = _toDate != null
+          ? DateFormat('yyyy-MM-dd').format(_toDate!)
+          : null;
+      final selectedType =
+          widget.showTypeFilter &&
+              _selectedType != null &&
+              _selectedType!.isNotEmpty
+          ? _selectedType
+          : null;
+
+      // 1. جلب البيانات من DB
+      var expenses = await expensesDao.listFiltered(
+        from: fromStr,
+        to: toStr,
+        expenseType: selectedType,
+      );
+
+      List<Map<String, dynamic>> employeeMaps = [];
+      if (widget.includeEmployeeDetails) {
+        final employeeIds = expenses
+            .map((e) => e.relatedId)
+            .whereType<int>()
+            .toSet();
+        if (employeeIds.isNotEmpty) {
+          final employees = await (db.select(
+            db.employees,
+          )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
+          employeeMaps = employees.map((e) => e.toJson()).toList();
+        }
+      }
+
+      // تحويل المصروفات إلى Maps للنقل
+      final expenseMaps = expenses.map((e) => e.toJson()).toList();
+
+      // 2. معالجة في الخلفية
+      final result = await compute(_processExpensesData, _ExpenseProcessParams(
+        expenses: expenseMaps,
+        employees: employeeMaps,
+        allowedTypes: widget.allowedTypes?.toList(),
+      ));
+
       setState(() {
         _rows
           ..clear()
           ..addAll(result.rows);
         _totalAmount = result.totalAmount;
       });
+    } catch (e) {
+      debugPrint('Error loading expenses report: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -158,80 +208,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     }
   }
 
-  Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final outboxDao = OutboxDao(db);
-    final expensesDao = ExpensesDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : null;
-    final selectedType =
-        widget.showTypeFilter &&
-            _selectedType != null &&
-            _selectedType!.isNotEmpty
-        ? _selectedType
-        : null;
-
-    var expenses = await expensesDao.listFiltered(
-      from: fromStr,
-      to: toStr,
-      expenseType: selectedType,
-    );
-
-    if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
-      expenses = expenses
-          .where(
-            (expense) => widget.allowedTypes!.contains(expense.expenseType),
-          )
-          .toList();
-    }
-
-    final employeeMap = <int, Employee>{};
-    if (widget.includeEmployeeDetails) {
-      final employeeIds = expenses
-          .map((e) => e.relatedId)
-          .whereType<int>()
-          .toSet();
-      if (employeeIds.isNotEmpty) {
-        final employees = await (db.select(
-          db.employees,
-        )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
-        for (final employee in employees) {
-          employeeMap[employee.id] = employee;
-        }
-      }
-    }
-
-    final rows = <_ExpenseReportRow>[];
-    double totalAmount = 0;
-    for (final expense in expenses) {
-      final employee = expense.relatedId != null
-          ? employeeMap[expense.relatedId!]
-          : null;
-      final date = _parseExpenseDate(expense.date);
-      totalAmount += expense.amount;
-      rows.add(
-        _ExpenseReportRow(
-          date: date,
-          amount: expense.amount,
-          type: expense.expenseType,
-          description: expense.description,
-          employee: employee,
-        ),
-      );
-    }
-
-    return _ExpensesReportResult(rows: rows, totalAmount: totalAmount);
-  }
-
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
 
-    // جلب بيانات الفندق
     final prefs = await SharedPreferences.getInstance();
     final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
     final hotelPhone = prefs.getString('hotel_phone') ?? '';
@@ -254,7 +235,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         ? _selectedType!
         : 'الكل';
     
-    // الترويسة
     pw.Widget buildReportHeader() {
       return pw.Container(
         width: double.infinity,
@@ -267,7 +247,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            // معلومات الفندق
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -281,7 +260,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   pw.Text('عنوان: $hotelAddress', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
               ],
             ),
-            // العنوان الرئيسي للتقرير
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
@@ -296,7 +274,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 ),
               ],
             ),
-             // الشعار
             if (logoImage != null)
               pw.Container(
                 height: 50,
@@ -304,7 +281,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 child: pw.Image(logoImage),
               )
             else
-              pw.SizedBox(width: 50), // spacer
+              pw.SizedBox(width: 50),
           ],
         ),
       );
@@ -340,7 +317,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         EnhancedPdfUtils.formatNumber(row.amount),
       ];
       if (widget.includeEmployeeDetails) {
-        cells.insert(3, row.employee?.name ?? 'غير محدد');
+        cells.insert(3, row.employeeName ?? 'غير محدد');
       }
       dataRows.add(cells);
     }
@@ -416,7 +393,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final pdfBytes = await doc.save();
     final fileName = generateFileName(widget.title);
 
-    // محاولة الحفظ المباشر في التنزيلات
     try {
       final downloadDir = Directory('/storage/emulated/0/Download');
       if (await downloadDir.exists()) {
@@ -435,11 +411,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             ),
           );
         }
-        return; // تم الحفظ بنجاح
+        return;
       }
     } catch (e) {
-      debugPrint('تعذر الحفظ المباشر في التنزيلات: $e');
-      // الاستمرار للخيار الاحتياطي
+      debugPrint('Direct save failed: $e');
     }
 
     await Printing.sharePdf(
@@ -454,10 +429,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     return AppScaffold(
       title: widget.title,
-      actions: [], // تم نقل زر الطباعة
+      actions: [], 
       body: Column(
         children: [
-          // الفلاتر
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -472,7 +446,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             ),
             child: Column(
               children: [
-                // الصف الأول: التواريخ والأزرار
                 Row(
                   children: [
                     Expanded(
@@ -495,7 +468,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // زر البحث
                     SizedBox(
                       height: inputsHeight,
                       width: inputsHeight,
@@ -511,7 +483,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // زر الطباعة
                     SizedBox(
                       height: inputsHeight,
                       width: inputsHeight,
@@ -530,7 +501,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 ),
                 if (widget.showTypeFilter) ...[
                    const SizedBox(height: 10),
-                   // الصف الثاني: نوع المصروف
                    Row(
                      children: [
                        Expanded(
@@ -577,7 +547,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             ),
           ),
 
-          // ملخص
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -698,7 +667,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${row.type}${row.employee != null ? ' - ${row.employee!.name}' : ''}',
+                        '${row.type}${row.employeeName != null ? ' - ${row.employeeName}' : ''}',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[600],
@@ -736,19 +705,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       ),
     );
   }
+}
 
-  DateTime _parseExpenseDate(String value) {
-    final trimmed = value.trim();
-    final hasTime = trimmed.length > 10;
-    final normalized = hasTime
-        ? trimmed.replaceFirst(' ', 'T')
-        : '${trimmed}T00:00:00';
-    try {
-      return DateTime.parse(normalized);
-    } catch (_) {
-      return DateTime.now();
-    }
-  }
+class _ExpenseProcessParams {
+  final List<Map<String, dynamic>> expenses;
+  final List<Map<String, dynamic>> employees;
+  final List<String>? allowedTypes;
+
+  _ExpenseProcessParams({required this.expenses, required this.employees, this.allowedTypes});
 }
 
 class _ExpenseReportRow {
@@ -757,14 +721,14 @@ class _ExpenseReportRow {
     required this.amount,
     required this.type,
     required this.description,
-    required this.employee,
+    required this.employeeName,
   });
 
   final DateTime date;
   final double amount;
   final String type;
   final String description;
-  final Employee? employee;
+  final String? employeeName;
 }
 
 class _ExpensesReportResult {
@@ -772,4 +736,52 @@ class _ExpensesReportResult {
 
   final List<_ExpenseReportRow> rows;
   final double totalAmount;
+}
+
+_ExpensesReportResult _processExpensesData(_ExpenseProcessParams params) {
+  final employeeMap = {
+    for (final e in params.employees) e['id']: e['name'] as String
+  };
+
+  final rows = <_ExpenseReportRow>[];
+  double totalAmount = 0;
+
+  for (final expense in params.expenses) {
+    var expenseType = (expense['expense_type'] ?? expense['type'] ?? '').toString();
+    
+    // فلترة الأنواع إذا لزم الأمر
+    if (params.allowedTypes != null && params.allowedTypes!.isNotEmpty) {
+      if (!params.allowedTypes!.contains(expenseType)) continue;
+    }
+
+    final relatedId = expense['related_id'] as int?;
+    final employeeName = relatedId != null ? employeeMap[relatedId] : null;
+    
+    DateTime date = DateTime.now();
+    if (expense['date'] != null) {
+      String val = expense['date'].toString().trim();
+      val = val.length > 10 ? val.replaceFirst(' ', 'T') : '${val}T00:00:00';
+      try { date = DateTime.parse(val); } catch (_) {}
+    }
+
+    final amount = ((expense['amount'] ?? 0) as num).toDouble();
+    final description = (expense['description'] ?? '').toString();
+
+    totalAmount += amount;
+
+    rows.add(
+      _ExpenseReportRow(
+        date: date,
+        amount: amount,
+        type: expenseType,
+        description: description,
+        employeeName: employeeName,
+      ),
+    );
+  }
+
+  // ترتيب
+  rows.sort((a, b) => b.date.compareTo(a.date));
+
+  return _ExpensesReportResult(rows: rows, totalAmount: totalAmount);
 }
