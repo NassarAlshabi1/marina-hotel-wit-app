@@ -14,6 +14,7 @@ import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../services/daos/debts_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 
 class DebtsReportScreen extends ConsumerStatefulWidget {
   const DebtsReportScreen({super.key});
@@ -88,7 +89,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       final debtDao = DebtsDao(db, outboxDao);
       
       // جلب البيانات الخام من DB (عملية سريعة نسبياً)
-      final debts = await debtDao.list(includeSettled: true);
+      final debts = await debtDao.list(includeDeleted: false);
       
       // تحويل لـ Maps للنقل للخلفية
       final rawDebts = debts.map((d) => d.toJson()).toList();
