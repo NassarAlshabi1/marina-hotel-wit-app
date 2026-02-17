@@ -5,6 +5,7 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "**/generated_plugin_registrant.dart"
+    - "test/**"
   errors:
     invalid_annotation_target: ignore
     
