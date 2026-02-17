@@ -359,9 +359,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn = ref.read(
-        smartSyncGoogleDriveSignInStatusProvider,
-      );
+      // تم تعطيل التحقق من تسجيل الدخول إلى Google Drive لمنع المزامنة التلقائية معه
+      final isGoogleDriveSignedIn = false; // forced disabled
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
@@ -896,6 +895,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Widget _buildPushButton(bool hasChanges, bool isGoogleDriveSignedIn) {
     // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية
+    // تم تعطيل التحقق من تسجيل دخول Google Drive في زر الدفع
     final bool pushEnabled = hasChanges && !_isPulling && !_isPushing;
 
     Color buttonColor;
