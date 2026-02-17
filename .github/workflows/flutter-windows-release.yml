@@ -39,7 +39,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check Windows project
+        id: check_windows
+        run: |
+          if (Test-Path "mobile/windows") {
+            "has_windows=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "has_windows=false" >> $env:GITHUB_OUTPUT
+          }
+
       - name: Set up Flutter
+        if: steps.check_windows.outputs.has_windows == 'true'
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.3'
@@ -47,30 +57,42 @@ jobs:
           cache-key: flutter-${{ runner.os }}-3.38.3
 
       - name: Enable Windows desktop
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter config --enable-windows-desktop
 
       - name: Flutter doctor
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter doctor -v
 
       - name: Clean build artifacts
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter clean
 
       - name: Install dependencies
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter pub get
 
       - name: Build runner - clean generated files
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter pub run build_runner clean
 
       - name: Generate code
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
 
       - name: Build Windows release
+        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter build windows --release --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}
 
       - name: Upload Windows artifact
+        if: steps.check_windows.outputs.has_windows == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: marina-hotel-windows-${{ github.run_number }}
           path: |
             mobile/build/windows/x64/runner/Release/**
           if-no-files-found: error
+
+      - name: Skip Windows build (no project)
+        if: steps.check_windows.outputs.has_windows != 'true'
+        run: echo "Windows project not found. Skipping build."
