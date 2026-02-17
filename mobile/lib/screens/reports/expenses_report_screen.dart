@@ -1,11 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColor;
+import 'package:pdf/pdf.dart' show PdfColor, PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
@@ -44,10 +46,10 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
 
 class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
+  final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
 
   // ignore: unused_element
   String _formatNumber(num value) => _currencyFmt.format(value);
-  final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
 
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -90,6 +92,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       });
     } else {
       await _loadExpenseTypes();
+      if (widget.initialType != null && _availableTypes.contains(widget.initialType)) {
+         _selectedType = widget.initialType;
+      }
     }
     await _fetchReport();
   }
@@ -126,6 +131,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
       });
+      _fetchReport();
     }
   }
 
@@ -224,6 +230,20 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
+
+    // جلب بيانات الفندق
+    final prefs = await SharedPreferences.getInstance();
+    final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
+    final hotelPhone = prefs.getString('hotel_phone') ?? '';
+    final hotelAddress = prefs.getString('hotel_address') ?? '';
+    final hotelLogoPath = prefs.getString('hotel_logo');
+
+    pw.ImageProvider? logoImage;
+    if (hotelLogoPath != null && File(hotelLogoPath).existsSync()) {
+      final logoBytes = File(hotelLogoPath).readAsBytesSync();
+      logoImage = pw.MemoryImage(logoBytes);
+    }
+
     final fromLabel = _fromDate != null
         ? DateFormat('yyyy-MM-dd').format(_fromDate!)
         : 'غير محدد';
@@ -233,165 +253,106 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final selectedTypeLabel = _selectedType?.isNotEmpty == true
         ? _selectedType!
         : 'الكل';
-
-    pw.Widget metaRow(String label, String value) {
-      return pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 6),
+    
+    // الترويسة
+    pw.Widget buildReportHeader() {
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        decoration: const pw.BoxDecoration(
+          color: PdfColors.white,
+          border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+        ),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(
-              value,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+            // معلومات الفندق
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  hotelName,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: PdfColors.blue900),
+                ),
+                if (hotelPhone.isNotEmpty)
+                  pw.Text('هاتف: $hotelPhone', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                if (hotelAddress.isNotEmpty)
+                  pw.Text('عنوان: $hotelAddress', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+              ],
             ),
+            // العنوان الرئيسي للتقرير
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text(
+                  widget.title,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 16),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'من $fromLabel إلى $toLabel',
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.grey700),
+                ),
+              ],
+            ),
+             // الشعار
+            if (logoImage != null)
+              pw.Container(
+                height: 50,
+                width: 50,
+                child: pw.Image(logoImage),
+              )
+            else
+              pw.SizedBox(width: 50), // spacer
           ],
         ),
       );
     }
 
-    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
-      title: widget.title,
+    final metaInfo = EnhancedPdfUtils.buildInfoCard(
+      title: 'معايير التقرير',
       fonts: fonts,
       content: [
-        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
-        metaRow(widget.typeLabel, selectedTypeLabel),
-        metaRow('عدد السجلات', _rows.length.toString()),
+         pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 4),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('${widget.typeLabel}: $selectedTypeLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+            ],
+          ),
+        ),
       ],
     );
 
-    pw.Widget buildReportHeader() {
-      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
-      return pw.Container(
-        width: double.infinity,
-        decoration: const pw.BoxDecoration(color: PdfColors.primary),
-        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(
-              'فندق مارينا بلازا',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 22,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              widget.title,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 20,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              periodText,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textWhite,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    pw.Widget buildTotalsSummary() {
-      pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
-        return pw.Container(
-          padding: const pw.EdgeInsets.all(12),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.backgroundCard,
-            border: pw.Border.all(color: accent, width: 0.7),
-            borderRadius: pw.BorderRadius.circular(4),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
-            children: [
-              pw.Text(
-                title,
-                style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 11,
-                  color: PdfColors.textDark,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                value,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 16,
-                  color: accent,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          borderRadius: pw.BorderRadius.circular(6),
-          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
-        ),
-        child: pw.Row(
-          children: [
-            pw.Expanded(
-              child: buildSummaryItem(
-                widget.totalSummaryLabel,
-                EnhancedPdfUtils.formatNumber(_totalAmount),
-                PdfColors.secondary,
-              ),
-            ),
-            pw.SizedBox(width: 8),
-            pw.Expanded(
-              child: buildSummaryItem(
-                'عدد السجلات',
-                _rows.length.toString(),
-                PdfColors.info,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'الوصف'];
+    final headers = <String>['التاريخ', 'النوع', 'الوصف', 'المبلغ'];
     if (widget.includeEmployeeDetails) {
-      headers.add('الموظف');
+      headers.insert(3, 'الموظف');
     }
 
     final dataRows = <List<String>>[];
     for (final row in _rows) {
       final cells = [
         _dateLabelFormat.format(row.date),
-        EnhancedPdfUtils.formatNumber(row.amount),
         row.type,
         row.description.isNotEmpty ? row.description : '-',
+        EnhancedPdfUtils.formatNumber(row.amount),
       ];
       if (widget.includeEmployeeDetails) {
-        cells.add(row.employee?.name ?? 'غير محدد');
+        cells.insert(3, row.employee?.name ?? 'غير محدد');
       }
       dataRows.add(cells);
     }
 
     final totalRow = [
       widget.totalRowLabel,
+      '',
+      '',
       EnhancedPdfUtils.formatNumber(_totalAmount),
-      '',
-      '',
     ];
     if (widget.includeEmployeeDetails) {
-      totalRow.add('');
+      totalRow.insert(3, '');
     }
     dataRows.add(totalRow);
 
@@ -399,27 +360,49 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
           child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+            'صفحة ${context.pageNumber} من ${context.pagesCount} - تاريخ الطباعة: ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
+            style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
           ),
         ),
         build: (context) => [
           buildReportHeader(),
-          pw.SizedBox(height: 16),
-          metaInfoCard,
+          pw.SizedBox(height: 12),
+          metaInfo,
           pw.SizedBox(height: 12),
           EnhancedPdfUtils.buildProfessionalTable(
             headers: headers,
             data: dataRows,
             fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
+            headerColor: PdfColors.blue800,
+            alternateRowColor: PdfColors.grey100,
           ),
           pw.SizedBox(height: 12),
-          buildTotalsSummary(),
+          pw.Container(
+            alignment: pw.Alignment.centerLeft,
+            child: pw.Container(
+              padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.blue800, width: 1),
+                borderRadius: pw.BorderRadius.circular(4),
+                color: PdfColors.blue50,
+              ),
+              child: pw.Row(
+                mainAxisSize: pw.MainAxisSize.min,
+                children: [
+                  pw.Text('${widget.totalSummaryLabel}: ', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                  pw.Text(
+                    _currencyFmt.format(_totalAmount),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.red700),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -438,174 +421,290 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const double inputsHeight = 42; 
+
     return AppScaffold(
       title: widget.title,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.picture_as_pdf),
-          tooltip: 'تصدير PDF',
-          onPressed: _rows.isEmpty ? null : _exportPdf,
-        ),
-      ],
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _buildDateSelector(
-                  label: 'من تاريخ',
-                  value: _fromDate,
-                  onPressed: () => _pickDate(isFrom: true),
-                ),
-                _buildDateSelector(
-                  label: 'إلى تاريخ',
-                  value: _toDate,
-                  onPressed: () => _pickDate(isFrom: false),
-                ),
-                if (widget.showTypeFilter)
-                  SizedBox(
-                    width: 220,
-                    child: DropdownButtonFormField<String?>(
-                      value: _selectedType,
-                      decoration: InputDecoration(labelText: widget.typeLabel),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('الكل'),
-                        ),
-                        ..._availableTypes.map(
-                          (type) => DropdownMenuItem<String?>(
-                            value: type,
-                            child: Text(type),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedType = value;
-                        });
-                      },
-                    ),
-                  ),
-                ElevatedButton.icon(
-                  onPressed: _loading ? null : _fetchReport,
-                  icon: const Icon(Icons.search),
-                  label: _loading
-                      ? const Text('جارٍ التحميل...')
-                      : const Text('عرض النتائج'),
+      actions: [], // تم نقل زر الطباعة
+      body: Column(
+        children: [
+          // الفلاتر
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              boxShadow: [
+                 BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildSummary(),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _rows.isEmpty
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
-                      icon: Icons.receipt_long,
-                    )
-                  : ListView.separated(
-                      itemCount: _rows.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final row = _rows[index];
-                        return Card(
-                          elevation: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _dateLabelFormat.format(row.date),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text('${_currencyFmt.format(row.amount)}'),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text('النوع: ${row.type}'),
-                                const SizedBox(height: 4),
-                                Text('الوصف: ${row.description}'),
-                                if (widget.includeEmployeeDetails &&
-                                    row.employee != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text('الموظف: ${row.employee!.name}'),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+            child: Column(
+              children: [
+                // الصف الأول: التواريخ والأزرار
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: _buildDateFilterButton(
+                        label: 'من',
+                        date: _fromDate,
+                        height: inputsHeight,
+                        onTap: () => _pickDate(isFrom: true),
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 4,
+                      child: _buildDateFilterButton(
+                        label: 'إلى',
+                        date: _toDate,
+                         height: inputsHeight,
+                        onTap: () => _pickDate(isFrom: false),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // زر البحث
+                    SizedBox(
+                      height: inputsHeight,
+                      width: inputsHeight,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _fetchReport,
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Icon(Icons.search, size: 20),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // زر الطباعة
+                    SizedBox(
+                      height: inputsHeight,
+                      width: inputsHeight,
+                      child: ElevatedButton(
+                        onPressed: _rows.isEmpty ? null : _exportPdf,
+                         style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                          backgroundColor: Colors.red[700],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Icon(Icons.picture_as_pdf, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.showTypeFilter) ...[
+                   const SizedBox(height: 10),
+                   // الصف الثاني: نوع المصروف
+                   Row(
+                     children: [
+                       Expanded(
+                         child: SizedBox(
+                           height: inputsHeight,
+                           child: DropdownButtonFormField<String?>(
+                             value: _selectedType,
+                             style: const TextStyle(fontSize: 12, color: Colors.black),
+                             decoration: InputDecoration(
+                               labelText: widget.typeLabel,
+                               labelStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                               enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey.shade400),
+                              ),
+                             ),
+                             items: [
+                               const DropdownMenuItem<String?>(
+                                 value: null,
+                                 child: Text('الكل', style: TextStyle(fontSize: 12)),
+                               ),
+                               ..._availableTypes.map(
+                                 (type) => DropdownMenuItem<String?>(
+                                   value: type,
+                                   child: Text(type, style: const TextStyle(fontSize: 12)),
+                                 ),
+                               ),
+                             ],
+                             onChanged: (value) {
+                               setState(() {
+                                 _selectedType = value;
+                               });
+                               _fetchReport();
+                             },
+                           ),
+                         ),
+                       ),
+                     ],
+                   ),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+
+          // ملخص
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'عدد السجلات: ${_rows.length}',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey.shade600),
+                ),
+                Row(
+                  children: [
+                    Text('${widget.totalSummaryLabel}: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                      _currencyFmt.format(_totalAmount),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _rows.isEmpty
+                ? const EmptyState(
+                    title: 'لا توجد بيانات',
+                    message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
+                    icon: Icons.receipt_long,
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _rows.length,
+                    itemBuilder: (context, index) {
+                      final row = _rows[index];
+                      return _buildExpenseCard(row);
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSummary() {
-    return Card(
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildSummaryTile(
-                widget.totalSummaryLabel,
-                _currencyFmt.format(_totalAmount),
-              ),
-            ),
-            Expanded(
-              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryTile(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(value),
-      ],
-    );
-  }
-
-  Widget _buildDateSelector({
+  Widget _buildDateFilterButton({
     required String label,
-    required DateTime? value,
-    required VoidCallback onPressed,
+    required DateTime? date,
+    required VoidCallback onTap,
+    required double height,
   }) {
-    final text = value != null
-        ? DateFormat('yyyy-MM-dd').format(value)
-        : 'غير محدد';
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: height,
+         padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                ),
+                Text(
+                  date != null ? DateFormat('yyyy/MM/dd').format(date) : 'غير محدد',
+                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
-      child: Text('$label: $text', style: const TextStyle(fontSize: 12)),
+    );
+  }
+
+  Widget _buildExpenseCard(_ExpenseReportRow row) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.description.isNotEmpty ? row.description : row.type,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${row.type}${row.employee != null ? ' - ${row.employee!.name}' : ''}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _currencyFmt.format(row.amount),
+                   style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+             const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  _dateLabelFormat.format(row.date),
+                   style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
