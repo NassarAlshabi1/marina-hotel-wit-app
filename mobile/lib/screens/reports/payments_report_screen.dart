@@ -33,15 +33,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   final TextEditingController _roomSearchController = TextEditingController();
-  String? _selectedRevenueType; // نوع التحصيلة
 
   bool _loading = false;
   
   final List<_PaymentReportRow> _rows = [];
   double _totalAmount = 0; // المبلغ الإجمالي المفلتر
-
-  // خيارات نوع التحصيلة
-  final List<String> _revenueTypes = ['إيجار', 'خدمات', 'تأمين', 'أخرى'];
 
   @override
   void initState() {
@@ -128,14 +124,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       roomNumber: roomQuery.isNotEmpty ? roomQuery : null,
     );
 
-    // تصفية حسب نوع التحصيلة إذا تم اختياره
-    var filteredPayments = payments;
-    if (_selectedRevenueType != null && _selectedRevenueType!.isNotEmpty) {
-      filteredPayments = filteredPayments.where((p) => p.revenueType == _selectedRevenueType).toList();
-    }
+    // تمت إزالة فلتر نوع التحصيلة
 
     // جلب معلومات الحجوزات المرتبطة
-    final bookingIds = filteredPayments
+    final bookingIds = payments
         .map((p) => p.bookingLocalId)
         .whereType<int>()
         .toSet();
@@ -150,9 +142,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final rows = <_PaymentReportRow>[];
     double totalPaid = 0;
 
-    for (final payment in filteredPayments) {
+    for (final payment in payments) {
       final booking = bookingMap[payment.bookingLocalId];
-      final payerName = booking?.guestName ?? payment.revenueType; // اسم النزيل أو نوع الإيراد
+      final payerName = booking?.guestName ?? payment.revenueType; // اسم النزيل أو نوع الإيراد كاحتياطي
       final roomNumber = payment.roomNumber ?? booking?.roomNumber ?? 'غير محدد';
       final paymentDate = DateTime.tryParse(payment.paymentDate) ?? DateTime.now();
       
@@ -164,7 +156,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           amount: payment.amount,
           roomNumber: roomNumber,
           payerName: payerName,
-          revenueType: payment.revenueType,
           paymentMethod: payment.paymentMethod,
         ),
       );
@@ -202,7 +193,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         : 'غير محدد';
     
     final roomLabel = _roomSearchController.text.isNotEmpty ? _roomSearchController.text : 'الكل';
-    final typeLabel = _selectedRevenueType ?? 'الكل';
 
     // الترويسة
     pw.Widget buildReportHeader() {
@@ -271,15 +261,14 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text('رقم الغرفة: $roomLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
-              pw.Text('نوع التحصيلة: $typeLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
             ],
           ),
         ),
       ],
     );
 
-    // الجدول
-    final headers = ['التاريخ', 'الغرفة', 'النزيل', 'التحصيلة', 'طريقة الدفع', 'المبلغ'];
+    // الجدول - إزالة عمود "التحصيلة"
+    final headers = ['التاريخ', 'الغرفة', 'النزيل', 'طريقة الدفع', 'المبلغ'];
     
     final dataRows = <List<String>>[];
     for (final row in _rows) {
@@ -287,7 +276,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         _dateLabelFormat.format(row.paymentDate),
         row.roomNumber,
         row.payerName,
-        row.revenueType,
         row.paymentMethod,
         _currencyFmt.format(row.amount),
       ]);
@@ -296,7 +284,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     // صف المجموع
     final totalRow = [
       'الإجمالي',
-      '',
       '',
       '',
       '',
@@ -450,7 +437,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                // الصف الثاني: الغرفة والتحصيلة
+                // الصف الثاني: الغرفة فقط (نحتاج لملء المساحة أو جعلها أقصر)
                 Row(
                   children: [
                     // رقم الغرفة
@@ -475,44 +462,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                           ),
                           onSubmitted: (_) => _fetchReport(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // نوع التحصيلة
-                    Expanded(
-                      child: SizedBox(
-                        height: inputsHeight,
-                        child: DropdownButtonFormField<String?>(
-                          value: _selectedRevenueType,
-                          style: const TextStyle(fontSize: 12, color: Colors.black),
-                          decoration: InputDecoration(
-                            labelText: 'نوع التحصيلة',
-                            labelStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey.shade400),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey.shade400),
-                            ),
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: null, 
-                              child: Text('الكل', style: TextStyle(fontSize: 12)),
-                            ),
-                            ..._revenueTypes.map((type) => DropdownMenuItem(
-                              value: type,
-                              child: Text(type, style: const TextStyle(fontSize: 12)),
-                            )),
-                          ],
-                          onChanged: (val) {
-                            setState(() => _selectedRevenueType = val);
-                            _fetchReport();
-                          },
                         ),
                       ),
                     ),
@@ -644,7 +593,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${row.revenueType} - ${row.paymentMethod}',
+                        '${row.paymentMethod}', // إزالة revenueType
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[600],
@@ -690,7 +639,6 @@ class _PaymentReportRow {
     required this.amount,
     required this.roomNumber,
     required this.payerName,
-    required this.revenueType,
     required this.paymentMethod,
   });
 
@@ -698,7 +646,6 @@ class _PaymentReportRow {
   final double amount;
   final String roomNumber;
   final String payerName;
-  final String revenueType;
   final String paymentMethod;
 }
 
