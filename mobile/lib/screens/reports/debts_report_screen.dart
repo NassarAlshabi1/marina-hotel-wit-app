@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart'; // import compute
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -84,70 +84,40 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     setState(() => _loading = true);
     try {
       final db = ref.read(coreProviders.dbProvider);
-      final fromStr = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : null;
-      final toStr = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
-      final searchQuery = _searchController.text.trim().toLowerCase();
+      final debtDao = DebtsDao(db);
+      
+      // جلب البيانات الخام من DB (عملية سريعة نسبياً)
+      final debts = await debtDao.list(includeSettled: true);
+      
+      // تحويل لـ Maps للنقل للخلفية
+      final rawDebts = debts.map((d) => d.toJson()).toList();
 
-      final debtsDao = DebtsDao(db);
-      // استخدام الاستعلام الموجود، سنقوم بالفلترة الإضافية برمجياً للبحث النصي
-      var debts = await debtsDao.list(includeSettled: true); // جلب الكل ثم الفلترة حسب التاريخ
-
-      final filteredRows = <_DebtReportRow>[];
-      double tDebt = 0;
-      double tPaid = 0;
-      double tRemaining = 0;
-
-      for (final debt in debts) {
-        final dateRecorded = DateTime.tryParse(debt.dateRecorded) ?? DateTime.now();
-        
-        // فلترة التاريخ
-        if (_fromDate != null && dateRecorded.isBefore(_fromDate!)) continue;
-        if (_toDate != null && dateRecorded.isAfter(_toDate!)) continue;
-
-        // فلترة البحث (اسم النزيل أو السبب)
-        if (searchQuery.isNotEmpty) {
-          final matchesName = (debt.guestName ?? '').toLowerCase().contains(searchQuery);
-          final matchesReason = (debt.debtReason ?? '').toLowerCase().contains(searchQuery);
-          if (!matchesName && !matchesReason) continue;
-        }
-
-        final paid = debt.paidAmount ?? 0;
-        final total = debt.amount;
-        final remaining = total - paid;
-
-        tDebt += total;
-        tPaid += paid;
-        tRemaining += remaining;
-
-        final bookingCode = debt.bookingId != null ? debt.bookingId.toString() : '-';
-
-        filteredRows.add(_DebtReportRow(
-          dateRecorded: dateRecorded,
-          guestName: debt.guestName ?? 'غير معروف',
-          reason: debt.debtReason ?? '-',
-          totalAmount: total,
-          paidAmount: paid,
-          remainingAmount: remaining,
-          isSettled: debt.isSettled ?? false,
-          bookingCode: bookingCode,
-        ));
-      }
+      // المعالجة الثقيلة في الخلفية
+      final result = await compute(_processDebtsData, _DebtProcessParams(
+        debts: rawDebts,
+        fromDate: _fromDate,
+        toDate: _toDate,
+        searchQuery: _searchController.text.trim().toLowerCase(),
+      ));
 
       setState(() {
         _rows
           ..clear()
-          ..addAll(filteredRows);
-        _totalDebt = tDebt;
-        _totalPaid = tPaid;
-        _totalRemaining = tRemaining;
+          ..addAll(result.rows);
+        _totalDebt = result.totalDebt;
+        _totalPaid = result.totalPaid;
+        _totalRemaining = result.totalRemaining;
       });
 
+    } catch (e) {
+      debugPrint('Error loading debts report: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _exportPdf() async {
+    // ... (نفس كود التصدير السابق بدون تغيير)
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
@@ -611,6 +581,24 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 }
 
+class _DebtProcessParams {
+  final List<Map<String, dynamic>> debts;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+  final String searchQuery;
+
+  _DebtProcessParams({required this.debts, this.fromDate, this.toDate, required this.searchQuery});
+}
+
+class _DebtsReportResult {
+  final List<_DebtReportRow> rows;
+  final double totalDebt;
+  final double totalPaid;
+  final double totalRemaining;
+
+  _DebtsReportResult({required this.rows, required this.totalDebt, required this.totalPaid, required this.totalRemaining});
+}
+
 class _DebtReportRow {
   _DebtReportRow({
     required this.dateRecorded,
@@ -631,4 +619,79 @@ class _DebtReportRow {
   final double remainingAmount;
   final bool isSettled;
   final String bookingCode;
+}
+
+_DebtsReportResult _processDebtsData(_DebtProcessParams params) {
+  final filteredRows = <_DebtReportRow>[];
+  double tDebt = 0;
+  double tPaid = 0;
+  double tRemaining = 0;
+
+  for (final data in params.debts) {
+    // Parse fields
+    DateTime dateRecorded = DateTime.now();
+    if (data['dateRecorded'] != null) {
+      try {
+        dateRecorded = DateTime.parse(data['dateRecorded'].toString());
+      } catch (_) {}
+    } else if (data['date_recorded'] != null) {
+       try {
+        dateRecorded = DateTime.parse(data['date_recorded'].toString());
+      } catch (_) {}
+    }
+
+    // Filter Date
+    if (params.fromDate != null) {
+      // ignore time for 'from' comparison (start of day)
+      final start = DateTime(params.fromDate!.year, params.fromDate!.month, params.fromDate!.day);
+      if (dateRecorded.isBefore(start)) continue;
+    }
+    if (params.toDate != null) {
+      if (dateRecorded.isAfter(params.toDate!)) continue;
+    }
+
+    final guestName = (data['guestName'] ?? data['guest_name'] ?? 'غير معروف').toString();
+    final debtReason = (data['debtReason'] ?? data['debt_reason'] ?? '-').toString();
+
+    // Filter Search
+    if (params.searchQuery.isNotEmpty) {
+      final matchesName = guestName.toLowerCase().contains(params.searchQuery);
+      final matchesReason = debtReason.toLowerCase().contains(params.searchQuery);
+      if (!matchesName && !matchesReason) continue;
+    }
+
+    final amount = ((data['amount'] ?? 0) as num).toDouble();
+    final paidAmount = ((data['paidAmount'] ?? data['paid_amount'] ?? 0) as num).toDouble();
+    final remaining = amount - paidAmount;
+    final isSettled = (data['isSettled'] ?? data['is_settled']) == true || (data['isSettled'] == 1);
+    
+    // Booking handling
+    final bookingIdVal = data['bookingId'] ?? data['booking_id'];
+    String bookingCode = bookingIdVal != null ? bookingIdVal.toString() : '-';
+
+    tDebt += amount;
+    tPaid += paidAmount;
+    tRemaining += remaining;
+
+    filteredRows.add(_DebtReportRow(
+      dateRecorded: dateRecorded,
+      guestName: guestName,
+      reason: debtReason,
+      totalAmount: amount,
+      paidAmount: paidAmount,
+      remainingAmount: remaining,
+      isSettled: isSettled,
+      bookingCode: bookingCode,
+    ));
+  }
+
+  // Sort
+  filteredRows.sort((a, b) => b.dateRecorded.compareTo(a.dateRecorded));
+
+  return _DebtsReportResult(
+    rows: filteredRows,
+    totalDebt: tDebt,
+    totalPaid: tPaid,
+    totalRemaining: tRemaining,
+  );
 }
