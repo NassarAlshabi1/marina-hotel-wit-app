@@ -84,6 +84,8 @@ class Bookings extends Table with SyncFields {
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
   IntColumn get totalNightsCached => integer().withDefault(const Constant(0))();
   TextColumn get stayDurationIso => text().nullable()();
+  TextColumn get financialHash => text().nullable()();
+  TextColumn get financialFrozenAt => text().nullable()();
   IntColumn get lastNightEpoch => integer().nullable()();
   BoolColumn get isOverdue => boolean().withDefault(const Constant(false))();
   BoolColumn get needsCheckoutReview =>
@@ -1059,8 +1061,27 @@ class AppDatabase extends _$AppDatabase {
         // Migration 24: تحويل المبالغ المالية من REAL إلى INTEGER
         // وإضافة جدول BookingPriceAdjustments
         
-        // 1. إنشاء جدول BookingPriceAdjustments
-        await m.createTable(bookingPriceAdjustments);
+        // 1. إنشاء جداول التعديلات والسجلات
+        try {
+          await m.createTable(bookingPriceAdjustments);
+        } catch (e) {
+          developer.log('Migration 24: create bookingPriceAdjustments failed: $e', name: 'db.migration');
+        }
+        try {
+          await m.createTable(priceAdjustments);
+        } catch (e) {
+          developer.log('Migration 24: create priceAdjustments failed: $e', name: 'db.migration');
+        }
+        try {
+          await m.createTable(auditLogs);
+        } catch (e) {
+          developer.log('Migration 24: create auditLogs failed: $e', name: 'db.migration');
+        }
+        try {
+          await m.createTable(paymentVoids);
+        } catch (e) {
+          developer.log('Migration 24: create paymentVoids failed: $e', name: 'db.migration');
+        }
         
         // 2. تحويل المبالغ في الجداول الموجودة من REAL إلى INTEGER
         // نستخدم CAST للتحويل مع تقريب القيم
