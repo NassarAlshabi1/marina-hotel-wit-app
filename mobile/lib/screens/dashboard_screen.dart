@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
@@ -15,6 +17,8 @@ import '../widgets/dashboard_sync_button.dart';
 import '../utils/currency_formatter.dart';
 import '../providers/appwrite_providers.dart' as appwrite;
 import '../services/google_drive_unified_sync_coordinator.dart';
+import '../services/appwrite_realtime_sync.dart';
+import '../services/appwrite_delta_sync.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -86,6 +90,55 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  Timer? _autoPullTimer;
+  bool _isAutoPulling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoPullListener();
+  }
+
+  @override
+  void dispose() {
+    _autoPullTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoPullListener() {
+    _autoPullTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || _isAutoPulling) return;
+      final realtime = AppwriteRealtimeSync();
+      if (realtime.hasRemoteChanges.value) {
+        _autoPullRemoteChanges();
+      }
+    });
+  }
+
+  Future<void> _autoPullRemoteChanges() async {
+    if (_isAutoPulling) return;
+    _isAutoPulling = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      if (!appwriteEnabled) return;
+
+      final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        final appwriteService = ref.read(appwrite.appwriteServiceProvider);
+        final db = ref.read(databaseProvider);
+        await deltaSync.initialize(appwriteService, db);
+      }
+
+      await deltaSync.pullDeltaChanges();
+      AppwriteRealtimeSync().resetRemoteChangesFlag();
+    } catch (e) {
+      debugPrint('⚠️ Auto-pull failed: $e');
+    } finally {
+      _isAutoPulling = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
