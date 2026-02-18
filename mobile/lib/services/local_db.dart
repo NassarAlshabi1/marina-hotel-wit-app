@@ -84,6 +84,8 @@ class Bookings extends Table with SyncFields {
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
   IntColumn get totalNightsCached => integer().withDefault(const Constant(0))();
   TextColumn get stayDurationIso => text().nullable()();
+  TextColumn get financialHash => text().nullable()();
+  TextColumn get financialFrozenAt => text().nullable()();
   IntColumn get lastNightEpoch => integer().nullable()();
   BoolColumn get isOverdue => boolean().withDefault(const Constant(false))();
   BoolColumn get needsCheckoutReview =>
@@ -620,7 +622,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1277,6 +1279,24 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 26: add adjustmentMode failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 27) {
+        try {
+          await m.addColumn(bookings, bookings.financialHash);
+        } catch (e) {
+          developer.log(
+            'Migration 27: add financialHash failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(bookings, bookings.financialFrozenAt);
+        } catch (e) {
+          developer.log(
+            'Migration 27: add financialFrozenAt failed: $e',
             name: 'db.migration',
           );
         }
