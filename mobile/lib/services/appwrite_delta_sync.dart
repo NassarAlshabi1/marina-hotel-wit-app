@@ -1042,10 +1042,20 @@ class AppwriteDeltaSync {
     }
   }
 
+  static const _localOnlyFields = <String>{
+    'id',
+    'row_hash',
+    'rowHash',
+    'booking_uuid_cache',
+    'bookingUuidCache',
+  };
+
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
     final result = <String, dynamic>{};
     payload.forEach((key, value) {
+      if (_localOnlyFields.contains(key)) return;
       final camelKey = _toCamelCase(key);
+      if (_localOnlyFields.contains(camelKey)) return;
       if (value != null) {
         result[camelKey] = value;
       }
