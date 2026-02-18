@@ -187,15 +187,22 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('خدمة المزامنة غير مهيأة'),
-              backgroundColor: Colors.red,
-            ),
-          );
+        try {
+          final appwriteService = ref.read(appwriteServiceProvider);
+          final db = ref.read(databaseProvider);
+          await deltaSync.initialize(appwriteService, db);
+        } catch (e) {
+          debugPrint('❌ فشل تهيئة AppwriteDeltaSync: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('فشل تهيئة خدمة المزامنة'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
         }
-        return;
       }
 
       // 1️⃣ سحب التغييرات من السيرفر
@@ -299,6 +306,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     } finally {
       _pullAnimationController.stop();
       _pullAnimationController.reset();
+      await _loadPendingChangesCount();
       if (mounted) {
         setState(() => _isPulling = false);
       }
@@ -441,6 +449,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (appwriteEnabled && appwriteConnected) {
         try {
           final deltaSync = AppwriteDeltaSync.instance;
+          if (!deltaSync.isInitialized) {
+            final appwriteService = ref.read(appwriteServiceProvider);
+            final db = ref.read(databaseProvider);
+            await deltaSync.initialize(appwriteService, db);
+          }
           if (deltaSync.isInitialized) {
             final pushResult = await deltaSync.pushDeltaChanges();
             final pushedCount = pushResult.recordsPushed;

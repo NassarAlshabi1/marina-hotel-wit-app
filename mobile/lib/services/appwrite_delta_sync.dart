@@ -306,9 +306,7 @@ class AppwriteDeltaSync {
         );
       }
 
-      if (pulledCount > 0) {
-        await _updateLastDeltaPullTimestamp();
-      }
+      await _updateLastDeltaPullTimestamp();
 
       _logger.info(
         '✅ تم سحب $pulledCount تغيير من Appwrite',
@@ -353,6 +351,8 @@ class AppwriteDeltaSync {
 
         try {
           await _applyRemoteChange(entity, doc.$id, data);
+          final outboxDao = OutboxDao(_database!);
+          await outboxDao.removeByEntityAndUuid(entity, doc.$id);
           applied++;
         } catch (e) {
           _logger.warning(

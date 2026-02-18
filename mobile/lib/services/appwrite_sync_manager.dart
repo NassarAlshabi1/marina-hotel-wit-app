@@ -90,6 +90,7 @@ class AppwriteSyncManager {
   StreamSubscription? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
+  bool _isPulling = false;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
   String? _deviceLocalUuid;
@@ -349,6 +350,7 @@ class AppwriteSyncManager {
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
+          if (_isPulling) return;
           _logger.debug('Debounced push triggered', tag: 'SYNC');
           try {
             final result = await sync(push: true, pull: false);
@@ -1520,6 +1522,7 @@ class AppwriteSyncManager {
       return false;
     }
 
+    _isPulling = true;
     try {
       _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
@@ -1607,6 +1610,8 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       return false;
+    } finally {
+      _isPulling = false;
     }
   }
 

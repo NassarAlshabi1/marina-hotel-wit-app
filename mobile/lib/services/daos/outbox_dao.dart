@@ -130,6 +130,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (delete(outbox)..where((t) => t.id.isIn(ids))).go();
   }
 
+  Future<int> removeByEntityAndUuid(String entity, String localUuid) async {
+    return (delete(outbox)
+          ..where((t) =>
+              t.entity.equals(entity) & t.localUuid.equals(localUuid)))
+        .go();
+  }
+
   Future<void> setError(int id, String message, int attempts) async {
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
