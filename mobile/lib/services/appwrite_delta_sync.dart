@@ -1070,7 +1070,7 @@ class AppwriteDeltaSync {
   };
 
   static final _allowedFields = <String, Set<String>>{
-    'rooms': {'roomNumber', 'type', 'price', 'status', 'imageUrl', 'cleaningStatus', 'lastCleanedHotelDay', 'lastOccupiedHotelDay', 'requiresMaintenance'},
+    'rooms': {'roomNumber', 'type', 'roomType', 'price', 'basePrice', 'status', 'imageUrl', 'cleaningStatus', 'lastCleanedHotelDay', 'lastOccupiedHotelDay', 'requiresMaintenance', 'floor', 'bedsCount', 'lastCleaningTime', 'features', 'idempotencyKey'},
     'bookings': {'serverBookingId', 'roomNumber', 'guestName', 'guestPhone', 'guestIdType', 'guestIdNumber', 'guestIdIssueDate', 'guestIdIssuePlace', 'guestNationality', 'guestEmail', 'guestAddress', 'checkinDate', 'checkoutDate', 'actualCheckout', 'status', 'notes', 'expectedNights', 'calculatedNights', 'totalNightsCached', 'stayDurationIso', 'lastNightEpoch', 'isOverdue', 'needsCheckoutReview', 'totalDueCached', 'totalPaidCached', 'remainingBalanceCached', 'isFullyPaid', 'discount', 'discountType', 'discountStartDate', 'hotelDayCheckin', 'hotelDayCheckout', 'financialFrozenAt', 'financialHash'},
     'booking_notes': {'bookingId', 'noteText', 'alertType', 'alertUntil', 'isActive'},
     'booking_nights': {'bookingLocalId', 'hotelDayKey', 'nightStart', 'nightEnd', 'nightlyRate', 'sequence', 'isProcessedByAutoFix', 'baseRate', 'adjustment', 'finalRate', 'appliedAdjustmentUuid', 'appliedAdjustmentsJson'},
