@@ -165,7 +165,7 @@ class BatteryOptimizer extends ChangeNotifier {
 
     // مراقبة الاتصال
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
-      _connectionState = result is List<ConnectivityResult> ? result : [result as ConnectivityResult];
+      _connectionState = result;
       notifyListeners();
 
       developer.log(
