@@ -22,6 +22,7 @@ import 'sync_core/sync_metrics.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'repositories/bookings_repository.dart';
+import 'repositories/rooms_repository.dart';
 
 /// حالة المزامنة
 enum SyncStatus { idle, syncing, success, failed, partial }
@@ -1594,6 +1595,24 @@ class AppwriteSyncManager {
 
       _lastSyncTime = DateTime.now();
       await _saveSettings();
+
+      // تحديث حالة إشغال الغرف بناءً على الحجوزات المسحوبة
+      if (recordsPulled > 0) {
+        await RoomsRepository(database)
+            .refreshAllRoomOccupancy(originIsServer: true);
+      }
+
+      // تنظيف outbox بعد السحب الكامل - بيانات السيرفر هي المرجع
+      final pending = await outboxDao.count();
+      if (pending > 0) {
+        _logger.info(
+          '🧹 تنظيف $pending سجل من outbox بعد السحب الكامل',
+          tag: 'SYNC',
+        );
+        await (database.delete(database.outbox)
+              ..where((t) => t.processingStatus.isIn(['pending', 'failed'])))
+            .go();
+      }
 
       if (recordsPulled > 0) {
         _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');

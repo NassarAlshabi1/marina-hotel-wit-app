@@ -209,6 +209,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final pullResult = await deltaSync.pullDeltaChanges();
       final pulledCount = pullResult.recordsPulled;
 
+      // 1.5️⃣ تنظيف outbox بعد السحب - بيانات السيرفر هي المرجع
+      if (pulledCount > 0) {
+        final db = ref.read(databaseProvider);
+        final outboxDao = OutboxDao(db);
+        await outboxDao.removeAllPending();
+      }
+
       // 2️⃣ حل التعارضات إن وجدت
       int conflictsResolved = 0;
       if (pullResult.hasConflicts) {

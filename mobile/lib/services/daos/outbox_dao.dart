@@ -137,6 +137,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         .go();
   }
 
+  Future<int> removeAllPending() async {
+    return (delete(outbox)
+          ..where((t) => t.processingStatus.isIn(['pending', 'failed'])))
+        .go();
+  }
+
   Future<void> setError(int id, String message, int attempts) async {
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
