@@ -6,7 +6,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/sync_models.dart';
 import '../vector_clock.dart';
-import '../delta_sync_engine.dart';
+import '../delta_sync_engine.dart' hide ConflictResolver;
+import '../delta_sync_engine.dart' as engine;
 import '../processors/outbox_processor.dart';
 import '../orchestrator/sync_orchestrator.dart';
 import '../strategies/conflict_strategies.dart';
@@ -124,7 +125,7 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
     outbox: ref.watch(outboxDataSourceProvider),
     inbox: ref.watch(inboxDataSourceProvider),
     remote: ref.watch(remoteDataSourceProvider),
-    conflictResolver: ref.watch(conflictResolverProvider),
+    conflictResolver: _ConflictResolverAdapter(ref.watch(conflictResolverProvider)),
   );
 });
 
@@ -369,3 +370,13 @@ final hasPendingChangesProvider = Provider<bool>((ref) {
   final count = ref.watch(pendingChangesCountProvider);
   return (count.valueOrNull ?? 0) > 0;
 });
+
+class _ConflictResolverAdapter implements engine.ConflictResolver {
+  final ConflictResolver _inner;
+  _ConflictResolverAdapter(this._inner);
+
+  @override
+  Future<ConflictResolutionResult> resolve(SyncConflict conflict) async {
+    return _inner.resolve(conflict);
+  }
+}

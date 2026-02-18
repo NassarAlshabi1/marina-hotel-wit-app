@@ -13,7 +13,7 @@ export 'models/sync_models.dart';
 // Core Engine
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export 'delta_sync_engine.dart';
+export 'delta_sync_engine.dart' hide ConflictResolver;
 export 'vector_clock.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
