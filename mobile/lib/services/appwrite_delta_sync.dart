@@ -301,6 +301,7 @@ class AppwriteDeltaSync {
       final fkDependentEntities = {'debts', 'payments', 'booking_nights', 'booking_notes', 'booking_price_adjustments'};
 
       for (final entry in entitiesToPull.entries) {
+        if (fkDependentEntities.contains(entry.key)) continue;
         pulledCount += await _pullEntityChanges(
           entry.key,
           entry.value,
@@ -850,7 +851,14 @@ class AppwriteDeltaSync {
       _asInt(data['bookingLocalId']),
       _asString(data['bookingLocalUuid']),
     );
-    if (resolvedBookingId == null) return;
+    if (resolvedBookingId == null) {
+      _logger.warning(
+        'booking_nights/$localUuid: لم يتم العثور على الحجز المرتبط '
+        '(bookingLocalId=${data['bookingLocalId']}, uuid=${data['bookingLocalUuid']})',
+        tag: 'DELTA_SYNC',
+      );
+      return;
+    }
 
     final companion = BookingNightsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -888,7 +896,14 @@ class AppwriteDeltaSync {
       _asInt(data['bookingId']),
       _asString(data['bookingLocalUuid']),
     );
-    if (resolvedBookingId == null) return;
+    if (resolvedBookingId == null) {
+      _logger.warning(
+        'booking_notes/$localUuid: لم يتم العثور على الحجز المرتبط '
+        '(bookingId=${data['bookingId']}, uuid=${data['bookingLocalUuid']})',
+        tag: 'DELTA_SYNC',
+      );
+      return;
+    }
 
     final companion = BookingNotesCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
