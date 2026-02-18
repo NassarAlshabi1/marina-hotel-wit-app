@@ -15,6 +15,7 @@ import 'sync_locks.dart';
 import 'sync_constants.dart';
 import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
+import 'unified_conflict_resolver.dart';
 
 enum SyncTrigger { manual, appForeground, localChange, periodic, scheduled }
 
@@ -123,6 +124,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   static const Duration _syncTimeout = Duration(minutes: 2);
   final _syncResultController = StreamController<SyncResult>.broadcast();
+  final _conflictController = StreamController<UnifiedConflictRecord?>.broadcast();
 
   bool _pushEnabled = true;
   bool _pullEnabled = true;
@@ -150,12 +152,15 @@ class GoogleDriveUnifiedSyncCoordinator {
   static const int _defaultFullBackupHours = 24;
 
   Stream<SyncResult> get syncResults => _syncResultController.stream;
+  Stream<UnifiedConflictRecord?> get conflictStream => _conflictController.stream;
   bool get isInitialized => _isInitialized;
   bool get isSyncing => _isSyncing;
   SyncPhase get currentPhase => _currentPhase;
   bool get hasPendingChanges => _hasPendingChanges;
   int get pendingChangesCount => _pendingChangesCount;
   String? get deviceId => _deltaSync?.deviceId;
+  int get pendingConflictCount => UnifiedConflictResolver.instance.pendingCount;
+  List<UnifiedConflictRecord> get pendingConflicts => UnifiedConflictResolver.instance.pendingConflicts;
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
@@ -180,6 +185,14 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     await _deltaSync!.initialize(backupService, database);
     await _loadSettings();
+
+    // الاستماع للتعارضات الجديدة
+    UnifiedConflictResolver.instance.conflictsStream.listen((conflicts) {
+      if (conflicts.isNotEmpty) {
+        _conflictController.add(conflicts.first);
+        _setPhase(SyncPhase.conflict);
+      }
+    });
 
     final prefs = await SharedPreferences.getInstance();
     _lastPushTime = _parseTimestamp(prefs.getString(_prefsLastPushKey));
@@ -905,9 +918,60 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
   }
 
+  /// حل تعارض يدوياً
+  Future<void> resolveConflict({
+    required String conflictId,
+    required Map<String, dynamic> resolution,
+    required ConflictSource chosenSource,
+  }) async {
+    await UnifiedConflictResolver.instance.resolveManually(
+      conflictId: conflictId,
+      resolution: resolution,
+      chosenSource: chosenSource,
+    );
+    _log('✅ Resolved conflict: $conflictId from ${chosenSource.name}');
+  }
+
+  /// اختيار مصدر للبيانات المتعارضة
+  Future<void> chooseConflictSource({
+    required String conflictId,
+    required ConflictSource source,
+  }) async {
+    await UnifiedConflictResolver.instance.chooseSource(
+      conflictId: conflictId,
+      source: source,
+    );
+    _log('✅ Chose ${source.name} for conflict: $conflictId');
+  }
+
+  /// حل جميع التعارضات لجدول معين
+  Future<void> resolveAllForTable(String table, ConflictSource source) async {
+    await UnifiedConflictResolver.instance.resolveAllForTable(table, source);
+    _log('✅ Resolved all conflicts for table: $table from ${source.name}');
+  }
+
+  /// رفض جميع التعارضات (الاحتفاظ بالمحلي)
+  Future<void> rejectAllConflicts() async {
+    await UnifiedConflictResolver.instance.rejectAll();
+    _log('✅ Rejected all conflicts (keeping local)');
+  }
+
+  /// قبول جميع التعارضات تلقائياً
+  Future<void> acceptAllConflictsAuto() async {
+    await UnifiedConflictResolver.instance.acceptAllAuto();
+    _log('✅ Auto-resolved all conflicts');
+  }
+
+  /// الحصول على إحصائيات التعارضات
+  Map<String, dynamic> getConflictStatistics() {
+    return UnifiedConflictResolver.instance.getStatistics();
+  }
+
   void dispose() {
     _stopMonitoring();
     _syncResultController.close();
+    _conflictController.close();
+    UnifiedConflictResolver.instance.dispose();
     _log('🛑 Unified Sync Coordinator disposed');
   }
 }
