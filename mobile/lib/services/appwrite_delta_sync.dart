@@ -662,6 +662,11 @@ class AppwriteDeltaSync {
       pledge: _nullableValue<String>(_asString(data['pledge'])),
       pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
       note: _nullableValue<String>(_asString(data['note'])),
+      debtUuid: _nullableValue<String>(_asString(data['debtUuid'])),
+      hotelDayOpened: _nullableValue<String>(_asString(data['hotelDayOpened'])),
+      hotelDayClosed: _nullableValue<String>(_asString(data['hotelDayClosed'])),
+      isFromAutoFix: d.Value(_asBool(data['isFromAutoFix']) ?? false),
+      settlementConfirmed: d.Value(_asBool(data['settlementConfirmed']) ?? false),
     );
 
     await db.into(db.debts).insertOnConflictUpdate(companion);

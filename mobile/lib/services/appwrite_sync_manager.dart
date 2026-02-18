@@ -1453,19 +1453,17 @@ class AppwriteSyncManager {
       'version': debt.version,
       'origin': debt.origin,
       'guestName': debt.guestName,
-      'debtorName': debt.guestName,
       'checkinDate': debt.checkinDate,
       'checkoutDate': debt.checkoutDate,
       'dateRecorded': debt.dateRecorded,
       'debtReason': debt.debtReason,
       'totalAmount': debt.totalAmount,
-      'amount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
       'remainingAmount': debt.remainingAmount,
       'paymentDate': debt.paymentDate,
       'isSettled': debt.isSettled,
-      'status': debt.isSettled == 1 ? 'settled' : 'pending',
-      'dueDate': _resolveDebtDueDate(debt),
+      'isFromAutoFix': debt.isFromAutoFix,
+      'settlementConfirmed': debt.settlementConfirmed,
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
@@ -1477,16 +1475,6 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
     _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
     return data;
-  }
-
-  String _resolveDebtDueDate(Debt debt) {
-    final candidates = [debt.checkoutDate, debt.paymentDate, debt.dateRecorded];
-    for (final value in candidates) {
-      if (value.isNotEmpty) {
-        return value;
-      }
-    }
-    return '1970-01-01';
   }
 
   void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
