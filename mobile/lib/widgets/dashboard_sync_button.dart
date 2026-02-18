@@ -103,6 +103,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   /// سحب التغييرات من Appwrite (Pull فقط - بدون دفع)
   Future<void> _pullChanges(BuildContext context) async {
+    if (_isPulling) return;
+
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -112,7 +114,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
     await syncLogDao.logSync(
@@ -122,7 +123,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite',
       status: 'in_progress',
     );
-    if (_isPulling) return;
 
     _pullAnimationController.repeat();
     if (mounted) {

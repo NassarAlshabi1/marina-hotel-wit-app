@@ -199,7 +199,7 @@ class OutboxProcessor {
     if (_isProcessing) return;
 
     _isProcessing = true;
-    _statusController.add(OutboxStatus.processing);
+    _statusController.add(OutboxStatus(pendingCount: 0, failedCount: 0, isProcessing: true));
 
     try {
       final retryable = await fetchReadyForRetry();

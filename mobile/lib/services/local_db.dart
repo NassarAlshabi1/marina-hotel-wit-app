@@ -97,6 +97,8 @@ class Bookings extends Table with SyncFields {
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
+  TextColumn get financialHash => text().nullable()();
+  TextColumn get financialFrozenAt => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -521,6 +523,7 @@ class Outbox extends Table {
       text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
+  TextColumn get remotePayload => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -1304,18 +1307,16 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 27) {
         try {
+          await m.addColumn(outbox, outbox.remotePayload);
           await m.addColumn(bookings, bookings.financialHash);
-        } catch (e) {
+          await m.addColumn(bookings, bookings.financialFrozenAt);
           developer.log(
-            'Migration 27: add financialHash failed: $e',
+            'Migration 27: added remotePayload to outbox, financialHash/financialFrozenAt to bookings',
             name: 'db.migration',
           );
-        }
-        try {
-          await m.addColumn(bookings, bookings.financialFrozenAt);
         } catch (e) {
           developer.log(
-            'Migration 27: add financialFrozenAt failed: $e',
+            'Migration 27 failed: $e',
             name: 'db.migration',
           );
         }

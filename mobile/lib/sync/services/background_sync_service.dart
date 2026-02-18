@@ -69,7 +69,7 @@ class BackgroundSyncService {
         requiresDeviceIdle: false,
         requiresStorageNotLow: false,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 10),
     );
@@ -93,7 +93,7 @@ class BackgroundSyncService {
         requiresDeviceIdle: true,
         requiresStorageNotLow: false,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     );
   }
 
@@ -132,12 +132,12 @@ class BackgroundSyncService {
   Future<bool> _canRunBackgroundSync() async {
     // التحقق من الاتصال
     final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.every((r) => r == ConnectivityResult.none)) {
       return false;
     }
 
     // التحقق من WiFi إذا كان مطلوباً
-    if (_config.requireWifi && connectivity != ConnectivityResult.wifi) {
+    if (_config.requireWifi && !connectivity.contains(ConnectivityResult.wifi)) {
       return false;
     }
 

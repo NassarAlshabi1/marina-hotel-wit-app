@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/sync_state.dart';
+import '../models/sync_result.dart';
 import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
-import 'sync_worker.dart';
+import '../workers/sync_worker.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
@@ -71,9 +72,9 @@ class SyncOrchestrator {
         }
       }
 
-      final allSuccess = results.values.every((r) => r.isSuccess);
-      final totalPushed = results.values.fold<int>(0, (sum, r) => sum + r.pushedCount);
-      final totalPulled = results.values.fold<int>(0, (sum, r) => sum + r.pulledCount);
+      final allSuccess = results.values.every((r) => r?.isSuccess ?? false);
+      final totalPushed = results.values.fold<int>(0, (sum, r) => sum + (r?.pushedCount ?? 0));
+      final totalPulled = results.values.fold<int>(0, (sum, r) => sum + (r?.pulledCount ?? 0));
 
       final result = SyncResult.success(
         pushed: totalPushed,

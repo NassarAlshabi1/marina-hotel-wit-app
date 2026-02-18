@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
@@ -17,18 +18,26 @@ class AppwriteDeltaSyncResult {
   final String message;
   final int pushedCount;
   final int pulledCount;
+  final int conflictCount;
 
   AppwriteDeltaSyncResult({
     required this.success,
     required this.message,
     this.pushedCount = 0,
     this.pulledCount = 0,
+    this.conflictCount = 0,
   });
 
   /// Alias getters for compatibility
   int get recordsPulled => pulledCount;
   int get recordsPushed => pushedCount;
-  bool get hasConflicts => false; // TODO: Implement actual conflict detection
+  bool get hasConflicts => conflictCount > 0;
+}
+
+class _PullResult {
+  final int applied;
+  final int conflicts;
+  _PullResult({required this.applied, required this.conflicts});
 }
 
 class AppwriteDeltaSync {
@@ -277,6 +286,7 @@ class AppwriteDeltaSync {
 
       final lastPullTs = await _getLastDeltaPullTimestamp();
       int pulledCount = 0;
+      int conflictCount = 0;
 
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
@@ -302,21 +312,25 @@ class AppwriteDeltaSync {
 
       for (final entry in entitiesToPull.entries) {
         if (fkDependentEntities.contains(entry.key)) continue;
-        pulledCount += await _pullEntityChanges(
+        final pullResult = await _pullEntityChanges(
           entry.key,
           entry.value,
           lastPullTs,
         );
+        pulledCount += pullResult.applied;
+        conflictCount += pullResult.conflicts;
       }
 
       for (final entity in fkDependentEntities) {
         final collectionId = entitiesToPull[entity];
         if (collectionId != null) {
-          pulledCount += await _pullEntityChanges(
+          final pullResult = await _pullEntityChanges(
             entity,
             collectionId,
             lastPullTs,
           );
+          pulledCount += pullResult.applied;
+          conflictCount += pullResult.conflicts;
         }
       }
 
@@ -331,6 +345,7 @@ class AppwriteDeltaSync {
         success: true,
         message: 'تم سحب التغييرات بنجاح',
         pulledCount: pulledCount,
+        conflictCount: conflictCount,
       );
     } catch (e) {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
@@ -342,7 +357,7 @@ class AppwriteDeltaSync {
     }
   }
 
-  Future<int> _pullEntityChanges(
+  Future<_PullResult> _pullEntityChanges(
     String entity,
     String collectionId,
     int lastPullTs,
@@ -357,6 +372,9 @@ class AppwriteDeltaSync {
       );
 
       int applied = 0;
+      int conflicts = 0;
+      final outboxDao = OutboxDao(_database!);
+
       for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
@@ -364,9 +382,25 @@ class AppwriteDeltaSync {
         if (sourceDeviceId == _deviceId) continue;
 
         try {
+          final pendingEntry = await outboxDao.findPendingByEntityAndUuid(entity, doc.$id);
+          if (pendingEntry != null) {
+            final localPayload = jsonDecode(pendingEntry.payload) as Map<String, dynamic>;
+            await outboxDao.markAsConflict(
+              pendingEntry.id,
+              'تعارض مع تغيير بعيد من جهاز $sourceDeviceId',
+              remotePayload: jsonEncode(data),
+            );
+            conflicts++;
+            _logger.warning(
+              '⚠️ تعارض: $entity/${doc.$id} - تغيير محلي معلق يتعارض مع تغيير بعيد',
+              tag: 'DELTA_SYNC',
+            );
+          }
+
           await _applyRemoteChange(entity, doc.$id, data);
-          final outboxDao = OutboxDao(_database!);
-          await outboxDao.removeByEntityAndUuid(entity, doc.$id);
+          if (pendingEntry == null) {
+            await outboxDao.removeByEntityAndUuid(entity, doc.$id);
+          }
           applied++;
         } catch (e) {
           _logger.warning(
@@ -376,10 +410,10 @@ class AppwriteDeltaSync {
         }
       }
 
-      return applied;
+      return _PullResult(applied: applied, conflicts: conflicts);
     } catch (e) {
       _logger.warning('فشل سحب $entity: $e', tag: 'DELTA_SYNC');
-      return 0;
+      return _PullResult(applied: 0, conflicts: 0);
     }
   }
 
