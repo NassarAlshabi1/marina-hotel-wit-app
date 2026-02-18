@@ -97,8 +97,6 @@ class Bookings extends Table with SyncFields {
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
-  TextColumn get financialHash => text().nullable()();
-  TextColumn get financialFrozenAt => text().nullable()();
 
   List<Index> get indexes => [
     Index(
