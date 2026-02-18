@@ -1342,6 +1342,7 @@ class AppwriteSyncManager {
     final data = <String, dynamic>{
       'roomNumber': room.roomNumber,
       'type': room.type,
+      'roomType': room.type,
       'price': room.price,
       'status': room.status,
       'cleaningStatus': room.cleaningStatus,

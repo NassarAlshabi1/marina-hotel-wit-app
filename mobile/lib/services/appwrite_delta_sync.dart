@@ -457,7 +457,7 @@ class AppwriteDeltaSync {
 
     final companion = RoomsCompanion(
       roomNumber: d.Value(roomNumber),
-      type: d.Value(_asString(data['type']) ?? ''),
+      type: d.Value(_asString(data['type']) ?? _asString(data['roomType']) ?? ''),
       price: d.Value(_asDouble(data['price'])),
       status: d.Value(_asString(data['status']) ?? 'available'),
       imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
