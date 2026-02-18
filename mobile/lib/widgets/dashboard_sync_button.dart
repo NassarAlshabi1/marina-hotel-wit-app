@@ -47,7 +47,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _loadAppwriteEnabled();
 
     // مؤقت للتحديث الدوري
-    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (mounted && !_isPulling && !_isPushing) {
         _loadPendingChangesCount();
         _loadAppwriteEnabled();
@@ -322,26 +322,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   /// رفع التغييرات المحلية (Push فقط)
   Future<void> _pushChanges(BuildContext context) async {
-    final stopwatch = Stopwatch()..start();
-    final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
-    String? deviceId;
-    try {
-      deviceId = await _getDeviceId();
-    } catch (e) {
-      deviceId = 'unknown';
-    }
-
-    // تسجيل بداية العملية
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: deviceId,
-      target: 'Appwrite+GoogleDrive',
-      status: 'in_progress',
-    );
     if (_isPushing) return;
+
+    // تحديث عدد التغييرات المعلقة فوراً قبل الفحص
+    await _loadPendingChangesCount();
 
     if (_pendingChangesCount == 0) {
       if (mounted) {
@@ -361,6 +345,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
       return;
     }
+
+    final stopwatch = Stopwatch()..start();
+    final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
+    String? deviceId;
+    try {
+      deviceId = await _getDeviceId();
+    } catch (e) {
+      deviceId = 'unknown';
+    }
+
+    // تسجيل بداية العملية
+    final db = ref.read(databaseProvider);
+    final syncLogDao = SyncLogDao(db);
+    await syncLogDao.logSync(
+      syncId: syncId,
+      direction: 'push',
+      deviceId: deviceId,
+      target: 'Appwrite+GoogleDrive',
+      status: 'in_progress',
+    );
 
     _pushAnimationController.repeat();
     if (mounted) {
@@ -403,8 +407,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       bool appwriteConnected = false;
       if (appwriteEnabled) {
-        await ref.read(connectionStatusProvider.notifier).checkConnection();
+        // استخدام الحالة المخزنة أولاً للسرعة، مع فحص فعلي في الخلفية
         appwriteConnected = ref.read(connectionStatusProvider).isConnected;
+        if (!appwriteConnected) {
+          await ref.read(connectionStatusProvider.notifier).checkConnection();
+          appwriteConnected = ref.read(connectionStatusProvider).isConnected;
+        }
       }
 
       final targets = <String>[];
