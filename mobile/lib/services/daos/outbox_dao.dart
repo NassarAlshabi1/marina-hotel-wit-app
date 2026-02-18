@@ -137,6 +137,28 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         .go();
   }
 
+  Future<OutboxData?> findPendingByEntityAndUuid(String entity, String localUuid) async {
+    final results = await (select(outbox)
+          ..where((t) =>
+              t.entity.equals(entity) &
+              t.localUuid.equals(localUuid) &
+              t.processingStatus.isIn(['pending', 'processing'])))
+        .get();
+    return results.isEmpty ? null : results.first;
+  }
+
+  Future<void> markAsConflict(int id, String error, {String? remotePayload}) async {
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        processingStatus: const Value('conflict'),
+        lastError: Value(error),
+        remotePayload: Value(remotePayload),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+      ),
+    );
+  }
+
   Future<int> removeAllPending() async {
     return (delete(outbox)
           ..where((t) => t.processingStatus.isIn(['pending', 'failed'])))
@@ -226,21 +248,22 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
   Future<List<ConflictRecord>> getConflicts() async {
-    final failed = await (select(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('failed') &
-              t.lastError.isNotNull())
+    final conflicting = await (select(outbox)
+          ..where((t) => t.processingStatus.equals('conflict'))
           ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
         .get();
 
-    return failed.map((entry) {
-      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    return conflicting.map((entry) {
+      final localPayload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      final remotePayload = entry.remotePayload != null
+          ? jsonDecode(entry.remotePayload!) as Map<String, dynamic>
+          : localPayload;
       return ConflictRecord(
         id: entry.id,
         uuid: entry.localUuid,
         targetTable: entry.entity,
-        localPayload: payload,
-        remotePayload: payload, // TODO: Fetch actual remote data
+        localPayload: localPayload,
+        remotePayload: remotePayload,
         lastError: entry.lastError ?? 'Unknown conflict',
         timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
       );

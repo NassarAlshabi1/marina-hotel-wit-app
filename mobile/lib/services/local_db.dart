@@ -521,6 +521,7 @@ class Outbox extends Table {
       text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
+  TextColumn get remotePayload => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -622,7 +623,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1279,6 +1280,22 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 26: add adjustmentMode failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 27) {
+        try {
+          await m.addColumn(outbox, outbox.remotePayload);
+          await m.addColumn(bookings, bookings.financialHash);
+          await m.addColumn(bookings, bookings.financialFrozenAt);
+          developer.log(
+            'Migration 27: added remotePayload to outbox, financialHash/financialFrozenAt to bookings',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 27 failed: $e',
             name: 'db.migration',
           );
         }
