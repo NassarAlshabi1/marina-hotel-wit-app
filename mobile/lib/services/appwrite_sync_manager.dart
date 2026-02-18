@@ -238,20 +238,26 @@ class AppwriteSyncManager {
 
       if (_currentDeviceId != null) {
         await _mutex.runExclusive(() async {
-          final existingDoc = await appwriteService.getDocument(
-            collectionId: AppwriteConfig.devicesCollectionId,
-            documentId: _currentDeviceId!,
-          );
-          final currentRemoteVersion = _asInt(
-            existingDoc.data['version'],
-            fallback: 0,
-          );
+          var currentRemoteVersion = 0;
+          try {
+            final existingDoc = await appwriteService.getDocument(
+              collectionId: AppwriteConfig.devicesCollectionId,
+              documentId: _currentDeviceId!,
+            );
+            currentRemoteVersion = _asInt(
+              existingDoc.data['version'],
+              fallback: 0,
+            );
+          } catch (_) {
+            currentRemoteVersion = 0;
+          }
+
           if (_deviceVersion == null ||
               _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
 
-          await appwriteService.updateDocument(
+          await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
             data: {
@@ -584,7 +590,7 @@ class AppwriteSyncManager {
       syncLogVersion += 1;
 
       if (hasSyncLog) {
-        await appwriteService.updateDocument(
+        await appwriteService.upsertDocument(
           collectionId: AppwriteConfig.syncLogsCollectionId,
           documentId: syncLogId,
           data: {
@@ -618,7 +624,7 @@ class AppwriteSyncManager {
         final failEpoch = Time.nowEpoch();
         syncLogVersion += 1;
         try {
-          await appwriteService.updateDocument(
+          await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.syncLogsCollectionId,
             documentId: syncLogId,
             data: {
