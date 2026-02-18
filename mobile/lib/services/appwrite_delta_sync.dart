@@ -298,12 +298,25 @@ class AppwriteDeltaSync {
         'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
       };
 
+      final fkDependentEntities = {'debts', 'payments', 'booking_nights', 'booking_notes', 'booking_price_adjustments'};
+
       for (final entry in entitiesToPull.entries) {
         pulledCount += await _pullEntityChanges(
           entry.key,
           entry.value,
           lastPullTs,
         );
+      }
+
+      for (final entity in fkDependentEntities) {
+        final collectionId = entitiesToPull[entity];
+        if (collectionId != null) {
+          pulledCount += await _pullEntityChanges(
+            entity,
+            collectionId,
+            lastPullTs,
+          );
+        }
       }
 
       await _updateLastDeltaPullTimestamp();
@@ -541,6 +554,12 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
+    final resolvedBookingId = await _resolveBookingLocalId(
+      db,
+      _asInt(data['bookingLocalId']),
+      _asString(data['bookingUuidCache']) ?? _asString(data['bookingLocalUuid']),
+    );
+
     final companion = PaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -551,7 +570,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
+      bookingLocalId: _nullableValue<int>(resolvedBookingId),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
@@ -610,6 +629,12 @@ class AppwriteDeltaSync {
         _asString(data['guestName']) ?? _asString(data['debtorName']);
     if (guestName == null || guestName.isEmpty) return;
 
+    final resolvedBookingId = await _resolveBookingLocalId(
+      db,
+      _asInt(data['bookingLocalId']),
+      _asString(data['bookingLocalUuid']),
+    );
+
     final companion = DebtsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -619,7 +644,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
+      bookingLocalId: _nullableValue<int>(resolvedBookingId),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
@@ -790,8 +815,12 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final bookingLocalId = _asInt(data['bookingLocalId']);
-    if (bookingLocalId == null) return;
+    final resolvedBookingId = await _resolveBookingLocalId(
+      db,
+      _asInt(data['bookingLocalId']),
+      _asString(data['bookingLocalUuid']),
+    );
+    if (resolvedBookingId == null) return;
 
     final companion = BookingNightsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -802,7 +831,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
-      bookingLocalId: d.Value(bookingLocalId),
+      bookingLocalId: d.Value(resolvedBookingId),
       hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
       nightStart: d.Value(_asString(data['nightStart']) ?? ''),
       nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
@@ -824,8 +853,12 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final bookingId = _asInt(data['bookingId']);
-    if (bookingId == null) return;
+    final resolvedBookingId = await _resolveBookingLocalId(
+      db,
+      _asInt(data['bookingId']),
+      _asString(data['bookingLocalUuid']),
+    );
+    if (resolvedBookingId == null) return;
 
     final companion = BookingNotesCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -836,7 +869,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
-      bookingId: d.Value(bookingId),
+      bookingId: d.Value(resolvedBookingId),
       noteText: d.Value(_asString(data['noteText']) ?? ''),
       alertType: d.Value(_asString(data['alertType']) ?? ''),
       alertUntil: _nullableValue<String>(_asString(data['alertUntil'])),
@@ -1192,11 +1225,17 @@ class AppwriteDeltaSync {
     final bookingUuid = _asString(data['bookingLocalUuid']) ?? _asString(data['booking_local_uuid']);
     if (bookingUuid == null || bookingUuid.isEmpty) return;
 
+    final resolvedBookingId = await _resolveBookingLocalId(
+      db,
+      _asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id']),
+      bookingUuid,
+    );
+
     final companion = BookingPriceAdjustmentsCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId']) ?? _asInt(data['server_id'])),
       bookingLocalUuid: d.Value(bookingUuid),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id'])),
+      bookingLocalId: _nullableValue<int>(resolvedBookingId),
       adjustmentType: d.Value(_asInt(data['adjustmentType']) ?? _asInt(data['adjustment_type']) ?? 0),
       adjustmentMode: d.Value(_asString(data['adjustmentMode']) ?? _asString(data['adjustment_mode']) ?? 'per_night'),
       amount: d.Value(_asDouble(data['amount'])),
@@ -1222,10 +1261,8 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
-    final bookingId =
-        _asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id']);
-    if (bookingId != null) {
-      await _recalculateBookingById(db, bookingId);
+    if (resolvedBookingId != null) {
+      await _recalculateBookingById(db, resolvedBookingId);
     } else {
       await _recalculateBookingByUuid(db, bookingUuid);
     }
@@ -1274,6 +1311,28 @@ class AppwriteDeltaSync {
     for (final booking in bookings) {
       await _recalculateBookingById(db, booking.id);
     }
+  }
+
+  Future<int?> _resolveBookingLocalId(
+    AppDatabase db,
+    int? remoteBookingLocalId,
+    String? bookingLocalUuid,
+  ) async {
+    if (bookingLocalUuid != null && bookingLocalUuid.isNotEmpty) {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.localUuid.equals(bookingLocalUuid)))
+          .getSingleOrNull();
+      if (booking != null) return booking.id;
+    }
+
+    if (remoteBookingLocalId != null) {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(remoteBookingLocalId)))
+          .getSingleOrNull();
+      if (booking != null) return booking.id;
+    }
+
+    return null;
   }
 
   double _asDouble(dynamic value, {double fallback = 0.0}) {

@@ -1446,19 +1446,36 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
-      'amount': debt.totalAmount,
-      'debtorName': debt.guestName,
-      'dueDate': _resolveDebtDueDate(debt),
-      'status': debt.isSettled == 1 ? 'settled' : 'pending',
       'localUuid': debt.localUuid,
       'createdAt': debt.createdAt,
       'updatedAt': debt.updatedAt,
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
+      'guestName': debt.guestName,
+      'debtorName': debt.guestName,
+      'checkinDate': debt.checkinDate,
+      'checkoutDate': debt.checkoutDate,
+      'dateRecorded': debt.dateRecorded,
+      'debtReason': debt.debtReason,
+      'totalAmount': debt.totalAmount,
+      'amount': debt.totalAmount,
+      'paidAmount': debt.paidAmount,
+      'remainingAmount': debt.remainingAmount,
+      'paymentDate': debt.paymentDate,
+      'isSettled': debt.isSettled,
+      'status': debt.isSettled == 1 ? 'settled' : 'pending',
+      'dueDate': _resolveDebtDueDate(debt),
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    _putIfNotNull(data, 'bookingLocalId', debt.bookingLocalId);
+    _putIfStringNotEmpty(data, 'pledge', debt.pledge);
+    _putIfStringNotEmpty(data, 'pledgeType', debt.pledgeType);
+    _putIfStringNotEmpty(data, 'note', debt.note);
+    _putIfStringNotEmpty(data, 'debtUuid', debt.debtUuid);
+    _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
+    _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
     return data;
   }
 
