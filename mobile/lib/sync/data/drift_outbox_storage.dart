@@ -238,16 +238,10 @@ class DriftOutboxStorage implements OutboxStorage {
 
   @override
   Future<int> deleteSyncedBefore(DateTime cutoff) async {
-    final rows = await _db.customSelect(
-      'SELECT COUNT(*) as cnt FROM $_table WHERE is_synced = 1 AND synced_at < ?',
-      variables: [Variable.withInt(cutoff.millisecondsSinceEpoch)],
-    ).get();
-    final count = rows.first.read<int>('cnt');
-    await _db.customStatement(
+    return await _db.customUpdate(
       'DELETE FROM $_table WHERE is_synced = 1 AND synced_at < ?',
-      [cutoff.millisecondsSinceEpoch],
+      variables: [Variable.withInt(cutoff.millisecondsSinceEpoch)],
     );
-    return count;
   }
 
   @override
