@@ -2,102 +2,238 @@ import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 
 part 'payments_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
-class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin {
-  PaymentsDao(super.db, this.outboxDao);
+class PaymentsDao extends DatabaseAccessor<AppDatabase>
+    with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
+  PaymentsDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
   final OutboxDao outboxDao;
+  final AdapterRegistry adapters;
 
-  Future<List<Payment>> list({int? bookingLocalId, String? from, String? to, String? revenueType, bool includeDeleted = false}) async {
+  Future<List<Payment>> list({
+    int? bookingLocalId,
+    String? from,
+    String? to,
+    String? revenueType,
+    bool includeDeleted = false,
+  }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingLocalId != null) q.where((t) => t.bookingLocalId.equals(bookingLocalId));
-    if (revenueType != null && revenueType.isNotEmpty) q.where((t) => t.revenueType.equals(revenueType));
-    if (from != null && to != null) q.where((t) => t.paymentDate.isBiggerOrEqualValue(from) & t.paymentDate.isSmallerOrEqualValue(to));
-    q.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    if (bookingLocalId != null) {
+      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+    }
+    if (revenueType != null && revenueType.isNotEmpty) {
+      q.where((t) => t.revenueType.equals(revenueType));
+    }
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
+      );
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     return q.get();
   }
 
-  Stream<List<Payment>> watchList({int? bookingLocalId, bool includeDeleted = false}) {
+  Future<List<Payment>> listForReport({
+    String? from,
+    String? to,
+    String? roomNumber,
+    bool includeDeleted = false,
+  }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingLocalId != null) q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
+      );
+    }
+
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
+    return q.get();
+  }
+
+  Stream<List<Payment>> watchList({
+    int? bookingLocalId,
+    bool includeDeleted = false,
+  }) {
+    final q = select(payments);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (bookingLocalId != null) {
+      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+    }
     return q.watch();
   }
 
   /// جلب المدفوعات لتاريخ محدد
-  Future<List<Payment>> listByDate(String date, {bool includeDeleted = false}) async {
+  Future<List<Payment>> listByDate(
+    String date, {
+    bool includeDeleted = false,
+  }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    q.where((t) => t.paymentDate.like('$date%')); // يبدأ بالتاريخ المحدد
+    q.where((t) => t.paymentDate.like('$date%'));
     return q.get();
   }
 
-  Future<Payment?> getById(int id) => (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Payment?> watchById(int id) => (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<List<Payment>> listByHotelDayKey(
+    String hotelDayKey, {
+    bool includeDeleted = false,
+    String? revenueType,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
 
-  Future<int> insertOne(PaymentsCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-    final comp = data.copyWith(
-      localUuid: Value(uu),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-      origin: Value(originIsServer ? 'server' : 'local'),
-      serverId: data.serverPaymentId.present ? Value(data.serverPaymentId.value) : const Value.absent(),
-    );
-    final id = await into(payments).insert(comp);
-    if (!originIsServer) {
-      await outboxDao.merge(entity: 'payments', op: 'create', localUuid: uu, serverId: comp.serverId.present ? comp.serverId.value : null, payload: _payloadFrom(comp), clientTs: now);
+    final startIso = Time.hotelDayStartIso(hotelDayKey);
+    final endIso = Time.hotelDayEndIso(hotelDayKey);
+
+    final byKey = payments.hotelDayKey.equals(hotelDayKey);
+    final byRangeFallback =
+        payments.hotelDayKey.isNull() &
+        payments.paymentDate.isBiggerOrEqualValue(startIso) &
+        payments.paymentDate.isSmallerThanValue(endIso);
+
+    q.where((t) => byKey | byRangeFallback);
+
+    if (revenueType != null && revenueType.isNotEmpty) {
+      q.where((t) => t.revenueType.equals(revenueType));
     }
-    return id;
+
+    return q.get();
   }
 
-  Future<int> updateById(int id, PaymentsCompanion data, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final comp = data.copyWith(updatedAt: Value(now), lastModified: Value(now));
-    final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'payments', op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, payload: _payloadFrom(comp, base: existing), clientTs: now);
-    }
-    return rows;
+  Future<Payment?> getById(int id) =>
+      (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Payment?> watchById(int id) =>
+      (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
+
+  Future<int> insertOne(
+    PaymentsCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+      final comp = data.copyWith(
+        localUuid: Value(uu),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        origin: Value(originIsServer ? 'server' : 'local'),
+        serverId: data.serverPaymentId.present
+            ? Value(data.serverPaymentId.value)
+            : const Value.absent(),
+      );
+      final id = await into(payments).insert(comp);
+      if (!originIsServer) {
+        await _mergeOutbox(
+          op: 'create',
+          localUuid: uu,
+          serverId: comp.serverId.present ? comp.serverId.value : null,
+          clientTs: now,
+        );
+      }
+      return id;
+    });
+  }
+
+  Future<int> updateById(
+    int id,
+    PaymentsCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: Value(now),
+      );
+      final rows = await (update(
+        payments,
+      )..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
-    final now = Time.nowEpoch();
-    final existing = await getById(id);
-    if (existing == null) return 0;
-    final rows = await (update(payments)..where((t) => t.id.equals(id))).write(PaymentsCompanion(
-      deletedAt: Value(now),
-      updatedAt: Value(now),
-      lastModified: Value(now),
-    ));
-    if (rows > 0 && !originIsServer) {
-      await outboxDao.merge(entity: 'payments', op: 'delete', localUuid: existing.localUuid, serverId: existing.serverId, payload: {'payment_id': existing.serverPaymentId}, clientTs: now);
-    }
-    return rows;
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) return 0;
+      final rows = await (update(payments)..where((t) => t.id.equals(id)))
+          .write(
+            PaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
+      if (rows > 0 && !originIsServer) {
+        await _mergeOutbox(
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
   }
 
-  Map<String, dynamic> _payloadFrom(PaymentsCompanion comp, {Payment? base}) {
-    final m = <String, dynamic>{};
-    if (comp.serverPaymentId.present) m['payment_id'] = comp.serverPaymentId.value;
-    if (comp.bookingLocalId.present) m['booking_local_id'] = comp.bookingLocalId.value;
-    if (comp.serverBookingId.present) m['booking_id'] = comp.serverBookingId.value;
-    if (comp.roomNumber.present) m['room_number'] = comp.roomNumber.value;
-    if (comp.amount.present) m['amount'] = comp.amount.value;
-    if (comp.paymentDate.present) m['payment_date'] = comp.paymentDate.value;
-    if (comp.notes.present) m['notes'] = comp.notes.value;
-    if (comp.paymentMethod.present) m['payment_method'] = comp.paymentMethod.value;
-    if (comp.revenueType.present) m['revenue_type'] = comp.revenueType.value;
-    if (comp.cashTransactionLocalId.present) m['cash_transaction_local_id'] = comp.cashTransactionLocalId.value;
-    if (comp.cashTransactionServerId.present) m['cash_transaction_id'] = comp.cashTransactionServerId.value;
-    return m;
+  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+    final row =
+        await (select(payments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null) return null;
+    return adapters.payments.toJsonForSource(row, src: Source.appwrite);
+  }
+
+  Future<void> _mergeOutbox({
+    required String op,
+    required String localUuid,
+    required int clientTs,
+    int? serverId,
+  }) async {
+    final payload = await _payloadForLocalUuid(localUuid);
+    if (payload == null) return;
+    await outboxDao.merge(
+      entity: 'payments',
+      op: op,
+      localUuid: localUuid,
+      serverId: serverId,
+      payload: payload,
+      clientTs: clientTs,
+    );
   }
 
   // دوال النسخ الاحتياطي
@@ -109,34 +245,42 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
   }
 
   /// استيراد المدفوعات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(payments).go();
     }
 
     for (final paymentJson in data) {
       final payment = Payment.fromJson(paymentJson);
-      await into(payments).insertOnConflictUpdate(PaymentsCompanion(
-        serverPaymentId: Value(payment.serverPaymentId),
-        bookingLocalId: Value(payment.bookingLocalId),
-        serverBookingId: Value(payment.serverBookingId),
-        roomNumber: Value(payment.roomNumber),
-        amount: Value(payment.amount),
-        paymentDate: Value(payment.paymentDate),
-        notes: Value(payment.notes),
-        paymentMethod: Value(payment.paymentMethod),
-        revenueType: Value(payment.revenueType),
-        cashTransactionLocalId: Value(payment.cashTransactionLocalId),
-        cashTransactionServerId: Value(payment.cashTransactionServerId),
-        localUuid: Value(payment.localUuid),
-        serverId: Value(payment.serverId),
-        createdAt: Value(payment.createdAt),
-        updatedAt: Value(payment.updatedAt),
-        deletedAt: Value(payment.deletedAt),
-        lastModified: Value(payment.lastModified),
-        version: Value(payment.version),
-        origin: Value(payment.origin),
-      ));
+      await into(payments).insertOnConflictUpdate(
+        PaymentsCompanion(
+          serverPaymentId: Value(payment.serverPaymentId),
+          bookingLocalId: Value(payment.bookingLocalId),
+          serverBookingId: Value(payment.serverBookingId),
+          roomNumber: Value(payment.roomNumber),
+          amount: Value(payment.amount),
+          paymentDate: Value(payment.paymentDate),
+          notes: Value(payment.notes),
+          paymentMethod: Value(payment.paymentMethod),
+          revenueType: Value(payment.revenueType),
+          hotelDayKey: Value(payment.hotelDayKey),
+          linkedDebtUuid: Value(payment.linkedDebtUuid),
+          bookingUuidCache: Value(payment.bookingUuidCache),
+          cashTransactionLocalId: Value(payment.cashTransactionLocalId),
+          cashTransactionServerId: Value(payment.cashTransactionServerId),
+          localUuid: Value(payment.localUuid),
+          serverId: Value(payment.serverId),
+          createdAt: Value(payment.createdAt),
+          updatedAt: Value(payment.updatedAt),
+          deletedAt: Value(payment.deletedAt),
+          lastModified: Value(payment.lastModified),
+          version: Value(payment.version),
+          origin: Value(payment.origin),
+        ),
+      );
     }
   }
 
@@ -151,4 +295,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
   Future<void> clearAllData() async {
     await delete(payments).go();
   }
+
+  @override
+  TableInfo<Payments, Payment> get optimisticTable => payments;
+
+  @override
+  String get optimisticTableName => 'payments';
+
+  @override
+  GeneratedColumn<String> get optimisticLocalUuid => payments.localUuid;
+
+  @override
+  GeneratedColumn<int> get optimisticVersion => payments.version;
 }

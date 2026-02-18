@@ -1,7 +1,7 @@
+import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'appwrite_logger.dart';
 
-/// نموذج الخطأ
 class AppwriteError {
   final String code;
   final String message;
@@ -18,19 +18,20 @@ class AppwriteError {
   }) : timestamp = timestamp ?? DateTime.now();
 
   @override
-  String toString() => '[$code] $message${details != null ? "\nDetails: $details" : ""}';
+  String toString() =>
+      '[$code] $message${details != null ? '\nDetails: $details' : ''}';
 }
 
-/// معالج الأخطاء المركزي
 class AppwriteErrorHandler {
-  static final AppwriteErrorHandler _instance = AppwriteErrorHandler._internal();
+  static final AppwriteErrorHandler _instance =
+      AppwriteErrorHandler._internal();
   factory AppwriteErrorHandler() => _instance;
   AppwriteErrorHandler._internal();
 
   final _logger = AppwriteLogger();
   final List<AppwriteError> _errorHistory = [];
+  static const int _maxHistorySize = 100;
 
-  /// معالجة الخطأ
   AppwriteError handleError(
     dynamic error, {
     String context = 'Unknown',
@@ -38,8 +39,10 @@ class AppwriteErrorHandler {
   }) {
     final appwriteError = _parseError(error, context);
     _errorHistory.add(appwriteError);
-    
-    // تسجيل الخطأ
+    if (_errorHistory.length > _maxHistorySize) {
+      _errorHistory.removeRange(0, _errorHistory.length - _maxHistorySize);
+    }
+
     _logger.error(
       '${appwriteError.message} (Context: $context)',
       error: error,
@@ -50,17 +53,21 @@ class AppwriteErrorHandler {
     return appwriteError;
   }
 
-  /// تحويل الخطأ إلى AppwriteError
   AppwriteError _parseError(dynamic error, String context) {
     if (error is AppwriteError) {
       return error;
     }
 
-    // Network errors
-    if (error.toString().contains('SocketException') ||
-        error.toString().contains('HandshakeException') ||
-        error.toString().contains('Connection') ||
-        error.toString().contains('network')) {
+    if (error is AppwriteException) {
+      return _parseAppwriteException(error);
+    }
+
+    final msg = error.toString();
+
+    if (msg.contains('SocketException') ||
+        msg.contains('HandshakeException') ||
+        msg.contains('Connection refused') ||
+        msg.contains('Network is unreachable')) {
       return AppwriteError(
         code: 'NETWORK_ERROR',
         message: 'فشل الاتصال بالشبكة',
@@ -69,58 +76,7 @@ class AppwriteErrorHandler {
       );
     }
 
-    // Authentication errors
-    if (error.toString().contains('401') ||
-        error.toString().contains('Unauthorized') ||
-        error.toString().contains('authentication')) {
-      return AppwriteError(
-        code: 'AUTH_ERROR',
-        message: 'خطأ في المصادقة',
-        details: 'يرجى تسجيل الدخول مرة أخرى',
-        isRecoverable: true,
-      );
-    }
-
-    // Permission errors
-    if (error.toString().contains('403') ||
-        error.toString().contains('Forbidden') ||
-        error.toString().contains('permission')) {
-      return AppwriteError(
-        code: 'PERMISSION_ERROR',
-        message: 'لا تملك صلاحية للقيام بهذا الإجراء',
-        details: error.toString(),
-        isRecoverable: false,
-      );
-    }
-
-    // Not found errors
-    if (error.toString().contains('404') ||
-        error.toString().contains('Not Found') ||
-        error.toString().contains('not_found')) {
-      return AppwriteError(
-        code: 'NOT_FOUND',
-        message: 'العنصر المطلوب غير موجود',
-        details: error.toString(),
-        isRecoverable: false,
-      );
-    }
-
-    // Server errors
-    if (error.toString().contains('500') ||
-        error.toString().contains('502') ||
-        error.toString().contains('503') ||
-        error.toString().contains('Server Error')) {
-      return AppwriteError(
-        code: 'SERVER_ERROR',
-        message: 'خطأ في الخادم',
-        details: 'يرجى المحاولة لاحقاً',
-        isRecoverable: true,
-      );
-    }
-
-    // Timeout errors
-    if (error.toString().contains('timeout') ||
-        error.toString().contains('Timeout')) {
+    if (msg.contains('TimeoutException') || msg.contains('timed out')) {
       return AppwriteError(
         code: 'TIMEOUT_ERROR',
         message: 'انتهت مهلة الاتصال',
@@ -129,22 +85,46 @@ class AppwriteErrorHandler {
       );
     }
 
-    // Rate limit errors
-    if (error.toString().contains('429') ||
-        error.toString().contains('Too Many Requests') ||
-        error.toString().contains('rate_limit')) {
+    return AppwriteError(
+      code: 'UNKNOWN_ERROR',
+      message: 'حدث خطأ غير متوقع',
+      details: msg,
+      isRecoverable: true,
+    );
+  }
+
+  AppwriteError _parseAppwriteException(AppwriteException e) {
+    final code = e.code;
+    final type = e.type ?? '';
+
+    if (code == 401 || type.contains('unauthorized')) {
       return AppwriteError(
-        code: 'RATE_LIMIT',
-        message: 'تم تجاوز حد الطلبات',
-        details: 'يرجى الانتظار قليلاً قبل المحاولة مرة أخرى',
+        code: 'AUTH_ERROR',
+        message: 'خطأ في المصادقة',
+        details: e.message,
         isRecoverable: true,
       );
     }
 
-    // Conflict errors (for sync)
-    if (error.toString().contains('409') ||
-        error.toString().contains('Conflict') ||
-        error.toString().contains('conflict')) {
+    if (code == 403 || type.contains('forbidden')) {
+      return AppwriteError(
+        code: 'PERMISSION_ERROR',
+        message: 'لا تملك صلاحية للقيام بهذا الإجراء',
+        details: e.message,
+        isRecoverable: false,
+      );
+    }
+
+    if (code == 404 || type.contains('not_found')) {
+      return AppwriteError(
+        code: 'NOT_FOUND',
+        message: 'العنصر المطلوب غير موجود',
+        details: e.message,
+        isRecoverable: false,
+      );
+    }
+
+    if (code == 409 || type.contains('conflict')) {
       return AppwriteError(
         code: 'CONFLICT_ERROR',
         message: 'تضارب في البيانات',
@@ -153,11 +133,28 @@ class AppwriteErrorHandler {
       );
     }
 
-    // Generic error
+    if (code == 429 || type.contains('rate_limit')) {
+      return AppwriteError(
+        code: 'RATE_LIMIT',
+        message: 'تم تجاوز حد الطلبات',
+        details: 'يرجى الانتظار قليلاً قبل المحاولة مرة أخرى',
+        isRecoverable: true,
+      );
+    }
+
+    if (code != null && code >= 500) {
+      return AppwriteError(
+        code: 'SERVER_ERROR',
+        message: 'خطأ في الخادم',
+        details: e.message,
+        isRecoverable: true,
+      );
+    }
+
     return AppwriteError(
-      code: 'UNKNOWN_ERROR',
-      message: 'حدث خطأ غير متوقع',
-      details: error.toString(),
+      code: 'APPWRITE_ERROR_${code ?? 'UNKNOWN'}',
+      message: e.message ?? 'خطأ غير متوقع من Appwrite',
+      details: 'type: $type',
       isRecoverable: true,
     );
   }
@@ -176,10 +173,7 @@ class AppwriteErrorHandler {
             ),
             if (error.details != null) ...[
               const SizedBox(height: 4),
-              Text(
-                error.details!,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text(error.details!, style: const TextStyle(fontSize: 12)),
             ],
           ],
         ),
@@ -248,7 +242,8 @@ class AppwriteErrorHandler {
   int get errorCount => _errorHistory.length;
 
   /// الحصول على آخر خطأ
-  AppwriteError? get lastError => _errorHistory.isNotEmpty ? _errorHistory.last : null;
+  AppwriteError? get lastError =>
+      _errorHistory.isNotEmpty ? _errorHistory.last : null;
 
   /// مسح سجل الأخطاء
   void clearHistory() {

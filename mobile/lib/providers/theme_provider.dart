@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +22,7 @@ class ThemeSettingsNotifier extends StateNotifier<bool> {
   Future<void> toggle() => setDarkMode(!state);
 }
 
-final themeSettingsProvider = StateNotifierProvider<ThemeSettingsNotifier, bool>((ref) {
-  return ThemeSettingsNotifier();
-});
+final themeSettingsProvider =
+    StateNotifierProvider<ThemeSettingsNotifier, bool>((ref) {
+      return ThemeSettingsNotifier();
+    });

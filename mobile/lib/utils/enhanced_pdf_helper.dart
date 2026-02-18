@@ -7,10 +7,22 @@ import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../../models/enhanced_payment_models.dart';
-import '../../models/enhanced_reports.dart';
-import '../../services/local_db.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../models/enhanced_payment_models.dart';
+import '../models/enhanced_reports.dart';
+import '../services/local_db.dart';
+import 'enhanced_pdf_utils.dart';
+
+DateTime _safeParseDateTime(String? dateStr, {DateTime? fallback}) {
+  if (dateStr == null || dateStr.trim().isEmpty) {
+    return fallback ?? DateTime.now();
+  }
+  final normalized = dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
+  try {
+    return DateTime.parse(normalized);
+  } catch (_) {
+    return fallback ?? DateTime.now();
+  }
+}
 
 /// مساعد لإنشاء PDF محسّنة من البيانات الموجودة
 class EnhancedPdfHelper {
@@ -48,7 +60,8 @@ class EnhancedPdfHelper {
     final nights = booking.calculatedNights;
     final baseItems = [
       InvoiceItem(
-        description: 'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
+        description:
+            'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
         quantity: nights,
         unitPrice: roomPrice,
       ),
@@ -60,7 +73,8 @@ class EnhancedPdfHelper {
     }
 
     final invoice = EnhancedInvoice(
-      invoiceNumber: 'INV-${booking.id}-${DateTime.now().millisecondsSinceEpoch}',
+      invoiceNumber:
+          'INV-${booking.id}-${DateTime.now().millisecondsSinceEpoch}',
       guestName: booking.guestName,
       guestPhone: booking.guestPhone,
       roomNumber: booking.roomNumber,
@@ -68,12 +82,13 @@ class EnhancedPdfHelper {
       payments: payments,
       hotelName: 'فندق مارينا بلازا',
       hotelAddress: 'القاهرة - شارع احمد قاسم',
-      checkIn: DateTime.parse(booking.checkinDate),
-      checkOut: booking.checkoutDate != null
-          ? DateTime.parse(booking.checkoutDate!)
-          : DateTime.parse(booking.checkinDate).add(Duration(days: nights)),
+      checkIn: _safeParseDateTime(booking.checkinDate),
+      checkOut: booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
+          ? _safeParseDateTime(booking.checkoutDate)
+          : _safeParseDateTime(booking.checkinDate).add(Duration(days: nights)),
       issuedAt: DateTime.now(),
       notes: booking.notes,
+      discount: booking.discount,
     );
 
     await invoice.generatePDF();
@@ -97,7 +112,7 @@ class EnhancedPdfHelper {
           final nowMillis = now.millisecondsSinceEpoch;
           final nowIso = now.toIso8601String();
           return Booking(
-            localUuid: 'fallback-${payment.id ?? nowMillis}',
+            localUuid: 'fallback-${payment.id}',
             serverId: null,
             createdAt: nowMillis,
             updatedAt: nowMillis,
@@ -138,8 +153,12 @@ class EnhancedPdfHelper {
             totalPaidCached: 0,
             remainingBalanceCached: 0,
             isFullyPaid: false,
+            discount: 0,
+            discountType: 'per_night',
+            discountStartDate: null,
             hotelDayCheckin: null,
             hotelDayCheckout: null,
+            vectorClock: '{}',
           );
         },
       );
@@ -149,7 +168,7 @@ class EnhancedPdfHelper {
         roomNumber: booking.roomNumber,
         amount: payment.amount,
         method: payment.paymentMethod,
-        paymentDate: DateTime.parse(payment.paymentDate),
+        paymentDate: _safeParseDateTime(payment.paymentDate),
         receivedBy: 'النظام',
         notes: payment.notes,
       );
@@ -174,13 +193,17 @@ class EnhancedPdfHelper {
     String? categoryFilter,
     required String generatedBy,
   }) async {
-    final reportItems = expenses.map((expense) => ExpenseReportItem(
-      description: expense.description,
-      category: expense.expenseType,
-      amount: expense.amount,
-      date: DateTime.parse(expense.date),
-      notes: null,
-    )).toList();
+    final reportItems = expenses
+        .map(
+          (expense) => ExpenseReportItem(
+            description: expense.description,
+            category: expense.expenseType,
+            amount: expense.amount,
+            date: _safeParseDateTime(expense.date),
+            notes: null,
+          ),
+        )
+        .toList();
 
     final report = EnhancedExpensesReport(
       expenses: reportItems,
@@ -211,16 +234,15 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests = bookings.where((b) => b.status == 'checked_in').length;
+    final checkedInGuests = bookings
+        .where((b) => b.status == 'checked_in')
+        .length;
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(
-          base: fonts.regular,
-          bold: fonts.bold,
-        ),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         header: (context) => pw.Column(
           children: [
             EnhancedPdfUtils.buildProfessionalHeader(
@@ -329,25 +351,44 @@ class EnhancedPdfHelper {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي الحجوزات:', style: PdfTextStyles.bodyBold(fonts.bold)),
-                  pw.Text('$totalBookings حجز', style: PdfTextStyles.body(fonts.regular)),
-                ],
-              ),
-              pw.SizedBox(height: 6),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('النزلاء الحاليون:', style: PdfTextStyles.bodyBold(fonts.bold)),
-                  pw.Text('$checkedInGuests نزيل', style: PdfTextStyles.body(fonts.regular)),
-                ],
-              ),
-              pw.SizedBox(height: 6),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('متوسط الإيراد لكل حجز:', style: PdfTextStyles.bodyBold(fonts.bold)),
                   pw.Text(
-                    totalBookings > 0 ? EnhancedPdfUtils.formatCurrency(totalRevenue / totalBookings) : '0',
+                    'إجمالي الحجوزات:',
+                    style: PdfTextStyles.bodyBold(fonts.bold),
+                  ),
+                  pw.Text(
+                    '$totalBookings حجز',
+                    style: PdfTextStyles.body(fonts.regular),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 6),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'النزلاء الحاليون:',
+                    style: PdfTextStyles.bodyBold(fonts.bold),
+                  ),
+                  pw.Text(
+                    '$checkedInGuests نزيل',
+                    style: PdfTextStyles.body(fonts.regular),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 6),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'متوسط الإيراد لكل حجز:',
+                    style: PdfTextStyles.bodyBold(fonts.bold),
+                  ),
+                  pw.Text(
+                    totalBookings > 0
+                        ? EnhancedPdfUtils.formatCurrency(
+                            totalRevenue / totalBookings,
+                          )
+                        : '0',
                     style: PdfTextStyles.body(fonts.regular),
                   ),
                 ],
@@ -365,7 +406,8 @@ class EnhancedPdfHelper {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename: 'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
+      filename:
+          'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
     );
   }
 }

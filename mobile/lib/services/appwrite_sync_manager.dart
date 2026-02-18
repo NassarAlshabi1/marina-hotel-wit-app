@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
 import 'package:appwrite/models.dart' as models;
 import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/id.dart';
@@ -16,15 +15,16 @@ import 'appwrite_models.dart';
 import 'appwrite_config.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
+import 'sync_mutex.dart';
+import 'sync_enums.dart';
+import 'sync_constants.dart';
+import 'sync_core/sync_metrics.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
+import 'repositories/bookings_repository.dart';
 
 /// حالة المزامنة
-enum SyncStatus {
-  idle,
-  syncing,
-  success,
-  failed,
-  partial,
-}
+enum SyncStatus { idle, syncing, success, failed, partial }
 
 /// نتيجة المزامنة
 class SyncResult {
@@ -50,6 +50,8 @@ class SyncResult {
   bool get hasConflicts => conflicts > 0;
 }
 
+
+
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
   static AppwriteSyncManager? _instance;
@@ -57,29 +59,43 @@ class AppwriteSyncManager {
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
-  
-  factory AppwriteSyncManager({required AppwriteService appwriteService, required AppDatabase database}) {
-    _instance ??= AppwriteSyncManager._internal(appwriteService: appwriteService, database: database);
+  late final BookingsRepository _bookingsRepository;
+  late final AdapterRegistry _adapterRegistry;
+  final SyncMutex _mutex = SyncMutex();
+
+  factory AppwriteSyncManager({
+    required AppwriteService appwriteService,
+    required AppDatabase database,
+  }) {
+    _instance ??= AppwriteSyncManager._internal(
+      appwriteService: appwriteService,
+      database: database,
+    );
     return _instance!;
   }
 
-  AppwriteSyncManager._internal({required this.appwriteService, required this.database})
-      : outboxDao = OutboxDao(database);
+  AppwriteSyncManager._internal({
+    required this.appwriteService,
+    required this.database,
+  }) : outboxDao = OutboxDao(database) {
+    _adapterRegistry = AdapterRegistry(database);
+    _bookingsRepository = BookingsRepository(database);
+  }
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
-  
+
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
   StreamSubscription? _outboxSubscription;
-  Duration _debounceWindow = const Duration(seconds: 10);
+  Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
   String? _deviceLocalUuid;
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
-  
+
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
@@ -88,13 +104,60 @@ class AppwriteSyncManager {
     try {
       await appwriteService.initialize();
       await _loadSettings();
+
+      // Fix potential stuck states
+      try {
+        await outboxDao.cleanupStuckEntries();
+        await outboxDao.retryFailed();
+      } catch (e) {
+        _logger.warning(
+          'Failed to cleanup outbox on init',
+          error: e,
+          tag: 'SYNC',
+        );
+      }
+
       _enableDebouncedPush();
+
+      // رفع البيانات الحالية مرة واحدة (للبيانات التي أُنشئت قبل تفعيل Outbox)
+      unawaited(_runInitialSeedIfNeeded());
+
       _logger.info('Sync manager initialized', tag: 'SYNC');
     } catch (e, stackTrace) {
-      _logger.error('Failed to initialize sync manager', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'SYNC'
+      _logger.error(
+        'Failed to initialize sync manager',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// رفع جميع البيانات المحلية مرة واحدة عند أول تشغيل بعد التفعيل
+  Future<void> _runInitialSeedIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool('appwrite_initial_seed_done') ?? false;
+      if (done) return;
+
+      // التحقق من وجود بيانات محلية تحتاج رفع
+      final rooms = await database.select(database.rooms).get();
+      if (rooms.isEmpty) {
+        await prefs.setBool('appwrite_initial_seed_done', true);
+        return;
+      }
+
+      _logger.info('بدء الرفع الأولي للبيانات المحلية...', tag: 'SYNC');
+      final stats = await pushAllLocalDataToAppwrite();
+      _logger.info('اكتمل الرفع الأولي: $stats', tag: 'SYNC');
+
+      await prefs.setBool('appwrite_initial_seed_done', true);
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'فشل الرفع الأولي (سيُعاد في المرة القادمة)',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
       );
     }
   }
@@ -102,6 +165,7 @@ class AppwriteSyncManager {
   /// تحميل الإعدادات
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
@@ -121,7 +185,10 @@ class AppwriteSyncManager {
       await prefs.setString('appwrite_device_id', _currentDeviceId!);
     }
     if (_lastSyncTime != null) {
-      await prefs.setInt('appwrite_last_sync_time', _lastSyncTime!.millisecondsSinceEpoch);
+      await prefs.setInt(
+        'appwrite_last_sync_time',
+        _lastSyncTime!.millisecondsSinceEpoch,
+      );
     }
     if (_deviceLocalUuid != null) {
       await prefs.setString('appwrite_device_local_uuid', _deviceLocalUuid!);
@@ -147,7 +214,7 @@ class AppwriteSyncManager {
 
       if (deviceName == null || deviceModel == null || osVersion == null) {
         final deviceInfo = DeviceInfoPlugin();
-        
+
         if (Platform.isAndroid) {
           final androidInfo = await deviceInfo.androidInfo;
           finalDeviceName = androidInfo.model;
@@ -170,27 +237,40 @@ class AppwriteSyncManager {
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
-        _deviceVersion = (_deviceVersion ?? 1) + 1;
+        await _mutex.runExclusive(() async {
+          final existingDoc = await appwriteService.getDocument(
+            collectionId: AppwriteConfig.devicesCollectionId,
+            documentId: _currentDeviceId!,
+          );
+          final currentRemoteVersion = _asInt(
+            existingDoc.data['version'],
+            fallback: 0,
+          );
+          if (_deviceVersion == null ||
+              _deviceVersion! <= currentRemoteVersion) {
+            _deviceVersion = currentRemoteVersion + 1;
+          }
 
-        await appwriteService.updateDocument(
-          collectionId: AppwriteConfig.devicesCollectionId,
-          documentId: _currentDeviceId!,
-          data: {
-            'deviceName': finalDeviceName,
-            'deviceModel': finalDeviceModel,
-            'osVersion': finalOsVersion,
-            'deviceType': deviceType,
-            'status': 'active',
-            'localUuid': _deviceLocalUuid,
-            'lastSeen': nowIso,
-            'lastActive': nowEpoch,
-            'createdAt': _deviceCreatedAtEpoch,
-            'updatedAt': nowEpoch,
-            'lastModified': nowEpoch,
-            'version': _deviceVersion,
-            'origin': 'mobile',
-          },
-        );
+          await appwriteService.updateDocument(
+            collectionId: AppwriteConfig.devicesCollectionId,
+            documentId: _currentDeviceId!,
+            data: {
+              'deviceName': finalDeviceName,
+              'deviceModel': finalDeviceModel,
+              'osVersion': finalOsVersion,
+              'deviceType': deviceType,
+              'status': DeviceStatus.active.value,
+              'localUuid': _deviceLocalUuid,
+              'lastSeen': nowIso,
+              'lastActive': nowEpoch,
+              'createdAt': _deviceCreatedAtEpoch,
+              'updatedAt': nowEpoch,
+              'lastModified': nowEpoch,
+              'version': _deviceVersion,
+              'origin': 'mobile',
+            },
+          );
+        });
 
         await _saveSettings();
         _logger.info('Device updated: $_currentDeviceId', tag: 'SYNC');
@@ -204,7 +284,7 @@ class AppwriteSyncManager {
           'deviceModel': finalDeviceModel,
           'osVersion': finalOsVersion,
           'deviceType': deviceType,
-          'status': 'active',
+          'status': DeviceStatus.active.value,
           'localUuid': _deviceLocalUuid,
           'lastSeen': nowIso,
           'lastActive': nowEpoch,
@@ -214,35 +294,36 @@ class AppwriteSyncManager {
           'version': _deviceVersion,
           'origin': 'mobile',
         });
-        
+
         _currentDeviceId = device.$id;
         await _saveSettings();
-        
+
         _logger.info('Device registered: $_currentDeviceId', tag: 'SYNC');
         return _currentDeviceId!;
       }
     } catch (e, stackTrace) {
-      _logger.error('Failed to register device', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'SYNC'
+      _logger.error(
+        'Failed to register device',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
       );
       rethrow;
     }
   }
 
   /// بدء المزامنة التلقائية
-  void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
+  void startAutoSync({
+    Duration interval = SyncConstants.defaultAutoSyncInterval,
+  }) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      
-      if (enabled) {
-        await sync();
-      }
+      await sync();
     });
-    _logger.info('Auto sync started (interval: ${interval.inMinutes} min)', tag: 'SYNC');
+    _logger.info(
+      'Auto sync started (interval: ${interval.inMinutes} min)',
+      tag: 'SYNC',
+    );
   }
 
   /// إيقاف المزامنة التلقائية
@@ -258,16 +339,42 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen((_) {
-      _debouncePushTimer?.cancel();
-      _debouncePushTimer = Timer(_debounceWindow, () async {
-        _logger.debug('Debounced push triggered', tag: 'SYNC');
-        try {
-          await sync();
-        } catch (_) {}
-      });
-    });
-    _logger.info('Debounced push enabled (window: ${_debounceWindow.inSeconds}s)', tag: 'SYNC');
+    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+      (_) {
+        _debouncePushTimer?.cancel();
+        _debouncePushTimer = Timer(_debounceWindow, () async {
+          _logger.debug('Debounced push triggered', tag: 'SYNC');
+          try {
+            final result = await sync(push: true, pull: false);
+            if (result.status != SyncStatus.success) {
+              _logger.warning(
+                'Debounced push sync failed: ${result.errorMessage ?? ''}',
+                tag: 'SYNC',
+              );
+            }
+          } catch (e, stackTrace) {
+            _logger.error(
+              'Debounced push failed',
+              error: e,
+              stackTrace: stackTrace,
+              tag: 'SYNC',
+            );
+          }
+        });
+      },
+      onError: (e, stackTrace) {
+        _logger.error(
+          'Outbox watch stream failed',
+          error: e,
+          stackTrace: stackTrace,
+          tag: 'SYNC',
+        );
+      },
+    );
+    _logger.info(
+      'Debounced push enabled (window: ${_debounceWindow.inSeconds}s)',
+      tag: 'SYNC',
+    );
   }
 
   /// تنظيف الموارد
@@ -279,10 +386,28 @@ class AppwriteSyncManager {
     _syncController.close();
   }
 
-  /// تنفيذ المزامنة
-  Future<SyncResult> sync() async {
+  /// دورة المزامنة الكاملة مع Appwrite:
+  /// - تتحقق من الاتصال بالشبكة
+  /// - تنشئ سجل في sync_logs (start)
+  /// - Push: تفرّغ outbox إلى Appwrite
+  /// - Pull: تسحب collections (rooms → bookings → employees → expenses → payments → debts)
+  /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
+  ///
+  /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
+  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+    if (!await _mutex.acquire()) {
+      _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync mutex timeout',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
+      _mutex.release();
       return SyncResult(
         status: SyncStatus.failed,
         errorMessage: 'Sync already in progress',
@@ -293,11 +418,16 @@ class AppwriteSyncManager {
 
     _currentStatus = SyncStatus.syncing;
     _syncController.add(_currentStatus);
-    
+
     final startTime = DateTime.now();
+
+    final metrics = SyncMetrics.instance;
+    metrics.startSync();
+
+    final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    int conflicts = 0;
+    final int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
@@ -311,7 +441,7 @@ class AppwriteSyncManager {
 
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
+      if (connectivity == ConnectivityResult.none) {
         throw Exception('No internet connection');
       }
 
@@ -321,9 +451,15 @@ class AppwriteSyncManager {
 
       final syncLog = await appwriteService.createSyncLog({
         'deviceId': _currentDeviceId ?? 'unknown',
-        'syncType': 'full',
+        'syncType': push && pull
+            ? 'full'
+            : push
+            ? 'push'
+            : pull
+            ? 'pull'
+            : 'noop',
         'startTime': startTime.toIso8601String(),
-        'status': 'in_progress',
+        'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
         'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
         'timestamp': syncLogCreatedEpoch,
@@ -337,44 +473,110 @@ class AppwriteSyncManager {
       syncLogId = syncLog.$id;
       hasSyncLog = true;
 
-      final pushedCount = await _pushAllEntities();
-      recordsPushed += pushedCount;
+      if (push) {
+        recordsPushed += await _timePhase(
+          'pushAllEntities',
+          _pushAllEntities,
+          phaseMs,
+        );
+      }
 
-      // مزامنة الغرف
-      final rooms = await appwriteService.listRooms(useCache: false);
-      final roomsSynced = await _syncRooms(rooms);
-      recordsPulled += roomsSynced;
-      _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
+      if (pull) {
+        recordsPulled += await _timePhase('syncRooms', () async {
+          final rooms = await appwriteService.listRooms(useCache: false);
+          final roomsSynced = await _syncRooms(rooms);
+          _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
+          return roomsSynced;
+        }, phaseMs);
 
-      // مزامنة الحجوزات
-      final bookings = await appwriteService.listBookings(useCache: false);
-      final bookingsSynced = await _syncBookings(bookings);
-      recordsPulled += bookingsSynced;
-      _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncBookings', () async {
+          final bookings = await appwriteService.listBookings(useCache: false);
+          final bookingsSynced = await _syncBookings(bookings);
+          _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+          return bookingsSynced;
+        }, phaseMs);
 
-      // مزامنة الموظفين
-      final employees = await appwriteService.listEmployees(useCache: false);
-      final employeesSynced = await _syncEmployees(employees);
-      recordsPulled += employeesSynced;
-      _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncEmployees', () async {
+          final employees = await appwriteService.listEmployees(
+            useCache: false,
+          );
+          final employeesSynced = await _syncEmployees(employees);
+          _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
+          return employeesSynced;
+        }, phaseMs);
 
-      // مزامنة المصروفات
-      final expenses = await appwriteService.listExpenses(useCache: false);
-      final expensesSynced = await _syncExpenses(expenses);
-      recordsPulled += expensesSynced;
-      _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncExpenses', () async {
+          final expenses = await appwriteService.listExpenses(useCache: false);
+          final expensesSynced = await _syncExpenses(expenses);
+          _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+          return expensesSynced;
+        }, phaseMs);
 
-      // مزامنة المدفوعات
-      final payments = await appwriteService.listPayments(useCache: false);
-      final paymentsSynced = await _syncPayments(payments);
-      recordsPulled += paymentsSynced;
-      _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncPayments', () async {
+          final payments = await appwriteService.listPayments(useCache: false);
+          final paymentsSynced = await _syncPayments(payments);
+          _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+          return paymentsSynced;
+        }, phaseMs);
 
-      // مزامنة الديون
-      final debts = await appwriteService.listDebts(useCache: false);
-      final debtsSynced = await _syncDebts(debts);
-      recordsPulled += debtsSynced;
-      _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
+        recordsPulled += await _timePhase('syncDebts', () async {
+          final debts = await appwriteService.listDebts(useCache: false);
+          final debtsSynced = await _syncDebts(debts);
+          _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
+          return debtsSynced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
+          final adjustments = await appwriteService.listDocuments(
+            collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          );
+          final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
+          _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
+          return adjustmentsSynced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncBookingNights', () async {
+          final bookingNights = await appwriteService.listBookingNights(useCache: false);
+          final synced = await _syncBookingNights(bookingNights);
+          _logger.debug('Synced $synced booking nights', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncBookingNotes', () async {
+          final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
+          final synced = await _syncBookingNotes(bookingNotes);
+          _logger.debug('Synced $synced booking notes', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncCashTransactions', () async {
+          final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
+          final synced = await _syncCashTransactions(cashTransactions);
+          _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncShiftNotes', () async {
+          final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
+          final synced = await _syncShiftNotes(shiftNotes);
+          _logger.debug('Synced $synced shift notes', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncSalaryCycles', () async {
+          final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
+          final synced = await _syncSalaryCycles(salaryCycles);
+          _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncSalaryPayments', () async {
+          final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
+          final synced = await _syncSalaryPayments(salaryPayments);
+          _logger.debug('Synced $synced salary payments', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+      }
 
       // تحديث سجل المزامنة
       final endTime = DateTime.now();
@@ -387,9 +589,10 @@ class AppwriteSyncManager {
           documentId: syncLogId,
           data: {
             'endTime': endTime.toIso8601String(),
-            'status': 'completed',
+            'status': SyncLogStatus.completed.value,
             'action': 'sync_complete',
-            'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
+            'details':
+                '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
             'updatedAt': endEpoch,
             'lastModified': endEpoch,
             'timestamp': endEpoch,
@@ -403,10 +606,10 @@ class AppwriteSyncManager {
       _lastSyncTime = endTime;
       await _saveSettings();
 
-      _logger.info('Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)', 
-        tag: 'SYNC'
+      _logger.info(
+        'Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)',
+        tag: 'SYNC',
       );
-
     } catch (e, stackTrace) {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
@@ -419,10 +622,17 @@ class AppwriteSyncManager {
             collectionId: AppwriteConfig.syncLogsCollectionId,
             documentId: syncLogId,
             data: {
-              'status': 'failed',
+              'status': SyncLogStatus.failed.value,
               'action': 'sync_failed',
-              'errorMessage': errorMessage,
-              'details': '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
+              'errorMessage': (() {
+                final msg = errorMessage ?? '';
+                if (msg.length > SyncConstants.maxErrorMessageLength) {
+                  return msg.substring(0, SyncConstants.maxErrorMessageLength);
+                }
+                return msg;
+              })(),
+              'details':
+                  '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
               'updatedAt': failEpoch,
               'lastModified': failEpoch,
               'timestamp': failEpoch,
@@ -430,22 +640,72 @@ class AppwriteSyncManager {
               'origin': 'mobile',
             },
           );
-        } catch (_) {}
+        } catch (logError, logStackTrace) {
+          _logger.warning(
+            'Failed to update sync log after failure',
+            tag: 'SYNC',
+            error: logError,
+            stackTrace: logStackTrace,
+          );
+        }
       }
-      
-      _errorHandler.handleError(e, 
-        context: 'sync()', 
-        stackTrace: stackTrace
+
+      _errorHandler.handleError(e, context: 'sync()', stackTrace: stackTrace);
+
+      _logger.error(
+        'Sync failed',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
       );
-      
-      _logger.error('Sync failed', error: e, stackTrace: stackTrace, tag: 'SYNC');
     }
 
     _currentStatus = finalStatus;
     _syncController.add(_currentStatus);
+    _mutex.release();
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
+
+    if (finalStatus == SyncStatus.success) {
+      metrics.recordSuccess(
+        recordsSynced: recordsPushed + recordsPulled,
+        conflictsResolved: conflicts,
+      );
+    } else {
+      metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
+    }
+
+    try {
+      final payload = <String, Object?>{
+        'durationMs': duration.inMilliseconds,
+        'recordsPushed': recordsPushed,
+        'recordsPulled': recordsPulled,
+        'conflicts': conflicts,
+        'status': finalStatus.name,
+        'phasesMs': phaseMs,
+      };
+
+      var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
+      if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
+        const ellipsis = '…';
+        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
+        if (maxLen > 0) {
+          encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
+        } else {
+          encoded = encoded.substring(0, SyncConstants.maxMetricsPayloadLength);
+        }
+      }
+
+      _logger.debug('Sync metrics: $encoded', tag: 'METRICS');
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Failed to log sync metrics',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'METRICS',
+      );
+    }
 
     return SyncResult(
       status: finalStatus,
@@ -485,29 +745,38 @@ class AppwriteSyncManager {
 
         return 0;
       }
-      
-      int totalSyncs = syncLogs.length;
-      int successfulSyncs = syncLogs.where((log) => 
-        log.data['status'] == 'completed'
-      ).length;
-      int failedSyncs = syncLogs.where((log) => 
-        log.data['status'] == 'failed'
-      ).length;
-      
-      int totalRecordsPushed = syncLogs.fold<int>(0, (sum, log) => 
-        sum + extractCount(Map<String, dynamic>.from(log.data), 'recordsPushed')
+
+      final totalSyncs = syncLogs.length;
+      final successfulSyncs = syncLogs
+          .where((log) => log.data['status'] == SyncLogStatus.completed.value)
+          .length;
+      final failedSyncs = syncLogs
+          .where((log) => log.data['status'] == SyncLogStatus.failed.value)
+          .length;
+
+      final totalRecordsPushed = syncLogs.fold<int>(
+        0,
+        (sum, log) =>
+            sum +
+            extractCount(Map<String, dynamic>.from(log.data), 'recordsPushed'),
       );
-      int totalRecordsPulled = syncLogs.fold<int>(0, (sum, log) => 
-        sum + extractCount(Map<String, dynamic>.from(log.data), 'recordsPulled')
+      final totalRecordsPulled = syncLogs.fold<int>(
+        0,
+        (sum, log) =>
+            sum +
+            extractCount(Map<String, dynamic>.from(log.data), 'recordsPulled'),
       );
-      int totalConflicts = syncLogs.fold<int>(0, (sum, log) => 
-        sum + extractCount(Map<String, dynamic>.from(log.data), 'conflicts')
+      final totalConflicts = syncLogs.fold<int>(
+        0,
+        (sum, log) =>
+            sum +
+            extractCount(Map<String, dynamic>.from(log.data), 'conflicts'),
       );
 
       Map<String, dynamic>? lastFailed;
       for (final log in syncLogs) {
         final data = Map<String, dynamic>.from(log.data);
-        if ((data['status'] ?? '') == 'failed') {
+        if ((data['status'] ?? '') == SyncLogStatus.failed.value) {
           lastFailed = data;
           break;
         }
@@ -518,7 +787,8 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(log.data);
         timeline.add({
           'status': data['status'],
-          'timestamp': data['timestamp'] ?? data['endTime'] ?? data['startTime'],
+          'timestamp':
+              data['timestamp'] ?? data['endTime'] ?? data['startTime'],
           'syncType': data['syncType'] ?? data['action'],
           'recordsPushed': extractCount(data, 'recordsPushed'),
           'recordsPulled': extractCount(data, 'recordsPulled'),
@@ -531,14 +801,22 @@ class AppwriteSyncManager {
         'totalSyncs': totalSyncs,
         'successfulSyncs': successfulSyncs,
         'failedSyncs': failedSyncs,
-        'successRate': totalSyncs > 0 ? (successfulSyncs / totalSyncs * 100) : 0.0,
+        'successRate': totalSyncs > 0
+            ? (successfulSyncs / totalSyncs * 100)
+            : 0.0,
         'totalRecordsPushed': totalRecordsPushed,
         'totalRecordsPulled': totalRecordsPulled,
         'totalConflicts': totalConflicts,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
         'outboxCount': outboxCount,
-        'lastErrorMessage': lastFailed != null ? (lastFailed['errorMessage'] ?? '') : null,
-        'lastErrorTime': lastFailed != null ? (lastFailed['timestamp'] ?? lastFailed['endTime'] ?? lastFailed['startTime']) : null,
+        'lastErrorMessage': lastFailed != null
+            ? (lastFailed['errorMessage'] ?? '')
+            : null,
+        'lastErrorTime': lastFailed != null
+            ? (lastFailed['timestamp'] ??
+                  lastFailed['endTime'] ??
+                  lastFailed['startTime'])
+            : null,
         'timeline': timeline,
       };
     } catch (e) {
@@ -560,314 +838,221 @@ class AppwriteSyncManager {
     }
   }
 
+  Future<T> _timePhase<T>(
+    String name,
+    Future<T> Function() operation,
+    Map<String, int> phaseMs,
+  ) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      return await operation();
+    } finally {
+      stopwatch.stop();
+      phaseMs[name] = stopwatch.elapsedMilliseconds;
+    }
+  }
+
   Future<int> _syncRooms(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final roomNumber = _asString(data['roomNumber']);
-          if (roomNumber == null || roomNumber.isEmpty) {
-            continue;
-          }
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final companion = RoomsCompanion(
-            roomNumber: d.Value(roomNumber),
-            type: d.Value(_asString(data['type']) ?? ''),
-            price: d.Value(_asDouble(data['price'])),
-            status: d.Value(_asString(data['status']) ?? 'available'),
-            imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-          );
-          batch.insert(database.rooms, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
-        }
-      });
-    });
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync room ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
     return processed;
   }
 
   Future<int> _syncBookings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final roomNumber = _asString(data['roomNumber']) ?? '';
-          if (localUuid.isEmpty || roomNumber.isEmpty) {
-            continue;
-          }
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.bookings.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+
+        // TRIGGER POST-SYNC PROCESSING
+        // 1. Resolve local ID from UUID
+        final localUuid = data['localUuid'];
+        final booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+
+        if (booking != null) {
+          // 2. Convert legacy discount to adjustments
+          await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
           
-          final checkinDateStr = _asString(data['checkinDate']) ?? '';
-          final checkoutDateStr = _asString(data['checkoutDate']);
-          final actualCheckoutStr = _asString(data['actualCheckout']);
-          
-          int calculatedNights = _asInt(data['calculatedNights'], fallback: 1);
-          int expectedNights = _asInt(data['expectedNights'], fallback: 1);
-          
-          if (checkinDateStr.isNotEmpty) {
-            try {
-              final checkinDate = DateTime.parse(checkinDateStr);
-              final checkoutDate = actualCheckoutStr != null && actualCheckoutStr.isNotEmpty
-                  ? DateTime.parse(actualCheckoutStr)
-                  : (checkoutDateStr != null && checkoutDateStr.isNotEmpty 
-                      ? DateTime.parse(checkoutDateStr) 
-                      : null);
-              
-              if (checkoutDate != null) {
-                calculatedNights = Time.nightsWithCutoff(checkinDate, checkout: checkoutDate);
-                expectedNights = calculatedNights;
-              }
-            } catch (e) {
-              _logger.warning('Failed to parse booking dates: $e', tag: 'SYNC');
-            }
-          }
-          
-          final companion = BookingsCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
-            roomNumber: d.Value(roomNumber),
-            guestName: d.Value(_asString(data['guestName']) ?? ''),
-            guestPhone: d.Value(_asString(data['guestPhone']) ?? ''),
-            guestIdType: d.Value(_asString(data['guestIdType']) ?? ''),
-            guestIdNumber: d.Value(_asString(data['guestIdNumber']) ?? ''),
-            guestIdIssueDate: _nullableValue<String>(_asString(data['guestIdIssueDate'])),
-            guestIdIssuePlace: _nullableValue<String>(_asString(data['guestIdIssuePlace'])),
-            guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
-            guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
-            guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
-            checkinDate: d.Value(checkinDateStr),
-            checkoutDate: _nullableValue<String>(checkoutDateStr),
-            actualCheckout: _nullableValue<String>(actualCheckoutStr),
-            status: d.Value(_asString(data['status']) ?? ''),
-            notes: _nullableValue<String>(_asString(data['notes'])),
-            expectedNights: d.Value(expectedNights),
-            calculatedNights: d.Value(calculatedNights),
-          );
-          batch.insert(database.bookings, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
+          // 3. Recalculate derived fields (nightly rates, total due)
+          await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
         }
-      });
-    });
+
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
     return processed;
   }
 
   Future<int> _syncEmployees(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final name = _asString(data['name']);
-          if (localUuid.isEmpty || name == null || name.isEmpty) {
-            continue;
-          }
-          final companion = EmployeesCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            name: d.Value(name),
-            basicSalary: d.Value(_asDouble(data['basicSalary'])),
-            position: d.Value(_asString(data['position']) ?? ''),
-            phone: d.Value(_asString(data['phone']) ?? ''),
-            hireDate: d.Value(_asString(data['hireDate']) ?? ''),
-            status: d.Value(_asString(data['status']) ?? ''),
-          );
-          batch.insert(database.employees, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
-        }
-      });
-    });
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.employees.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
     return processed;
   }
 
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final expenseType = _asString(data['expenseType']);
-          if (localUuid.isEmpty || expenseType == null || expenseType.isEmpty) {
-            continue;
-          }
-          final companion = ExpensesCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            expenseType: d.Value(expenseType),
-            relatedId: _nullableValue<int>(_asIntNullable(data['relatedId'])),
-            description: d.Value(_asString(data['description']) ?? ''),
-            amount: d.Value(_asDouble(data['amount'])),
-            date: d.Value(_asString(data['date']) ?? ''),
-            cashTransactionId: _nullableValue<int>(_asIntNullable(data['cashTransactionId'])),
-          );
-          batch.insert(database.expenses, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
-        }
-      });
-    });
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.expenses.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
+      }
+    }
     return processed;
   }
 
   Future<int> _syncPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          if (localUuid.isEmpty) {
-            continue;
-          }
-          final companion = PaymentsCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            serverPaymentId: _nullableValue<int>(_asIntNullable(data['serverPaymentId'])),
-            bookingLocalId: _nullableValue<int>(_asIntNullable(data['bookingLocalId'])),
-            serverBookingId: _nullableValue<int>(_asIntNullable(data['serverBookingId'])),
-            roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
-            amount: d.Value(_asDouble(data['amount'])),
-            paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
-            notes: _nullableValue<String>(_asString(data['notes'])),
-            paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
-            revenueType: d.Value(_asString(data['revenueType']) ?? ''),
-            cashTransactionLocalId: _nullableValue<int>(_asIntNullable(data['cashTransactionLocalId'])),
-            cashTransactionServerId: _nullableValue<int>(_asIntNullable(data['cashTransactionServerId'])),
-            referenceNumber: _nullableValue<String>(_asString(data['referenceNumber'])),
+    final deferred = <models.Document>[];
+
+    // المرحلة الأولى: معالجة الدفعات
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+
+        await _adapterRegistry.payments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        // تأجيل الدفعة إذا كان الخطأ FOREIGN KEY constraint
+        if (e.toString().contains('FOREIGN KEY constraint failed') ||
+            e.toString().contains('constraint failed')) {
+          _logger.debug(
+            'Deferring payment ${doc.$id}: FOREIGN KEY constraint (missing booking)',
+            tag: 'SYNC',
           );
-          batch.insert(database.payments, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
+          deferred.add(doc);
+        } else {
+          _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
         }
-      });
-    });
+      }
+    }
+
+    // المرحلة الثانية: إعادة محاولة الدفعات المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred payments after all bookings synced',
+        tag: 'SYNC',
+      );
+
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          await _adapterRegistry.payments.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred payment ${doc.$id} after retry: $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
   }
 
   Future<int> _syncDebts(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    await database.transaction(() async {
-      await database.batch((batch) {
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final localUuid = _asString(data['localUuid']) ?? doc.$id;
-          final guestName = _asString(data['guestName']);
-          if (localUuid.isEmpty || guestName == null || guestName.isEmpty) {
-            continue;
-          }
-          final companion = DebtsCompanion(
-            localUuid: d.Value(localUuid),
-            serverId: _nullableValue<int>(_asIntNullable(data['serverId'])),
-            createdAt: d.Value(_normalizeEpoch(data['createdAt'])),
-            updatedAt: d.Value(_normalizeEpoch(data['updatedAt'])),
-            deletedAt: _nullableValue<int>(_normalizeEpochNullable(data['deletedAt'])),
-            lastModified: d.Value(_normalizeEpoch(data['lastModified'])),
-            version: d.Value(_asInt(data['version'], fallback: 1)),
-            origin: d.Value(_asString(data['origin']) ?? 'server'),
-            bookingLocalId: _nullableValue<int>(_asIntNullable(data['bookingLocalId'])),
-            guestName: d.Value(guestName),
-            checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
-            checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
-            dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
-            debtReason: d.Value(_asString(data['debtReason']) ?? ''),
-            totalAmount: d.Value(_asDouble(data['totalAmount'])),
-            paidAmount: d.Value(_asDouble(data['paidAmount'])),
-            remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
-            paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
-            isSettled: d.Value(_asInt(data['isSettled'], fallback: 0)),
-            pledge: _nullableValue<String>(_asString(data['pledge'])),
-            pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
-            note: _nullableValue<String>(_asString(data['note'])),
+    final deferred = <models.Document>[];
+
+    // المرحلة الأولى: معالجة الديون
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
+        processed++;
+      } catch (e) {
+        // تأجيل الدين إذا كان الخطأ FOREIGN KEY constraint
+        if (e.toString().contains('FOREIGN KEY constraint failed') ||
+            e.toString().contains('constraint failed')) {
+          _logger.debug(
+            'Deferring debt ${doc.$id}: FOREIGN KEY constraint (missing booking)',
+            tag: 'SYNC',
           );
-          batch.insert(database.debts, companion, mode: d.InsertMode.insertOrReplace);
-          processed++;
+          deferred.add(doc);
+        } else {
+          _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
         }
-      });
-    });
+      }
+    }
+
+    // المرحلة الثانية: إعادة محاولة الديون المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred debts after all bookings synced',
+        tag: 'SYNC',
+      );
+
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          await _adapterRegistry.debts.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred debt ${doc.$id} after retry: $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
-  }
-
-  d.Value<T?> _nullableValue<T>(T? value) {
-    return value == null ? const d.Value.absent() : d.Value(value);
-  }
-
-  int _normalizeEpoch(dynamic value, {int? fallback}) {
-    if (value == null) {
-      return fallback ?? Time.nowEpoch();
-    }
-    if (value is int) {
-      return value;
-    }
-    if (value is double) {
-      return value.toInt();
-    }
-    if (value is DateTime) {
-      return value.toUtc().millisecondsSinceEpoch ~/ 1000;
-    }
-    if (value is String && value.isNotEmpty) {
-      final parsedInt = int.tryParse(value);
-      if (parsedInt != null) {
-        return parsedInt;
-      }
-      final parsedDouble = double.tryParse(value);
-      if (parsedDouble != null) {
-        return parsedDouble.toInt();
-      }
-      final parsedDate = DateTime.tryParse(value);
-      if (parsedDate != null) {
-        return parsedDate.toUtc().millisecondsSinceEpoch ~/ 1000;
-      }
-    }
-    if (value is num) {
-      return value.toInt();
-    }
-    return fallback ?? Time.nowEpoch();
-  }
-
-  int? _normalizeEpochNullable(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return _normalizeEpoch(value);
   }
 
   int _asInt(dynamic value, {int fallback = 0}) {
@@ -898,55 +1083,35 @@ class AppwriteSyncManager {
     return null;
   }
 
-  double _asDouble(dynamic value, {double fallback = 0.0}) {
-    if (value == null) {
-      return fallback;
-    }
-    if (value is double) {
-      return value;
-    }
-    if (value is int) {
-      return value.toDouble();
-    }
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String && value.isNotEmpty) {
-      final parsed = double.tryParse(value);
-      if (parsed != null) {
-        return parsed;
-      }
-    }
-    return fallback;
-  }
-
-  String? _asString(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    final result = value.toString();
-    if (result.isEmpty) {
-      return null;
-    }
-    return result;
-  }
-
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
-    final entries = await outboxDao.takeBatch(batchSize);
-    if (entries.isEmpty) {
-      return 0;
-    }
+    int totalProcessed = 0;
 
-    int processed = 0;
-    for (final entry in entries) {
-      final success = await _processOutboxEntry(entry);
-      if (success) {
-        await outboxDao.removeById(entry.id);
-        processed++;
+    while (true) {
+      final entries = await outboxDao.takeBatch(batchSize);
+      if (entries.isEmpty) {
+        break;
+      }
+
+      int processedInBatch = 0;
+      for (final entry in entries) {
+        final success = await _processOutboxEntry(entry);
+        if (success) {
+          await outboxDao.removeById(entry.id);
+          processedInBatch++;
+        }
+      }
+      totalProcessed += processedInBatch;
+
+      if (entries.length == batchSize && processedInBatch == 0) {
+        _logger.warning(
+          'Push loop stuck on failing entries. Breaking.',
+          tag: 'SYNC',
+        );
+        break;
       }
     }
-    return processed;
+    return totalProcessed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -960,17 +1125,52 @@ class AppwriteSyncManager {
           return await _processExpenseEntry(entry);
         case 'payments':
           return await _processPaymentEntry(entry);
+        case 'salary_payments':
+          return await _processSalaryPaymentEntry(entry);
+        case 'cash_transactions':
+          return await _processCashTransactionEntry(entry);
+        case 'shift_notes':
+          return await _processShiftNoteEntry(entry);
         case 'debts':
           return await _processDebtEntry(entry);
+        case 'employees':
+          return await _processEmployeeEntry(entry);
+        case 'booking_notes':
+          return await _processBookingNoteEntry(entry);
+        case 'booking_nights':
+          return await _processBookingNightEntry(entry);
+        case 'salary_cycles':
+          return await _processSalaryCycleEntry(entry);
+        case 'booking_price_adjustments':
+          return await _processBookingPriceAdjustmentEntry(entry);
         default:
-          _logger.warning('Unknown outbox entity: ${entry.entity}', tag: 'SYNC');
+          _logger.warning(
+            'Unknown outbox entity: ${entry.entity}',
+            tag: 'SYNC',
+          );
           return true;
       }
     } catch (error, stackTrace) {
-      final parsed = _errorHandler.handleError(error, context: 'push:${entry.entity}:${entry.op}', stackTrace: stackTrace);
+      final parsed = _errorHandler.handleError(
+        error,
+        context: 'push:${entry.entity}:${entry.op}',
+        stackTrace: stackTrace,
+      );
       await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
+      await outboxDao.markFailed([entry.id]);
       return false;
     }
+  }
+
+  Map<String, dynamic> _addIdempotencyKey(
+    Map<String, dynamic> payload,
+    OutboxData entry,
+  ) {
+    return {
+      ...payload,
+      'idempotencyKey':
+          '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
+    };
   }
 
   Future<bool> _processRoomEntry(OutboxData entry) async {
@@ -984,52 +1184,76 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
-    await appwriteService.upsertRoom(room.localUuid, payload);
+    await appwriteService.upsertRoom(
+      room.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
     return true;
   }
 
   Future<bool> _processBookingEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteBooking(entry.localUuid));
+      await _deleteSilently(
+        () => appwriteService.deleteBooking(entry.localUuid),
+      );
       return true;
     }
     final booking = await _getBookingByLocalUuid(entry.localUuid);
     if (booking == null) {
-      await _deleteSilently(() => appwriteService.deleteBooking(entry.localUuid));
+      await _deleteSilently(
+        () => appwriteService.deleteBooking(entry.localUuid),
+      );
       return true;
     }
     final payload = _bookingToRemote(booking);
-    await appwriteService.upsertBooking(booking.localUuid, payload);
+    await appwriteService.upsertBooking(
+      booking.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
     return true;
   }
 
   Future<bool> _processExpenseEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteExpense(entry.localUuid));
+      await _deleteSilently(
+        () => appwriteService.deleteExpense(entry.localUuid),
+      );
       return true;
     }
     final expense = await _getExpenseByLocalUuid(entry.localUuid);
     if (expense == null) {
-      await _deleteSilently(() => appwriteService.deleteExpense(entry.localUuid));
+      await _deleteSilently(
+        () => appwriteService.deleteExpense(entry.localUuid),
+      );
       return true;
     }
     final payload = _expenseToRemote(expense);
-    await appwriteService.upsertExpense(expense.localUuid, payload);
+    await appwriteService.upsertExpense(
+      expense.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
     return true;
   }
 
   Future<bool> _processPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deletePayment(entry.localUuid));
+      await _deleteSilently(
+        () => appwriteService.deletePayment(entry.localUuid),
+      );
       return true;
     }
     final payment = await _getPaymentByLocalUuid(entry.localUuid);
     if (payment == null) {
-      await _deleteSilently(() => appwriteService.deletePayment(entry.localUuid));
+      await _deleteSilently(
+        () => appwriteService.deletePayment(entry.localUuid),
+      );
       return true;
     }
     final payload = _paymentToRemote(payment);
-    await appwriteService.upsertPayment(payment.localUuid, payload);
+    await appwriteService.upsertPayment(
+      payment.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
     return true;
   }
 
@@ -1044,7 +1268,10 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
-    await appwriteService.upsertDebt(debt.localUuid, payload);
+    await appwriteService.upsertDebt(
+      debt.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
     return true;
   }
 
@@ -1053,13 +1280,16 @@ class AppwriteSyncManager {
       await action();
     } catch (error) {
       if (error is AppwriteError && error.code == 'NOT_FOUND') {
-        _logger.debug('Delete target not found (AppwriteError): ${error.message}', tag: 'SYNC');
+        _logger.debug(
+          'Delete target not found (AppwriteError): ${error.message}',
+          tag: 'SYNC',
+        );
         return;
       }
-      
+
       final message = error.toString().toLowerCase();
-      if (message.contains('404') || 
-          message.contains('not found') || 
+      if (message.contains('404') ||
+          message.contains('not found') ||
           message.contains('not_found') ||
           message.contains('document_not_found')) {
         _logger.debug('Delete target not found: $message', tag: 'SYNC');
@@ -1070,23 +1300,33 @@ class AppwriteSyncManager {
   }
 
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
-    return (database.select(database.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    return (database.select(
+      database.rooms,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Booking?> _getBookingByLocalUuid(String localUuid) {
-    return (database.select(database.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    return (database.select(
+      database.bookings,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
-    return (database.select(database.expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    return (database.select(
+      database.expenses,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
-    return (database.select(database.payments)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    return (database.select(
+      database.payments,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Future<Debt?> _getDebtByLocalUuid(String localUuid) {
-    return (database.select(database.debts)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    return (database.select(
+      database.debts,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   Map<String, dynamic> _roomToRemote(Room room) {
@@ -1175,11 +1415,20 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
+    _putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
     _putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     _putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
     _putIfStringNotEmpty(data, 'notes', payment.notes);
-    _putIfNotNull(data, 'cashTransactionLocalId', payment.cashTransactionLocalId);
-    _putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
+    _putIfNotNull(
+      data,
+      'cashTransactionLocalId',
+      payment.cashTransactionLocalId,
+    );
+    _putIfNotNull(
+      data,
+      'cashTransactionServerId',
+      payment.cashTransactionServerId,
+    );
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
@@ -1220,7 +1469,11 @@ class AppwriteSyncManager {
     }
   }
 
-  void _putIfStringNotEmpty(Map<String, dynamic> map, String key, String? value) {
+  void _putIfStringNotEmpty(
+    Map<String, dynamic> map,
+    String key,
+    String? value,
+  ) {
     if (value != null && value.isNotEmpty) {
       map[key] = value;
     }
@@ -1239,33 +1492,15 @@ class AppwriteSyncManager {
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   Future<bool> pushLocalChanges() async {
-    // انتظر إذا كانت المزامنة جارية بدلاً من التخطي
-    int retries = 0;
-    while (_currentStatus == SyncStatus.syncing && retries < 10) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      retries++;
-    }
-    
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('تخطي الرفع - المزامنة جارية لفترة طويلة', tag: 'SYNC');
-      return false;
-    }
-
     try {
-      _logger.info('📤 رفع التغييرات المحلية إلى Appwrite...', tag: 'SYNC');
-      
-      final pushedCount = await _pushAllEntities();
-      
-      _lastSyncTime = DateTime.now();
-      await _saveSettings();
-      
-      _logger.info('✅ تم رفع $pushedCount تغيير إلى Appwrite', tag: 'SYNC');
-      return true;
+      final result = await sync(push: true, pull: false);
+      return result.status == SyncStatus.success;
     } catch (e, stackTrace) {
-      _logger.error('❌ خطأ في رفع التغييرات إلى Appwrite', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'SYNC'
+      _logger.error(
+        'pushLocalChanges failed via sync()',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
       );
       return false;
     }
@@ -1281,9 +1516,9 @@ class AppwriteSyncManager {
 
     try {
       _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
-      
+
       int recordsPulled = 0;
-      
+
       // مزامنة الغرف
       final rooms = await appwriteService.listRooms(useCache: false);
       final roomsSynced = await _syncRooms(rooms);
@@ -1313,10 +1548,44 @@ class AppwriteSyncManager {
       final debts = await appwriteService.listDebts(useCache: false);
       final debtsSynced = await _syncDebts(debts);
       recordsPulled += debtsSynced;
-      
+
+      // مزامنة ملاحظات الشيفت
+      final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
+      recordsPulled += await _syncShiftNotes(shiftNotes);
+
+      // مزامنة ملاحظات الحجز
+      final bookingNotes = await appwriteService.listBookingNotes(
+        useCache: false,
+      );
+      recordsPulled += await _syncBookingNotes(bookingNotes);
+
+      // مزامنة ليالي الحجز
+      final bookingNights = await appwriteService.listBookingNights(
+        useCache: false,
+      );
+      recordsPulled += await _syncBookingNights(bookingNights);
+
+      // مزامنة المعاملات النقدية
+      final cashTransactions = await appwriteService.listCashTransactions(
+        useCache: false,
+      );
+      recordsPulled += await _syncCashTransactions(cashTransactions);
+
+      // مزامنة دورات الرواتب
+      final salaryCycles = await appwriteService.listSalaryCycles(
+        useCache: false,
+      );
+      recordsPulled += await _syncSalaryCycles(salaryCycles);
+
+      // مزامنة مدفوعات الرواتب
+      final salaryPayments = await appwriteService.listSalaryPayments(
+        useCache: false,
+      );
+      recordsPulled += await _syncSalaryPayments(salaryPayments);
+
       _lastSyncTime = DateTime.now();
       await _saveSettings();
-      
+
       if (recordsPulled > 0) {
         _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
         return true;
@@ -1324,12 +1593,12 @@ class AppwriteSyncManager {
         _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
         return false;
       }
-      
     } catch (e, stackTrace) {
-      _logger.error('❌ خطأ في سحب التغييرات من Appwrite', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'SYNC'
+      _logger.error(
+        '❌ خطأ في سحب التغييرات من Appwrite',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
       );
       return false;
     }
@@ -1339,6 +1608,740 @@ class AppwriteSyncManager {
   Future<void> pushAllLocalData() async {
     _logger.info('Pushing all local data...', tag: 'SYNC');
     await pushLocalChanges();
+  }
+
+  /// رفع جميع البيانات المحلية مباشرة إلى Appwrite (بعد الاستعادة من Google Drive)
+  Future<Map<String, int>> pushAllLocalDataToAppwrite({
+    bool skipDeleted = false, // تغيير إلى false لرفع كل شيء
+  }) async {
+    _logger.info(
+      '🚀 بدء رفع جميع البيانات المحلية إلى Appwrite...',
+      tag: 'SYNC',
+    );
+
+    final stats = <String, int>{
+      'rooms': 0,
+      'bookings': 0,
+      'booking_notes': 0,
+      'booking_nights': 0,
+      'employees': 0,
+      'expenses': 0,
+      'cash_transactions': 0,
+      'payments': 0,
+      'debts': 0,
+      'salary_cycles': 0,
+      'salary_payments': 0,
+      'shift_notes': 0,
+      'booking_price_adjustments': 0,
+      'errors': 0,
+    };
+
+    try {
+      // التأكد من تهيئة الخدمة أولاً
+      _logger.info('🔄 تهيئة خدمة Appwrite...', tag: 'SYNC');
+      await appwriteService.initialize();
+
+      // التحقق من الاتصال بـ Appwrite
+      if (!appwriteService.isInitialized) {
+        _logger.error('❌ فشل تهيئة Appwrite', tag: 'SYNC');
+        throw Exception('Appwrite service not initialized');
+      }
+
+      _logger.info('✅ تم تهيئة Appwrite بنجاح', tag: 'SYNC');
+      // رفع الغرف
+      final rooms = await database.select(database.rooms).get();
+      _logger.info(
+        '📦 وُجد ${rooms.length} غرفة في قاعدة البيانات المحلية',
+        tag: 'SYNC',
+      );
+      for (final room in rooms) {
+        if (skipDeleted && room.deletedAt != null) continue;
+        try {
+          final payload = _roomToRemote(room);
+          await appwriteService.upsertRoom(room.localUuid, payload);
+          stats['rooms'] = (stats['rooms'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning(
+            'خطأ في رفع غرفة ${room.roomNumber}: $e',
+            tag: 'SYNC',
+          );
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['rooms']} غرفة من ${rooms.length}',
+        tag: 'SYNC',
+      );
+
+      // رفع الموظفين
+      final employees = await database.select(database.employees).get();
+      _logger.info(
+        '📦 وُجد ${employees.length} موظف في قاعدة البيانات المحلية',
+        tag: 'SYNC',
+      );
+      for (final employee in employees) {
+        if (skipDeleted && employee.deletedAt != null) continue;
+        try {
+          final payload = _employeeToRemote(employee);
+          await appwriteService.upsertEmployee(employee.localUuid, payload);
+          stats['employees'] = (stats['employees'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع موظف ${employee.name}: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['employees']} موظف من ${employees.length}',
+        tag: 'SYNC',
+      );
+
+      // رفع الحجوزات
+      final bookings = await database.select(database.bookings).get();
+      _logger.info(
+        '📦 وُجد ${bookings.length} حجز في قاعدة البيانات المحلية',
+        tag: 'SYNC',
+      );
+      for (final booking in bookings) {
+        if (skipDeleted && booking.deletedAt != null) continue;
+        try {
+          final payload = _bookingToRemote(booking);
+          await appwriteService.upsertBooking(booking.localUuid, payload);
+          stats['bookings'] = (stats['bookings'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning(
+            'خطأ في رفع حجز ${booking.guestName}: $e',
+            tag: 'SYNC',
+          );
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['bookings']} حجز من ${bookings.length}',
+        tag: 'SYNC',
+      );
+
+      // رفع المصروفات
+      final expenses = await database.select(database.expenses).get();
+      for (final expense in expenses) {
+        if (skipDeleted && expense.deletedAt != null) continue;
+        try {
+          final payload = _expenseToRemote(expense);
+          await appwriteService.upsertExpense(expense.localUuid, payload);
+          stats['expenses'] = (stats['expenses'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع مصروف: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['expenses']} مصروف', tag: 'SYNC');
+
+      // رفع المدفوعات
+      final payments = await database.select(database.payments).get();
+      _logger.info(
+        '📦 وُجد ${payments.length} دفعة في قاعدة البيانات المحلية',
+        tag: 'SYNC',
+      );
+      for (final payment in payments) {
+        if (skipDeleted && payment.deletedAt != null) continue;
+        try {
+          final payload = _paymentToRemote(payment);
+          await appwriteService.upsertPayment(payment.localUuid, payload);
+          stats['payments'] = (stats['payments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دفعة: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['payments']} دفعة من ${payments.length}',
+        tag: 'SYNC',
+      );
+
+      // رفع الديون
+      final debts = await database.select(database.debts).get();
+      for (final debt in debts) {
+        if (skipDeleted && debt.deletedAt != null) continue;
+        try {
+          final payload = _debtToRemote(debt);
+          await appwriteService.upsertDebt(debt.localUuid, payload);
+          stats['debts'] = (stats['debts'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دين: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['debts']} دين', tag: 'SYNC');
+
+      // رفع ملاحظات الحجوزات
+      final bookingNotes = await database.select(database.bookingNotes).get();
+      for (final note in bookingNotes) {
+        if (skipDeleted && note.deletedAt != null) continue;
+        try {
+          final payload = _bookingNoteToRemote(note);
+          await appwriteService.upsertBookingNote(note.localUuid, payload);
+          stats['booking_notes'] = (stats['booking_notes'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع ملاحظة حجز: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['booking_notes']} ملاحظة حجز',
+        tag: 'SYNC',
+      );
+
+      // رفع ليالي الحجوزات
+      final bookingNights = await database.select(database.bookingNights).get();
+      for (final night in bookingNights) {
+        if (skipDeleted && night.deletedAt != null) continue;
+        try {
+          final payload = _bookingNightToRemote(night);
+          await appwriteService.upsertBookingNight(night.localUuid, payload);
+          stats['booking_nights'] = (stats['booking_nights'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع ليلة حجز: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['booking_nights']} ليلة حجز', tag: 'SYNC');
+
+      // رفع المعاملات النقدية
+      final cashTransactions = await database
+          .select(database.cashTransactions)
+          .get();
+      for (final transaction in cashTransactions) {
+        if (skipDeleted && transaction.deletedAt != null) continue;
+        try {
+          final payload = _cashTransactionToRemote(transaction);
+          await appwriteService.upsertCashTransaction(
+            transaction.localUuid,
+            payload,
+          );
+          stats['cash_transactions'] = (stats['cash_transactions'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع معاملة نقدية: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['cash_transactions']} معاملة نقدية',
+        tag: 'SYNC',
+      );
+
+      // رفع دورات الرواتب
+      final salaryCycles = await database.select(database.salaryCycles).get();
+      for (final cycle in salaryCycles) {
+        if (skipDeleted && cycle.deletedAt != null) continue;
+        try {
+          final payload = _salaryCycleToRemote(cycle);
+          await appwriteService.upsertSalaryCycle(cycle.localUuid, payload);
+          stats['salary_cycles'] = (stats['salary_cycles'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دورة راتب: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['salary_cycles']} دورة راتب', tag: 'SYNC');
+
+      // رفع دفعات الرواتب
+      final salaryPayments = await database
+          .select(database.salaryPayments)
+          .get();
+      for (final payment in salaryPayments) {
+        if (skipDeleted && payment.deletedAt != null) continue;
+        try {
+          final payload = _salaryPaymentToRemote(payment);
+          await appwriteService.upsertSalaryPayment(payment.localUuid, payload);
+          stats['salary_payments'] = (stats['salary_payments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع دفعة راتب: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['salary_payments']} دفعة راتب',
+        tag: 'SYNC',
+      );
+
+      // رفع ملاحظات الشيفت
+      final shiftNotes = await database.select(database.shiftNotes).get();
+      for (final item in shiftNotes) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _shiftNoteToRemote(item);
+          await appwriteService.upsertShiftNote(item.localUuid, payload);
+          stats['shift_notes'] = (stats['shift_notes'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع ملاحظة شيفت: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['shift_notes']} ملاحظة شيفت', tag: 'SYNC');
+
+      // رفع تعديلات أسعار الحجوزات
+      final adjustments = await database.select(database.bookingPriceAdjustments).get();
+      for (final adj in adjustments) {
+        if (skipDeleted && adj.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
+            adj,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+            documentId: adj.localUuid,
+            data: payload,
+          );
+          stats['booking_price_adjustments'] = (stats['booking_price_adjustments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع تعديل سعر حجز: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['booking_price_adjustments']} تعديل سعر حجز', tag: 'SYNC');
+
+      final totalRecords =
+          stats['rooms']! +
+          stats['bookings']! +
+          stats['booking_notes']! +
+          stats['booking_nights']! +
+          stats['employees']! +
+          stats['expenses']! +
+          stats['cash_transactions']! +
+          stats['payments']! +
+          stats['debts']! +
+          stats['salary_cycles']! +
+          stats['salary_payments']! +
+          stats['shift_notes']! +
+          (stats['booking_price_adjustments'] ?? 0);
+
+      _logger.info(
+        '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
+        tag: 'SYNC',
+      );
+
+      return stats;
+    } catch (e, stackTrace) {
+      _logger.error(
+        '❌ خطأ في رفع البيانات إلى Appwrite',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _employeeToRemote(Employee employee) {
+    final data = <String, dynamic>{
+      'name': employee.name,
+      'basicSalary': employee.basicSalary,
+      'position': employee.position,
+      'phone': employee.phone,
+      'hireDate': employee.hireDate,
+      'status': employee.status,
+      'localUuid': employee.localUuid,
+      'createdAt': employee.createdAt,
+      'updatedAt': employee.updatedAt,
+      'lastModified': employee.lastModified,
+      'version': employee.version,
+      'origin': employee.origin,
+    };
+    _putIfNotNull(data, 'serverId', employee.serverId);
+    _putIfNotNull(data, 'deletedAt', employee.deletedAt);
+    return data;
+  }
+
+  Map<String, dynamic> _bookingNoteToRemote(BookingNote note) {
+    final data = <String, dynamic>{
+      'bookingId': note.bookingId,
+      'noteText': note.noteText,
+      'alertType': note.alertType,
+      'isActive': note.isActive,
+      'localUuid': note.localUuid,
+      'createdAt': note.createdAt,
+      'updatedAt': note.updatedAt,
+      'lastModified': note.lastModified,
+      'version': note.version,
+      'origin': note.origin,
+    };
+    _putIfNotNull(data, 'serverId', note.serverId);
+    _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
+    return data;
+  }
+
+  Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
+    final data = <String, dynamic>{
+      'bookingLocalId': night.bookingLocalId,
+      'hotelDayKey': night.hotelDayKey,
+      'nightStart': night.nightStart,
+      'nightEnd': night.nightEnd,
+      'nightlyRate': night.nightlyRate,
+      'sequence': night.sequence,
+      'isProcessedByAutoFix': night.isProcessedByAutoFix,
+      'localUuid': night.localUuid,
+      'createdAt': night.createdAt,
+      'updatedAt': night.updatedAt,
+      'lastModified': night.lastModified,
+      'version': night.version,
+      'origin': night.origin,
+    };
+    _putIfNotNull(data, 'serverId', night.serverId);
+    _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    return data;
+  }
+
+  Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
+    final data = <String, dynamic>{
+      'transactionType': transaction.transactionType,
+      'amount': transaction.amount,
+      'transactionTime': transaction.transactionTime,
+      'localUuid': transaction.localUuid,
+      'createdAt': transaction.createdAt,
+      'updatedAt': transaction.updatedAt,
+      'lastModified': transaction.lastModified,
+      'version': transaction.version,
+      'origin': transaction.origin,
+    };
+    _putIfNotNull(data, 'registerId', transaction.registerId);
+    _putIfNotNull(data, 'referenceId', transaction.referenceId);
+    _putIfNotNull(data, 'createdBy', transaction.createdBy);
+    _putIfNotNull(data, 'serverId', transaction.serverId);
+    _putIfNotNull(data, 'deletedAt', transaction.deletedAt);
+    _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
+    _putIfStringNotEmpty(data, 'description', transaction.description);
+    return data;
+  }
+
+  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) {
+    final data = <String, dynamic>{
+      'employeeId': cycle.employeeId,
+      'cycleKey': cycle.cycleKey,
+      'expectedAmount': cycle.expectedAmount,
+      'actualPaid': cycle.actualPaid,
+      'remainingAmount': cycle.remainingAmount,
+      'status': cycle.status,
+      'localUuid': cycle.localUuid,
+      'createdAt': cycle.createdAt,
+      'updatedAt': cycle.updatedAt,
+      'lastModified': cycle.lastModified,
+      'version': cycle.version,
+      'origin': cycle.origin,
+    };
+    _putIfNotNull(data, 'serverId', cycle.serverId);
+    _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
+    _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
+    _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
+    return data;
+  }
+
+  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) {
+    final data = <String, dynamic>{
+      'cycleId': payment.cycleId,
+      'amount': payment.amount,
+      'paymentDateIso': payment.paymentDateIso,
+      'isAutoGenerated': payment.isAutoGenerated,
+      'localUuid': payment.localUuid,
+      'createdAt': payment.createdAt,
+      'updatedAt': payment.updatedAt,
+      'lastModified': payment.lastModified,
+      'version': payment.version,
+      'origin': payment.origin,
+    };
+    _putIfNotNull(data, 'serverId', payment.serverId);
+    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
+    _putIfStringNotEmpty(data, 'method', payment.method);
+    return data;
+  }
+
+  Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
+    final createdAtIso =
+        note.createdAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(
+          note.createdAt * 1000,
+        ).toIso8601String();
+    final data = <String, dynamic>{
+      'localUuid': note.localUuid,
+      'title': note.title,
+      'content': note.content,
+      'priority': note.priority,
+      'shiftType': note.shiftType,
+      'isRead': note.isRead,
+      'createdAt': createdAtIso,
+      'createdBy': note.createdBy,
+    };
+    _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
+    return data;
+  }
+
+  Future<bool> _processSalaryPaymentEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryPayment(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getSalaryPaymentByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryPayment(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.salaryPayments.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertSalaryPayment(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<SalaryPayment?> _getSalaryPaymentByLocalUuid(String uuid) {
+    return (database.select(database.salaryPayments)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processCashTransactionEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteCashTransaction(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getCashTransactionByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteCashTransaction(entry.localUuid),
+      );
+      return true;
+    }
+
+    final payload = outboxDao.adapters.cashTransactions.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+
+    await appwriteService.upsertCashTransaction(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<CashTransaction?> _getCashTransactionByLocalUuid(String uuid) {
+    return (database.select(database.cashTransactions)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processShiftNoteEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteShiftNote(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getShiftNoteByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteShiftNote(entry.localUuid),
+      );
+      return true;
+    }
+
+    final payload = outboxDao.adapters.shiftNotes.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+
+    await appwriteService.upsertShiftNote(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<ShiftNote?> _getShiftNoteByLocalUuid(String uuid) {
+    return (database.select(database.shiftNotes)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processEmployeeEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteEmployee(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getEmployeeByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteEmployee(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.employees.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertEmployee(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<Employee?> _getEmployeeByLocalUuid(String uuid) {
+    return (database.select(database.employees)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processBookingNoteEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteBookingNote(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getBookingNoteByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteBookingNote(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.bookingNotes.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    // Note: booking notes often part of booking but if synced separately:
+    await appwriteService.upsertBookingNote(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<BookingNote?> _getBookingNoteByLocalUuid(String uuid) {
+    return (database.select(database.bookingNotes)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processBookingNightEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteBookingNight(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getBookingNightByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteBookingNight(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.nights.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertBookingNight(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<BookingNight?> _getBookingNightByLocalUuid(String uuid) {
+    return (database.select(database.bookingNights)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processSalaryCycleEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryCycle(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getSalaryCycleByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryCycle(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.salaryCycles.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertSalaryCycle(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<SalaryCycle?> _getSalaryCycleByLocalUuid(String uuid) {
+    return (database.select(database.salaryCycles)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processBookingPriceAdjustmentEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final item = await _getBookingPriceAdjustmentByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      documentId: item.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<BookingPriceAdjustment?> _getBookingPriceAdjustmentByLocalUuid(String uuid) {
+    return (database.select(database.bookingPriceAdjustments)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   /// تحميل جميع البيانات من الخادم
@@ -1361,6 +2364,178 @@ class AppwriteSyncManager {
   String? get currentDeviceId => _currentDeviceId;
   bool get isSyncing => _currentStatus == SyncStatus.syncing;
 
+  // ---------------------------------------------------------------------------
+  // Sync Helpers for Additional Entities
+  // ---------------------------------------------------------------------------
+
+  Future<int> _syncShiftNotes(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.shiftNotes.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync shift note ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncBookingNotes(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.bookingNotes.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync booking note ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncBookingNights(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.nights.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync booking night ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncCashTransactions(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.cashTransactions.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync cash transaction ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncSalaryCycles(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.salaryCycles.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync salary cycle ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncSalaryPayments(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.salaryPayments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync salary payment ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncBookingPriceAdjustments(
+    List<models.Document> documents,
+  ) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        
+        // Refresh calculations for the affected booking
+        if (result > 0) {
+           final adj = await (database.select(database.bookingPriceAdjustments)
+            ..where((t) => t.id.equals(result)))
+            .getSingleOrNull();
+           
+           if (adj != null && adj.bookingLocalId != null) {
+              await _bookingsRepository.derivedFields.refreshForBookingId(adj.bookingLocalId!);
+           }
+        }
+        
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync booking price adjustment ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
   String _resolveDeviceType() {
     if (kIsWeb) {
       return 'web';
@@ -1381,6 +2556,4 @@ class AppwriteSyncManager {
         return 'fuchsia';
     }
   }
-
-
 }

@@ -60,7 +60,10 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Widget _buildContent(
-      BuildContext context, AutoSyncEngineState state, String health) {
+    BuildContext context,
+    AutoSyncEngineState state,
+    String health,
+  ) {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(autoSyncEngineStatusProvider);
@@ -169,7 +172,11 @@ class _AutoSyncEngineMonitorScreenState
             ),
             const Divider(),
             _buildStatusRow('المحرك يعمل', state.isRunning, Icons.settings),
-            _buildStatusRow('متصل بالشبكة', state.hasNetworkConnection, Icons.wifi),
+            _buildStatusRow(
+              'متصل بالشبكة',
+              state.hasNetworkConnection,
+              Icons.wifi,
+            ),
             _buildStatusRow('مسجل الدخول', state.isSignedIn, Icons.login),
           ],
         ),
@@ -192,7 +199,7 @@ class _AutoSyncEngineMonitorScreenState
 
   Widget _buildPendingChangesCard(AutoSyncEngineState state) {
     final hasPending = state.pendingChangesCount > 0;
-    
+
     return Card(
       elevation: 2,
       color: hasPending ? Colors.orange.shade50 : Colors.green.shade50,
@@ -250,10 +257,10 @@ class _AutoSyncEngineMonitorScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
-                const Icon(Icons.error, color: Colors.red),
-                const SizedBox(width: 8),
-                const Text(
+              children: const [
+                Icon(Icons.error, color: Colors.red),
+                SizedBox(width: 8),
+                Text(
                   'إعادة المحاولة التلقائية',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -293,7 +300,11 @@ class _AutoSyncEngineMonitorScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 16, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: Colors.red,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -368,7 +379,11 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Widget _buildTimestampRow(
-      String label, DateTime? timestamp, IconData icon, Color color) {
+    String label,
+    DateTime? timestamp,
+    IconData icon,
+    Color color,
+  ) {
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
@@ -376,10 +391,7 @@ class _AutoSyncEngineMonitorScreenState
       title: Text(label),
       trailing: Text(
         timestamp != null ? _formatRelativeTime(timestamp) : 'لم يحدث بعد',
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey.shade600,
-        ),
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
       ),
     );
   }
@@ -420,7 +432,11 @@ class _AutoSyncEngineMonitorScreenState
                       padding: EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          Icon(Icons.check_circle, size: 48, color: Colors.green),
+                          Icon(
+                            Icons.check_circle,
+                            size: 48,
+                            color: Colors.green,
+                          ),
                           SizedBox(height: 8),
                           Text('لا توجد تضاربات مسجلة'),
                         ],
@@ -464,28 +480,30 @@ class _AutoSyncEngineMonitorScreenState
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      ...byTable.entries.map((entry) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Colors.purple.shade300,
-                                    shape: BoxShape.circle,
-                                  ),
+                      ...byTable.entries.map(
+                        (entry) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.shade300,
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(entry.key)),
-                                Chip(
-                                  label: Text('${entry.value}'),
-                                  visualDensity: VisualDensity.compact,
-                                  backgroundColor: Colors.purple.shade50,
-                                ),
-                              ],
-                            ),
-                          )),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(entry.key)),
+                              Chip(
+                                label: Text('${entry.value}'),
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor: Colors.purple.shade50,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 12),
                     SizedBox(
@@ -505,9 +523,7 @@ class _AutoSyncEngineMonitorScreenState
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (error, _) => Center(
-                child: Text('خطأ: $error'),
-              ),
+              error: (error, _) => Center(child: Text('خطأ: $error')),
             ),
           ],
         ),
@@ -516,9 +532,8 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Widget _buildActionsCard(BuildContext context, AutoSyncEngineState state) {
-    final canSync = state.isRunning &&
-        state.hasNetworkConnection &&
-        state.isSignedIn;
+    final canSync =
+        state.isRunning && state.hasNetworkConnection && state.isSignedIn;
 
     return Card(
       elevation: 2,
@@ -645,10 +660,10 @@ class _AutoSyncEngineMonitorScreenState
       if (mounted) {
         final message = result.success
             ? '✅ ${result.message}\n'
-                '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
-                '📥 مسحوب: ${result.pulledChanges ?? 0}'
+                  '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
+                  '📥 مسحوب: ${result.pulledChanges ?? 0}'
             : '❌ ${result.message}\n'
-                '${result.error ?? ""}';
+                  '${result.error ?? ""}';
 
         showDialog(
           context: context,
@@ -670,10 +685,7 @@ class _AutoSyncEngineMonitorScreenState
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ خطأ: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -717,13 +729,21 @@ class _AutoSyncEngineMonitorScreenState
         );
       },
       loading: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('جارٍ التحميل...')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('جارٍ التحميل...')));
       },
       error: (error, _) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $error')),
+          SnackBar(
+            content: const Text('تعذر تحميل الحالة الكاملة. حاول مرة أخرى'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: () => _showFullStatus(context),
+            ),
+          ),
         );
       },
     );
@@ -735,9 +755,9 @@ class _AutoSyncEngineMonitorScreenState
     historyAsync.when(
       data: (history) {
         if (history.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('لا يوجد سجل تضاربات')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('لا يوجد سجل تضاربات')));
           return;
         }
 
@@ -825,7 +845,15 @@ class _AutoSyncEngineMonitorScreenState
       },
       error: (error, _) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $error')),
+          SnackBar(
+            content: const Text('تعذر تحميل سجل التضاربات. حاول مرة أخرى'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: () => _showConflictHistory(context),
+            ),
+          ),
         );
       },
     );
@@ -846,23 +874,29 @@ class _AutoSyncEngineMonitorScreenState
             children: [
               const Text('فترة تجميع التغييرات قبل الرفع'),
               const SizedBox(height: 16),
-              ...[ 2, 5, 10, 15 ].map((seconds) => RadioListTile<int>(
-                    title: Text('$seconds ثانية'),
-                    subtitle: Text(_getDebounceDescription(seconds)),
-                    value: seconds,
-                    groupValue: currentDebounce,
-                    onChanged: (value) async {
-                      if (value != null) {
-                        await AutoSyncEngine.instance.setDebounceSeconds(value);
-                        if (context.mounted) Navigator.pop(context);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('✅ تم تعيين Debounce إلى $value ثانية')),
-                          );
-                        }
+              ...[2, 5, 10, 15].map(
+                (seconds) => RadioListTile<int>(
+                  title: Text('$seconds ثانية'),
+                  subtitle: Text(_getDebounceDescription(seconds)),
+                  value: seconds,
+                  groupValue: currentDebounce,
+                  onChanged: (value) async {
+                    if (value != null) {
+                      await AutoSyncEngine.instance.setDebounceSeconds(value);
+                      if (context.mounted) Navigator.pop(context);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '✅ تم تعيين Debounce إلى $value ثانية',
+                            ),
+                          ),
+                        );
                       }
-                    },
-                  )),
+                    }
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -885,25 +919,29 @@ class _AutoSyncEngineMonitorScreenState
             children: [
               const Text('فترة فحص التحديثات من الأجهزة الأخرى'),
               const SizedBox(height: 16),
-              ...[1, 2, 5, 10, 15].map((minutes) => RadioListTile<int>(
-                    title: Text('$minutes دقيقة'),
-                    subtitle: Text(_getPullIntervalDescription(minutes)),
-                    value: minutes,
-                    groupValue: currentInterval,
-                    onChanged: (value) async {
-                      if (value != null) {
-                        await AutoSyncEngine.instance.setPullInterval(value);
-                        if (context.mounted) Navigator.pop(context);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('✅ تم تعيين Pull Interval إلى $value دقيقة')),
-                          );
-                        }
+              ...[1, 2, 5, 10, 15].map(
+                (minutes) => RadioListTile<int>(
+                  title: Text('$minutes دقيقة'),
+                  subtitle: Text(_getPullIntervalDescription(minutes)),
+                  value: minutes,
+                  groupValue: currentInterval,
+                  onChanged: (value) async {
+                    if (value != null) {
+                      await AutoSyncEngine.instance.setPullInterval(value);
+                      if (context.mounted) Navigator.pop(context);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '✅ تم تعيين Pull Interval إلى $value دقيقة',
+                            ),
+                          ),
+                        );
                       }
-                    },
-                  )),
+                    }
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -936,8 +974,10 @@ class _AutoSyncEngineMonitorScreenState
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content:
-                                  Text('✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}')),
+                            content: Text(
+                              '✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}',
+                            ),
+                          ),
                         );
                       }
                     }

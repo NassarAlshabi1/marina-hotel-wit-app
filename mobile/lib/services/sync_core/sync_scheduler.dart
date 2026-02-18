@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'unified_lock_manager.dart';
 
 /// مسؤول عن جدولة المزامنة فقط - لا يعرف تفاصيل المزامنة
-/// 
+///
 /// الاستخدام:
 /// ```dart
 /// final scheduler = SyncScheduler(
@@ -32,10 +33,34 @@ class SyncScheduler {
 
   /// بدء الجدولة
   Future<void> start() async {
-    if (_isRunning) return;
-    
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SyncScheduler.start',
+      priority: LockPriority.normal,
+    );
+
+    if (!lockResult.acquired) {
+      debugPrint(
+        '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
+      return;
+    }
+
+    if (_isRunning) {
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SyncScheduler.start',
+      );
+      return;
+    }
+
     _isRunning = true;
-    
+
+    UnifiedLockManager.instance.release(
+      category: LockCategory.mainSync,
+      holder: 'SyncScheduler.start',
+    );
+
     _quickCheckTimer = Timer.periodic(quickCheckInterval, (_) async {
       if (isEnabled()) {
         await _safelyTriggerSync();
@@ -48,17 +73,40 @@ class SyncScheduler {
       }
     });
 
-    debugPrint('📅 SyncScheduler: بدأت الجدولة - فحص كل ${quickCheckInterval.inMinutes} دقيقة');
+    debugPrint(
+      '📅 SyncScheduler: بدأت الجدولة - فحص كل ${quickCheckInterval.inMinutes} دقيقة',
+    );
   }
 
   /// إيقاف الجدولة
   Future<void> stop() async {
-    _quickCheckTimer?.cancel();
-    _fullSyncTimer?.cancel();
-    _quickCheckTimer = null;
-    _fullSyncTimer = null;
-    _isRunning = false;
-    debugPrint('🛑 SyncScheduler: توقفت الجدولة');
+    final lockResult = await UnifiedLockManager.instance.acquire(
+      category: LockCategory.mainSync,
+      holder: 'SyncScheduler.stop',
+      priority: LockPriority.critical,
+    );
+
+    if (!lockResult.acquired) {
+      debugPrint(
+        '❌ SyncScheduler: فشل الحصول على القفل: ${lockResult.failureReason}',
+      );
+      return;
+    }
+
+    try {
+      _quickCheckTimer?.cancel();
+      _fullSyncTimer?.cancel();
+      _quickCheckTimer = null;
+      _fullSyncTimer = null;
+      _isRunning = false;
+      debugPrint('🛑 SyncScheduler: توقفت الجدولة');
+    } finally {
+      // إصلاح: await على release لضمان إطلاق القفل بشكل صحيح
+      UnifiedLockManager.instance.release(
+        category: LockCategory.mainSync,
+        holder: 'SyncScheduler.stop',
+      );
+    }
   }
 
   /// تشغيل المزامنة بأمان (مع معالجة الأخطاء)
@@ -71,7 +119,10 @@ class SyncScheduler {
   }
 
   /// تعديل الفترة الزمنية ديناميكياً
-  Future<void> updateInterval(Duration newQuickInterval, {Duration? newFullInterval}) async {
+  Future<void> updateInterval(
+    Duration newQuickInterval, {
+    Duration? newFullInterval,
+  }) async {
     if (_isRunning) {
       await stop();
     }

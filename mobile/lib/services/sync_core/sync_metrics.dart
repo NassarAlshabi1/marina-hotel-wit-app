@@ -76,20 +76,20 @@ class SyncStats {
   @override
   String toString() {
     return 'SyncStats(إجمالي: $totalSyncs, ناجح: $successfulSyncs, '
-           'فاشل: $failedSyncs, معدل النجاح: ${(successRate * 100).toStringAsFixed(1)}%)';
+        'فاشل: $failedSyncs, معدل النجاح: ${(successRate * 100).toStringAsFixed(1)}%)';
   }
 }
 
 /// مدير القياسات والإحصائيات
-/// 
+///
 /// الاستخدام:
 /// ```dart
 /// final metrics = SyncMetrics.instance;
-/// 
+///
 /// metrics.statsStream.listen((stats) {
 ///   print('معدل النجاح: ${stats.successRate}');
 /// });
-/// 
+///
 /// metrics.startSync();
 /// // ... عملية المزامنة ...
 /// metrics.recordSuccess(recordsSynced: 100);
@@ -97,7 +97,7 @@ class SyncStats {
 class SyncMetrics {
   static SyncMetrics? _instance;
   static SyncMetrics get instance => _instance ??= SyncMetrics._();
-  
+
   SyncMetrics._();
 
   SyncSession? _currentSession;
@@ -130,10 +130,10 @@ class SyncMetrics {
 
     _addToHistory(session);
     _updateStats();
-    
+
     debugPrint(
       '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
-      'السجلات: $recordsSynced، التضارب: $conflictsResolved'
+      'السجلات: $recordsSynced، التضارب: $conflictsResolved',
     );
   }
 
@@ -150,18 +150,20 @@ class SyncMetrics {
 
     _addToHistory(session);
     _updateStats();
-    
-    debugPrint('❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
+
+    debugPrint(
+      '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
+    );
   }
 
   /// إضافة إلى السجل
   void _addToHistory(SyncSession session) {
     _history.add(session);
-    
+
     if (_history.length > _maxHistorySize) {
       _history.removeAt(0);
     }
-    
+
     _saveHistory();
   }
 
@@ -202,7 +204,10 @@ class SyncMetrics {
       averageDuration: avgDuration,
       successRate: successful.length / _history.length,
       totalRecordsSynced: _history.fold(0, (sum, s) => sum + s.recordsSynced),
-      totalConflictsResolved: _history.fold(0, (sum, s) => sum + s.conflictsResolved),
+      totalConflictsResolved: _history.fold(
+        0,
+        (sum, s) => sum + s.conflictsResolved,
+      ),
       lastSync: _history.last,
     );
   }
@@ -223,13 +228,13 @@ class SyncMetrics {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = prefs.getStringList(_prefsKey) ?? [];
-      
+
       _history.clear();
       for (final jsonStr in jsonList) {
         final session = SyncSession.fromJson(jsonDecode(jsonStr));
         _history.add(session);
       }
-      
+
       debugPrint('📊 SyncMetrics: تم تحميل ${_history.length} سجل');
       _updateStats();
     } catch (e) {

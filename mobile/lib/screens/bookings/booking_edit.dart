@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
@@ -20,17 +22,19 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'booking_edit';
-  
+
   @override
   Duration get debounceDelay => const Duration(seconds: 15);
-  
+
   final _formKey = GlobalKey<FormState>();
   final _guestName = TextEditingController();
   final _guestPhone = TextEditingController();
   final _guestNationality = TextEditingController(text: 'يمني');
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'[0-9]'),
+  );
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -42,7 +46,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
-  
+
   // متغيرات الدفع المتقدم
   bool _hasAdvancePayment = false;
   final _advancePayment = TextEditingController();
@@ -50,13 +54,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _paymentNotes = TextEditingController();
   static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
-  static const _idTypes = ['بطاقة شخصية', 'جواز سفر', 'رخصة قيادة', 'بطاقة عسكرية', 'استبيان', 'شهادة ميلاد'];
-  static const _statusOptions = ['محجوزة', 'شاغرة', 'مكتمل', 'ملغي'];
+  static const _idTypes = [
+    'بطاقة شخصية',
+    'جواز سفر',
+    'رخصة قيادة',
+    'بطاقة عسكرية',
+    'استبيان',
+    'شهادة ميلاد',
+  ];
+  static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];
 
   @override
   void initState() {
     super.initState();
-    
+
     _guestName.addListener(markDataChanged);
     _guestPhone.addListener(markDataChanged);
     _guestNationality.addListener(markDataChanged);
@@ -71,12 +82,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.addListener(markDataChanged);
     _advancePayment.addListener(markDataChanged);
     _paymentNotes.addListener(markDataChanged);
-    
+
     final b = widget.existing;
     if (b != null) {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
-      _guestNationality.text = b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
+      _guestNationality.text = b.guestNationality.isEmpty
+          ? 'يمني'
+          : b.guestNationality;
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -90,13 +103,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       _idType = b.guestIdType;
       _roomInitialized = true;
     } else {
-      if (widget.initialRoomNumber != null && widget.initialRoomNumber!.isNotEmpty) {
+      if (widget.initialRoomNumber != null &&
+          widget.initialRoomNumber!.isNotEmpty) {
         _roomNumber.text = widget.initialRoomNumber!;
         _roomInitialized = true;
       }
       _checkin.text = _formatDateTime(DateTime.now());
+      final hour = DateTime.now().hour;
+      if (hour >= 9 && hour < 14) {
+        _status = 'مؤقت';
+      }
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _recalculateExpectedNights());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _recalculateExpectedNights(),
+    );
   }
 
   @override
@@ -115,7 +135,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.removeListener(markDataChanged);
     _advancePayment.removeListener(markDataChanged);
     _paymentNotes.removeListener(markDataChanged);
-    
+
     _guestName.dispose();
     _guestPhone.dispose();
     _guestNationality.dispose();
@@ -131,6 +151,54 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _advancePayment.dispose();
     _paymentNotes.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickContact() async {
+    final status = await Permission.contacts.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى منح صلاحية الوصول لجهات الاتصال')),
+        );
+      }
+      return;
+    }
+
+    final contact = await FlutterContacts.openExternalPick();
+    if (contact == null || !mounted) return;
+
+    final fullContact = await FlutterContacts.getContact(
+      contact.id,
+      withProperties: true,
+    );
+    if (!mounted) return;
+
+    if (fullContact != null && fullContact.phones.isNotEmpty) {
+      final rawPhone = fullContact.phones.first.number;
+      final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
+      _guestPhone.text = normalizedPhone;
+      if (_guestName.text.isEmpty) {
+        _guestName.text = fullContact.displayName;
+      }
+      markDataChanged();
+    }
+  }
+
+  String _normalizePhoneForWhatsApp(String value) {
+    var phone = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (phone.startsWith('+')) {
+      phone = phone.substring(1);
+    }
+    if (phone.startsWith('00')) {
+      phone = phone.substring(2);
+    }
+    if (phone.startsWith('0') && phone.length == 10) {
+      phone = '967${phone.substring(1)}';
+    }
+    if (!phone.startsWith('967') && phone.length == 9) {
+      phone = '967$phone';
+    }
+    return phone;
   }
 
   @override
@@ -153,290 +221,435 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
               ),
             ],
           ),
-        body: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildSectionTitle('بيانات النزيل'),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _guestName,
-                        decoration: const InputDecoration(labelText: 'اسم النزيل *'),
-                        validator: _req,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _guestPhone,
-                        decoration: const InputDecoration(labelText: 'رقم الهاتف *'),
-                        keyboardType: TextInputType.phone,
-                        validator: _req,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: _idType,
-                        items: _idTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                        onChanged: (value) => setState(() => _idType = value ?? _idType),
-                        decoration: const InputDecoration(labelText: 'نوع الهوية'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _guestIdNumber,
-                        decoration: const InputDecoration(labelText: 'رقم الهوية'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_idNumberFormatter],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _guestIdIssueDate,
-                              readOnly: true,
-                              decoration: const InputDecoration(
-                                labelText: 'تاريخ إصدار الهوية',
-                                suffixIcon: Icon(Icons.calendar_today),
-                              ),
-                              onTap: () => _pickDate(_guestIdIssueDate, onlyDate: true),
+          body: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(8),
+              children: [
+                _buildSectionTitle('بيانات النزيل'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _guestName,
+                          decoration: const InputDecoration(
+                            labelText: 'اسم النزيل *',
+                          ),
+                          validator: _req,
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _guestPhone,
+                          decoration: InputDecoration(
+                            labelText: 'رقم الهاتف',
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.contacts),
+                              tooltip: 'اختيار من جهات الاتصال',
+                              onPressed: _pickContact,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _guestIdIssuePlace,
-                              decoration: const InputDecoration(labelText: 'جهة الإصدار'),
+                          keyboardType: TextInputType.phone,
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          value: _idType,
+                          items: _idTypes
+                              .map(
+                                (t) =>
+                                    DropdownMenuItem(value: t, child: Text(t)),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _idType = value ?? _idType),
+                          decoration: const InputDecoration(
+                            labelText: 'نوع الهوية',
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _guestIdNumber,
+                          decoration: const InputDecoration(
+                            labelText: 'رقم الهوية *',
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [_idNumberFormatter],
+                          validator: _req,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _guestIdIssueDate,
+                                readOnly: true,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                decoration: const InputDecoration(
+                                  labelText: 'تاريخ إصدار الهوية',
+                                  suffixIcon: Icon(Icons.calendar_today),
+                                ),
+                                onTap: () => _pickDate(
+                                  _guestIdIssueDate,
+                                  onlyDate: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _guestIdIssuePlace,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                decoration: const InputDecoration(
+                                  labelText: 'جهة الإصدار',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _guestNationality,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.normal,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'الجنسية *',
+                          ),
+                          validator: _req,
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _guestAddress,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'العنوان',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildSectionTitle('تفاصيل الحجز'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        _buildRoomSelector(roomsAsync),
+                        const SizedBox(height: 6),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _checkin,
+                          readOnly: true,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'تاريخ الوصول *',
+                            helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
+                            suffixIcon: Icon(Icons.event_available),
+                          ),
+                          validator: _req,
+                          onTap: () => _pickDate(_checkin),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _checkout,
+                          readOnly: true,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'تاريخ المغادرة المخطط',
+                            helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
+                            suffixIcon: Icon(Icons.event_busy),
+                          ),
+                          onChanged: (_) => _recalculateExpectedNights(),
+                          onTap: () => _pickDate(_checkout),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          value: _status,
+                          items: _statusOptions
+                              .map(
+                                (s) =>
+                                    DropdownMenuItem(value: s, child: Text(s)),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _status = value ?? _status),
+                          decoration: const InputDecoration(
+                            labelText: 'حالة الحجز',
+                          ),
+                        ),
+                        if (widget.existing?.actualCheckout != null) ...[
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            initialValue: widget.existing?.actualCheckout,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'تاريخ المغادرة الفعلي',
+                              suffixIcon: Icon(Icons.lock_clock),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _guestNationality,
-                        decoration: const InputDecoration(labelText: 'الجنسية *'),
-                        validator: _req,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _guestAddress,
-                        decoration: const InputDecoration(labelText: 'العنوان'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSectionTitle('تفاصيل الحجز'),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildRoomSelector(roomsAsync),
-                      const SizedBox(height: 12),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _checkin,
-                        readOnly: true,
-                        decoration: const InputDecoration(
-                          labelText: 'تاريخ الوصول *',
-                          helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
-                          suffixIcon: Icon(Icons.event_available),
-                        ),
-                        validator: _req,
-                        onTap: () => _pickDate(_checkin),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _checkout,
-                        readOnly: true,
-                        decoration: const InputDecoration(
-                          labelText: 'تاريخ المغادرة المخطط',
-                          helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
-                          suffixIcon: Icon(Icons.event_busy),
-                        ),
-                        onChanged: (_) => _recalculateExpectedNights(),
-                        onTap: () => _pickDate(_checkout),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: _status,
-                        items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                        onChanged: (value) => setState(() => _status = value ?? _status),
-                        decoration: const InputDecoration(labelText: 'حالة الحجز'),
-                      ),
-                      if (widget.existing?.actualCheckout != null) ...[
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          initialValue: widget.existing?.actualCheckout,
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'تاريخ المغادرة الفعلي',
-                            suffixIcon: Icon(Icons.lock_clock),
-                          ),
-                        ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              _buildSectionTitle('الدفع المقدم (اختياري)'),
-              Card(
-                color: _hasAdvancePayment ? Colors.green.shade50 : Colors.grey.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      CheckboxListTile(
-                        title: const Text('هل تم استلام دفعة مقدمة؟'),
-                        subtitle: Text(_hasAdvancePayment 
-                          ? 'سيتم تسجيل الدفعة مع الحجز مباشرة'
-                          : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات'),
-                        value: _hasAdvancePayment,
-                        onChanged: (value) => setState(() => _hasAdvancePayment = value ?? false),
-                        activeColor: Colors.green,
-                      ),
-                      if (_hasAdvancePayment) ...[
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _advancePayment,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'مبلغ الدفعة المقدمة *',
-                            helperText: 'أدخل المبلغ المستلم من النزيل',
-                            // prefixText: 'ر.س ',
+                const SizedBox(height: 10),
+                _buildSectionTitle('الدفع المقدم (اختياري)'),
+                Card(
+                  color: _hasAdvancePayment
+                      ? Colors.green.shade50
+                      : Colors.grey.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Column(
+                      children: [
+                        CheckboxListTile(
+                          title: const Text('هل تم استلام دفعة مقدمة؟'),
+                          subtitle: Text(
+                            _hasAdvancePayment
+                                ? 'سيتم تسجيل الدفعة مع الحجز مباشرة'
+                                : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات',
                           ),
-                          validator: _hasAdvancePayment ? (v) {
-                            if (v == null || v.trim().isEmpty) return 'مطلوب عند تحديد دفعة مقدمة';
-                            final amount = double.tryParse(v.trim());
-                            if (amount == null || amount <= 0) return 'المبلغ يجب أن يكون أكبر من صفر';
-                            return null;
-                          } : null,
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _paymentMethod,
-                          items: _paymentMethods.map((method) => 
-                            DropdownMenuItem(value: method, child: Text(method))).toList(),
-                          onChanged: (value) => setState(() => _paymentMethod = value ?? _paymentMethod),
-                          decoration: const InputDecoration(labelText: 'طريقة الدفع'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _paymentNotes,
-                          decoration: const InputDecoration(
-                            labelText: 'ملاحظات الدفعة',
-                            helperText: 'مثال: عربون لثلاث ليالي',
+                          value: _hasAdvancePayment,
+                          onChanged: (value) => setState(
+                            () => _hasAdvancePayment = value ?? false,
                           ),
+                          activeColor: Colors.green,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -4,
+                            vertical: -3,
+                          ),
+                          contentPadding: EdgeInsets.zero,
                         ),
+                        if (_hasAdvancePayment) ...[
+                          const SizedBox(height: 4),
+                          TextFormField(
+                            controller: _advancePayment,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'مبلغ الدفعة المقدمة *',
+                              helperText: 'أدخل المبلغ المستلم من النزيل',
+                              // prefixText: 'ر.س ',
+                            ),
+                            validator: _hasAdvancePayment
+                                ? (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'مطلوب عند تحديد دفعة مقدمة';
+                                    }
+                                    final amount = double.tryParse(v.trim());
+                                    if (amount == null || amount <= 0) {
+                                      return 'المبلغ يجب أن يكون أكبر من صفر';
+                                    }
+                                    return null;
+                                  }
+                                : null,
+                          ),
+                          const SizedBox(height: 4),
+                          DropdownButtonFormField<String>(
+                            value: _paymentMethod,
+                            items: _paymentMethods
+                                .map(
+                                  (method) => DropdownMenuItem(
+                                    value: method,
+                                    child: Text(method),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) => setState(
+                              () => _paymentMethod = value ?? _paymentMethod,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'طريقة الدفع',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          TextFormField(
+                            controller: _paymentNotes,
+                            decoration: const InputDecoration(
+                              labelText: 'ملاحظات الدفعة',
+                              helperText: 'مثال: عربون لثلاث ليالي',
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              _buildSectionTitle('ملاحظات الحجز'),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextFormField(
-                    controller: _notes,
-                    maxLines: 4,
-                    decoration: const InputDecoration(labelText: 'ملاحظات إضافية'),
+                const SizedBox(height: 6),
+                _buildSectionTitle('ملاحظات الحجز'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: TextFormField(
+                      controller: _notes,
+                      minLines: 1,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        labelText: 'ملاحظات إضافية',
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: () async {
-                  if (!_formKey.currentState!.validate()) return;
-                  final name = _guestName.text.trim();
-                  final phone = _normalizePhone(_guestPhone.text);
-                  final nationality = _guestNationality.text.trim().isEmpty ? 'غير معروف' : _guestNationality.text.trim();
-                  final address = _optionalText(_guestAddress.text);
-                  final idNumber = _guestIdNumber.text.trim();
-                  final idIssueDate = _optionalText(_guestIdIssueDate.text);
-                  final idIssuePlace = _optionalText(_guestIdIssuePlace.text);
-                  final roomNumber = _roomNumber.text.trim();
-                  final checkin = _checkin.text.trim();
-                  final checkout = _optionalText(_checkout.text);
-                  final expectedNights = int.tryParse(_expectedNights.text.trim()) ?? 1;
-                  final checkinDt = _parseDateTime(checkin);
-                  final checkoutDt = checkout != null ? _parseDateTime(checkout) : null;
-                  final calculatedNights = checkinDt == null
-                      ? expectedNights
-                      : Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
-                  final notes = _optionalText(_notes.text);
-                  const String? email = null;
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      if (!_formKey.currentState!.validate()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('يرجى تعبئة اسم النزيل ورقم الهوية'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      final name = _guestName.text.trim();
+                      final phone = _normalizePhone(_guestPhone.text);
+                      final nationality = _guestNationality.text.trim().isEmpty
+                          ? 'غير معروف'
+                          : _guestNationality.text.trim();
+                      final address = _optionalText(_guestAddress.text);
+                      final idNumber = _guestIdNumber.text.trim();
+                      final idIssueDate = _optionalText(_guestIdIssueDate.text);
+                      final idIssuePlace = _optionalText(
+                        _guestIdIssuePlace.text,
+                      );
+                      final roomNumber = _roomNumber.text.trim();
+                      final checkin = _checkin.text.trim();
+                      final checkout = _optionalText(_checkout.text);
+                      final expectedNights =
+                          int.tryParse(_expectedNights.text.trim()) ?? 1;
+                      final checkinDt = _parseDateTime(checkin);
+                      final checkoutDt = checkout != null
+                          ? _parseDateTime(checkout)
+                          : null;
+                      final calculatedNights = checkinDt == null
+                          ? expectedNights
+                          : Time.nightsWithCutoff(
+                              checkinDt,
+                              checkout: checkoutDt,
+                            );
+                      final notes = _optionalText(_notes.text);
+                      const String? email = null;
 
-                  if (widget.existing == null) {
-                    await repo.create(
-                      roomNumber: roomNumber,
-                      guestName: name,
-                      guestPhone: phone,
-                      guestIdType: _idType,
-                      guestIdNumber: idNumber,
-                      guestIdIssueDate: idIssueDate,
-                      guestIdIssuePlace: idIssuePlace,
-                      guestNationality: nationality,
-                      guestEmail: email,
-                      guestAddress: address,
-                      checkinDate: checkin,
-                      checkoutDate: checkout,
-                      actualCheckout: null,
-                      status: _status,
-                      notes: notes,
-                      expectedNights: expectedNights,
-                      calculatedNights: calculatedNights,
-                    );
-                  } else {
-                    await repo.update(
-                      widget.existing!.id,
-                      roomNumber: roomNumber,
-                      guestName: name,
-                      guestPhone: phone,
-                      guestIdType: _idType,
-                      guestIdNumber: idNumber,
-                      guestIdIssueDate: idIssueDate,
-                      guestIdIssuePlace: idIssuePlace,
-                      guestNationality: nationality,
-                      guestEmail: email,
-                      guestAddress: address,
-                      checkinDate: checkin,
-                      checkoutDate: checkout,
-                      status: _status,
-                      notes: notes,
-                      expectedNights: expectedNights,
-                      calculatedNights: calculatedNights,
-                    );
-                  }
+                      final blacklist = ref.read(blacklistRepoProvider);
+                      final isBlacklisted = await blacklist.isNameBlacklisted(
+                        name,
+                      );
+                      if (isBlacklisted && mounted) {
+                        final proceed = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => AlertDialog(
+                            title: const Text('تحذير أمني'),
+                            content: Text(
+                              'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟',
+                            ),
+                            icon: const Icon(Icons.warning, color: Colors.red),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('إلغاء'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('متابعة'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (proceed != true) return;
+                      }
 
-                  await _refreshRoomOccupancy(ref);
+                      if (widget.existing == null) {
+                        await repo.create(
+                          roomNumber: roomNumber,
+                          guestName: name,
+                          guestPhone: phone,
+                          guestIdType: _idType,
+                          guestIdNumber: idNumber,
+                          guestIdIssueDate: idIssueDate,
+                          guestIdIssuePlace: idIssuePlace,
+                          guestNationality: nationality,
+                          guestEmail: email,
+                          guestAddress: address,
+                          checkinDate: checkin,
+                          checkoutDate: checkout,
+                          actualCheckout: null,
+                          status: _status,
+                          notes: notes,
+                          expectedNights: expectedNights,
+                          calculatedNights: calculatedNights,
+                        );
+                      } else {
+                        await repo.update(
+                          widget.existing!.id,
+                          roomNumber: roomNumber,
+                          guestName: name,
+                          guestPhone: phone,
+                          guestIdType: _idType,
+                          guestIdNumber: idNumber,
+                          guestIdIssueDate: idIssueDate,
+                          guestIdIssuePlace: idIssuePlace,
+                          guestNationality: nationality,
+                          guestEmail: email,
+                          guestAddress: address,
+                          checkinDate: checkin,
+                          checkoutDate: checkout,
+                          status: _status,
+                          notes: notes,
+                          expectedNights: expectedNights,
+                          calculatedNights: calculatedNights,
+                        );
+                      }
 
-                  await syncNow();
-                  if (mounted) Navigator.pop(context);
-                },
-                icon: const Icon(Icons.save),
-                label: const Text('حفظ الحجز'),
-              ),
-            ],
-          ),
+                      await _refreshRoomOccupancy(ref);
+
+                      await syncNow();
+                      if (mounted) Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text('حفظ الحجز'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-  
+
   Widget _buildSyncIndicator(SyncStatus status) {
     switch (status) {
       case SyncStatus.pending:
         return const Padding(
           padding: EdgeInsets.all(8),
-          child: Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 20),
+          child: Icon(
+            Icons.cloud_upload_outlined,
+            color: Colors.orange,
+            size: 20,
+          ),
         );
       case SyncStatus.syncing:
         return const Padding(
@@ -444,7 +657,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.blue,
+            ),
           ),
         );
       case SyncStatus.synced:
@@ -464,15 +680,18 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   Widget _buildSectionTitle(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
       ),
     );
   }
 
-  Future<void> _pickDate(TextEditingController controller, {bool onlyDate = false}) async {
+  Future<void> _pickDate(
+    TextEditingController controller, {
+    bool onlyDate = false,
+  }) async {
     final initial = _parseDateTime(controller.text) ?? DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -482,7 +701,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     );
     if (date == null) return;
     if (onlyDate) {
-      controller.text = _formatDateTime(DateTime(date.year, date.month, date.day, 0, 0, 0)).substring(0, 10);
+      controller.text = _formatDateTime(
+        DateTime(date.year, date.month, date.day, 0, 0, 0),
+      ).substring(0, 10);
       return;
     }
     final time = await showTimePicker(
@@ -490,7 +711,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return;
-    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     setState(() {
       controller.text = _formatDateTime(selected);
     });
@@ -510,14 +737,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
+    final roomTextStyle = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      color: Colors.black87,
+    );
     return roomsAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: LinearProgressIndicator(),
       ),
       error: (err, stack) => TextFormField(
         controller: _roomNumber,
         readOnly: true,
+        style: roomTextStyle,
         decoration: const InputDecoration(
           labelText: 'رقم الغرفة *',
           helperText: 'تعذر تحميل قائمة الغرف، أدخل الرقم يدوياً',
@@ -525,11 +758,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         validator: _req,
       ),
       data: (rooms) {
-        final availableRooms = rooms.where((room) => StatusUtils.isRoomAvailable(room.status)).toList()
-          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+        final availableRooms =
+            rooms
+                .where((room) => StatusUtils.isRoomAvailable(room.status))
+                .toList()
+              ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
         final currentValue = _roomNumber.text.trim();
-        if (!_roomInitialized && widget.existing == null && availableRooms.isNotEmpty) {
+        if (!_roomInitialized &&
+            widget.existing == null &&
+            availableRooms.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
@@ -543,20 +781,32 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         }
 
         final items = <DropdownMenuItem<String>>[];
-        if (currentValue.isNotEmpty && !availableRooms.any((room) => room.roomNumber == currentValue)) {
-          items.add(DropdownMenuItem(value: currentValue, child: Text('$currentValue (الحالي)')));
+        if (currentValue.isNotEmpty &&
+            !availableRooms.any((room) => room.roomNumber == currentValue)) {
+          items.add(
+            DropdownMenuItem(
+              value: currentValue,
+              child: Text('$currentValue (الحالي)', style: roomTextStyle),
+            ),
+          );
         }
         items.addAll(
-          availableRooms.map((room) => DropdownMenuItem(
-                value: room.roomNumber,
-                child: Text('${room.roomNumber} • ${room.type}'),
-              )),
+          availableRooms.map(
+            (room) => DropdownMenuItem(
+              value: room.roomNumber,
+              child: Text(
+                '${room.roomNumber} • ${room.type}',
+                style: roomTextStyle,
+              ),
+            ),
+          ),
         );
 
         if (items.isEmpty) {
           return TextFormField(
             controller: _roomNumber,
             readOnly: widget.existing == null,
+            style: roomTextStyle,
             decoration: const InputDecoration(
               labelText: 'رقم الغرفة *',
               helperText: 'لا توجد غرف شاغرة متاحة حالياً',
@@ -568,13 +818,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         return DropdownButtonFormField<String>(
           value: currentValue.isNotEmpty ? currentValue : null,
           items: items,
+          style: roomTextStyle,
           onChanged: (value) {
             setState(() {
               _roomNumber.text = value ?? '';
             });
           },
           decoration: const InputDecoration(labelText: 'رقم الغرفة *'),
-          validator: (value) => value == null || value.trim().isEmpty ? 'مطلوب' : null,
+          validator: (value) =>
+              value == null || value.trim().isEmpty ? 'مطلوب' : null,
         );
       },
     );
@@ -583,7 +835,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
     final db = ref.read(databaseProvider);
     final roomsRepo = ref.read(roomsRepoProvider);
-    final bookings = await (db.select(db.bookings)..where((tbl) => tbl.deletedAt.isNull())).get();
+    final bookings = await (db.select(
+      db.bookings,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     final occupiedRooms = <String>{};
     for (final booking in bookings) {
       if (StatusUtils.isActiveBooking(booking.status)) {
@@ -591,7 +845,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       }
     }
 
-    final rooms = await (db.select(db.rooms)..where((tbl) => tbl.deletedAt.isNull())).get();
+    final rooms = await (db.select(
+      db.rooms,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -608,7 +864,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
-    final withSeconds = normalized.length == 16 ? '${normalized}:00' : normalized;
+    final withSeconds = normalized.length == 16
+        ? '${normalized}:00'
+        : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -644,7 +902,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     return '967$normalized';
   }
 
-  String? _optionalText(String text) => text.trim().isEmpty ? null : text.trim();
+  String? _optionalText(String text) =>
+      text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
-  
 }

@@ -10,6 +10,7 @@ class GoogleDriveLogger extends ChangeNotifier {
   GoogleDriveLogger._internal();
 
   final List<LogEntry> _logs = [];
+  static const int _maxLogEntries = 100;
   final Map<LogLevel, int> _logCounts = {};
   LogLevel _minLevel = LogLevel.info;
   bool _enableConsole = true;
@@ -43,7 +44,8 @@ class GoogleDriveLogger extends ChangeNotifier {
       if (!await logsDir.exists()) {
         await logsDir.create(recursive: true);
       }
-      final fileName = 'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      final fileName =
+          'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
       debugPrint('Error initializing drive log file: $e');
@@ -67,6 +69,9 @@ class GoogleDriveLogger extends ChangeNotifier {
       stackTrace: stackTrace,
     );
     _logs.add(entry);
+    if (_logs.length > _maxLogEntries) {
+      _logs.removeRange(0, _logs.length - _maxLogEntries);
+    }
     _logCounts[level] = (_logCounts[level] ?? 0) + 1;
     if (_enableConsole && kDebugMode) {
       _printToConsole(entry);
@@ -120,12 +125,34 @@ class GoogleDriveLogger extends ChangeNotifier {
     log(message, level: LogLevel.warning, tag: tag, error: error);
   }
 
-  void error(String message, {String tag = 'DRIVE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
+  void error(
+    String message, {
+    String tag = 'DRIVE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.error,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
-  void critical(String message, {String tag = 'DRIVE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.critical, tag: tag, error: error, stackTrace: stackTrace);
+  void critical(
+    String message, {
+    String tag = 'DRIVE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.critical,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   List<LogEntry> getLogs({LogLevel? filterLevel}) {
@@ -156,7 +183,8 @@ class GoogleDriveLogger extends ChangeNotifier {
   Future<File?> exportLogs() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'drive_logs_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final fileName =
+          'drive_logs_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
       final file = File('${directory.path}/$fileName');
       final buffer = StringBuffer();
       for (final log in _logs) {

@@ -30,7 +30,7 @@ const List<String> _dashboardRoomNumbers = [
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
-  
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
@@ -43,10 +43,7 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               const Text(
                 'لوحة التحكم - نظام إدارة الفندق',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               ElevatedButton.icon(
@@ -58,14 +55,14 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Smart Sync Status Card
           const SmartSyncDashboardCard(),
-          
+
           const SizedBox(height: 16),
-          
+
           // Statistics Cards
           Consumer(
             builder: (context, ref, _) {
@@ -76,15 +73,28 @@ class DashboardScreen extends ConsumerWidget {
                 error: (e, st) => Center(child: Text('خطأ: $e')),
                 data: (rooms) {
                   final totalRooms = rooms.length;
-                  final availableRooms = rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
-                  final occupiedRooms = rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
-                  final occupancyRate = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).round() : 0;
+                  final availableRooms = rooms
+                      .where((r) => StatusUtils.isRoomAvailable(r.status))
+                      .length;
+                  final occupiedRooms = rooms
+                      .where((r) => StatusUtils.isRoomOccupied(r.status))
+                      .length;
+                  final occupancyRate = totalRooms > 0
+                      ? ((occupiedRooms / totalRooms) * 100).round()
+                      : 0;
+
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final crossAxisCount = screenWidth < 360
+                      ? 1
+                      : screenWidth < 600
+                      ? 2
+                      : 3;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       GridView.count(
-                        crossAxisCount: 2,
+                        crossAxisCount: crossAxisCount,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         childAspectRatio: 1.5,
@@ -125,15 +135,15 @@ class DashboardScreen extends ConsumerWidget {
               );
             },
           ),
-          
-
         ],
       ),
     );
   }
-  
+
   Widget _buildRoomsStatusSection(BuildContext context, List<Room> rooms) {
-    final Map<String, Room> roomsMap = {for (final room in rooms) room.roomNumber: room};
+    final Map<String, Room> roomsMap = {
+      for (final room in rooms) room.roomNumber: room,
+    };
 
     return Card(
       child: Padding(
@@ -143,10 +153,7 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             const Text(
               'حالة الغرف',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -154,14 +161,23 @@ class DashboardScreen extends ConsumerWidget {
               runSpacing: 12,
               children: _dashboardRoomNumbers.map((roomNumber) {
                 final room = roomsMap[roomNumber];
-                final bool isOccupied = room != null && StatusUtils.isRoomOccupied(room.status);
-                final bool isAvailable = room != null && StatusUtils.isRoomAvailable(room.status);
+                final bool isOccupied =
+                    room != null && StatusUtils.isRoomOccupied(room.status);
+                final bool isAvailable =
+                    room != null && StatusUtils.isRoomAvailable(room.status);
                 final Color backgroundColor = isOccupied
                     ? Colors.red.shade600
-                    : (isAvailable ? Colors.green.shade600 : Colors.grey.shade500);
-                final bool useDarkText = backgroundColor.computeLuminance() > 0.5;
-                final Color foregroundColor = useDarkText ? Colors.black : Colors.white;
-                final String tooltipText = room != null ? room.status : 'غير مسجل في النظام';
+                    : (isAvailable
+                          ? Colors.green.shade600
+                          : Colors.grey.shade500);
+                final bool useDarkText =
+                    backgroundColor.computeLuminance() > 0.5;
+                final Color foregroundColor = useDarkText
+                    ? Colors.black
+                    : Colors.white;
+                final String tooltipText = room != null
+                    ? room.status
+                    : 'غير مسجل في النظام';
 
                 return Tooltip(
                   message: tooltipText,
@@ -173,7 +189,9 @@ class DashboardScreen extends ConsumerWidget {
                         backgroundColor: backgroundColor,
                         foregroundColor: foregroundColor,
                         minimumSize: const Size(80, 48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         textStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -197,7 +215,7 @@ class StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  
+
   const StatCard({
     super.key,
     required this.title,
@@ -226,10 +244,7 @@ class StatCard extends StatelessWidget {
             ),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],

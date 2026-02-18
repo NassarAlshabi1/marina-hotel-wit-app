@@ -8,13 +8,16 @@ import 'package:flutter/widgets.dart';
 class AlarmBackup {
   static const int alarmId = 0;
 
-  static final FlutterLocalNotificationsPlugin _notif = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _notif =
+      FlutterLocalNotificationsPlugin();
 
   /// استدعِ هذه في main() قبل runApp
   static Future<void> initAlarmSystem() async {
     await AndroidAlarmManager.initialize();
     // تهيئة الإشعارات
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     final initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
     debugPrint('✅ Alarm system initialized');
@@ -22,11 +25,11 @@ class AlarmBackup {
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('scheduled_backup_enabled') == null) {
-       debugPrint('🚀 First run: Enable scheduled backup by default');
-       await prefs.setBool('scheduled_backup_enabled', true);
-       // وقت افتراضي 9:00 مساءً
-       await prefs.setString('auto_backup_time', '21:00');
-       await scheduleDailyAlarm(21, 0);
+      debugPrint('🚀 First run: Enable scheduled backup by default');
+      await prefs.setBool('scheduled_backup_enabled', true);
+      // وقت افتراضي 9:00 مساءً
+      await prefs.setString('auto_backup_time', '21:00');
+      await scheduleDailyAlarm(21, 0);
     }
   }
 
@@ -34,7 +37,9 @@ class AlarmBackup {
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
-    if (scheduled.isBefore(now)) scheduled = scheduled.add(const Duration(days: 1));
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
 
     // استخدم oneShotAt مع exact و wakeup و allowWhileIdle
     await AndroidAlarmManager.oneShotAt(

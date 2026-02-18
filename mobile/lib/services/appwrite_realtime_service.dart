@@ -5,12 +5,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_cache_manager.dart';
 
 /// نوع الحدث في Realtime
-enum RealtimeEventType {
-  create,
-  update,
-  delete,
-  unknown,
-}
+enum RealtimeEventType { create, update, delete, unknown }
 
 /// حدث Realtime
 class RealtimeEvent {
@@ -29,7 +24,8 @@ class RealtimeEvent {
   }) : timestamp = timestamp ?? DateTime.now();
 
   @override
-  String toString() => 'RealtimeEvent(type: $type, collection: $collection, id: $documentId)';
+  String toString() =>
+      'RealtimeEvent(type: $type, collection: $collection, id: $documentId)';
 }
 
 /// معالج أحداث Realtime
@@ -37,7 +33,8 @@ typedef RealtimeEventHandler = void Function(RealtimeEvent event);
 
 /// خدمة Appwrite Realtime - التحديثات الفورية
 class AppwriteRealtimeService {
-  static final AppwriteRealtimeService _instance = AppwriteRealtimeService._internal();
+  static final AppwriteRealtimeService _instance =
+      AppwriteRealtimeService._internal();
   factory AppwriteRealtimeService() => _instance;
   AppwriteRealtimeService._internal();
 
@@ -58,17 +55,18 @@ class AppwriteRealtimeService {
       _initialized = true;
       _logger.info('Appwrite Realtime service initialized', tag: 'REALTIME');
     } catch (e, stackTrace) {
-      _logger.error('Failed to initialize Realtime service', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'REALTIME'
+      _logger.error(
+        'Failed to initialize Realtime service',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
       );
       rethrow;
     }
   }
 
   /// الاشتراك في مجموعة (Collection)
-  /// 
+  ///
   /// [collectionId] - معرف المجموعة
   /// [handler] - معالج الأحداث
   /// [events] - أنواع الأحداث المطلوبة (create, update, delete)
@@ -86,7 +84,10 @@ class AppwriteRealtimeService {
       final channels = _buildChannels(collectionId, events);
       final subscriptionKey = 'collection_$collectionId';
 
-      _logger.debug('Subscribing to collection: $collectionId', tag: 'REALTIME');
+      _logger.debug(
+        'Subscribing to collection: $collectionId',
+        tag: 'REALTIME',
+      );
 
       // إلغاء الاشتراك القديم إذا كان موجوداً
       if (_subscriptions.containsKey(subscriptionKey)) {
@@ -96,20 +97,24 @@ class AppwriteRealtimeService {
 
       // إنشاء اشتراك جديد
       final subscription = _realtime.subscribe(channels);
-      
+
       // الاستماع للأحداث
       subscription.stream.listen(
         (response) {
           _handleRealtimeResponse(response, collectionId, handler);
         },
         onError: (error) {
-          _logger.error('Realtime subscription error for $collectionId', 
-            error: error, 
-            tag: 'REALTIME'
+          _logger.error(
+            'Realtime subscription error for $collectionId',
+            error: error,
+            tag: 'REALTIME',
           );
         },
         onDone: () {
-          _logger.info('Realtime subscription closed for $collectionId', tag: 'REALTIME');
+          _logger.info(
+            'Realtime subscription closed for $collectionId',
+            tag: 'REALTIME',
+          );
         },
       );
 
@@ -117,12 +122,16 @@ class AppwriteRealtimeService {
       _handlers[subscriptionKey] = _handlers[subscriptionKey] ?? [];
       _handlers[subscriptionKey]!.add(handler);
 
-      _logger.info('Successfully subscribed to collection: $collectionId', tag: 'REALTIME');
+      _logger.info(
+        'Successfully subscribed to collection: $collectionId',
+        tag: 'REALTIME',
+      );
     } catch (e, stackTrace) {
-      _logger.error('Failed to subscribe to collection: $collectionId', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'REALTIME'
+      _logger.error(
+        'Failed to subscribe to collection: $collectionId',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
       );
       rethrow;
     }
@@ -139,10 +148,14 @@ class AppwriteRealtimeService {
     }
 
     try {
-      final channel = 'databases.${AppwriteConfig.databaseId}.collections.$collectionId.documents.$documentId';
+      final channel =
+          'databases.${AppwriteConfig.databaseId}.collections.$collectionId.documents.$documentId';
       final subscriptionKey = 'document_${collectionId}_$documentId';
 
-      _logger.debug('Subscribing to document: $collectionId/$documentId', tag: 'REALTIME');
+      _logger.debug(
+        'Subscribing to document: $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
 
       // إلغاء الاشتراك القديم
       if (_subscriptions.containsKey(subscriptionKey)) {
@@ -152,15 +165,16 @@ class AppwriteRealtimeService {
 
       // إنشاء اشتراك جديد
       final subscription = _realtime.subscribe([channel]);
-      
+
       subscription.stream.listen(
         (response) {
           _handleRealtimeResponse(response, collectionId, handler);
         },
         onError: (error) {
-          _logger.error('Realtime subscription error for document $documentId', 
-            error: error, 
-            tag: 'REALTIME'
+          _logger.error(
+            'Realtime subscription error for document $documentId',
+            error: error,
+            tag: 'REALTIME',
           );
         },
       );
@@ -168,12 +182,16 @@ class AppwriteRealtimeService {
       _subscriptions[subscriptionKey] = subscription;
       _handlers[subscriptionKey] = [handler];
 
-      _logger.info('Successfully subscribed to document: $collectionId/$documentId', tag: 'REALTIME');
+      _logger.info(
+        'Successfully subscribed to document: $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
     } catch (e, stackTrace) {
-      _logger.error('Failed to subscribe to document', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'REALTIME'
+      _logger.error(
+        'Failed to subscribe to document',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
       );
       rethrow;
     }
@@ -184,10 +202,21 @@ class AppwriteRealtimeService {
     final collections = [
       AppwriteConfig.roomsCollectionId,
       AppwriteConfig.bookingsCollectionId,
+      AppwriteConfig.bookingNotesCollectionId,
+      AppwriteConfig.bookingNightsCollectionId,
       AppwriteConfig.paymentsCollectionId,
       AppwriteConfig.expensesCollectionId,
+      AppwriteConfig.cashTransactionsCollectionId,
       AppwriteConfig.employeesCollectionId,
       AppwriteConfig.debtsCollectionId,
+      AppwriteConfig.hotelDayLedgerCollectionId,
+      AppwriteConfig.salaryCyclesCollectionId,
+      AppwriteConfig.salaryPaymentsCollectionId,
+      AppwriteConfig.shiftNotesCollectionId,
+      AppwriteConfig.priceAdjustmentsCollectionId,
+      AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      AppwriteConfig.auditLogsCollectionId,
+      AppwriteConfig.paymentVoidsCollectionId,
     ];
 
     for (final collectionId in collections) {
@@ -197,39 +226,49 @@ class AppwriteRealtimeService {
           handler: handler,
         );
       } catch (e) {
-        _logger.warning('Failed to subscribe to $collectionId, continuing...', 
-          error: e, 
-          tag: 'REALTIME'
+        _logger.warning(
+          'Failed to subscribe to $collectionId, continuing...',
+          error: e,
+          tag: 'REALTIME',
         );
       }
     }
 
-    _logger.info('Subscribed to ${collections.length} collections', tag: 'REALTIME');
+    _logger.info(
+      'Subscribed to ${collections.length} collections',
+      tag: 'REALTIME',
+    );
   }
 
   /// إلغاء الاشتراك في مجموعة
   void unsubscribeFromCollection(String collectionId) {
     final subscriptionKey = 'collection_$collectionId';
-    
+
     if (_subscriptions.containsKey(subscriptionKey)) {
       _subscriptions[subscriptionKey]!.close();
       _subscriptions.remove(subscriptionKey);
       _handlers.remove(subscriptionKey);
-      
-      _logger.info('Unsubscribed from collection: $collectionId', tag: 'REALTIME');
+
+      _logger.info(
+        'Unsubscribed from collection: $collectionId',
+        tag: 'REALTIME',
+      );
     }
   }
 
   /// إلغاء الاشتراك في مستند
   void unsubscribeFromDocument(String collectionId, String documentId) {
     final subscriptionKey = 'document_${collectionId}_$documentId';
-    
+
     if (_subscriptions.containsKey(subscriptionKey)) {
       _subscriptions[subscriptionKey]!.close();
       _subscriptions.remove(subscriptionKey);
       _handlers.remove(subscriptionKey);
-      
-      _logger.info('Unsubscribed from document: $collectionId/$documentId', tag: 'REALTIME');
+
+      _logger.info(
+        'Unsubscribed from document: $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
     }
   }
 
@@ -240,7 +279,7 @@ class AppwriteRealtimeService {
     }
     _subscriptions.clear();
     _handlers.clear();
-    
+
     _logger.info('Unsubscribed from all Realtime channels', tag: 'REALTIME');
   }
 
@@ -252,9 +291,12 @@ class AppwriteRealtimeService {
   ) {
     try {
       final events = response.events;
-      
+
       if (events.isEmpty) {
-        _logger.debug('Received Realtime message with no events', tag: 'REALTIME');
+        _logger.debug(
+          'Received Realtime message with no events',
+          tag: 'REALTIME',
+        );
         return;
       }
 
@@ -291,10 +333,11 @@ class AppwriteRealtimeService {
       // استدعاء المعالج
       handler(event);
     } catch (e, stackTrace) {
-      _logger.error('Error handling Realtime response', 
-        error: e, 
-        stackTrace: stackTrace, 
-        tag: 'REALTIME'
+      _logger.error(
+        'Error handling Realtime response',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
       );
     }
   }
@@ -314,29 +357,31 @@ class AppwriteRealtimeService {
           // مسح قائمة المستندات للتحديث
           _cache.clearByPattern('^${event.collection}_all');
           break;
-        
+
         case RealtimeEventType.delete:
           // حذف من الذاكرة المؤقتة
           _cache.remove(cacheKey);
           _cache.clearByPattern('^${event.collection}_all');
           break;
-        
+
         case RealtimeEventType.unknown:
           // لا شيء
           break;
       }
     } catch (e) {
-      _logger.warning('Failed to update cache on Realtime event', 
-        error: e, 
-        tag: 'REALTIME'
+      _logger.warning(
+        'Failed to update cache on Realtime event',
+        error: e,
+        tag: 'REALTIME',
       );
     }
   }
 
   /// بناء قنوات الاشتراك
   List<String> _buildChannels(String collectionId, List<String>? events) {
-    final baseChannel = 'databases.${AppwriteConfig.databaseId}.collections.$collectionId.documents';
-    
+    final baseChannel =
+        'databases.${AppwriteConfig.databaseId}.collections.$collectionId.documents';
+
     if (events == null || events.isEmpty) {
       return [baseChannel];
     }

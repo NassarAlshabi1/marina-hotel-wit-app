@@ -1,40 +1,63 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../utils/env.dart';
+import 'api_config_service.dart';
 
 class ApiService {
   ApiService._internal() {
-    _dio = Dio(BaseOptions(
-      baseUrl: Env.baseApiUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 20),
-      headers: {'Content-Type': 'application/json; charset=utf-8'},
-    ));
+    _initializeDio();
+    ApiConfigService.instance.configNotifier.addListener(_onConfigChanged);
+  }
 
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: _kToken);
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (e, handler) async {
-        final code = e.response?.statusCode ?? 0;
-        if (code == 401) {
-          await _storage.delete(key: _kToken);
-        }
-        if (code == 429 || code >= 500) {
-          await Future.delayed(const Duration(seconds: 1));
-          try {
-            final req = await _retryRequest(e.requestOptions);
-            return handler.resolve(req);
-          } catch (_) {}
-        }
-        handler.next(e);
-      },
-    ));
+  void _initializeDio() {
+    final config = ApiConfigService.instance.currentConfig;
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: config.baseUrl,
+        connectTimeout: Duration(seconds: config.connectTimeout),
+        receiveTimeout: Duration(seconds: config.receiveTimeout),
+        headers: ApiConfigService.instance.getHeaders(),
+      ),
+    );
+
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _storage.read(key: _kToken);
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          handler.next(options);
+        },
+        onError: (e, handler) async {
+          final code = e.response?.statusCode ?? 0;
+          if (code == 401) {
+            await _storage.delete(key: _kToken);
+          }
+          if (code == 429 || code >= 500) {
+            await Future.delayed(const Duration(seconds: 1));
+            try {
+              final req = await _retryRequest(e.requestOptions);
+              return handler.resolve(req);
+            } catch (_) {}
+          }
+          handler.next(e);
+        },
+      ),
+    );
+
+    if (config.enableLogging) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+        ),
+      );
+    }
+  }
+
+  void _onConfigChanged() {
+    _initializeDio();
   }
   static final ApiService I = ApiService._internal();
 
@@ -44,16 +67,22 @@ class ApiService {
 
   Future<Response<dynamic>> _retryRequest(RequestOptions ro) async {
     final opts = Options(method: ro.method, headers: ro.headers);
-    return _dio.request<dynamic>(ro.path,
-        data: ro.data, queryParameters: ro.queryParameters, options: opts);
+    return _dio.request<dynamic>(
+      ro.path,
+      data: ro.data,
+      queryParameters: ro.queryParameters,
+      options: opts,
+    );
   }
 
   Future<Map<String, dynamic>?> login(String username, String password) async {
-    final res = await _dio.post('/auth/login.php', data: jsonEncode({
-      'username': username,
-      'password': password,
-    }));
-    if (res.statusCode == 200 && res.data is Map && res.data['success'] == true) {
+    final res = await _dio.post(
+      '/auth/login.php',
+      data: jsonEncode({'username': username, 'password': password}),
+    );
+    if (res.statusCode == 200 &&
+        res.data is Map &&
+        res.data['success'] == true) {
       final rawData = res.data['data'];
       if (rawData is Map) {
         final data = Map<String, dynamic>.from(rawData);
@@ -84,8 +113,13 @@ class ApiService {
     await _storage.delete(key: _kToken);
   }
 
-  Future<Map<String, dynamic>> listEntity(String entity,
-      {int page = 1, int pageSize = 50, int? since, String? filter}) async {
+  Future<Map<String, dynamic>> listEntity(
+    String entity, {
+    int page = 1,
+    int pageSize = 50,
+    int? since,
+    String? filter,
+  }) async {
     final qp = {
       'page': page,
       'page_size': pageSize,
@@ -102,13 +136,18 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> createEntity(
-      String entity, Map<String, dynamic> data) async {
+    String entity,
+    Map<String, dynamic> data,
+  ) async {
     final res = await _dio.post('/$entity.php', data: jsonEncode(data));
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> updateEntity(
-      String entity, dynamic id, Map<String, dynamic> data) async {
+    String entity,
+    dynamic id,
+    Map<String, dynamic> data,
+  ) async {
     final res = await _dio.put('/$entity.php/$id', data: jsonEncode(data));
     return Map<String, dynamic>.from(res.data);
   }
@@ -118,15 +157,21 @@ class ApiService {
     return Map<String, dynamic>.from(res.data);
   }
 
-  Future<Map<String, dynamic>> syncPush(List<Map<String, dynamic>> changes) async {
-    final res = await _dio.post('/sync/push.php', data: jsonEncode({
-      'changes': changes,
-    }));
+  Future<Map<String, dynamic>> syncPush(
+    List<Map<String, dynamic>> changes,
+  ) async {
+    final res = await _dio.post(
+      '/sync/push.php',
+      data: jsonEncode({'changes': changes}),
+    );
     return Map<String, dynamic>.from(res.data);
   }
 
   Future<Map<String, dynamic>> syncPull(int since) async {
-    final res = await _dio.get('/sync/pull.php', queryParameters: {'since': since});
+    final res = await _dio.get(
+      '/sync/pull.php',
+      queryParameters: {'since': since},
+    );
     return Map<String, dynamic>.from(res.data);
   }
 

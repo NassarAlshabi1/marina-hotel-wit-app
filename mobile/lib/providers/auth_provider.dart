@@ -43,16 +43,14 @@ class AuthUser {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'full_name': fullName,
-        'user_type': userType,
-        'permissions': permissions,
-      };
+    'id': id,
+    'username': username,
+    'full_name': fullName,
+    'user_type': userType,
+    'permissions': permissions,
+  };
 
-  AuthUser copyWith({
-    List<String>? permissions,
-  }) {
+  AuthUser copyWith({List<String>? permissions}) {
     return AuthUser(
       id: id,
       username: username,
@@ -71,7 +69,6 @@ class AuthState {
   final bool rememberMe;
   final AuthType authType;
 
-  
   const AuthState({
     required this.isAuthenticated,
     this.isRestoring = false,
@@ -79,7 +76,6 @@ class AuthState {
     this.currentUser,
     this.rememberMe = false,
     this.authType = AuthType.local,
-
   });
 
   AuthState copyWith({
@@ -89,20 +85,19 @@ class AuthState {
     AuthUser? currentUser,
     bool? rememberMe,
     AuthType? authType,
-
   }) => AuthState(
-        isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-        isRestoring: isRestoring ?? this.isRestoring,
-        error: error,
-        currentUser: currentUser ?? this.currentUser,
-        rememberMe: rememberMe ?? this.rememberMe,
-        authType: authType ?? this.authType,
-
-      );
+    isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+    isRestoring: isRestoring ?? this.isRestoring,
+    error: error,
+    currentUser: currentUser ?? this.currentUser,
+    rememberMe: rememberMe ?? this.rememberMe,
+    authType: authType ?? this.authType,
+  );
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+  AuthNotifier()
+    : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
     restoreSession();
   }
 
@@ -110,37 +105,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> restoreSession() async {
     state = state.copyWith(isRestoring: true, error: null);
-    
+
     final rememberMe = await _store.getRememberMe();
     if (!rememberMe) {
       state = const AuthState(isAuthenticated: false, isRestoring: false);
       return;
     }
-    
+
     final json = await _store.loadCurrentUser();
     if (json == null) {
       state = const AuthState(isAuthenticated: false, isRestoring: false);
       return;
     }
-    
+
     final user = AuthUser.fromJson(json);
     final authType = await _store.getAuthType();
-    
 
-    
     state = AuthState(
       isAuthenticated: true,
       isRestoring: false,
       currentUser: user,
       rememberMe: rememberMe,
       authType: authType,
-
     );
   }
 
-  Future<void> login(String username, String password, {bool rememberMe = false}) async {
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {
     state = state.copyWith(error: null);
-    
+
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
       state = AuthState(
@@ -150,12 +146,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return;
     }
-    
+
     final user = AuthUser.fromJson(data);
     await _store.saveCurrentUser(user.toJson());
     await _store.setRememberMe(rememberMe);
     await _store.setAuthType(AuthType.local);
-    
+
     state = AuthState(
       isAuthenticated: true,
       isRestoring: false,
@@ -163,8 +159,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       rememberMe: rememberMe,
       authType: AuthType.local,
     );
-
-
   }
 
   Future<void> logout() async {
@@ -172,10 +166,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(isAuthenticated: false, isRestoring: false);
   }
 
-  Future<void> updateUserPermissions(String username, List<String> permissions) async {
+  Future<void> updateUserPermissions(
+    String username,
+    List<String> permissions,
+  ) async {
     await _store.setPermissions(username, permissions);
     if (state.currentUser != null && state.currentUser!.username == username) {
-      final updated = state.currentUser!.copyWith(permissions: username == 'admin' ? ['all'] : permissions);
+      final updated = state.currentUser!.copyWith(
+        permissions: username == 'admin' ? ['all'] : permissions,
+      );
       await _store.saveCurrentUser(updated.toJson());
       state = state.copyWith(currentUser: updated);
     }
@@ -196,7 +195,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       permissions: permissions,
     );
   }
-
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+  (ref) => AuthNotifier(),
+);

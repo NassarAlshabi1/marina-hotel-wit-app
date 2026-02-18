@@ -5,9 +5,9 @@ import '../providers/auth_provider.dart';
 class AdminSidebar extends ConsumerWidget {
   final String currentRoute;
   final Function(String) onRouteSelected;
-  
+
   const AdminSidebar({
-    super.key, 
+    super.key,
     required this.currentRoute,
     required this.onRouteSelected,
   });
@@ -37,12 +37,7 @@ class AdminSidebar extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: headerColor,
-              border: Border(
-                bottom: BorderSide(
-                  color: dividerColor,
-                  width: 1,
-                ),
-              ),
+              border: Border(bottom: BorderSide(color: dividerColor, width: 1)),
             ),
             child: Column(
               children: [
@@ -75,7 +70,7 @@ class AdminSidebar extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                
+
                 // User info section
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -87,10 +82,7 @@ class AdminSidebar extends ConsumerWidget {
                     children: [
                       CircleAvatar(
                         backgroundColor: Colors.white.withOpacity(0.2),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.person, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -106,7 +98,9 @@ class AdminSidebar extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              auth.currentUser?.userType == 'admin' ? 'مدير النظام' : 'موظف',
+                              auth.currentUser?.userType == 'admin'
+                                  ? 'مدير النظام'
+                                  : 'موظف',
                               style: TextStyle(
                                 color: inactiveColor,
                                 fontSize: 12,
@@ -121,7 +115,7 @@ class AdminSidebar extends ConsumerWidget {
               ],
             ),
           ),
-          
+
           // Menu Items - exactly matching PHP sidebar
           Expanded(
             child: ListView(
@@ -172,15 +166,6 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/debts'),
                     context: context,
                   ),
-                if (can('employees'))
-                  _buildMenuItem(
-                    icon: Icons.group,
-                    title: 'إدارة الموظفين',
-                    route: '/employees',
-                    isActive: currentRoute.startsWith('/employees'),
-                    onTap: () => onRouteSelected('/employees'),
-                    context: context,
-                  ),
                 if (can('expenses'))
                   _buildMenuItem(
                     icon: Icons.receipt_long,
@@ -219,6 +204,15 @@ class AdminSidebar extends ConsumerWidget {
                   ),
                 if (can('settings'))
                   _buildMenuItem(
+                    icon: Icons.gavel,
+                    title: 'القائمة السوداء',
+                    route: '/blacklist',
+                    isActive: currentRoute.startsWith('/blacklist'),
+                    onTap: () => onRouteSelected('/blacklist'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
                     icon: Icons.settings,
                     title: 'الإعدادات',
                     route: '/settings',
@@ -246,7 +240,7 @@ class AdminSidebar extends ConsumerWidget {
                 } catch (e) {
                   // تجاهل الأخطاء
                 }
-                
+
                 await ref.read(authProvider.notifier).logout();
               },
               context: context,

@@ -1,10 +1,9 @@
 import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../services/appwrite_sync_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
 
 const _kImmediateWorkName = 'appwrite_auto_sync_now';
 const _kPeriodicWorkName = 'appwrite_auto_sync_periodic';
@@ -14,10 +13,32 @@ const _kDebounceWindow = Duration(seconds: 8);
 @pragma('vm:entry-point')
 void appwriteAutoSyncCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
-    WidgetsFlutterBinding.ensureInitialized();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kPendingFlagKey, true);
-    return true;
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+
+      if (!enabled) {
+        return true;
+      }
+
+      final success = await UnifiedSyncOrchestrator.instance.syncNow(
+        push: true,
+        pull: true,
+        reason: 'appwrite_background_task',
+      );
+
+      if (success) {
+        await prefs.setBool(_kPendingFlagKey, false);
+      } else {
+        await prefs.setBool(_kPendingFlagKey, true);
+      }
+
+      return success;
+    } catch (e) {
+      return false;
+    }
   });
 }
 
@@ -25,22 +46,26 @@ class AppwriteAutoSyncTask {
   AppwriteAutoSyncTask._();
 
   static int _debounceToken = 0;
-  static Future<void>? _pendingDebounce;
   static bool _initialized = false;
 
   static Future<void> initialize({bool debug = false}) async {
     if (_initialized) return;
     WidgetsFlutterBinding.ensureInitialized();
-    await Workmanager().initialize(appwriteAutoSyncCallbackDispatcher, isInDebugMode: debug);
+    await Workmanager().initialize(
+      appwriteAutoSyncCallbackDispatcher,
+      isInDebugMode: debug,
+    );
     _initialized = true;
   }
 
-  static Future<void> scheduleImmediateSync({Duration delay = _kDebounceWindow}) async {
+  static Future<void> scheduleImmediateSync({
+    Duration delay = _kDebounceWindow,
+  }) async {
     if (!_initialized) {
       throw StateError('AppwriteAutoSyncTask not initialized');
     }
     final token = ++_debounceToken;
-    _pendingDebounce = Future<void>.delayed(delay, () async {
+    await Future<void>.delayed(delay, () async {
       if (token != _debounceToken) return;
       await Workmanager().registerOneOffTask(
         _kImmediateWorkName,
@@ -80,16 +105,19 @@ class AppwriteAutoSyncTask {
   static Future<void> cancelAll() async {
     if (!_initialized) return;
     _debounceToken++;
-    _pendingDebounce = null;
     await Workmanager().cancelByUniqueName(_kImmediateWorkName);
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }
 
-  static Future<void> consumePendingAndSync(AppwriteSyncManager manager, {bool force = false}) async {
+  static Future<void> consumePendingAndSync({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
-    if (!pending) return;
-    await manager.sync();
+    if (!pending && !force) return;
+    await UnifiedSyncOrchestrator.instance.syncNow(
+      push: true,
+      pull: true,
+      reason: 'pending_appwrite_sync',
+    );
     await prefs.setBool(_kPendingFlagKey, false);
   }
 }

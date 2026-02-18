@@ -13,7 +13,13 @@ class AppBottomNavShell extends StatefulWidget {
 
 class _AppBottomNavShellState extends State<AppBottomNavShell> {
   int _index = 0;
-  final _pages = const [DashboardScreen(), BookingsListScreen(), RoomsMainScreen(), ReportsScreen(), SettingsScreen()];
+  final _pages = const [
+    DashboardScreen(),
+    BookingsListScreen(),
+    RoomsMainScreen(),
+    ReportsScreen(),
+    SettingsScreen(),
+  ];
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -33,26 +39,14 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
       selectedFontSize: 11,
       unselectedFontSize: 10,
       items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'الرئيسية',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'الرئيسية'),
         BottomNavigationBarItem(
           icon: Icon(Icons.assignment),
           label: 'الحجوزات',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.bed),
-          label: 'الغرف',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.bar_chart),
-          label: 'التقارير',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.settings),
-          label: 'الإعدادات',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.bed), label: 'الغرف'),
+        BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
+        BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
       ],
     );
   }

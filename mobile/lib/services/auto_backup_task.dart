@@ -26,10 +26,10 @@ class AutoBackupTask {
   static Future<void> scheduleDaily({String time = '02:00'}) async {
     try {
       await _cancelExisting();
-      
+
       // حساب التأخير الأولي
       final initialDelay = _calculateInitialDelay(time);
-      
+
       await Workmanager().registerPeriodicTask(
         taskId,
         taskName,
@@ -40,13 +40,10 @@ class AutoBackupTask {
           requiresBatteryNotLow: true,
           requiresStorageNotLow: true,
         ),
-        inputData: {
-          'frequency': 'daily',
-          'time': time,
-        },
+        inputData: {'frequency': 'daily', 'time': time},
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
-      
+
       debugPrint('✅ تم جدولة النسخ اليومي في $time');
     } catch (e) {
       debugPrint('❌ خطأ في جدولة النسخ اليومي: $e');
@@ -54,13 +51,16 @@ class AutoBackupTask {
   }
 
   /// جدولة النسخ الأسبوعي
-  static Future<void> scheduleWeekly({String time = '02:00', int weekday = 1}) async {
+  static Future<void> scheduleWeekly({
+    String time = '02:00',
+    int weekday = 1,
+  }) async {
     try {
       await _cancelExisting();
-      
+
       // حساب التأخير الأولي للوصول للأسبوع القادم في اليوم المحدد
       final initialDelay = _calculateWeeklyInitialDelay(time, weekday);
-      
+
       await Workmanager().registerPeriodicTask(
         taskId,
         taskName,
@@ -71,14 +71,10 @@ class AutoBackupTask {
           requiresBatteryNotLow: true,
           requiresStorageNotLow: true,
         ),
-        inputData: {
-          'frequency': 'weekly',
-          'time': time,
-          'weekday': weekday,
-        },
+        inputData: {'frequency': 'weekly', 'time': time, 'weekday': weekday},
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
-      
+
       debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
     } catch (e) {
       debugPrint('❌ خطأ في جدولة النسخ الأسبوعي: $e');
@@ -86,13 +82,16 @@ class AutoBackupTask {
   }
 
   /// جدولة النسخ الشهري
-  static Future<void> scheduleMonthly({String time = '02:00', int day = 1}) async {
+  static Future<void> scheduleMonthly({
+    String time = '02:00',
+    int day = 1,
+  }) async {
     try {
       await _cancelExisting();
-      
+
       // حساب التأخير الأولي للوصول للشهر القادم في اليوم المحدد
       final initialDelay = _calculateMonthlyInitialDelay(time, day);
-      
+
       await Workmanager().registerPeriodicTask(
         taskId,
         taskName,
@@ -103,14 +102,10 @@ class AutoBackupTask {
           requiresBatteryNotLow: true,
           requiresStorageNotLow: true,
         ),
-        inputData: {
-          'frequency': 'monthly',
-          'time': time,
-          'day': day,
-        },
+        inputData: {'frequency': 'monthly', 'time': time, 'day': day},
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
-      
+
       debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
     } catch (e) {
       debugPrint('❌ خطأ في جدولة النسخ الشهري: $e');
@@ -164,8 +159,8 @@ class AutoBackupTask {
 
     // العثور على التاريخ المستهدف في الأسبوع الحالي أو التالي
     final daysUntilWeekday = (weekday - now.weekday + 7) % 7;
-    var targetDate = now.add(Duration(days: daysUntilWeekday));
-    
+    final targetDate = now.add(Duration(days: daysUntilWeekday));
+
     var targetTime = DateTime(
       targetDate.year,
       targetDate.month,
@@ -190,11 +185,11 @@ class AutoBackupTask {
     final targetMinute = int.parse(timeParts[1]);
 
     var targetDate = DateTime(now.year, now.month, day);
-    
+
     // إذا كان اليوم المحدد قد مر في هذا الشهر، اجدوله للشهر القادم
     if (targetDate.isBefore(now)) {
       targetDate = DateTime(now.year, now.month + 1, day);
-      
+
       // التعامل مع نهاية السنة
       if (targetDate.month > 12) {
         targetDate = DateTime(now.year + 1, 1, day);
@@ -218,9 +213,7 @@ class AutoBackupTask {
       await Workmanager().registerOneOffTask(
         'immediateBackup',
         taskName,
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
+        constraints: Constraints(networkType: NetworkType.connected),
         inputData: {
           'frequency': 'immediate',
           'time': DateTime.now().toIso8601String(),
@@ -241,7 +234,7 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
       debugPrint('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
-      
+
       // قراءة إعدادات النسخ التلقائي
       final prefs = await SharedPreferences.getInstance();
       final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
@@ -275,7 +268,9 @@ void callbackDispatcher() {
             await driveBackupService.performAutoBackup();
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
-            debugPrint('⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
+            debugPrint(
+              '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
+            );
           }
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');
@@ -292,7 +287,7 @@ void callbackDispatcher() {
       }
     } catch (e) {
       debugPrint('❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e');
-      
+
       // إرجاع false سيؤدي إلى إعادة تشغيل المهمة
       return Future.value(false);
     }

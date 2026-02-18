@@ -53,7 +53,8 @@ class LocalBackupService {
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const String _prefsLastLocalBackupKey = 'last_local_backup_timestamp';
   static const String _prefsAutoLocalBackupKey = 'auto_local_backup_enabled';
-  static const String _prefsAutoLocalBackupFrequencyKey = 'auto_local_backup_frequency';
+  static const String _prefsAutoLocalBackupFrequencyKey =
+      'auto_local_backup_frequency';
   static const String _prefsLocalBackupPathKey = 'local_backup_path';
   static const String _prefsBackupFormatKey = 'local_backup_format';
   static const String _backupFilePrefixImported = 'imported_backup_';
@@ -66,7 +67,7 @@ class LocalBackupService {
       if (Platform.isAndroid) {
         final deviceInfo = DeviceInfoPlugin();
         final androidInfo = await deviceInfo.androidInfo;
-        
+
         // Android 13+ يتطلب أذونات مختلفة
         if (androidInfo.version.sdkInt >= 33) {
           // للـ Android 13+، نستخدم MANAGE_EXTERNAL_STORAGE أو تطبيق scoped storage
@@ -94,33 +95,12 @@ class LocalBackupService {
     }
 
     try {
-      Directory? selectedDir;
+      final Directory selectedDir;
 
       if (Platform.isAndroid) {
-        try {
-          final manualDir = Directory('/storage/emulated/0/Documents/$_backupFolderName');
-          if (!await manualDir.exists()) {
-            await manualDir.create(recursive: true);
-            debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${manualDir.path}');
-          }
-          selectedDir = manualDir;
-        } catch (e) {
-          debugPrint('⚠️ تعذر استخدام المسار اليدوي، سيتم استخدام بديل: $e');
-        }
-
-        if (selectedDir == null) {
-          final externalDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
-          if (externalDirs != null && externalDirs.isNotEmpty) {
-            final fallbackDir = Directory(p.join(externalDirs.first.path, _backupFolderName));
-            if (!await fallbackDir.exists()) {
-              await fallbackDir.create(recursive: true);
-              debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${fallbackDir.path}');
-            }
-            selectedDir = fallbackDir;
-          }
-        }
-
-        selectedDir ??= await getApplicationDocumentsDirectory();
+        selectedDir = Directory(
+          '/storage/emulated/0/Documents/$_backupFolderName',
+        );
       } else {
         selectedDir = await getApplicationDocumentsDirectory();
       }
@@ -143,7 +123,9 @@ class LocalBackupService {
   }
 
   /// إنشاء نسخة احتياطية محلية
-  Future<String> createLocalBackup({BackupFormat format = BackupFormat.json}) async {
+  Future<String> createLocalBackup({
+    BackupFormat format = BackupFormat.json,
+  }) async {
     try {
       debugPrint('🔄 بدء إنشاء نسخة احتياطية محلية (${format.name})...');
 
@@ -155,7 +137,8 @@ class LocalBackupService {
       final backupDir = await getBackupDirectory();
       final db = getDatabase();
       final timestamp = DateTime.now();
-      final baseName = '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}';
+      final baseName =
+          '$_backupFilePrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}';
       final deviceLabel = Platform.isAndroid ? 'Android Local' : 'iOS Local';
 
       if (format == BackupFormat.json) {
@@ -167,14 +150,35 @@ class LocalBackupService {
         final cashTransactionsData = await db.select(db.cashTransactions).get();
         final paymentsData = await db.select(db.payments).get();
         final syncStateData = await db.select(db.syncState).get();
+        final debtsData = await db.select(db.debts).get();
+        final bookingNightsData = await db.select(db.bookingNights).get();
+        final ledgerData = await db.select(db.hotelDayLedger).get();
+        final shiftNotesData = await db.select(db.shiftNotes).get();
+        final salaryCyclesData = await db.select(db.salaryCycles).get();
+        final salaryPaymentsData = await db.select(db.salaryPayments).get();
+        final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
+        final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
+        final auditLogsData = await db.select(db.auditLogs).get();
+        final paymentVoidsData = await db.select(db.paymentVoids).get();
 
-        final totalRecords = roomsData.length +
+        final totalRecords =
+            roomsData.length +
             bookingsData.length +
             bookingNotesData.length +
             employeesData.length +
             expensesData.length +
             cashTransactionsData.length +
-            paymentsData.length;
+            paymentsData.length +
+            debtsData.length +
+            bookingNightsData.length +
+            ledgerData.length +
+            shiftNotesData.length +
+            salaryCyclesData.length +
+            salaryPaymentsData.length +
+            priceAdjustmentsData.length +
+            bookingPriceAdjData.length +
+            auditLogsData.length +
+            paymentVoidsData.length;
 
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
@@ -189,21 +193,62 @@ class LocalBackupService {
           'metadata': metadata.toJson(),
           'rooms': roomsData.map((room) => room.toJson()).toList(),
           'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
-          'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
-          'employees': employeesData.map((employee) => employee.toJson()).toList(),
+          'booking_notes': bookingNotesData
+              .map((note) => note.toJson())
+              .toList(),
+          'employees': employeesData
+              .map((employee) => employee.toJson())
+              .toList(),
           'expenses': expensesData.map((expense) => expense.toJson()).toList(),
-          'cash_transactions': cashTransactionsData.map((transaction) => transaction.toJson()).toList(),
+          'cash_transactions': cashTransactionsData
+              .map((transaction) => transaction.toJson())
+              .toList(),
           'payments': paymentsData.map((payment) => payment.toJson()).toList(),
-          'sync_state': syncStateData.isNotEmpty ? syncStateData.first.toJson() : {},
+          'debts': debtsData.map((debt) => debt.toJson()).toList(),
+          'booking_nights': bookingNightsData
+              .map((night) => night.toJson())
+              .toList(),
+          'hotel_day_ledger': ledgerData
+              .map((entry) => entry.toJson())
+              .toList(),
+          'shift_notes': shiftNotesData
+              .map((note) => note.toJson())
+              .toList(),
+          'salary_cycles': salaryCyclesData
+              .map((cycle) => cycle.toJson())
+              .toList(),
+          'salary_payments': salaryPaymentsData
+              .map((payment) => payment.toJson())
+              .toList(),
+          'price_adjustments': priceAdjustmentsData
+              .map((adj) => adj.toJson())
+              .toList(),
+          'booking_price_adjustments': bookingPriceAdjData
+              .map((adj) => adj.toJson())
+              .toList(),
+          'audit_logs': auditLogsData
+              .map((log) => log.toJson())
+              .toList(),
+          'payment_voids': paymentVoidsData
+              .map((v) => v.toJson())
+              .toList(),
+          'sync_state': syncStateData.isNotEmpty
+              ? syncStateData.first.toJson()
+              : {},
         };
 
         final filePath = '${backupDir.path}/$baseName.json';
         final file = File(filePath);
-        final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
+        final jsonString = const JsonEncoder.withIndent(
+          '  ',
+        ).convert(backupData);
         await file.writeAsString(jsonString);
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefsLastLocalBackupKey, timestamp.toIso8601String());
+        await prefs.setString(
+          _prefsLastLocalBackupKey,
+          timestamp.toIso8601String(),
+        );
 
         debugPrint('✅ تم إنشاء النسخة الاحتياطية المحلية (JSON): $filePath');
         debugPrint('📊 السجلات المحفوظة: $totalRecords');
@@ -214,7 +259,10 @@ class LocalBackupService {
 
       if (format == BackupFormat.sqlite) {
         final counts = await _collectRecordCounts(db);
-        final totalRecords = counts.values.fold<int>(0, (prev, element) => prev + element);
+        final totalRecords = counts.values.fold<int>(
+          0,
+          (prev, element) => prev + element,
+        );
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
           databaseVersion: db.schemaVersion,
@@ -239,13 +287,20 @@ class LocalBackupService {
         await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefsLastLocalBackupKey, timestamp.toIso8601String());
+        await prefs.setString(
+          _prefsLastLocalBackupKey,
+          timestamp.toIso8601String(),
+        );
 
-        debugPrint('✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath');
+        debugPrint(
+          '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath',
+        );
         return destinationPath;
       }
 
-      throw UnsupportedError('تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}');
+      throw UnsupportedError(
+        'تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}',
+      );
     } catch (e) {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       rethrow;
@@ -254,7 +309,9 @@ class LocalBackupService {
 
   Future<Map<String, int>> _collectRecordCounts(AppDatabase db) async {
     Future<int> count(String table) async {
-      final row = await db.customSelect('SELECT COUNT(*) AS count FROM $table').getSingle();
+      final row = await db
+          .customSelect('SELECT COUNT(*) AS count FROM $table')
+          .getSingle();
       final value = row.data['count'];
       if (value is int) {
         return value;
@@ -312,17 +369,20 @@ class LocalBackupService {
   Future<List<LocalBackupFile>> listLocalBackups() async {
     try {
       final backupDir = await getBackupDirectory();
-      
+
       if (!await backupDir.exists()) {
         return [];
       }
 
       final files = backupDir
           .listSync()
-          .where((entity) =>
-              entity is File &&
-              (entity.path.endsWith('.json') || entity.path.endsWith('.sqlite')) &&
-              entity.path.contains(_backupFilePrefix))
+          .where(
+            (entity) =>
+                entity is File &&
+                (entity.path.endsWith('.json') ||
+                    entity.path.endsWith('.sqlite')) &&
+                entity.path.contains(_backupFilePrefix),
+          )
           .map((entity) => entity as File)
           .toList();
 
@@ -330,7 +390,9 @@ class LocalBackupService {
 
       for (final file in files) {
         final extension = p.extension(file.path).toLowerCase();
-        final format = extension == '.sqlite' ? BackupFormat.sqlite : BackupFormat.json;
+        final format = extension == '.sqlite'
+            ? BackupFormat.sqlite
+            : BackupFormat.json;
 
         try {
           BackupMetadata? metadata;
@@ -339,21 +401,26 @@ class LocalBackupService {
             final content = await file.readAsString();
             final jsonData = jsonDecode(content) as Map<String, dynamic>;
             if (jsonData.containsKey('metadata')) {
-              metadata = BackupMetadata.fromJson(jsonData['metadata']);
+              final metadataSource = jsonData['metadata'];
+              if (metadataSource is Map) {
+                metadata = BackupMetadata.fromJson(
+                  Map<String, dynamic>.from(metadataSource),
+                );
+              }
             }
           } else {
             final metadataFile = File(_metadataFilePath(file.path));
             if (await metadataFile.exists()) {
               final metaContent = await metadataFile.readAsString();
-              metadata = BackupMetadata.fromJson(jsonDecode(metaContent) as Map<String, dynamic>);
+              metadata = BackupMetadata.fromJson(
+                jsonDecode(metaContent) as Map<String, dynamic>,
+              );
             }
           }
 
-          backupFiles.add(LocalBackupFile.fromFile(
-            file,
-            metadata: metadata,
-            format: format,
-          ));
+          backupFiles.add(
+            LocalBackupFile.fromFile(file, metadata: metadata, format: format),
+          );
         } catch (e) {
           debugPrint('⚠️ خطأ في قراءة ملف النسخة الاحتياطية ${file.path}: $e');
           backupFiles.add(LocalBackupFile.fromFile(file, format: format));
@@ -371,7 +438,8 @@ class LocalBackupService {
     }
   }
 
-  String _metadataFilePath(String sqliteFilePath) => p.setExtension(sqliteFilePath, '.metadata.json');
+  String _metadataFilePath(String sqliteFilePath) =>
+      p.setExtension(sqliteFilePath, '.metadata.json');
 
   /// استعادة من نسخة احتياطية محلية
   Future<void> restoreFromLocalBackup(String filePath) async {
@@ -389,7 +457,9 @@ class LocalBackupService {
         return;
       }
 
-      throw UnsupportedError('تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension');
+      throw UnsupportedError(
+        'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
+      );
     } catch (e) {
       debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       rethrow;
@@ -409,78 +479,118 @@ class LocalBackupService {
       throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
     }
 
-    final metadata = BackupMetadata.fromJson(backupData['metadata']);
+    final metadataSource = backupData['metadata'];
+    if (metadataSource is! Map) {
+      throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+    }
+    final metadata = BackupMetadata.fromJson(
+      Map<String, dynamic>.from(metadataSource),
+    );
     if (metadata.databaseVersion > AppDatabase().schemaVersion) {
-      throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
+      throw Exception(
+        'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
+      );
     }
 
     debugPrint('🔄 بدء استعادة البيانات من نسخة JSON...');
     final db = getDatabase();
 
-    await db.delete(db.rooms).go();
-    await db.delete(db.bookings).go();
-    await db.delete(db.bookingNotes).go();
-    await db.delete(db.employees).go();
-    await db.delete(db.expenses).go();
-    await db.delete(db.cashTransactions).go();
-    await db.delete(db.payments).go();
-    await db.delete(db.syncState).go();
+    // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      // حذف جميع الجداول بالترتيب الصحيح (من الأطفال إلى الآباء)
+      // لتجنب FOREIGN KEY constraint errors
+      await db.delete(db.payments).go(); // يعتمد على bookings
+      await db.delete(db.debts).go(); // يعتمد على bookings
+      await db.delete(db.bookingNotes).go(); // يعتمد على bookings
+      await db.delete(db.cashTransactions).go(); // يعتمد على bookings
+      await db.delete(db.bookings).go(); // يعتمد على rooms
+      await db.delete(db.expenses).go(); // يعتمد على employees
+      await db.delete(db.employees).go();
+      await db.delete(db.rooms).go();
+      await db.delete(db.syncState).go();
 
-    Future<void> insertList<T>(String key, Future<void> Function(Map<String, dynamic> json) insert) async {
-      if (!backupData.containsKey(key)) {
-        return;
+      Future<void> insertList<T>(
+        String key,
+        Future<void> Function(Map<String, dynamic> json) insert,
+      ) async {
+        if (!backupData.containsKey(key)) {
+          return;
+        }
+        final list = backupData[key] as List<dynamic>;
+        for (final json in list) {
+          await insert(Map<String, dynamic>.from(json as Map));
+        }
       }
-      final list = backupData[key] as List<dynamic>;
-      for (final json in list) {
-        await insert(Map<String, dynamic>.from(json as Map));
+
+      await insertList('rooms', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Room.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.rooms).insertOnConflictUpdate(data);
+      });
+      await insertList('employees', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Employee.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.employees).insertOnConflictUpdate(data);
+      });
+      await insertList('bookings', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Booking.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.bookings).insertOnConflictUpdate(data);
+      });
+      await insertList('booking_notes', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = BookingNote.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+      });
+      await insertList('cash_transactions', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = CashTransaction.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.cashTransactions).insertOnConflictUpdate(data);
+      });
+      await insertList('expenses', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Expense.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.expenses).insertOnConflictUpdate(data);
+      });
+      await insertList('payments', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Payment.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.payments).insertOnConflictUpdate(data);
+      });
+      await insertList('debts', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Debt.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.debts).insertOnConflictUpdate(data);
+      });
+
+      if (backupData.containsKey('sync_state') &&
+          backupData['sync_state'] is Map &&
+          (backupData['sync_state'] as Map).isNotEmpty) {
+        final syncStateJson = Map<String, dynamic>.from(
+          backupData['sync_state'] as Map,
+        );
+        final data = SyncStateData.fromJson(
+          syncStateJson,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.syncState).insertOnConflictUpdate(data);
       }
+
+      debugPrint(
+        '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON',
+      );
+    } finally {
+      // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
     }
-
-    await insertList('rooms', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = Room.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.rooms).insertOnConflictUpdate(data);
-    });
-    await insertList('bookings', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = Booking.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.bookings).insertOnConflictUpdate(data);
-    });
-    await insertList('booking_notes', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = BookingNote.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.bookingNotes).insertOnConflictUpdate(data);
-    });
-    await insertList('employees', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = Employee.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.employees).insertOnConflictUpdate(data);
-    });
-    await insertList('expenses', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = Expense.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.expenses).insertOnConflictUpdate(data);
-    });
-    await insertList('cash_transactions', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = CashTransaction.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.cashTransactions).insertOnConflictUpdate(data);
-    });
-    await insertList('payments', (json) async {
-      final map = Map<String, dynamic>.from(json as Map);
-      final data = Payment.fromJson(map, serializer: lenientValueSerializer);
-      await db.into(db.payments).insertOnConflictUpdate(data);
-    });
-
-    if (backupData.containsKey('sync_state') &&
-        backupData['sync_state'] is Map &&
-        (backupData['sync_state'] as Map).isNotEmpty) {
-      final syncStateJson = Map<String, dynamic>.from(backupData['sync_state'] as Map);
-      final data = SyncStateData.fromJson(syncStateJson, serializer: lenientValueSerializer);
-      await db.into(db.syncState).insertOnConflictUpdate(data);
-    }
-
-    debugPrint('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON');
   }
 
   Future<void> _restoreFromSqliteBackup(String filePath) async {
@@ -493,9 +603,13 @@ class LocalBackupService {
     final metadataFile = File(_metadataFilePath(filePath));
     if (await metadataFile.exists()) {
       final metaContent = await metadataFile.readAsString();
-      metadata = BackupMetadata.fromJson(jsonDecode(metaContent) as Map<String, dynamic>);
+      metadata = BackupMetadata.fromJson(
+        jsonDecode(metaContent) as Map<String, dynamic>,
+      );
       if (metadata.databaseVersion > AppDatabase().schemaVersion) {
-        throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
+        throw Exception(
+          'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
+        );
       }
     }
 
@@ -514,10 +628,17 @@ class LocalBackupService {
 
     if (metadata != null) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsLastLocalBackupKey, metadata.backupTimestamp.toIso8601String());
-      debugPrint('✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}');
+      await prefs.setString(
+        _prefsLastLocalBackupKey,
+        metadata.backupTimestamp.toIso8601String(),
+      );
+      debugPrint(
+        '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}',
+      );
     } else {
-      debugPrint('✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية');
+      debugPrint(
+        '✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية',
+      );
     }
   }
 
@@ -543,13 +664,14 @@ class LocalBackupService {
       }
 
       final fileName = filePath.split('/').last;
-      
+
       await Share.shareXFiles(
         [XFile(filePath)],
         subject: 'نسخة احتياطية - تطبيق مارينا هوتيل',
-        text: 'نسخة احتياطية من بيانات تطبيق مارينا هوتيل\nاسم الملف: $fileName',
+        text:
+            'نسخة احتياطية من بيانات تطبيق مارينا هوتيل\nاسم الملف: $fileName',
       );
-      
+
       debugPrint('✅ تم مشاركة النسخة الاحتياطية: $fileName');
     } catch (e) {
       debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
@@ -609,15 +731,20 @@ class LocalBackupService {
           final dbVersion = rawVersion is int
               ? rawVersion
               : rawVersion is num
-                  ? rawVersion.toInt()
-                  : 0;
+              ? rawVersion.toInt()
+              : 0;
 
           if (dbVersion > AppDatabase().schemaVersion) {
-            throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
+            throw Exception(
+              'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
+            );
           }
 
           final counts = await _collectRecordCountsFromRawDb(tempDb);
-          final totalRecords = counts.values.fold<int>(0, (prev, element) => prev + element);
+          final totalRecords = counts.values.fold<int>(
+            0,
+            (prev, element) => prev + element,
+          );
           final metadata = BackupMetadata(
             appVersion: '1.2.0+3',
             databaseVersion: dbVersion,
@@ -677,34 +804,39 @@ class LocalBackupService {
       }
 
       final latestBackup = backups.first;
-      
+
       // محاولة الحصول على مجلد Downloads
       Directory? downloadsDir;
-      
+
       if (Platform.isAndroid) {
         // محاولة الوصول لـ Downloads directory
-        final externalDirs = await getExternalStorageDirectories(type: StorageDirectory.downloads);
+        final externalDirs = await getExternalStorageDirectories(
+          type: StorageDirectory.downloads,
+        );
         if (externalDirs != null && externalDirs.isNotEmpty) {
           downloadsDir = externalDirs.first;
         } else {
           // fallback إلى external storage
           final externalStorage = await getExternalStorageDirectories();
           if (externalStorage != null && externalStorage.isNotEmpty) {
-            downloadsDir = Directory('${externalStorage.first.parent.parent.parent.parent.path}/Download');
+            downloadsDir = Directory(
+              '${externalStorage.first.parent.parent.parent.parent.path}/Download',
+            );
           }
         }
       }
-      
+
       downloadsDir ??= await getBackupDirectory();
 
       // نسخ الملف
       final sourceFile = File(latestBackup.filePath);
       final timestamp = DateTime.now();
-      final exportFileName = 'marina_hotel_export_${timestamp.toIso8601String().split('T')[0]}.json';
+      final exportFileName =
+          'marina_hotel_export_${timestamp.toIso8601String().split('T')[0]}.json';
       final exportPath = '${downloadsDir.path}/$exportFileName';
-      
+
       await sourceFile.copy(exportPath);
-      
+
       debugPrint('✅ تم تصدير النسخة الاحتياطية إلى: $exportPath');
       return exportPath;
     } catch (e) {
@@ -763,20 +895,20 @@ class LocalBackupService {
   Future<void> cleanOldBackups({int keepCount = 10}) async {
     try {
       final backups = await listLocalBackups();
-      
+
       if (backups.length <= keepCount) {
         return; // لا حاجة للتنظيف
       }
 
       // ترتيب حسب التاريخ (الأحدث أولاً) وحذف القديم
       backups.sort((a, b) => b.createdTime.compareTo(a.createdTime));
-      
+
       final backupsToDelete = backups.skip(keepCount).toList();
-      
+
       for (final backup in backupsToDelete) {
         await deleteLocalBackup(backup.filePath);
       }
-      
+
       debugPrint('✅ تم تنظيف ${backupsToDelete.length} نسخة احتياطية قديمة');
     } catch (e) {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
@@ -800,7 +932,7 @@ class LocalBackupService {
       final backupDir = await getBackupDirectory();
       final backups = await listLocalBackups();
       final totalSize = await getTotalBackupsSize();
-      
+
       return {
         'path': backupDir.path,
         'exists': await backupDir.exists(),

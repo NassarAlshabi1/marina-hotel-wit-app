@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../utils/theme.dart';
@@ -9,10 +13,12 @@ class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
 
   @override
-  ConsumerState<GoogleDriveLoginScreen> createState() => _GoogleDriveLoginScreenState();
+  ConsumerState<GoogleDriveLoginScreen> createState() =>
+      _GoogleDriveLoginScreenState();
 }
 
-class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen> {
+class _GoogleDriveLoginScreenState
+    extends ConsumerState<GoogleDriveLoginScreen> {
   bool _isSigningIn = false;
   String? _errorMessage;
 
@@ -66,7 +72,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
         child: AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.warning_amber, color: AppColors.warningColor, size: 28),
+              Icon(
+                Icons.warning_amber,
+                color: AppColors.warningColor,
+                size: 28,
+              ),
               SizedBox(width: 8),
               Text('تحذير'),
             ],
@@ -98,11 +108,28 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
 
     if (confirmed == true) {
       await ref.read(backupStatusProvider.notifier).setSkippedDriveLogin(true);
+      unawaited(_pullAppwriteOnceAfterSkip());
       if (mounted) {
         setState(() {
           _errorMessage = null;
         });
       }
+    }
+  }
+
+  Future<void> _pullAppwriteOnceAfterSkip() async {
+    const key = 'appwrite_pull_after_drive_skip_done';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool(key) ?? false;
+      if (done) return;
+      await prefs.setBool(key, true);
+
+      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await manager.initialize();
+      await manager.pullRemoteChanges();
+    } catch (e) {
+      debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
   }
 
@@ -159,7 +186,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                           children: const [
                             Row(
                               children: [
-                                Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.successColor,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -172,7 +203,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                             SizedBox(height: 8),
                             Row(
                               children: [
-                                Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.successColor,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -185,7 +220,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                             SizedBox(height: 8),
                             Row(
                               children: [
-                                Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.successColor,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -208,7 +247,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline, color: AppColors.dangerColor, size: 20),
+                              const Icon(
+                                Icons.error_outline,
+                                color: AppColors.dangerColor,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -236,7 +279,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                                 ),
                               )
                             : const Icon(Icons.login),
-                        label: Text(_isSigningIn ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول بـ Google Drive'),
+                        label: Text(
+                          _isSigningIn
+                              ? 'جارٍ تسجيل الدخول...'
+                              : 'تسجيل الدخول بـ Google Drive',
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),

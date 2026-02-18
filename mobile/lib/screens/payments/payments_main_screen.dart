@@ -9,7 +9,6 @@ import '../../utils/status_utils.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -20,7 +19,6 @@ class PaymentsMainScreen extends ConsumerStatefulWidget {
 
 class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     with SingleTickerProviderStateMixin, SyncOnExitMixin {
-  
   @override
   String get screenId => 'payments_main';
   late TabController _tabController;
@@ -41,30 +39,33 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   Widget build(BuildContext context) {
     return wrapWithSyncOnExit(
       child: AppScaffold(
-      title: 'إدارة المدفوعات',
-      body: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            unselectedLabelStyle: const TextStyle(fontSize: 12),
-            tabs: const [
-              Tab(text: 'نظرة عامة', icon: Icon(Icons.dashboard, size: 20)),
-              Tab(text: 'المعاملات', icon: Icon(Icons.list, size: 20)),
-              Tab(text: 'الحجوزات النشطة', icon: Icon(Icons.hotel, size: 20)),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
+        title: 'إدارة المدفوعات',
+        body: Column(
+          children: [
+            TabBar(
               controller: _tabController,
-              children: [
-                _buildOverviewTab(),
-                _buildTransactionsTab(),
-                _buildActiveBookingsTab(),
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: const TextStyle(fontSize: 11),
+              tabs: const [
+                Tab(text: 'نظرة عامة', icon: Icon(Icons.dashboard, size: 18)),
+                Tab(text: 'المعاملات', icon: Icon(Icons.list, size: 18)),
+                Tab(text: 'الحجوزات النشطة', icon: Icon(Icons.hotel, size: 18)),
               ],
             ),
-          ),
-        ],
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildOverviewTab(),
+                  _buildTransactionsTab(),
+                  _buildActiveBookingsTab(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -104,14 +105,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             children: [
               // الإحصائيات السريعة
               _buildQuickStats(payments),
-              
+
               const SizedBox(height: 16),
-              
-              // الرسم البياني
-              _buildPaymentMethodChart(payments),
-              
-              const SizedBox(height: 16),
-              
+
               // المدفوعات الأخيرة
               _buildRecentPayments(payments),
             ],
@@ -128,7 +124,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
     // حساب المبالغ
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
-    
+
     final weeklyPayments = payments.where((p) {
       try {
         final date = DateTime.parse(p.paymentDate);
@@ -137,7 +133,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return false;
       }
     }).toList();
-    final weeklyAmount = weeklyPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    final weeklyAmount = weeklyPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
     final monthlyPayments = payments.where((p) {
       try {
@@ -147,7 +146,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return false;
       }
     }).toList();
-    final monthlyAmount = monthlyPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    final monthlyAmount = monthlyPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
     return Row(
       children: [
@@ -181,30 +183,29 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 6),
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -213,11 +214,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
   }
 
+  // ignore: unused_element
   Widget _buildPaymentMethodChart(List<Payment> payments) {
     final methodCounts = <String, double>{};
-    
+
     for (final payment in payments) {
-      methodCounts[payment.paymentMethod] = 
+      methodCounts[payment.paymentMethod] =
           (methodCounts[payment.paymentMethod] ?? 0) + payment.amount;
     }
 
@@ -244,7 +246,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     final color = _getPaymentMethodColor(entry.key);
                     return PieChartSectionData(
                       value: entry.value,
-                      title: '${entry.key}\n${(entry.value / methodCounts.values.reduce((a, b) => a + b) * 100).toStringAsFixed(1)}%',
+                      title:
+                          '${entry.key}\n${(entry.value / methodCounts.values.reduce((a, b) => a + b) * 100).toStringAsFixed(1)}%',
                       color: color,
                       radius: 80,
                       titleStyle: const TextStyle(
@@ -288,20 +291,24 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               ],
             ),
             const SizedBox(height: 8),
-            ...recentPayments.map((payment) => ListTile(
-              leading: Icon(
-                _getPaymentMethodIcon(payment.paymentMethod),
-                color: _getPaymentMethodColor(payment.paymentMethod),
+            ...recentPayments.map(
+              (payment) => ListTile(
+                leading: Icon(
+                  _getPaymentMethodIcon(payment.paymentMethod),
+                  color: _getPaymentMethodColor(payment.paymentMethod),
+                ),
+                title: Text(CurrencyFormatter.formatAmount(payment.amount)),
+                subtitle: Text(
+                  '${payment.paymentMethod} • ${payment.paymentDate}',
+                ),
+                trailing: payment.roomNumber != null
+                    ? Chip(
+                        label: Text(payment.roomNumber!),
+                        backgroundColor: Colors.blue.shade50,
+                      )
+                    : null,
               ),
-              title: Text(CurrencyFormatter.formatAmount(payment.amount)),
-              subtitle: Text('${payment.paymentMethod} • ${payment.paymentDate}'),
-              trailing: payment.roomNumber != null 
-                  ? Chip(
-                      label: Text(payment.roomNumber!),
-                      backgroundColor: Colors.blue.shade50,
-                    )
-                  : null,
-            )),
+            ),
           ],
         ),
       ),
@@ -359,34 +366,53 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {
             final booking = activeBookings[index];
             return Card(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.only(bottom: 6),
               child: ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 leading: CircleAvatar(
+                  radius: 16,
                   backgroundColor: Colors.orange.shade100,
                   child: Text(
                     booking.roomNumber,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.orange,
+                      fontSize: 11,
                     ),
                   ),
                 ),
                 title: Text(
                   booking.guestName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('الهاتف: ${booking.guestPhone}'),
-                    Text('دخول: ${booking.checkinDate}'),
-                    if (booking.guestNationality != null)
-                      Text('الجنسية: ${booking.guestNationality}'),
+                    Text(
+                      'الهاتف: ${booking.guestPhone}',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    Text(
+                      'دخول: ${booking.checkinDate}',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                    Text(
+                      'الجنسية: ${booking.guestNationality}',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
                   ],
                 ),
                 trailing: ElevatedButton.icon(
@@ -394,16 +420,20 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => BookingCheckoutScreen(booking: booking),
+                        builder: (context) =>
+                            BookingCheckoutScreen(booking: booking),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.payment, size: 16),
-                  label: const Text('دفع'),
+                  icon: const Icon(Icons.payment, size: 14),
+                  label: const Text('دفع', style: TextStyle(fontSize: 13)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                   ),
                 ),
                 isThreeLine: true,

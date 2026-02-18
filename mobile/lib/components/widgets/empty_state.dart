@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.title, this.subtitle, this.message, this.icon});
+  const EmptyState({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.message,
+    this.icon,
+  });
   final String title;
   final String? subtitle;
   final String? message;
@@ -16,7 +22,11 @@ class EmptyState extends StatelessWidget {
         children: [
           Icon(icon ?? Icons.inbox, size: 48, color: muted),
           const SizedBox(height: 8),
-          Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
           if (subtitle != null)
             Text(
               subtitle!,

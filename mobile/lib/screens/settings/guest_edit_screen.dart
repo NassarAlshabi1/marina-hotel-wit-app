@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/repository_providers.dart';
+import '../../services/booking_derived_fields_service.dart';
+import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart';
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/status_utils.dart';
@@ -27,8 +29,17 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   late final TextEditingController _idIssuePlaceController;
   late final TextEditingController _addressController;
 
+  final Map<int, TextEditingController> _discountControllers = {};
+  final Map<int, TextEditingController> _discountStartDateControllers = {};
+  final Map<int, String> _discountTypeSelections = {};
+  final Map<int, TextEditingController> _checkinDateControllers = {};
+  final Map<int, AdjustmentType> _adjustmentTypeSelections = {};
+  final Map<int, AdjustmentMode> _adjustmentModeSelections = {};
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'[0-9]'),
+  );
 
   bool _saving = false;
   String _idType = 'بطاقة شخصية';
@@ -51,16 +62,36 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _nameController = TextEditingController(text: widget.guest.name);
     _phoneController = TextEditingController(text: widget.guest.phone);
     _emailController = TextEditingController(text: widget.guest.email);
-    _nationalityController = TextEditingController(text: widget.guest.nationality);
+    _nationalityController = TextEditingController(
+      text: widget.guest.nationality,
+    );
     _idType = widget.guest.idType;
     _idNumberController = TextEditingController(text: widget.guest.idNumber);
-    _idIssueDateController = TextEditingController(text: widget.guest.idIssueDate ?? '');
-    _idIssuePlaceController = TextEditingController(text: widget.guest.idIssuePlace ?? '');
-    _addressController = TextEditingController(text: widget.guest.address ?? '');
+    _idIssueDateController = TextEditingController(
+      text: widget.guest.idIssueDate ?? '',
+    );
+    _idIssuePlaceController = TextEditingController(
+      text: widget.guest.idIssuePlace ?? '',
+    );
+    _addressController = TextEditingController(
+      text: widget.guest.address ?? '',
+    );
 
     for (final booking in widget.guest.bookings) {
       _roomSelections[booking.id] = booking.roomNumber;
       _originalRooms[booking.id] = booking.roomNumber;
+      _discountControllers[booking.id] = TextEditingController(
+        text: booking.discount > 0 ? booking.discount.toStringAsFixed(0) : '',
+      );
+      _discountTypeSelections[booking.id] = booking.discountType;
+      _discountStartDateControllers[booking.id] = TextEditingController(
+        text: booking.discountStartDate ?? '',
+      );
+      _checkinDateControllers[booking.id] = TextEditingController(
+        text: booking.checkinDate.split('T').first,
+      );
+      _adjustmentTypeSelections[booking.id] = AdjustmentType.discount;
+      _adjustmentModeSelections[booking.id] = AdjustmentMode.perNight;
     }
   }
 
@@ -74,6 +105,15 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _idIssueDateController.dispose();
     _idIssuePlaceController.dispose();
     _addressController.dispose();
+    for (final controller in _discountControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _discountStartDateControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _checkinDateControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -116,6 +156,20 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final oldRoomNumber = _originalRooms[booking.id]!;
         final newRoomNumber = _roomSelections[booking.id]!;
         final roomChanged = oldRoomNumber != newRoomNumber;
+        final discountText =
+            _discountControllers[booking.id]?.text.trim() ?? '';
+        final discount = double.tryParse(discountText) ?? 0;
+        final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
+        final discountStartDateText =
+            _discountStartDateControllers[booking.id]?.text.trim() ?? '';
+        final discountStartDate = discountStartDateText.isNotEmpty
+            ? discountStartDateText
+            : null;
+        final checkinDateText =
+            _checkinDateControllers[booking.id]?.text.trim() ?? '';
+        final checkinDateChanged =
+            checkinDateText.isNotEmpty &&
+            checkinDateText != booking.checkinDate.split('T').first;
 
         await bookingsRepo.update(
           booking.id,
@@ -129,6 +183,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           guestIdIssuePlace: idIssuePlace.isNotEmpty ? idIssuePlace : null,
           guestAddress: address.isNotEmpty ? address : null,
           roomNumber: newRoomNumber,
+          discount: discount,
+          discountType: discountType,
+          discountStartDate: discountStartDate,
+          checkinDate: checkinDateChanged ? checkinDateText : null,
         );
 
         if (roomChanged) {
@@ -140,16 +198,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           );
 
           if (StatusUtils.isActiveBooking(booking.status)) {
-            await roomsRepo.updateByRoomNumber(
-              oldRoomNumber,
-              status: 'شاغرة',
-            );
-            await roomsRepo.updateByRoomNumber(
-              newRoomNumber,
-              status: 'محجوزة',
-            );
+            await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
+            await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
           }
         }
+
+        final derivedService = BookingDerivedFieldsService(db);
+        await derivedService.refreshForBookingId(booking.id);
       }
 
       if (mounted) {
@@ -189,16 +244,14 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required int bookingId,
     required String newRoomNumber,
   }) async {
-    final payments = await (db.select(db.payments)
-          ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
+              ..where((tbl) => tbl.deletedAt.isNull()))
+            .get();
 
     for (final payment in payments) {
-      await paymentsRepo.update(
-        payment.id,
-        roomNumber: newRoomNumber,
-      );
+      await paymentsRepo.update(payment.id, roomNumber: newRoomNumber);
     }
   }
 
@@ -283,7 +336,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: Text(widget.guest.name),
-                  subtitle: Text('عدد الحجوزات: ${widget.guest.bookings.length}'),
+                  subtitle: Text(
+                    'عدد الحجوزات: ${widget.guest.bookings.length}',
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -298,16 +353,16 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         label: 'اسم الضيف',
                         icon: Icons.person,
                         validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'الاسم مطلوب' : null,
+                            value == null || value.trim().isEmpty
+                            ? 'الاسم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
                         controller: _phoneController,
-                        label: 'رقم الهاتف',
+                        label: 'رقم الهاتف (اختياري)',
                         icon: Icons.phone,
                         keyboardType: TextInputType.phone,
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'رقم الهاتف مطلوب' : null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -330,7 +385,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         label: 'الجنسية',
                         icon: Icons.flag,
                         validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'الجنسية مطلوبة' : null,
+                            value == null || value.trim().isEmpty
+                            ? 'الجنسية مطلوبة'
+                            : null,
                       ),
                     ],
                   ),
@@ -346,9 +403,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       DropdownButtonFormField<String>(
                         value: _idType,
                         items: _idTypes
-                            .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
                             .toList(),
-                        onChanged: (value) => setState(() => _idType = value ?? _idType),
+                        onChanged: (value) =>
+                            setState(() => _idType = value ?? _idType),
                         decoration: const InputDecoration(
                           labelText: 'نوع الهوية',
                           prefixIcon: Icon(Icons.badge),
@@ -421,7 +481,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
               const SizedBox(height: 20),
               _buildSectionTitle('الحجوزات والغرف'),
               ...widget.guest.bookings.map(_buildBookingRoomCard),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _saving ? null : _saveChanges,
                 icon: const Icon(Icons.save),
@@ -439,7 +499,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -465,6 +525,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   Widget _buildBookingRoomCard(Booking booking) {
     final roomsAsync = ref.watch(roomsListProvider);
+    final discountController = _discountControllers[booking.id]!;
+    final discountStartDateController =
+        _discountStartDateControllers[booking.id]!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -475,10 +538,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.hotel,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.hotel, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -490,10 +550,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                       Text(
                         'حالة: ${booking.status} • دخول: ${booking.checkinDate}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -516,19 +573,26 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 ),
               ),
               data: (rooms) {
-                final availableRooms = rooms
-                    .where((room) => StatusUtils.isRoomAvailable(room.status))
-                    .toList()
-                  ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+                final availableRooms =
+                    rooms
+                        .where(
+                          (room) => StatusUtils.isRoomAvailable(room.status),
+                        )
+                        .toList()
+                      ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
                 final currentValue = _roomSelections[booking.id]!;
                 final items = <DropdownMenuItem<String>>[];
 
-                if (!availableRooms.any((room) => room.roomNumber == currentValue)) {
-                  items.add(DropdownMenuItem(
-                    value: currentValue,
-                    child: Text('$currentValue (الحالي)'),
-                  ));
+                if (!availableRooms.any(
+                  (room) => room.roomNumber == currentValue,
+                )) {
+                  items.add(
+                    DropdownMenuItem(
+                      value: currentValue,
+                      child: Text('$currentValue (الحالي)'),
+                    ),
+                  );
                 }
 
                 items.addAll(
@@ -561,7 +625,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             : null,
                       ),
                       validator: (value) =>
-                          value == null || value.trim().isEmpty ? 'مطلوب' : null,
+                          value == null || value.trim().isEmpty
+                          ? 'مطلوب'
+                          : null,
                     ),
                     if (isChanged)
                       Padding(
@@ -574,7 +640,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                              const Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: Colors.orange,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -586,6 +656,274 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _checkinDateControllers[booking.id],
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'تاريخ الدخول',
+                        prefixIcon: const Icon(Icons.login),
+                        hintText: 'اضغط لتعديل تاريخ الدخول',
+                        border: const OutlineInputBorder(),
+                        suffixIcon:
+                            _checkinDateControllers[booking.id]!.text !=
+                                booking.checkinDate.split('T').first
+                            ? const Icon(Icons.edit, color: Colors.orange)
+                            : null,
+                      ),
+                      onTap: () async {
+                        final controller = _checkinDateControllers[booking.id]!;
+                        await _pickDate(controller);
+                        setState(() {});
+                      },
+                    ),
+                    if (_checkinDateControllers[booking.id]!.text !=
+                        booking.checkinDate.split('T').first)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'سيتم تغيير تاريخ الدخول وإعادة حساب المبالغ تلقائياً',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<List<BookingPriceAdjustment>>(
+                      future: BookingPriceAdjustmentService(ref.read(databaseProvider))
+                          .getActiveAdjustments(booking.localUuid),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        final adjustments = snapshot.data!;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: Colors.amber.shade700),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'التعديلات الحالية (${adjustments.length})',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.amber.shade900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ...adjustments.map((adj) {
+                                final isDiscount = adj.adjustmentType == 0;
+                                final typeName = isDiscount ? 'تخفيض' : 'زيادة';
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isDiscount ? Icons.discount : Icons.trending_up,
+                                        size: 20,
+                                        color: isDiscount ? Colors.green : Colors.orange,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '$typeName: ${adj.amount} ريال',
+                                              style: const TextStyle(fontWeight: FontWeight.w600),
+                                            ),
+                                            Text(
+                                              'من ${adj.effectiveHotelDay}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      ElevatedButton.icon(
+                                        onPressed: () => _endPriceAdjustment(adj.localUuid, typeName),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red.shade400,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        ),
+                                        icon: const Icon(Icons.stop_circle, size: 18),
+                                        label: Text('إنهاء $typeName'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
+                                    ? Icons.discount
+                                    : Icons.trending_up,
+                                color: _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
+                                    ? Colors.green
+                                    : Colors.orange,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'تعديل السعر (زيادة / تخفيض)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<AdjustmentType>(
+                            value: _adjustmentTypeSelections[booking.id],
+                            decoration: const InputDecoration(
+                              labelText: 'نوع التعديل',
+                              prefixIcon: Icon(Icons.swap_vert),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: AdjustmentType.discount,
+                                child: Text('تخفيض'),
+                              ),
+                              DropdownMenuItem(
+                                value: AdjustmentType.surcharge,
+                                child: Text('زيادة'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _adjustmentTypeSelections[booking.id] = value!;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<AdjustmentMode>(
+                            value: _adjustmentModeSelections[booking.id],
+                            decoration: const InputDecoration(
+                              labelText: 'طريقة الحساب',
+                              prefixIcon: Icon(Icons.calculate),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: AdjustmentMode.perNight,
+                                child: Text('لكل ليلة'),
+                              ),
+                              DropdownMenuItem(
+                                value: AdjustmentMode.total,
+                                child: Text('على الإجمالي'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _adjustmentModeSelections[booking.id] = value!;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: discountController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'المبلغ',
+                              prefixIcon: Icon(Icons.attach_money),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              hintText: 'مثال: 5000',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: discountStartDateController,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'ابتداءً من تاريخ',
+                              prefixIcon: Icon(Icons.event),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              helperText: 'يستمر حتى الإلغاء',
+                            ),
+                            onTap: () => _pickDate(discountStartDateController),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
+                                    ? Colors.green
+                                    : Colors.orange,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.add_circle_outline),
+                              label: Text(
+                                _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
+                                    ? 'تطبيق التخفيض'
+                                    : 'تطبيق الزيادة',
+                              ),
+                              onPressed: () => _applyPriceAdjustment(booking),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 );
               },
@@ -594,5 +932,132 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _applyPriceAdjustment(Booking booking) async {
+    final discountController = _discountControllers[booking.id];
+    final startDateController = _discountStartDateControllers[booking.id];
+    
+    if (discountController == null || startDateController == null) return;
+    
+    final amountText = discountController.text.trim();
+    if (amountText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء إدخال المبلغ')),
+      );
+      return;
+    }
+    
+    final amount = double.tryParse(amountText)?.round() ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء إدخال مبلغ صالح')),
+      );
+      return;
+    }
+    
+    final startDate = startDateController.text.trim();
+    if (startDate.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء تحديد تاريخ البدء')),
+      );
+      return;
+    }
+    
+    final type = _adjustmentTypeSelections[booking.id] ?? AdjustmentType.discount;
+    final mode = _adjustmentModeSelections[booking.id] ?? AdjustmentMode.perNight;
+    
+    try {
+      setState(() => _saving = true);
+      
+      final db = ref.read(databaseProvider);
+      await BookingPriceAdjustmentService(db).applyTemporaryAdjustment(
+        bookingLocalUuid: booking.localUuid,
+        amount: amount,
+        type: type,
+        mode: mode,
+        effectiveHotelDay: startDate,
+        endHotelDay: null,
+        reason: '${type == AdjustmentType.discount ? 'تخفيض' : 'زيادة'} من شاشة تعديل الضيف',
+        appliedBy: 'admin',
+      );
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            type == AdjustmentType.discount
+                ? 'تم تطبيق التخفيض بنجاح'
+                : 'تم تطبيق الزيادة بنجاح',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      discountController.clear();
+      startDateController.clear();
+      
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _endPriceAdjustment(String adjustmentUuid, String type) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الإنهاء'),
+        content: Text('هل تريد إنهاء $type من اليوم؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('إنهاء'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true) return;
+    
+    try {
+      setState(() => _saving = true);
+      final db = ref.read(databaseProvider);
+      await BookingPriceAdjustmentService(db).cancelAdjustment(
+        adjustmentUuid: adjustmentUuid,
+        cancelledBy: 'admin',
+      );
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم إنهاء $type بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }

@@ -149,20 +149,29 @@ class SyncSafetyLayer {
       return false;
     }
 
+    Map<String, dynamic>? tables;
+
     try {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
-      final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
+      final localTables = Map<String, dynamic>.from(decoded['tables'] as Map);
+      tables = localTables;
 
-      await db.transaction(() async {
-        await _clearAllTables(db);
+      try {
+        await db.transaction(() async {
+          await _clearAllTables(db);
 
-        for (final tableName in SyncConstants.allTablesInOrder) {
-          if (tables.containsKey(tableName)) {
-            await _restoreTable(db, tableName, tables[tableName]);
+          for (final tableName in SyncConstants.allTablesInOrder) {
+            if (localTables.containsKey(tableName)) {
+              await _restoreTable(db, tableName, localTables[tableName]);
+            }
           }
-        }
-      });
+        });
+      } finally {
+        // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الحذف والاستعادة
+        await db.customStatement('PRAGMA foreign_keys = ON');
+        debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+      }
 
       await _appendLog({
         'event': 'rollback-success',
@@ -175,7 +184,9 @@ class SyncSafetyLayer {
       _activeSnapshots.remove(snapshot.key);
       return true;
     } catch (rollbackError, stack) {
-      debugPrint('❌ CRITICAL: Rollback failed - attempting SQLite file restore');
+      debugPrint(
+        '❌ CRITICAL: Rollback failed - attempting SQLite file restore',
+      );
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
@@ -184,6 +195,28 @@ class SyncSafetyLayer {
         'error': rollbackError.toString(),
         'stack': stack.toString(),
       });
+
+      // محاولة استعادة الجداول مباشرة قبل اللجوء لنسخة SQLite
+      if (tables != null) {
+        try {
+          await _clearAllTables(db);
+        } catch (_) {}
+        var restored = false;
+        for (final tableName in SyncConstants.allTablesInOrder) {
+          if (tables.containsKey(tableName)) {
+            try {
+              await _restoreTable(db, tableName, tables[tableName]);
+              restored = true;
+            } catch (e) {
+              debugPrint('⚠️ تعذر استعادة جدول $tableName: $e');
+            }
+          }
+        }
+        if (restored) {
+          _activeSnapshots.remove(snapshot.key);
+          return true;
+        }
+      }
 
       return await _attemptFileRestore(db, file.path);
     }
@@ -202,7 +235,12 @@ class SyncSafetyLayer {
       return _baseDirectoryOverride!;
     }
 
-    final dir = await getApplicationSupportDirectory();
+    Directory dir;
+    try {
+      dir = await getApplicationSupportDirectory();
+    } catch (_) {
+      dir = await Directory.systemTemp.createTemp('sync_support_');
+    }
     final target = Directory(p.join(dir.path, 'sync_safety'));
     if (!await target.exists()) {
       await target.create(recursive: true);
@@ -222,7 +260,11 @@ class SyncSafetyLayer {
   Future<void> _appendLog(Map<String, dynamic> payload) async {
     try {
       final file = await _logFile();
-      await file.writeAsString('${jsonEncode(payload)}\n', mode: FileMode.append, flush: true);
+      await file.writeAsString(
+        '${jsonEncode(payload)}\n',
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (_) {
       // تجاهل أخطاء السجل حتى لا تؤثر على سير المزامنة
     }
@@ -249,22 +291,20 @@ class SyncSafetyLayer {
   }
 
   Future<void> _clearAllTables(AppDatabase db) async {
+    // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
+    // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
     await db.customStatement('PRAGMA foreign_keys = OFF');
-    
-    try {
-      for (final table in SyncConstants.allTablesInReverseOrder) {
-        try {
-          await db.customStatement('DELETE FROM $table');
-        } on Exception catch (e) {
-          if (e.toString().contains('no such table')) {
-            debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
-          } else {
-            rethrow;
-          }
+
+    for (final table in SyncConstants.allTablesInReverseOrder) {
+      try {
+        await db.customStatement('DELETE FROM $table');
+      } on Exception catch (e) {
+        if (e.toString().contains('no such table')) {
+          debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
+        } else {
+          rethrow;
         }
       }
-    } finally {
-      await db.customStatement('PRAGMA foreign_keys = ON');
     }
   }
 
@@ -274,17 +314,32 @@ class SyncSafetyLayer {
     dynamic tableData,
   ) async {
     if (tableData == null) return;
-    
+
     final rows = (tableData as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
 
     if (rows.isEmpty) return;
 
+    final existingColumns = await _tableColumns(db, tableName);
+
     await db.batch((batch) {
       for (final row in rows) {
-        final columns = row.keys.toList();
-        final values = row.values.toList();
+        final normalized = <String, dynamic>{};
+        for (final entry in row.entries) {
+          normalized[_normalizeColumnName(entry.key)] = entry.value;
+        }
+        final filtered = Map<String, dynamic>.fromEntries(
+          normalized.entries.where((e) => existingColumns.contains(e.key)),
+        );
+        if (filtered.isEmpty) {
+          debugPrint(
+            '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',
+          );
+          continue;
+        }
+        final columns = filtered.keys.toList();
+        final values = filtered.values.toList();
         final placeholders = List.filled(values.length, '?').join(', ');
         final columnNames = columns.join(', ');
 
@@ -295,6 +350,21 @@ class SyncSafetyLayer {
       }
     });
     debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
+  }
+
+  Future<Set<String>> _tableColumns(AppDatabase db, String tableName) async {
+    final result = await db.customSelect('PRAGMA table_info($tableName)').get();
+    return result.map((r) => r.data['name'] as String).toSet();
+  }
+
+  String _normalizeColumnName(String key) {
+    if (key.contains('_')) return key.toLowerCase();
+    return key
+        .replaceAllMapped(
+          RegExp('([a-z0-9])([A-Z])'),
+          (m) => '${m[1]}_${m[2]!.toLowerCase()}',
+        )
+        .toLowerCase();
   }
 
   Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {

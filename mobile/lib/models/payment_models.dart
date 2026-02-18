@@ -153,7 +153,8 @@ class BookingPaymentSummary {
   });
 
   bool get isFullyPaid => remainingAmount <= 0;
-  double get paidPercentage => totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+  double get paidPercentage =>
+      totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
 }
 
 /// نموذج الإيصال
@@ -311,11 +312,7 @@ class Receipt {
               children: [
                 pw.Text('توقيع النزيل', style: pw.TextStyle(font: fonts.bold)),
                 pw.SizedBox(height: 30),
-                pw.Container(
-                  height: 1,
-                  width: 140,
-                  color: PdfColors.black,
-                ),
+                pw.Container(height: 1, width: 140, color: PdfColors.black),
               ],
             ),
             pw.Column(
@@ -475,9 +472,9 @@ class Invoice {
             ],
           ),
         ),
-        
+
         pw.SizedBox(height: 30),
-        
+
         // معلومات العميل والحجز
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -491,7 +488,13 @@ class Invoice {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('بيانات العميل', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+                    pw.Text(
+                      'بيانات العميل',
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     pw.SizedBox(height: 10),
                     pw.Text('الاسم: $guestName'),
                     pw.Text('الهاتف: $guestPhone'),
@@ -510,7 +513,13 @@ class Invoice {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('تفاصيل الإقامة', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+                    pw.Text(
+                      'تفاصيل الإقامة',
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     pw.SizedBox(height: 10),
                     pw.Text('تاريخ الوصول: ${_formatDate(checkinDate)}'),
                     pw.Text('تاريخ المغادرة: ${_formatDate(checkoutDate)}'),
@@ -522,9 +531,9 @@ class Invoice {
             ),
           ],
         ),
-        
+
         pw.SizedBox(height: 30),
-        
+
         // تفاصيل الفاتورة
         pw.Container(
           width: double.infinity,
@@ -537,19 +546,31 @@ class Invoice {
                 children: [
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('البيان', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(
+                      'البيان',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('الكمية', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(
+                      'الكمية',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('السعر', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(
+                      'السعر',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('الإجمالي', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(
+                      'الإجمالي',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -577,12 +598,15 @@ class Invoice {
             ],
           ),
         ),
-        
+
         pw.SizedBox(height: 20),
-        
+
         // ملخص المدفوعات
         if (payments.isNotEmpty) ...[
-          pw.Text('سجل المدفوعات:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+          pw.Text(
+            'سجل المدفوعات:',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
+          ),
           pw.SizedBox(height: 10),
           pw.Container(
             width: double.infinity,
@@ -594,40 +618,69 @@ class Invoice {
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('التاريخ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                      child: pw.Text(
+                        'التاريخ',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('طريقة الدفع', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                      child: pw.Text(
+                        'طريقة الدفع',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text('المبلغ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                      child: pw.Text(
+                        'المبلغ',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                ...payments.map((payment) => pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(_formatDate(payment.paymentDate), style: const pw.TextStyle(fontSize: 10)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(payment.method.displayName, style: const pw.TextStyle(fontSize: 10)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(payment.amount.toStringAsFixed(0), style: const pw.TextStyle(fontSize: 10)),
-                    ),
-                  ],
-                )),
+                ...payments.map(
+                  (payment) => pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          _formatDate(payment.paymentDate),
+                          style: const pw.TextStyle(fontSize: 10),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          payment.method.displayName,
+                          style: const pw.TextStyle(fontSize: 10),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          payment.amount.toStringAsFixed(0),
+                          style: const pw.TextStyle(fontSize: 10),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
           pw.SizedBox(height: 20),
         ],
-        
+
         // الإجمالي النهائي
         pw.Container(
           width: double.infinity,
@@ -641,27 +694,45 @@ class Invoice {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي الفاتورة:', style: pw.TextStyle(fontSize: 14)),
-                  pw.Text(totalAmount.toStringAsFixed(0), style: pw.TextStyle(fontSize: 14)),
+                  pw.Text(
+                    'إجمالي الفاتورة:',
+                    style: pw.TextStyle(fontSize: 14),
+                  ),
+                  pw.Text(
+                    totalAmount.toStringAsFixed(0),
+                    style: pw.TextStyle(fontSize: 14),
+                  ),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('المدفوع:', style: pw.TextStyle(fontSize: 14)),
-                  pw.Text((totalAmount - remainingAmount).toStringAsFixed(0), style: pw.TextStyle(fontSize: 14)),
+                  pw.Text(
+                    (totalAmount - remainingAmount).toStringAsFixed(0),
+                    style: pw.TextStyle(fontSize: 14),
+                  ),
                 ],
               ),
               pw.Divider(color: PdfColors.grey300),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('المتبقي:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(remainingAmount.toStringAsFixed(0), 
+                  pw.Text(
+                    'المتبقي:',
                     style: pw.TextStyle(
-                      fontSize: 16, 
+                      fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
-                      color: remainingAmount > 0 ? PdfColors.red : PdfColors.green,
+                    ),
+                  ),
+                  pw.Text(
+                    remainingAmount.toStringAsFixed(0),
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: remainingAmount > 0
+                          ? PdfColors.red
+                          : PdfColors.green,
                     ),
                   ),
                 ],
@@ -669,9 +740,9 @@ class Invoice {
             ],
           ),
         ),
-        
+
         pw.Spacer(),
-        
+
         // ملاحظة وتوقيع
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -687,11 +758,7 @@ class Invoice {
               children: [
                 pw.Text('تاريخ الإصدار: ${_formatDate(generatedAt)}'),
                 pw.SizedBox(height: 20),
-                pw.Container(
-                  height: 1,
-                  width: 120,
-                  color: PdfColors.black,
-                ),
+                pw.Container(height: 1, width: 120, color: PdfColors.black),
                 pw.Text('ختم وتوقيع الفندق'),
               ],
             ),

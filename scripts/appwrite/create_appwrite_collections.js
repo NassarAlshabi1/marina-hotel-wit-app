@@ -106,6 +106,7 @@ const collections = [
       { key: "notes", type: "string", size: 1000 },
       { key: "expectedNights", type: "integer", required: true },
       { key: "calculatedNights", type: "integer", required: true },
+      { key: "discount", type: "float" },
       { key: "localUuid", type: "string", size: 100, required: true, unique: true },
       { key: "serverId", type: "integer" },
       { key: "createdAt", type: "integer", required: true },

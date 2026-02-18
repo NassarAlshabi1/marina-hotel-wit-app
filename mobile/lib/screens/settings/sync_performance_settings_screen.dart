@@ -8,10 +8,12 @@ class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
   const SyncPerformanceSettingsScreen({super.key});
 
   @override
-  ConsumerState<SyncPerformanceSettingsScreen> createState() => _SyncPerformanceSettingsScreenState();
+  ConsumerState<SyncPerformanceSettingsScreen> createState() =>
+      _SyncPerformanceSettingsScreenState();
 }
 
-class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceSettingsScreen> {
+class _SyncPerformanceSettingsScreenState
+    extends ConsumerState<SyncPerformanceSettingsScreen> {
   bool _isLoading = false;
   String _currentProfile = 'balanced';
 
@@ -28,14 +30,16 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
 
   Future<void> _applyProfile(String profileKey) async {
     setState(() => _isLoading = true);
-    
+
     try {
       await SyncPerformanceSettings.applyProfile(profileKey);
       setState(() => _currentProfile = profileKey);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}'),
+          content: Text(
+            '✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -47,7 +51,7 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
         ),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -66,19 +70,19 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
           children: [
             // شرح النظام
             _buildExplanationCard(),
-            
+
             const SizedBox(height: 20),
-            
+
             // ملفات التعريف المحددة مسبقاً
             _buildProfilesSection(),
-            
+
             const SizedBox(height: 20),
-            
+
             // إعدادات مخصصة
             _buildCustomSettingsSection(),
-            
+
             const SizedBox(height: 20),
-            
+
             // إحصائيات الأداء
             _buildPerformanceStatsSection(),
           ],
@@ -137,17 +141,16 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
-        
         ...SyncPerformanceSettings.predefinedProfiles.entries.map(
           (entry) => _buildProfileCard(entry.key, entry.value),
-        ).toList(),
+        ),
       ],
     );
   }
 
   Widget _buildProfileCard(String key, Map<String, dynamic> profile) {
     final isSelected = _currentProfile == key;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -177,18 +180,21 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
               spacing: 8,
               children: [
                 _buildProfileBadge('${profile['interval']} دقائق', Icons.timer),
-                if (profile['wifi_only'] as bool) 
+                if (profile['wifi_only'] as bool)
                   _buildProfileBadge('WiFi فقط', Icons.wifi),
                 if (profile['low_power_mode'] as bool)
                   _buildProfileBadge('توفير طاقة', Icons.battery_saver),
-                _buildProfileBadge('${profile['daily_limit_mb']} MB', Icons.data_usage),
+                _buildProfileBadge(
+                  '${profile['daily_limit_mb']} MB',
+                  Icons.data_usage,
+                ),
               ],
             ),
           ],
         ),
-        trailing: isSelected 
-          ? Icon(Icons.check_circle, color: Colors.blue)
-          : Icon(Icons.radio_button_unchecked, color: Colors.grey),
+        trailing: isSelected
+            ? Icon(Icons.check_circle, color: Colors.blue)
+            : Icon(Icons.radio_button_unchecked, color: Colors.grey),
         onTap: _isLoading ? null : () => _applyProfile(key),
       ),
     );
@@ -225,14 +231,16 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
       future: _loadCustomSettings(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Card(child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          ));
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
         }
-        
+
         final settings = snapshot.data!;
-        
+
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -244,35 +252,43 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
-                
                 SwitchListTile(
                   title: const Text('الفترة التكيفية'),
-                  subtitle: const Text('تعديل فترة المزامنة حسب الاستخدام والاتصال'),
+                  subtitle: const Text(
+                    'تعديل فترة المزامنة حسب الاستخدام والاتصال',
+                  ),
                   value: settings['adaptive_interval'] ?? true,
-                  onChanged: _isLoading ? null : (value) async {
-                    await SyncPerformanceOptimizer.instance.setAdaptiveInterval(value);
-                    setState(() {});
-                  },
+                  onChanged: _isLoading
+                      ? null
+                      : (value) async {
+                          await SyncPerformanceOptimizer.instance
+                              .setAdaptiveInterval(value);
+                          setState(() {});
+                        },
                 ),
-                
                 SwitchListTile(
                   title: const Text('تحسين البطارية'),
                   subtitle: const Text('تقليل استهلاك البطارية تلقائياً'),
                   value: settings['battery_optimization'] ?? true,
-                  onChanged: _isLoading ? null : (value) async {
-                    await SyncPerformanceOptimizer.instance.setBatteryOptimization(value);
-                    setState(() {});
-                  },
+                  onChanged: _isLoading
+                      ? null
+                      : (value) async {
+                          await SyncPerformanceOptimizer.instance
+                              .setBatteryOptimization(value);
+                          setState(() {});
+                        },
                 ),
-                
                 SwitchListTile(
                   title: const Text('WiFi فقط'),
                   subtitle: const Text('مزامنة عند الاتصال بـ WiFi فقط'),
                   value: settings['wifi_only'] ?? false,
-                  onChanged: _isLoading ? null : (value) async {
-                    await SyncPerformanceOptimizer.instance.setWifiOnlySync(value);
-                    setState(() {});
-                  },
+                  onChanged: _isLoading
+                      ? null
+                      : (value) async {
+                          await SyncPerformanceOptimizer.instance
+                              .setWifiOnlySync(value);
+                          setState(() {});
+                        },
                 ),
               ],
             ),
@@ -287,14 +303,16 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
       future: _loadPerformanceStats(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Card(child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          ));
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
         }
-        
+
         final stats = snapshot.data!;
-        
+
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -306,7 +324,7 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
-                
+
                 // استهلاك البيانات
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -316,21 +334,25 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
                       '${(stats['used_mb'] as double).toStringAsFixed(1)} / ${stats['limit_mb']} MB',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: (stats['is_limit_exceeded'] as bool) ? Colors.red : Colors.green,
+                        color: (stats['is_limit_exceeded'] as bool)
+                            ? Colors.red
+                            : Colors.green,
                       ),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 8),
                 LinearProgressIndicator(
                   value: (stats['usage_percentage'] as double) / 100,
                   backgroundColor: Colors.grey.shade200,
-                  color: (stats['is_limit_exceeded'] as bool) ? Colors.red : Colors.blue,
+                  color: (stats['is_limit_exceeded'] as bool)
+                      ? Colors.red
+                      : Colors.blue,
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // حالة الاتصال
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -342,24 +364,28 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // حالة البطارية
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('حالة البطارية:'),
                     Text(
-                      (stats['is_battery_low'] as bool) ? 'منخفضة 🔋' : 'عادية 🔋',
+                      (stats['is_battery_low'] as bool)
+                          ? 'منخفضة 🔋'
+                          : 'عادية 🔋',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: (stats['is_battery_low'] as bool) ? Colors.red : Colors.green,
+                        color: (stats['is_battery_low'] as bool)
+                            ? Colors.red
+                            : Colors.green,
                       ),
                     ),
                   ],
                 ),
-                
+
                 if (stats['consecutive_failures'] > 0) ...[
                   const SizedBox(height: 8),
                   Row(
@@ -368,7 +394,10 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
                       const Text('فشل متتالي:'),
                       Text(
                         '${stats['consecutive_failures']} مرات',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
                       ),
                     ],
                   ),
@@ -383,7 +412,7 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
 
   Future<Map<String, bool>> _loadCustomSettings() async {
     final optimizer = SyncPerformanceOptimizer.instance;
-    
+
     return {
       'adaptive_interval': await optimizer.isAdaptiveIntervalEnabled(),
       'battery_optimization': await optimizer.isBatteryOptimizationEnabled(),
@@ -392,12 +421,10 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
   }
 
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
-    final performanceStats = SyncPerformanceOptimizer.instance.getPerformanceStatus();
+    final performanceStats = SyncPerformanceOptimizer.instance
+        .getPerformanceStatus();
     final usageStats = await DataUsageManager.instance.getUsageStats();
-    
-    return {
-      ...performanceStats,
-      ...usageStats,
-    };
+
+    return {...performanceStats, ...usageStats};
   }
 }

@@ -19,12 +19,12 @@ class SyncPerformanceOptimizer {
 
   // إصلاح المشكلة الأولى: تغيير نوع البيانات من ConnectivityResult إلى List<ConnectivityResult>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  
+
   bool _isOnWiFi = false;
   bool _isInitialized = false;
   DateTime? _lastSyncTime;
   int _syncAttempts = 0;
-  
+
   // إعدادات الأداء حسب نوع الشبكة
   static const Map<String, Map<String, dynamic>> _performanceSettings = {
     'wifi': {
@@ -75,14 +75,14 @@ class SyncPerformanceOptimizer {
   /// إصلاح المشكلة الثالثة: تحديث دالة _updateConnectivityStatus للتعامل مع List<ConnectivityResult>
   void _updateConnectivityStatus(List<ConnectivityResult> results) {
     final wasOnWiFi = _isOnWiFi;
-    
+
     // معالجة الحالات الاستثنائية (قائمة فارغة)
     if (results.isEmpty) {
       _isOnWiFi = false;
       debugPrint('⚠️ قائمة نتائج الاتصال فارغة - افتراض عدم وجود اتصال');
       return;
     }
-    
+
     // البحث عن أفضل نوع اتصال متاح
     // ترتيب الأولوية: WiFi > Ethernet > Mobile > VPN > Bluetooth > Other
     if (results.contains(ConnectivityResult.wifi)) {
@@ -93,6 +93,8 @@ class SyncPerformanceOptimizer {
       _isOnWiFi = false;
     } else if (results.contains(ConnectivityResult.vpn)) {
       _isOnWiFi = false; // VPN قد يكون بطيء
+    } else if (results.contains(ConnectivityResult.none)) {
+      _isOnWiFi = false;
     } else if (results.contains(ConnectivityResult.bluetooth)) {
       _isOnWiFi = false; // البلوتوث بطيء
     } else if (results.contains(ConnectivityResult.other)) {
@@ -100,13 +102,13 @@ class SyncPerformanceOptimizer {
     } else {
       _isOnWiFi = false; // لا يوجد اتصال
     }
-    
+
     // طباعة تفاصيل التغيير إذا حدث
     if (wasOnWiFi != _isOnWiFi) {
       final connectionType = _getConnectionTypeString(results);
       debugPrint('📡 تغيير نوع الاتصال: $connectionType');
-      debugPrint('🔄 حالة WiFi: ${_isOnWiFi ? "متصل" : "غير متصل"}');
-      
+      debugPrint('🔄 حالة WiFi: ${_isOnWiFi ? 'متصل' : 'غير متصل'}');
+
       // إعادة تعيين عداد المحاولات عند تغيير نوع الاتصال
       _syncAttempts = 0;
     }
@@ -114,35 +116,40 @@ class SyncPerformanceOptimizer {
 
   /// الحصول على وصف نوع الاتصال
   String _getConnectionTypeString(List<ConnectivityResult> results) {
-    if (results.isEmpty) return "لا يوجد اتصال";
-    
-    List<String> types = [];
+    if (results.isEmpty) return 'لا يوجد اتصال';
+
+    final List<String> types = [];
     for (var result in results) {
       switch (result) {
         case ConnectivityResult.wifi:
-          types.add("WiFi");
+          types.add('WiFi');
           break;
         case ConnectivityResult.mobile:
-          types.add("بيانات الهاتف");
+          types.add('بيانات الهاتف');
           break;
         case ConnectivityResult.ethernet:
-          types.add("إيثرنت");
+          types.add('إيثرنت');
           break;
         case ConnectivityResult.vpn:
-          types.add("VPN");
+          types.add('VPN');
           break;
         case ConnectivityResult.bluetooth:
-          types.add("بلوتوث");
+          types.add('بلوتوث');
           break;
         case ConnectivityResult.other:
-          types.add("أخرى");
+          types.add('أخرى');
           break;
         case ConnectivityResult.none:
-          types.add("لا يوجد اتصال");
+          types.add('لا يوجد اتصال');
           break;
       }
     }
-    return types.join(" + ");
+    return types.join(' + ');
+  }
+
+  @visibleForTesting
+  void simulateConnectivity(List<ConnectivityResult> results) {
+    _updateConnectivityStatus(results);
   }
 
   /// الحصول على إعدادات الأداء الحالية
@@ -171,9 +178,11 @@ class SyncPerformanceOptimizer {
       final settings = getCurrentPerformanceSettings();
       final minInterval = Duration(seconds: settings['syncInterval']);
       final timeSinceLastSync = DateTime.now().difference(_lastSyncTime!);
-      
+
       if (timeSinceLastSync < minInterval) {
-        debugPrint('⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد');
+        debugPrint(
+          '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)',
+        );
         return true;
       }
     }
@@ -191,8 +200,9 @@ class SyncPerformanceOptimizer {
   /// التحقق من وجود اتصال إنترنت فعلي
   Future<bool> _hasInternetConnection() async {
     try {
-      final result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 5));
+      final result = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } on SocketException catch (_) {
       return false;
@@ -223,16 +233,22 @@ class SyncPerformanceOptimizer {
       debugPrint('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
-      debugPrint('❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
+      debugPrint(
+        '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
+      );
     }
+  }
+
+  void updateConnectivityStatusForTest(List<ConnectivityResult> results) {
+    _updateConnectivityStatus(results);
   }
 
   /// الحصول على حالة الاتصال الحالية
   bool get isOnWiFi => _isOnWiFi;
-  
+
   /// الحصول على عدد المحاولات الحالي
   int get syncAttempts => _syncAttempts;
-  
+
   /// الحصول على وقت آخر مزامنة
   DateTime? get lastSyncTime => _lastSyncTime;
 
@@ -241,7 +257,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('wifi_only_sync', enabled);
-      debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? "مفعل" : "معطل"}');
+      debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}');
     } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات WiFi Only: $e');
     }
@@ -278,7 +294,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('adaptive_interval_enabled', value);
-      debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? "مفعل" : "معطل"}');
+      debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e');
     }
@@ -289,7 +305,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('battery_optimization_enabled', value);
-      debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? "مفعل" : "معطل"}');
+      debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات تحسين البطارية: $e');
     }
@@ -332,10 +348,10 @@ class SyncPerformanceOptimizer {
     try {
       final isAdaptive = await isAdaptiveIntervalEnabled();
       if (!isAdaptive) return baseInterval;
-      
+
       // تحسين الفترة حسب حالة الشبكة وعدد الفشل
       int optimizedInterval = baseInterval;
-      
+
       // إذا كان على WiFi، قلل الفترة
       if (_isOnWiFi) {
         optimizedInterval = (baseInterval * 0.8).round().clamp(1, baseInterval);
@@ -343,13 +359,15 @@ class SyncPerformanceOptimizer {
         // إذا كان على بيانات الهاتف، زد الفترة
         optimizedInterval = (baseInterval * 1.5).round();
       }
-      
+
       // زيادة الفترة مع كل فشل متتالي
       if (_syncAttempts > 0) {
         optimizedInterval += (_syncAttempts * 30); // إضافة 30 ثانية لكل فشل
       }
-      
-      debugPrint('🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
+
+      debugPrint(
+        '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
+      );
       return optimizedInterval;
     } catch (e) {
       debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');

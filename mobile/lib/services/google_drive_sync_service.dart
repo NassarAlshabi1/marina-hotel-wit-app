@@ -12,12 +12,13 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 
 import '../data/sync_models.dart';
+import 'sync_constants.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
 const _kIndexFileName = 'sync_index.json';
 const _kDeltaPrefix = 'delta_';
 const _kShardExtension = '.json.gz';
-const _kDefaultShardBytes = 4 * 1024 * 1024; // 4MB لكل جزء
+const _kDefaultShardBytes = SyncConstants.googleDriveDefaultShardBytes;
 
 /// نتيجة التحميل من Google Drive بعد فك الضغط والتشفير
 class DriveSyncDownloadResult {
@@ -77,7 +78,9 @@ class DriveSyncShard {
       totalParts: json['totalParts'] as int? ?? 1,
       size: json['size'] as int? ?? 0,
       checksum: json['checksum'] as String? ?? '',
-      modifiedAt: DateTime.tryParse(json['modifiedAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+      modifiedAt:
+          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
       version: json['version'] as int? ?? 1,
     );
   }
@@ -120,7 +123,10 @@ class DriveSyncIndex {
 
   factory DriveSyncIndex.fromJson(Map<String, dynamic> json) {
     final rawShards = (json['shards'] as List<dynamic>? ?? [])
-        .map((item) => DriveSyncShard.fromJson(Map<String, dynamic>.from(item as Map)))
+        .map(
+          (item) =>
+              DriveSyncShard.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
     return DriveSyncIndex(
       version: json['version'] as int? ?? 1,
@@ -161,9 +167,11 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  })  : _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
-        _driveApi = driveApi,
-        _shardSizeBytes = shardSizeBytes;
+  }) : _googleSignIn =
+           googleSignIn ??
+           GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
+       _driveApi = driveApi,
+       _shardSizeBytes = shardSizeBytes;
 
   final GoogleSignIn _googleSignIn;
   drive.DriveApi? _driveApi;
@@ -171,11 +179,17 @@ class GoogleDriveSyncService {
 
   bool _encryptionEnabled = false;
   String? _encryptionKey;
+  bool _allowInteractiveSignIn = true;
 
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
   /// تهيئة الخدمة وخيار التشفير AES-256
-  Future<void> init({bool enableEncryption = false, String? encryptionKey}) async {
+  Future<void> init({
+    bool enableEncryption = false,
+    String? encryptionKey,
+    bool allowInteractiveSignIn = true,
+  }) async {
+    _allowInteractiveSignIn = allowInteractiveSignIn;
     _encryptionEnabled = enableEncryption;
     if (_encryptionEnabled) {
       if (encryptionKey == null || encryptionKey.isEmpty) {
@@ -191,7 +205,9 @@ class GoogleDriveSyncService {
   /// تسجيل الدخول إلى Google Drive باستخدام Google Sign-In
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      final account = await _googleSignIn.signInSilently(suppressErrors: true) ?? await _googleSignIn.signIn();
+      final account =
+          await _googleSignIn.signInSilently(suppressErrors: true) ??
+          await _googleSignIn.signIn();
       if (account == null) {
         return null;
       }
@@ -253,6 +269,38 @@ class GoogleDriveSyncService {
     );
   }
 
+  /// قراءة آخر وقت تعديل لملف الـ snapshot في Google Drive دون تنزيل المحتوى.
+  Future<DateTime?> getLatestSnapshotModifiedTime() async {
+    try {
+      final api = await _ensureDriveApi();
+      final indexList = await api.files.list(
+        spaces: 'appDataFolder',
+        q: 'name="$_kIndexFileName" and trashed=false',
+        $fields: 'files(id,modifiedTime)',
+      );
+      final indexFile = (indexList.files ?? []).isNotEmpty
+          ? indexList.files!.first
+          : null;
+      if (indexFile?.modifiedTime != null) {
+        return indexFile!.modifiedTime;
+      }
+
+      final snapList = await api.files.list(
+        spaces: 'appDataFolder',
+        q: 'name="$_kPrimarySnapshotName" and trashed=false',
+        $fields: 'files(id,modifiedTime)',
+        orderBy: 'modifiedTime desc',
+      );
+      final snapFile = (snapList.files ?? []).isNotEmpty
+          ? snapList.files!.first
+          : null;
+      return snapFile?.modifiedTime;
+    } catch (error) {
+      debugPrint('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
+      return null;
+    }
+  }
+
   /// رفع لقطة كاملة مع التحقق من الإصدار وتجزئة الملفات
   Future<DriveSyncIndex> uploadSnapshot({
     required SyncSnapshot snapshot,
@@ -263,12 +311,16 @@ class GoogleDriveSyncService {
 
     final existingIndex = await _loadIndex(api);
     if (existingIndex != null && existingIndex.version != expectedVersion) {
-      throw StateError('تغير إصدار البيانات في Google Drive. يجب تنفيذ عملية سحب قبل الرفع.');
+      throw StateError(
+        'تغير إصدار البيانات في Google Drive. يجب تنفيذ عملية سحب قبل الرفع.',
+      );
     }
     if (existingIndex == null) {
       final single = await _locateSingleSnapshot(api);
       if (single != null && expectedVersion != single.version) {
-        throw StateError('تم العثور على نسخة مختلفة من الملف. الرجاء المزامنة قبل الرفع.');
+        throw StateError(
+          'تم العثور على نسخة مختلفة من الملف. الرجاء المزامنة قبل الرفع.',
+        );
       }
     }
 
@@ -287,13 +339,21 @@ class GoogleDriveSyncService {
       lastDeviceId: deviceId,
     );
 
-    final normalizedSnapshot = SyncSnapshot(metadata: normalizedMetadata, tables: snapshot.tables);
+    final normalizedSnapshot = SyncSnapshot(
+      metadata: normalizedMetadata,
+      tables: snapshot.tables,
+    );
     final encoded = utf8.encode(jsonEncode(normalizedSnapshot.toJson()));
     final compressed = Uint8List.fromList(gzip.encode(encoded));
     final processed = await _encodePayload(compressed);
 
     final shards = _splitIntoShards(processed);
-    final uploadedShards = await _uploadShards(api, shards, normalizedMetadata, deviceId);
+    final uploadedShards = await _uploadShards(
+      api,
+      shards,
+      normalizedMetadata,
+      deviceId,
+    );
 
     final index = DriveSyncIndex(
       version: normalizedMetadata.version,
@@ -307,16 +367,23 @@ class GoogleDriveSyncService {
     );
 
     await _uploadIndex(api, index);
-    await _cleanupLegacySnapshot(api, keepShardIds: uploadedShards.map((s) => s.fileId).toList());
+    await _cleanupLegacySnapshot(
+      api,
+      keepShardIds: uploadedShards.map((s) => s.fileId).toList(),
+    );
     return index;
   }
 
   /// رفع ملف دلتا اختياري للتوسعة المستقبلية
-  Future<String> uploadDelta(Uint8List deltaBytes, {required DateTime timestamp}) async {
+  Future<String> uploadDelta(
+    Uint8List deltaBytes, {
+    required DateTime timestamp,
+  }) async {
     final api = await _ensureDriveApi();
     final compressed = Uint8List.fromList(gzip.encode(deltaBytes));
     final processed = await _encodePayload(compressed);
-    final name = '$_kDeltaPrefix${timestamp.toUtc().toIso8601String()}$_kShardExtension';
+    final name =
+        '$_kDeltaPrefix${timestamp.toUtc().toIso8601String()}$_kShardExtension';
 
     final file = drive.File()
       ..name = name
@@ -337,7 +404,7 @@ class GoogleDriveSyncService {
     final api = await _ensureDriveApi();
     final list = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name contains '$_kDeltaPrefix' and trashed=false",
+      q: 'name contains "$_kDeltaPrefix" and trashed=false',
       orderBy: 'createdTime desc',
       $fields: 'files(id,name,createdTime)',
     );
@@ -355,10 +422,15 @@ class GoogleDriveSyncService {
     if (_driveApi != null) {
       return _driveApi!;
     }
-    final account = await _googleSignIn.signInSilently(suppressErrors: true) ?? await _googleSignIn.signIn();
+
+    final account =
+        await _googleSignIn.signInSilently(suppressErrors: true) ??
+        (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
+
     if (account == null) {
       throw StateError('لم يتم تسجيل الدخول إلى Google Drive.');
     }
+
     final headers = await account.authHeaders;
     _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
     return _driveApi!;
@@ -368,7 +440,7 @@ class GoogleDriveSyncService {
     try {
       final result = await api.files.list(
         spaces: 'appDataFolder',
-        q: "name='$_kIndexFileName' and trashed=false",
+        q: 'name="$_kIndexFileName" and trashed=false',
         $fields: 'files(id,name,modifiedTime,version)',
       );
       if (result.files == null || result.files!.isEmpty) {
@@ -392,7 +464,7 @@ class GoogleDriveSyncService {
 
     final existing = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name='$_kIndexFileName' and trashed=false",
+      q: 'name="$_kIndexFileName" and trashed=false',
       $fields: 'files(id)',
     );
 
@@ -421,7 +493,7 @@ class GoogleDriveSyncService {
   Future<DriveSyncShard?> _locateSingleSnapshot(drive.DriveApi api) async {
     final result = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name='$_kPrimarySnapshotName' and trashed=false",
+      q: 'name="$_kPrimarySnapshotName" and trashed=false',
       $fields: 'files(id,name,modifiedTime,size,appProperties,version)',
       orderBy: 'modifiedTime desc',
     );
@@ -429,7 +501,8 @@ class GoogleDriveSyncService {
       return null;
     }
     final file = result.files!.first;
-    final rawVersion = file.appProperties?['version'] ?? file.version?.toString() ?? '1';
+    final rawVersion =
+        file.appProperties?['version'] ?? file.version?.toString() ?? '1';
     final version = int.tryParse(rawVersion) ?? 1;
     return DriveSyncShard(
       fileId: file.id!,
@@ -451,7 +524,7 @@ class GoogleDriveSyncService {
   ) async {
     final cleanup = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name contains 'sync_data' and trashed=false",
+      q: 'name contains "sync_data" and trashed=false',
       $fields: 'files(id,name)',
     );
     for (final file in cleanup.files ?? []) {
@@ -482,27 +555,35 @@ class GoogleDriveSyncService {
         ..parents = const ['appDataFolder']
         ..appProperties = props;
 
-      final media = drive.Media(Stream.value(shards[index]), shards[index].length);
+      final media = drive.Media(
+        Stream.value(shards[index]),
+        shards[index].length,
+      );
       final created = await api.files.create(file, uploadMedia: media);
 
-      uploaded.add(DriveSyncShard(
-        fileId: created.id!,
-        name: name,
-        index: index,
-        totalParts: shards.length,
-        size: shards[index].length,
-        checksum: metadata.checksum,
-        modifiedAt: DateTime.now().toUtc(),
-        version: metadata.version,
-      ));
+      uploaded.add(
+        DriveSyncShard(
+          fileId: created.id!,
+          name: name,
+          index: index,
+          totalParts: shards.length,
+          size: shards[index].length,
+          checksum: metadata.checksum,
+          modifiedAt: DateTime.now().toUtc(),
+          version: metadata.version,
+        ),
+      );
     }
     return uploaded;
   }
 
-  Future<void> _cleanupLegacySnapshot(drive.DriveApi api, {required List<String> keepShardIds}) async {
+  Future<void> _cleanupLegacySnapshot(
+    drive.DriveApi api, {
+    required List<String> keepShardIds,
+  }) async {
     final result = await api.files.list(
       spaces: 'appDataFolder',
-      q: "name contains 'sync_data' and trashed=false",
+      q: 'name contains "sync_data" and trashed=false',
       $fields: 'files(id)',
     );
     for (final file in result.files ?? []) {
@@ -527,8 +608,16 @@ class GoogleDriveSyncService {
     return chunks;
   }
 
-  Future<Uint8List> _downloadFileBytes(drive.DriveApi api, String fileId) async {
-    final media = await api.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+  Future<Uint8List> _downloadFileBytes(
+    drive.DriveApi api,
+    String fileId,
+  ) async {
+    final media =
+        await api.files.get(
+              fileId,
+              downloadOptions: drive.DownloadOptions.fullMedia,
+            )
+            as drive.Media;
     final builder = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
       builder.add(chunk);
@@ -542,7 +631,9 @@ class GoogleDriveSyncService {
     }
     final key = _deriveKey(_encryptionKey!);
     final ivBytes = _generateIv();
-    final aes = encrypt.Encrypter(encrypt.AES(encrypt.Key(key), mode: encrypt.AESMode.cbc));
+    final aes = encrypt.Encrypter(
+      encrypt.AES(encrypt.Key(key), mode: encrypt.AESMode.cbc),
+    );
     final encrypted = aes.encryptBytes(bytes, iv: encrypt.IV(ivBytes));
     return Uint8List.fromList(ivBytes + encrypted.bytes);
   }
@@ -557,8 +648,13 @@ class GoogleDriveSyncService {
     final ivBytes = bytes.sublist(0, 16);
     final cipher = bytes.sublist(16);
     final key = _deriveKey(_encryptionKey!);
-    final aes = encrypt.Encrypter(encrypt.AES(encrypt.Key(key), mode: encrypt.AESMode.cbc));
-    final decrypted = aes.decryptBytes(encrypt.Encrypted(cipher), iv: encrypt.IV(ivBytes));
+    final aes = encrypt.Encrypter(
+      encrypt.AES(encrypt.Key(key), mode: encrypt.AESMode.cbc),
+    );
+    final decrypted = aes.decryptBytes(
+      encrypt.Encrypted(cipher),
+      iv: encrypt.IV(ivBytes),
+    );
     return Uint8List.fromList(gzip.decode(decrypted));
   }
 

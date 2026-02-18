@@ -15,6 +15,7 @@ class AuthLocalStore {
     'rooms',
     'bookings',
     'payments',
+    'debts',
     'employees',
     'expenses',
     'finance',
@@ -42,6 +43,26 @@ class AuthLocalStore {
       'full_name': 'أحمد',
       'id': 3,
     },
+    '1': {
+      'password': '1',
+      'user_type': 'supervisor',
+      'full_name': 'محمد',
+      'id': 4,
+    },
+  };
+
+  static const Map<String, List<String>> _fixedPermissions = {
+    '1': [
+      'dashboard',
+      'bookings',
+      'payments',
+      'debts',
+      'employees',
+      'expenses',
+      'finance',
+      'reports',
+      'notes',
+    ],
   };
 
   Future<Map<String, dynamic>> _loadCustomAccounts() async {
@@ -55,7 +76,10 @@ class AuthLocalStore {
       if (decoded is Map) {
         return decoded.map((key, value) {
           if (value is Map) {
-            return MapEntry(key.toString(), value.map((k, v) => MapEntry(k.toString(), v)));
+            return MapEntry(
+              key.toString(),
+              value.map((k, v) => MapEntry(k.toString(), v)),
+            );
           }
           return MapEntry(key.toString(), <String, dynamic>{});
         });
@@ -107,7 +131,10 @@ class AuthLocalStore {
     return maxId + 1;
   }
 
-  Future<Map<String, dynamic>?> validateCredentials(String username, String password) async {
+  Future<Map<String, dynamic>?> validateCredentials(
+    String username,
+    String password,
+  ) async {
     final normalized = username.trim();
     Map<String, dynamic>? account = _fixedAccounts[normalized];
     account ??= await _getCustomAccount(normalized);
@@ -119,7 +146,9 @@ class AuthLocalStore {
       return null;
     }
 
-    final perms = normalized == 'admin' ? ['all'] : await getPermissions(normalized);
+    final perms = normalized == 'admin'
+        ? ['all']
+        : await getPermissions(normalized);
     return {
       'id': account['id'] ?? 0,
       'username': normalized,
@@ -204,7 +233,9 @@ class AuthLocalStore {
     try {
       final json = jsonDecode(raw);
       if (json is Map<String, dynamic>) return json;
-      if (json is Map) return json.map((key, value) => MapEntry(key.toString(), value));
+      if (json is Map) {
+        return json.map((key, value) => MapEntry(key.toString(), value));
+      }
       return null;
     } catch (_) {
       return null;
@@ -250,7 +281,7 @@ class AuthLocalStore {
     if (username == 'admin') return ['all'];
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
-    if (raw == null) return <String>[];
+    if (raw == null) return _fixedPermissions[username] ?? <String>[];
     try {
       final map = jsonDecode(raw);
       if (map is Map) {
@@ -259,9 +290,9 @@ class AuthLocalStore {
           return v.map((e) => e.toString()).toList();
         }
       }
-      return <String>[];
+      return _fixedPermissions[username] ?? <String>[];
     } catch (_) {
-      return <String>[];
+      return _fixedPermissions[username] ?? <String>[];
     }
   }
 

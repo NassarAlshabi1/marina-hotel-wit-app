@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
-
 class AdminLayout extends StatelessWidget {
   final Widget body;
   final String currentRoute;
@@ -11,7 +10,7 @@ class AdminLayout extends StatelessWidget {
   final Widget? floatingActionButton;
   final PreferredSizeWidget? appBar;
   final Function(String)? onRouteSelected;
-  
+
   const AdminLayout({
     super.key,
     required this.body,
@@ -26,7 +25,7 @@ class AdminLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 768;
-    
+
     if (isTablet) {
       // Desktop/Tablet layout with sidebar (like PHP admin)
       return Directionality(
@@ -35,14 +34,13 @@ class AdminLayout extends StatelessWidget {
           body: Row(
             children: [
               AdminSidebar(
-            currentRoute: currentRoute,
-            onRouteSelected: onRouteSelected ?? (route) {},
-          ),
+                currentRoute: currentRoute,
+                onRouteSelected: onRouteSelected ?? (route) {},
+              ),
               Expanded(
                 child: Column(
                   children: [
-                    if (title != null || actions != null)
-                      _buildTopBar(),
+                    if (title != null || actions != null) _buildTopBar(),
                     Expanded(
                       child: Container(
                         color: AppColors.backgroundColor,
@@ -64,13 +62,10 @@ class AdminLayout extends StatelessWidget {
         child: Scaffold(
           appBar: appBar ?? _buildMobileAppBar(context),
           drawer: AdminSidebar(
-        currentRoute: currentRoute,
-        onRouteSelected: onRouteSelected ?? (route) {},
-      ),
-          body: Container(
-            color: AppColors.backgroundColor,
-            child: body,
+            currentRoute: currentRoute,
+            onRouteSelected: onRouteSelected ?? (route) {},
           ),
+          body: Container(color: AppColors.backgroundColor, child: body),
           floatingActionButton: floatingActionButton,
         ),
       );
@@ -106,7 +101,6 @@ class AdminLayout extends StatelessWidget {
                     )
                   : const SizedBox.shrink(),
             ),
-
             if (actions != null) ...actions!,
           ],
         ),
@@ -116,16 +110,11 @@ class AdminLayout extends StatelessWidget {
 
   PreferredSizeWidget _buildMobileAppBar(BuildContext context) {
     return AppBar(
-      title: title != null 
-        ? Text(title!) 
-        : const Text('فندق مارينا'),
+      title: title != null ? Text(title!) : const Text('فندق مارينا'),
       backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
-      actions: [
-
-        if (actions != null) ...actions!,
-      ],
+      actions: [if (actions != null) ...actions!],
     );
   }
 }
@@ -138,7 +127,7 @@ class AdminCard extends StatelessWidget {
   final double? elevation;
   final String? title;
   final Widget? trailing;
-  
+
   const AdminCard({
     super.key,
     required this.child,
@@ -155,9 +144,7 @@ class AdminCard extends StatelessWidget {
       elevation: elevation ?? 1,
       color: color ?? Colors.white,
       margin: const EdgeInsets.all(8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -187,10 +174,7 @@ class AdminCard extends StatelessWidget {
               ),
             ),
           ],
-          Padding(
-            padding: padding ?? const EdgeInsets.all(16),
-            child: child,
-          ),
+          Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
         ],
       ),
     );
@@ -203,7 +187,7 @@ class StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String? subtitle;
-  
+
   const StatCard({
     super.key,
     required this.title,
@@ -225,10 +209,7 @@ class StatCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
-            colors: [
-              color,
-              color.withOpacity(0.8),
-            ],
+            colors: [color, color.withOpacity(0.8)],
           ),
         ),
         child: Row(
@@ -272,11 +253,7 @@ class StatCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                size: 32,
-                color: Colors.white,
-              ),
+              child: Icon(icon, size: 32, color: Colors.white),
             ),
           ],
         ),
@@ -285,54 +262,118 @@ class StatCard extends StatelessWidget {
   }
 }
 
-class AdminTable extends StatelessWidget {
+class AdminTable extends StatefulWidget {
   final List<String> headers;
   final List<List<Widget>> rows;
   final bool striped;
   final bool bordered;
-  
+  final int rowsPerPage;
+
   const AdminTable({
     super.key,
     required this.headers,
     required this.rows,
     this.striped = true,
     this.bordered = true,
+    this.rowsPerPage = 50,
   });
 
   @override
+  State<AdminTable> createState() => _AdminTableState();
+}
+
+class _AdminTableState extends State<AdminTable> {
+  int _currentPage = 0;
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(AppColors.darkGray),
-        headingTextStyle: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
+    final totalRows = widget.rows.length;
+    final totalPages = (totalRows / widget.rowsPerPage).ceil();
+    final startIndex = _currentPage * widget.rowsPerPage;
+    final endIndex = (startIndex + widget.rowsPerPage).clamp(0, totalRows);
+    final visibleRows = widget.rows.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        if (totalRows > widget.rowsPerPage)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'عرض ${startIndex + 1}-$endIndex من $totalRows',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 20),
+                      onPressed: _currentPage > 0
+                          ? () => setState(() => _currentPage--)
+                          : null,
+                      tooltip: 'السابق',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                    Text(
+                      '${_currentPage + 1}/$totalPages',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 20),
+                      onPressed: _currentPage < totalPages - 1
+                          ? () => setState(() => _currentPage++)
+                          : null,
+                      tooltip: 'التالي',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(AppColors.darkGray),
+            headingTextStyle: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: widget.bordered
+                ? BoxDecoration(
+                    border: Border.all(color: AppColors.lightGray),
+                    borderRadius: BorderRadius.circular(8),
+                  )
+                : null,
+            columns: widget.headers
+                .map((header) => DataColumn(label: Text(header)))
+                .toList(),
+            rows: visibleRows
+                .asMap()
+                .entries
+                .map(
+                  (entry) => DataRow(
+                    color: widget.striped && (startIndex + entry.key) % 2 == 1
+                        ? WidgetStateProperty.all(
+                            AppColors.lightGray.withOpacity(0.3),
+                          )
+                        : null,
+                    cells: entry.value.map((cell) => DataCell(cell)).toList(),
+                  ),
+                )
+                .toList(),
+          ),
         ),
-        decoration: bordered
-            ? BoxDecoration(
-                border: Border.all(color: AppColors.lightGray),
-                borderRadius: BorderRadius.circular(8),
-              )
-            : null,
-        columns: headers
-            .map((header) => DataColumn(
-                  label: Text(header),
-                ))
-            .toList(),
-        rows: rows
-            .asMap()
-            .entries
-            .map((entry) => DataRow(
-                  color: striped && entry.key % 2 == 1
-                      ? WidgetStateProperty.all(AppColors.lightGray.withOpacity(0.3))
-                      : null,
-                  cells: entry.value
-                      .map((cell) => DataCell(cell))
-                      .toList(),
-                ))
-            .toList(),
-      ),
+      ],
     );
   }
 }
@@ -340,12 +381,8 @@ class AdminTable extends StatelessWidget {
 class StatusBadge extends StatelessWidget {
   final String text;
   final Color color;
-  
-  const StatusBadge({
-    super.key,
-    required this.text,
-    required this.color,
-  });
+
+  const StatusBadge({super.key, required this.text, required this.color});
 
   factory StatusBadge.success(String text) {
     return StatusBadge(text: text, color: Colors.green);

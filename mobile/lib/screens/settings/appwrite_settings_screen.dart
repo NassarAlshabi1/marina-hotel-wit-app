@@ -2,23 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
-import '../../services/appwrite_logger.dart';
-import '../../services/appwrite_config.dart';
+import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
+import 'appwrite_connection_settings_screen.dart';
+import 'comprehensive_backup_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
 
   @override
-  ConsumerState<AppwriteSettingsScreen> createState() => _AppwriteSettingsScreenState();
+  ConsumerState<AppwriteSettingsScreen> createState() =>
+      _AppwriteSettingsScreenState();
 }
 
-class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen> {
+class _AppwriteSettingsScreenState
+    extends ConsumerState<AppwriteSettingsScreen> {
   bool _syncEnabled = false;
   int _syncInterval = 15;
   bool _autoSyncOnConnect = true;
@@ -40,9 +44,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
-      _autoSyncOnConnect = prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
+      _autoSyncOnConnect =
+          prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
       _cacheTTLHours = prefs.getInt('appwrite_cache_ttl') ?? 6;
       _cacheMaxSizeMB = prefs.getInt('appwrite_cache_max_size') ?? 20;
@@ -63,6 +68,14 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     await prefs.setString('appwrite_log_level', _logLevel);
     await prefs.setBool('appwrite_log_console', _logConsole);
     await prefs.setBool('appwrite_log_file', _logFile);
+
+    // تحديث مدير المزامنة بالإعدادات الجديدة
+    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+    if (_syncEnabled) {
+      syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
+    } else {
+      syncManager.stopAutoSync();
+    }
   }
 
   Future<void> _checkConnection() async {
@@ -122,7 +135,11 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   // ==================== قسم حالة الاتصال ====================
-  Widget _buildConnectionSection(BuildContext context, ap.ConnectionState state, Map<String, String> info) {
+  Widget _buildConnectionSection(
+    BuildContext context,
+    ap.ConnectionState state,
+    Map<String, String> info,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -130,22 +147,24 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.cloud, color: Colors.blue, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'حالة الاتصال',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(height: 24),
-            
+
             // مؤشر الحالة
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: state.isConnected ? Colors.green.shade50 : Colors.red.shade50,
+                color: state.isConnected
+                    ? Colors.green.shade50
+                    : Colors.red.shade50,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: state.isConnected ? Colors.green : Colors.red,
@@ -169,14 +188,19 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: state.isConnected ? Colors.green : Colors.red,
+                            color: state.isConnected
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
                           const SizedBox(height: 4),
                           Text(
                             state.errorMessage!,
-                            style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                            ),
                           ),
                         ],
                       ],
@@ -186,27 +210,42 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               ),
             ),
             const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.blue),
+              title: const Text('إعدادات الاتصال السحابي'),
+              subtitle: const Text('تغيير Endpoint و Project و Database'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AppwriteConnectionSettingsScreen(),
+                ),
+              ),
+            ),
+            const Divider(height: 24),
 
             // معلومات المشروع
             _buildInfoRow('Endpoint', info['endpoint'] ?? '---'),
             _buildInfoRow('Project ID', info['projectId'] ?? '---'),
             _buildInfoRow('Database ID', info['databaseId'] ?? '---'),
-            
+
             const SizedBox(height: 12),
-            
+
             // زر اختبار الاتصال
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: state.isChecking ? null : _checkConnection,
-                icon: state.isChecking 
+                icon: state.isChecking
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(state.isChecking ? 'جاري الفحص...' : 'اختبار الاتصال'),
+                label: Text(
+                  state.isChecking ? 'جاري الفحص...' : 'اختبار الاتصال',
+                ),
               ),
             ),
           ],
@@ -216,7 +255,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   // ==================== قسم المزامنة ====================
-  Widget _buildSyncSection(BuildContext context, AsyncValue<Map<String, dynamic>> statsAsync) {
+  Widget _buildSyncSection(
+    BuildContext context,
+    AsyncValue<Map<String, dynamic>> statsAsync,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -224,10 +266,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.sync, color: Colors.cyan, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'إعدادات المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -238,55 +280,61 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             // تفعيل المزامنة
             _buildSettingSwitch(
               title: 'تفعيل المزامنة التلقائية',
-              subtitle: 'مزامنة البيانات تلقائياً في الخلفية',
+              subtitle: _syncEnabled
+                  ? 'يتم المزامنة تلقائياً في الخلفية'
+                  : 'المزامنة التلقائية معطّلة (يدوي فقط)',
               value: _syncEnabled,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _syncEnabled = value);
-                _saveSettings();
-                if (value) {
-                  ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
-                    interval: Duration(minutes: _syncInterval),
+                await _saveSettings();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        value
+                            ? 'تم تفعيل المزامنة التلقائية'
+                            : 'تم إيقاف المزامنة التلقائية',
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
                   );
-                } else {
-                  ref.read(ap.appwriteSyncManagerProvider).stopAutoSync();
                 }
               },
             ),
 
             // فترة المزامنة
-            ListTile(
-              title: const Text('فترة المزامنة الدورية'),
-              subtitle: Text('كل $_syncInterval دقيقة'),
-              trailing: DropdownButton<int>(
-                value: _syncInterval,
-                items: [5, 10, 15, 30, 60].map((int value) {
-                  return DropdownMenuItem<int>(
-                    value: value,
-                    child: Text('$value دقيقة'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _syncInterval = value);
-                    _saveSettings();
-                    if (_syncEnabled) {
-                      ref.read(ap.appwriteSyncManagerProvider).startAutoSync(
-                        interval: Duration(minutes: value),
-                      );
+            if (_syncEnabled)
+              ListTile(
+                title: const Text('فترة المزامنة الدورية'),
+                subtitle: Text('كل $_syncInterval دقيقة'),
+                trailing: DropdownButton<int>(
+                  value: _syncInterval,
+                  items: [5, 10, 15, 30, 60].map((int value) {
+                    return DropdownMenuItem<int>(
+                      value: value,
+                      child: Text('$value دقيقة'),
+                    );
+                  }).toList(),
+                  onChanged: (value) async {
+                    if (value != null) {
+                      setState(() => _syncInterval = value);
+                      await _saveSettings();
                     }
-                  }
-                },
+                  },
+                ),
               ),
-            ),
 
             // مزامنة عند الاتصال
             _buildSettingSwitch(
               title: 'مزامنة عند الاتصال التلقائي',
-              subtitle: 'مزامنة فورية عند الاتصال بالإنترنت',
+              subtitle: _autoSyncOnConnect
+                  ? 'مزامنة البيانات فور اتصال التطبيق'
+                  : 'انتظار المزامنة الدورية أو اليدوية',
               value: _autoSyncOnConnect,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _autoSyncOnConnect = value);
-                _saveSettings();
+                await _saveSettings();
               },
             ),
 
@@ -296,7 +344,8 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             statsAsync.when(
               data: (stats) => _buildSyncStats(context, stats),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
             ),
 
             const SizedBox(height: 12),
@@ -418,10 +467,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.storage, color: Colors.purple, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'إعدادات التخزين المؤقت',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -457,7 +506,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                   if (value != null) {
                     setState(() => _cacheTTLHours = value);
                     _saveSettings();
-                    ref.read(ap.appwriteCacheManagerProvider).setDefaultTTL(Duration(hours: value));
+                    ref
+                        .read(ap.appwriteCacheManagerProvider)
+                        .setDefaultTTL(Duration(hours: value));
                   }
                 },
               ),
@@ -479,7 +530,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                   if (value != null) {
                     setState(() => _cacheMaxSizeMB = value);
                     _saveSettings();
-                    ref.read(ap.appwriteCacheManagerProvider).setMaxSizeMB(value);
+                    ref
+                        .read(ap.appwriteCacheManagerProvider)
+                        .setMaxSizeMB(value);
                   }
                 },
               ),
@@ -546,10 +599,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.article, color: Colors.green, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'إعدادات السجلات',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -563,7 +616,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               subtitle: Text(_logLevel.toUpperCase()),
               trailing: DropdownButton<String>(
                 value: _logLevel,
-                items: ['debug', 'info', 'warning', 'error', 'critical'].map((String value) {
+                items: ['debug', 'info', 'warning', 'error', 'critical'].map((
+                  String value,
+                ) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(value.toUpperCase()),
@@ -598,6 +653,30 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 setState(() => _logFile = value);
                 _saveSettings();
               },
+            ),
+
+            const SizedBox(height: 12),
+
+            // زر النسخ الاحتياطي الشامل
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ComprehensiveBackupScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.backup),
+                label: const Text('النسخ الاحتياطي الشامل والاستعادة'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
 
             const Divider(height: 24),
@@ -667,7 +746,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                     onPressed: _clearLogs,
                     icon: const Icon(Icons.delete),
                     label: const Text('مسح'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
                   ),
                 ),
               ],
@@ -687,10 +768,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.devices, color: Colors.teal, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'الأجهزة المسجلة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -713,16 +794,26 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                     return ListTile(
                       leading: Icon(Icons.phone_android, color: Colors.teal),
                       title: Text(device.deviceName),
-                      subtitle: Text('${device.deviceModel} - ${device.osVersion}'),
+                      subtitle: Text(
+                        '${device.deviceModel} - ${device.osVersion}',
+                      ),
                       trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: device.status == 'active' ? Colors.green : Colors.grey,
+                          color: device.status == 'active'
+                              ? Colors.green
+                              : Colors.grey,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           device.status == 'active' ? 'نشط' : 'غير نشط',
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     );
@@ -730,7 +821,8 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
             ),
 
             const SizedBox(height: 12),
@@ -761,33 +853,58 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.data_usage, color: Colors.indigo, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'إدارة البيانات',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(height: 24),
-
-            ListTile(
-              leading: const Icon(Icons.upload, color: Colors.blue),
-              title: const Text('رفع جميع البيانات المحلية'),
-              subtitle: const Text('تحميل البيانات من الجهاز إلى السحابة'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: _pushAllData,
+            _buildDataActionCard(
+              icon: Icons.backup,
+              color: Colors.purple,
+              title: 'نسخة احتياطية شاملة من السحابة',
+              subtitle: 'سحب كل الجداول والفهارس من Appwrite Cloud',
+              details: const [
+                'يشمل جميع الجداول والفهارس والبيانات',
+                'يتم حفظ النسخة في ملف JSON قابل للمشاركة',
+                'قد يستغرق وقتاً حسب حجم البيانات',
+              ],
+              actionLabel: 'إنشاء النسخة',
+              onPressed: _exportFullCloudBackup,
             ),
-
-            ListTile(
-              leading: const Icon(Icons.download, color: Colors.green),
-              title: const Text('تحميل جميع البيانات من الخادم'),
-              subtitle: const Text('استرجاع البيانات من السحابة'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: _pullAllData,
+            const SizedBox(height: 12),
+            _buildDataActionCard(
+              icon: Icons.cloud_upload,
+              color: Colors.blue,
+              title: 'رفع البيانات إلى Appwrite',
+              subtitle: 'يرفع جميع البيانات المحلية إلى السحابة',
+              details: const [
+                'الغرف والحجوزات والمدفوعات والديون',
+                'استخدام آخر نسخة محفوظة محلياً',
+                'قد يستغرق وقتاً حسب حجم البيانات',
+              ],
+              actionLabel: 'بدء الرفع',
+              onPressed: _pushAllData,
             ),
-
+            const SizedBox(height: 12),
+            _buildDataActionCard(
+              icon: Icons.cloud_download,
+              color: Colors.green,
+              title: 'سحب البيانات من Appwrite',
+              subtitle: 'يحمّل البيانات من السحابة إلى الجهاز',
+              details: const [
+                'قد يستبدل بعض البيانات المحلية',
+                'يتطلب اتصالاً مستقراً بالإنترنت',
+                'يُنصح بأخذ نسخة احتياطية قبل السحب',
+              ],
+              actionLabel: 'بدء السحب',
+              onPressed: _pullAllData,
+            ),
+            const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.restart_alt, color: Colors.orange),
               title: const Text('إعادة تعيين المزامنة'),
@@ -810,17 +927,16 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
+              children: const [
                 Icon(Icons.science, color: Colors.deepOrange, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'الاختبارات والتشخيص',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(height: 24),
-
             _buildActionButton(
               label: 'اختبار الاتصال',
               icon: Icons.network_check,
@@ -846,16 +962,71 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
 
   // ==================== مكونات مساعدة ====================
 
+  Widget _buildDataActionCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required List<String> details,
+    required String actionLabel,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(color: Colors.black87)),
+          const SizedBox(height: 8),
+          ...details.map(
+            (detail) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '• $detail',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : onPressed,
+              icon: Icon(icon),
+              label: Text(actionLabel),
+              style: ElevatedButton.styleFrom(backgroundColor: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-          ),
+          Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
           Expanded(
             child: Text(
               value,
@@ -907,10 +1078,7 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               color: color,
             ),
           ),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
+          Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         ],
       ),
     );
@@ -952,13 +1120,15 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     try {
       final syncManager = ref.read(ap.appwriteSyncManagerProvider);
       final result = await syncManager.sync();
-      
+
       if (result.isSuccess && result.recordsPulled > 0) {
         final fixService = RestoreFixService(DatabaseManager.instance);
         final fixReport = await fixService.runAutoFixAfterRestore();
-        debugPrint('Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed');
+        debugPrint(
+          'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
+        );
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -996,8 +1166,8 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('مسح'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('مسح'),
           ),
         ],
       ),
@@ -1006,9 +1176,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     if (confirmed == true) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')));
       }
     }
   }
@@ -1026,8 +1196,8 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('مسح'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('مسح'),
           ),
         ],
       ),
@@ -1036,9 +1206,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     if (confirmed == true) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم مسح السجلات')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }
@@ -1050,7 +1220,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(file != null ? 'تم التصدير إلى: ${file.path}' : 'فشل التصدير'),
+            content: Text(
+              file != null ? 'تم التصدير إلى: ${file.path}' : 'فشل التصدير',
+            ),
             backgroundColor: file != null ? Colors.green : Colors.red,
           ),
         );
@@ -1066,13 +1238,21 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     }
   }
 
-  Future<void> _pushAllData() async {
+  Future<void> _exportFullCloudBackup() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text(
-          'سيتم رفع جميع البيانات المحلية إلى السحابة. قد يستغرق هذا بعض الوقت.\n\nهل تريد المتابعة؟',
+        title: const Text('نسخة احتياطية شاملة من Appwrite'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('سيتم سحب كل الجداول والفهارس والبيانات من Appwrite Cloud.'),
+            SizedBox(height: 8),
+            Text('• سيتم إنشاء ملف JSON قابل للمشاركة'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+            Text('• يُفضّل توفر اتصال مستقر بالإنترنت'),
+          ],
         ),
         actions: [
           TextButton(
@@ -1081,17 +1261,147 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('متابعة'),
+            child: const Text('بدء النسخ'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      // TODO: تنفيذ رفع البيانات
+    if (confirmed != true) return;
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هذه الميزة قيد التطوير')),
+        const SnackBar(
+          content: Text('جاري إنشاء النسخة الاحتياطية الشاملة...'),
+          duration: Duration(minutes: 5),
+        ),
       );
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final deviceId = ref.read(ap.appwriteSyncManagerProvider).currentDeviceId;
+      final service = AppwriteBackupService(
+        appwriteService: ref.read(ap.appwriteServiceProvider),
+      );
+      final result = await service.exportBackup(
+        deviceId: deviceId,
+        includeSchema: true,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      final sortedCounts = result.counts.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تم إنشاء النسخة الاحتياطية'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('المسار: ${result.file.path}'),
+                const SizedBox(height: 12),
+                Text('إجمالي السجلات: ${result.totalRecords}'),
+                const SizedBox(height: 8),
+                const Text('تفاصيل الجداول:'),
+                const SizedBox(height: 6),
+                ...sortedCounts.map((e) => Text('• ${e.key}: ${e.value}')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await Share.shareXFiles([XFile(result.file.path)]);
+              },
+              child: const Text('مشاركة'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
+    }
+  }
+
+  Future<void> _pushAllData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الرفع'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('سيتم رفع جميع البيانات المحلية إلى السحابة.'),
+            SizedBox(height: 8),
+            Text('• الغرف والحجوزات والمدفوعات والديون'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+            Text('• يُفضل توفر اتصال مستقر بالإنترنت'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('بدء الرفع'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      await manager.pushAllLocalData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم رفع البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(ap.syncStatsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -1099,9 +1409,17 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text(
-          'سيتم تحميل جميع البيانات من السحابة وقد يتم استبدال البيانات المحلية.\n\nهل تريد المتابعة؟',
+        title: const Text('تأكيد السحب'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('سيتم تحميل البيانات من السحابة إلى الجهاز.'),
+            SizedBox(height: 8),
+            Text('• قد يتم استبدال بعض البيانات المحلية'),
+            Text('• يُنصح بأخذ نسخة احتياطية قبل السحب'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+          ],
         ),
         actions: [
           TextButton(
@@ -1110,17 +1428,39 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('متابعة'),
+            child: const Text('بدء السحب'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      // TODO: تنفيذ تحميل البيانات
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('هذه الميزة قيد التطوير')),
-      );
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      await manager.pullAllRemoteData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم سحب البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(ap.syncStatsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -1137,8 +1477,8 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('إعادة تعيين'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('إعادة تعيين'),
           ),
         ],
       ),
@@ -1160,9 +1500,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   Future<void> _testSync() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('اختبار المزامنة...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
     await _syncNow();
   }
 
@@ -1180,7 +1520,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             Text('العناصر الصالحة: ${stats.validEntries}'),
             Text('العناصر منتهية: ${stats.expiredEntries}'),
             Text('الحجم المستخدم: ${stats.totalSizeMB} MB'),
-            Text('نسبة الاستخدام: ${stats.usagePercentage.toStringAsFixed(1)}%'),
+            Text(
+              'نسبة الاستخدام: ${stats.usagePercentage.toStringAsFixed(1)}%',
+            ),
             Text('معدل الإصابة: ${(stats.hitRate * 100).toStringAsFixed(1)}%'),
           ],
         ),

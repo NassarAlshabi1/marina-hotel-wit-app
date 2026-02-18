@@ -13,7 +13,7 @@ class RoomsMainScreen extends ConsumerStatefulWidget {
   ConsumerState<RoomsMainScreen> createState() => _RoomsMainScreenState();
 }
 
-class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen> 
+class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -57,17 +57,13 @@ class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
               ),
               indicatorSize: TabBarIndicatorSize.tab,
               labelColor: Theme.of(context).colorScheme.onPrimary,
-              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant,
               dividerColor: Colors.transparent,
               tabs: const [
-                Tab(
-                  icon: Icon(Icons.grid_view),
-                  text: 'عرض الطوابق',
-                ),
-                Tab(
-                  icon: Icon(Icons.view_list),
-                  text: 'قائمة الغرف',
-                ),
+                Tab(icon: Icon(Icons.grid_view), text: 'عرض الطوابق'),
+                Tab(icon: Icon(Icons.view_list), text: 'قائمة الغرف'),
               ],
             ),
           ),
@@ -75,10 +71,7 @@ class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
-                RoomsDashboard(),
-                RoomsListScreen(),
-              ],
+              children: const [RoomsDashboard(), RoomsListScreen()],
             ),
           ),
         ],

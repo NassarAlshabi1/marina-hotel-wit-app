@@ -1,11 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/google_drive_auto_sync_engine.dart';
-import '../services/google_drive_backup_service.dart';
 import '../services/google_drive_conflict_resolver.dart';
-import '../services/google_drive_logger.dart';
 import '../services/google_drive_unified_sync_coordinator.dart';
-import '../services/local_db.dart';
 
 final autoSyncEngineProvider = Provider<AutoSyncEngine>((ref) {
   ref.keepAlive();
@@ -17,10 +14,11 @@ final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
   return engine.stateStream;
 });
 
-final unifiedSyncCoordinatorProvider = Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
-  ref.keepAlive();
-  return GoogleDriveUnifiedSyncCoordinator.instance;
-});
+final unifiedSyncCoordinatorProvider =
+    Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
+      ref.keepAlive();
+      return GoogleDriveUnifiedSyncCoordinator.instance;
+    });
 
 final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
   final coordinator = ref.watch(unifiedSyncCoordinatorProvider);
@@ -32,22 +30,29 @@ final conflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
   return GoogleDriveConflictResolver.instance;
 });
 
-final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) async {
   final engine = ref.watch(autoSyncEngineProvider);
   return await engine.getEngineStatus();
 });
 
-final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) async {
   final resolver = ref.watch(conflictResolverProvider);
   return await resolver.getConflictStatistics();
 });
 
-final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final resolver = ref.watch(conflictResolverProvider);
   return await resolver.getConflictHistory(limit: 50);
 });
 
-class AutoSyncEngineController extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
+class AutoSyncEngineController
+    extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
   AutoSyncEngineController(this.engine) : super(const AsyncValue.loading()) {
     _loadStatus();
   }
@@ -99,10 +104,13 @@ class AutoSyncEngineController extends StateNotifier<AsyncValue<Map<String, dyna
 }
 
 final autoSyncEngineControllerProvider =
-    StateNotifierProvider<AutoSyncEngineController, AsyncValue<Map<String, dynamic>>>((ref) {
-  final engine = ref.watch(autoSyncEngineProvider);
-  return AutoSyncEngineController(engine);
-});
+    StateNotifierProvider<
+      AutoSyncEngineController,
+      AsyncValue<Map<String, dynamic>>
+    >((ref) {
+      final engine = ref.watch(autoSyncEngineProvider);
+      return AutoSyncEngineController(engine);
+    });
 
 final isSyncingProvider = Provider<bool>((ref) {
   final coordinatorState = ref.watch(unifiedSyncCoordinatorProvider);
@@ -143,8 +151,12 @@ final syncHealthProvider = Provider<String>((ref) {
       if (!state.isRunning) return '🔴 متوقف';
       if (!state.hasNetworkConnection) return '📴 بدون شبكة';
       if (!state.isSignedIn) return '🔓 غير مسجل';
-      if (state.failedAttempts > 0) return '⚠️ محاولات فاشلة: ${state.failedAttempts}';
-      if (state.pendingChangesCount > 0) return '⏳ معلق: ${state.pendingChangesCount}';
+      if (state.failedAttempts > 0) {
+        return '⚠️ محاولات فاشلة: ${state.failedAttempts}';
+      }
+      if (state.pendingChangesCount > 0) {
+        return '⏳ معلق: ${state.pendingChangesCount}';
+      }
       return '🟢 جاهز';
     },
     loading: () => '⏳ جارٍ التحميل',

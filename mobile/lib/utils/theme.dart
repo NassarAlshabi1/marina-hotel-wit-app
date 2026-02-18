@@ -6,29 +6,29 @@ class AppColors {
   static const Color primaryColor = Color(0xFFCC94FF);
   static const Color primaryDark = Color(0xFFA36BDD);
   static const Color primaryLight = Color(0xFFE4C6FF);
-  
+
   // Background colors
-  static const Color backgroundColor = Color(0xFFf8f9fa);  // Bootstrap bg-light
+  static const Color backgroundColor = Color(0xFFf8f9fa); // Bootstrap bg-light
   static const Color surfaceColor = Color(0xFFffffff);
-  
+
   // Text colors
-  static const Color textPrimary = Color(0xFF212529);     // Bootstrap text-dark
-  static const Color textSecondary = Color(0xFF6c757d);   // Bootstrap text-muted
-  
+  static const Color textPrimary = Color(0xFF212529); // Bootstrap text-dark
+  static const Color textSecondary = Color(0xFF6c757d); // Bootstrap text-muted
+
   // Status colors - matching PHP badges
-  static const Color successColor = Color(0xFF28a745);    // Bootstrap success
-  static const Color dangerColor = Color(0xFFdc3545);     // Bootstrap danger  
-  static const Color warningColor = Color(0xFFffc107);    // Bootstrap warning
-  static const Color infoColor = Color(0xFF17a2b8);      // Bootstrap info
-  
+  static const Color successColor = Color(0xFF28a745); // Bootstrap success
+  static const Color dangerColor = Color(0xFFdc3545); // Bootstrap danger
+  static const Color warningColor = Color(0xFFffc107); // Bootstrap warning
+  static const Color infoColor = Color(0xFF17a2b8); // Bootstrap info
+
   // Gray colors
-  static const Color lightGray = Color(0xFFe9ecef);      // Bootstrap gray-200
-  static const Color mediumGray = Color(0xFF6c757d);     // Bootstrap gray-600
-  static const Color darkGray = Color(0xFF343a40);       // Bootstrap dark
-  
+  static const Color lightGray = Color(0xFFe9ecef); // Bootstrap gray-200
+  static const Color mediumGray = Color(0xFF6c757d); // Bootstrap gray-600
+  static const Color darkGray = Color(0xFF343a40); // Bootstrap dark
+
   // Card and component colors
   static const Color cardBackground = Colors.white;
-  static const Color dividerColor = Color(0xFFdee2e6);   // Bootstrap border color
+  static const Color dividerColor = Color(0xFFdee2e6); // Bootstrap border color
 
   // Admin sidebar colors
   static const Color sidebarColor = Color(0xFF0F172A);
@@ -37,13 +37,13 @@ class AppColors {
 
 ThemeData buildTheme() {
   final base = ThemeData(
-    useMaterial3: false,  // Use Material 2 for better Bootstrap compatibility
+    useMaterial3: false, // Use Material 2 for better Bootstrap compatibility
     brightness: Brightness.light,
     primarySwatch: _createMaterialColor(AppColors.primaryColor),
     fontFamily: 'Tajawal',
     scaffoldBackgroundColor: AppColors.backgroundColor,
   );
-  
+
   return base.copyWith(
     primaryColor: AppColors.primaryColor,
     colorScheme: const ColorScheme.light(
@@ -58,7 +58,7 @@ ThemeData buildTheme() {
       onBackground: AppColors.textPrimary,
       onError: Colors.white,
     ),
-    
+
     // AppBar theme matching PHP header
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.sidebarColor,
@@ -72,7 +72,7 @@ ThemeData buildTheme() {
         fontFamily: 'Tajawal',
       ),
     ),
-    
+
     // Card theme matching Bootstrap cards
     cardTheme: const CardThemeData(
       color: AppColors.cardBackground,
@@ -82,7 +82,7 @@ ThemeData buildTheme() {
         borderRadius: BorderRadius.all(Radius.circular(8)),
       ),
     ),
-    
+
     // Button themes matching Bootstrap buttons
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -90,31 +90,21 @@ ThemeData buildTheme() {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
-    
+
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primaryColor,
         side: const BorderSide(color: AppColors.primaryColor),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
-    
+
     // Input theme matching Bootstrap forms
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
@@ -129,11 +119,11 @@ ThemeData buildTheme() {
         borderRadius: BorderRadius.all(Radius.circular(6)),
         borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
       ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       labelStyle: TextStyle(color: AppColors.textSecondary),
       hintStyle: TextStyle(color: AppColors.textSecondary),
     ),
-    
+
     // Table theme
     dataTableTheme: const DataTableThemeData(
       headingRowColor: MaterialStatePropertyAll(AppColors.darkGray),
@@ -142,21 +132,18 @@ ThemeData buildTheme() {
         fontWeight: FontWeight.w600,
         fontSize: 14,
       ),
-      dataTextStyle: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 14,
-      ),
+      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 44,
     ),
-    
+
     // List tile theme
     listTileTheme: const ListTileThemeData(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       dense: true,
     ),
-    
+
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 }
@@ -210,13 +197,8 @@ ThemeData buildDarkTheme() {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -224,13 +206,8 @@ ThemeData buildDarkTheme() {
         foregroundColor: AppColors.primaryLight,
         side: const BorderSide(color: AppColors.primaryLight),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
     inputDecorationTheme: const InputDecorationTheme(
@@ -246,7 +223,7 @@ ThemeData buildDarkTheme() {
         borderRadius: BorderRadius.all(Radius.circular(6)),
         borderSide: BorderSide(color: AppColors.primaryLight, width: 2),
       ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       labelStyle: TextStyle(color: Colors.white70),
       hintStyle: TextStyle(color: Colors.white54),
     ),
@@ -257,10 +234,7 @@ ThemeData buildDarkTheme() {
         fontWeight: FontWeight.w600,
         fontSize: 14,
       ),
-      dataTextStyle: TextStyle(
-        color: Colors.white,
-        fontSize: 14,
-      ),
+      dataTextStyle: TextStyle(color: Colors.white, fontSize: 14),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 44,
@@ -277,8 +251,8 @@ ThemeData buildDarkTheme() {
 
 // Helper function to create MaterialColor from Color
 MaterialColor _createMaterialColor(Color color) {
-  List strengths = <double>[.05];
-  Map<int, Color> swatch = <int, Color>{};
+  final strengths = <double>[.05];
+  final Map<int, Color> swatch = <int, Color>{};
   final int r = color.red, g = color.green, b = color.blue;
 
   for (int i = 1; i < 10; i++) {

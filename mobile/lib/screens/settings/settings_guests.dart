@@ -12,7 +12,8 @@ class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
 
   @override
-  ConsumerState<SettingsGuestsScreen> createState() => _SettingsGuestsScreenState();
+  ConsumerState<SettingsGuestsScreen> createState() =>
+      _SettingsGuestsScreenState();
 }
 
 class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
@@ -20,8 +21,15 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   String _searchQuery = '';
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bookingsAsync = ref.watch(bookingsListProvider);
+    final roomsAsync = ref.watch(roomsListProvider);
 
     return AppScaffold(
       title: 'إدارة الضيوف',
@@ -45,47 +53,62 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
         ),
         data: (bookings) {
-          // تجميع الضيوف من الحجوزات
-          final guests = _groupGuestsFromBookings(bookings);
-          final filteredGuests = _filterGuests(guests);
-
-          if (guests.isEmpty) {
-            return const Center(
+          return roomsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, st) => Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
-                  SizedBox(height: 8),
-                  Text('سيتم عرض الضيوف عند إضافة حجوزات', style: TextStyle(color: Colors.grey)),
+                  const Icon(Icons.error, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('خطأ: $e', textAlign: TextAlign.center),
                 ],
               ),
-            );
-          }
+            ),
+            data: (rooms) {
+              // تجميع الضيوف من الحجوزات
+              final guests = _groupGuestsFromBookings(bookings);
+              final filteredGuests = _filterGuests(guests);
+              final roomPrices = {
+                for (final r in rooms) r.roomNumber: r.price,
+              };
 
-          return Column(
-            children: [
-              // شريط البحث
-              _buildSearchBar(),
-              
-              // إحصائيات الضيوف
-              _buildGuestStats(guests),
-              
-              const SizedBox(height: 16),
-              
-              // قائمة الضيوف
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredGuests.length,
-                  itemBuilder: (context, index) {
-                    final guest = filteredGuests[index];
-                    return _buildGuestCard(context, guest);
-                  },
-                ),
-              ),
-            ],
+              if (guests.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
+                      SizedBox(height: 8),
+                      Text(
+                        'سيتم عرض الضيوف عند إضافة حجوزات',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  _buildSearchBar(),
+
+                  // قائمة الضيوف
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredGuests.length,
+                      itemBuilder: (context, index) {
+                        final guest = filteredGuests[index];
+                        return _buildGuestCard(context, guest, roomPrices);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -96,10 +119,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
+      if (!StatusUtils.isActiveBooking(booking.status)) continue;
+
       final key = '${booking.guestName}_${booking.guestPhone}';
       final email = booking.guestEmail ?? '';
-      final idType = booking.guestIdType ?? 'بطاقة شخصية';
-      final idNumber = booking.guestIdNumber ?? '';
+      final idType = booking.guestIdType;
+      final idNumber = booking.guestIdNumber;
       final idIssueDate = booking.guestIdIssueDate;
       final idIssuePlace = booking.guestIdIssuePlace;
       final address = booking.guestAddress;
@@ -123,7 +148,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         if (existing.email.isEmpty && email.isNotEmpty) {
           existing.email = email;
         }
-        if (existing.nationality.isEmpty && booking.guestNationality.isNotEmpty) {
+        if (existing.nationality.isEmpty &&
+            booking.guestNationality.isNotEmpty) {
           existing.nationality = booking.guestNationality;
         }
         if (existing.idType.isEmpty && idType.isNotEmpty) {
@@ -148,13 +174,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       guest.bookings.sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
     }
 
-    return guestMap.values.toList()
-      ..sort((a, b) => b.bookings.first.checkinDate.compareTo(a.bookings.first.checkinDate));
+    final sortedGuests =
+        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
+          (a, b) => b.bookings.first.checkinDate.compareTo(
+            a.bookings.first.checkinDate,
+          ),
+        );
+    return sortedGuests;
   }
 
   List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
     if (_searchQuery.isEmpty) return guests;
-    
+
     return guests.where((guest) {
       return guest.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           guest.phone.contains(_searchQuery) ||
@@ -172,111 +203,34 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         decoration: InputDecoration(
           hintText: 'البحث في الضيوف (الاسم، الهاتف، البريد، الجنسية)',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty 
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-              )
-            : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
   }
 
-  Widget _buildGuestStats(List<GuestInfo> guests) {
-    final totalGuests = guests.length;
-    final activeGuests = guests.where((g) => 
-      g.bookings.any((b) => StatusUtils.isActiveBooking(b.status))).length;
-    final repeatGuests = guests.where((g) => g.bookings.length > 1).length;
-    final totalBookings = guests.fold<int>(0, (sum, g) => sum + g.bookings.length);
+  Widget _buildGuestCard(
+    BuildContext context,
+    GuestInfo guest,
+    Map<String, double> roomPrices,
+  ) {
+    final activeBookings = guest.bookings
+        .where((b) => StatusUtils.isActiveBooking(b.status))
+        .length;
+    final lastVisit = guest.bookings.isNotEmpty
+        ? guest.bookings.first.checkinDate
+        : '';
+    final latestBooking = guest.bookings.isNotEmpty ? guest.bookings.first : null;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.purple.shade50, Colors.purple.shade100],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.analytics, color: Colors.purple, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'إحصائيات الضيوف',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildStatChip('إجمالي الضيوف', totalGuests, Colors.purple)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatChip('ضيوف نشطون', activeGuests, Colors.green)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _buildStatChip('ضيوف متكررون', repeatGuests, Colors.blue)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatChip('إجمالي الحجوزات', totalBookings, Colors.orange)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withOpacity(0.8),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGuestCard(BuildContext context, GuestInfo guest) {
-    final activeBookings = guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length;
-    final lastVisit = guest.bookings.first.checkinDate;
-    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -289,12 +243,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: activeBookings > 0 ? Colors.green : Colors.blue,
+                  radius: 20,
+                  backgroundColor: activeBookings > 0
+                      ? Colors.green
+                      : Colors.blueGrey,
                   child: Text(
-                    guest.name.isNotEmpty ? guest.name[0].toUpperCase() : '؟',
+                    latestBooking != null ? latestBooking.roomNumber : '—',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -306,7 +264,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       Text(
                         guest.name,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -322,7 +280,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
                 if (guest.bookings.length > 1)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -330,12 +291,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star, size: 12, color: Colors.blue),
-                        const SizedBox(width: 2),
+                      children: const [
+                        Icon(Icons.star, size: 12, color: Colors.blue),
+                        SizedBox(width: 2),
                         Text(
                           'ضيف متكرر',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -352,9 +313,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // تفاصيل الاتصال
             Row(
               children: [
@@ -367,57 +328,79 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   ),
               ],
             ),
-            
+
             const SizedBox(height: 8),
-            
+
+            if (latestBooking != null) ...[
+              _buildPricePreview(latestBooking, roomPrices),
+              const SizedBox(height: 8),
+            ],
+
             // إحصائيات الحجوزات
             Row(
               children: [
                 Expanded(
-                  child: _buildDetailRow('إجمالي الحجوزات', guest.bookings.length.toString(), Icons.book),
+                  child: _buildDetailRow(
+                    'إجمالي الحجوزات',
+                    guest.bookings.length.toString(),
+                    Icons.book,
+                  ),
                 ),
                 Expanded(
-                  child: _buildDetailRow('حجوزات نشطة', activeBookings.toString(), Icons.event_available),
+                  child: _buildDetailRow(
+                    'حجوزات نشطة',
+                    activeBookings.toString(),
+                    Icons.event_available,
+                  ),
                 ),
                 Expanded(
-                  child: _buildDetailRow('آخر زيارة', _formatDate(lastVisit), Icons.calendar_today),
+                  child: _buildDetailRow(
+                    'آخر زيارة',
+                    _formatDate(lastVisit),
+                    Icons.calendar_today,
+                  ),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
-            // أزرار العمليات
+
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _showGuestHistory(context, guest),
-                    icon: const Icon(Icons.history, size: 16),
-                    label: const Text('تاريخ الحجوزات'),
+                    icon: const Icon(Icons.history, size: 14),
+                    label: const Text('السجل', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _editGuest(context, guest),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('تعديل البيانات'),
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: const Text('تعديل', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
+                const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: const Text('حذف الضيف وجميع البيانات'),
+                    icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
+                    label: const Text('حذف', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(0, 32),
                     ),
                   ),
                 ),
@@ -444,7 +427,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               ),
               Text(
                 value,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -452,6 +438,21 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPricePreview(
+    Booking booking,
+    Map<String, double> roomPrices,
+  ) {
+    final basePrice = roomPrices[booking.roomNumber];
+    if (basePrice == null) {
+      return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
+    }
+    return _buildDetailRow(
+      'سعر الغرفة',
+      basePrice.toStringAsFixed(2),
+      Icons.hotel_class,
     );
   }
 
@@ -482,7 +483,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: StatusUtils.isActiveBooking(booking.status) ? Colors.green : Colors.blue,
+                      backgroundColor:
+                          StatusUtils.isActiveBooking(booking.status)
+                          ? Colors.green
+                          : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),
@@ -527,11 +531,28 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               if (guest.email.isNotEmpty) _buildInfoRow('البريد:', guest.email),
               _buildInfoRow('الجنسية:', guest.nationality),
               const Divider(),
-              _buildInfoRow('إجمالي الحجوزات:', guest.bookings.length.toString()),
-              _buildInfoRow('الحجوزات النشطة:', guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length.toString()),
-              _buildInfoRow('آخر زيارة:', _formatDate(guest.bookings.first.checkinDate)),
+              _buildInfoRow(
+                'إجمالي الحجوزات:',
+                guest.bookings.length.toString(),
+              ),
+              _buildInfoRow(
+                'الحجوزات النشطة:',
+                guest.bookings
+                    .where((b) => StatusUtils.isActiveBooking(b.status))
+                    .length
+                    .toString(),
+              ),
+              _buildInfoRow(
+                'آخر زيارة:',
+                guest.bookings.isNotEmpty
+                    ? _formatDate(guest.bookings.first.checkinDate)
+                    : '-',
+              ),
               if (guest.bookings.length > 1)
-                _buildInfoRow('أول زيارة:', _formatDate(guest.bookings.last.checkinDate)),
+                _buildInfoRow(
+                  'أول زيارة:',
+                  _formatDate(guest.bookings.last.checkinDate),
+                ),
             ],
           ),
           actions: [
@@ -547,29 +568,38 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => GuestEditScreen(guest: guest),
-      ),
+      MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
     );
     if (result == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تحديث بيانات الضيف')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 
   Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
-    final active = guest.bookings.where((b) => StatusUtils.isActiveBooking(b.status)).length;
+    final active = guest.bookings
+        .where((b) => StatusUtils.isActiveBooking(b.status))
+        .length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تأكيد حذف الضيف وكل البيانات المرتبطة'),
-          content: Text('سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟'),
+          content: Text(
+            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red)),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('حذف'),
+            ),
           ],
         ),
       ),
@@ -601,7 +631,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           await paymentsRepo.delete(p.id);
         }
         // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
-        final relatedCash = await cashRepo.listByReference(referenceType: 'booking', referenceId: bookingId);
+        final relatedCash = await cashRepo.listByReference(
+          referenceType: 'booking',
+          referenceId: bookingId,
+        );
         for (final tx in relatedCash) {
           await cashRepo.delete(tx.id);
         }
@@ -622,10 +655,14 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 

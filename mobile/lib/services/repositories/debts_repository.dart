@@ -10,13 +10,17 @@ class DebtsRepository {
   final AppDatabase db;
   final DebtsDao dao;
 
-  Stream<List<Debt>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
+  Stream<List<Debt>> watchAll({bool includeDeleted = false}) =>
+      dao.watchList(includeDeleted: includeDeleted);
 
   Stream<Debt?> watchOne(int id) => dao.watchById(id);
 
   Future<Debt?> getOne(int id) => dao.getById(id);
 
-  Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false}) =>
+  Future<List<Debt>> listByBookingLocalId(
+    int bookingLocalId, {
+    bool includeDeleted = false,
+  }) =>
       dao.listByBookingLocalId(bookingLocalId, includeDeleted: includeDeleted);
 
   Future<int> create({
@@ -34,7 +38,9 @@ class DebtsRepository {
     String? pledgeType,
     String? note,
   }) async {
-    final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();
+    final remaining = (totalAmount - paidAmount)
+        .clamp(0, double.infinity)
+        .toDouble();
     final settled = isSettled ?? (remaining <= 0 ? true : false);
     final result = await dao.insertOne(
       DebtsCompanion(
@@ -54,7 +60,11 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
-    AutoBackupManager.instance.onDataChange('debts', 'INSERT', recordData: {'guest_name': guestName});
+    AutoBackupManager.instance.onDataChange(
+      'debts',
+      'INSERT',
+      recordData: {'guest_name': guestName},
+    );
     return result;
   }
 
@@ -81,33 +91,69 @@ class DebtsRepository {
     }
     final newTotal = totalAmount ?? existing.totalAmount;
     final newPaid = paidAmount ?? existing.paidAmount;
-    final remaining = remainingAmount ?? (newTotal - newPaid).clamp(0, double.infinity).toDouble();
+    final remaining =
+        remainingAmount ??
+        (newTotal - newPaid).clamp(0, double.infinity).toDouble();
     final result = await dao.updateById(
       id,
       DebtsCompanion(
-        bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
-        guestName: guestName != null ? d.Value(guestName) : const d.Value.absent(),
-        checkinDate: checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
-        checkoutDate: checkoutDate != null ? d.Value(checkoutDate) : const d.Value.absent(),
-        dateRecorded: dateRecorded != null ? d.Value(dateRecorded) : const d.Value.absent(),
-        debtReason: debtReason != null ? d.Value(debtReason) : const d.Value.absent(),
-        totalAmount: totalAmount != null ? d.Value(totalAmount) : const d.Value.absent(),
-        paidAmount: paidAmount != null ? d.Value(paidAmount) : const d.Value.absent(),
+        bookingLocalId: bookingLocalId != null
+            ? d.Value(bookingLocalId)
+            : const d.Value.absent(),
+        guestName: guestName != null
+            ? d.Value(guestName)
+            : const d.Value.absent(),
+        checkinDate: checkinDate != null
+            ? d.Value(checkinDate)
+            : const d.Value.absent(),
+        checkoutDate: checkoutDate != null
+            ? d.Value(checkoutDate)
+            : const d.Value.absent(),
+        dateRecorded: dateRecorded != null
+            ? d.Value(dateRecorded)
+            : const d.Value.absent(),
+        debtReason: debtReason != null
+            ? d.Value(debtReason)
+            : const d.Value.absent(),
+        totalAmount: totalAmount != null
+            ? d.Value(totalAmount)
+            : const d.Value.absent(),
+        paidAmount: paidAmount != null
+            ? d.Value(paidAmount)
+            : const d.Value.absent(),
         remainingAmount: d.Value(remaining),
-        paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
-        isSettled: isSettled != null ? d.Value(isSettled) : const d.Value.absent(),
+        paymentDate: paymentDate != null
+            ? d.Value(paymentDate)
+            : const d.Value.absent(),
+        isSettled: isSettled != null
+            ? d.Value(isSettled)
+            : const d.Value.absent(),
         pledge: pledge != null ? d.Value(pledge) : const d.Value.absent(),
-        pledgeType: pledgeType != null ? d.Value(pledgeType) : const d.Value.absent(),
+        pledgeType: pledgeType != null
+            ? d.Value(pledgeType)
+            : const d.Value.absent(),
         note: note != null ? d.Value(note) : const d.Value.absent(),
       ),
     );
-    if (result > 0) AutoBackupManager.instance.onDataChange('debts', 'UPDATE', recordData: {'id': id});
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange(
+        'debts',
+        'UPDATE',
+        recordData: {'id': id},
+      );
+    }
     return result;
   }
 
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
-    if (result > 0) AutoBackupManager.instance.onDataChange('debts', 'DELETE', recordData: {'id': id});
+    if (result > 0) {
+      AutoBackupManager.instance.onDataChange(
+        'debts',
+        'DELETE',
+        recordData: {'id': id},
+      );
+    }
     return result;
   }
 
@@ -116,11 +162,7 @@ class DebtsRepository {
   Future<Map<String, dynamic>> exportData({bool includeDeleted = false}) async {
     final data = await dao.exportToJson(includeDeleted: includeDeleted);
     final count = await dao.getRecordCount();
-    return {
-      'entity': 'debts',
-      'count': count,
-      'data': data,
-    };
+    return {'entity': 'debts', 'count': count, 'data': data};
   }
 
   Future<void> importData(Map<String, dynamic> payload) async {

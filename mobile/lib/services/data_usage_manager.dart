@@ -42,19 +42,19 @@ class DataUsageManager {
   /// تحميل البيانات المحفوظة
   Future<void> _loadStoredData() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // تحميل الاستخدام اليومي
     _todayUsageMB = prefs.getDouble(_keyTodayUsage) ?? 0.0;
-    
+
     // تحميل تاريخ آخر إعادة تعيين
     final lastResetString = prefs.getString(_keyLastResetDate);
     if (lastResetString != null) {
       _lastResetDate = DateTime.tryParse(lastResetString);
     }
-    
+
     // تحميل عدد الفشل المتتالي
     _consecutiveFailures = prefs.getInt(_keyConsecutiveFailures) ?? 0;
-    
+
     // التحقق من الحاجة لإعادة التعيين اليومي
     await _checkDailyReset();
   }
@@ -62,11 +62,11 @@ class DataUsageManager {
   /// إعداد إعادة التعيين اليومي
   void _setupDailyReset() {
     _resetTimer?.cancel();
-    
+
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
     final timeUntilMidnight = tomorrow.difference(now);
-    
+
     _resetTimer = Timer(timeUntilMidnight, () async {
       await _performDailyReset();
       _setupDailyReset(); // إعداد المؤقت للغد
@@ -76,10 +76,10 @@ class DataUsageManager {
   /// التحقق من الحاجة لإعادة التعيين اليومي
   Future<void> _checkDailyReset() async {
     final now = DateTime.now();
-    
-    if (_lastResetDate == null || 
-        _lastResetDate!.day != now.day || 
-        _lastResetDate!.month != now.month || 
+
+    if (_lastResetDate == null ||
+        _lastResetDate!.day != now.day ||
+        _lastResetDate!.month != now.month ||
         _lastResetDate!.year != now.year) {
       await _performDailyReset();
     }
@@ -90,11 +90,14 @@ class DataUsageManager {
     try {
       _todayUsageMB = 0.0;
       _lastResetDate = DateTime.now();
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
-      await prefs.setString(_keyLastResetDate, _lastResetDate!.toIso8601String());
-      
+      await prefs.setString(
+        _keyLastResetDate,
+        _lastResetDate!.toIso8601String(),
+      );
+
       debugPrint('🔄 تم إعادة تعيين الاستخدام اليومي للبيانات');
     } catch (e) {
       debugPrint('❌ خطأ في إعادة التعيين اليومي: $e');
@@ -105,11 +108,13 @@ class DataUsageManager {
   Future<void> addUsage(double megabytes) async {
     try {
       _todayUsageMB += megabytes;
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
-      
-      debugPrint('📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي');
+
+      debugPrint(
+        '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',
+      );
     } catch (e) {
       debugPrint('❌ خطأ في إضافة استخدام البيانات: $e');
     }
@@ -119,10 +124,10 @@ class DataUsageManager {
   Future<void> recordFailure() async {
     try {
       _consecutiveFailures++;
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
-      
+
       debugPrint('⚠️ تم تسجيل فشل متتالي: $_consecutiveFailures');
     } catch (e) {
       debugPrint('❌ خطأ في تسجيل الفشل: $e');
@@ -133,10 +138,10 @@ class DataUsageManager {
   Future<void> resetFailureCount() async {
     try {
       _consecutiveFailures = 0;
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
-      
+
       debugPrint('✅ تم إعادة تعيين عداد الفشل المتتالي');
     } catch (e) {
       debugPrint('❌ خطأ في إعادة تعيين عداد الفشل: $e');
@@ -148,21 +153,21 @@ class DataUsageManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       final dailyLimitMB = prefs.getInt(_keyDailyLimit) ?? 200;
-      
+
       // حساب النسبة المئوية للاستخدام
-      final usagePercentage = dailyLimitMB > 0 
+      final usagePercentage = dailyLimitMB > 0
           ? (_todayUsageMB / dailyLimitMB * 100).clamp(0.0, 100.0)
           : 0.0;
-      
+
       // التحقق من تجاوز الحد
       final isLimitExceeded = _todayUsageMB > dailyLimitMB;
-      
+
       // الحصول على نوع الاتصال
       final connectionType = await _getConnectionType();
-      
+
       // التحقق من حالة البطارية
       final isBatteryLow = await _isBatteryLow();
-      
+
       return {
         'used_mb': double.parse(_todayUsageMB.toStringAsFixed(1)),
         'limit_mb': dailyLimitMB,
@@ -174,7 +179,7 @@ class DataUsageManager {
       };
     } catch (e) {
       debugPrint('❌ خطأ في الحصول على إحصائيات الاستخدام: $e');
-      
+
       // إرجاع قيم افتراضية في حالة الخطأ
       return {
         'used_mb': 0.0,
@@ -193,9 +198,9 @@ class DataUsageManager {
     try {
       final connectivity = Connectivity();
       final results = await connectivity.checkConnectivity();
-      
+
       if (results.isEmpty) return 'No Connection';
-      
+
       // ترتيب الأولوية في عرض نوع الاتصال
       if (results.contains(ConnectivityResult.wifi)) {
         return 'WiFi';
@@ -223,7 +228,7 @@ class DataUsageManager {
     try {
       final battery = Battery();
       final batteryLevel = await battery.batteryLevel;
-      
+
       // نعتبر البطارية منخفضة إذا كانت أقل من 20%
       return batteryLevel < 20;
     } catch (e) {
@@ -265,7 +270,9 @@ class DataUsageManager {
   /// تسجيل استخدام البيانات بالميجابايت (مطلوب لـ SmartSyncManager)
   Future<void> recordDataUsage(double megabytes) async {
     await addUsage(megabytes);
-    debugPrint('📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB');
+    debugPrint(
+      '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB',
+    );
   }
 
   /// التحقق من تجاوز حد البيانات اليومي (مطلوب لـ SmartSyncManager)

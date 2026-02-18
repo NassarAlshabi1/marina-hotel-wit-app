@@ -10,12 +10,15 @@ import '../services/repositories/debts_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
+import '../services/diagnostics/diagnostics_logger.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
@@ -24,22 +27,57 @@ export '../providers/auto_backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
 
-final syncGuardianProvider = Provider<SyncGuardian>((ref) => SyncGuardian.instance);
-final syncHealthProvider = StreamProvider<SyncHealthSnapshot>((ref) => ref.watch(syncGuardianProvider).watchHealth());
+final syncGuardianProvider = Provider<SyncGuardian>(
+  (ref) => SyncGuardian.instance,
+);
+final syncHealthProvider = StreamProvider<SyncHealthSnapshot>(
+  (ref) => ref.watch(syncGuardianProvider).watchHealth(),
+);
 
-final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
+final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
+  (ref) => DiagnosticsLogger.instance,
+);
 
-final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));
-final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.read(databaseProvider)));
-final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.read(databaseProvider)));
-final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.read(databaseProvider)));
-final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
-final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
-final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
-final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
-final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>((ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)));
-final simpleNotesRepoProvider = Provider<SimpleNotesRepository>((ref) => SimpleNotesRepository(ref.read(databaseProvider)));
-final shiftNotesRepoProvider = Provider<ShiftNotesRepository>((ref) => ShiftNotesRepository(ref.read(databaseProvider)));
+final databaseProvider = Provider<AppDatabase>(
+  (ref) => DatabaseManager.instance,
+);
+
+final roomsRepoProvider = Provider<RoomsRepository>(
+  (ref) => RoomsRepository(ref.read(databaseProvider)),
+);
+final bookingsRepoProvider = Provider<BookingsRepository>(
+  (ref) => BookingsRepository(ref.read(databaseProvider)),
+);
+final employeesRepoProvider = Provider<EmployeesRepository>(
+  (ref) => EmployeesRepository(ref.read(databaseProvider)),
+);
+final expensesRepoProvider = Provider<ExpensesRepository>(
+  (ref) => ExpensesRepository(ref.read(databaseProvider)),
+);
+final cashRepoProvider = Provider<CashRepository>(
+  (ref) => CashRepository(ref.read(databaseProvider)),
+);
+final paymentsRepoProvider = Provider<PaymentsRepository>(
+  (ref) => PaymentsRepository(ref.read(databaseProvider)),
+);
+final debtsRepoProvider = Provider<DebtsRepository>(
+  (ref) => DebtsRepository(ref.read(databaseProvider)),
+);
+final notesRepoProvider = Provider<NotesRepository>(
+  (ref) => NotesRepository(ref.read(databaseProvider)),
+);
+final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
+  (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
+);
+final simpleNotesRepoProvider = Provider<SimpleNotesRepository>(
+  (ref) => SimpleNotesRepository(ref.read(databaseProvider)),
+);
+final shiftNotesRepoProvider = Provider<ShiftNotesRepository>(
+  (ref) => ShiftNotesRepository(ref.read(databaseProvider)),
+);
+final blacklistRepoProvider = Provider<BlacklistRepository>(
+  (ref) => BlacklistRepository(ref.read(databaseProvider)),
+);
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) => WhatsAppService(
     baseUrl: 'https://7103.api.greenapi.com',
@@ -48,25 +86,55 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
   ),
 );
 
-final roomsListProvider = StreamProvider.autoDispose((ref) => ref.watch(roomsRepoProvider).watchAll());
-final availableRoomsProvider = StreamProvider.autoDispose((ref) =>
-    ref.watch(roomsRepoProvider).watchAll().map((rooms) => rooms.where((room) => StatusUtils.isRoomAvailable(room.status)).toList()));
+final roomsListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(roomsRepoProvider).watchAll(),
+);
+final availableRoomsProvider = StreamProvider.autoDispose(
+  (ref) => ref
+      .watch(roomsRepoProvider)
+      .watchAll()
+      .map(
+        (rooms) => rooms
+            .where((room) => StatusUtils.isRoomAvailable(room.status))
+            .toList(),
+      ),
+);
 
-final bookingsListProvider = StreamProvider.autoDispose((ref) => ref.watch(bookingsRepoProvider).watch());
-final activeNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(notesRepoProvider).listAllActive());
+final bookingsListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(bookingsRepoProvider).watch(),
+);
+final activeNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(notesRepoProvider).listAllActive(),
+);
 
 // Simple Notes Providers
-final simpleNotesListProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchAllNotes());
-final simpleNotesUnreadCountProvider = StreamProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).watchUnreadCount());
-final allSimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getAllNotes());
-final unreadSimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getUnreadNotes());
-final highPrioritySimpleNotesProvider = FutureProvider.autoDispose((ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes());
+final simpleNotesListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).watchAllNotes(),
+);
+final simpleNotesUnreadCountProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).watchUnreadCount(),
+);
+final allSimpleNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).getAllNotes(),
+);
+final unreadSimpleNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).getUnreadNotes(),
+);
+final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes(),
+);
 
-final employeesListProvider = StreamProvider.autoDispose((ref) => ref.watch(employeesRepoProvider).watchAll());
+final employeesListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(employeesRepoProvider).watchAll(),
+);
 
-final expensesListProvider = StreamProvider.autoDispose((ref) => ref.watch(expensesRepoProvider).watchAll());
+final expensesListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(expensesRepoProvider).watchAll(),
+);
 
-final cashTransactionsListProvider = StreamProvider.autoDispose((ref) => ref.watch(cashRepoProvider).watchAll());
+final cashTransactionsListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(cashRepoProvider).watchAll(),
+);
 
 // Users count based on AuthLocalStore (fixed accounts + saved users)
 final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
@@ -76,23 +144,37 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 
 // Daily Statistics Providers
 final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
-  final today = DateTime.now();
-  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-  return ref.watch(paymentsRepoProvider).getTotalByDate(todayStr);
+  final hotelDay = Time.hotelDayKey();
+  return ref.watch(paymentsRepoProvider).getTotalByHotelDayKey(hotelDay);
 });
 
 final todayExpensesProvider = FutureProvider.autoDispose((ref) {
-  final today = DateTime.now();
-  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-  return ref.watch(expensesRepoProvider).getTotalByDate(todayStr);
+  final hotelDay = Time.hotelDayKey();
+  return ref.watch(expensesRepoProvider).getTotalByHotelDayKey(hotelDay);
 });
-final debtsListProvider = StreamProvider.autoDispose((ref) => ref.watch(debtsRepoProvider).watchAll());
-final pendingDebtsProvider = StreamProvider.autoDispose((ref) => 
-  ref.watch(debtsRepoProvider).watchAll().map((debts) => 
-    debts.where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0).toList()));
-final settledDebtsProvider = StreamProvider.autoDispose((ref) => 
-  ref.watch(debtsRepoProvider).watchAll().map((debts) => 
-    debts.where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0).toList()));
+final debtsListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(debtsRepoProvider).watchAll(),
+);
+final pendingDebtsProvider = StreamProvider.autoDispose(
+  (ref) => ref
+      .watch(debtsRepoProvider)
+      .watchAll()
+      .map(
+        (debts) => debts
+            .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
+            .toList(),
+      ),
+);
+final settledDebtsProvider = StreamProvider.autoDispose(
+  (ref) => ref
+      .watch(debtsRepoProvider)
+      .watchAll()
+      .map(
+        (debts) => debts
+            .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
+            .toList(),
+      ),
+);
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;

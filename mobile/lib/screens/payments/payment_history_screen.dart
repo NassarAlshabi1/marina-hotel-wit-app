@@ -13,7 +13,8 @@ class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({super.key, this.bookingId});
 
   @override
-  ConsumerState<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
+  ConsumerState<PaymentHistoryScreen> createState() =>
+      _PaymentHistoryScreenState();
 }
 
 class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
@@ -37,10 +38,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           icon: const Icon(Icons.filter_list),
           onPressed: _showFilterDialog,
         ),
-        IconButton(
-          icon: const Icon(Icons.clear),
-          onPressed: _clearFilters,
-        ),
+        IconButton(icon: const Icon(Icons.clear), onPressed: _clearFilters),
       ],
       body: Column(
         children: [
@@ -49,21 +47,32 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             child: widget.bookingId == null
                 ? _buildPaymentsList(paymentsRepo.watchAll())
                 : StreamBuilder<Booking?>(
-                    stream: (database.select(database.bookings)
-                          ..where((t) => t.localUuid.equals(widget.bookingId!)))
-                        .watchSingleOrNull(),
+                    stream:
+                        (database.select(database.bookings)..where(
+                              (t) => t.localUuid.equals(widget.bookingId!),
+                            ))
+                            .watchSingleOrNull(),
                     builder: (context, bookingSnap) {
-                      if (bookingSnap.connectionState == ConnectionState.waiting) {
+                      if (bookingSnap.connectionState ==
+                          ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (bookingSnap.hasError) {
-                        return Center(child: Text('خطأ في جلب بيانات الحجز: ${bookingSnap.error}'));
+                        return Center(
+                          child: Text(
+                            'خطأ في جلب بيانات الحجز: ${bookingSnap.error}',
+                          ),
+                        );
                       }
                       final booking = bookingSnap.data;
                       if (booking == null) {
-                        return const Center(child: Text('لم يتم العثور على الحجز'));
+                        return const Center(
+                          child: Text('لم يتم العثور على الحجز'),
+                        );
                       }
-                      return _buildPaymentsList(paymentsRepo.paymentsByBooking(booking.id));
+                      return _buildPaymentsList(
+                        paymentsRepo.paymentsByBooking(booking.id),
+                      );
                     },
                   ),
           ),
@@ -85,11 +94,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red.shade300,
-                ),
+                Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
                 const SizedBox(height: 16),
                 Text(
                   'حدث خطأ في تحميل البيانات',
@@ -112,18 +117,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.payment_outlined,
-                  size: 64,
-                  color: Colors.grey,
-                ),
+                Icon(Icons.payment_outlined, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
                 Text(
                   'لا توجد مدفوعات مسجلة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
                 SizedBox(height: 8),
                 Text(
@@ -143,18 +141,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.filter_list_off,
-                  size: 64,
-                  color: Colors.grey,
-                ),
+                Icon(Icons.filter_list_off, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
                 Text(
                   'لا توجد مدفوعات تطابق الفلاتر المحددة',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 SizedBox(height: 8),
                 Text(
@@ -187,10 +178,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 children: [
                   const Text(
                     'إجمالي المدفوعات',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -204,10 +192,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'عدد المدفوعات: ${payments.length}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -224,7 +209,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _getPaymentMethodColor(payment.paymentMethod).withOpacity(0.2),
+                          color: _getPaymentMethodColor(
+                            payment.paymentMethod,
+                          ).withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -236,7 +223,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         CurrencyFormatter.formatAmount(payment.amount),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 12,
                         ),
                       ),
                       subtitle: Column(
@@ -245,37 +232,63 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.payment, size: 16, color: Colors.grey.shade600),
+                              Icon(
+                                Icons.payment,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 payment.paymentMethod,
-                                style: TextStyle(color: Colors.grey.shade700),
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 10,
+                                ),
                               ),
                               const SizedBox(width: 12),
-                              Icon(Icons.category, size: 16, color: Colors.grey.shade600),
+                              Icon(
+                                Icons.category,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 _getRevenueTypeLabel(payment.revenueType),
-                                style: TextStyle(color: Colors.grey.shade700),
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                              Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 payment.paymentDate,
-                                style: TextStyle(color: Colors.grey.shade700),
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ),
-                          if (payment.notes != null && payment.notes!.isNotEmpty) ...[
+                          if (payment.notes != null &&
+                              payment.notes!.isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                Icon(Icons.note, size: 16, color: Colors.grey.shade600),
+                                Icon(
+                                  Icons.note,
+                                  size: 16,
+                                  color: Colors.grey.shade600,
+                                ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
@@ -324,7 +337,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
         children: [
           if (_selectedRevenueType != null)
             Chip(
-              label: Text('النوع: ${_getRevenueTypeLabel(_selectedRevenueType!)}'),
+              label: Text(
+                'النوع: ${_getRevenueTypeLabel(_selectedRevenueType!)}',
+              ),
               onDeleted: () => setState(() => _selectedRevenueType = null),
             ),
           if (_selectedPaymentMethod != null)
@@ -349,11 +364,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
 
   List<Payment> _applyFilters(List<Payment> payments) {
     return payments.where((payment) {
-      if (_selectedRevenueType != null && payment.revenueType != _selectedRevenueType) {
+      if (_selectedRevenueType != null &&
+          payment.revenueType != _selectedRevenueType) {
         return false;
       }
 
-      if (_selectedPaymentMethod != null && payment.paymentMethod != _selectedPaymentMethod) {
+      if (_selectedPaymentMethod != null &&
+          payment.paymentMethod != _selectedPaymentMethod) {
         return false;
       }
 
@@ -392,13 +409,19 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('جميع الأنواع')),
-                      ..._revenueTypes.map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(_getRevenueTypeLabel(type)),
-                          )),
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text('جميع الأنواع'),
+                      ),
+                      ..._revenueTypes.map(
+                        (type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(_getRevenueTypeLabel(type)),
+                        ),
+                      ),
                     ],
-                    onChanged: (value) => setDialogState(() => _selectedRevenueType = value),
+                    onChanged: (value) =>
+                        setDialogState(() => _selectedRevenueType = value),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -408,18 +431,28 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('جميع الطرق')),
-                      ..._paymentMethods.map((method) => DropdownMenuItem(
-                            value: method,
-                            child: Text(method),
-                          )),
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text('جميع الطرق'),
+                      ),
+                      ..._paymentMethods.map(
+                        (method) => DropdownMenuItem(
+                          value: method,
+                          child: Text(method),
+                        ),
+                      ),
                     ],
-                    onChanged: (value) => setDialogState(() => _selectedPaymentMethod = value),
+                    onChanged: (value) =>
+                        setDialogState(() => _selectedPaymentMethod = value),
                   ),
                   const SizedBox(height: 16),
                   ListTile(
                     title: const Text('من تاريخ'),
-                    subtitle: Text(_fromDate != null ? Time.dateToString(_fromDate!) : 'غير محدد'),
+                    subtitle: Text(
+                      _fromDate != null
+                          ? Time.dateToString(_fromDate!)
+                          : 'غير محدد',
+                    ),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final date = await showDatePicker(
@@ -435,7 +468,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   ListTile(
                     title: const Text('إلى تاريخ'),
-                    subtitle: Text(_toDate != null ? Time.dateToString(_toDate!) : 'غير محدد'),
+                    subtitle: Text(
+                      _toDate != null
+                          ? Time.dateToString(_toDate!)
+                          : 'غير محدد',
+                    ),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final date = await showDatePicker(
@@ -491,9 +528,15 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('المبلغ', CurrencyFormatter.formatAmount(payment.amount)),
+              _buildDetailRow(
+                'المبلغ',
+                CurrencyFormatter.formatAmount(payment.amount),
+              ),
               _buildDetailRow('طريقة الدفع', payment.paymentMethod),
-              _buildDetailRow('نوع الإيراد', _getRevenueTypeLabel(payment.revenueType)),
+              _buildDetailRow(
+                'نوع الإيراد',
+                _getRevenueTypeLabel(payment.revenueType),
+              ),
               _buildDetailRow('التاريخ', payment.paymentDate),
               if (payment.roomNumber != null)
                 _buildDetailRow('رقم الغرفة', payment.roomNumber!),
@@ -524,9 +567,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );

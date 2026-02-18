@@ -9,7 +9,7 @@ class ShiftNoteAdapter {
   static Map<String, dynamic> toBookingNoteData(ShiftNote note) {
     // تحويل الأولوية والنوبة إلى نص alertType
     final alertType = _encodeAlertType(note.priority, note.shiftType);
-    
+
     return {
       'booking_id': GENERAL_NOTES_BOOKING_ID,
       'note_text': '${note.title}|||${note.content}', // استخدام ||| كفاصل
@@ -25,10 +25,10 @@ class ShiftNoteAdapter {
     final parts = bookingNote.noteText.split('|||');
     final title = parts.length >= 1 ? parts[0] : 'ملاحظة';
     final content = parts.length >= 2 ? parts[1] : bookingNote.noteText;
-    
+
     // فك تشفير الأولوية والنوبة
     final (priority, shiftType) = _decodeAlertType(bookingNote.alertType);
-    
+
     return ShiftNote(
       id: bookingNote.id.toString(),
       title: title,
@@ -36,21 +36,31 @@ class ShiftNoteAdapter {
       priority: priority,
       shiftType: shiftType,
       createdAt: DateTime.fromMillisecondsSinceEpoch(bookingNote.createdAt),
-      expiresAt: bookingNote.alertUntil != null ? 
-          DateTime.tryParse(bookingNote.alertUntil!) : null,
+      expiresAt: bookingNote.alertUntil != null
+          ? DateTime.tryParse(bookingNote.alertUntil!)
+          : null,
       isRead: bookingNote.isActive == 0, // عكس المنطق
-      status: bookingNote.isActive == 1 ? NoteStatus.active : NoteStatus.completed,
+      status: bookingNote.isActive == 1
+          ? NoteStatus.active
+          : NoteStatus.completed,
       createdBy: 'user', // قيمة افتراضية
     );
   }
 
   /// ترميز الأولوية ونوع النوبة في نص واحد
   static String _encodeAlertType(NotePriority priority, ShiftType shiftType) {
-    final priorityCode = priority == NotePriority.high ? 'H' : 
-                        priority == NotePriority.medium ? 'M' : 'L';
-    final shiftCode = shiftType == ShiftType.morning ? 'MOR' :
-                     shiftType == ShiftType.evening ? 'EVE' :
-                     shiftType == ShiftType.night ? 'NIG' : 'ALL';
+    final priorityCode = priority == NotePriority.high
+        ? 'H'
+        : priority == NotePriority.medium
+        ? 'M'
+        : 'L';
+    final shiftCode = shiftType == ShiftType.morning
+        ? 'MOR'
+        : shiftType == ShiftType.evening
+        ? 'EVE'
+        : shiftType == ShiftType.night
+        ? 'NIG'
+        : 'ALL';
     return '$priorityCode-$shiftCode';
   }
 
@@ -59,17 +69,24 @@ class ShiftNoteAdapter {
     try {
       final parts = alertType.split('-');
       if (parts.length != 2) return (NotePriority.medium, ShiftType.all);
-      
+
       final priorityCode = parts[0];
       final shiftCode = parts[1];
-      
-      final priority = priorityCode == 'H' ? NotePriority.high :
-                      priorityCode == 'M' ? NotePriority.medium : NotePriority.low;
-      
-      final shiftType = shiftCode == 'MOR' ? ShiftType.morning :
-                       shiftCode == 'EVE' ? ShiftType.evening :
-                       shiftCode == 'NIG' ? ShiftType.night : ShiftType.all;
-      
+
+      final priority = priorityCode == 'H'
+          ? NotePriority.high
+          : priorityCode == 'M'
+          ? NotePriority.medium
+          : NotePriority.low;
+
+      final shiftType = shiftCode == 'MOR'
+          ? ShiftType.morning
+          : shiftCode == 'EVE'
+          ? ShiftType.evening
+          : shiftCode == 'NIG'
+          ? ShiftType.night
+          : ShiftType.all;
+
       return (priority, shiftType);
     } catch (e) {
       return (NotePriority.medium, ShiftType.all);
@@ -115,5 +132,7 @@ class ShiftNote {
 }
 
 enum NotePriority { high, medium, low }
+
 enum ShiftType { morning, evening, night, all }
+
 enum NoteStatus { active, completed, expired }

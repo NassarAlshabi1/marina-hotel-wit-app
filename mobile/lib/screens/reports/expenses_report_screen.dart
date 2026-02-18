@@ -10,6 +10,8 @@ import 'package:printing/printing.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../services/daos/expenses_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
@@ -36,13 +38,15 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
   final String totalRowLabel;
 
   @override
-  ConsumerState<ExpensesReportScreen> createState() => _ExpensesReportScreenState();
+  ConsumerState<ExpensesReportScreen> createState() =>
+      _ExpensesReportScreenState();
 }
 
 class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
-  String _formatNumber(num value) => value.toStringAsFixed(0);
+  // ignore: unused_element
+  String _formatNumber(num value) => _currencyFmt.format(value);
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
 
   DateTime? _fromDate;
@@ -68,7 +72,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30));
+    _fromDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -76,7 +84,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         _availableTypes
           ..clear()
           ..addAll(widget.allowedTypes!.toList());
-        _selectedType = widget.showTypeFilter ? (widget.initialType ?? widget.allowedTypes!.first) : null;
+        _selectedType = widget.showTypeFilter
+            ? (widget.initialType ?? widget.allowedTypes!.first)
+            : null;
       });
     } else {
       await _loadExpenseTypes();
@@ -86,8 +96,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(coreProviders.dbProvider);
-    final query = await db.customSelect('SELECT DISTINCT expense_type FROM expenses').get();
-    final types = query.map((row) => row.data['expense_type'] as String).toList()..sort();
+    final query = await db
+        .customSelect('SELECT DISTINCT expense_type FROM expenses')
+        .get();
+    final types =
+        query.map((row) => row.data['expense_type'] as String).toList()..sort();
     setState(() {
       _availableTypes
         ..clear()
@@ -96,7 +109,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate = isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -138,48 +153,68 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final query = db.select(db.expenses);
-    if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
-      query.where((tbl) => tbl.expenseType.isIn(widget.allowedTypes!.toList()));
-    }
-    if (widget.showTypeFilter && _selectedType != null && _selectedType!.isNotEmpty) {
-      query.where((tbl) => tbl.expenseType.equals(_selectedType!));
-    }
+    final outboxDao = OutboxDao(db);
+    final expensesDao = ExpensesDao(db, outboxDao);
+    final fromStr = _fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+        : null;
+    final toStr = _toDate != null
+        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+        : null;
+    final selectedType =
+        widget.showTypeFilter &&
+            _selectedType != null &&
+            _selectedType!.isNotEmpty
+        ? _selectedType
+        : null;
 
-    final expenses = await query.get();
+    var expenses = await expensesDao.listFiltered(
+      from: fromStr,
+      to: toStr,
+      expenseType: selectedType,
+    );
+
+    if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
+      expenses = expenses
+          .where(
+            (expense) => widget.allowedTypes!.contains(expense.expenseType),
+          )
+          .toList();
+    }
 
     final employeeMap = <int, Employee>{};
     if (widget.includeEmployeeDetails) {
-      final employeeIds = expenses.map((e) => e.relatedId).whereType<int>().toSet();
+      final employeeIds = expenses
+          .map((e) => e.relatedId)
+          .whereType<int>()
+          .toSet();
       if (employeeIds.isNotEmpty) {
-        final employees = await (db.select(db.employees)..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
+        final employees = await (db.select(
+          db.employees,
+        )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
         for (final employee in employees) {
           employeeMap[employee.id] = employee;
         }
       }
     }
 
-    expenses.sort((a, b) => _parseExpenseDate(b.date).compareTo(_parseExpenseDate(a.date)));
-
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     for (final expense in expenses) {
-      final employee = expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
+      final employee = expense.relatedId != null
+          ? employeeMap[expense.relatedId!]
+          : null;
       final date = _parseExpenseDate(expense.date);
-      if (_fromDate != null && date.isBefore(_fromDate!)) {
-        continue;
-      }
-      if (_toDate != null && date.isAfter(_toDate!)) {
-        continue;
-      }
       totalAmount += expense.amount;
-      rows.add(_ExpenseReportRow(
-        date: date,
-        amount: expense.amount,
-        type: expense.expenseType,
-        description: expense.description,
-        employee: employee,
-      ));
+      rows.add(
+        _ExpenseReportRow(
+          date: date,
+          amount: expense.amount,
+          type: expense.expenseType,
+          description: expense.description,
+          employee: employee,
+        ),
+      );
     }
 
     return _ExpensesReportResult(rows: rows, totalAmount: totalAmount);
@@ -189,9 +224,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
-    final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
-    final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
-    final selectedTypeLabel = _selectedType?.isNotEmpty == true ? _selectedType! : 'الكل';
+    final fromLabel = _fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+        : 'غير محدد';
+    final toLabel = _toDate != null
+        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+        : 'غير محدد';
+    final selectedTypeLabel = _selectedType?.isNotEmpty == true
+        ? _selectedType!
+        : 'الكل';
 
     pw.Widget metaRow(String label, String value) {
       return pw.Padding(
@@ -200,7 +241,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+            pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+            ),
           ],
         ),
       );
@@ -216,7 +260,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       ],
     );
 
-    pw.Widget _buildReportHeader() {
+    pw.Widget buildReportHeader() {
       final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
       return pw.Container(
         width: double.infinity,
@@ -227,17 +271,29 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           children: [
             pw.Text(
               'فندق مارينا بلازا',
-              style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 22,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               widget.title,
-              style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               periodText,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
               textAlign: pw.TextAlign.center,
             ),
           ],
@@ -245,7 +301,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       );
     }
 
-    pw.Widget _buildTotalsSummary() {
+    pw.Widget buildTotalsSummary() {
       pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
         return pw.Container(
           padding: const pw.EdgeInsets.all(12),
@@ -289,9 +345,21 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         ),
         child: pw.Row(
           children: [
-            pw.Expanded(child: buildSummaryItem(widget.totalSummaryLabel, EnhancedPdfUtils.formatNumber(_totalAmount), PdfColors.secondary)),
+            pw.Expanded(
+              child: buildSummaryItem(
+                widget.totalSummaryLabel,
+                EnhancedPdfUtils.formatNumber(_totalAmount),
+                PdfColors.secondary,
+              ),
+            ),
             pw.SizedBox(width: 8),
-            pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+            pw.Expanded(
+              child: buildSummaryItem(
+                'عدد السجلات',
+                _rows.length.toString(),
+                PdfColors.info,
+              ),
+            ),
           ],
         ),
       );
@@ -339,7 +407,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           ),
         ),
         build: (context) => [
-          _buildReportHeader(),
+          buildReportHeader(),
           pw.SizedBox(height: 16),
           metaInfoCard,
           pw.SizedBox(height: 12),
@@ -351,12 +419,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             alternateRowColor: PdfColors.backgroundLight,
           ),
           pw.SizedBox(height: 12),
-          _buildTotalsSummary(),
+          buildTotalsSummary(),
         ],
       ),
     );
 
-    String _generateFileName(String title) {
+    String generateFileName(String title) {
       final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
       final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
       return '$sanitizedTitle-$timestamp.pdf';
@@ -364,7 +432,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     await Printing.sharePdf(
       bytes: await doc.save(),
-      filename: _generateFileName(widget.title),
+      filename: generateFileName(widget.title),
     );
   }
 
@@ -388,8 +456,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               spacing: 12,
               runSpacing: 12,
               children: [
-                _buildDateSelector(label: 'من تاريخ', value: _fromDate, onPressed: () => _pickDate(isFrom: true)),
-                _buildDateSelector(label: 'إلى تاريخ', value: _toDate, onPressed: () => _pickDate(isFrom: false)),
+                _buildDateSelector(
+                  label: 'من تاريخ',
+                  value: _fromDate,
+                  onPressed: () => _pickDate(isFrom: true),
+                ),
+                _buildDateSelector(
+                  label: 'إلى تاريخ',
+                  value: _toDate,
+                  onPressed: () => _pickDate(isFrom: false),
+                ),
                 if (widget.showTypeFilter)
                   SizedBox(
                     width: 220,
@@ -418,7 +494,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 ElevatedButton.icon(
                   onPressed: _loading ? null : _fetchReport,
                   icon: const Icon(Icons.search),
-                  label: _loading ? const Text('جارٍ التحميل...') : const Text('عرض النتائج'),
+                  label: _loading
+                      ? const Text('جارٍ التحميل...')
+                      : const Text('عرض النتائج'),
                 ),
               ],
             ),
@@ -429,47 +507,51 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
-                          icon: Icons.receipt_long,
-                        )
-                      : ListView.separated(
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final row = _rows[index];
-                            return Card(
-                              elevation: 1,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
+                      icon: Icons.receipt_long,
+                    )
+                  : ListView.separated(
+                      itemCount: _rows.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final row = _rows[index];
+                        return Card(
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _dateLabelFormat.format(row.date),
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                        ),
-                                        Text('${_currencyFmt.format(row.amount)}'),
-                                      ],
+                                    Text(
+                                      _dateLabelFormat.format(row.date),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text('النوع: ${row.type}'),
-                                    const SizedBox(height: 4),
-                                    Text('الوصف: ${row.description}'),
-                                    if (widget.includeEmployeeDetails && row.employee != null) ...[
-                                      const SizedBox(height: 4),
-                                      Text('الموظف: ${row.employee!.name}'),
-                                    ],
+                                    Text('${_currencyFmt.format(row.amount)}'),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                                const SizedBox(height: 8),
+                                Text('النوع: ${row.type}'),
+                                const SizedBox(height: 4),
+                                Text('الوصف: ${row.description}'),
+                                if (widget.includeEmployeeDetails &&
+                                    row.employee != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text('الموظف: ${row.employee!.name}'),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -484,8 +566,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryTile(widget.totalSummaryLabel, _currencyFmt.format(_totalAmount))),
-            Expanded(child: _buildSummaryTile('عدد السجلات', _rows.length.toString())),
+            Expanded(
+              child: _buildSummaryTile(
+                widget.totalSummaryLabel,
+                _currencyFmt.format(_totalAmount),
+              ),
+            ),
+            Expanded(
+              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
+            ),
           ],
         ),
       ),
@@ -503,22 +592,29 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
   }
 
-  Widget _buildDateSelector({required String label, required DateTime? value, required VoidCallback onPressed}) {
-    final text = value != null ? DateFormat('yyyy-MM-dd').format(value) : 'غير محدد';
-    return SizedBox(
-      width: 180,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.date_range),
-        label: Text('$label\n$text', textAlign: TextAlign.center),
+  Widget _buildDateSelector({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onPressed,
+  }) {
+    final text = value != null
+        ? DateFormat('yyyy-MM-dd').format(value)
+        : 'غير محدد';
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
+      child: Text('$label: $text', style: const TextStyle(fontSize: 12)),
     );
   }
 
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
     final hasTime = trimmed.length > 10;
-    final normalized = hasTime ? trimmed.replaceFirst(' ', 'T') : '${trimmed}T00:00:00';
+    final normalized = hasTime
+        ? trimmed.replaceFirst(' ', 'T')
+        : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
     } catch (_) {

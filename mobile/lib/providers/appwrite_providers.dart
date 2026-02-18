@@ -4,12 +4,10 @@ import '../services/appwrite_sync_manager.dart';
 import '../services/appwrite_cache_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
 import '../services/smart_sync_manager.dart';
-import '../services/local_db.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_error_handler.dart';
 import '../services/providers.dart';
 import '../services/daos/outbox_dao.dart';
-import '../services/local_db.dart';
 
 // ============ Service Providers ============
 
@@ -22,26 +20,31 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  final manager = AppwriteSyncManager(appwriteService: service, database: database);
-  
+  final manager = AppwriteSyncManager(
+    appwriteService: service,
+    database: database,
+  );
+
   ref.onDispose(() {
     manager.dispose();
   });
-  
+
   return manager;
 });
 
-final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
+  ref,
+) {
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
-  return UnifiedSyncOrchestrator(appwrite: appwriteSync, smart: smart, database: db);
+  final orch = UnifiedSyncOrchestrator.instance;
+  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
+  return orch;
 });
 
 final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
-  // Fire-and-forget initialization (idempotent)
-  orch.initialize();
   ref.onDispose(() => orch.dispose());
   return orch.stateStream;
 });
@@ -64,9 +67,10 @@ final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
 // ============ State Providers ============
 
 /// مزود حالة الاتصال
-final connectionStatusProvider = StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
-  return ConnectionStatusNotifier(ref);
-});
+final connectionStatusProvider =
+    StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
+      return ConnectionStatusNotifier(ref);
+    });
 
 class ConnectionState {
   final bool isConnected;
@@ -95,7 +99,8 @@ class ConnectionState {
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
   final Ref ref;
 
-  ConnectionStatusNotifier(this.ref) : super(ConnectionState(isConnected: false));
+  ConnectionStatusNotifier(this.ref)
+    : super(ConnectionState(isConnected: false));
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true, errorMessage: null);
@@ -108,7 +113,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
       final failureMessage = isConnected
           ? null
           : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
-      
+
       state = ConnectionState(
         isConnected: isConnected,
         isChecking: false,

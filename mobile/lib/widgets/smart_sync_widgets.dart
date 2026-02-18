@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/smart_sync_manager.dart';
 import '../providers/smart_sync_provider.dart';
+import '../providers/backup_provider.dart';
+import '../screens/settings/smart_sync_settings_screen.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
 class SmartSyncStatusWidget extends ConsumerWidget {
@@ -11,7 +12,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
-    
+
     return statusAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (error, stack) => const SizedBox.shrink(),
@@ -19,17 +20,19 @@ class SmartSyncStatusWidget extends ConsumerWidget {
         final isEnabled = status['enabled'] as bool;
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
-        
+
         if (!isEnabled || !isSignedIn) {
           return const SizedBox.shrink();
         }
-        
+
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isSyncing ? Colors.blue.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+            color: isSyncing
+                ? Colors.blue.withOpacity(0.1)
+                : Colors.green.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSyncing ? Colors.blue : Colors.green,
@@ -73,32 +76,34 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
   final Widget child;
 
-  const SmartSyncNotificationListener({
-    super.key,
-    required this.child,
-  });
+  const SmartSyncNotificationListener({super.key, required this.child});
 
   @override
-  ConsumerState<SmartSyncNotificationListener> createState() => _SmartSyncNotificationListenerState();
+  ConsumerState<SmartSyncNotificationListener> createState() =>
+      _SmartSyncNotificationListenerState();
 }
 
-class _SmartSyncNotificationListenerState extends ConsumerState<SmartSyncNotificationListener> {
+class _SmartSyncNotificationListenerState
+    extends ConsumerState<SmartSyncNotificationListener> {
   DateTime? _lastSyncTime;
-  
+
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider, (previous, next) {
+    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider, (
+      previous,
+      next,
+    ) {
       if (next.hasValue) {
         final status = next.value!;
         final lastSyncString = status['last_sync_check'] as String?;
-        
+
         if (lastSyncString != null) {
           final lastSync = DateTime.parse(lastSyncString);
-          
+
           // إذا كانت هناك مزامنة جديدة
           if (_lastSyncTime == null || lastSync.isAfter(_lastSyncTime!)) {
             _lastSyncTime = lastSync;
-            
+
             // عرض إشعار نجاح المزامنة
             if (mounted && _lastSyncTime != null) {
               _showSyncNotification(context, 'تمت مزامنة البيانات من جهاز آخر');
@@ -107,7 +112,7 @@ class _SmartSyncNotificationListenerState extends ConsumerState<SmartSyncNotific
         }
       }
     });
-    
+
     return widget.child;
   }
 
@@ -138,7 +143,7 @@ class SmartSyncFloatingButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
-    
+
     return statusAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (error, stack) => const SizedBox.shrink(),
@@ -146,48 +151,57 @@ class SmartSyncFloatingButton extends ConsumerWidget {
         final isEnabled = status['enabled'] as bool;
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
-        
+
         if (!isEnabled || !isSignedIn) {
           return const SizedBox.shrink();
         }
-        
-        return FloatingActionButton.small(
-          onPressed: isSyncing ? null : () async {
-            try {
-              final manager = ref.read(smartSyncManagerProvider);
-              await manager.forceSyncNow();
-              
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🔄 بدأت المزامنة اليدوية...'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('❌ خطأ في المزامنة: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          },
-          backgroundColor: isSyncing ? Colors.grey : Colors.blue,
-          child: isSyncing 
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+
+        Future<void> runManualSync() async {
+          try {
+            final manager = ref.read(smartSyncManagerProvider);
+            await manager.forceSyncNow();
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🔄 بدأت المزامنة اليدوية...'),
+                  duration: Duration(seconds: 2),
                 ),
-              )
-            : const Icon(Icons.sync, size: 20),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'تعذر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة',
+                  ),
+                  backgroundColor: Colors.red,
+                  action: SnackBarAction(
+                    label: 'إعادة',
+                    textColor: Colors.white,
+                    onPressed: runManualSync,
+                  ),
+                ),
+              );
+            }
+          }
+        }
+
+        return FloatingActionButton.small(
+          onPressed: isSyncing ? null : runManualSync,
+          backgroundColor: isSyncing ? Colors.grey : Colors.blue,
           tooltip: isSyncing ? 'مزامنة جارية...' : 'مزامنة يدوية',
+          child: isSyncing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.sync, size: 20),
         );
       },
     );
@@ -195,80 +209,117 @@ class SmartSyncFloatingButton extends ConsumerWidget {
 }
 
 /// Card مختصر لحالة المزامنة (للـ dashboard)
-class SmartSyncDashboardCard extends ConsumerWidget {
+/// إصلاح: تم تحويل من ConsumerWidget إلى ConsumerStatefulWidget
+/// لنقل addPostFrameCallback من build() إلى initState() - يتم تنفيذه مرة واحدة فقط
+class SmartSyncDashboardCard extends ConsumerStatefulWidget {
   const SmartSyncDashboardCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SmartSyncDashboardCard> createState() =>
+      _SmartSyncDashboardCardState();
+}
+
+class _SmartSyncDashboardCardState
+    extends ConsumerState<SmartSyncDashboardCard> {
+  @override
+  void initState() {
+    super.initState();
+    // التحقق من حالة تسجيل الدخول الفعلية مرة واحدة عند إنشاء الويدجت
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(backupStatusProvider.notifier).refreshSignInStatus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statusAsync = ref.watch(smartSyncStatusProvider);
-    
+
     return statusAsync.when(
-      loading: () => const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
+      loading: () =>
+          const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
       error: (error, stack) => const SizedBox.shrink(),
       data: (status) {
         final isEnabled = status['enabled'] as bool;
         final isSyncing = status['is_syncing'] as bool;
-        final syncInterval = status['sync_interval_minutes'] as int;
-        final lastSync = status['last_sync_check'] as String?;
         final isSignedIn = status['signed_in'] as bool;
-        
+
         if (!isSignedIn) return const SizedBox.shrink();
-        
+
         return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: isEnabled ? Colors.green : Colors.grey,
-              child: Icon(
-                isEnabled ? Icons.sync : Icons.sync_disabled,
-                color: Colors.white,
-                size: 20,
+          margin: EdgeInsets.zero,
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SmartSyncSettingsScreen(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isEnabled ? Colors.green : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isEnabled ? Icons.sync : Icons.sync_disabled,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'المزامنة بين الأجهزة',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          isSyncing
+                              ? 'جارِ المزامنة...'
+                              : isEnabled
+                              ? 'مُفعلة'
+                              : 'معطلة',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSyncing ? Colors.blue : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isEnabled && !isSyncing)
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.sync_alt, size: 18),
+                        onPressed: () async {
+                          final manager = ref.read(smartSyncManagerProvider);
+                          await manager.forceSyncNow();
+                        },
+                        tooltip: 'مزامنة الآن',
+                      ),
+                    ),
+                ],
               ),
             ),
-            title: Text(
-              'المزامنة بين الأجهزة',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(isEnabled ? 'مُفعلة - فحص كل $syncInterval دقائق' : 'معطلة'),
-                if (isSyncing)
-                  const Text('🔄 جارِ المزامنة...', style: TextStyle(color: Colors.blue)),
-                if (lastSync != null && !isSyncing)
-                  Text('آخر فحص: ${_formatLastSync(DateTime.parse(lastSync))}'),
-              ],
-            ),
-            trailing: isEnabled && !isSyncing 
-              ? IconButton(
-                  icon: const Icon(Icons.sync_alt),
-                  onPressed: () async {
-                    final manager = ref.read(smartSyncManagerProvider);
-                    await manager.forceSyncNow();
-                  },
-                  tooltip: 'مزامنة الآن',
-                )
-              : null,
-            onTap: () {
-              Navigator.pushNamed(context, '/smart-sync-settings');
-            },
           ),
         );
       },
     );
-  }
-
-  String _formatLastSync(DateTime lastSync) {
-    final now = DateTime.now();
-    final difference = now.difference(lastSync);
-    
-    if (difference.inMinutes < 1) {
-      return 'الآن';
-    } else if (difference.inMinutes < 60) {
-      return 'منذ ${difference.inMinutes} دقيقة';
-    } else if (difference.inHours < 24) {
-      return 'منذ ${difference.inHours} ساعة';
-    } else {
-      return 'منذ ${difference.inDays} يوم';
-    }
   }
 }

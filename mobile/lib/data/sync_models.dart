@@ -30,15 +30,7 @@ class SyncStatus {
 }
 
 /// المراحل العامة لدورة المزامنة
-enum SyncPhase {
-  idle,
-  preparing,
-  pushing,
-  pulling,
-  merging,
-  completing,
-  error,
-}
+enum SyncPhase { idle, preparing, pushing, pulling, merging, completing, error }
 
 /// بيانات التعريف المرافقة للملف الرئيسي في Google Drive
 class SyncMetadata {
@@ -87,19 +79,13 @@ class SyncMetadata {
 
 /// حاوية اللقطة الكاملة لجميع الجداول
 class SyncSnapshot {
-  SyncSnapshot({
-    required this.metadata,
-    required this.tables,
-  });
+  SyncSnapshot({required this.metadata, required this.tables});
 
   final SyncMetadata metadata;
   final Map<String, List<Map<String, dynamic>>> tables;
 
   Map<String, dynamic> toJson() {
-    return {
-      'metadata': metadata.toJson(),
-      'tables': tables,
-    };
+    return {'metadata': metadata.toJson(), 'tables': tables};
   }
 
   factory SyncSnapshot.fromJson(Map<String, dynamic> json) {
@@ -111,8 +97,12 @@ class SyncSnapshot {
           .toList();
       parsedTables[entry.key] = list;
     }
+    final metadataSource = json['metadata'];
+    final metadataJson = metadataSource is Map
+        ? Map<String, dynamic>.from(metadataSource)
+        : <String, dynamic>{};
     return SyncSnapshot(
-      metadata: SyncMetadata.fromJson(json['metadata'] as Map<String, dynamic>? ?? {}),
+      metadata: SyncMetadata.fromJson(metadataJson),
       tables: parsedTables,
     );
   }

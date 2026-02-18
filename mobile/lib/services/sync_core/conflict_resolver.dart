@@ -2,11 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:collection/collection.dart';
 
 /// استراتيجية حل التضارب
-enum ConflictStrategy {
-  newerWins,
-  devicePriority,
-  manualResolve,
-}
+enum ConflictStrategy { newerWins, devicePriority, manualResolve }
 
 /// معلومات التضارب
 class DataConflict {
@@ -27,20 +23,21 @@ class DataConflict {
   });
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
-  
+
   @override
-  String toString() => 'DataConflict($table/$uuid: local=${localTimestamp.toIso8601String()}, remote=${remoteTimestamp.toIso8601String()})';
+  String toString() =>
+      'DataConflict($table/$uuid: local=${localTimestamp.toIso8601String()}, remote=${remoteTimestamp.toIso8601String()})';
 }
 
 /// محلل التضارب - مسؤول عن كشف وحل التضارب فقط
-/// 
+///
 /// الاستخدام:
 /// ```dart
 /// final resolver = ConflictResolver(
 ///   deviceId: 'device-123',
 ///   strategy: ConflictStrategy.newerWins,
 /// );
-/// 
+///
 /// final conflicts = await resolver.detectConflicts(localData, remoteData);
 /// final resolved = await resolver.resolveConflicts(conflicts);
 /// ```
@@ -61,43 +58,50 @@ class ConflictResolver {
     Map<String, dynamic> remoteData,
   ) async {
     final conflicts = <DataConflict>[];
-    
+
     for (final table in localData.keys) {
       if (!remoteData.containsKey(table)) continue;
-      
+
       final localRecords = localData[table] as Map<String, dynamic>? ?? {};
       final remoteRecords = remoteData[table] as Map<String, dynamic>? ?? {};
-      
+
       for (final uuid in localRecords.keys) {
         if (!remoteRecords.containsKey(uuid)) continue;
-        
+
         final localRecord = localRecords[uuid] as Map<String, dynamic>;
         final remoteRecord = remoteRecords[uuid] as Map<String, dynamic>;
-        
+
         final localUpdated = _parseTimestamp(localRecord['updated_at']);
         final remoteUpdated = _parseTimestamp(remoteRecord['updated_at']);
-        
+
         if (localUpdated != null && remoteUpdated != null) {
-          if (_hasConflict(localRecord, remoteRecord, localUpdated, remoteUpdated)) {
-            conflicts.add(DataConflict(
-              table: table,
-              uuid: uuid,
-              localData: localRecord,
-              remoteData: remoteRecord,
-              localTimestamp: localUpdated,
-              remoteTimestamp: remoteUpdated,
-            ));
+          if (_hasConflict(
+            localRecord,
+            remoteRecord,
+            localUpdated,
+            remoteUpdated,
+          )) {
+            conflicts.add(
+              DataConflict(
+                table: table,
+                uuid: uuid,
+                localData: localRecord,
+                remoteData: remoteRecord,
+                localTimestamp: localUpdated,
+                remoteTimestamp: remoteUpdated,
+              ),
+            );
           }
         }
       }
     }
-    
+
     debugPrint('🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب');
     return conflicts;
   }
 
   /// التحقق من وجود تضارب
-  /// 
+  ///
   /// يستخدم مقارنة عميقة (deep comparison) لضمان دقة اكتشاف التضاربات.
   /// أي اختلاف في المحتوى يُعتبر تضارباً محتملاً.
   /// الاستراتيجية المحددة (مثل newerWins) ستحدد الفائز بناءً على التوقيت.
@@ -118,14 +122,16 @@ class ConflictResolver {
 
     for (final conflict in conflicts) {
       final winner = _selectWinner(conflict);
-      
+
       if (!resolved.containsKey(conflict.table)) {
         resolved[conflict.table] = {};
       }
       resolved[conflict.table]![conflict.uuid] = winner;
-      
+
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
-      debugPrint('✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType');
+      debugPrint(
+        '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
+      );
     }
 
     return resolved;
@@ -138,9 +144,11 @@ class ConflictResolver {
         return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
 
       case ConflictStrategy.devicePriority:
+        // ignore: unused_local_variable
         final remoteDevice = conflict.remoteData['device_id'] as String?;
-        final remotePriority = conflict.remoteData['device_priority'] as int? ?? 100;
-        
+        final remotePriority =
+            conflict.remoteData['device_priority'] as int? ?? 100;
+
         if (devicePriority >= remotePriority) {
           return conflict.localData;
         } else {
@@ -155,7 +163,7 @@ class ConflictResolver {
   /// تحويل timestamp إلى DateTime
   DateTime? _parseTimestamp(dynamic timestamp) {
     if (timestamp == null) return null;
-    
+
     try {
       if (timestamp is String) {
         return DateTime.parse(timestamp);
@@ -165,15 +173,12 @@ class ConflictResolver {
     } catch (e) {
       debugPrint('⚠️ ConflictResolver: فشل تحليل timestamp: $e');
     }
-    
+
     return null;
   }
 
   /// تغيير الاستراتيجية ديناميكياً
-  ConflictResolver copyWith({
-    ConflictStrategy? strategy,
-    int? devicePriority,
-  }) {
+  ConflictResolver copyWith({ConflictStrategy? strategy, int? devicePriority}) {
     return ConflictResolver(
       deviceId: deviceId,
       strategy: strategy ?? this.strategy,
