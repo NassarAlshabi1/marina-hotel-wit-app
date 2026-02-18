@@ -120,7 +120,7 @@ class BatteryOptimizer extends ChangeNotifier {
       _isCharging = _batteryState == BatteryState.charging;
 
       // قراءة حالة الاتصال
-      _connectionState = await _connectivity.checkConnectivity() as List<ConnectivityResult>;
+      _connectionState = await _connectivity.checkConnectivity();
 
       // بدء المراقبة
       await startMonitoring();
