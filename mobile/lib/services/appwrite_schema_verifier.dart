@@ -139,6 +139,11 @@ class AppwriteSchemaVerifier {
         {'key': 'nightlyRate', 'type': 'double', 'default': 0},
         {'key': 'sequence', 'type': 'integer', 'default': 0},
         {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': false},
+        {'key': 'baseRate', 'type': 'double', 'default': 0},
+        {'key': 'adjustment', 'type': 'double', 'default': 0},
+        {'key': 'finalRate', 'type': 'double', 'default': 0},
+        {'key': 'appliedAdjustmentUuid', 'type': 'string', 'size': 36},
+        {'key': 'appliedAdjustmentsJson', 'type': 'string', 'size': 5000},
       ],
     },
     'employees': {
