@@ -391,21 +391,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bool isAvailable =
         room != null && StatusUtils.isRoomAvailable(room.status);
     final bool isMaintenance = room != null && room.status == 'صيانة';
-    final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
-
     final Color bgColor = isOccupied
         ? Colors.red.shade600
         : (isAvailable
               ? Colors.green.shade600
               : (isMaintenance
                     ? Colors.orange.shade600
-                    : (isNewRoom
-                          ? Colors.blue.shade400
-                          : Colors.grey.shade400)));
+                    : Colors.grey.shade400));
 
     final String tooltipText = room != null
         ? room.status
-        : (isNewRoom ? 'غرفة جديدة' : 'غير مسجلة');
+        : 'غير مسجلة';
 
     return Tooltip(
       message: tooltipText,
@@ -540,11 +536,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       } else {
         _showRoomDetailsDialog(context, room);
       }
-      return;
-    }
-
-    if (roomNumber == '503' || roomNumber == '504') {
-      await _showCreateRoomDialog(context, roomNumber);
       return;
     }
 
