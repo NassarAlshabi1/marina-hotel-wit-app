@@ -22,9 +22,6 @@ class InformationScreen extends ConsumerStatefulWidget {
 
 class _InformationScreenState extends ConsumerState<InformationScreen>
     with SyncOnExitMixin {
-  final TextEditingController _searchController = TextEditingController();
-  final DateFormat _dateFormatter = DateFormat('yyyy/MM/dd');
-  String _searchQuery = '';
   bool _exportingPdf = false;
 
   static final List<String> _idTypes = [
@@ -41,14 +38,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim());
-    });
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -94,7 +87,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   Widget _buildContent(List<GuestInfo> entries) {
-    final filtered = _applySearch(entries);
     if (entries.isEmpty) {
       return const Center(
         child: EmptyState(
@@ -105,67 +97,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       );
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: 'بحث برقم الغرفة أو اسم النزيل أو الهوية',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => _searchController.clear(),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryTile(
-                          title: 'إجمالي السجلات',
-                          value: '${entries.length}',
-                          icon: Icons.folder_shared,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _SummaryTile(
-                          title: 'بعد التصفية',
-                          value: '${filtered.length}',
-                          icon: Icons.filter_list,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: filtered.isEmpty
-              ? const EmptyState(
-                  title: 'لا توجد نتائج مطابقة',
-                  subtitle: 'جرّب تعديل معايير البحث.',
-                  icon: Icons.search_off,
-                )
-              : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: _buildTable(filtered),
-                ),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: _buildTable(entries),
     );
   }
 
@@ -491,6 +425,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ],
           )
           .toList();
+      final printDate = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
 
       final doc = pw.Document();
       doc.addPage(
@@ -525,6 +460,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ],
           ),
           build: (context) => [
+            pw.Align(
+              alignment: pw.Alignment.centerLeft,
+              child: pw.Text(
+                'تاريخ الطباعة: $printDate',
+                style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+              ),
+            ),
+            pw.SizedBox(height: 8),
             pw.Table.fromTextArray(
               headers: headers,
               data: data,
@@ -569,44 +512,5 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
-  }
-}
-
-class _SummaryTile extends StatelessWidget {
-  const _SummaryTile({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value, style: Theme.of(context).textTheme.titleLarge),
-              Text(title, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
