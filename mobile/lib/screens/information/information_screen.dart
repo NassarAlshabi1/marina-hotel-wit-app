@@ -398,7 +398,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     setState(() => _exportingPdf = true);
     try {
       final fonts = await PdfUtils.loadArabicFonts();
-      final logo = await PdfUtils.loadLogoImage();
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
@@ -432,32 +431,30 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         pw.MultiPage(
           textDirection: pw.TextDirection.rtl,
           theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
-          header: (context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if (logo != null)
-                pw.Align(
-                  alignment: pw.Alignment.centerRight,
-                  child: pw.Image(logo, width: 64),
+          header: (context) => pw.Center(
+            child: pw.Column(
+              mainAxisSize: pw.MainAxisSize.min,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text(
+                  hotelName,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 18,
+                    color: pdf.PdfColors.blue800,
+                  ),
                 ),
-              pw.Text(
-                hotelName,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 18,
-                  color: pdf.PdfColors.blue800,
+                pw.Text(
+                  'سجل المعلومية',
+                  style: pw.TextStyle(
+                    font: fonts.base,
+                    fontSize: 14,
+                    color: pdf.PdfColors.grey700,
+                  ),
                 ),
-              ),
-              pw.Text(
-                'سجل المعلومية',
-                style: pw.TextStyle(
-                  font: fonts.base,
-                  fontSize: 14,
-                  color: pdf.PdfColors.grey700,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-            ],
+                pw.SizedBox(height: 8),
+              ],
+            ),
           ),
           build: (context) => [
             pw.Align(
