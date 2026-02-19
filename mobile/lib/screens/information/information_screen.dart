@@ -430,6 +430,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       doc.addPage(
         pw.MultiPage(
           textDirection: pw.TextDirection.rtl,
+          margin:
+              const pw.EdgeInsets.only(top: 8, left: 20, right: 20, bottom: 20),
           theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
           header: (context) => pw.Center(
             child: pw.Column(
