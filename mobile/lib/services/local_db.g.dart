@@ -1381,6 +1381,18 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   late final GeneratedColumn<String> stayDurationIso = GeneratedColumn<String>(
       'stay_duration_iso', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _financialHashMeta =
+      const VerificationMeta('financialHash');
+  @override
+  late final GeneratedColumn<String> financialHash = GeneratedColumn<String>(
+      'financial_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _financialFrozenAtMeta =
+      const VerificationMeta('financialFrozenAt');
+  @override
+  late final GeneratedColumn<String> financialFrozenAt =
+      GeneratedColumn<String>('financial_frozen_at', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _lastNightEpochMeta =
       const VerificationMeta('lastNightEpoch');
   @override
@@ -1453,18 +1465,6 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   late final GeneratedColumn<String> hotelDayCheckout = GeneratedColumn<String>(
       'hotel_day_checkout', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _financialHashMeta =
-      const VerificationMeta('financialHash');
-  @override
-  late final GeneratedColumn<String> financialHash = GeneratedColumn<String>(
-      'financial_hash', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _financialFrozenAtMeta =
-      const VerificationMeta('financialFrozenAt');
-  @override
-  late final GeneratedColumn<String> financialFrozenAt =
-      GeneratedColumn<String>('financial_frozen_at', aliasedName, true,
-          type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         localUuid,
@@ -1505,6 +1505,8 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         calculatedNights,
         totalNightsCached,
         stayDurationIso,
+        financialHash,
+        financialFrozenAt,
         lastNightEpoch,
         isOverdue,
         needsCheckoutReview,
@@ -1513,9 +1515,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         remainingBalanceCached,
         isFullyPaid,
         hotelDayCheckin,
-        hotelDayCheckout,
-        financialHash,
-        financialFrozenAt
+        hotelDayCheckout
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1750,6 +1750,18 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
           stayDurationIso.isAcceptableOrUnknown(
               data['stay_duration_iso']!, _stayDurationIsoMeta));
     }
+    if (data.containsKey('financial_hash')) {
+      context.handle(
+          _financialHashMeta,
+          financialHash.isAcceptableOrUnknown(
+              data['financial_hash']!, _financialHashMeta));
+    }
+    if (data.containsKey('financial_frozen_at')) {
+      context.handle(
+          _financialFrozenAtMeta,
+          financialFrozenAt.isAcceptableOrUnknown(
+              data['financial_frozen_at']!, _financialFrozenAtMeta));
+    }
     if (data.containsKey('last_night_epoch')) {
       context.handle(
           _lastNightEpochMeta,
@@ -1801,18 +1813,6 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
           _hotelDayCheckoutMeta,
           hotelDayCheckout.isAcceptableOrUnknown(
               data['hotel_day_checkout']!, _hotelDayCheckoutMeta));
-    }
-    if (data.containsKey('financial_hash')) {
-      context.handle(
-          _financialHashMeta,
-          financialHash.isAcceptableOrUnknown(
-              data['financial_hash']!, _financialHashMeta));
-    }
-    if (data.containsKey('financial_frozen_at')) {
-      context.handle(
-          _financialFrozenAtMeta,
-          financialFrozenAt.isAcceptableOrUnknown(
-              data['financial_frozen_at']!, _financialFrozenAtMeta));
     }
     return context;
   }
@@ -1899,6 +1899,10 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
           DriftSqlType.int, data['${effectivePrefix}total_nights_cached'])!,
       stayDurationIso: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}stay_duration_iso']),
+      financialHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}financial_hash']),
+      financialFrozenAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}financial_frozen_at']),
       lastNightEpoch: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}last_night_epoch']),
       isOverdue: attachedDatabase.typeMapping
@@ -1918,10 +1922,6 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
           DriftSqlType.string, data['${effectivePrefix}hotel_day_checkin']),
       hotelDayCheckout: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}hotel_day_checkout']),
-      financialHash: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}financial_hash']),
-      financialFrozenAt: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}financial_frozen_at']),
     );
   }
 
@@ -1970,6 +1970,8 @@ class Booking extends DataClass implements Insertable<Booking> {
   final int calculatedNights;
   final int totalNightsCached;
   final String? stayDurationIso;
+  final String? financialHash;
+  final String? financialFrozenAt;
   final int? lastNightEpoch;
   final bool isOverdue;
   final bool needsCheckoutReview;
@@ -1979,8 +1981,6 @@ class Booking extends DataClass implements Insertable<Booking> {
   final bool isFullyPaid;
   final String? hotelDayCheckin;
   final String? hotelDayCheckout;
-  final String? financialHash;
-  final String? financialFrozenAt;
   const Booking(
       {required this.localUuid,
       this.serverId,
@@ -2020,6 +2020,8 @@ class Booking extends DataClass implements Insertable<Booking> {
       required this.calculatedNights,
       required this.totalNightsCached,
       this.stayDurationIso,
+      this.financialHash,
+      this.financialFrozenAt,
       this.lastNightEpoch,
       required this.isOverdue,
       required this.needsCheckoutReview,
@@ -2028,9 +2030,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       required this.remainingBalanceCached,
       required this.isFullyPaid,
       this.hotelDayCheckin,
-      this.hotelDayCheckout,
-      this.financialHash,
-      this.financialFrozenAt});
+      this.hotelDayCheckout});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2102,6 +2102,12 @@ class Booking extends DataClass implements Insertable<Booking> {
     if (!nullToAbsent || stayDurationIso != null) {
       map['stay_duration_iso'] = Variable<String>(stayDurationIso);
     }
+    if (!nullToAbsent || financialHash != null) {
+      map['financial_hash'] = Variable<String>(financialHash);
+    }
+    if (!nullToAbsent || financialFrozenAt != null) {
+      map['financial_frozen_at'] = Variable<String>(financialFrozenAt);
+    }
     if (!nullToAbsent || lastNightEpoch != null) {
       map['last_night_epoch'] = Variable<int>(lastNightEpoch);
     }
@@ -2116,12 +2122,6 @@ class Booking extends DataClass implements Insertable<Booking> {
     }
     if (!nullToAbsent || hotelDayCheckout != null) {
       map['hotel_day_checkout'] = Variable<String>(hotelDayCheckout);
-    }
-    if (!nullToAbsent || financialHash != null) {
-      map['financial_hash'] = Variable<String>(financialHash);
-    }
-    if (!nullToAbsent || financialFrozenAt != null) {
-      map['financial_frozen_at'] = Variable<String>(financialFrozenAt);
     }
     return map;
   }
@@ -2195,6 +2195,12 @@ class Booking extends DataClass implements Insertable<Booking> {
       stayDurationIso: stayDurationIso == null && nullToAbsent
           ? const Value.absent()
           : Value(stayDurationIso),
+      financialHash: financialHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financialHash),
+      financialFrozenAt: financialFrozenAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financialFrozenAt),
       lastNightEpoch: lastNightEpoch == null && nullToAbsent
           ? const Value.absent()
           : Value(lastNightEpoch),
@@ -2210,12 +2216,6 @@ class Booking extends DataClass implements Insertable<Booking> {
       hotelDayCheckout: hotelDayCheckout == null && nullToAbsent
           ? const Value.absent()
           : Value(hotelDayCheckout),
-      financialHash: financialHash == null && nullToAbsent
-          ? const Value.absent()
-          : Value(financialHash),
-      financialFrozenAt: financialFrozenAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(financialFrozenAt),
     );
   }
 
@@ -2263,6 +2263,9 @@ class Booking extends DataClass implements Insertable<Booking> {
       calculatedNights: serializer.fromJson<int>(json['calculatedNights']),
       totalNightsCached: serializer.fromJson<int>(json['totalNightsCached']),
       stayDurationIso: serializer.fromJson<String?>(json['stayDurationIso']),
+      financialHash: serializer.fromJson<String?>(json['financialHash']),
+      financialFrozenAt:
+          serializer.fromJson<String?>(json['financialFrozenAt']),
       lastNightEpoch: serializer.fromJson<int?>(json['lastNightEpoch']),
       isOverdue: serializer.fromJson<bool>(json['isOverdue']),
       needsCheckoutReview:
@@ -2274,9 +2277,6 @@ class Booking extends DataClass implements Insertable<Booking> {
       isFullyPaid: serializer.fromJson<bool>(json['isFullyPaid']),
       hotelDayCheckin: serializer.fromJson<String?>(json['hotelDayCheckin']),
       hotelDayCheckout: serializer.fromJson<String?>(json['hotelDayCheckout']),
-      financialHash: serializer.fromJson<String?>(json['financialHash']),
-      financialFrozenAt:
-          serializer.fromJson<String?>(json['financialFrozenAt']),
     );
   }
   @override
@@ -2321,6 +2321,8 @@ class Booking extends DataClass implements Insertable<Booking> {
       'calculatedNights': serializer.toJson<int>(calculatedNights),
       'totalNightsCached': serializer.toJson<int>(totalNightsCached),
       'stayDurationIso': serializer.toJson<String?>(stayDurationIso),
+      'financialHash': serializer.toJson<String?>(financialHash),
+      'financialFrozenAt': serializer.toJson<String?>(financialFrozenAt),
       'lastNightEpoch': serializer.toJson<int?>(lastNightEpoch),
       'isOverdue': serializer.toJson<bool>(isOverdue),
       'needsCheckoutReview': serializer.toJson<bool>(needsCheckoutReview),
@@ -2331,8 +2333,6 @@ class Booking extends DataClass implements Insertable<Booking> {
       'isFullyPaid': serializer.toJson<bool>(isFullyPaid),
       'hotelDayCheckin': serializer.toJson<String?>(hotelDayCheckin),
       'hotelDayCheckout': serializer.toJson<String?>(hotelDayCheckout),
-      'financialHash': serializer.toJson<String?>(financialHash),
-      'financialFrozenAt': serializer.toJson<String?>(financialFrozenAt),
     };
   }
 
@@ -2375,6 +2375,8 @@ class Booking extends DataClass implements Insertable<Booking> {
           int? calculatedNights,
           int? totalNightsCached,
           Value<String?> stayDurationIso = const Value.absent(),
+          Value<String?> financialHash = const Value.absent(),
+          Value<String?> financialFrozenAt = const Value.absent(),
           Value<int?> lastNightEpoch = const Value.absent(),
           bool? isOverdue,
           bool? needsCheckoutReview,
@@ -2383,9 +2385,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           double? remainingBalanceCached,
           bool? isFullyPaid,
           Value<String?> hotelDayCheckin = const Value.absent(),
-          Value<String?> hotelDayCheckout = const Value.absent(),
-          Value<String?> financialHash = const Value.absent(),
-          Value<String?> financialFrozenAt = const Value.absent()}) =>
+          Value<String?> hotelDayCheckout = const Value.absent()}) =>
       Booking(
         localUuid: localUuid ?? this.localUuid,
         serverId: serverId.present ? serverId.value : this.serverId,
@@ -2441,6 +2441,11 @@ class Booking extends DataClass implements Insertable<Booking> {
         stayDurationIso: stayDurationIso.present
             ? stayDurationIso.value
             : this.stayDurationIso,
+        financialHash:
+            financialHash.present ? financialHash.value : this.financialHash,
+        financialFrozenAt: financialFrozenAt.present
+            ? financialFrozenAt.value
+            : this.financialFrozenAt,
         lastNightEpoch:
             lastNightEpoch.present ? lastNightEpoch.value : this.lastNightEpoch,
         isOverdue: isOverdue ?? this.isOverdue,
@@ -2456,11 +2461,6 @@ class Booking extends DataClass implements Insertable<Booking> {
         hotelDayCheckout: hotelDayCheckout.present
             ? hotelDayCheckout.value
             : this.hotelDayCheckout,
-        financialHash:
-            financialHash.present ? financialHash.value : this.financialHash,
-        financialFrozenAt: financialFrozenAt.present
-            ? financialFrozenAt.value
-            : this.financialFrozenAt,
       );
   Booking copyWithCompanion(BookingsCompanion data) {
     return Booking(
@@ -2548,6 +2548,12 @@ class Booking extends DataClass implements Insertable<Booking> {
       stayDurationIso: data.stayDurationIso.present
           ? data.stayDurationIso.value
           : this.stayDurationIso,
+      financialHash: data.financialHash.present
+          ? data.financialHash.value
+          : this.financialHash,
+      financialFrozenAt: data.financialFrozenAt.present
+          ? data.financialFrozenAt.value
+          : this.financialFrozenAt,
       lastNightEpoch: data.lastNightEpoch.present
           ? data.lastNightEpoch.value
           : this.lastNightEpoch,
@@ -2572,12 +2578,6 @@ class Booking extends DataClass implements Insertable<Booking> {
       hotelDayCheckout: data.hotelDayCheckout.present
           ? data.hotelDayCheckout.value
           : this.hotelDayCheckout,
-      financialHash: data.financialHash.present
-          ? data.financialHash.value
-          : this.financialHash,
-      financialFrozenAt: data.financialFrozenAt.present
-          ? data.financialFrozenAt.value
-          : this.financialFrozenAt,
     );
   }
 
@@ -2622,6 +2622,8 @@ class Booking extends DataClass implements Insertable<Booking> {
           ..write('calculatedNights: $calculatedNights, ')
           ..write('totalNightsCached: $totalNightsCached, ')
           ..write('stayDurationIso: $stayDurationIso, ')
+          ..write('financialHash: $financialHash, ')
+          ..write('financialFrozenAt: $financialFrozenAt, ')
           ..write('lastNightEpoch: $lastNightEpoch, ')
           ..write('isOverdue: $isOverdue, ')
           ..write('needsCheckoutReview: $needsCheckoutReview, ')
@@ -2630,9 +2632,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           ..write('remainingBalanceCached: $remainingBalanceCached, ')
           ..write('isFullyPaid: $isFullyPaid, ')
           ..write('hotelDayCheckin: $hotelDayCheckin, ')
-          ..write('hotelDayCheckout: $hotelDayCheckout, ')
-          ..write('financialHash: $financialHash, ')
-          ..write('financialFrozenAt: $financialFrozenAt')
+          ..write('hotelDayCheckout: $hotelDayCheckout')
           ..write(')'))
         .toString();
   }
@@ -2677,6 +2677,8 @@ class Booking extends DataClass implements Insertable<Booking> {
         calculatedNights,
         totalNightsCached,
         stayDurationIso,
+        financialHash,
+        financialFrozenAt,
         lastNightEpoch,
         isOverdue,
         needsCheckoutReview,
@@ -2685,9 +2687,7 @@ class Booking extends DataClass implements Insertable<Booking> {
         remainingBalanceCached,
         isFullyPaid,
         hotelDayCheckin,
-        hotelDayCheckout,
-        financialHash,
-        financialFrozenAt
+        hotelDayCheckout
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2731,6 +2731,8 @@ class Booking extends DataClass implements Insertable<Booking> {
           other.calculatedNights == this.calculatedNights &&
           other.totalNightsCached == this.totalNightsCached &&
           other.stayDurationIso == this.stayDurationIso &&
+          other.financialHash == this.financialHash &&
+          other.financialFrozenAt == this.financialFrozenAt &&
           other.lastNightEpoch == this.lastNightEpoch &&
           other.isOverdue == this.isOverdue &&
           other.needsCheckoutReview == this.needsCheckoutReview &&
@@ -2739,9 +2741,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           other.remainingBalanceCached == this.remainingBalanceCached &&
           other.isFullyPaid == this.isFullyPaid &&
           other.hotelDayCheckin == this.hotelDayCheckin &&
-          other.hotelDayCheckout == this.hotelDayCheckout &&
-          other.financialHash == this.financialHash &&
-          other.financialFrozenAt == this.financialFrozenAt);
+          other.hotelDayCheckout == this.hotelDayCheckout);
 }
 
 class BookingsCompanion extends UpdateCompanion<Booking> {
@@ -2783,6 +2783,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<int> calculatedNights;
   final Value<int> totalNightsCached;
   final Value<String?> stayDurationIso;
+  final Value<String?> financialHash;
+  final Value<String?> financialFrozenAt;
   final Value<int?> lastNightEpoch;
   final Value<bool> isOverdue;
   final Value<bool> needsCheckoutReview;
@@ -2792,8 +2794,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<bool> isFullyPaid;
   final Value<String?> hotelDayCheckin;
   final Value<String?> hotelDayCheckout;
-  final Value<String?> financialHash;
-  final Value<String?> financialFrozenAt;
   const BookingsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -2833,6 +2833,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.calculatedNights = const Value.absent(),
     this.totalNightsCached = const Value.absent(),
     this.stayDurationIso = const Value.absent(),
+    this.financialHash = const Value.absent(),
+    this.financialFrozenAt = const Value.absent(),
     this.lastNightEpoch = const Value.absent(),
     this.isOverdue = const Value.absent(),
     this.needsCheckoutReview = const Value.absent(),
@@ -2842,8 +2844,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.isFullyPaid = const Value.absent(),
     this.hotelDayCheckin = const Value.absent(),
     this.hotelDayCheckout = const Value.absent(),
-    this.financialHash = const Value.absent(),
-    this.financialFrozenAt = const Value.absent(),
   });
   BookingsCompanion.insert({
     required String localUuid,
@@ -2884,6 +2884,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.calculatedNights = const Value.absent(),
     this.totalNightsCached = const Value.absent(),
     this.stayDurationIso = const Value.absent(),
+    this.financialHash = const Value.absent(),
+    this.financialFrozenAt = const Value.absent(),
     this.lastNightEpoch = const Value.absent(),
     this.isOverdue = const Value.absent(),
     this.needsCheckoutReview = const Value.absent(),
@@ -2893,8 +2895,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.isFullyPaid = const Value.absent(),
     this.hotelDayCheckin = const Value.absent(),
     this.hotelDayCheckout = const Value.absent(),
-    this.financialHash = const Value.absent(),
-    this.financialFrozenAt = const Value.absent(),
   })  : localUuid = Value(localUuid),
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
@@ -2944,6 +2944,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Expression<int>? calculatedNights,
     Expression<int>? totalNightsCached,
     Expression<String>? stayDurationIso,
+    Expression<String>? financialHash,
+    Expression<String>? financialFrozenAt,
     Expression<int>? lastNightEpoch,
     Expression<bool>? isOverdue,
     Expression<bool>? needsCheckoutReview,
@@ -2953,8 +2955,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Expression<bool>? isFullyPaid,
     Expression<String>? hotelDayCheckin,
     Expression<String>? hotelDayCheckout,
-    Expression<String>? financialHash,
-    Expression<String>? financialFrozenAt,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -2995,6 +2995,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       if (calculatedNights != null) 'calculated_nights': calculatedNights,
       if (totalNightsCached != null) 'total_nights_cached': totalNightsCached,
       if (stayDurationIso != null) 'stay_duration_iso': stayDurationIso,
+      if (financialHash != null) 'financial_hash': financialHash,
+      if (financialFrozenAt != null) 'financial_frozen_at': financialFrozenAt,
       if (lastNightEpoch != null) 'last_night_epoch': lastNightEpoch,
       if (isOverdue != null) 'is_overdue': isOverdue,
       if (needsCheckoutReview != null)
@@ -3006,8 +3008,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       if (isFullyPaid != null) 'is_fully_paid': isFullyPaid,
       if (hotelDayCheckin != null) 'hotel_day_checkin': hotelDayCheckin,
       if (hotelDayCheckout != null) 'hotel_day_checkout': hotelDayCheckout,
-      if (financialHash != null) 'financial_hash': financialHash,
-      if (financialFrozenAt != null) 'financial_frozen_at': financialFrozenAt,
     });
   }
 
@@ -3050,6 +3050,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       Value<int>? calculatedNights,
       Value<int>? totalNightsCached,
       Value<String?>? stayDurationIso,
+      Value<String?>? financialHash,
+      Value<String?>? financialFrozenAt,
       Value<int?>? lastNightEpoch,
       Value<bool>? isOverdue,
       Value<bool>? needsCheckoutReview,
@@ -3058,9 +3060,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       Value<double>? remainingBalanceCached,
       Value<bool>? isFullyPaid,
       Value<String?>? hotelDayCheckin,
-      Value<String?>? hotelDayCheckout,
-      Value<String?>? financialHash,
-      Value<String?>? financialFrozenAt}) {
+      Value<String?>? hotelDayCheckout}) {
     return BookingsCompanion(
       localUuid: localUuid ?? this.localUuid,
       serverId: serverId ?? this.serverId,
@@ -3100,6 +3100,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       calculatedNights: calculatedNights ?? this.calculatedNights,
       totalNightsCached: totalNightsCached ?? this.totalNightsCached,
       stayDurationIso: stayDurationIso ?? this.stayDurationIso,
+      financialHash: financialHash ?? this.financialHash,
+      financialFrozenAt: financialFrozenAt ?? this.financialFrozenAt,
       lastNightEpoch: lastNightEpoch ?? this.lastNightEpoch,
       isOverdue: isOverdue ?? this.isOverdue,
       needsCheckoutReview: needsCheckoutReview ?? this.needsCheckoutReview,
@@ -3110,8 +3112,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       isFullyPaid: isFullyPaid ?? this.isFullyPaid,
       hotelDayCheckin: hotelDayCheckin ?? this.hotelDayCheckin,
       hotelDayCheckout: hotelDayCheckout ?? this.hotelDayCheckout,
-      financialHash: financialHash ?? this.financialHash,
-      financialFrozenAt: financialFrozenAt ?? this.financialFrozenAt,
     );
   }
 
@@ -3232,6 +3232,12 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     if (stayDurationIso.present) {
       map['stay_duration_iso'] = Variable<String>(stayDurationIso.value);
     }
+    if (financialHash.present) {
+      map['financial_hash'] = Variable<String>(financialHash.value);
+    }
+    if (financialFrozenAt.present) {
+      map['financial_frozen_at'] = Variable<String>(financialFrozenAt.value);
+    }
     if (lastNightEpoch.present) {
       map['last_night_epoch'] = Variable<int>(lastNightEpoch.value);
     }
@@ -3259,12 +3265,6 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     }
     if (hotelDayCheckout.present) {
       map['hotel_day_checkout'] = Variable<String>(hotelDayCheckout.value);
-    }
-    if (financialHash.present) {
-      map['financial_hash'] = Variable<String>(financialHash.value);
-    }
-    if (financialFrozenAt.present) {
-      map['financial_frozen_at'] = Variable<String>(financialFrozenAt.value);
     }
     return map;
   }
@@ -3310,6 +3310,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
           ..write('calculatedNights: $calculatedNights, ')
           ..write('totalNightsCached: $totalNightsCached, ')
           ..write('stayDurationIso: $stayDurationIso, ')
+          ..write('financialHash: $financialHash, ')
+          ..write('financialFrozenAt: $financialFrozenAt, ')
           ..write('lastNightEpoch: $lastNightEpoch, ')
           ..write('isOverdue: $isOverdue, ')
           ..write('needsCheckoutReview: $needsCheckoutReview, ')
@@ -3318,9 +3320,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
           ..write('remainingBalanceCached: $remainingBalanceCached, ')
           ..write('isFullyPaid: $isFullyPaid, ')
           ..write('hotelDayCheckin: $hotelDayCheckin, ')
-          ..write('hotelDayCheckout: $hotelDayCheckout, ')
-          ..write('financialHash: $financialHash, ')
-          ..write('financialFrozenAt: $financialFrozenAt')
+          ..write('hotelDayCheckout: $hotelDayCheckout')
           ..write(')'))
         .toString();
   }
@@ -6213,6 +6213,1062 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
           ..write('phone: $phone, ')
           ..write('hireDate: $hireDate, ')
           ..write('status: $status')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $GuestInfosTable extends GuestInfos
+    with TableInfo<$GuestInfosTable, GuestInfo> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GuestInfosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta =
+      const VerificationMeta('localUuid');
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+      'local_uuid', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtIsoMeta =
+      const VerificationMeta('createdAtIso');
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+      'created_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtIsoMeta =
+      const VerificationMeta('updatedAtIso');
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+      'updated_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtIsoMeta =
+      const VerificationMeta('deletedAtIso');
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+      'deleted_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtEpochMeta =
+      const VerificationMeta('createdAtEpoch');
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+      'created_at_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastModifiedEpochMeta =
+      const VerificationMeta('lastModifiedEpoch');
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+      'last_modified_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
+  static const VerificationMeta _vectorClockMeta =
+      const VerificationMeta('vectorClock');
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+      'vector_clock', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _roomNumberMeta =
+      const VerificationMeta('roomNumber');
+  @override
+  late final GeneratedColumn<String> roomNumber = GeneratedColumn<String>(
+      'room_number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _guestNameMeta =
+      const VerificationMeta('guestName');
+  @override
+  late final GeneratedColumn<String> guestName = GeneratedColumn<String>(
+      'guest_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nationalityMeta =
+      const VerificationMeta('nationality');
+  @override
+  late final GeneratedColumn<String> nationality = GeneratedColumn<String>(
+      'nationality', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _idNumberMeta =
+      const VerificationMeta('idNumber');
+  @override
+  late final GeneratedColumn<String> idNumber = GeneratedColumn<String>(
+      'id_number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _idTypeMeta = const VerificationMeta('idType');
+  @override
+  late final GeneratedColumn<String> idType = GeneratedColumn<String>(
+      'id_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('بطاقة شخصية'));
+  static const VerificationMeta _issueDateMeta =
+      const VerificationMeta('issueDate');
+  @override
+  late final GeneratedColumn<String> issueDate = GeneratedColumn<String>(
+      'issue_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _issuePlaceMeta =
+      const VerificationMeta('issuePlace');
+  @override
+  late final GeneratedColumn<String> issuePlace = GeneratedColumn<String>(
+      'issue_place', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _governorateMeta =
+      const VerificationMeta('governorate');
+  @override
+  late final GeneratedColumn<String> governorate = GeneratedColumn<String>(
+      'governorate', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        roomNumber,
+        guestName,
+        nationality,
+        idNumber,
+        idType,
+        issueDate,
+        issuePlace,
+        governorate
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'guest_infos';
+  @override
+  VerificationContext validateIntegrity(Insertable<GuestInfo> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(_localUuidMeta,
+          localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta));
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+          _createdAtIsoMeta,
+          createdAtIso.isAcceptableOrUnknown(
+              data['created_at_iso']!, _createdAtIsoMeta));
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+          _updatedAtIsoMeta,
+          updatedAtIso.isAcceptableOrUnknown(
+              data['updated_at_iso']!, _updatedAtIsoMeta));
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+          _deletedAtIsoMeta,
+          deletedAtIso.isAcceptableOrUnknown(
+              data['deleted_at_iso']!, _deletedAtIsoMeta));
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+          _createdAtEpochMeta,
+          createdAtEpoch.isAcceptableOrUnknown(
+              data['created_at_epoch']!, _createdAtEpochMeta));
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+          _lastModifiedEpochMeta,
+          lastModifiedEpoch.isAcceptableOrUnknown(
+              data['last_modified_epoch']!, _lastModifiedEpochMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+          _vectorClockMeta,
+          vectorClock.isAcceptableOrUnknown(
+              data['vector_clock']!, _vectorClockMeta));
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('room_number')) {
+      context.handle(
+          _roomNumberMeta,
+          roomNumber.isAcceptableOrUnknown(
+              data['room_number']!, _roomNumberMeta));
+    } else if (isInserting) {
+      context.missing(_roomNumberMeta);
+    }
+    if (data.containsKey('guest_name')) {
+      context.handle(_guestNameMeta,
+          guestName.isAcceptableOrUnknown(data['guest_name']!, _guestNameMeta));
+    } else if (isInserting) {
+      context.missing(_guestNameMeta);
+    }
+    if (data.containsKey('nationality')) {
+      context.handle(
+          _nationalityMeta,
+          nationality.isAcceptableOrUnknown(
+              data['nationality']!, _nationalityMeta));
+    } else if (isInserting) {
+      context.missing(_nationalityMeta);
+    }
+    if (data.containsKey('id_number')) {
+      context.handle(_idNumberMeta,
+          idNumber.isAcceptableOrUnknown(data['id_number']!, _idNumberMeta));
+    } else if (isInserting) {
+      context.missing(_idNumberMeta);
+    }
+    if (data.containsKey('id_type')) {
+      context.handle(_idTypeMeta,
+          idType.isAcceptableOrUnknown(data['id_type']!, _idTypeMeta));
+    }
+    if (data.containsKey('issue_date')) {
+      context.handle(_issueDateMeta,
+          issueDate.isAcceptableOrUnknown(data['issue_date']!, _issueDateMeta));
+    }
+    if (data.containsKey('issue_place')) {
+      context.handle(
+          _issuePlaceMeta,
+          issuePlace.isAcceptableOrUnknown(
+              data['issue_place']!, _issuePlaceMeta));
+    }
+    if (data.containsKey('governorate')) {
+      context.handle(
+          _governorateMeta,
+          governorate.isAcceptableOrUnknown(
+              data['governorate']!, _governorateMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GuestInfo map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GuestInfo(
+      localUuid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uuid'])!,
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}server_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deleted_at']),
+      lastModified: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_modified'])!,
+      createdAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at_iso']),
+      updatedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at_iso']),
+      deletedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at_iso']),
+      createdAtEpoch: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_epoch'])!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}last_modified_epoch'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      vectorClock: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}vector_clock'])!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      roomNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}room_number'])!,
+      guestName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}guest_name'])!,
+      nationality: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}nationality'])!,
+      idNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id_number'])!,
+      idType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id_type'])!,
+      issueDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}issue_date']),
+      issuePlace: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}issue_place']),
+      governorate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}governorate']),
+    );
+  }
+
+  @override
+  $GuestInfosTable createAlias(String alias) {
+    return $GuestInfosTable(attachedDatabase, alias);
+  }
+}
+
+class GuestInfo extends DataClass implements Insertable<GuestInfo> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final int id;
+  final String roomNumber;
+  final String guestName;
+  final String nationality;
+  final String idNumber;
+  final String idType;
+  final String? issueDate;
+  final String? issuePlace;
+  final String? governorate;
+  const GuestInfo(
+      {required this.localUuid,
+      this.serverId,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt,
+      required this.lastModified,
+      this.createdAtIso,
+      this.updatedAtIso,
+      this.deletedAtIso,
+      required this.createdAtEpoch,
+      required this.lastModifiedEpoch,
+      required this.version,
+      required this.origin,
+      required this.vectorClock,
+      required this.id,
+      required this.roomNumber,
+      required this.guestName,
+      required this.nationality,
+      required this.idNumber,
+      required this.idType,
+      this.issueDate,
+      this.issuePlace,
+      this.governorate});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['id'] = Variable<int>(id);
+    map['room_number'] = Variable<String>(roomNumber);
+    map['guest_name'] = Variable<String>(guestName);
+    map['nationality'] = Variable<String>(nationality);
+    map['id_number'] = Variable<String>(idNumber);
+    map['id_type'] = Variable<String>(idType);
+    if (!nullToAbsent || issueDate != null) {
+      map['issue_date'] = Variable<String>(issueDate);
+    }
+    if (!nullToAbsent || issuePlace != null) {
+      map['issue_place'] = Variable<String>(issuePlace);
+    }
+    if (!nullToAbsent || governorate != null) {
+      map['governorate'] = Variable<String>(governorate);
+    }
+    return map;
+  }
+
+  GuestInfosCompanion toCompanion(bool nullToAbsent) {
+    return GuestInfosCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      id: Value(id),
+      roomNumber: Value(roomNumber),
+      guestName: Value(guestName),
+      nationality: Value(nationality),
+      idNumber: Value(idNumber),
+      idType: Value(idType),
+      issueDate: issueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueDate),
+      issuePlace: issuePlace == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issuePlace),
+      governorate: governorate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(governorate),
+    );
+  }
+
+  factory GuestInfo.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GuestInfo(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      id: serializer.fromJson<int>(json['id']),
+      roomNumber: serializer.fromJson<String>(json['roomNumber']),
+      guestName: serializer.fromJson<String>(json['guestName']),
+      nationality: serializer.fromJson<String>(json['nationality']),
+      idNumber: serializer.fromJson<String>(json['idNumber']),
+      idType: serializer.fromJson<String>(json['idType']),
+      issueDate: serializer.fromJson<String?>(json['issueDate']),
+      issuePlace: serializer.fromJson<String?>(json['issuePlace']),
+      governorate: serializer.fromJson<String?>(json['governorate']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'id': serializer.toJson<int>(id),
+      'roomNumber': serializer.toJson<String>(roomNumber),
+      'guestName': serializer.toJson<String>(guestName),
+      'nationality': serializer.toJson<String>(nationality),
+      'idNumber': serializer.toJson<String>(idNumber),
+      'idType': serializer.toJson<String>(idType),
+      'issueDate': serializer.toJson<String?>(issueDate),
+      'issuePlace': serializer.toJson<String?>(issuePlace),
+      'governorate': serializer.toJson<String?>(governorate),
+    };
+  }
+
+  GuestInfo copyWith(
+          {String? localUuid,
+          Value<int?> serverId = const Value.absent(),
+          int? createdAt,
+          int? updatedAt,
+          Value<int?> deletedAt = const Value.absent(),
+          int? lastModified,
+          Value<String?> createdAtIso = const Value.absent(),
+          Value<String?> updatedAtIso = const Value.absent(),
+          Value<String?> deletedAtIso = const Value.absent(),
+          int? createdAtEpoch,
+          int? lastModifiedEpoch,
+          int? version,
+          String? origin,
+          String? vectorClock,
+          int? id,
+          String? roomNumber,
+          String? guestName,
+          String? nationality,
+          String? idNumber,
+          String? idType,
+          Value<String?> issueDate = const Value.absent(),
+          Value<String?> issuePlace = const Value.absent(),
+          Value<String?> governorate = const Value.absent()}) =>
+      GuestInfo(
+        localUuid: localUuid ?? this.localUuid,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        lastModified: lastModified ?? this.lastModified,
+        createdAtIso:
+            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+        updatedAtIso:
+            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+        deletedAtIso:
+            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+        version: version ?? this.version,
+        origin: origin ?? this.origin,
+        vectorClock: vectorClock ?? this.vectorClock,
+        id: id ?? this.id,
+        roomNumber: roomNumber ?? this.roomNumber,
+        guestName: guestName ?? this.guestName,
+        nationality: nationality ?? this.nationality,
+        idNumber: idNumber ?? this.idNumber,
+        idType: idType ?? this.idType,
+        issueDate: issueDate.present ? issueDate.value : this.issueDate,
+        issuePlace: issuePlace.present ? issuePlace.value : this.issuePlace,
+        governorate: governorate.present ? governorate.value : this.governorate,
+      );
+  GuestInfo copyWithCompanion(GuestInfosCompanion data) {
+    return GuestInfo(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock:
+          data.vectorClock.present ? data.vectorClock.value : this.vectorClock,
+      id: data.id.present ? data.id.value : this.id,
+      roomNumber:
+          data.roomNumber.present ? data.roomNumber.value : this.roomNumber,
+      guestName: data.guestName.present ? data.guestName.value : this.guestName,
+      nationality:
+          data.nationality.present ? data.nationality.value : this.nationality,
+      idNumber: data.idNumber.present ? data.idNumber.value : this.idNumber,
+      idType: data.idType.present ? data.idType.value : this.idType,
+      issueDate: data.issueDate.present ? data.issueDate.value : this.issueDate,
+      issuePlace:
+          data.issuePlace.present ? data.issuePlace.value : this.issuePlace,
+      governorate:
+          data.governorate.present ? data.governorate.value : this.governorate,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuestInfo(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('roomNumber: $roomNumber, ')
+          ..write('guestName: $guestName, ')
+          ..write('nationality: $nationality, ')
+          ..write('idNumber: $idNumber, ')
+          ..write('idType: $idType, ')
+          ..write('issueDate: $issueDate, ')
+          ..write('issuePlace: $issuePlace, ')
+          ..write('governorate: $governorate')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        roomNumber,
+        guestName,
+        nationality,
+        idNumber,
+        idType,
+        issueDate,
+        issuePlace,
+        governorate
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GuestInfo &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.id == this.id &&
+          other.roomNumber == this.roomNumber &&
+          other.guestName == this.guestName &&
+          other.nationality == this.nationality &&
+          other.idNumber == this.idNumber &&
+          other.idType == this.idType &&
+          other.issueDate == this.issueDate &&
+          other.issuePlace == this.issuePlace &&
+          other.governorate == this.governorate);
+}
+
+class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<int> id;
+  final Value<String> roomNumber;
+  final Value<String> guestName;
+  final Value<String> nationality;
+  final Value<String> idNumber;
+  final Value<String> idType;
+  final Value<String?> issueDate;
+  final Value<String?> issuePlace;
+  final Value<String?> governorate;
+  const GuestInfosCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    this.roomNumber = const Value.absent(),
+    this.guestName = const Value.absent(),
+    this.nationality = const Value.absent(),
+    this.idNumber = const Value.absent(),
+    this.idType = const Value.absent(),
+    this.issueDate = const Value.absent(),
+    this.issuePlace = const Value.absent(),
+    this.governorate = const Value.absent(),
+  });
+  GuestInfosCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    required String roomNumber,
+    required String guestName,
+    required String nationality,
+    required String idNumber,
+    this.idType = const Value.absent(),
+    this.issueDate = const Value.absent(),
+    this.issuePlace = const Value.absent(),
+    this.governorate = const Value.absent(),
+  })  : localUuid = Value(localUuid),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt),
+        lastModified = Value(lastModified),
+        roomNumber = Value(roomNumber),
+        guestName = Value(guestName),
+        nationality = Value(nationality),
+        idNumber = Value(idNumber);
+  static Insertable<GuestInfo> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<int>? id,
+    Expression<String>? roomNumber,
+    Expression<String>? guestName,
+    Expression<String>? nationality,
+    Expression<String>? idNumber,
+    Expression<String>? idType,
+    Expression<String>? issueDate,
+    Expression<String>? issuePlace,
+    Expression<String>? governorate,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (id != null) 'id': id,
+      if (roomNumber != null) 'room_number': roomNumber,
+      if (guestName != null) 'guest_name': guestName,
+      if (nationality != null) 'nationality': nationality,
+      if (idNumber != null) 'id_number': idNumber,
+      if (idType != null) 'id_type': idType,
+      if (issueDate != null) 'issue_date': issueDate,
+      if (issuePlace != null) 'issue_place': issuePlace,
+      if (governorate != null) 'governorate': governorate,
+    });
+  }
+
+  GuestInfosCompanion copyWith(
+      {Value<String>? localUuid,
+      Value<int?>? serverId,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int?>? deletedAt,
+      Value<int>? lastModified,
+      Value<String?>? createdAtIso,
+      Value<String?>? updatedAtIso,
+      Value<String?>? deletedAtIso,
+      Value<int>? createdAtEpoch,
+      Value<int>? lastModifiedEpoch,
+      Value<int>? version,
+      Value<String>? origin,
+      Value<String>? vectorClock,
+      Value<int>? id,
+      Value<String>? roomNumber,
+      Value<String>? guestName,
+      Value<String>? nationality,
+      Value<String>? idNumber,
+      Value<String>? idType,
+      Value<String?>? issueDate,
+      Value<String?>? issuePlace,
+      Value<String?>? governorate}) {
+    return GuestInfosCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      id: id ?? this.id,
+      roomNumber: roomNumber ?? this.roomNumber,
+      guestName: guestName ?? this.guestName,
+      nationality: nationality ?? this.nationality,
+      idNumber: idNumber ?? this.idNumber,
+      idType: idType ?? this.idType,
+      issueDate: issueDate ?? this.issueDate,
+      issuePlace: issuePlace ?? this.issuePlace,
+      governorate: governorate ?? this.governorate,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (roomNumber.present) {
+      map['room_number'] = Variable<String>(roomNumber.value);
+    }
+    if (guestName.present) {
+      map['guest_name'] = Variable<String>(guestName.value);
+    }
+    if (nationality.present) {
+      map['nationality'] = Variable<String>(nationality.value);
+    }
+    if (idNumber.present) {
+      map['id_number'] = Variable<String>(idNumber.value);
+    }
+    if (idType.present) {
+      map['id_type'] = Variable<String>(idType.value);
+    }
+    if (issueDate.present) {
+      map['issue_date'] = Variable<String>(issueDate.value);
+    }
+    if (issuePlace.present) {
+      map['issue_place'] = Variable<String>(issuePlace.value);
+    }
+    if (governorate.present) {
+      map['governorate'] = Variable<String>(governorate.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuestInfosCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('roomNumber: $roomNumber, ')
+          ..write('guestName: $guestName, ')
+          ..write('nationality: $nationality, ')
+          ..write('idNumber: $idNumber, ')
+          ..write('idType: $idType, ')
+          ..write('issueDate: $issueDate, ')
+          ..write('issuePlace: $issuePlace, ')
+          ..write('governorate: $governorate')
           ..write(')'))
         .toString();
   }
@@ -24845,6 +25901,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BookingNotesTable bookingNotes = $BookingNotesTable(this);
   late final $ShiftNotesTable shiftNotes = $ShiftNotesTable(this);
   late final $EmployeesTable employees = $EmployeesTable(this);
+  late final $GuestInfosTable guestInfos = $GuestInfosTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $CashTransactionsTable cashTransactions =
       $CashTransactionsTable(this);
@@ -24880,6 +25937,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         bookingNotes,
         shiftNotes,
         employees,
+        guestInfos,
         expenses,
         cashTransactions,
         payments,
@@ -25487,6 +26545,8 @@ typedef $$BookingsTableCreateCompanionBuilder = BookingsCompanion Function({
   Value<int> calculatedNights,
   Value<int> totalNightsCached,
   Value<String?> stayDurationIso,
+  Value<String?> financialHash,
+  Value<String?> financialFrozenAt,
   Value<int?> lastNightEpoch,
   Value<bool> isOverdue,
   Value<bool> needsCheckoutReview,
@@ -25496,8 +26556,6 @@ typedef $$BookingsTableCreateCompanionBuilder = BookingsCompanion Function({
   Value<bool> isFullyPaid,
   Value<String?> hotelDayCheckin,
   Value<String?> hotelDayCheckout,
-  Value<String?> financialHash,
-  Value<String?> financialFrozenAt,
 });
 typedef $$BookingsTableUpdateCompanionBuilder = BookingsCompanion Function({
   Value<String> localUuid,
@@ -25538,6 +26596,8 @@ typedef $$BookingsTableUpdateCompanionBuilder = BookingsCompanion Function({
   Value<int> calculatedNights,
   Value<int> totalNightsCached,
   Value<String?> stayDurationIso,
+  Value<String?> financialHash,
+  Value<String?> financialFrozenAt,
   Value<int?> lastNightEpoch,
   Value<bool> isOverdue,
   Value<bool> needsCheckoutReview,
@@ -25547,8 +26607,6 @@ typedef $$BookingsTableUpdateCompanionBuilder = BookingsCompanion Function({
   Value<bool> isFullyPaid,
   Value<String?> hotelDayCheckin,
   Value<String?> hotelDayCheckout,
-  Value<String?> financialHash,
-  Value<String?> financialFrozenAt,
 });
 
 final class $$BookingsTableReferences
@@ -25781,6 +26839,13 @@ class $$BookingsTableFilterComposer
       column: $table.stayDurationIso,
       builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get financialHash => $composableBuilder(
+      column: $table.financialHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get financialFrozenAt => $composableBuilder(
+      column: $table.financialFrozenAt,
+      builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get lastNightEpoch => $composableBuilder(
       column: $table.lastNightEpoch,
       builder: (column) => ColumnFilters(column));
@@ -25813,13 +26878,6 @@ class $$BookingsTableFilterComposer
 
   ColumnFilters<String> get hotelDayCheckout => $composableBuilder(
       column: $table.hotelDayCheckout,
-      builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get financialHash => $composableBuilder(
-      column: $table.financialHash, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get financialFrozenAt => $composableBuilder(
-      column: $table.financialFrozenAt,
       builder: (column) => ColumnFilters(column));
 
   $$RoomsTableFilterComposer get roomNumber {
@@ -26090,6 +27148,14 @@ class $$BookingsTableOrderingComposer
       column: $table.stayDurationIso,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get financialHash => $composableBuilder(
+      column: $table.financialHash,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get financialFrozenAt => $composableBuilder(
+      column: $table.financialFrozenAt,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get lastNightEpoch => $composableBuilder(
       column: $table.lastNightEpoch,
       builder: (column) => ColumnOrderings(column));
@@ -26122,14 +27188,6 @@ class $$BookingsTableOrderingComposer
 
   ColumnOrderings<String> get hotelDayCheckout => $composableBuilder(
       column: $table.hotelDayCheckout,
-      builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get financialHash => $composableBuilder(
-      column: $table.financialHash,
-      builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get financialFrozenAt => $composableBuilder(
-      column: $table.financialFrozenAt,
       builder: (column) => ColumnOrderings(column));
 
   $$RoomsTableOrderingComposer get roomNumber {
@@ -26273,6 +27331,12 @@ class $$BookingsTableAnnotationComposer
   GeneratedColumn<String> get stayDurationIso => $composableBuilder(
       column: $table.stayDurationIso, builder: (column) => column);
 
+  GeneratedColumn<String> get financialHash => $composableBuilder(
+      column: $table.financialHash, builder: (column) => column);
+
+  GeneratedColumn<String> get financialFrozenAt => $composableBuilder(
+      column: $table.financialFrozenAt, builder: (column) => column);
+
   GeneratedColumn<int> get lastNightEpoch => $composableBuilder(
       column: $table.lastNightEpoch, builder: (column) => column);
 
@@ -26299,12 +27363,6 @@ class $$BookingsTableAnnotationComposer
 
   GeneratedColumn<String> get hotelDayCheckout => $composableBuilder(
       column: $table.hotelDayCheckout, builder: (column) => column);
-
-  GeneratedColumn<String> get financialHash => $composableBuilder(
-      column: $table.financialHash, builder: (column) => column);
-
-  GeneratedColumn<String> get financialFrozenAt => $composableBuilder(
-      column: $table.financialFrozenAt, builder: (column) => column);
 
   $$RoomsTableAnnotationComposer get roomNumber {
     final $$RoomsTableAnnotationComposer composer = $composerBuilder(
@@ -26501,6 +27559,8 @@ class $$BookingsTableTableManager extends RootTableManager<
             Value<int> calculatedNights = const Value.absent(),
             Value<int> totalNightsCached = const Value.absent(),
             Value<String?> stayDurationIso = const Value.absent(),
+            Value<String?> financialHash = const Value.absent(),
+            Value<String?> financialFrozenAt = const Value.absent(),
             Value<int?> lastNightEpoch = const Value.absent(),
             Value<bool> isOverdue = const Value.absent(),
             Value<bool> needsCheckoutReview = const Value.absent(),
@@ -26510,8 +27570,6 @@ class $$BookingsTableTableManager extends RootTableManager<
             Value<bool> isFullyPaid = const Value.absent(),
             Value<String?> hotelDayCheckin = const Value.absent(),
             Value<String?> hotelDayCheckout = const Value.absent(),
-            Value<String?> financialHash = const Value.absent(),
-            Value<String?> financialFrozenAt = const Value.absent(),
           }) =>
               BookingsCompanion(
             localUuid: localUuid,
@@ -26552,6 +27610,8 @@ class $$BookingsTableTableManager extends RootTableManager<
             calculatedNights: calculatedNights,
             totalNightsCached: totalNightsCached,
             stayDurationIso: stayDurationIso,
+            financialHash: financialHash,
+            financialFrozenAt: financialFrozenAt,
             lastNightEpoch: lastNightEpoch,
             isOverdue: isOverdue,
             needsCheckoutReview: needsCheckoutReview,
@@ -26561,8 +27621,6 @@ class $$BookingsTableTableManager extends RootTableManager<
             isFullyPaid: isFullyPaid,
             hotelDayCheckin: hotelDayCheckin,
             hotelDayCheckout: hotelDayCheckout,
-            financialHash: financialHash,
-            financialFrozenAt: financialFrozenAt,
           ),
           createCompanionCallback: ({
             required String localUuid,
@@ -26603,6 +27661,8 @@ class $$BookingsTableTableManager extends RootTableManager<
             Value<int> calculatedNights = const Value.absent(),
             Value<int> totalNightsCached = const Value.absent(),
             Value<String?> stayDurationIso = const Value.absent(),
+            Value<String?> financialHash = const Value.absent(),
+            Value<String?> financialFrozenAt = const Value.absent(),
             Value<int?> lastNightEpoch = const Value.absent(),
             Value<bool> isOverdue = const Value.absent(),
             Value<bool> needsCheckoutReview = const Value.absent(),
@@ -26612,8 +27672,6 @@ class $$BookingsTableTableManager extends RootTableManager<
             Value<bool> isFullyPaid = const Value.absent(),
             Value<String?> hotelDayCheckin = const Value.absent(),
             Value<String?> hotelDayCheckout = const Value.absent(),
-            Value<String?> financialHash = const Value.absent(),
-            Value<String?> financialFrozenAt = const Value.absent(),
           }) =>
               BookingsCompanion.insert(
             localUuid: localUuid,
@@ -26654,6 +27712,8 @@ class $$BookingsTableTableManager extends RootTableManager<
             calculatedNights: calculatedNights,
             totalNightsCached: totalNightsCached,
             stayDurationIso: stayDurationIso,
+            financialHash: financialHash,
+            financialFrozenAt: financialFrozenAt,
             lastNightEpoch: lastNightEpoch,
             isOverdue: isOverdue,
             needsCheckoutReview: needsCheckoutReview,
@@ -26663,8 +27723,6 @@ class $$BookingsTableTableManager extends RootTableManager<
             isFullyPaid: isFullyPaid,
             hotelDayCheckin: hotelDayCheckin,
             hotelDayCheckout: hotelDayCheckout,
-            financialHash: financialHash,
-            financialFrozenAt: financialFrozenAt,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) =>
@@ -28221,6 +29279,443 @@ typedef $$EmployeesTableProcessedTableManager = ProcessedTableManager<
     (Employee, $$EmployeesTableReferences),
     Employee,
     PrefetchHooks Function({bool salaryCyclesRefs})>;
+typedef $$GuestInfosTableCreateCompanionBuilder = GuestInfosCompanion Function({
+  required String localUuid,
+  Value<int?> serverId,
+  required int createdAt,
+  required int updatedAt,
+  Value<int?> deletedAt,
+  required int lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  required String roomNumber,
+  required String guestName,
+  required String nationality,
+  required String idNumber,
+  Value<String> idType,
+  Value<String?> issueDate,
+  Value<String?> issuePlace,
+  Value<String?> governorate,
+});
+typedef $$GuestInfosTableUpdateCompanionBuilder = GuestInfosCompanion Function({
+  Value<String> localUuid,
+  Value<int?> serverId,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int?> deletedAt,
+  Value<int> lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  Value<String> roomNumber,
+  Value<String> guestName,
+  Value<String> nationality,
+  Value<String> idNumber,
+  Value<String> idType,
+  Value<String?> issueDate,
+  Value<String?> issuePlace,
+  Value<String?> governorate,
+});
+
+class $$GuestInfosTableFilterComposer
+    extends Composer<_$AppDatabase, $GuestInfosTable> {
+  $$GuestInfosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get guestName => $composableBuilder(
+      column: $table.guestName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get nationality => $composableBuilder(
+      column: $table.nationality, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get idNumber => $composableBuilder(
+      column: $table.idNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get idType => $composableBuilder(
+      column: $table.idType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get issueDate => $composableBuilder(
+      column: $table.issueDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get issuePlace => $composableBuilder(
+      column: $table.issuePlace, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get governorate => $composableBuilder(
+      column: $table.governorate, builder: (column) => ColumnFilters(column));
+}
+
+class $$GuestInfosTableOrderingComposer
+    extends Composer<_$AppDatabase, $GuestInfosTable> {
+  $$GuestInfosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+      column: $table.lastModified,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get guestName => $composableBuilder(
+      column: $table.guestName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get nationality => $composableBuilder(
+      column: $table.nationality, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get idNumber => $composableBuilder(
+      column: $table.idNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get idType => $composableBuilder(
+      column: $table.idType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get issueDate => $composableBuilder(
+      column: $table.issueDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get issuePlace => $composableBuilder(
+      column: $table.issuePlace, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get governorate => $composableBuilder(
+      column: $table.governorate, builder: (column) => ColumnOrderings(column));
+}
+
+class $$GuestInfosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GuestInfosTable> {
+  $$GuestInfosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => column);
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get guestName =>
+      $composableBuilder(column: $table.guestName, builder: (column) => column);
+
+  GeneratedColumn<String> get nationality => $composableBuilder(
+      column: $table.nationality, builder: (column) => column);
+
+  GeneratedColumn<String> get idNumber =>
+      $composableBuilder(column: $table.idNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get idType =>
+      $composableBuilder(column: $table.idType, builder: (column) => column);
+
+  GeneratedColumn<String> get issueDate =>
+      $composableBuilder(column: $table.issueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get issuePlace => $composableBuilder(
+      column: $table.issuePlace, builder: (column) => column);
+
+  GeneratedColumn<String> get governorate => $composableBuilder(
+      column: $table.governorate, builder: (column) => column);
+}
+
+class $$GuestInfosTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $GuestInfosTable,
+    GuestInfo,
+    $$GuestInfosTableFilterComposer,
+    $$GuestInfosTableOrderingComposer,
+    $$GuestInfosTableAnnotationComposer,
+    $$GuestInfosTableCreateCompanionBuilder,
+    $$GuestInfosTableUpdateCompanionBuilder,
+    (GuestInfo, BaseReferences<_$AppDatabase, $GuestInfosTable, GuestInfo>),
+    GuestInfo,
+    PrefetchHooks Function()> {
+  $$GuestInfosTableTableManager(_$AppDatabase db, $GuestInfosTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GuestInfosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GuestInfosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GuestInfosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> localUuid = const Value.absent(),
+            Value<int?> serverId = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int?> deletedAt = const Value.absent(),
+            Value<int> lastModified = const Value.absent(),
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            Value<String> roomNumber = const Value.absent(),
+            Value<String> guestName = const Value.absent(),
+            Value<String> nationality = const Value.absent(),
+            Value<String> idNumber = const Value.absent(),
+            Value<String> idType = const Value.absent(),
+            Value<String?> issueDate = const Value.absent(),
+            Value<String?> issuePlace = const Value.absent(),
+            Value<String?> governorate = const Value.absent(),
+          }) =>
+              GuestInfosCompanion(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            roomNumber: roomNumber,
+            guestName: guestName,
+            nationality: nationality,
+            idNumber: idNumber,
+            idType: idType,
+            issueDate: issueDate,
+            issuePlace: issuePlace,
+            governorate: governorate,
+          ),
+          createCompanionCallback: ({
+            required String localUuid,
+            Value<int?> serverId = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int?> deletedAt = const Value.absent(),
+            required int lastModified,
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            required String roomNumber,
+            required String guestName,
+            required String nationality,
+            required String idNumber,
+            Value<String> idType = const Value.absent(),
+            Value<String?> issueDate = const Value.absent(),
+            Value<String?> issuePlace = const Value.absent(),
+            Value<String?> governorate = const Value.absent(),
+          }) =>
+              GuestInfosCompanion.insert(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            roomNumber: roomNumber,
+            guestName: guestName,
+            nationality: nationality,
+            idNumber: idNumber,
+            idType: idType,
+            issueDate: issueDate,
+            issuePlace: issuePlace,
+            governorate: governorate,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$GuestInfosTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $GuestInfosTable,
+    GuestInfo,
+    $$GuestInfosTableFilterComposer,
+    $$GuestInfosTableOrderingComposer,
+    $$GuestInfosTableAnnotationComposer,
+    $$GuestInfosTableCreateCompanionBuilder,
+    $$GuestInfosTableUpdateCompanionBuilder,
+    (GuestInfo, BaseReferences<_$AppDatabase, $GuestInfosTable, GuestInfo>),
+    GuestInfo,
+    PrefetchHooks Function()>;
 typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String localUuid,
   Value<int?> serverId,
@@ -37459,6 +38954,8 @@ class $AppDatabaseManager {
       $$ShiftNotesTableTableManager(_db, _db.shiftNotes);
   $$EmployeesTableTableManager get employees =>
       $$EmployeesTableTableManager(_db, _db.employees);
+  $$GuestInfosTableTableManager get guestInfos =>
+      $$GuestInfosTableTableManager(_db, _db.guestInfos);
   $$ExpensesTableTableManager get expenses =>
       $$ExpensesTableTableManager(_db, _db.expenses);
   $$CashTransactionsTableTableManager get cashTransactions =>

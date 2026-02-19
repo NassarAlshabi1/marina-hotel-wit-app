@@ -22,6 +22,7 @@ import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/security/blacklist_screen.dart';
+import 'screens/information/information_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
@@ -420,9 +421,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
 
         // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
-        syncManager.startAutoSync(
-          interval: const Duration(minutes: 2),
-        );
+        syncManager.startAutoSync(interval: const Duration(minutes: 2));
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
@@ -435,9 +434,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(
-          deviceId: deviceId,
-        );
+        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
         await AppwriteRealtimeSync().start();
         debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
@@ -644,6 +641,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/finance': const FinanceScreen(),
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
+    '/information': const InformationScreen(),
     '/blacklist': const BlacklistScreen(),
     '/settings': const SettingsScreen(),
   };
