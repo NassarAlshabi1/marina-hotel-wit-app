@@ -6,7 +6,7 @@ import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import 'guest_edit_screen.dart';
-import 'guest_info.dart';
+import 'guest_profile.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -80,7 +80,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     children: [
                       Icon(Icons.people_outline, size: 64, color: Colors.grey),
                       SizedBox(height: 16),
-                      Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
+                      Text('لا يوجد ضيوف مسجلين',
+                          style: TextStyle(fontSize: 18)),
                       SizedBox(height: 8),
                       Text(
                         'سيتم عرض الضيوف عند إضافة حجوزات',
@@ -115,8 +116,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  List<GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
-    final Map<String, GuestInfo> guestMap = {};
+  List<GuestProfile> _groupGuestsFromBookings(List<Booking> bookings) {
+    final Map<String, GuestProfile> guestMap = {};
 
     for (final booking in bookings) {
       if (!StatusUtils.isActiveBooking(booking.status)) continue;
@@ -131,7 +132,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
       final existing = guestMap[key];
       if (existing == null) {
-        guestMap[key] = GuestInfo(
+        guestMap[key] = GuestProfile(
           name: booking.guestName,
           phone: booking.guestPhone,
           email: email,
@@ -175,15 +176,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
 
     final sortedGuests =
-        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
-          (a, b) => b.bookings.first.checkinDate.compareTo(
-            a.bookings.first.checkinDate,
-          ),
-        );
+        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()
+          ..sort(
+            (a, b) => b.bookings.first.checkinDate.compareTo(
+              a.bookings.first.checkinDate,
+            ),
+          );
     return sortedGuests;
   }
 
-  List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
+  List<GuestProfile> _filterGuests(List<GuestProfile> guests) {
     if (_searchQuery.isEmpty) return guests;
 
     return guests.where((guest) {
@@ -220,16 +222,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Widget _buildGuestCard(
     BuildContext context,
-    GuestInfo guest,
+    GuestProfile guest,
     Map<String, double> roomPrices,
   ) {
     final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
-    final lastVisit = guest.bookings.isNotEmpty
-        ? guest.bookings.first.checkinDate
-        : '';
-    final latestBooking = guest.bookings.isNotEmpty ? guest.bookings.first : null;
+    final lastVisit =
+        guest.bookings.isNotEmpty ? guest.bookings.first.checkinDate : '';
+    final latestBooking =
+        guest.bookings.isNotEmpty ? guest.bookings.first : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -244,9 +246,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: activeBookings > 0
-                      ? Colors.green
-                      : Colors.blueGrey,
+                  backgroundColor:
+                      activeBookings > 0 ? Colors.green : Colors.blueGrey,
                   child: Text(
                     latestBooking != null ? latestBooking.roomNumber : '—',
                     style: const TextStyle(
@@ -373,7 +374,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     icon: const Icon(Icons.history, size: 14),
                     label: const Text('السجل', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -385,7 +387,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     icon: const Icon(Icons.edit, size: 14),
                     label: const Text('تعديل', style: TextStyle(fontSize: 11)),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -394,12 +397,14 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
+                    icon: const Icon(Icons.delete_outline,
+                        size: 14, color: Colors.red),
                     label: const Text('حذف', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -465,7 +470,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
   }
 
-  void _showGuestHistory(BuildContext context, GuestInfo guest) {
+  void _showGuestHistory(BuildContext context, GuestProfile guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -485,8 +490,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     leading: CircleAvatar(
                       backgroundColor:
                           StatusUtils.isActiveBooking(booking.status)
-                          ? Colors.green
-                          : Colors.blue,
+                              ? Colors.green
+                              : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),
@@ -515,7 +520,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  void _showGuestDetails(BuildContext context, GuestInfo guest) {
+  void _showGuestDetails(BuildContext context, GuestProfile guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -566,7 +571,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
+  Future<void> _editGuest(BuildContext context, GuestProfile guest) async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
     );
@@ -577,7 +582,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
   }
 
-  Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
+  Future<void> _deleteGuest(BuildContext context, GuestProfile guest) async {
     final active = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;

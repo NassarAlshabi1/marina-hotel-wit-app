@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,7 +78,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 : const Icon(Icons.picture_as_pdf),
           ),
         ],
-        floatingActionButton: FloatingActionButton.extended(
+        fab: FloatingActionButton.extended(
           onPressed: () => _openEditor(context),
           icon: const Icon(Icons.add),
           label: const Text('إضافة سجل'),
@@ -398,9 +398,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         nationality: nationalityController.text,
         idNumber: idNumberController.text,
         idType: selectedIdType,
-        issueDate: issueDateController.text.isEmpty
-            ? null
-            : issueDateController.text,
+        issueDate:
+            issueDateController.text.isEmpty ? null : issueDateController.text,
         issuePlace: issuePlaceController.text,
         governorate: governorateController.text,
       );
@@ -527,7 +526,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 style: pw.TextStyle(
                   font: fonts.bold,
                   fontSize: 18,
-                  color: PdfColors.blue800,
+                  color: pdf.PdfColors.blue800,
                 ),
               ),
               pw.Text(
@@ -535,7 +534,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 style: pw.TextStyle(
                   font: fonts.base,
                   fontSize: 14,
-                  color: PdfColors.grey700,
+                  color: pdf.PdfColors.grey700,
                 ),
               ),
               pw.SizedBox(height: 8),
@@ -546,16 +545,17 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               headers: headers,
               data: data,
               headerDecoration: const pw.BoxDecoration(
-                color: PdfColors.blue800,
+                color: pdf.PdfColors.blue800,
               ),
               headerStyle: pw.TextStyle(
                 font: fonts.bold,
-                color: PdfColors.white,
+                color: pdf.PdfColors.white,
                 fontSize: 11,
               ),
               cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
               cellAlignment: pw.Alignment.centerLeft,
-              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              border:
+                  pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
             ),
           ],
         ),
