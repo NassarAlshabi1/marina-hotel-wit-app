@@ -445,6 +445,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                   ),
                 ),
                 pw.Text(
+                  'القاهرة  شارع احمد قاسم',
+                  style: pw.TextStyle(
+                    font: fonts.base,
+                    fontSize: 14,
+                    color: pdf.PdfColors.grey700,
+                  ),
+                ),
+                pw.Text(
                   'سجل المعلومية',
                   style: pw.TextStyle(
                     font: fonts.base,
