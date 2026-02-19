@@ -387,26 +387,26 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
-        'رقم الغرفة',
-        'اسم النزيل',
-        'الجنسية',
-        'نوع الهوية',
-        'رقم الهوية',
-        'تاريخ الإصدار',
-        'مكان الإصدار',
         'المحافظة',
+        'مكان الإصدار',
+        'تاريخ الإصدار',
+        'رقم الهوية',
+        'نوع الهوية',
+        'الجنسية',
+        'اسم النزيل',
+        'رقم الغرفة',
       ];
       final data = entries
           .map(
             (info) => [
-              info.roomNumber,
-              info.guestName,
-              info.nationality,
-              info.idType ?? '-',
-              info.idNumber,
-              info.issueDate ?? '-',
-              info.issuePlace ?? '-',
               info.governorate ?? '-',
+              info.issuePlace ?? '-',
+              info.issueDate ?? '-',
+              info.idNumber,
+              info.idType ?? '-',
+              info.nationality,
+              info.guestName,
+              info.roomNumber,
             ],
           )
           .toList();
