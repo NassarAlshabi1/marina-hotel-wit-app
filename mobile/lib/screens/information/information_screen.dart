@@ -284,106 +284,95 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text(existing == null ? 'إضافة معلومية' : 'تعديل معلومية'),
-            content: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: roomController,
-                        decoration: const InputDecoration(
-                          labelText: 'رقم الغرفة',
-                        ),
-                        validator: _requiredValidator,
-                      ),
-                      TextFormField(
-                        controller: guestNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'اسم النزيل',
-                        ),
-                        validator: _requiredValidator,
-                      ),
-                      TextFormField(
-                        controller: nationalityController,
-                        decoration: const InputDecoration(labelText: 'الجنسية'),
-                        validator: _requiredValidator,
-                      ),
-                      TextFormField(
-                        controller: idNumberController,
-                        decoration: const InputDecoration(
-                          labelText: 'رقم الهوية',
-                        ),
-                        validator: _requiredValidator,
-                      ),
-                      DropdownButtonFormField<String>(
-                        value: selectedIdType,
-                        decoration: const InputDecoration(
-                          labelText: 'نوع الهوية',
-                        ),
-                        items: _idTypes
-                            .map(
-                              (type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(type),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            selectedIdType = value;
-                          }
-                        },
-                      ),
-                      TextFormField(
-                        controller: issueDateController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'تاريخ الإصدار',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.date_range),
-                            onPressed: () =>
-                                _pickIssueDate(issueDateController),
-                          ),
+        return AlertDialog(
+          title: Text(existing == null ? 'إضافة معلومية' : 'تعديل معلومية'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: roomController,
+                      decoration:
+                          const InputDecoration(labelText: 'رقم الغرفة'),
+                      validator: _requiredValidator,
+                    ),
+                    TextFormField(
+                      controller: guestNameController,
+                      decoration:
+                          const InputDecoration(labelText: 'اسم النزيل'),
+                      validator: _requiredValidator,
+                    ),
+                    TextFormField(
+                      controller: nationalityController,
+                      decoration: const InputDecoration(labelText: 'الجنسية'),
+                      validator: _requiredValidator,
+                    ),
+                    TextFormField(
+                      controller: idNumberController,
+                      decoration:
+                          const InputDecoration(labelText: 'رقم الهوية'),
+                      validator: _requiredValidator,
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: selectedIdType,
+                      decoration:
+                          const InputDecoration(labelText: 'نوع الهوية'),
+                      items: _idTypes
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          selectedIdType = value;
+                        }
+                      },
+                    ),
+                    TextFormField(
+                      controller: issueDateController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'تاريخ الإصدار',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.date_range),
+                          onPressed: () => _pickIssueDate(issueDateController),
                         ),
                       ),
-                      TextFormField(
-                        controller: issuePlaceController,
-                        decoration: const InputDecoration(
-                          labelText: 'مكان الإصدار',
-                        ),
-                      ),
-                      TextFormField(
-                        controller: governorateController,
-                        decoration: const InputDecoration(
-                          labelText: 'المحافظة',
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    TextFormField(
+                      controller: issuePlaceController,
+                      decoration:
+                          const InputDecoration(labelText: 'مكان الإصدار'),
+                    ),
+                    TextFormField(
+                      controller: governorateController,
+                      decoration: const InputDecoration(labelText: 'المحافظة'),
+                    ),
+                  ],
                 ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('إلغاء'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  if (formKey.currentState?.validate() ?? false) {
-                    Navigator.of(dialogContext).pop(true);
-                  }
-                },
-                child: const Text('حفظ'),
-              ),
-            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(true);
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
         );
       },
     );
@@ -425,25 +414,22 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   Future<void> _confirmDelete(GuestInfo info) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('حذف السجل'),
-          content: Text(
-            'سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-              child: const Text('حذف'),
-            ),
-          ],
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف السجل'),
+        content: Text(
+          'سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('حذف'),
+          ),
+        ],
       ),
     );
 
