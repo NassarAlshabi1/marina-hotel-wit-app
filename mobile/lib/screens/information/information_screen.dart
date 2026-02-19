@@ -172,20 +172,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     );
   }
 
-  List<GuestInfo> _applySearch(List<GuestInfo> entries) {
-    if (_searchQuery.isEmpty) {
-      return entries;
-    }
-    final q = _searchQuery.toLowerCase();
-    return entries.where((info) {
-      return info.roomNumber.toLowerCase().contains(q) ||
-          info.guestName.toLowerCase().contains(q) ||
-          info.nationality.toLowerCase().contains(q) ||
-          info.idNumber.toLowerCase().contains(q) ||
-          (info.governorate ?? '').toLowerCase().contains(q);
-    }).toList();
-  }
-
   Future<void> _openEditor(BuildContext context, {GuestInfo? existing}) async {
     final formKey = GlobalKey<FormState>();
     final roomController = TextEditingController(
@@ -429,52 +415,61 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final doc = pw.Document();
       doc.addPage(
         pw.MultiPage(
+          pageFormat: pdf.PdfPageFormat.a4,
           textDirection: pw.TextDirection.rtl,
-          margin:
-              const pw.EdgeInsets.only(top: 8, left: 20, right: 20, bottom: 20),
+          margin: const pw.EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
           theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
-          header: (context) => pw.Center(
-            child: pw.Column(
+          header: (context) {
+            return pw.Column(
               mainAxisSize: pw.MainAxisSize.min,
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text(
-                  hotelName,
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 18,
-                    color: pdf.PdfColors.blue800,
+                pw.Center(
+                  child: pw.Text(
+                    hotelName,
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 20,
+                      color: pdf.PdfColors.blue900,
+                    ),
                   ),
                 ),
-                pw.Text(
-                  'القاهرة  شارع احمد قاسم',
-                  style: pw.TextStyle(
-                    font: fonts.base,
-                    fontSize: 12,
-                    color: pdf.PdfColors.grey700,
+                pw.SizedBox(height: 5),
+                pw.Center(
+                  child: pw.Text(
+                    'سجل المعلومية',
+                    style: pw.TextStyle(
+                      font: fonts.base,
+                      fontSize: 16,
+                      color: pdf.PdfColors.grey800,
+                    ),
                   ),
                 ),
-                pw.Text(
-                  'سجل المعلومية',
-                  style: pw.TextStyle(
-                    font: fonts.base,
-                    fontSize: 14,
-                    color: pdf.PdfColors.grey700,
-                  ),
-                ),
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 10),
+                pw.Divider(color: pdf.PdfColors.grey400),
+                pw.SizedBox(height: 10),
               ],
-            ),
+            );
+          },
+          footer: (context) => pw.Column(
+            children: [
+              pw.Divider(color: pdf.PdfColors.grey400),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'تاريخ الطباعة: $printDate',
+                    style: pw.TextStyle(font: fonts.base, fontSize: 10),
+                  ),
+                  pw.Text(
+                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                    style: pw.TextStyle(font: fonts.base, fontSize: 10),
+                  ),
+                ],
+              ),
+            ],
           ),
           build: (context) => [
-            pw.Align(
-              alignment: pw.Alignment.centerLeft,
-              child: pw.Text(
-                'تاريخ الطباعة: $printDate',
-                style: pw.TextStyle(font: fonts.bold, fontSize: 12),
-              ),
-            ),
-            pw.SizedBox(height: 8),
             pw.Table.fromTextArray(
               headers: headers,
               data: data,
@@ -484,12 +479,21 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               headerStyle: pw.TextStyle(
                 font: fonts.bold,
                 color: pdf.PdfColors.white,
-                fontSize: 11,
+                fontSize: 10,
               ),
-              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
+              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.centerLeft,
-              border:
-                  pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+              border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+              headerAlignments: {
+                0: pw.Alignment.center,
+                1: pw.Alignment.centerRight,
+                2: pw.Alignment.center,
+                3: pw.Alignment.center,
+                4: pw.Alignment.center,
+                5: pw.Alignment.centerRight,
+                6: pw.Alignment.center,
+                7: pw.Alignment.centerRight,
+              },
             ),
           ],
         ),
