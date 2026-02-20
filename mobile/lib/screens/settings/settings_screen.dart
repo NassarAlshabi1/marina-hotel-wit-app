@@ -9,6 +9,7 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
+import 'settings_id_types.dart';
 import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
@@ -216,6 +217,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DiagnosticsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'أنواع الهوية',
+              subtitle: 'تخصيص قائمة أنواع الهوية',
+              icon: Icons.badge_outlined,
+              color: Colors.blueGrey,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsIdTypesScreen(),
                 ),
               ),
             ),

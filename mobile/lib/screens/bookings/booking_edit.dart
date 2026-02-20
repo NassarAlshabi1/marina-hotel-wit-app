@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../providers/repository_providers.dart';
@@ -54,7 +55,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _paymentNotes = TextEditingController();
   static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
-  static const _idTypes = [
+  List<String> _idTypes = [
     'بطاقة شخصية',
     'جواز سفر',
     'رخصة قيادة',
@@ -67,6 +68,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   @override
   void initState() {
     super.initState();
+    _loadCustomIdTypes();
 
     _guestName.addListener(markDataChanged);
     _guestPhone.addListener(markDataChanged);
@@ -126,6 +128,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _recalculateExpectedNights(),
     );
+  }
+
+  Future<void> _loadCustomIdTypes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedTypes = prefs.getStringList('custom_id_types');
+    if (savedTypes != null && savedTypes.isNotEmpty) {
+      setState(() {
+        _idTypes = savedTypes;
+        // التأكد من أن القيمة الحالية موجودة في القائمة الجديدة
+        if (!_idTypes.contains(_idType)) {
+          _idType = _idTypes.first;
+        }
+      });
+    }
   }
 
   @override
