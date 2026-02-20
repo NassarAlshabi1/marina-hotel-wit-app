@@ -75,12 +75,21 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _guestIdNumber.addListener(markDataChanged);
     _guestIdIssueDate.addListener(markDataChanged);
     _guestIdIssuePlace.addListener(markDataChanged);
-    _roomNumber.addListener(markDataChanged);
-    _checkin.addListener(markDataChanged);
+    _roomNumber.addListener(() {
+      markDataChanged();
+      setState(() {});
+    });
+    _checkin.addListener(() {
+      markDataChanged();
+      setState(() {});
+    });
     _checkout.addListener(markDataChanged);
     _expectedNights.addListener(markDataChanged);
     _notes.addListener(markDataChanged);
-    _advancePayment.addListener(markDataChanged);
+    _advancePayment.addListener(() {
+      markDataChanged();
+      setState(() {});
+    });
     _paymentNotes.addListener(markDataChanged);
 
     final b = widget.existing;
@@ -489,6 +498,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               helperText: 'مثال: عربون لثلاث ليالي',
                             ),
                           ),
+                          roomsAsync.when(
+                            data: (rooms) => _buildAdvancePaymentSummary(rooms),
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, __) => const SizedBox.shrink(),
+                          ),
                         ],
                       ],
                     ),
@@ -676,6 +690,98 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildAdvancePaymentSummary(List<Room> rooms) {
+    if (!_hasAdvancePayment) return const SizedBox.shrink();
+
+    final amount = double.tryParse(_advancePayment.text.trim()) ?? 0.0;
+    if (amount <= 0) return const SizedBox.shrink();
+
+    final roomNumber = _roomNumber.text.trim();
+    final room = rooms.cast<Room?>().firstWhere(
+      (r) => r?.roomNumber == roomNumber,
+      orElse: () => null,
+    );
+
+    if (room == null) return const SizedBox.shrink();
+
+    final price = room.price;
+    if (price <= 0) return const SizedBox.shrink();
+
+    final daysCovered = (amount / price).floor();
+
+    final checkinDt = _parseDateTime(_checkin.text.trim()) ?? DateTime.now();
+    final now = DateTime.now();
+
+    // Calculate nights consumed until now
+    final nightsConsumed = Time.nightsWithCutoff(checkinDt, checkout: now);
+    final consumedAmount = nightsConsumed * price;
+    final remainingBalance = amount - consumedAmount;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.analytics_outlined, size: 18, color: Colors.blue),
+              SizedBox(width: 6),
+              Text(
+                'تحليل الدفعة المقدمة:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 12),
+          _buildSummaryRow('سعر الليلة:', '${price.toStringAsFixed(0)} ريال'),
+          _buildSummaryRow('تغطي مدة:', '$daysCovered يوماً'),
+          _buildSummaryRow('الأيام المستهلكة:', '$nightsConsumed يوماً'),
+          const Divider(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'الرصيد المتبقي حالياً:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${remainingBalance.toStringAsFixed(0)} ريال',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: remainingBalance >= 0 ? Colors.green : Colors.red,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 
   Widget _buildSectionTitle(String text) {
