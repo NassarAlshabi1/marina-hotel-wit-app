@@ -44,6 +44,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _expectedNights = TextEditingController(text: '1');
   final _notes = TextEditingController();
 
+  // متغيرات التخفيض/الزيادة
+  bool _hasAdjustment = false;
+  final _adjustmentAmount = TextEditingController();
+  String _adjustmentType = 'per_night'; // 'per_night' or 'total'
+  bool _isDiscount = true; // true for discount, false for surcharge
+  final _adjustmentStartDate = TextEditingController();
+
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
@@ -93,6 +100,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       setState(() {});
     });
     _paymentNotes.addListener(markDataChanged);
+    _adjustmentAmount.addListener(() {
+      markDataChanged();
+      setState(() {});
+    });
+    _adjustmentStartDate.addListener(markDataChanged);
 
     final b = widget.existing;
     if (b != null) {
@@ -113,6 +125,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       _status = b.status;
       _idType = b.guestIdType;
       _roomInitialized = true;
+      if (b.discount != 0) {
+        _hasAdjustment = true;
+        _adjustmentAmount.text = b.discount.abs().toStringAsFixed(0);
+        _isDiscount = b.discount > 0;
+        _adjustmentType = b.discountType;
+        _adjustmentStartDate.text = b.discountStartDate ?? '';
+      }
     } else {
       if (widget.initialRoomNumber != null &&
           widget.initialRoomNumber!.isNotEmpty) {
@@ -160,6 +179,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.removeListener(markDataChanged);
     _advancePayment.removeListener(markDataChanged);
     _paymentNotes.removeListener(markDataChanged);
+    _adjustmentAmount.removeListener(markDataChanged);
+    _adjustmentStartDate.removeListener(markDataChanged);
 
     _guestName.dispose();
     _guestPhone.dispose();
@@ -175,6 +196,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     _notes.dispose();
     _advancePayment.dispose();
     _paymentNotes.dispose();
+    _adjustmentAmount.dispose();
+    _adjustmentStartDate.dispose();
     super.dispose();
   }
 
@@ -437,6 +460,100 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   ),
                 ),
                 const SizedBox(height: 10),
+                _buildSectionTitle('التخفيض أو الزيادة (اختياري)'),
+                Card(
+                  color: _hasAdjustment
+                      ? Colors.blue.shade50
+                      : Colors.grey.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Column(
+                      children: [
+                        CheckboxListTile(
+                          title: const Text('تعديل السعر (تخفيض/زيادة)'),
+                          subtitle: const Text('تعديل السعر اليومي أو الإجمالي لهذا الحجز'),
+                          value: _hasAdjustment,
+                          onChanged: (value) => setState(
+                            () => _hasAdjustment = value ?? false,
+                          ),
+                          activeColor: Colors.blue,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -4,
+                            vertical: -3,
+                          ),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        if (_hasAdjustment) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _adjustmentAmount,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: _isDiscount ? 'مبلغ التخفيض *' : 'مبلغ الزيادة *',
+                                    helperText: _isDiscount ? 'مثال: 1000 لكل يوم' : 'مثال: 500 زيادة موسمية',
+                                  ),
+                                  validator: _hasAdjustment
+                                      ? (v) {
+                                          if (v == null || v.trim().isEmpty) return 'مطلوب';
+                                          if (double.tryParse(v.trim()) == null) return 'رقم غير صحيح';
+                                          return null;
+                                        }
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButtonFormField<bool>(
+                                  value: _isDiscount,
+                                  items: const [
+                                    DropdownMenuItem(value: true, child: Text('تخفيض')),
+                                    DropdownMenuItem(value: false, child: Text('زيادة')),
+                                  ],
+                                  onChanged: (v) => setState(() => _isDiscount = v ?? true),
+                                  decoration: const InputDecoration(labelText: 'النوع'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _adjustmentType,
+                                  items: const [
+                                    DropdownMenuItem(value: 'per_night', child: Text('لكل ليلة')),
+                                    DropdownMenuItem(value: 'total', child: Text('من الإجمالي')),
+                                  ],
+                                  onChanged: (v) => setState(() => _adjustmentType = v ?? 'per_night'),
+                                  decoration: const InputDecoration(labelText: 'طريقة الحساب'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _adjustmentStartDate,
+                                  readOnly: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'يبدأ من تاريخ',
+                                    suffixIcon: Icon(Icons.calendar_today, size: 16),
+                                  ),
+                                  onTap: () => _pickDate(_adjustmentStartDate, onlyDate: true),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 _buildSectionTitle('الدفع المقدم (اختياري)'),
                 Card(
                   color: _hasAdvancePayment
@@ -582,6 +699,18 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       final notes = _optionalText(_notes.text);
                       const String? email = null;
 
+                      // حساب قيمة التخفيض/الزيادة
+                      double discountValue = 0;
+                      String discountType = 'per_night';
+                      String? discountStartDate;
+
+                      if (_hasAdjustment) {
+                        final rawAmount = double.tryParse(_adjustmentAmount.text.trim()) ?? 0;
+                        discountValue = _isDiscount ? rawAmount : -rawAmount;
+                        discountType = _adjustmentType;
+                        discountStartDate = _optionalText(_adjustmentStartDate.text);
+                      }
+
                       final blacklist = ref.read(blacklistRepoProvider);
                       final isBlacklisted = await blacklist.isNameBlacklisted(
                         name,
@@ -630,6 +759,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           notes: notes,
                           expectedNights: expectedNights,
                           calculatedNights: calculatedNights,
+                          discount: discountValue,
+                          discountType: discountType,
+                          discountStartDate: discountStartDate,
                         );
 
                         // إضافة الدفعة المقدمة إذا وجدت
@@ -671,6 +803,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           notes: notes,
                           expectedNights: expectedNights,
                           calculatedNights: calculatedNights,
+                          discount: discountValue,
+                          discountType: discountType,
+                          discountStartDate: discountStartDate,
                         );
                       }
 
