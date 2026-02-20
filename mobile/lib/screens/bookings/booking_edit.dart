@@ -596,7 +596,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       }
 
                       if (widget.existing == null) {
-                        await repo.create(
+                        final bookingId = await repo.create(
                           roomNumber: roomNumber,
                           guestName: name,
                           guestPhone: phone,
@@ -615,6 +615,27 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           expectedNights: expectedNights,
                           calculatedNights: calculatedNights,
                         );
+
+                        // إضافة الدفعة المقدمة إذا وجدت
+                        if (_hasAdvancePayment) {
+                          final amount =
+                              double.tryParse(_advancePayment.text.trim()) ??
+                              0.0;
+                          if (amount > 0) {
+                            final paymentsRepo = ref.read(paymentsRepoProvider);
+                            await paymentsRepo.create(
+                              bookingLocalId: bookingId,
+                              roomNumber: roomNumber,
+                              amount: amount,
+                              paymentDate: checkin,
+                              paymentMethod: _paymentMethod,
+                              revenueType: 'إقامة',
+                              notes: _paymentNotes.text.trim().isEmpty
+                                  ? 'دفعة مقدمة عند الحجز'
+                                  : _paymentNotes.text.trim(),
+                            );
+                          }
+                        }
                       } else {
                         await repo.update(
                           widget.existing!.id,
