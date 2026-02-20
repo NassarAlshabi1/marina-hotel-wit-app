@@ -221,9 +221,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final expectedNights = booking.expectedNights > 0
                   ? booking.expectedNights
                   : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
+              final isActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
               final actualNights = Time.nightsWithCutoff(
                 checkin,
-                checkout: actualCheckout ?? plannedCheckout,
+                checkout: actualCheckout ?? (isActive ? DateTime.now() : plannedCheckout),
               );
 
               final dbInstance = ref.watch(databaseProvider);
@@ -251,7 +252,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
                     )
                   : (() {
-                      final checkout = actualCheckout ?? plannedCheckout;
+                      final checkout = actualCheckout ?? (isActive ? DateTime.now() : plannedCheckout);
                       if (checkout == null) {
                         return actualNights * roomRate;
                       }

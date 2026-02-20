@@ -134,14 +134,21 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                           checkin,
                                           checkout: plannedCheckout,
                                         ));
+                            
+                            // Calculate nights based on current time for active bookings
+                            // or based on actual/planned checkout for finished ones.
+                            final isActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
                             final actualNights = checkin == null
                                 ? expectedNights
                                 : Time.nightsWithCutoff(
                                     checkin,
-                                    checkout: actualCheckout ?? plannedCheckout,
+                                    checkout: actualCheckout ?? (isActive ? DateTime.now() : plannedCheckout),
                                   );
-                            final totalAmount = (actualNights * price)
-                                .toDouble();
+                            
+                            // Use cached total due if available, otherwise fallback to simple calculation
+                            final totalAmount = booking.totalDueCached > 0 
+                                ? booking.totalDueCached 
+                                : (actualNights * price).toDouble();
                             return _BookingRow(
                               index: index,
                               booking: booking,
@@ -186,13 +193,18 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                     checkin,
                                     checkout: plannedCheckout,
                                   ));
+                      
+                      final isActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
                       final actualNights = checkin == null
                           ? expectedNights
                           : Time.nightsWithCutoff(
                               checkin,
-                              checkout: actualCheckout ?? plannedCheckout,
+                              checkout: actualCheckout ?? (isActive ? DateTime.now() : plannedCheckout),
                             );
-                      final totalAmount = (actualNights * price).toDouble();
+                      
+                      final totalAmount = booking.totalDueCached > 0 
+                          ? booking.totalDueCached 
+                          : (actualNights * price).toDouble();
                       return _BookingRow(
                         index: index + 1,
                         booking: booking,
