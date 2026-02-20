@@ -42,6 +42,13 @@ class DeltaSyncComputation {
   final List<DeltaSyncChange> changes;
   final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
   final Set<String> fallbackTables;
+
+  Map<String, dynamic> toPayload() {
+    return {
+      'changes': changes.map((c) => c.toMap()).toList(),
+      'fallback_tables': fallbackTables.toList(),
+    };
+  }
 }
 
 class DeltaSyncService {
@@ -142,9 +149,10 @@ class DeltaSyncService {
     return DeltaSyncComputation(changes: changes, mirrorSnapshot: snapshot, fallbackTables: fallbackTables);
   }
 
-  Future<void> persistMirror(DeltaSyncComputation computation) async {
+  Future<void> persistMirror(DeltaSyncComputation computation, {bool useExistingTransaction = false}) async {
     await _ensureMirrorTable();
-    await db.transaction(() async {
+    
+    Future<void> action() async {
       for (final entry in computation.mirrorSnapshot.entries) {
         final table = entry.key;
         await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [table]);
@@ -155,7 +163,13 @@ class DeltaSyncService {
           );
         }
       }
-    });
+    }
+
+    if (useExistingTransaction) {
+      await action();
+    } else {
+      await db.transaction(() async => await action());
+    }
   }
 
   Future<void> _ensureMirrorTable() async {

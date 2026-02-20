@@ -236,7 +236,7 @@ class GoogleDriveDeltaSync {
       'timestamp': DateTime.now().toIso8601String(),
       'epoch': Time.nowEpoch(),
       'changes_count': computation.changes.length,
-      'changes': computation.toPayload(),
+      'changes': computation.toPayload()['changes'],
       'fallback_tables': computation.fallbackTables.toList(),
     };
   }

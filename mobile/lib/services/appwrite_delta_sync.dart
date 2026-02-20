@@ -247,4 +247,16 @@ class AppwriteDeltaSync {
     // لكن المنطق مشابه في تحسين الأداء
     return AppwriteDeltaSyncResult(success: true, message: 'تم السحب بنجاح', pulledCount: 0);
   }
+
+  Future<Map<String, dynamic>> getStatus() async {
+    final lastPush = await _getLastDeltaPushTimestamp();
+    return {
+      'initialized': isInitialized,
+      'is_syncing': _isSyncing,
+      'last_push_epoch': lastPush,
+      'last_push_time': lastPush > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastPush * 1000).toIso8601String()
+          : null,
+    };
+  }
 }
