@@ -619,15 +619,23 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final debtsRepo = ref.read(debtsRepoProvider);
       final cashRepo = ref.read(cashRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+      final db = ref.read(databaseProvider);
 
       for (final b in guest.bookings) {
         final bookingId = b.id;
-        // حذف الملاحظات المرتبطة بالحجز
+
+        // 1. حذف ليالي الحجز (BookingNights)
+        await (db.delete(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(bookingId)))
+            .go();
+
+        // 2. حذف الملاحظات المرتبطة بالحجز
         final notes = await notesRepo.dao.list(bookingId: bookingId);
         for (final n in notes) {
           await notesRepo.delete(n.id);
         }
-        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
+
+        // 3. حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
         final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
         for (final p in pays) {
           if (p.cashTransactionLocalId != null) {
@@ -635,7 +643,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           }
           await paymentsRepo.delete(p.id);
         }
-        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
+
+        // 4. حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
         final relatedCash = await cashRepo.listByReference(
           referenceType: 'booking',
           referenceId: bookingId,
@@ -643,19 +652,22 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         for (final tx in relatedCash) {
           await cashRepo.delete(tx.id);
         }
-        // حذف الديون المرتبطة بالحجز
+
+        // 5. حذف الديون المرتبطة بالحجز
         final debts = await debtsRepo.listByBookingLocalId(bookingId);
         for (final d in debts) {
           await debtsRepo.delete(d.id);
         }
-        // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
+
+        // 6. تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
         if (b.roomNumber.isNotEmpty) {
           final room = await roomsRepo.watchByNumber(b.roomNumber).first;
           if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
             await roomsRepo.update(room.id, status: 'شاغرة');
           }
         }
-        // حذف الحجز نفسه
+
+        // 7. حذف الحجز نفسه
         await bookingsRepo.delete(bookingId);
       }
 
