@@ -423,26 +423,65 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             return pw.Column(
               mainAxisSize: pw.MainAxisSize.min,
               children: [
-                pw.Center(
-                  child: pw.Text(
-                    hotelName,
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 20,
-                      color: pdf.PdfColors.blue900,
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // الجهة اليمنى - اسم الفندق والعنوان
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            hotelName,
+                            style: pw.TextStyle(
+                              font: fonts.bold,
+                              fontSize: 18,
+                              color: pdf.PdfColors.blue900,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'القاهرة - شارع أحمد قاسم',
+                            style: pw.TextStyle(
+                              font: fonts.base,
+                              fontSize: 12,
+                              color: pdf.PdfColors.grey800,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                pw.SizedBox(height: 5),
-                pw.Center(
-                  child: pw.Text(
-                    'سجل المعلومية',
-                    style: pw.TextStyle(
-                      font: fonts.base,
-                      fontSize: 16,
-                      color: pdf.PdfColors.grey800,
+                    // المنتصف - عنوان التقرير
+                    pw.Expanded(
+                      child: pw.Center(
+                        child: pw.Text(
+                          'سجل المعلومية',
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 16,
+                            color: pdf.PdfColors.grey800,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    // الجهة اليسرى - تاريخ التقرير
+                    pw.Expanded(
+                      child: pw.Align(
+                        alignment: pw.Alignment.centerLeft,
+                        child: pw.Text(
+                          'تاريخ التقرير: $printDate',
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 11,
+                            color: pdf.PdfColors.grey800,
+                          ),
+                          textAlign: pw.TextAlign.left,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 pw.SizedBox(height: 10),
                 pw.Divider(color: pdf.PdfColors.grey400),
