@@ -17,8 +17,14 @@ class SyncOrchestrator {
   SyncOrchestrator._();
 
   final List<SyncAdapter> _adapters = [];
+  
+  // Mock outbox for compatibility with existing UI code
+  final outbox = _MockOutbox();
   final StreamController<SyncState> _stateController = StreamController<SyncState>.broadcast();
   final RetryStrategy _retryStrategy = ExponentialBackoffStrategy();
+  
+  SyncState _state = SyncState.idle();
+  SyncState get currentState => _state;
   
   Stream<SyncState> get stateStream => _stateController.stream;
   
@@ -144,6 +150,7 @@ class SyncOrchestrator {
   }
 
   void _emitState(SyncState state) {
+    _state = state;
     if (!_stateController.isClosed) {
       _stateController.add(state);
     }
@@ -156,6 +163,12 @@ class SyncOrchestrator {
       adapter.dispose();
     }
   }
+}
+
+class _MockOutbox {
+  final StreamController<int> _controller = StreamController<int>.broadcast();
+  Stream<int> get pendingCountStream => _controller.stream;
+  Future<int> get pendingCount async => 0;
 }
 
 /// Provider Riverpod للمزامنة
