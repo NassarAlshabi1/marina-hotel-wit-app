@@ -9,6 +9,7 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
+import 'settings_id_types.dart';
 import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
@@ -16,6 +17,7 @@ import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
+import 'data_protection_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -168,6 +170,18 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            _SettingsItem(
+              title: 'حماية البيانات',
+              subtitle: 'إعدادات المزامنة (Push/Pull)',
+              icon: Icons.security,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DataProtectionScreen(),
+                ),
+              ),
+            ),
           ]),
 
           const SizedBox(height: 20),
@@ -203,6 +217,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DiagnosticsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'أنواع الهوية',
+              subtitle: 'تخصيص قائمة أنواع الهوية',
+              icon: Icons.badge_outlined,
+              color: Colors.blueGrey,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsIdTypesScreen(),
                 ),
               ),
             ),

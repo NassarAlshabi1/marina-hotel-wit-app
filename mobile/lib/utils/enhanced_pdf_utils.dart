@@ -17,6 +17,25 @@ class PdfColors {
   static const warning = PdfColor(1.0, 0.6, 0.0);
   static const danger = PdfColor(0.9, 0.2, 0.2);
   static const info = PdfColor(0.1, 0.6, 0.9);
+
+  // Extended colors for compatibility
+  static const white = PdfColor(1.0, 1.0, 1.0);
+  static const black = PdfColor(0.0, 0.0, 0.0);
+  static const grey100 = PdfColor(0.96, 0.96, 0.96);
+  static const grey200 = PdfColor(0.93, 0.93, 0.93);
+  static const grey300 = PdfColor(0.88, 0.88, 0.88);
+  static const grey400 = PdfColor(0.74, 0.74, 0.74);
+  static const grey500 = PdfColor(0.62, 0.62, 0.62);
+  static const grey600 = PdfColor(0.46, 0.46, 0.46);
+  static const grey700 = PdfColor(0.38, 0.38, 0.38);
+  
+  static const blue50 = PdfColor(0.9, 0.95, 1.0);
+  static const blue700 = PdfColor(0.1, 0.4, 0.7);
+  static const blue800 = PdfColor(0.08, 0.35, 0.65);
+  static const blue900 = PdfColor(0.05, 0.2, 0.5);
+  
+  static const green700 = PdfColor(0.2, 0.6, 0.2);
+  static const red700 = PdfColor(0.8, 0.2, 0.2);
 }
 
 /// أنماط النصوص المخصصة

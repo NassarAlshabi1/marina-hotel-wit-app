@@ -22,6 +22,7 @@ import 'sync_core/sync_metrics.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'repositories/bookings_repository.dart';
+import 'repositories/rooms_repository.dart';
 
 /// حالة المزامنة
 enum SyncStatus { idle, syncing, success, failed, partial }
@@ -90,6 +91,7 @@ class AppwriteSyncManager {
   StreamSubscription? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
+  bool _isPulling = false;
   DateTime? _lastSyncTime;
   String? _currentDeviceId;
   String? _deviceLocalUuid;
@@ -238,20 +240,26 @@ class AppwriteSyncManager {
 
       if (_currentDeviceId != null) {
         await _mutex.runExclusive(() async {
-          final existingDoc = await appwriteService.getDocument(
-            collectionId: AppwriteConfig.devicesCollectionId,
-            documentId: _currentDeviceId!,
-          );
-          final currentRemoteVersion = _asInt(
-            existingDoc.data['version'],
-            fallback: 0,
-          );
+          var currentRemoteVersion = 0;
+          try {
+            final existingDoc = await appwriteService.getDocument(
+              collectionId: AppwriteConfig.devicesCollectionId,
+              documentId: _currentDeviceId!,
+            );
+            currentRemoteVersion = _asInt(
+              existingDoc.data['version'],
+              fallback: 0,
+            );
+          } catch (_) {
+            currentRemoteVersion = 0;
+          }
+
           if (_deviceVersion == null ||
               _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
 
-          await appwriteService.updateDocument(
+          await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
             data: {
@@ -343,6 +351,7 @@ class AppwriteSyncManager {
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
+          if (_isPulling) return;
           _logger.debug('Debounced push triggered', tag: 'SYNC');
           try {
             final result = await sync(push: true, pull: false);
@@ -584,7 +593,7 @@ class AppwriteSyncManager {
       syncLogVersion += 1;
 
       if (hasSyncLog) {
-        await appwriteService.updateDocument(
+        await appwriteService.upsertDocument(
           collectionId: AppwriteConfig.syncLogsCollectionId,
           documentId: syncLogId,
           data: {
@@ -618,7 +627,7 @@ class AppwriteSyncManager {
         final failEpoch = Time.nowEpoch();
         syncLogVersion += 1;
         try {
-          await appwriteService.updateDocument(
+          await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.syncLogsCollectionId,
             documentId: syncLogId,
             data: {
@@ -1333,8 +1342,11 @@ class AppwriteSyncManager {
     final data = <String, dynamic>{
       'roomNumber': room.roomNumber,
       'type': room.type,
+      'roomType': room.type,
       'price': room.price,
       'status': room.status,
+      'cleaningStatus': room.cleaningStatus,
+      'requiresMaintenance': room.requiresMaintenance,
       'localUuid': room.localUuid,
       'createdAt': room.createdAt,
       'updatedAt': room.updatedAt,
@@ -1345,6 +1357,8 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'serverId', room.serverId);
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
+    _putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
+    _putIfStringNotEmpty(data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
     return data;
   }
 
@@ -1360,6 +1374,14 @@ class AppwriteSyncManager {
       'status': booking.status,
       'expectedNights': booking.expectedNights,
       'calculatedNights': booking.calculatedNights,
+      'discount': booking.discount,
+      'isOverdue': booking.isOverdue,
+      'isFullyPaid': booking.isFullyPaid,
+      'remainingBalanceCached': booking.remainingBalanceCached,
+      'totalDueCached': booking.totalDueCached,
+      'totalPaidCached': booking.totalPaidCached,
+      'totalNightsCached': booking.totalNightsCached,
+      'needsCheckoutReview': booking.needsCheckoutReview,
       'localUuid': booking.localUuid,
       'createdAt': booking.createdAt,
       'updatedAt': booking.updatedAt,
@@ -1370,12 +1392,20 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
     _putIfNotNull(data, 'serverId', booking.serverId);
     _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
     _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
     _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
     _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
     _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
     _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
     _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
+    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
+    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
+    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
+    _putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
+    _putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
+    _putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
+    _putIfStringNotEmpty(data, 'financialFrozenAt', booking.financialFrozenAt);
     _putIfStringNotEmpty(data, 'notes', booking.notes);
     return data;
   }
@@ -1386,6 +1416,7 @@ class AppwriteSyncManager {
       'description': expense.description,
       'amount': expense.amount,
       'date': expense.date,
+      'isAutoGenerated': expense.isAutoGenerated,
       'localUuid': expense.localUuid,
       'createdAt': expense.createdAt,
       'updatedAt': expense.updatedAt,
@@ -1397,6 +1428,9 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
     _putIfNotNull(data, 'serverId', expense.serverId);
     _putIfNotNull(data, 'deletedAt', expense.deletedAt);
+    _putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
+    _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
+    _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
     return data;
   }
 
@@ -1406,6 +1440,7 @@ class AppwriteSyncManager {
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
+      'isPendingBalance': payment.isPendingBalance,
       'localUuid': payment.localUuid,
       'createdAt': payment.createdAt,
       'updatedAt': payment.updatedAt,
@@ -1430,6 +1465,8 @@ class AppwriteSyncManager {
       payment.cashTransactionServerId,
     );
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
+    _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
+    _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
     return data;
@@ -1437,30 +1474,35 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
-      'amount': debt.totalAmount,
-      'debtorName': debt.guestName,
-      'dueDate': _resolveDebtDueDate(debt),
-      'status': debt.isSettled == 1 ? 'settled' : 'pending',
       'localUuid': debt.localUuid,
       'createdAt': debt.createdAt,
       'updatedAt': debt.updatedAt,
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
+      'guestName': debt.guestName,
+      'checkinDate': debt.checkinDate,
+      'checkoutDate': debt.checkoutDate,
+      'dateRecorded': debt.dateRecorded,
+      'debtReason': debt.debtReason,
+      'totalAmount': debt.totalAmount,
+      'paidAmount': debt.paidAmount,
+      'remainingAmount': debt.remainingAmount,
+      'paymentDate': debt.paymentDate,
+      'isSettled': debt.isSettled,
+      'isFromAutoFix': debt.isFromAutoFix,
+      'settlementConfirmed': debt.settlementConfirmed,
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    _putIfNotNull(data, 'bookingLocalId', debt.bookingLocalId);
+    _putIfStringNotEmpty(data, 'pledge', debt.pledge);
+    _putIfStringNotEmpty(data, 'pledgeType', debt.pledgeType);
+    _putIfStringNotEmpty(data, 'note', debt.note);
+    _putIfStringNotEmpty(data, 'debtUuid', debt.debtUuid);
+    _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
+    _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
     return data;
-  }
-
-  String _resolveDebtDueDate(Debt debt) {
-    final candidates = [debt.checkoutDate, debt.paymentDate, debt.dateRecorded];
-    for (final value in candidates) {
-      if (value.isNotEmpty) {
-        return value;
-      }
-    }
-    return '1970-01-01';
   }
 
   void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
@@ -1514,6 +1556,7 @@ class AppwriteSyncManager {
       return false;
     }
 
+    _isPulling = true;
     try {
       _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
@@ -1586,6 +1629,24 @@ class AppwriteSyncManager {
       _lastSyncTime = DateTime.now();
       await _saveSettings();
 
+      // تحديث حالة إشغال الغرف بناءً على الحجوزات المسحوبة
+      if (recordsPulled > 0) {
+        await RoomsRepository(database)
+            .refreshAllRoomOccupancy(originIsServer: true);
+      }
+
+      // تنظيف outbox بعد السحب الكامل - بيانات السيرفر هي المرجع
+      final pending = await outboxDao.count();
+      if (pending > 0) {
+        _logger.info(
+          '🧹 تنظيف $pending سجل من outbox بعد السحب الكامل',
+          tag: 'SYNC',
+        );
+        await (database.delete(database.outbox)
+              ..where((t) => t.processingStatus.isIn(['pending', 'failed'])))
+            .go();
+      }
+
       if (recordsPulled > 0) {
         _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
         return true;
@@ -1601,6 +1662,8 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       return false;
+    } finally {
+      _isPulling = false;
     }
   }
 
@@ -1980,6 +2043,9 @@ class AppwriteSyncManager {
       'nightlyRate': night.nightlyRate,
       'sequence': night.sequence,
       'isProcessedByAutoFix': night.isProcessedByAutoFix,
+      'baseRate': night.baseRate,
+      'adjustment': night.adjustment,
+      'finalRate': night.finalRate,
       'localUuid': night.localUuid,
       'createdAt': night.createdAt,
       'updatedAt': night.updatedAt,
@@ -1989,6 +2055,8 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverId', night.serverId);
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
+    _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     return data;
   }
 
@@ -2057,11 +2125,6 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
-    final createdAtIso =
-        note.createdAtIso ??
-        DateTime.fromMillisecondsSinceEpoch(
-          note.createdAt * 1000,
-        ).toIso8601String();
     final data = <String, dynamic>{
       'localUuid': note.localUuid,
       'title': note.title,
@@ -2069,9 +2132,15 @@ class AppwriteSyncManager {
       'priority': note.priority,
       'shiftType': note.shiftType,
       'isRead': note.isRead,
-      'createdAt': createdAtIso,
       'createdBy': note.createdBy,
+      'createdAt': note.createdAt,
+      'updatedAt': note.updatedAt,
+      'lastModified': note.lastModified,
+      'version': note.version,
+      'origin': note.origin,
     };
+    _putIfNotNull(data, 'serverId', note.serverId);
+    _putIfNotNull(data, 'deletedAt', note.deletedAt);
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     return data;
   }

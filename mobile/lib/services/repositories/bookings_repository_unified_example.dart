@@ -67,7 +67,6 @@ class BookingsRepositoryUnified {
     UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'INSERT',
-      count: 1,
     );
 
     return result;
@@ -149,7 +148,6 @@ class BookingsRepositoryUnified {
     UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'UPDATE',
-      count: 1,
     );
 
     return result;
@@ -161,7 +159,6 @@ class BookingsRepositoryUnified {
     UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'DELETE',
-      count: 1,
     );
   }
 
@@ -181,7 +178,6 @@ class BookingsRepositoryUnified {
       UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_INSERT',
-        count: insertedCount,
       );
     }
 
@@ -204,7 +200,6 @@ class BookingsRepositoryUnified {
       UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_UPDATE',
-        count: updatedCount,
       );
     }
 
@@ -227,7 +222,6 @@ class BookingsRepositoryUnified {
       UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_DELETE',
-        count: deletedCount,
       );
     }
 

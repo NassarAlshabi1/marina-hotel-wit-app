@@ -1,17 +1,20 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart'; // import compute
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColor;
+import 'package:pdf/pdf.dart' show PdfPageFormat, PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../components/admin_layout.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/time.dart';
+import '../../services/daos/debts_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 
 class DebtsReportScreen extends ConsumerStatefulWidget {
   const DebtsReportScreen({super.key});
@@ -21,26 +24,19 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
 }
 
 class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
-  final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
-
-  // ignore: unused_element
-  String _formatNumber(num value) => _currencyFormat.format(value);
-  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
+  final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
+  final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
 
   DateTime? _fromDate;
   DateTime? _toDate;
+  final TextEditingController _searchController = TextEditingController();
+  
   bool _loading = false;
-
-  List<Debt> _rows = [];
-  List<_GuestDebtSummary> _guestSummaries = [];
-  // ignore: unused_field
-  List<_MonthlyDebtSummary> _monthlySummaries = [];
-
+  
+  final List<_DebtReportRow> _rows = [];
   double _totalDebt = 0;
   double _totalPaid = 0;
   double _totalRemaining = 0;
-
-  final Map<int, int> _unreturnedCounts = {};
 
   @override
   void initState() {
@@ -48,24 +44,27 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     _initializeDefaults();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(const Duration(days: 90));
+    _fromDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    
     await _fetchReport();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom
+    final initialDate = isFrom
         ? (_fromDate ?? DateTime.now())
         : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: initialDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
@@ -77,332 +76,198 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
       });
+      _fetchReport();
     }
   }
 
   Future<void> _fetchReport() async {
     if (_loading) return;
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
     try {
       final db = ref.read(coreProviders.dbProvider);
-      final query = db.select(db.debts);
-      final allDebts = await query.get();
-      final filtered = <Debt>[];
-      final fromFilter = _fromDate;
-      final toFilter = _toDate;
-      for (final debt in allDebts) {
-        final paymentDate = _parseDateTime(debt.paymentDate);
-        if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
-          continue;
-        }
-        if (toFilter != null && paymentDate.isAfter(toFilter)) {
-          continue;
-        }
-        filtered.add(debt);
-      }
-      filtered.sort(
-        (a, b) => _parseDateTime(
-          b.paymentDate,
-        ).compareTo(_parseDateTime(a.paymentDate)),
-      );
-      final guestMap = <String, _GuestDebtSummary>{};
-      final monthlyMap = <String, _MonthlyDebtSummary>{};
-      double totalDebt = 0;
-      double totalPaid = 0;
-      double totalRemaining = 0;
-      for (final debt in filtered) {
-        totalDebt += debt.totalAmount;
-        totalPaid += debt.paidAmount;
-        totalRemaining += debt.remainingAmount;
-        final guestEntry = guestMap.putIfAbsent(
-          debt.guestName,
-          () => _GuestDebtSummary(guestName: debt.guestName),
-        );
-        guestEntry.totalAmount += debt.totalAmount;
-        guestEntry.paidAmount += debt.paidAmount;
-        guestEntry.remainingAmount += debt.remainingAmount;
-        final date = _parseDateTime(debt.paymentDate);
-        final monthKey =
-            '${date.year}-${date.month.toString().padLeft(2, '0')}';
-        final monthEntry = monthlyMap.putIfAbsent(
-          monthKey,
-          () => _MonthlyDebtSummary(
-            label: monthKey,
-            month: DateTime(date.year, date.month),
-          ),
-        );
-        monthEntry.totalAmount += debt.totalAmount;
-        monthEntry.paidAmount += debt.paidAmount;
-        monthEntry.remainingAmount += debt.remainingAmount;
-      }
-      final guestSummaries = guestMap.values.toList()
-        ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
-      final monthlySummaries = monthlyMap.values.toList()
-        ..sort((a, b) => a.month.compareTo(b.month));
-      _unreturnedCounts.clear();
-      for (final debt in filtered) {
-        _unreturnedCounts[debt.id] = 0;
-      }
+      final outboxDao = OutboxDao(db);
+      final debtDao = DebtsDao(db, outboxDao);
+      
+      // جلب البيانات الخام من DB (عملية سريعة نسبياً)
+      final debts = await debtDao.list(includeDeleted: false);
+      
+      // تحويل لـ Maps للنقل للخلفية
+      final rawDebts = debts.map((d) => d.toJson()).toList();
+
+      // المعالجة الثقيلة في الخلفية
+      final result = await compute(_processDebtsData, _DebtProcessParams(
+        debts: rawDebts,
+        fromDate: _fromDate,
+        toDate: _toDate,
+        searchQuery: _searchController.text.trim().toLowerCase(),
+      ));
+
       setState(() {
-        _rows = filtered;
-        _guestSummaries = guestSummaries;
-        _monthlySummaries = monthlySummaries;
-        _totalDebt = totalDebt;
-        _totalPaid = totalPaid;
-        _totalRemaining = totalRemaining;
+        _rows
+          ..clear()
+          ..addAll(result.rows);
+        _totalDebt = result.totalDebt;
+        _totalPaid = result.totalPaid;
+        _totalRemaining = result.totalRemaining;
       });
+
+    } catch (e) {
+      debugPrint('Error loading debts report: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _exportPdf() async {
+    // ... (نفس كود التصدير السابق بدون تغيير)
     if (_rows.isEmpty) return;
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
-    final fromLabel = _fromDate != null
-        ? _dateFormat.format(_fromDate!)
-        : 'غير محدد';
-    final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
-    final totalGuests = _guestSummaries.length;
 
-    pw.Widget metaRow(String label, String value) {
-      return pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 6),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(
-              value,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-            ),
-          ],
-        ),
-      );
+    final prefs = await SharedPreferences.getInstance();
+    final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
+    final hotelPhone = prefs.getString('hotel_phone') ?? '';
+    final hotelAddress = prefs.getString('hotel_address') ?? '';
+    final hotelLogoPath = prefs.getString('hotel_logo');
+
+    pw.ImageProvider? logoImage;
+    if (hotelLogoPath != null && File(hotelLogoPath).existsSync()) {
+      final logoBytes = File(hotelLogoPath).readAsBytesSync();
+      logoImage = pw.MemoryImage(logoBytes);
     }
 
-    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
-      title: 'تفاصيل التقرير',
-      fonts: fonts,
-      content: [
-        metaRow('تقرير', 'الديون'),
-        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
-        metaRow('عدد السجلات', _rows.length.toString()),
-        metaRow('عدد النزلاء', totalGuests.toString()),
-      ],
-    );
+    final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
+    final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
+    final searchLabel = _searchController.text.isNotEmpty ? _searchController.text : 'الكل';
 
     pw.Widget buildReportHeader() {
-      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
       return pw.Container(
         width: double.infinity,
-        decoration: const pw.BoxDecoration(color: PdfColors.primary),
-        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: pw.Column(
+        padding: const pw.EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        decoration: const pw.BoxDecoration(
+          color: PdfColors.white,
+          border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(
-              'فندق مارينا بلازا',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 22,
-                color: PdfColors.textWhite,
-              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(hotelName, style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: PdfColors.blue900)),
+                if (hotelPhone.isNotEmpty)
+                  pw.Text('هاتف: $hotelPhone', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                if (hotelAddress.isNotEmpty)
+                  pw.Text('عنوان: $hotelAddress', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+              ],
             ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'تقرير الديون',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 20,
-                color: PdfColors.textWhite,
-              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text('تقرير الديون', style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                pw.SizedBox(height: 4),
+                pw.Text('من $fromLabel إلى $toLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.grey700)),
+              ],
             ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              periodText,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textWhite,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
+            if (logoImage != null)
+              pw.Container(height: 50, width: 50, child: pw.Image(logoImage))
+            else
+              pw.SizedBox(width: 50),
           ],
         ),
       );
     }
 
-    pw.Widget buildTotalsFooter() {
-      pw.Widget buildLine(String title, String value, PdfColor color) {
-        return pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 4),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
-            children: [
-              pw.Text(
-                '$title: ',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 11,
-                  color: PdfColors.textDark,
-                ),
-              ),
-              pw.Text(
-                value,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 12,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
-          children: [
-            buildLine(
-              'الإجمالي الكلي للديون',
-              EnhancedPdfUtils.formatNumber(_totalDebt),
-              PdfColors.danger,
-            ),
-            buildLine(
-              'المبالغ المدفوعة',
-              EnhancedPdfUtils.formatNumber(_totalPaid),
-              PdfColors.success,
-            ),
-            buildLine(
-              'المبالغ المتبقية',
-              EnhancedPdfUtils.formatNumber(_totalRemaining),
-              PdfColors.warning,
-            ),
-          ],
-        ),
-      );
-    }
-
-    final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
-    final guestData = _guestSummaries
-        .map(
-          (guest) => [
-            guest.guestName,
-            EnhancedPdfUtils.formatNumber(guest.totalAmount),
-            EnhancedPdfUtils.formatNumber(guest.paidAmount),
-            EnhancedPdfUtils.formatNumber(guest.remainingAmount),
-          ],
-        )
-        .toList();
-
-    final detailHeaders = [
-      'النزيل',
-      'تاريخ التسجيل',
-      'تاريخ الخروج',
-      'إجمالي',
-      'المدفوع',
-      'المتبقي',
-      'سبب الدين',
-      'مسدد؟',
-      'رهون غير مُعادة',
-    ];
-    final detailData = [
-      for (final debt in _rows)
-        [
-          debt.guestName,
-          Time.safeIsoToDateString(
-            debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
-          ),
-          Time.safeIsoToDateString(debt.checkoutDate),
-          EnhancedPdfUtils.formatNumber(debt.totalAmount),
-          EnhancedPdfUtils.formatNumber(debt.paidAmount),
-          EnhancedPdfUtils.formatNumber(debt.remainingAmount),
-          debt.debtReason.isNotEmpty ? debt.debtReason : '-',
-          debt.isSettled == 1 ? 'نعم' : 'لا',
-          (_unreturnedCounts[debt.id] ?? 0).toString(),
-        ],
-      [
-        'الإجمالي',
-        '',
-        '',
-        EnhancedPdfUtils.formatNumber(_totalDebt),
-        EnhancedPdfUtils.formatNumber(_totalPaid),
-        EnhancedPdfUtils.formatNumber(_totalRemaining),
-        '',
-        '',
-        '',
-      ],
-    ];
-
-    final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
-      title: 'ملخص حسب النزلاء',
+    final metaInfo = EnhancedPdfUtils.buildInfoCard(
+      title: 'معايير التقرير',
       fonts: fonts,
       content: [
-        guestData.isEmpty
-            ? pw.Text(
-                'لا توجد بيانات',
-                style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-              )
-            : EnhancedPdfUtils.buildProfessionalTable(
-                headers: guestHeaders,
-                data: guestData,
-                fonts: fonts,
-                headerColor: PdfColors.primary,
-                alternateRowColor: PdfColors.backgroundLight,
-              ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 4),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('بحث عن: $searchLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+            ],
+          ),
+        ),
       ],
     );
 
-    final detailsTable = EnhancedPdfUtils.buildProfessionalTable(
-      headers: detailHeaders,
-      data: detailData,
-      fonts: fonts,
-      headerColor: PdfColors.primary,
-      alternateRowColor: PdfColors.backgroundLight,
-    );
+    final headers = ['التاريخ', 'النزيل', 'السبب', 'الدين', 'المدفوع', 'المتبقي', 'الحالة'];
+    
+    final dataRows = <List<String>>[];
+    for (final row in _rows) {
+      dataRows.add([
+        _dateLabelFormat.format(row.dateRecorded),
+        row.guestName,
+        row.reason,
+        _currencyFmt.format(row.totalAmount),
+        _currencyFmt.format(row.paidAmount),
+        _currencyFmt.format(row.remainingAmount),
+        row.isSettled ? 'مسدد' : 'متبقي',
+      ]);
+    }
+
+    final totalRow = [
+      'الإجمالي',
+      '',
+      '',
+      _currencyFmt.format(_totalDebt),
+      _currencyFmt.format(_totalPaid),
+      _currencyFmt.format(_totalRemaining),
+      '',
+    ];
+    dataRows.add(totalRow);
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
           child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+            'صفحة ${context.pageNumber} من ${context.pagesCount} - ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
+            style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
           ),
         ),
         build: (context) => [
           buildReportHeader(),
-          pw.SizedBox(height: 16),
-          metaInfoCard,
           pw.SizedBox(height: 12),
+          metaInfo,
           pw.SizedBox(height: 12),
-          guestSummaryCard,
-          pw.SizedBox(height: 12),
-          pw.Text(
-            'تفاصيل السجلات',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 14),
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: headers,
+            data: dataRows,
+            fonts: fonts,
+            headerColor: PdfColors.blue800,
+            alternateRowColor: PdfColors.grey100,
           ),
-          pw.SizedBox(height: 8),
-          detailsTable,
           pw.SizedBox(height: 12),
-          buildTotalsFooter(),
+          pw.Container(
+            alignment: pw.Alignment.centerLeft,
+            child: pw.Container(
+              padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.blue800, width: 1),
+                borderRadius: pw.BorderRadius.circular(4),
+                color: PdfColors.blue50,
+              ),
+              child: pw.Row(
+                mainAxisSize: pw.MainAxisSize.min,
+                children: [
+                  pw.Text('المتبقي الإجمالي: ', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                  pw.Text(
+                    _currencyFmt.format(_totalRemaining),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.red700),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -413,248 +278,422 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       return '$sanitizedTitle-$timestamp.pdf';
     }
 
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: generateFileName('تقرير الديون'),
-    );
+    final pdfBytes = await doc.save();
+    final fileName = generateFileName('تقرير الديون');
+
+    try {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (await downloadDir.exists()) {
+        final file = File('${downloadDir.path}/$fileName');
+        await file.writeAsBytes(pdfBytes);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم حفظ التقرير في: ${file.path}'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'فتح',
+                textColor: Colors.white,
+                onPressed: () => Printing.sharePdf(bytes: pdfBytes, filename: fileName),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('تعذر الحفظ المباشر: $e');
+    }
+
+    await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
   }
 
   @override
   Widget build(BuildContext context) {
+    const double inputsHeight = 42; 
+
     return AppScaffold(
       title: 'تقرير الديون',
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.picture_as_pdf),
-          tooltip: 'تصدير PDF',
-          onPressed: _rows.isEmpty || _loading ? null : _exportPdf,
-        ),
-        IconButton(
-          onPressed: _loading ? null : _fetchReport,
-          icon: const Icon(Icons.refresh),
-        ),
-      ],
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
+      actions: [],
+      body: Column(
+        children: [
+          // فلاتر
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
               children: [
-                _buildDateSelector(
-                  label: 'من تاريخ',
-                  value: _fromDate,
-                  onPressed: () => _pickDate(isFrom: true),
+                // الصف الأول: التواريخ والأزرار
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: _buildDateFilterButton(
+                        label: 'من',
+                        date: _fromDate,
+                        height: inputsHeight,
+                        onTap: () => _pickDate(isFrom: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 4,
+                      child: _buildDateFilterButton(
+                        label: 'إلى',
+                        date: _toDate,
+                        height: inputsHeight,
+                        onTap: () => _pickDate(isFrom: false),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // زر البحث
+                    SizedBox(
+                      height: inputsHeight,
+                      width: inputsHeight,
+                      child: ElevatedButton(
+                        onPressed: _fetchReport,
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Icon(Icons.search, size: 20),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // زر الطباعة
+                    SizedBox(
+                      height: inputsHeight,
+                      width: inputsHeight,
+                      child: ElevatedButton(
+                        onPressed: _rows.isEmpty ? null : _exportPdf,
+                         style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                          backgroundColor: Colors.red[700],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Icon(Icons.picture_as_pdf, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
-                _buildDateSelector(
-                  label: 'إلى تاريخ',
-                  value: _toDate,
-                  onPressed: () => _pickDate(isFrom: false),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _loading ? null : _fetchReport,
-                  icon: const Icon(Icons.search),
-                  label: _loading
-                      ? const Text('جارٍ التحديث...')
-                      : const Text('تحديث النتائج'),
+                const SizedBox(height: 10),
+                // الصف الثاني: بحث بالاسم
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: inputsHeight,
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(fontSize: 12),
+                          decoration: InputDecoration(
+                            labelText: 'بحث باسم النزيل أو السبب',
+                            labelStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            prefixIcon: const Icon(Icons.search, size: 16, color: Colors.grey),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                          ),
+                          onSubmitted: (_) => _fetchReport(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildSummaryRow(),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _rows.isEmpty
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
-                      icon: Icons.assessment_outlined,
-                    )
-                  : ListView(
-                      children: [
-                        _buildGuestsTable(),
-                        const SizedBox(height: 16),
-                        _buildDebtsTable(),
-                      ],
-                    ),
+          ),
+
+          // الملخص
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
-          ],
-        ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: _buildSummaryItem('إجمالي الدين', _totalDebt, Colors.black),
+                ),
+                Expanded(
+                  child: _buildSummaryItem('المدفوع', _totalPaid, Colors.green),
+                ),
+                Expanded(
+                  child: _buildSummaryItem('المتبقي', _totalRemaining, Colors.red),
+                ),
+              ],
+            ),
+          ),
+
+          // القائمة
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _rows.isEmpty
+                ? const EmptyState(
+                    title: 'لا توجد ديون',
+                    message: 'لم يتم العثور على ديون تطابق الفلاتر.',
+                    icon: Icons.check_circle_outline,
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _rows.length,
+                    itemBuilder: (context, index) {
+                      return _buildDebtCard(_rows[index]);
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSummaryRow() {
-    return Card(
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildSummaryTile(
-                'إجمالي الديون',
-                '${_currencyFormat.format(_totalDebt)}',
-              ),
-            ),
-            Expanded(
-              child: _buildSummaryTile(
-                'المبالغ المدفوعة',
-                '${_currencyFormat.format(_totalPaid)}',
-              ),
-            ),
-            Expanded(
-              child: _buildSummaryTile(
-                'المبالغ المتبقية',
-                '${_currencyFormat.format(_totalRemaining)}',
-              ),
-            ),
-            Expanded(
-              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryTile(String label, String value) {
+  Widget _buildSummaryItem(String label, double value, Color valueColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(value),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+        Text(
+          _currencyFmt.format(value),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: valueColor),
+        ),
       ],
     );
   }
 
-  Widget _buildGuestsTable() {
-    return AdminCard(
-      title: 'ملخص الديون حسب النزلاء',
-      child: AdminTable(
-        headers: const ['اسم النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'],
-        rows: _guestSummaries
-            .map(
-              (guest) => [
-                Text(guest.guestName),
-                Text('${_currencyFormat.format(guest.totalAmount)}'),
-                Text('${_currencyFormat.format(guest.paidAmount)}'),
-                Text('${_currencyFormat.format(guest.remainingAmount)}'),
-              ],
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildDebtsTable() {
-    return AdminCard(
-      title: 'تفاصيل السجلات',
-      child: AdminTable(
-        headers: const [
-          'اسم النزيل',
-          'تاريخ التسجيل',
-          'سبب الدين',
-          'تاريخ الدخول',
-          'تاريخ الخروج',
-          'إجمالي الدين',
-          'المدفوع',
-          'المتبقي',
-          'تاريخ الدفع',
-          'حالة السداد',
-          'الرهن',
-          'نوع الرهن',
-        ],
-        rows: _rows
-            .map(
-              (debt) => [
-                Text(debt.guestName),
-                Text(_formatDisplayDate(debt.dateRecorded)),
-                Text(_formatTextFallback(debt.debtReason)),
-                Text(Time.safeIsoToDateString(debt.checkinDate)),
-                Text(Time.safeIsoToDateString(debt.checkoutDate)),
-                Text('${_currencyFormat.format(debt.totalAmount)}'),
-                Text('${_currencyFormat.format(debt.paidAmount)}'),
-                Text('${_currencyFormat.format(debt.remainingAmount)}'),
-                Text(Time.safeIsoToDateString(debt.paymentDate)),
-                Text(_formatSettlement(debt.isSettled)),
-                Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),
+  Widget _buildDateFilterButton({
+    required String label,
+    required DateTime? date,
+    required VoidCallback onTap,
+    required double height,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
                 Text(
-                  debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-',
+                  date != null ? DateFormat('yyyy/MM/dd').format(date) : 'غير محدد',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                 ),
               ],
-            )
-            .toList(),
+            ),
+            const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDateSelector({
-    required String label,
-    required DateTime? value,
-    required VoidCallback onPressed,
-  }) {
-    final text = value != null ? _dateFormat.format(value) : 'غير محدد';
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _buildDebtCard(_DebtReportRow row) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.guestName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${row.reason} ${row.bookingCode != '-' ? '(حجز: ${row.bookingCode})' : ''}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _currencyFmt.format(row.totalAmount),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    if (row.remainingAmount > 0)
+                      Text(
+                        'متبقي: ${_currencyFmt.format(row.remainingAmount)}',
+                        style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                      )
+                    else
+                      const Text(
+                        'مسدد بالكامل',
+                        style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  row.isSettled ? 'الحالة: مسدد' : 'الحالة: غير مسدد',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: row.isSettled ? Colors.green : Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _dateLabelFormat.format(row.dateRecorded),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      child: Text('$label: $text', style: const TextStyle(fontSize: 12)),
     );
-  }
-
-  DateTime _parseDateTime(String value) {
-    final normalized = value.contains('T')
-        ? value
-        : value.replaceFirst(' ', 'T');
-    try {
-      return DateTime.parse(normalized);
-    } catch (_) {
-      final safeDate = Time.safeIsoToDateString(value);
-      return DateTime.parse('${safeDate}T00:00:00');
-    }
-  }
-
-  String _formatDisplayDate(String value) {
-    if (value.isEmpty) {
-      return '-';
-    }
-    return Time.safeIsoToDateString(value);
-  }
-
-  String _formatTextFallback(String value) {
-    if (value.trim().isEmpty) {
-      return '-';
-    }
-    return value;
-  }
-
-  String _formatSettlement(int value) {
-    return value == 1 ? 'مسدد' : 'غير مسدد';
   }
 }
 
-class _GuestDebtSummary {
-  _GuestDebtSummary({required this.guestName});
+class _DebtProcessParams {
+  final List<Map<String, dynamic>> debts;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+  final String searchQuery;
 
+  _DebtProcessParams({required this.debts, this.fromDate, this.toDate, required this.searchQuery});
+}
+
+class _DebtsReportResult {
+  final List<_DebtReportRow> rows;
+  final double totalDebt;
+  final double totalPaid;
+  final double totalRemaining;
+
+  _DebtsReportResult({required this.rows, required this.totalDebt, required this.totalPaid, required this.totalRemaining});
+}
+
+class _DebtReportRow {
+  _DebtReportRow({
+    required this.dateRecorded,
+    required this.guestName,
+    required this.reason,
+    required this.totalAmount,
+    required this.paidAmount,
+    required this.remainingAmount,
+    required this.isSettled,
+    required this.bookingCode,
+  });
+
+  final DateTime dateRecorded;
   final String guestName;
-  double totalAmount = 0;
-  double paidAmount = 0;
-  double remainingAmount = 0;
+  final String reason;
+  final double totalAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final bool isSettled;
+  final String bookingCode;
 }
 
-class _MonthlyDebtSummary {
-  _MonthlyDebtSummary({required this.label, required this.month});
+_DebtsReportResult _processDebtsData(_DebtProcessParams params) {
+  final filteredRows = <_DebtReportRow>[];
+  double tDebt = 0;
+  double tPaid = 0;
+  double tRemaining = 0;
 
-  final String label;
-  final DateTime month;
-  double totalAmount = 0;
-  double paidAmount = 0;
-  double remainingAmount = 0;
+  for (final data in params.debts) {
+    // Parse fields
+    DateTime dateRecorded = DateTime.now();
+    if (data['dateRecorded'] != null) {
+      try {
+        dateRecorded = DateTime.parse(data['dateRecorded'].toString());
+      } catch (_) {}
+    } else if (data['date_recorded'] != null) {
+       try {
+        dateRecorded = DateTime.parse(data['date_recorded'].toString());
+      } catch (_) {}
+    }
+
+    // Filter Date
+    if (params.fromDate != null) {
+      // ignore time for 'from' comparison (start of day)
+      final start = DateTime(params.fromDate!.year, params.fromDate!.month, params.fromDate!.day);
+      if (dateRecorded.isBefore(start)) continue;
+    }
+    if (params.toDate != null) {
+      if (dateRecorded.isAfter(params.toDate!)) continue;
+    }
+
+    final guestName = (data['guestName'] ?? data['guest_name'] ?? 'غير معروف').toString();
+    final debtReason = (data['debtReason'] ?? data['debt_reason'] ?? '-').toString();
+
+    // Filter Search
+    if (params.searchQuery.isNotEmpty) {
+      final matchesName = guestName.toLowerCase().contains(params.searchQuery);
+      final matchesReason = debtReason.toLowerCase().contains(params.searchQuery);
+      if (!matchesName && !matchesReason) continue;
+    }
+
+    final amount = ((data['amount'] ?? 0) as num).toDouble();
+    final paidAmount = ((data['paidAmount'] ?? data['paid_amount'] ?? 0) as num).toDouble();
+    final remaining = amount - paidAmount;
+    final isSettled = (data['isSettled'] ?? data['is_settled']) == true || (data['isSettled'] == 1);
+    
+    // Booking handling
+    final bookingIdVal = data['bookingId'] ?? data['booking_id'];
+    String bookingCode = bookingIdVal != null ? bookingIdVal.toString() : '-';
+
+    tDebt += amount;
+    tPaid += paidAmount;
+    tRemaining += remaining;
+
+    filteredRows.add(_DebtReportRow(
+      dateRecorded: dateRecorded,
+      guestName: guestName,
+      reason: debtReason,
+      totalAmount: amount,
+      paidAmount: paidAmount,
+      remainingAmount: remaining,
+      isSettled: isSettled,
+      bookingCode: bookingCode,
+    ));
+  }
+
+  // Sort
+  filteredRows.sort((a, b) => b.dateRecorded.compareTo(a.dateRecorded));
+
+  return _DebtsReportResult(
+    rows: filteredRows,
+    totalDebt: tDebt,
+    totalPaid: tPaid,
+    totalRemaining: tRemaining,
+  );
 }

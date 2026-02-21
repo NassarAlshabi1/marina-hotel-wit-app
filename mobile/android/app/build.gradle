@@ -68,11 +68,14 @@ android {
         // Unified signing config - same keystore and alias for all builds  
         // Ensures consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
         unified {
-            if (keystoreProperties['keyAlias'] != null) {
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+            if (keystoreProperties['storeFile']) {
                 storeFile file(keystoreProperties['storeFile'])
                 storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            } else {
+                // Fallback for CI pipeline debug builds or if keys are missing
+                println "Change: Signing keys not found, skipping signing config."
             }
         }
     }
@@ -80,14 +83,18 @@ android {
     buildTypes {
         debug {
             debuggable true
-            signingConfig signingConfigs.unified
+            if (keystoreProperties['storeFile']) {
+                signingConfig signingConfigs.unified
+            }
         }
         
         release {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.unified
+            if (keystoreProperties['storeFile']) {
+                signingConfig signingConfigs.unified
+            }
         }
     }
 

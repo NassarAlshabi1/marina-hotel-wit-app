@@ -200,10 +200,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
 
     if (!prefs.containsKey(_prefsPushEnabledKey)) {
-      await prefs.setBool(_prefsPushEnabledKey, false);
+      await prefs.setBool(_prefsPushEnabledKey, true);  // Push مفعّل افتراضياً
     }
     if (!prefs.containsKey(_prefsPullEnabledKey)) {
-      await prefs.setBool(_prefsPullEnabledKey, false);
+      await prefs.setBool(_prefsPullEnabledKey, false); // Pull معطل افتراضياً
     }
     if (!prefs.containsKey(_prefsDebounceSecondsKey)) {
       await prefs.setInt(_prefsDebounceSecondsKey, _defaultDebounceSeconds);
@@ -218,8 +218,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       await prefs.setString(_prefsSyncModeKey, SyncMode.smart.name);
     }
 
-    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? false;
-    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? false;
+    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;  // Push مفعّل افتراضياً
+    // السحب افتراضياً معطل (false) للوضع "رفع فقط" - يمكن تفعيله يدوياً من الإعدادات
+    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? false; // Pull معطل افتراضياً
     _debounceSeconds =
         prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
     _pullIntervalMinutes =
@@ -227,9 +228,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     _fullBackupIntervalHours =
         prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours;
 
-    if (_pullEnabled) {
-      _pullEnabled = false;
+    // تحديث الإعداد إذا لم يكن موجوداً مسبقاً (افتراضياً Push فقط)
+    if (!prefs.containsKey(_prefsPullEnabledKey)) {
       await prefs.setBool(_prefsPullEnabledKey, false);
+      _pullEnabled = false;
     }
   }
 

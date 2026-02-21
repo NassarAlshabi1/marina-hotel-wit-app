@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - 'capy/**'
+      - 'feature/sync-history'
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'

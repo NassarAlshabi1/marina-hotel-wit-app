@@ -53,7 +53,7 @@ class DeltaSyncEngine {
     _emitEvent(SyncEventType.syncStarted);
     
     final stopwatch = Stopwatch()..start();
-    final result = DeltaSyncResult(timestamp: DateTime.now());
+    var result = DeltaSyncResult(timestamp: DateTime.now());
     
     try {
       // ⬇️ المرحلة 1: سحب التغييرات من السيرفر (Pull)
@@ -106,7 +106,7 @@ class DeltaSyncEngine {
     try {
       // جلب التغييرات من السيرفر
       final remoteChanges = await _remote.fetchChanges(
-        since: since ?? await _outbox.getLastSyncTimestamp(),
+        since: since ?? await _outbox.getLastSyncTimestamp() ?? DateTime.fromMillisecondsSinceEpoch(0),
         limit: _config.batchSize,
       );
 

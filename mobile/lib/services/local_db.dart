@@ -84,6 +84,8 @@ class Bookings extends Table with SyncFields {
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
   IntColumn get totalNightsCached => integer().withDefault(const Constant(0))();
   TextColumn get stayDurationIso => text().nullable()();
+  TextColumn get financialHash => text().nullable()();
+  TextColumn get financialFrozenAt => text().nullable()();
   IntColumn get lastNightEpoch => integer().nullable()();
   BoolColumn get isOverdue => boolean().withDefault(const Constant(false))();
   BoolColumn get needsCheckoutReview =>
@@ -129,6 +131,18 @@ class Employees extends Table with SyncFields {
   TextColumn get phone => text().withDefault(const Constant(''))();
   TextColumn get hireDate => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
+}
+
+class GuestInfos extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get roomNumber => text()();
+  TextColumn get guestName => text()();
+  TextColumn get nationality => text()();
+  TextColumn get idNumber => text()();
+  TextColumn get idType => text().withDefault(const Constant('بطاقة شخصية'))();
+  TextColumn get issueDate => text().nullable()();
+  TextColumn get issuePlace => text().nullable()();
+  TextColumn get governorate => text().nullable()();
 }
 
 class Expenses extends Table with SyncFields {
@@ -332,9 +346,11 @@ class PriceAdjustments extends Table with SyncFields {
 class BookingPriceAdjustments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get bookingLocalUuid => text()();
-  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get bookingLocalId =>
+      integer().nullable().references(Bookings, #id)();
   IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
-  TextColumn get adjustmentMode => text().withDefault(const Constant('per_night'))();
+  TextColumn get adjustmentMode =>
+      text().withDefault(const Constant('per_night'))();
   RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get effectiveHotelDay => text()();
   TextColumn get endHotelDay => text().nullable()();
@@ -519,6 +535,7 @@ class Outbox extends Table {
       text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
+  TextColumn get remotePayload => text().nullable()();
 }
 
 class SyncState extends Table {
@@ -563,7 +580,8 @@ class SyncLog extends Table {
   TextColumn get direction => text()();
   TextColumn get deviceId => text()();
   TextColumn get metadata => text()();
-  TextColumn get operations => text().nullable().withDefault(const Constant('[]'))();
+  TextColumn get operations =>
+      text().nullable().withDefault(const Constant('[]'))();
   IntColumn get checksumMatched => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('success'))();
   TextColumn get createdAt => text()();
@@ -589,6 +607,7 @@ class SyncConflicts extends Table {
     BookingNotes,
     ShiftNotes,
     Employees,
+    GuestInfos,
     Expenses,
     CashTransactions,
     Payments,
@@ -620,7 +639,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1055,22 +1074,56 @@ class AppDatabase extends _$AppDatabase {
       if (from < 24) {
         // Migration 24: تحويل المبالغ المالية من REAL إلى INTEGER
         // وإضافة جدول BookingPriceAdjustments
-        
-        // 1. إنشاء جدول BookingPriceAdjustments
-        await m.createTable(bookingPriceAdjustments);
-        
+
+        // 1. إنشاء جداول التعديلات والسجلات
+        try {
+          await m.createTable(bookingPriceAdjustments);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create bookingPriceAdjustments failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.createTable(priceAdjustments);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create priceAdjustments failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.createTable(auditLogs);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create auditLogs failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.createTable(paymentVoids);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create paymentVoids failed: $e',
+            name: 'db.migration',
+          );
+        }
+
         // 2. تحويل المبالغ في الجداول الموجودة من REAL إلى INTEGER
         // نستخدم CAST للتحويل مع تقريب القيم
-        
+
         // rooms.price
         try {
           await m.database.customStatement(
             'UPDATE rooms SET price = CAST(ROUND(price) AS INTEGER) WHERE price IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: rooms.price conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: rooms.price conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // bookings cached fields
         try {
           await m.database.customStatement(
@@ -1082,45 +1135,60 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: bookings conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: bookings conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // employees.basic_salary
         try {
           await m.database.customStatement(
             'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: employees conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: employees conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // expenses.amount
         try {
           await m.database.customStatement(
             'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: expenses conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: expenses conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // cash_transactions.amount
         try {
           await m.database.customStatement(
             'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: cash_transactions conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: cash_transactions conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // payments.amount
         try {
           await m.database.customStatement(
             'UPDATE payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: payments conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: payments conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // debts amounts
         try {
           await m.database.customStatement(
@@ -1131,40 +1199,58 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: debts conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: debts conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // booking_nights.nightly_rate + إضافة الأعمدة الجديدة
         try {
           await m.database.customStatement(
             'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: booking_nights.nightly_rate conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: booking_nights.nightly_rate conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // إضافة أعمدة BookingNights الجديدة (baseRate, adjustment, finalRate)
         try {
           await m.addColumn(bookingNights, bookingNights.baseRate);
         } catch (e) {
-          developer.log('Migration 24: add baseRate failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add baseRate failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNights, bookingNights.adjustment);
         } catch (e) {
-          developer.log('Migration 24: add adjustment failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add adjustment failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNights, bookingNights.finalRate);
         } catch (e) {
-          developer.log('Migration 24: add finalRate failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add finalRate failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNights, bookingNights.appliedAdjustmentUuid);
         } catch (e) {
-          developer.log('Migration 24: add appliedAdjustmentUuid failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add appliedAdjustmentUuid failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // تحديث القيم الافتراضية للأعمدة الجديدة
         try {
           await m.database.customStatement(
@@ -1175,9 +1261,12 @@ class AppDatabase extends _$AppDatabase {
             'WHERE base_rate IS NULL OR base_rate = 0',
           );
         } catch (e) {
-          developer.log('Migration 24: booking_nights defaults failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: booking_nights defaults failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // hotel_day_ledger amounts
         try {
           await m.database.customStatement(
@@ -1189,9 +1278,12 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: hotel_day_ledger conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: hotel_day_ledger conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // price_adjustments amounts
         try {
           await m.database.customStatement(
@@ -1201,18 +1293,24 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: price_adjustments conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: price_adjustments conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // payment_voids.voided_amount
         try {
           await m.database.customStatement(
             'UPDATE payment_voids SET voided_amount = CAST(ROUND(voided_amount) AS INTEGER) WHERE voided_amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: payment_voids conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: payment_voids conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // salary_cycles amounts
         try {
           await m.database.customStatement(
@@ -1223,32 +1321,44 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: salary_cycles conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: salary_cycles conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // salary_payments.amount
         try {
           await m.database.customStatement(
             'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: salary_payments conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: salary_payments conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // audit_logs.amount_impact
         try {
           await m.database.customStatement(
             'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: audit_logs conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: audit_logs conversion failed: $e',
+            name: 'db.migration',
+          );
         }
-        
+
         // إضافة حقل discountStartDate للحجوزات إذا لم يكن موجوداً
         try {
           await m.addColumn(bookings, bookings.discountStartDate);
         } catch (e) {
-          developer.log('Migration 24: add discountStartDate already exists or failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add discountStartDate already exists or failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 25) {
@@ -1281,6 +1391,35 @@ class AppDatabase extends _$AppDatabase {
           );
         }
       }
+      if (from < 27) {
+        try {
+          await m.addColumn(outbox, outbox.remotePayload);
+          await m.addColumn(bookings, bookings.financialHash);
+          await m.addColumn(bookings, bookings.financialFrozenAt);
+          developer.log(
+            'Migration 27: added remotePayload to outbox, financialHash/financialFrozenAt to bookings',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log('Migration 27 failed: $e', name: 'db.migration');
+        }
+      }
+      if (from < 28) {
+        try {
+          await m.createTable(guestInfos);
+          developer.log(
+            'Migration 28: created guest_infos table',
+            name: 'db.migration',
+          );
+        } catch (e, st) {
+          developer.log(
+            'Migration 28 failed: $e',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+      }
     },
   );
 
@@ -1302,7 +1441,10 @@ class AppDatabase extends _$AppDatabase {
     final sessionsData = await select(appSessions).get();
     final salaryCyclesData = await select(salaryCycles).get();
     final salaryPaymentsData = await select(salaryPayments).get();
-    final bookingPriceAdjustmentsData = await select(bookingPriceAdjustments).get();
+    final guestInfosData = await select(guestInfos).get();
+    final bookingPriceAdjustmentsData = await select(
+      bookingPriceAdjustments,
+    ).get();
 
     return {
       'rooms': roomsData.map((e) => e.toJson()).toList(),
@@ -1310,6 +1452,7 @@ class AppDatabase extends _$AppDatabase {
       'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
       'shift_notes': shiftNotesData.map((e) => e.toJson()).toList(),
       'employees': employeesData.map((e) => e.toJson()).toList(),
+      'guest_infos': guestInfosData.map((e) => e.toJson()).toList(),
       'expenses': expensesData.map((e) => e.toJson()).toList(),
       'cash_transactions': cashTransactionsData.map((e) => e.toJson()).toList(),
       'payments': paymentsData.map((e) => e.toJson()).toList(),
@@ -1321,7 +1464,9 @@ class AppDatabase extends _$AppDatabase {
       'app_sessions': sessionsData.map((e) => e.toJson()).toList(),
       'salary_cycles': salaryCyclesData.map((e) => e.toJson()).toList(),
       'salary_payments': salaryPaymentsData.map((e) => e.toJson()).toList(),
-      'booking_price_adjustments': bookingPriceAdjustmentsData.map((e) => e.toJson()).toList(),
+      'booking_price_adjustments': bookingPriceAdjustmentsData
+          .map((e) => e.toJson())
+          .toList(),
       'guests': <Map<String, dynamic>>[],
       'services': <Map<String, dynamic>>[],
       'settings': <Map<String, dynamic>>[],
@@ -1561,19 +1706,21 @@ class SyncAuditDao {
               direction: direction,
               deviceId: deviceId,
               metadata: jsonEncode(metadata),
-              operations: Value(jsonEncode(
-                appliedOperations
-                    .map(
-                      (sync_models.SyncOperation e) => {
-                        'table': e.table,
-                        'uuid': e.uuid,
-                        'operation': e.operation,
-                        'payload': e.payload,
-                        'timestamp': e.timestamp,
-                      },
-                    )
-                    .toList(),
-              )),
+              operations: Value(
+                jsonEncode(
+                  appliedOperations
+                      .map(
+                        (sync_models.SyncOperation e) => {
+                          'table': e.table,
+                          'uuid': e.uuid,
+                          'operation': e.operation,
+                          'payload': e.payload,
+                          'timestamp': e.timestamp,
+                        },
+                      )
+                      .toList(),
+                ),
+              ),
               checksumMatched: Value(checksumMatched ? 1 : 0),
               createdAt: createdAt,
               completedAt: Value(createdAt),

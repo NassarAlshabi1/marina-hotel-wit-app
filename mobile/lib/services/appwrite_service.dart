@@ -216,6 +216,7 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
+    final cleanData = Map<String, dynamic>.from(data)..remove('id');
     // نحاول التحديث أولاً (Optimistic)
     try {
       return await _networkHelper.withRetryAndTimeout(
@@ -223,7 +224,7 @@ class AppwriteService {
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
           documentId: documentId,
-          data: data,
+          data: cleanData,
         ),
         operationName: 'updateDocument',
       );
@@ -235,7 +236,7 @@ class AppwriteService {
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: collectionId,
             documentId: documentId,
-            data: data,
+            data: cleanData,
           ),
           operationName: 'createDocument',
         );

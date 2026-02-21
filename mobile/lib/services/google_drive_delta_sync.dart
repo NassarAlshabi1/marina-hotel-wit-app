@@ -31,6 +31,8 @@ class GoogleDriveDeltaSync {
   static const _prefsLastPushTsKey = 'gd_last_push_ts';
   static const _prefsLastPullTsKey = 'gd_last_pull_ts';
   static const _prefsDeviceIdKey = 'gd_delta_device_id';
+  // افتراضياً السحب معطل ما لم يتم تفعيله يدوياً
+  static const _prefsDrivePullEnabledKey = 'gd_drive_pull_enabled';
 
   static const fullBackupPrefix = 'marina_backup_full_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
@@ -131,6 +133,18 @@ class GoogleDriveDeltaSync {
   }
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isPullEnabled = prefs.getBool(_prefsDrivePullEnabledKey) ?? false;
+
+    if (!isPullEnabled) {
+      debugPrint('⚠️ Google Drive pull skipped (disabled in settings)');
+      return DeltaSyncResult(
+        success: true,
+        message: 'السحب من Google Drive معطل',
+        changesCount: 0,
+      );
+    }
+
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
       if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
       if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
@@ -222,7 +236,7 @@ class GoogleDriveDeltaSync {
       'timestamp': DateTime.now().toIso8601String(),
       'epoch': Time.nowEpoch(),
       'changes_count': computation.changes.length,
-      'changes': computation.toPayload(),
+      'changes': computation.toPayload()['changes'],
       'fallback_tables': computation.fallbackTables.toList(),
     };
   }

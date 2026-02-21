@@ -504,7 +504,7 @@ class RestoreFixService {
           debugPrint('💰 ${changes.last}');
         }
 
-        if ((totalPaid - expectedTotal).abs() > 0 && totalPaid != expectedTotal) {
+        if ((totalPaid - expectedTotal).abs() > 0.001) {
           await _logChange(
             fixId: fixId,
             targetTable: 'payments',
@@ -543,9 +543,9 @@ class RestoreFixService {
         final isSettled = remaining <= 0 ? 1 : 0;
         for (final debt in debts) {
           final shouldUpdate =
-              debt.totalAmount != expectedTotal ||
-              debt.paidAmount != totalPaid ||
-              debt.remainingAmount != remaining ||
+              (debt.totalAmount - expectedTotal).abs() > 0.001 ||
+              (debt.paidAmount - totalPaid).abs() > 0.001 ||
+              (debt.remainingAmount - remaining).abs() > 0.001 ||
               debt.isSettled != isSettled;
           if (shouldUpdate) {
             await _logConflict(
