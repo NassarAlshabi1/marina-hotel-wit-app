@@ -592,12 +592,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    // Room not found, prompt to create it.
+    await _showCreateRoomDialog(context, roomNumber);
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
