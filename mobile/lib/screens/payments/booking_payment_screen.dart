@@ -1981,7 +1981,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         action: SnackBarAction(
           label: 'إغلاق',
           textColor: Colors.white,
-          onPressed: () => messenger.hideCurrentSnackBar(),
+          onPressed: messenger.hideCurrentSnackBar,
         ),
       ),
     );
