@@ -7,6 +7,7 @@ import '../models/sync_result.dart';
 import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
 import '../workers/sync_worker.dart';
+import 'network_connectivity_listener.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
@@ -37,6 +38,9 @@ class SyncOrchestrator {
     
     _isInitialized = true;
     _emitState(SyncState.idle());
+
+    // بدء مراقبة حالة الشبكة تلقائياً عند التهيئة
+    NetworkConnectivityListener.instance.startMonitoring();
   }
 
   /// مزامنة فورية مع جميع المحولات
@@ -44,6 +48,7 @@ class SyncOrchestrator {
     bool push = true,
     bool pull = true,
     SyncPriority priority = SyncPriority.normal,
+    String? reason,
   }) async {
     if (_isSyncing) {
       return SyncResult.conflict('المزامنة قيد التقدم بالفعل');
@@ -145,6 +150,7 @@ class SyncOrchestrator {
   }
 
   void dispose() {
+    NetworkConnectivityListener.instance.stopMonitoring();
     _stateController.close();
     for (final adapter in _adapters) {
       adapter.dispose();
