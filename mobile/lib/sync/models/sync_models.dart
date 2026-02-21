@@ -113,6 +113,8 @@ class DeltaSyncResult {
   final List<SyncConflict> conflicts;
   final List<String> errors;
   final DateTime? timestamp;
+  // ✅ ADDED: قائمة المعرفات التي تم رفعها بنجاح لدعم Batch Operations في Outbox
+  final List<String> uploadedIds;
 
   DeltaSyncResult({
     this.success = true,
@@ -123,6 +125,7 @@ class DeltaSyncResult {
     this.conflicts = const [],
     this.errors = const [],
     this.timestamp,
+    this.uploadedIds = const [],
   });
 
   DeltaSyncResult copyWith({
@@ -134,6 +137,7 @@ class DeltaSyncResult {
     List<SyncConflict>? conflicts,
     List<String>? errors,
     DateTime? timestamp,
+    List<String>? uploadedIds,
   }) {
     return DeltaSyncResult(
       success: success ?? this.success,
@@ -144,6 +148,7 @@ class DeltaSyncResult {
       conflicts: conflicts ?? this.conflicts,
       errors: errors ?? this.errors,
       timestamp: timestamp ?? this.timestamp,
+      uploadedIds: uploadedIds ?? this.uploadedIds,
     );
   }
 

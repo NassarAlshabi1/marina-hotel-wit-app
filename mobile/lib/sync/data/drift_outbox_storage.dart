@@ -197,8 +197,21 @@ class DriftOutboxStorage implements OutboxStorage {
   @override
   Future<void> markAsSynced(String id, DateTime timestamp) async {
     await _db.customStatement(
-      'UPDATE $_table SET is_synced = 1, synced_at = ? WHERE id = ?',
+      'UPDATE $_table SET is_synced = 1, synced_at = ?, is_failed = 0, last_error = NULL, next_retry_at = NULL WHERE id = ?',
       [timestamp.millisecondsSinceEpoch, id],
+    );
+  }
+
+  // ✅ ADDED: Batch operation for marking multiple changes as synced
+  // ISSUE: P1 Performance: عدم استخدام Batch Operations في processRetries.
+  // PRIORITY: P1
+  @override
+  Future<void> markBatchAsSynced(List<String> ids, DateTime timestamp) async {
+    if (ids.isEmpty) return;
+    final placeholders = List.filled(ids.length, '?').join(', ');
+    await _db.customStatement(
+      'UPDATE $_table SET is_synced = 1, synced_at = ?, is_failed = 0, last_error = NULL, next_retry_at = NULL WHERE id IN ($placeholders)',
+      [timestamp.millisecondsSinceEpoch, ...ids],
     );
   }
 

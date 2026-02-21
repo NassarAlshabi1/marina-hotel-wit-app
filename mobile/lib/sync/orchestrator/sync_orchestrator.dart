@@ -27,8 +27,10 @@ class SyncOrchestrator {
 
   Timer? _autoSyncTimer;
   bool _isInitialized = false;
-  bool _isSyncing = false;
-  DateTime? _lastSyncAt;
+  
+  // ✅ CHANGED: استخدام SyncState مركزي بدلاً من متغيرات منفصلة لضمان الاتساق (Single Source of Truth)
+  // PRIORITY: P0
+  SyncState _currentSyncState = SyncState.initial();
 
   SyncOrchestrator({
     required DeltaSyncEngine syncEngine,
@@ -52,7 +54,7 @@ class SyncOrchestrator {
   Stream<SyncConflict> get conflictStream => _conflictController.stream;
 
   /// الحالة الحالية
-  SyncState get currentState => _buildState();
+  SyncState get currentState => _currentSyncState;
 
   /// تهيئة المنسق
   Future<void> initialize() async {
@@ -67,6 +69,9 @@ class SyncOrchestrator {
     await _outbox.initialize();
 
     _isInitialized = true;
+    
+    // ✅ CHANGED: تحديث الحالة الأولية
+    _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.idle);
     _emitState();
 
     developer.log('SyncOrchestrator initialized', name: 'Sync');
@@ -95,13 +100,13 @@ class SyncOrchestrator {
   /// المزامنة إذا لزم الأمر (حسب الإعدادات)
   Future<void> syncIfNeeded() async {
     if (!_config.enabled) return;
-    if (_isSyncing) return;
+    if (_currentSyncState.isSyncing) return;
 
     // التحقق من وجود تغييرات معلقة
     final pendingCount = await _outbox.pendingCount;
-    if (pendingCount == 0 && _lastSyncAt != null) {
+    if (pendingCount == 0 && _currentSyncState.lastSyncAt != null) {
       // لا يوجد تغييرات وتمت المزامنة مؤخراً
-      final timeSinceLastSync = DateTime.now().difference(_lastSyncAt!);
+      final timeSinceLastSync = DateTime.now().difference(_currentSyncState.lastSyncAt!);
       if (timeSinceLastSync < _config.autoSyncInterval) {
         return;
       }
@@ -115,12 +120,13 @@ class SyncOrchestrator {
   Future<DeltaSyncResult> performFullSync({
     SyncDirection direction = SyncDirection.bidirectional,
   }) async {
-    if (_isSyncing) {
+    if (_currentSyncState.isSyncing) {
       throw SyncAlreadyInProgressException();
     }
 
-    _isSyncing = true;
-    _emitState(status: SyncStatus.syncing);
+    // ✅ CHANGED: تحديث الحالة المركزية لبدء المزامنة
+    _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.syncing, isSyncing: true, error: null);
+    _emitState();
 
     final stopwatch = Stopwatch()..start();
     final progress = SyncProgress(
@@ -152,9 +158,6 @@ class SyncOrchestrator {
           message: 'جاري حل ${pullResult.conflicts.length} تعارض...',
           conflictsFound: pullResult.conflicts.length,
         ));
-
-        // التعارضات تم حلها تلقائياً في SyncEngine
-        // هنا يمكن إضافة منطق إضافي إذا لزم الأمر
       }
 
       // ⬆️ المرحلة 3: Push - رفع التغييرات المحلية
@@ -168,6 +171,12 @@ class SyncOrchestrator {
 
         final pushResult = await _syncEngine.sync(direction: SyncDirection.upload);
 
+        // ✅ ADDED: استخدام Batch Operations لتحديث حالة المزامنة في Outbox
+        // PRIORITY: P1 Performance
+        if (pushResult.success && pushResult.uploadedIds.isNotEmpty) {
+          await _outbox.markBatchAsSynced(pushResult.uploadedIds);
+        }
+
         // دمج النتائج
         final combinedResult = DeltaSyncResult(
           success: pullResult.success && pushResult.success,
@@ -180,7 +189,7 @@ class SyncOrchestrator {
           timestamp: DateTime.now(),
         );
 
-        _lastSyncAt = DateTime.now();
+        final now = DateTime.now();
         stopwatch.stop();
 
         _progressController.add(progress.copyWith(
@@ -193,7 +202,9 @@ class SyncOrchestrator {
           durationMs: stopwatch.elapsedMilliseconds,
         ));
 
-        _emitState(status: SyncStatus.synced, lastSyncAt: _lastSyncAt);
+        // ✅ CHANGED: تحديث الحالة المركزية عند النجاح
+        _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.synced, lastSyncAt: now, isSyncing: false);
+        _emitState();
 
         developer.log(
           'Sync completed: ${combinedResult.downloadedCount} down, '
@@ -204,7 +215,7 @@ class SyncOrchestrator {
         return combinedResult;
       } else {
         // لا يوجد تغييرات للرفع
-        _lastSyncAt = DateTime.now();
+        final now = DateTime.now();
         stopwatch.stop();
 
         _progressController.add(progress.copyWith(
@@ -216,7 +227,9 @@ class SyncOrchestrator {
           durationMs: stopwatch.elapsedMilliseconds,
         ));
 
-        _emitState(status: SyncStatus.synced, lastSyncAt: _lastSyncAt);
+        // ✅ CHANGED: تحديث الحالة المركزية عند النجاح (بدون رفع)
+        _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.synced, lastSyncAt: now, isSyncing: false);
+        _emitState();
 
         return pullResult;
       }
@@ -229,7 +242,9 @@ class SyncOrchestrator {
         error: e.toString(),
       ));
 
-      _emitState(status: SyncStatus.failed, error: e.toString());
+      // ✅ CHANGED: تحديث الحالة المركزية عند الفشل
+      _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.failed, error: e.toString(), isSyncing: false);
+      _emitState();
 
       developer.log(
         'Sync failed: $e',
@@ -240,7 +255,8 @@ class SyncOrchestrator {
 
       rethrow;
     } finally {
-      _isSyncing = false;
+      _currentSyncState = _currentSyncState.copyWith(isSyncing: false);
+      _emitState();
     }
   }
 
@@ -299,36 +315,25 @@ class SyncOrchestrator {
         // تم إشعار التعارض في stream مخصص
         break;
       case SyncEventType.syncFailed:
-        _emitState(status: SyncStatus.failed);
+        _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.failed);
+        _emitState();
         break;
       case SyncEventType.syncStarted:
-        _emitState(status: SyncStatus.syncing);
+        _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.syncing, isSyncing: true);
+        _emitState();
         break;
       case SyncEventType.syncCompleted:
-        _emitState(status: SyncStatus.synced, lastSyncAt: DateTime.now());
+        _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.synced, lastSyncAt: DateTime.now(), isSyncing: false);
+        _emitState();
         break;
       default:
         break;
     }
   }
 
-  /// بناء حالة المزامنة الحالية
-  SyncState _buildState({SyncStatus? status, String? error, DateTime? lastSyncAt}) {
-    return SyncState(
-      status: status ?? (_isSyncing ? SyncStatus.syncing : SyncStatus.pending),
-      isSyncing: _isSyncing,
-      lastSyncAt: lastSyncAt ?? _lastSyncAt,
-      error: error,
-    );
-  }
-
   /// إصدار حالة جديدة
-  void _emitState({SyncStatus? status, String? error, DateTime? lastSyncAt}) {
-    _stateController.add(_buildState(
-      status: status,
-      error: error,
-      lastSyncAt: lastSyncAt,
-    ));
+  void _emitState() {
+    _stateController.add(_currentSyncState);
   }
 
   /// التخلص من الموارد
@@ -355,6 +360,27 @@ class SyncState {
     this.lastSyncAt,
     this.error,
   });
+
+  // ✅ ADDED: دالة copyWith لتسهيل تحديث الحالة بشكل آمن (Immutable State Management)
+  SyncState copyWith({
+    SyncStatus? status,
+    bool? isSyncing,
+    DateTime? lastSyncAt,
+    String? error,
+  }) {
+    return SyncState(
+      status: status ?? this.status,
+      isSyncing: isSyncing ?? this.isSyncing,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
+      error: error ?? this.error,
+    );
+  }
+
+  // ✅ ADDED: الحالة الأولية
+  factory SyncState.initial() => SyncState(
+        status: SyncStatus.idle,
+        isSyncing: false,
+      );
 
   bool get isIdle => !isSyncing;
   bool get hasError => error != null;
