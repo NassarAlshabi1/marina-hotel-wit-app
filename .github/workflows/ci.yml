@@ -1,12 +1,3 @@
-Skip to content
-marina-hotel-wit-app
-Repository navigation
-Code
-Actions
-CI
-feat(mobile): enable auto-sync on network restore using existing Sync… #2693
-Workflow file for this run
-.github/workflows/ci.yml at 7286d0e
 name: CI
 permissions:
   contents: read
