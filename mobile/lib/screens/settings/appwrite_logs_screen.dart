@@ -41,13 +41,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
             switch (value) {
               case 'export':
                 _exportLogs();
-                break;
               case 'share':
                 _shareLogs(filteredLogs);
-                break;
               case 'clear':
                 _clearLogs();
-                break;
             }
           },
           itemBuilder: (context) => [
@@ -547,7 +544,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       ref.read(appwriteLoggerProvider).clearLogs();
       setState(() {});
       if (mounted) {

@@ -60,10 +60,8 @@ class BlacklistScreen extends ConsumerWidget {
                       switch (value) {
                         case 'toggle':
                           await repo.updateActive(e.id, !e.active);
-                          break;
                         case 'delete':
                           await repo.delete(e.id);
-                          break;
                       }
                     },
                     itemBuilder: (context) => [

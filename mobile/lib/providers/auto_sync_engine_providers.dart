@@ -34,21 +34,21 @@ final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   final engine = ref.watch(autoSyncEngineProvider);
-  return await engine.getEngineStatus();
+  return engine.getEngineStatus();
 });
 
 final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
-  return await resolver.getConflictStatistics();
+  return resolver.getConflictStatistics();
 });
 
 final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
-  return await resolver.getConflictHistory(limit: 50);
+  return resolver.getConflictHistory(limit: 50);
 });
 
 class AutoSyncEngineController

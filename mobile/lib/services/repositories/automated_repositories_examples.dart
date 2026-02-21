@@ -504,9 +504,9 @@ class CashTransactionsRepositoryAutomated {
 }
 
 class MixedOperationsExample {
-  final AppDatabase db;
 
   MixedOperationsExample(this.db);
+  final AppDatabase db;
 
   Future<void> checkoutBookingWithPayment({
     required int bookingId,
@@ -640,9 +640,9 @@ class MixedOperationsExample {
 }
 
 class AutomatedRepositoryFactory {
-  final AppDatabase db;
 
   AutomatedRepositoryFactory(this.db);
+  final AppDatabase db;
 
   BookingsRepositoryAutomated get bookings => BookingsRepositoryAutomated(db);
   PaymentsRepositoryAutomated get payments => PaymentsRepositoryAutomated(db);

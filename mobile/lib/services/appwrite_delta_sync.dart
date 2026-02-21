@@ -1,24 +1,16 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
-import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
-  final bool success;
-  final String message;
-  final int pushedCount;
-  final int pulledCount;
-  final int conflictCount;
 
   AppwriteDeltaSyncResult({
     required this.success,
@@ -27,6 +19,11 @@ class AppwriteDeltaSyncResult {
     this.pulledCount = 0,
     this.conflictCount = 0,
   });
+  final bool success;
+  final String message;
+  final int pushedCount;
+  final int pulledCount;
+  final int conflictCount;
 
   int get recordsPulled => pulledCount;
   int get recordsPushed => pushedCount;
@@ -113,7 +110,7 @@ class AppwriteDeltaSync {
           }
         }));
 
-        for (var res in results) {
+        for (final res in results) {
           if (res['success'] == true) {
             successfulChanges.add(res['change'] as DeltaSyncChange);
           } else {
@@ -160,14 +157,12 @@ class AppwriteDeltaSync {
           documentId: change.localUuid,
           data: _sanitizePayload(payload, collectionEntity: change.entity),
         );
-        break;
       case 'delete':
         try {
           await _appwriteService!.deleteDocument(collectionId: collectionId, documentId: change.localUuid);
         } on AppwriteException catch (e) {
           if (e.code != 404) rethrow;
         }
-        break;
     }
   }
 

@@ -29,9 +29,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.error, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'خطأ في تحميل الإحصائيات',
-                  style: const TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -154,8 +154,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.bar_chart, color: Colors.blue, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -259,8 +259,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.pie_chart, color: Colors.green, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -339,8 +339,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.swap_vert, color: Colors.purple, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -492,8 +492,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.history, color: Colors.teal, size: 24),
                 SizedBox(width: 8),
                 Text(

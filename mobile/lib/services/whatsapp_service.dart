@@ -4,10 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class WhatsAppService {
-  final String baseUrl;
-  final String instanceId;
-  final String token;
-  final http.Client _client;
 
   WhatsAppService({
     required this.baseUrl,
@@ -15,6 +11,10 @@ class WhatsAppService {
     required this.token,
     http.Client? client,
   }) : _client = client ?? http.Client();
+  final String baseUrl;
+  final String instanceId;
+  final String token;
+  final http.Client _client;
 
   Future<bool> sendMessage({
     required String phoneE164,

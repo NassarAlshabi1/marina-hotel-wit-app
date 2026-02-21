@@ -22,9 +22,9 @@ mixin AutoBackupMixin {
 
 /// مثال على تحديث PaymentsRepository للدعم النسخ التلقائي
 class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
-  final AppDatabase db;
 
   PaymentsRepositoryWithAutoBackup(this.db);
+  final AppDatabase db;
 
   Future<int> addPayment({
     required int bookingId,
@@ -130,9 +130,9 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
 
 /// مثال آخر على RoomsRepository
 class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
-  final AppDatabase db;
 
   RoomsRepositoryWithAutoBackup(this.db);
+  final AppDatabase db;
 
   Future<int> addRoom({
     required String roomNumber,
@@ -190,9 +190,9 @@ class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
 
 /// مثال على ExpensesRepository
 class ExpensesRepositoryWithAutoBackup with AutoBackupMixin {
-  final AppDatabase db;
 
   ExpensesRepositoryWithAutoBackup(this.db);
+  final AppDatabase db;
 
   Future<int> addExpense({
     required String expenseType,

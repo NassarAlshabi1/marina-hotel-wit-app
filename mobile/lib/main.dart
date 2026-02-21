@@ -80,7 +80,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) => DiagnosticsLogger.instance.recordError(
@@ -558,7 +558,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('📱 التطبيق في الخلفية...');
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
-        () => AppSessionManager.onAppCloseOrBackground(),
+        AppSessionManager.onAppCloseOrBackground,
       ).catchError(
         (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );

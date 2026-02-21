@@ -42,22 +42,22 @@ class LocalBackupsTab extends ConsumerWidget {
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Column(
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.sd_storage,
                   color: Colors.green,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'تخزين الجهاز',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
-            InfoRow(
+            const InfoRow(
               label: 'المسار',
               value: '/storage/emulated/0/Marina Hotel/backups',
               icon: Icons.folder,
@@ -140,13 +140,13 @@ class LocalBackupsTab extends ConsumerWidget {
     ];
 
     return Column(
-      children: backups.map((backup) => _buildBackupItem(backup)).toList(),
+      children: backups.map(_buildBackupItem).toList(),
     );
   }
 
   Widget _buildBackupItem(Map<String, dynamic> backup) {
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),

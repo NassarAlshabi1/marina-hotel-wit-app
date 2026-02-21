@@ -1,5 +1,6 @@
 /// Drift Outbox Storage Implementation
 /// تطبيق OutboxStorage باستخدام Drift (raw SQL)
+library;
 
 import 'dart:convert';
 import 'package:drift/drift.dart';
@@ -7,21 +8,6 @@ import '../processors/outbox_processor.dart';
 import '../models/sync_models.dart';
 
 class OutboxRecord {
-  final String id;
-  final String tableName;
-  final String uuid;
-  final String operation;
-  final String payload;
-  final DateTime timestamp;
-  final String vectorClock;
-  final String? checksum;
-  final String? deviceId;
-  final int retryCount;
-  final String? lastError;
-  final DateTime? nextRetryAt;
-  final DateTime? syncedAt;
-  final bool isSynced;
-  final bool isFailed;
 
   OutboxRecord({
     required this.id,
@@ -64,13 +50,28 @@ class OutboxRecord {
       isFailed: row.read<int>('is_failed') == 1,
     );
   }
+  final String id;
+  final String tableName;
+  final String uuid;
+  final String operation;
+  final String payload;
+  final DateTime timestamp;
+  final String vectorClock;
+  final String? checksum;
+  final String? deviceId;
+  final int retryCount;
+  final String? lastError;
+  final DateTime? nextRetryAt;
+  final DateTime? syncedAt;
+  final bool isSynced;
+  final bool isFailed;
 }
 
 class DriftOutboxStorage implements OutboxStorage {
-  final GeneratedDatabase _db;
-  static const String _table = 'outbox_queue';
 
   DriftOutboxStorage(this._db);
+  final GeneratedDatabase _db;
+  static const String _table = 'outbox_queue';
 
   Future<void> _ensureTable() async {
     await _db.customStatement('''
@@ -251,7 +252,7 @@ class DriftOutboxStorage implements OutboxStorage {
 
   @override
   Future<int> deleteSyncedBefore(DateTime cutoff) async {
-    return await _db.customUpdate(
+    return _db.customUpdate(
       'DELETE FROM $_table WHERE is_synced = 1 AND synced_at < ?',
       variables: [Variable.withInt(cutoff.millisecondsSinceEpoch)],
     );

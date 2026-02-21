@@ -6,10 +6,10 @@ import 'auto_backup_manager.dart';
 import '../utils/time.dart';
 
 class PriceAdjustmentService {
-  final AppDatabase db;
-  static const _uuid = Uuid();
 
   PriceAdjustmentService(this.db);
+  final AppDatabase db;
+  static const _uuid = Uuid();
 
   Future<PriceAdjustmentResult> applyRoomPriceChange({
     required String roomNumber,
@@ -104,7 +104,7 @@ class PriceAdjustmentService {
   Future<List<Booking>> _getActiveBookingsForRoom(String roomNumber) async {
     final activeStatuses = ['مؤكد', 'confirmed', 'نشط', 'active', 'مسجل دخول', 'checked_in'];
     
-    return await (db.select(db.bookings)
+    return (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.deletedAt.isNull())
           ..where((b) => b.actualCheckout.isNull())
@@ -231,7 +231,7 @@ class PriceAdjustmentService {
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {
-    return await (db.select(db.priceAdjustments)
+    return (db.select(db.priceAdjustments)
           ..where((p) => p.targetType.equals('room'))
           ..where((p) => p.targetUuid.equals(roomUuid))
           ..orderBy([(p) => OrderingTerm.desc(p.createdAt)]))
@@ -242,7 +242,7 @@ class PriceAdjustmentService {
     String startDate,
     String endDate,
   ) async {
-    return await (db.select(db.priceAdjustments)
+    return (db.select(db.priceAdjustments)
           ..where((p) => p.hotelDayKey.isBiggerOrEqualValue(startDate))
           ..where((p) => p.hotelDayKey.isSmallerOrEqualValue(endDate))
           ..orderBy([(p) => OrderingTerm.desc(p.createdAt)]))
@@ -315,12 +315,6 @@ class PriceAdjustmentService {
 }
 
 class PriceAdjustmentResult {
-  final bool success;
-  final String? error;
-  final String? adjustmentUuid;
-  final int bookingsAffected;
-  final int nightsUpdated;
-  final List<String> auditEntries;
 
   PriceAdjustmentResult({
     required this.success,
@@ -330,14 +324,20 @@ class PriceAdjustmentResult {
     this.nightsUpdated = 0,
     this.auditEntries = const [],
   });
+  final bool success;
+  final String? error;
+  final String? adjustmentUuid;
+  final int bookingsAffected;
+  final int nightsUpdated;
+  final List<String> auditEntries;
 }
 
 class _NightUpdateResult {
-  final int nightsUpdated;
-  final List<String> auditEntries;
 
   _NightUpdateResult({
     required this.nightsUpdated,
     required this.auditEntries,
   });
+  final int nightsUpdated;
+  final List<String> auditEntries;
 }

@@ -623,7 +623,7 @@ class _SyncHealthDashboardScreenState
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ],
                 if (!hasIssues) ...[
@@ -676,10 +676,6 @@ class _SyncHealthDashboardScreenState
 }
 
 class MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color? color;
 
   const MetricCard({
     super.key,
@@ -688,6 +684,10 @@ class MetricCard extends StatelessWidget {
     required this.icon,
     this.color,
   });
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -727,9 +727,9 @@ class MetricCard extends StatelessWidget {
 }
 
 class StatusIndicator extends StatelessWidget {
-  final SyncHealthStatus status;
 
   const StatusIndicator({super.key, required this.status});
+  final SyncHealthStatus status;
 
   Color get color {
     switch (status) {
@@ -786,14 +786,14 @@ class StatusIndicator extends StatelessWidget {
 }
 
 class CircuitBreakerCard extends StatelessWidget {
-  final String name;
-  final CircuitState state;
 
   const CircuitBreakerCard({
     super.key,
     required this.name,
     required this.state,
   });
+  final String name;
+  final CircuitState state;
 
   @override
   Widget build(BuildContext context) {

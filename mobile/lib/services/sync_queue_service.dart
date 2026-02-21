@@ -4,10 +4,10 @@ import 'package:flutter/foundation.dart';
 /// [Deprecated] This service is being replaced by Unified Outbox Architecture.
 /// All methods are now No-ops.
 class SyncQueueService {
-  static SyncQueueService? _instance;
-  static SyncQueueService get instance => _instance ??= SyncQueueService._();
 
   SyncQueueService._();
+  static SyncQueueService? _instance;
+  static SyncQueueService get instance => _instance ??= SyncQueueService._();
 
   final _queueController = StreamController<int>.broadcast();
   Stream<int> get queueCountStream => _queueController.stream;
@@ -44,11 +44,6 @@ class SyncQueueService {
 }
 
 class SyncQueueItem {
-  final String id;
-  final String screenId;
-  final Map<String, dynamic> data;
-  final DateTime createdAt;
-  int attempts;
 
   SyncQueueItem({
     required this.id,
@@ -57,16 +52,14 @@ class SyncQueueItem {
     required this.createdAt,
     this.attempts = 0,
   });
+  final String id;
+  final String screenId;
+  final Map<String, dynamic> data;
+  final DateTime createdAt;
+  int attempts;
 }
 
 class QueueStats {
-  final int totalItems;
-  final int pendingItems;
-  final int processingItems;
-  final int retriableItems;
-  final int failedItems;
-  final DateTime? oldestItem;
-  final DateTime? lastProcessed;
 
   const QueueStats({
     required this.totalItems,
@@ -77,4 +70,11 @@ class QueueStats {
     this.oldestItem,
     this.lastProcessed,
   });
+  final int totalItems;
+  final int pendingItems;
+  final int processingItems;
+  final int retriableItems;
+  final int failedItems;
+  final DateTime? oldestItem;
+  final DateTime? lastProcessed;
 }

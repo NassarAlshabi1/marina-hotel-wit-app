@@ -1,5 +1,6 @@
 /// نماذج بيانات المزامنة الاحترافية
 /// Delta Sync + Vector Clock + Event Sourcing
+library;
 
 /// اتجاه المزامنة
 enum SyncDirection { upload, download, bidirectional }
@@ -39,18 +40,6 @@ enum VectorClockComparison { localNewer, remoteNewer, concurrent, equal }
 
 /// تغيير دلتا (Delta Change)
 class DeltaChange {
-  final String id;
-  final String table;
-  final String uuid;
-  final SyncOperation operation;
-  final Map<String, dynamic> payload;
-  final DateTime timestamp;
-  final String vectorClock;
-  final String? checksum;
-  final String? deviceId;
-  final int retryCount;
-  final String? lastError;
-  final DateTime? nextRetryAt;
 
   DeltaChange({
     required this.id,
@@ -66,21 +55,6 @@ class DeltaChange {
     this.lastError,
     this.nextRetryAt,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'table': table,
-        'uuid': uuid,
-        'operation': operation.name,
-        'payload': payload,
-        'timestamp': timestamp.toIso8601String(),
-        'vectorClock': vectorClock,
-        'checksum': checksum,
-        'deviceId': deviceId,
-        'retryCount': retryCount,
-        'lastError': lastError,
-        'nextRetryAt': nextRetryAt?.toIso8601String(),
-      };
 
   factory DeltaChange.fromJson(Map<String, dynamic> json) => DeltaChange(
         id: json['id'] as String,
@@ -101,20 +75,37 @@ class DeltaChange {
             ? DateTime.parse(json['nextRetryAt'] as String)
             : null,
       );
+  final String id;
+  final String table;
+  final String uuid;
+  final SyncOperation operation;
+  final Map<String, dynamic> payload;
+  final DateTime timestamp;
+  final String vectorClock;
+  final String? checksum;
+  final String? deviceId;
+  final int retryCount;
+  final String? lastError;
+  final DateTime? nextRetryAt;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'table': table,
+        'uuid': uuid,
+        'operation': operation.name,
+        'payload': payload,
+        'timestamp': timestamp.toIso8601String(),
+        'vectorClock': vectorClock,
+        'checksum': checksum,
+        'deviceId': deviceId,
+        'retryCount': retryCount,
+        'lastError': lastError,
+        'nextRetryAt': nextRetryAt?.toIso8601String(),
+      };
 }
 
 /// نتيجة مزامنة دلتا
 class DeltaSyncResult {
-  final bool success;
-  final int uploadedCount;
-  final int downloadedCount;
-  final int conflictCount;
-  final int errorCount;
-  final List<SyncConflict> conflicts;
-  final List<String> errors;
-  final DateTime? timestamp;
-  // ✅ ADDED: قائمة المعرفات التي تم رفعها بنجاح لدعم Batch Operations في Outbox
-  final List<String> uploadedIds;
 
   DeltaSyncResult({
     this.success = true,
@@ -127,6 +118,16 @@ class DeltaSyncResult {
     this.timestamp,
     this.uploadedIds = const [],
   });
+  final bool success;
+  final int uploadedCount;
+  final int downloadedCount;
+  final int conflictCount;
+  final int errorCount;
+  final List<SyncConflict> conflicts;
+  final List<String> errors;
+  final DateTime? timestamp;
+  // ✅ ADDED: قائمة المعرفات التي تم رفعها بنجاح لدعم Batch Operations في Outbox
+  final List<String> uploadedIds;
 
   DeltaSyncResult copyWith({
     bool? success,
@@ -166,15 +167,6 @@ class DeltaSyncResult {
 
 /// تعارض مزامنة
 class SyncConflict {
-  final String id;
-  final String table;
-  final String uuid;
-  final DeltaChange remoteChange;
-  final Map<String, dynamic> localRecord;
-  final DateTime detectedAt;
-  final ConflictResolution? resolution;
-  final String? resolvedBy;
-  final DateTime? resolvedAt;
 
   SyncConflict({
     required this.id,
@@ -187,18 +179,6 @@ class SyncConflict {
     this.resolvedBy,
     this.resolvedAt,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'table': table,
-        'uuid': uuid,
-        'remoteChange': remoteChange.toJson(),
-        'localRecord': localRecord,
-        'detectedAt': detectedAt.toIso8601String(),
-        'resolution': resolution?.name,
-        'resolvedBy': resolvedBy,
-        'resolvedAt': resolvedAt?.toIso8601String(),
-      };
 
   factory SyncConflict.fromJson(Map<String, dynamic> json) => SyncConflict(
         id: json['id'] as String,
@@ -219,6 +199,27 @@ class SyncConflict {
             ? DateTime.parse(json['resolvedAt'] as String)
             : null,
       );
+  final String id;
+  final String table;
+  final String uuid;
+  final DeltaChange remoteChange;
+  final Map<String, dynamic> localRecord;
+  final DateTime detectedAt;
+  final ConflictResolution? resolution;
+  final String? resolvedBy;
+  final DateTime? resolvedAt;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'table': table,
+        'uuid': uuid,
+        'remoteChange': remoteChange.toJson(),
+        'localRecord': localRecord,
+        'detectedAt': detectedAt.toIso8601String(),
+        'resolution': resolution?.name,
+        'resolvedBy': resolvedBy,
+        'resolvedAt': resolvedAt?.toIso8601String(),
+      };
 }
 
 /// حل التعارض
@@ -226,15 +227,15 @@ enum ConflictResolution { localWins, remoteWins, merged, manual, discarded }
 
 /// نتيجة حل التعارض
 class ConflictResolutionResult {
-  final Winner winner;
-  final Map<String, dynamic> data;
-  final bool requiresReview;
 
   ConflictResolutionResult({
     required this.winner,
     required this.data,
     this.requiresReview = false,
   });
+  final Winner winner;
+  final Map<String, dynamic> data;
+  final bool requiresReview;
 }
 
 /// الفائز في التعارض
@@ -242,16 +243,6 @@ enum Winner { local, remote, merged }
 
 /// إعدادات المزامنة
 class SyncConfiguration {
-  final bool enabled;
-  final SyncDirection defaultDirection;
-  final int batchSize;
-  final Duration autoSyncInterval;
-  final bool backgroundSyncEnabled;
-  final bool realtimeSyncEnabled;
-  final int maxRetries;
-  final ConflictStrategy conflictStrategy;
-  final bool requireWifi;
-  final bool requireCharging;
 
   const SyncConfiguration({
     this.enabled = true,
@@ -265,6 +256,16 @@ class SyncConfiguration {
     this.requireWifi = false,
     this.requireCharging = false,
   });
+  final bool enabled;
+  final SyncDirection defaultDirection;
+  final int batchSize;
+  final Duration autoSyncInterval;
+  final bool backgroundSyncEnabled;
+  final bool realtimeSyncEnabled;
+  final int maxRetries;
+  final ConflictStrategy conflictStrategy;
+  final bool requireWifi;
+  final bool requireCharging;
 
   SyncConfiguration copyWith({
     bool? enabled,
@@ -295,12 +296,6 @@ class SyncConfiguration {
 
 /// إحصائيات المزامنة
 class SyncStats {
-  final DateTime lastSyncAt;
-  final int totalSynced;
-  final int totalConflicts;
-  final int totalErrors;
-  final Duration averageSyncTime;
-  final Map<String, int> byTable;
 
   SyncStats({
     required this.lastSyncAt,
@@ -310,6 +305,12 @@ class SyncStats {
     required this.averageSyncTime,
     this.byTable = const {},
   });
+  final DateTime lastSyncAt;
+  final int totalSynced;
+  final int totalConflicts;
+  final int totalErrors;
+  final Duration averageSyncTime;
+  final Map<String, int> byTable;
 
   Map<String, dynamic> toJson() => {
         'lastSyncAt': lastSyncAt.toIso8601String(),
@@ -323,12 +324,6 @@ class SyncStats {
 
 /// معلومات الجهاز للمزامنة
 class SyncDeviceInfo {
-  final String id;
-  final String name;
-  final String platform;
-  final int priority;
-  final DateTime? lastSeen;
-  final String? appVersion;
 
   SyncDeviceInfo({
     required this.id,
@@ -338,6 +333,12 @@ class SyncDeviceInfo {
     this.lastSeen,
     this.appVersion,
   });
+  final String id;
+  final String name;
+  final String platform;
+  final int priority;
+  final DateTime? lastSeen;
+  final String? appVersion;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -351,13 +352,6 @@ class SyncDeviceInfo {
 
 /// حدث مزامنة
 class SyncEvent {
-  final String id;
-  final SyncEventType type;
-  final String? table;
-  final String? uuid;
-  final String? operation;
-  final Map<String, dynamic>? payload;
-  final DateTime? timestamp;
 
   SyncEvent({
     required this.id,
@@ -368,6 +362,13 @@ class SyncEvent {
     this.payload,
     this.timestamp,
   });
+  final String id;
+  final SyncEventType type;
+  final String? table;
+  final String? uuid;
+  final String? operation;
+  final Map<String, dynamic>? payload;
+  final DateTime? timestamp;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -382,10 +383,6 @@ class SyncEvent {
 
 /// نتيجة تطبيق تغيير
 class ApplyResult {
-  final int successCount;
-  final int failCount;
-  final List<SyncConflict> conflicts;
-  final List<String> errors;
 
   ApplyResult({
     this.successCount = 0,
@@ -393,6 +390,10 @@ class ApplyResult {
     this.conflicts = const [],
     this.errors = const [],
   });
+  final int successCount;
+  final int failCount;
+  final List<SyncConflict> conflicts;
+  final List<String> errors;
 
   ApplyResult copyWith({
     int? successCount,

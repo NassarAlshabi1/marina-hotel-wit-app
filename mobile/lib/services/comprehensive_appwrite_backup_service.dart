@@ -17,12 +17,12 @@ import 'appwrite_logger.dart';
 /// تتيح هذه الخدمة تصدير جميع البيانات من قاعدة البيانات المحلية إلى ملف JSON
 /// واستيرادها إلى Appwrite (Overwrite أو Merge)
 class ComprehensiveAppwriteBackupService {
-  static final ComprehensiveAppwriteBackupService _instance =
-      ComprehensiveAppwriteBackupService._internal();
 
   factory ComprehensiveAppwriteBackupService() => _instance;
 
   ComprehensiveAppwriteBackupService._internal();
+  static final ComprehensiveAppwriteBackupService _instance =
+      ComprehensiveAppwriteBackupService._internal();
 
   final AppwriteService _appwriteService = AppwriteService();
   final AppwriteLogger _logger = AppwriteLogger();

@@ -6,10 +6,10 @@ import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 
 class AppwriteRealtimeSync {
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;

@@ -2,11 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 
 class AuthUser {
-  final int id;
-  final String username;
-  final String fullName;
-  final String userType;
-  final List<String> permissions;
 
   const AuthUser({
     required this.id,
@@ -15,10 +10,6 @@ class AuthUser {
     required this.userType,
     this.permissions = const [],
   });
-
-  String get name => fullName.isNotEmpty ? fullName : username;
-
-  bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final rawPerms = json['permissions'];
@@ -41,6 +32,15 @@ class AuthUser {
           : const <String>[],
     );
   }
+  final int id;
+  final String username;
+  final String fullName;
+  final String userType;
+  final List<String> permissions;
+
+  String get name => fullName.isNotEmpty ? fullName : username;
+
+  bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -62,12 +62,6 @@ class AuthUser {
 }
 
 class AuthState {
-  final bool isAuthenticated;
-  final bool isRestoring;
-  final String? error;
-  final AuthUser? currentUser;
-  final bool rememberMe;
-  final AuthType authType;
 
   const AuthState({
     required this.isAuthenticated,
@@ -77,6 +71,12 @@ class AuthState {
     this.rememberMe = false,
     this.authType = AuthType.local,
   });
+  final bool isAuthenticated;
+  final bool isRestoring;
+  final String? error;
+  final AuthUser? currentUser;
+  final bool rememberMe;
+  final AuthType authType;
 
   AuthState copyWith({
     bool? isAuthenticated,
@@ -139,7 +139,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
-      state = AuthState(
+      state = const AuthState(
         isAuthenticated: false,
         isRestoring: false,
         error: 'اسم المستخدم أو كلمة المرور غير صحيحة',

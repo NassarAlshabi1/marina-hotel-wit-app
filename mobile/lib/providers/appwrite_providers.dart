@@ -25,9 +25,7 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
     database: database,
   );
 
-  ref.onDispose(() {
-    manager.dispose();
-  });
+  ref.onDispose(manager.dispose);
 
   return manager;
 });
@@ -45,7 +43,7 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
 
 final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
-  ref.onDispose(() => orch.dispose());
+  ref.onDispose(orch.dispose);
   return orch.stateStream;
 });
 
@@ -73,15 +71,15 @@ final connectionStatusProvider =
     });
 
 class ConnectionState {
-  final bool isConnected;
-  final bool isChecking;
-  final String? errorMessage;
 
   ConnectionState({
     required this.isConnected,
     this.isChecking = false,
     this.errorMessage,
   });
+  final bool isConnected;
+  final bool isChecking;
+  final String? errorMessage;
 
   ConnectionState copyWith({
     bool? isConnected,
@@ -97,10 +95,10 @@ class ConnectionState {
 }
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  final Ref ref;
 
   ConnectionStatusNotifier(this.ref)
     : super(ConnectionState(isConnected: false));
+  final Ref ref;
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true, errorMessage: null);
@@ -123,7 +121,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
       state = ConnectionState(
         isConnected: false,
         isChecking: false,
-        errorMessage: 'خطأ في الاتصال: ${e.toString()}',
+        errorMessage: 'خطأ في الاتصال: $e',
       );
     }
   }
@@ -134,7 +132,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 /// مزود إحصائيات المزامنة
 final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
-  return await syncManager.getSyncStatistics();
+  return syncManager.getSyncStatistics();
 });
 
 final outboxCountProvider = StreamProvider<int>((ref) {

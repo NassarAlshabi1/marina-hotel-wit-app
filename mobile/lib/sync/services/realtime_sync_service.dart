@@ -1,6 +1,7 @@
 /// Realtime Sync Service
 /// خدمة المزامنة الفورية باستخدام WebSocket أو Server-Sent Events
 /// تدفع التغييرات فور حدوثها على السيرفر
+library;
 
 import 'dart:async';
 import 'dart:convert';
@@ -13,6 +14,12 @@ import '../orchestrator/sync_orchestrator.dart';
 
 /// خدمة المزامنة الفورية
 class RealtimeSyncService {
+
+  RealtimeSyncService({
+    required SyncOrchestrator orchestrator,
+    required RealtimeConfig config,
+  })  : _orchestrator = orchestrator,
+        _config = config;
   final SyncOrchestrator _orchestrator;
   final RealtimeConfig _config;
 
@@ -29,12 +36,6 @@ class RealtimeSyncService {
   bool _isConnecting = false;
   int _reconnectAttempts = 0;
   DateTime? _lastPing;
-
-  RealtimeSyncService({
-    required SyncOrchestrator orchestrator,
-    required RealtimeConfig config,
-  })  : _orchestrator = orchestrator,
-        _config = config;
 
   /// Stream للأحداث الفورية
   Stream<RealtimeEvent> get events => _eventController.stream;
@@ -53,7 +54,7 @@ class RealtimeSyncService {
     // الاستماع لتغيرات الاتصال
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
-        .listen((results) => _handleConnectivityChange(results));
+        .listen(_handleConnectivityChange);
 
     // محاولة الاتصال الأولى
     await _connect();
@@ -154,26 +155,19 @@ class RealtimeSyncService {
       switch (event.type) {
         case RealtimeEventType.change:
           _handleRemoteChange(event);
-          break;
         case RealtimeEventType.ping:
           _lastPing = DateTime.now();
           _sendPong();
-          break;
         case RealtimeEventType.pong:
           _lastPing = DateTime.now();
-          break;
         case RealtimeEventType.authSuccess:
           developer.log('Authentication successful', name: 'RealtimeSync');
-          break;
         case RealtimeEventType.authError:
           developer.log('Authentication failed', name: 'RealtimeSync');
-          break;
         case RealtimeEventType.error:
           developer.log('Server error: ${event.payload}', name: 'RealtimeSync');
-          break;
         case RealtimeEventType.unknown:
           developer.log('Unknown event type', name: 'RealtimeSync');
-          break;
       }
     } catch (e, stackTrace) {
       developer.log(
@@ -232,9 +226,7 @@ class RealtimeSyncService {
       name: 'RealtimeSync',
     );
 
-    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      _connect();
-    });
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), _connect);
 
     _connectionStateController.add(ConnectionState.reconnecting);
   }
@@ -339,12 +331,6 @@ enum ConnectionState {
 
 /// إعدادات Realtime
 class RealtimeConfig {
-  final String wsUrl;
-  final String? authToken;
-  final Map<String, String>? headers;
-  final List<String> tablesToWatch;
-  final Duration pingInterval;
-  final bool enabled;
 
   const RealtimeConfig({
     required this.wsUrl,
@@ -354,16 +340,16 @@ class RealtimeConfig {
     this.pingInterval = const Duration(seconds: 30),
     this.enabled = true,
   });
+  final String wsUrl;
+  final String? authToken;
+  final Map<String, String>? headers;
+  final List<String> tablesToWatch;
+  final Duration pingInterval;
+  final bool enabled;
 }
 
 /// حدث Realtime
 class RealtimeEvent {
-  final RealtimeEventType type;
-  final String? table;
-  final String? operation;
-  final String? uuid;
-  final Map<String, dynamic>? payload;
-  final DateTime timestamp;
 
   RealtimeEvent({
     required this.type,
@@ -389,6 +375,12 @@ class RealtimeEvent {
       timestamp: DateTime.now(),
     );
   }
+  final RealtimeEventType type;
+  final String? table;
+  final String? operation;
+  final String? uuid;
+  final Map<String, dynamic>? payload;
+  final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
         'type': type.name,

@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../services/daos/debts_dao.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -206,7 +205,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         _currencyFmt.format(row.totalAmount),
         _currencyFmt.format(row.paidAmount),
         _currencyFmt.format(row.remainingAmount),
-        row.isSettled ? 'مسدد' : 'متبقي',
+        if (row.isSettled) 'مسدد' else 'متبقي',
       ]);
     }
 
@@ -314,7 +313,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
     return AppScaffold(
       title: 'تقرير الديون',
-      actions: [],
+      actions: const [],
       body: Column(
         children: [
           // فلاتر
@@ -584,21 +583,21 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 }
 
 class _DebtProcessParams {
+
+  _DebtProcessParams({required this.debts, this.fromDate, this.toDate, required this.searchQuery});
   final List<Map<String, dynamic>> debts;
   final DateTime? fromDate;
   final DateTime? toDate;
   final String searchQuery;
-
-  _DebtProcessParams({required this.debts, this.fromDate, this.toDate, required this.searchQuery});
 }
 
 class _DebtsReportResult {
+
+  _DebtsReportResult({required this.rows, required this.totalDebt, required this.totalPaid, required this.totalRemaining});
   final List<_DebtReportRow> rows;
   final double totalDebt;
   final double totalPaid;
   final double totalRemaining;
-
-  _DebtsReportResult({required this.rows, required this.totalDebt, required this.totalPaid, required this.totalRemaining});
 }
 
 class _DebtReportRow {
@@ -669,7 +668,7 @@ _DebtsReportResult _processDebtsData(_DebtProcessParams params) {
     
     // Booking handling
     final bookingIdVal = data['bookingId'] ?? data['booking_id'];
-    String bookingCode = bookingIdVal != null ? bookingIdVal.toString() : '-';
+    final String bookingCode = bookingIdVal != null ? bookingIdVal.toString() : '-';
 
     tDebt += amount;
     tPaid += paidAmount;

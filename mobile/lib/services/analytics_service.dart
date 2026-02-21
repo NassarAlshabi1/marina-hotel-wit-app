@@ -24,14 +24,6 @@ enum SyncAnalyticsEvent {
 
 /// إحصائيات المزامنة
 class SyncStats {
-  final int totalPushOperations;
-  final int totalPullOperations;
-  final int totalConflicts;
-  final int totalFailures;
-  final int totalRetries;
-  final Duration averageSyncTime;
-  final DateTime? lastSyncTime;
-  final bool isHealthy;
 
   const SyncStats({
     required this.totalPushOperations,
@@ -43,6 +35,14 @@ class SyncStats {
     this.lastSyncTime,
     required this.isHealthy,
   });
+  final int totalPushOperations;
+  final int totalPullOperations;
+  final int totalConflicts;
+  final int totalFailures;
+  final int totalRetries;
+  final Duration averageSyncTime;
+  final DateTime? lastSyncTime;
+  final bool isHealthy;
 
   SyncStats copyWith({
     int? totalPushOperations,
@@ -80,9 +80,9 @@ class SyncStats {
 
 /// خدمة التحليلات للمزامنة
 class AnalyticsService {
-  static final AnalyticsService _instance = AnalyticsService._internal();
   factory AnalyticsService() => _instance;
   AnalyticsService._internal();
+  static final AnalyticsService _instance = AnalyticsService._internal();
 
   FirebaseAnalytics? _analytics;
   bool _isEnabled = true;
@@ -304,19 +304,14 @@ class AnalyticsService {
     switch (event) {
       case SyncAnalyticsEvent.dataPushed:
         _sessionPushCount++;
-        break;
       case SyncAnalyticsEvent.dataPulled:
         _sessionPullCount++;
-        break;
       case SyncAnalyticsEvent.conflictResolved:
         _sessionConflicts++;
-        break;
       case SyncAnalyticsEvent.syncFailed:
         _sessionFailures++;
-        break;
       case SyncAnalyticsEvent.retryAttempt:
         _sessionRetries++;
-        break;
       default:
         break;
     }

@@ -34,7 +34,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
   final _idNumberFormatter = FilteringTextInputFormatter.allow(
-    RegExp(r'[0-9]'),
+    RegExp('[0-9]'),
   );
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
@@ -233,7 +233,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   String _normalizePhoneForWhatsApp(String value) {
-    var phone = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    var phone = value.replaceAll(RegExp('[^0-9+]'), '');
     if (phone.startsWith('+')) {
       phone = phone.substring(1);
     }
@@ -302,7 +302,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _idType,
+                          initialValue: _idType,
                           items: _idTypes
                               .map(
                                 (t) =>
@@ -431,7 +431,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _status,
+                          initialValue: _status,
                           items: _statusOptions
                               .map(
                                 (s) =>
@@ -509,7 +509,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               const SizedBox(width: 8),
                               Expanded(
                                 child: DropdownButtonFormField<bool>(
-                                  value: _isDiscount,
+                                  initialValue: _isDiscount,
                                   items: const [
                                     DropdownMenuItem(value: true, child: Text('تخفيض')),
                                     DropdownMenuItem(value: false, child: Text('زيادة')),
@@ -525,7 +525,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             children: [
                               Expanded(
                                 child: DropdownButtonFormField<String>(
-                                  value: _adjustmentType,
+                                  initialValue: _adjustmentType,
                                   items: const [
                                     DropdownMenuItem(value: 'per_night', child: Text('لكل ليلة')),
                                     DropdownMenuItem(value: 'total', child: Text('من الإجمالي')),
@@ -607,7 +607,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
-                            value: _paymentMethod,
+                            initialValue: _paymentMethod,
                             items: _paymentMethods
                                 .map(
                                   (method) => DropdownMenuItem(
@@ -632,7 +632,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                           ),
                           roomsAsync.when(
-                            data: (rooms) => _buildAdvancePaymentSummary(rooms),
+                            data: _buildAdvancePaymentSummary,
                             loading: () => const SizedBox.shrink(),
                             error: (_, __) => const SizedBox.shrink(),
                           ),
@@ -1015,7 +1015,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   Widget _buildRoomSelector(AsyncValue<List<Room>> roomsAsync) {
-    final roomTextStyle = TextStyle(
+    const roomTextStyle = TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.bold,
       color: Colors.black87,
@@ -1094,7 +1094,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         }
 
         return DropdownButtonFormField<String>(
-          value: currentValue.isNotEmpty ? currentValue : null,
+          initialValue: currentValue.isNotEmpty ? currentValue : null,
           items: items,
           style: roomTextStyle,
           onChanged: (value) {
@@ -1143,7 +1143,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (value.isEmpty) return null;
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);
@@ -1163,7 +1163,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   String _normalizePhone(String value) {
-    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    final digitsOnly = value.replaceAll(RegExp('[^0-9]'), '');
     if (digitsOnly.isEmpty) {
       return value.trim();
     }

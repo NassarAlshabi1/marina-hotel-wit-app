@@ -42,16 +42,7 @@ enum BackupStatus {
 enum BackupType { googleDrive, local, both }
 
 // حالة النسخ التلقائي
-class AutoBackupSettings {
-  final bool isEnabled;
-  final String frequency; // daily, weekly, monthly
-  final String time; // HH:mm format
-  final int? weekday; // 1-7 للنسخ الأسبوعي
-  final int? day; // 1-31 للنسخ الشهري
-  final BackupType backupType; // نوع النسخ (Google Drive، محلي، أو كليهما)
-  final bool enableLocalBackup; // تفعيل النسخ المحلي
-  final bool enableGoogleDriveBackup; // تفعيل النسخ السحابي
-  final BackupFormat backupFormat; // تنسيق النسخ الاحتياطي المستخدم
+class AutoBackupSettings { // تنسيق النسخ الاحتياطي المستخدم
 
   const AutoBackupSettings({
     this.isEnabled = true,
@@ -64,6 +55,15 @@ class AutoBackupSettings {
     this.enableGoogleDriveBackup = true,
     this.backupFormat = BackupFormat.json,
   });
+  final bool isEnabled;
+  final String frequency; // daily, weekly, monthly
+  final String time; // HH:mm format
+  final int? weekday; // 1-7 للنسخ الأسبوعي
+  final int? day; // 1-31 للنسخ الشهري
+  final BackupType backupType; // نوع النسخ (Google Drive، محلي، أو كليهما)
+  final bool enableLocalBackup; // تفعيل النسخ المحلي
+  final bool enableGoogleDriveBackup; // تفعيل النسخ السحابي
+  final BackupFormat backupFormat;
 
   AutoBackupSettings copyWith({
     bool? isEnabled,
@@ -93,20 +93,6 @@ class AutoBackupSettings {
 
 // حالة عملية النسخ الاحتياطي
 class BackupState {
-  final BackupStatus status;
-  final String? message;
-  final double? progress;
-  final GoogleSignInAccount? signedInAccount;
-  final DateTime? lastBackupTime;
-  final List<DriveBackupFile> availableBackups;
-  final List<LocalBackupFile> localBackups;
-  final DateTime? lastLocalBackupTime;
-  final AutoBackupSettings autoSettings;
-  final int? databaseSizeBytes;
-  final bool hasStoragePermission;
-  final Map<String, dynamic>? backupFolderInfo;
-  final String? lastSqliteBackupPath;
-  final bool driveLoginSkipped;
 
   BackupState({
     this.status = BackupStatus.idle,
@@ -124,6 +110,20 @@ class BackupState {
     this.lastSqliteBackupPath,
     this.driveLoginSkipped = false,
   });
+  final BackupStatus status;
+  final String? message;
+  final double? progress;
+  final GoogleSignInAccount? signedInAccount;
+  final DateTime? lastBackupTime;
+  final List<DriveBackupFile> availableBackups;
+  final List<LocalBackupFile> localBackups;
+  final DateTime? lastLocalBackupTime;
+  final AutoBackupSettings autoSettings;
+  final int? databaseSizeBytes;
+  final bool hasStoragePermission;
+  final Map<String, dynamic>? backupFolderInfo;
+  final String? lastSqliteBackupPath;
+  final bool driveLoginSkipped;
 
   BackupState copyWith({
     BackupStatus? status,
@@ -284,7 +284,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تهيئة BackupStatusNotifier: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في التهيئة: ${e.toString()}',
+        message: 'خطأ في التهيئة: $e',
       );
     }
   }
@@ -365,7 +365,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تسجيل الدخول: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تسجيل الدخول: ${e.toString()}',
+        message: 'خطأ في تسجيل الدخول: $e',
       );
     }
   }
@@ -389,7 +389,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تسجيل الخروج: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تسجيل الخروج: ${e.toString()}',
+        message: 'خطأ في تسجيل الخروج: $e',
       );
     }
   }
@@ -440,7 +440,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في إنشاء النسخة الاحتياطية: ${e.toString()}',
+        message: 'خطأ في إنشاء النسخة الاحتياطية: $e',
         progress: null,
       );
     }
@@ -521,7 +521,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في استعادة البيانات: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في استعادة البيانات: ${e.toString()}',
+        message: 'خطأ في استعادة البيانات: $e',
         progress: null,
       );
     }
@@ -538,7 +538,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تحديث قائمة النسخ: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تحديث قائمة النسخ: ${e.toString()}',
+        message: 'خطأ في تحديث قائمة النسخ: $e',
       );
     }
   }
@@ -572,22 +572,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         switch (settings.frequency) {
           case 'daily':
             await AutoBackupTask.scheduleDaily(time: settings.time);
-            break;
           case 'weekly':
             await AutoBackupTask.scheduleWeekly(
               time: settings.time,
               weekday: settings.weekday ?? 1,
             );
-            break;
           case 'monthly':
             await AutoBackupTask.scheduleMonthly(
               time: settings.time,
               day: settings.day ?? 1,
             );
-            break;
           default:
             await AutoBackupTask.scheduleDaily(time: settings.time);
-            break;
         }
       } else {
         await AutoBackupTask.cancelScheduled();
@@ -613,7 +609,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تحديث إعدادات النسخ التلقائي: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تحديث إعدادات النسخ التلقائي: ${e.toString()}',
+        message: 'خطأ في تحديث إعدادات النسخ التلقائي: $e',
       );
     }
   }
@@ -728,7 +724,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في التحقق من أذونات التخزين: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في التحقق من الأذونات: ${e.toString()}',
+        message: 'خطأ في التحقق من الأذونات: $e',
         hasStoragePermission: false,
       );
     }
@@ -778,7 +774,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في إنشاء النسخة الاحتياطية المحلية: ${e.toString()}',
+        message: 'خطأ في إنشاء النسخة الاحتياطية المحلية: $e',
         progress: null,
       );
     }
@@ -874,7 +870,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في استعادة البيانات: ${e.toString()}',
+        message: 'خطأ في استعادة البيانات: $e',
         progress: null,
       );
     }
@@ -968,7 +964,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في النسخ الاحتياطي لملف SQLite: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'فشل إنشاء نسخة ملف قاعدة البيانات: ${e.toString()}',
+        message: 'فشل إنشاء نسخة ملف قاعدة البيانات: $e',
         progress: null,
       );
     }
@@ -1012,7 +1008,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في استعادة ملف SQLite: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'فشل استعادة قاعدة البيانات: ${e.toString()}',
+        message: 'فشل استعادة قاعدة البيانات: $e',
         progress: null,
       );
     }
@@ -1030,7 +1026,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في مشاركة النسخة الاحتياطية: ${e.toString()}',
+        message: 'خطأ في مشاركة النسخة الاحتياطية: $e',
       );
     }
   }
@@ -1065,7 +1061,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في استيراد النسخة الاحتياطية: ${e.toString()}',
+        message: 'خطأ في استيراد النسخة الاحتياطية: $e',
         progress: null,
       );
     }
@@ -1093,7 +1089,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في استيراد واستعادة النسخة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في الاستيراد والاستعادة: ${e.toString()}',
+        message: 'خطأ في الاستيراد والاستعادة: $e',
         progress: null,
       );
     }
@@ -1121,7 +1117,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تصدير النسخة الاحتياطية: ${e.toString()}',
+        message: 'خطأ في تصدير النسخة الاحتياطية: $e',
         progress: null,
       );
     }
@@ -1146,7 +1142,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في حذف النسخة الاحتياطية: ${e.toString()}',
+        message: 'خطأ في حذف النسخة الاحتياطية: $e',
       );
     }
   }
@@ -1184,7 +1180,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تنظيف النسخ القديمة: ${e.toString()}',
+        message: 'خطأ في تنظيف النسخ القديمة: $e',
       );
     }
   }
@@ -1268,7 +1264,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية الشاملة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في إنشاء النسخة الاحتياطية الشاملة: ${e.toString()}',
+        message: 'خطأ في إنشاء النسخة الاحتياطية الشاملة: $e',
         progress: null,
       );
     } finally {
@@ -1310,7 +1306,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تصدير البيانات إلى CSV: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تصدير البيانات إلى CSV: ${e.toString()}',
+        message: 'خطأ في تصدير البيانات إلى CSV: $e',
         progress: null,
       );
     }
@@ -1338,7 +1334,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في إنشاء التقرير الشامل: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في إنشاء التقرير الشامل: ${e.toString()}',
+        message: 'خطأ في إنشاء التقرير الشامل: $e',
         progress: null,
       );
     }
@@ -1356,7 +1352,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في مشاركة الملفات: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في مشاركة الملفات: ${e.toString()}',
+        message: 'خطأ في مشاركة الملفات: $e',
       );
     }
   }
@@ -1392,7 +1388,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في دمج النسخ الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في دمج النسخ الاحتياطية: ${e.toString()}',
+        message: 'خطأ في دمج النسخ الاحتياطية: $e',
         progress: null,
       );
     }
@@ -1412,7 +1408,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تحليل الملفات: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تحليل الملفات: ${e.toString()}',
+        message: 'خطأ في تحليل الملفات: $e',
       );
     }
   }
@@ -1429,7 +1425,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       debugPrint('❌ خطأ في تنظيف الملفات المؤقتة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تنظيف الملفات المؤقتة: ${e.toString()}',
+        message: 'خطأ في تنظيف الملفات المؤقتة: $e',
       );
     }
   }
@@ -1553,7 +1549,7 @@ final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((
   ref,
 ) {
   final logger = GoogleDriveLogger();
-  ref.onDispose(() => logger.dispose());
+  ref.onDispose(logger.dispose);
   return logger;
 });
 

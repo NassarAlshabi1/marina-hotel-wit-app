@@ -1,6 +1,7 @@
 /// Background Sync Service
 /// خدمة المزامنة في الخلفية باستخدام WorkManager
 /// تضمن مزامنة البيانات حتى عندما يكون التطبيق مغلقاً
+library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -17,9 +18,9 @@ const String _cleanupTaskName = 'marina_hotel_cleanup_sync';
 
 /// خدمة المزامنة في الخلفية
 class BackgroundSyncService {
-  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
   factory BackgroundSyncService() => _instance;
   BackgroundSyncService._internal();
+  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
 
   SyncOrchestrator? _orchestrator;
   SyncConfiguration _config = const SyncConfiguration();
@@ -219,11 +220,6 @@ Future<void> _performCleanup() async {
 
 /// إعدادات المزامنة في الخلفية
 class BackgroundSyncSettings {
-  final bool enabled;
-  final Duration interval;
-  final bool requireWifi;
-  final bool requireCharging;
-  final bool runOnBatteryLow;
 
   const BackgroundSyncSettings({
     this.enabled = true,
@@ -232,6 +228,11 @@ class BackgroundSyncSettings {
     this.requireCharging = false,
     this.runOnBatteryLow = false,
   });
+  final bool enabled;
+  final Duration interval;
+  final bool requireWifi;
+  final bool requireCharging;
+  final bool runOnBatteryLow;
 
   BackgroundSyncSettings copyWith({
     bool? enabled,

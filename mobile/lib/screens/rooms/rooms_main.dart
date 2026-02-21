@@ -46,7 +46,7 @@ class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(25),
             ),
             child: TabBar(

@@ -50,7 +50,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(25),
             ),
             child: TabBar(
@@ -216,7 +216,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border(left: BorderSide(color: priorityColor, width: 4)),
@@ -262,7 +262,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               // تفاصيل إضافية
               Row(
                 children: [
-                  Icon(Icons.access_time, size: 14, color: Colors.grey),
+                  const Icon(Icons.access_time, size: 14, color: Colors.grey),
                   const SizedBox(width: 4),
                   Text(
                     _formatDate(note.createdAt),
@@ -270,7 +270,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                   ),
                   if (note.expiresAt != null) ...[
                     const SizedBox(width: 12),
-                    Icon(Icons.schedule, size: 14, color: Colors.orange),
+                    const Icon(Icons.schedule, size: 14, color: Colors.orange),
                     const SizedBox(width: 4),
                     Text(
                       'ينتهي: ${_formatDate(note.expiresAt!)}',
@@ -342,17 +342,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         color = Colors.red;
         text = 'عالية';
         icon = Icons.priority_high;
-        break;
       case NotePriority.medium:
         color = Colors.orange;
         text = 'متوسطة';
         icon = Icons.remove;
-        break;
       case NotePriority.low:
         color = Colors.green;
         text = 'منخفضة';
         icon = Icons.keyboard_arrow_down;
-        break;
     }
 
     return Container(
@@ -388,19 +385,15 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       case ShiftType.morning:
         color = Colors.yellow.shade700;
         text = 'صباحي';
-        break;
       case ShiftType.evening:
         color = Colors.orange.shade700;
         text = 'مسائي';
-        break;
       case ShiftType.night:
         color = Colors.indigo;
         text = 'ليلي';
-        break;
       case ShiftType.all:
         color = Colors.purple;
         text = 'جميع النوبات';
-        break;
     }
 
     return Container(
@@ -520,7 +513,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<NotePriority>(
-                      value: priority,
+                      initialValue: priority,
                       decoration: const InputDecoration(
                         labelText: 'الأولوية',
                         border: OutlineInputBorder(),
@@ -544,7 +537,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<ShiftType>(
-                      value: shiftType,
+                      initialValue: shiftType,
                       decoration: const InputDecoration(
                         labelText: 'النوبة',
                         border: OutlineInputBorder(),
@@ -718,16 +711,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
 // نماذج البيانات
 class ShiftNote {
-  final String id;
-  String title;
-  String content;
-  NotePriority priority;
-  ShiftType shiftType;
-  final DateTime createdAt;
-  DateTime? expiresAt;
-  bool isRead;
-  NoteStatus status;
-  final String createdBy;
 
   ShiftNote({
     required this.id,
@@ -741,6 +724,16 @@ class ShiftNote {
     this.status = NoteStatus.active,
     required this.createdBy,
   });
+  final String id;
+  String title;
+  String content;
+  NotePriority priority;
+  ShiftType shiftType;
+  final DateTime createdAt;
+  DateTime? expiresAt;
+  bool isRead;
+  NoteStatus status;
+  final String createdBy;
 }
 
 enum NotePriority { high, medium, low }

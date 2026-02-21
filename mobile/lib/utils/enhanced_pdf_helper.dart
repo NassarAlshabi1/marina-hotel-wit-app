@@ -61,7 +61,7 @@ class EnhancedPdfHelper {
     final baseItems = [
       InvoiceItem(
         description:
-            'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
+            'إقامة $nights ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
         quantity: nights,
         unitPrice: roomPrice,
       ),
@@ -414,14 +414,14 @@ class EnhancedPdfHelper {
 
 /// Widget لعرض معاينة PDF محسّنة
 class EnhancedPdfPreviewScreen extends ConsumerWidget {
-  final String title;
-  final Future<Uint8List> Function() pdfGenerator;
 
   const EnhancedPdfPreviewScreen({
     super.key,
     required this.title,
     required this.pdfGenerator,
   });
+  final String title;
+  final Future<Uint8List> Function() pdfGenerator;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

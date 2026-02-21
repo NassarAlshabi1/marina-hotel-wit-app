@@ -17,9 +17,9 @@ enum CrashlyticsSeverity {
 
 /// خدمة Crashlytics لتتبع أخطاء المزامنة
 class CrashlyticsService {
-  static final CrashlyticsService _instance = CrashlyticsService._internal();
   factory CrashlyticsService() => _instance;
   CrashlyticsService._internal();
+  static final CrashlyticsService _instance = CrashlyticsService._internal();
 
   FirebaseCrashlytics? _crashlytics;
   bool _isEnabled = true;

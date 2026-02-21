@@ -29,13 +29,6 @@ enum SyncStatus { idle, syncing, success, failed, partial }
 
 /// نتيجة المزامنة
 class SyncResult {
-  final SyncStatus status;
-  final int recordsPushed;
-  final int recordsPulled;
-  final int conflicts;
-  final String? errorMessage;
-  final DateTime timestamp;
-  final Duration duration;
 
   SyncResult({
     required this.status,
@@ -46,6 +39,13 @@ class SyncResult {
     required this.timestamp,
     required this.duration,
   });
+  final SyncStatus status;
+  final int recordsPushed;
+  final int recordsPulled;
+  final int conflicts;
+  final String? errorMessage;
+  final DateTime timestamp;
+  final Duration duration;
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
@@ -55,14 +55,6 @@ class SyncResult {
 
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
-  static AppwriteSyncManager? _instance;
-
-  final AppwriteService appwriteService;
-  final AppDatabase database;
-  final OutboxDao outboxDao;
-  late final BookingsRepository _bookingsRepository;
-  late final AdapterRegistry _adapterRegistry;
-  final SyncMutex _mutex = SyncMutex();
 
   factory AppwriteSyncManager({
     required AppwriteService appwriteService,
@@ -82,6 +74,14 @@ class AppwriteSyncManager {
     _adapterRegistry = AdapterRegistry(database);
     _bookingsRepository = BookingsRepository(database);
   }
+  static AppwriteSyncManager? _instance;
+
+  final AppwriteService appwriteService;
+  final AppDatabase database;
+  final OutboxDao outboxDao;
+  late final BookingsRepository _bookingsRepository;
+  late final AdapterRegistry _adapterRegistry;
+  final SyncMutex _mutex = SyncMutex();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -347,7 +347,7 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+    _outboxSubscription = database.select(database.outbox).watch().listen(
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
@@ -436,7 +436,7 @@ class AppwriteSyncManager {
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    final int conflicts = 0;
+    const int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
@@ -698,7 +698,7 @@ class AppwriteSyncManager {
       var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
       if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
         const ellipsis = '…';
-        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
+        const maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
         if (maxLen > 0) {
           encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
         } else {

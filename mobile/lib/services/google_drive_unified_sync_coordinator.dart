@@ -42,18 +42,11 @@ class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
 class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
 
 class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
-  final int elapsedSeconds;
   _PerformSyncAlreadyInProgress(this.elapsedSeconds);
+  final int elapsedSeconds;
 }
 
 class SyncResult {
-  final bool success;
-  final String message;
-  final int? pushedChanges;
-  final int? pulledChanges;
-  final SyncPhase phase;
-  final DateTime timestamp;
-  final String? error;
 
   const SyncResult({
     required this.success,
@@ -93,6 +86,13 @@ class SyncResult {
       timestamp: DateTime.now(),
     );
   }
+  final bool success;
+  final String message;
+  final int? pushedChanges;
+  final int? pulledChanges;
+  final SyncPhase phase;
+  final DateTime timestamp;
+  final String? error;
 }
 
 class GoogleDriveUnifiedSyncCoordinator {
@@ -268,7 +268,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox))
+      _outboxSubscription = _database!.select(_database!.outbox)
           .watch()
           .listen((_) {
             _log('📦 Detected change in outbox', level: LogLevel.debug);
@@ -375,7 +375,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     final effectiveDebounce = _debounceSeconds;
     _log(
-      '🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)',
+      '🚀 Triggering sync in ${effectiveDebounce}s ($_pendingChangesCount changes pending)',
       level: LogLevel.debug,
     );
 
@@ -774,7 +774,7 @@ class GoogleDriveUnifiedSyncCoordinator {
           (_backupService?.isSignedIn ?? false)) {
         _outboxSubscription?.cancel();
         if (_database != null) {
-          _outboxSubscription = (_database!.select(_database!.outbox))
+          _outboxSubscription = _database!.select(_database!.outbox)
               .watch()
               .listen((_) {
                 _log('📦 Detected change in outbox', level: LogLevel.debug);

@@ -32,16 +32,6 @@ bool _tripleMatch(List<String> a, List<String> b) {
 }
 
 class BlacklistEntry {
-  final int id;
-  final String name;
-  final String? nationality;
-  final String? nationalId;
-  final String? phone;
-  final String? reason;
-  final String? notes;
-  final String reportedBy;
-  final bool active;
-  final DateTime createdAt;
 
   const BlacklistEntry({
     required this.id,
@@ -55,6 +45,16 @@ class BlacklistEntry {
     this.active = true,
     required this.createdAt,
   });
+  final int id;
+  final String name;
+  final String? nationality;
+  final String? nationalId;
+  final String? phone;
+  final String? reason;
+  final String? notes;
+  final String reportedBy;
+  final bool active;
+  final DateTime createdAt;
 }
 
 class BlacklistRepository {

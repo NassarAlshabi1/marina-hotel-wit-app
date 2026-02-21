@@ -51,7 +51,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final roomsStream = ref.watch(roomsListProvider);
     final auth = ref.watch(authProvider);
     final canRooms =
-        auth.currentUser?.permissions.contains('all') == true ||
+        (auth.currentUser?.permissions.contains('all') ?? false) ||
         auth.currentUser?.userType == 'admin' ||
         (auth.currentUser?.permissions.contains('rooms') ?? false);
 
@@ -212,7 +212,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Container(
+        child: DecoratedBox(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -564,7 +564,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),
@@ -606,7 +606,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             ),
             FilledButton.icon(
               onPressed: () {
-                if (formKey.currentState?.validate() == true) {
+                if (formKey.currentState?.validate() ?? false) {
                   Navigator.pop(ctx, true);
                 }
               },
@@ -785,7 +785,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       ),
     );
 
-    if (apply == true && context.mounted) {
+    if ((apply ?? false) && context.mounted) {
       final auth = ref.read(authProvider);
       final appliedBy = auth.currentUser?.name ?? 'unknown';
 
@@ -830,11 +830,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 }
 
 class _FloorExpansionTile extends StatefulWidget {
-  final String floorNumber;
-  final int totalRooms;
-  final int availableRooms;
-  final bool initiallyExpanded;
-  final List<Widget> children;
 
   const _FloorExpansionTile({
     required this.floorNumber,
@@ -843,6 +838,11 @@ class _FloorExpansionTile extends StatefulWidget {
     this.initiallyExpanded = true,
     required this.children,
   });
+  final String floorNumber;
+  final int totalRooms;
+  final int availableRooms;
+  final bool initiallyExpanded;
+  final List<Widget> children;
 
   @override
   State<_FloorExpansionTile> createState() => _FloorExpansionTileState();
@@ -1007,11 +1007,6 @@ class _FloorExpansionTileState extends State<_FloorExpansionTile> with SingleTic
 }
 
 class AnimatedCrossSize extends StatelessWidget {
-  final Widget firstChild;
-  final Widget secondChild;
-  final CrossFadeState crossFadeState;
-  final Duration duration;
-  final Alignment alignment;
 
   const AnimatedCrossSize({
     super.key,
@@ -1021,6 +1016,11 @@ class AnimatedCrossSize extends StatelessWidget {
     required this.duration,
     this.alignment = Alignment.topCenter,
   });
+  final Widget firstChild;
+  final Widget secondChild;
+  final CrossFadeState crossFadeState;
+  final Duration duration;
+  final Alignment alignment;
 
   @override
   Widget build(BuildContext context) {
@@ -1036,10 +1036,10 @@ class AnimatedCrossSize extends StatelessWidget {
 }
 
 class _RoomGridCard extends StatelessWidget {
-  final Room room;
-  final VoidCallback onTap;
 
   const _RoomGridCard({required this.room, required this.onTap});
+  final Room room;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1051,7 +1051,7 @@ class _RoomGridCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -1126,11 +1126,11 @@ class _RoomGridCard extends StatelessWidget {
 }
 
 class _RoomListCard extends StatelessWidget {
+
+  const _RoomListCard({required this.room, required this.onTap, this.onEdit});
   final Room room;
   final VoidCallback onTap;
   final VoidCallback? onEdit;
-
-  const _RoomListCard({required this.room, required this.onTap, this.onEdit});
 
   @override
   Widget build(BuildContext context) {

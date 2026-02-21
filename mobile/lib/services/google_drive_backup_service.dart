@@ -25,22 +25,6 @@ import 'appwrite_service.dart';
 enum BackupFormat { json, sqlite }
 
 class DriveBackupFile {
-  final String fileId;
-  final String fileName;
-  final DateTime createdTime;
-  final int? size;
-  final Map<String, dynamic>? metadata;
-
-  Map<String, String> get appProperties =>
-      metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
-
-  BackupFormat get format {
-    final raw = metadata?['format'] as String?;
-    return BackupFormat.values.firstWhere(
-      (f) => f.name == raw,
-      orElse: () => BackupFormat.json,
-    );
-  }
 
   DriveBackupFile({
     required this.fileId,
@@ -59,15 +43,25 @@ class DriveBackupFile {
       metadata: file.appProperties,
     );
   }
+  final String fileId;
+  final String fileName;
+  final DateTime createdTime;
+  final int? size;
+  final Map<String, dynamic>? metadata;
+
+  Map<String, String> get appProperties =>
+      metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
+
+  BackupFormat get format {
+    final raw = metadata?['format'] as String?;
+    return BackupFormat.values.firstWhere(
+      (f) => f.name == raw,
+      orElse: () => BackupFormat.json,
+    );
+  }
 }
 
 class BackupMetadata {
-  final String appVersion;
-  final int databaseVersion;
-  final DateTime backupTimestamp;
-  final int totalRecords;
-  final String deviceInfo;
-  final BackupFormat format;
 
   BackupMetadata({
     required this.appVersion,
@@ -77,15 +71,6 @@ class BackupMetadata {
     required this.deviceInfo,
     this.format = BackupFormat.json,
   });
-
-  Map<String, dynamic> toJson() => {
-    'app_version': appVersion,
-    'database_version': databaseVersion,
-    'backup_timestamp': backupTimestamp.toIso8601String(),
-    'total_records': totalRecords,
-    'device_info': deviceInfo,
-    'format': format.name,
-  };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
     final rawFormat = json['format'] as String?;
@@ -102,13 +87,28 @@ class BackupMetadata {
       format: format,
     );
   }
+  final String appVersion;
+  final int databaseVersion;
+  final DateTime backupTimestamp;
+  final int totalRecords;
+  final String deviceInfo;
+  final BackupFormat format;
+
+  Map<String, dynamic> toJson() => {
+    'app_version': appVersion,
+    'database_version': databaseVersion,
+    'backup_timestamp': backupTimestamp.toIso8601String(),
+    'total_records': totalRecords,
+    'device_info': deviceInfo,
+    'format': format.name,
+  };
 }
 
 class GoogleAuthClient extends http.BaseClient {
-  final Map<String, String> _headers;
-  final http.Client _client;
 
   GoogleAuthClient(this._headers) : _client = http.Client();
+  final Map<String, String> _headers;
+  final http.Client _client;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
@@ -124,6 +124,10 @@ class GoogleAuthClient extends http.BaseClient {
 }
 
 class GoogleDriveBackupService {
+
+  GoogleDriveBackupService() {
+    _initializeGoogleSignIn();
+  }
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [
@@ -136,7 +140,7 @@ class GoogleDriveBackupService {
     if (error is PlatformException) {
       switch (error.code) {
         case 'sign_in_failed':
-          if (error.message?.contains('10') == true) {
+          if (error.message?.contains('10') ?? false) {
             return 'خطأ في إعدادات التطبيق. تم إصلاح هذا الخطأ في التحديث الجديد.';
           }
           return 'فشل في تسجيل الدخول. تأكد من اتصال الإنترنت وأعد المحاولة.';
@@ -162,10 +166,6 @@ class GoogleDriveBackupService {
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
-
-  GoogleDriveBackupService() {
-    _initializeGoogleSignIn();
-  }
 
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(scopes: _scopes);
@@ -204,7 +204,7 @@ class GoogleDriveBackupService {
         );
         _driveApi = null;
         await _ensureDriveClient();
-        return await action();
+        return action();
       }
       rethrow;
     }
@@ -327,7 +327,7 @@ class GoogleDriveBackupService {
       }
 
       try {
-        final query =
+        const query =
             "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         final searchResult = await _driveApi!.files.list(q: query);
 
@@ -498,7 +498,7 @@ class GoogleDriveBackupService {
         }
 
         final fileName =
-            '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
+            '$prefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
         final driveFile = drive.File()
           ..name = fileName
@@ -1044,7 +1044,7 @@ class GoogleDriveBackupService {
               final settings = Map<String, dynamic>.from(rawSettings);
               final prefs = await SharedPreferences.getInstance();
 
-              final keys = SystemSettingKeys.all;
+              const keys = SystemSettingKeys.all;
 
               bool settingsChanged = false;
               for (final key in keys) {
@@ -1186,13 +1186,10 @@ class GoogleDriveBackupService {
     switch (frequency) {
       case 'daily':
         frequencyDuration = const Duration(days: 1);
-        break;
       case 'weekly':
         frequencyDuration = const Duration(days: 7);
-        break;
       case 'monthly':
         frequencyDuration = const Duration(days: 30);
-        break;
       default:
         frequencyDuration = const Duration(days: 1);
     }

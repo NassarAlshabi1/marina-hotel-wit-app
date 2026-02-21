@@ -74,7 +74,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
                 const SizedBox(height: UIConstants.spacingMD),
                 InfoRow(
                   label: 'اسم الجهاز',
-                  value: device?.deviceName.isNotEmpty == true
+                  value: device?.deviceName.isNotEmpty ?? false
                       ? device!.deviceName
                       : 'غير معروف',
                   icon: Icons.phone_android,
@@ -94,8 +94,8 @@ class AppwriteDevicesTab extends ConsumerWidget {
               ],
             );
           },
-          loading: () => Column(
-            children: const [
+          loading: () => const Column(
+            children: [
               SizedBox(height: 16),
               CircularProgressIndicator(),
               SizedBox(height: 16),
@@ -103,10 +103,10 @@ class AppwriteDevicesTab extends ConsumerWidget {
               SizedBox(height: 16),
             ],
           ),
-          error: (error, _) => Column(
+          error: (error, _) => const Column(
             children: [
-              const Icon(Icons.error, color: Colors.red, size: 32),
-              const SizedBox(height: 8),
+              Icon(Icons.error, color: Colors.red, size: 32),
+              SizedBox(height: 8),
               Text('تعذر تحميل معلومات الجهاز'),
             ],
           ),
@@ -150,7 +150,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
     final lastActive = device.lastActive ?? device.lastSeen;
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),

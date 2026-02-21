@@ -92,15 +92,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.sync,
                   color: UIConstants.syncColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'حالة المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -142,8 +142,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -151,8 +151,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   color: UIConstants.syncColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'إعدادات المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -185,7 +185,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             enabled: _syncEnabled,
-            onTap: _syncEnabled ? () => _showIntervalDialog() : null,
+            onTap: _syncEnabled ? _showIntervalDialog : null,
           ),
           const Divider(height: 1),
           SwitchListTile(
@@ -230,15 +230,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.bar_chart,
                   color: Colors.green,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'إحصائيات المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -303,8 +303,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -312,8 +312,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   color: Colors.purple,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'التخزين المؤقت',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -340,7 +340,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
             leading: const Icon(Icons.data_usage),
             trailing: TextButton(
-              onPressed: () => _clearCache(),
+              onPressed: _clearCache,
               child: const Text('مسح'),
             ),
           ),
@@ -377,7 +377,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('مزامنة الآن'),
             subtitle: const Text('إجراء مزامنة فورية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _syncNow(),
+            onTap: _syncNow,
           ),
           const Divider(height: 1),
           ListTile(
@@ -392,7 +392,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('إعادة مزامنة كاملة'),
             subtitle: const Text('مزامنة جميع البيانات من جديد'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showFullSyncDialog(),
+            onTap: _showFullSyncDialog,
           ),
           const Divider(height: 1),
           ListTile(
@@ -407,7 +407,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('اختبار تشخيصي'),
             subtitle: const Text('فحص الاتصال والبيانات المحلية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _runDiagnosticTest(),
+            onTap: _runDiagnosticTest,
           ),
           const Divider(height: 1),
           ListTile(
@@ -422,7 +422,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('رفع شامل إلى Appwrite'),
             subtitle: const Text('رفع جميع البيانات المحلية مباشرة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showFullPushDialog(),
+            onTap: _showFullPushDialog,
           ),
           const Divider(height: 1),
           ListTile(
@@ -437,7 +437,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('مسح سجل المزامنة'),
             subtitle: const Text('مسح سجل المزامنة على السحابة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: loadingStats ? null : () => _showClearHistoryDialog(),
+            onTap: loadingStats ? null : _showClearHistoryDialog,
           ),
         ],
       ),
@@ -639,7 +639,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       debugPrint('📊 نتيجة الرفع الشامل:');
       debugPrint('   إجمالي السجلات: $totalRecords');
       debugPrint('   الأخطاء: $errors');
-      stats.entries.forEach((e) => debugPrint('   ${e.key}: ${e.value}'));
+      for (final e in stats.entries) {
+        debugPrint('   ${e.key}: ${e.value}');
+      }
 
       // إظهار النتائج
       showDialog(
@@ -735,7 +737,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل الرفع الشامل:\n${e.toString()}'),
+          content: Text('فشل الرفع الشامل:\n$e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 8),
         ),

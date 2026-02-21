@@ -101,11 +101,9 @@ class _GoogleDriveBackupContentState
       case BackupStatus.success:
         color = Colors.green;
         icon = Icons.check_circle;
-        break;
       case BackupStatus.error:
         color = Colors.red;
         icon = Icons.error;
-        break;
       default:
         color = Colors.blue;
         icon = Icons.info;
@@ -164,7 +162,7 @@ class _GoogleDriveBackupContentState
             if (state.isSignedIn) ...[
               Row(
                 children: [
-                  Icon(Icons.account_circle, color: Colors.green, size: 20),
+                  const Icon(Icons.account_circle, color: Colors.green, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -494,7 +492,7 @@ class _GoogleDriveBackupContentState
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
             Text('السجلات: $recordsLabel'),
-            Text('التنسيق: ${formatLabel}'),
+            Text('التنسيق: $formatLabel'),
             const SizedBox(height: 12),
             const Text(
               'هل أنت متأكد من المتابعة؟',
@@ -548,7 +546,7 @@ class _GoogleDriveBackupContentState
                 'إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة',
               ),
               value: state.autoSettings.isEnabled,
-              onChanged: (value) => _updateAutoBackupEnabled(value),
+              onChanged: _updateAutoBackupEnabled,
             ),
             if (state.autoSettings.isEnabled) ...[
               const Divider(),

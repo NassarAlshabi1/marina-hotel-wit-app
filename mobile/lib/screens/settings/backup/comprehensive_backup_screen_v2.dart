@@ -59,7 +59,7 @@ class _ComprehensiveBackupScreenState
       body: Column(
         children: [
           // Tab Bar
-          Container(
+          ColoredBox(
             color: Colors.grey.shade100,
             child: TabBar(
               controller: _tabController,
@@ -103,7 +103,7 @@ class _ComprehensiveBackupScreenState
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -173,9 +173,9 @@ class _ComprehensiveBackupScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('نظام النسخ الاحتياطي الشامل'),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text('الإصدار: 2.0'),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text('يوفر نسخ احتياطي آمن ومتعدد الخيارات لبياناتك'),
           ],
         ),

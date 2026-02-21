@@ -3,11 +3,6 @@ import 'package:flutter/material.dart';
 import 'appwrite_logger.dart';
 
 class AppwriteError {
-  final String code;
-  final String message;
-  final String? details;
-  final DateTime timestamp;
-  final bool isRecoverable;
 
   AppwriteError({
     required this.code,
@@ -16,6 +11,11 @@ class AppwriteError {
     DateTime? timestamp,
     this.isRecoverable = true,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String code;
+  final String message;
+  final String? details;
+  final DateTime timestamp;
+  final bool isRecoverable;
 
   @override
   String toString() =>
@@ -23,10 +23,10 @@ class AppwriteError {
 }
 
 class AppwriteErrorHandler {
-  static final AppwriteErrorHandler _instance =
-      AppwriteErrorHandler._internal();
   factory AppwriteErrorHandler() => _instance;
   AppwriteErrorHandler._internal();
+  static final AppwriteErrorHandler _instance =
+      AppwriteErrorHandler._internal();
 
   final _logger = AppwriteLogger();
   final List<AppwriteError> _errorHistory = [];

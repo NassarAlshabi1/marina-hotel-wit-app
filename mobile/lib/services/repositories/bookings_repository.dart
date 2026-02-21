@@ -214,7 +214,7 @@ class BookingsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
@@ -255,7 +255,7 @@ class BookingsRepository {
             bookingLocalUuid: d.Value(booking.localUuid),
             bookingLocalId: d.Value(booking.id),
             adjustmentType: const d.Value(0),
-            amount: d.Value(discount.toDouble()),
+            amount: d.Value(discount),
             effectiveHotelDay: d.Value(effectiveHotelDay),
             isActive: const d.Value(true),
             reason: const d.Value('legacy_discount'),
@@ -272,7 +272,7 @@ class BookingsRepository {
 
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    return await (db.select(db.bookings)
+    return (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.status.equals('محجوزة'))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])

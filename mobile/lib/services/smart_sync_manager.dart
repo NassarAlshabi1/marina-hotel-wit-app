@@ -26,10 +26,10 @@ enum ConflictResolution {
 
 /// مدير المزامنة التلقائية الذكي بين الأجهزة المتعددة
 class SmartSyncManager {
-  static SmartSyncManager? _instance;
-  static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
 
   SmartSyncManager._();
+  static SmartSyncManager? _instance;
+  static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
 
   GoogleDriveBackupService? _backupService;
   Timer? _syncCheckTimer;
@@ -70,7 +70,7 @@ class SmartSyncManager {
     // تهيئة مُحسِّن الأداء
     await SyncPerformanceOptimizer.instance.initialize();
 
-    if (_isEnabled && _backupService?.isSignedIn == true) {
+    if (_isEnabled && (_backupService?.isSignedIn ?? false)) {
       await _startSyncMonitoring();
     }
 
@@ -122,7 +122,7 @@ class SmartSyncManager {
 
   /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
   Future<void> _startSyncMonitoring() async {
-    if (_syncCheckTimer?.isActive == true) return;
+    if (_syncCheckTimer?.isActive ?? false) return;
 
     final baseInterval = await getSyncInterval();
     final optimizer = SyncPerformanceOptimizer.instance;
@@ -140,7 +140,7 @@ class SmartSyncManager {
 
     // مزامنة كاملة دورية
     _periodicSyncTimer = Timer.periodic(
-      Duration(hours: _periodicFullSyncHours),
+      const Duration(hours: _periodicFullSyncHours),
       (timer) => _performFullSync(),
     );
 
@@ -328,13 +328,11 @@ class SmartSyncManager {
         switch (conflictResolution) {
           case ConflictResolution.newerWins:
             await _resolveConflictsNewerWins(conflicts, backupData);
-            break;
           case ConflictResolution.manualResolve:
             await _requestManualConflictResolution(conflicts);
             return; // لا نكمل المزامنة التلقائية
           case ConflictResolution.devicePriority:
             await _resolveConflictsDevicePriority(conflicts, backupData);
-            break;
         }
       }
 
@@ -402,7 +400,7 @@ class SmartSyncManager {
             );
 
             // فرق أكثر من 30 ثانية يعتبر تضارب
-            if ((localTime.difference(remoteTime).inSeconds).abs() > 30) {
+            if (localTime.difference(remoteTime).inSeconds.abs() > 30) {
               conflicts.add(
                 DataConflict(
                   tableName: tableName,
@@ -569,7 +567,7 @@ class SmartSyncManager {
     await prefs.setBool(_prefsEnabledKey, enabled);
     _isEnabled = enabled;
 
-    if (enabled && _backupService?.isSignedIn == true) {
+    if (enabled && (_backupService?.isSignedIn ?? false)) {
       await _startSyncMonitoring();
     } else {
       _stopSyncMonitoring();
@@ -969,12 +967,6 @@ class SmartSyncManager {
 
 /// نموذج تضارب البيانات
 class DataConflict {
-  final String tableName;
-  final String recordId;
-  final Map<String, dynamic> localRecord;
-  final Map<String, dynamic> remoteRecord;
-  final DateTime localTimestamp;
-  final DateTime remoteTimestamp;
 
   DataConflict({
     required this.tableName,
@@ -984,4 +976,10 @@ class DataConflict {
     required this.localTimestamp,
     required this.remoteTimestamp,
   });
+  final String tableName;
+  final String recordId;
+  final Map<String, dynamic> localRecord;
+  final Map<String, dynamic> remoteRecord;
+  final DateTime localTimestamp;
+  final DateTime remoteTimestamp;
 }

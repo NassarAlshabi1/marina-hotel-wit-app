@@ -146,8 +146,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.cloud, color: Colors.blue, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -265,8 +265,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.sync, color: Colors.cyan, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -466,8 +466,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.storage, color: Colors.purple, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -598,8 +598,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.article, color: Colors.green, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -767,8 +767,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.devices, color: Colors.teal, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -792,7 +792,7 @@ class _AppwriteSettingsScreenState
                 return Column(
                   children: devices.map<Widget>((device) {
                     return ListTile(
-                      leading: Icon(Icons.phone_android, color: Colors.teal),
+                      leading: const Icon(Icons.phone_android, color: Colors.teal),
                       title: Text(device.deviceName),
                       subtitle: Text(
                         '${device.deviceModel} - ${device.osVersion}',
@@ -852,8 +852,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.data_usage, color: Colors.indigo, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -926,8 +926,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.science, color: Colors.deepOrange, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -1173,7 +1173,7 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1203,7 +1203,7 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1243,10 +1243,10 @@ class _AppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('نسخة احتياطية شاملة من Appwrite'),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('سيتم سحب كل الجداول والفهارس والبيانات من Appwrite Cloud.'),
             SizedBox(height: 8),
             Text('• سيتم إنشاء ملف JSON قابل للمشاركة'),
@@ -1351,10 +1351,10 @@ class _AppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الرفع'),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('سيتم رفع جميع البيانات المحلية إلى السحابة.'),
             SizedBox(height: 8),
             Text('• الغرف والحجوزات والمدفوعات والديون'),
@@ -1410,10 +1410,10 @@ class _AppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد السحب'),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('سيتم تحميل البيانات من السحابة إلى الجهاز.'),
             SizedBox(height: 8),
             Text('• قد يتم استبدال بعض البيانات المحلية'),
@@ -1484,7 +1484,7 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

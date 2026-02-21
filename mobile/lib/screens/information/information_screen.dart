@@ -35,15 +35,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   @override
   String get screenId => 'information_screen';
 
-  @override
-  void initState() {
-    super.initState();
-  }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +69,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           label: const Text('إضافة سجل'),
         ),
         body: guestInfosAsync.when(
-          data: (entries) => _buildContent(entries),
+          data: _buildContent,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) =>
               Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
@@ -237,7 +229,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       validator: _requiredValidator,
                     ),
                     DropdownButtonFormField<String>(
-                      value: selectedIdType,
+                      initialValue: selectedIdType,
                       decoration:
                           const InputDecoration(labelText: 'نوع الهوية'),
                       items: _idTypes

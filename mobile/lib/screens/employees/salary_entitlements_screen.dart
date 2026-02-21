@@ -75,7 +75,7 @@ class _SalaryEntitlementsScreenState
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ..._entitlements.map((e) => _buildEmployeeCard(e)),
+        ..._entitlements.map(_buildEmployeeCard),
       ],
     );
   }

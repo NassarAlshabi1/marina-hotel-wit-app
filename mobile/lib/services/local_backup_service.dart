@@ -15,12 +15,6 @@ import 'google_drive_backup_service.dart';
 import 'backup_serializers.dart';
 
 class LocalBackupFile {
-  final String fileName;
-  final String filePath;
-  final DateTime createdTime;
-  final int sizeBytes;
-  final BackupMetadata? metadata;
-  final BackupFormat format;
 
   LocalBackupFile({
     required this.fileName,
@@ -46,6 +40,12 @@ class LocalBackupFile {
       format: format,
     );
   }
+  final String fileName;
+  final String filePath;
+  final DateTime createdTime;
+  final int sizeBytes;
+  final BackupMetadata? metadata;
+  final BackupFormat format;
 }
 
 class LocalBackupService {

@@ -12,12 +12,6 @@ enum LogLevel {
 }
 
 class LogEntry {
-  final DateTime timestamp;
-  final LogLevel level;
-  final String message;
-  final String tag;
-  final dynamic error;
-  final StackTrace? stackTrace;
 
   const LogEntry({
     required this.timestamp,
@@ -27,6 +21,12 @@ class LogEntry {
     this.error,
     this.stackTrace,
   });
+  final DateTime timestamp;
+  final LogLevel level;
+  final String message;
+  final String tag;
+  final dynamic error;
+  final StackTrace? stackTrace;
 
   String toFormattedString() {
     final timeStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(timestamp);

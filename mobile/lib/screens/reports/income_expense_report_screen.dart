@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat, PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -17,7 +16,6 @@ import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
-import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -61,14 +59,13 @@ class _IncomeExpenseReportScreenState
       case 'today':
         start = DateTime(now.year, now.month, now.day);
         end = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
       case 'week':
         // find previous Saturday or today
         // Dart weekday: 1=Mon ... 7=Sun
         // We want week starting Saturday.
         // If today is Saturday (6), diff=0. If Sunday (7), diff=1. If Friday (5), diff=6.
-        int currentWeekday = now.weekday; // 1..7
-        int diff = (currentWeekday + 1) % 7; 
+        final int currentWeekday = now.weekday; // 1..7
+        final int diff = (currentWeekday + 1) % 7; 
         // Logic might vary based on locale, sticking to simple "last 7 days" or "start of week"
         // Let's use: Start of current week (Saturday)
         // Saturday is day 6.
@@ -76,22 +73,20 @@ class _IncomeExpenseReportScreenState
         // Calculate days to subtract to get to last Saturday
         int daysToSubtract = (now.weekday == 7) ? 1 : (now.weekday + 1) % 7; 
         // Adjustment to make Saturday the start
-        if (now.weekday == 6) daysToSubtract = 0;
-        else if (now.weekday == 7) daysToSubtract = 1;
+        if (now.weekday == 6) {
+          daysToSubtract = 0;
+        } else if (now.weekday == 7) daysToSubtract = 1;
         else daysToSubtract = now.weekday + 1;
 
         start = today.subtract(Duration(days: daysToSubtract));
         end = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
       case 'month':
         start = DateTime(now.year, now.month, 1);
         final lastDay = DateTime(now.year, now.month + 1, 0);
         end = DateTime(lastDay.year, lastDay.month, lastDay.day, 23, 59, 59);
-        break;
       case 'year':
         start = DateTime(now.year, 1, 1);
         end = DateTime(now.year, 12, 31, 23, 59, 59);
-        break;
       default:
         return;
     }
@@ -302,7 +297,7 @@ class _IncomeExpenseReportScreenState
     for (final row in combined) {
       dataRows.add([
         _dateFormat.format(row.date),
-        row.isIncome ? 'دخل' : row.type,
+        if (row.isIncome) 'دخل' else row.type,
         row.description,
         (row.isIncome ? '+' : '-') + _currencyFormat.format(row.amount),
       ]);
@@ -387,7 +382,7 @@ class _IncomeExpenseReportScreenState
 
     return AppScaffold(
       title: 'تقرير الدخل والمصروفات',
-      actions: [],
+      actions: const [],
       body: Column(
         children: [
           // فلاتر
@@ -693,21 +688,21 @@ class _CombinedEntry {
 }
 
 class _ReportParams {
+  _ReportParams({required this.payments, required this.expenses, required this.fromDate, required this.toDate});
   final List<Map<String, dynamic>> payments;
   final List<Map<String, dynamic>> expenses;
   final DateTime fromDate;
   final DateTime toDate;
-  _ReportParams({required this.payments, required this.expenses, required this.fromDate, required this.toDate});
 }
 
 class _ReportResult {
+  _ReportResult({required this.incomeEntries, required this.expenseEntries, required this.incomeTotal, required this.expenseTotal, required this.salaryTotal, required this.net});
   final List<_IncomeEntry> incomeEntries;
   final List<_ExpenseEntry> expenseEntries;
   final double incomeTotal;
   final double expenseTotal;
   final double salaryTotal;
   final double net;
-  _ReportResult({required this.incomeEntries, required this.expenseEntries, required this.incomeTotal, required this.expenseTotal, required this.salaryTotal, required this.net});
 }
 
 _ReportResult _processReportData(_ReportParams params) {

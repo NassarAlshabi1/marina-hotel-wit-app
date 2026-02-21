@@ -61,8 +61,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(
                               Icons.lock,
                               size: 28,

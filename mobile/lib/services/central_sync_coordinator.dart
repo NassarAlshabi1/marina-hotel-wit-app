@@ -4,12 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'unified_sync_orchestrator.dart';
 
 class CentralSyncCoordinator {
-  static final CentralSyncCoordinator _instance =
-      CentralSyncCoordinator._internal();
   factory CentralSyncCoordinator() => _instance;
-  static CentralSyncCoordinator get instance => _instance;
 
   CentralSyncCoordinator._internal();
+  static final CentralSyncCoordinator _instance =
+      CentralSyncCoordinator._internal();
+  static CentralSyncCoordinator get instance => _instance;
 
   Timer? _debounceTimer;
   bool _isSyncing = false;
@@ -34,7 +34,7 @@ class CentralSyncCoordinator {
     String reason = 'manual',
   }) async {
     _debounceTimer?.cancel();
-    return await _performSync(push: push, pull: pull, reason: reason);
+    return _performSync(push: push, pull: pull, reason: reason);
   }
 
   Future<bool> _performSync({
@@ -91,7 +91,7 @@ class CentralSyncCoordinator {
       return success;
     } catch (e, stackTrace) {
       debugPrint('❌ [$_syncCount] خطأ في المزامنة: $e');
-      debugPrint('Stack trace: ${stackTrace.toString()}');
+      debugPrint('Stack trace: $stackTrace');
       return false;
     } finally {
       _isSyncing = false;

@@ -71,7 +71,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         .getSingleOrNull();
 
     final payloadJson = jsonEncode(payload);
-    final idempKey = '${entity}:${op}:${localUuid}:$clientTs';
+    final idempKey = '$entity:$op:$localUuid:$clientTs';
 
     if (existing != null) {
       await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
@@ -285,7 +285,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
         processingStatus: const Value('completed'),
-        lastError: Value(null),
+        lastError: const Value(null),
         attempts: const Value(0),
         payload: Value(jsonEncode(resolvedData)),
       ),
@@ -295,13 +295,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
 /// سجل يمثل تعارض في البيانات
 class ConflictRecord {
-  final int id;
-  final String uuid;
-  final String targetTable;
-  final Map<String, dynamic> localPayload;
-  final Map<String, dynamic> remotePayload;
-  final String lastError;
-  final DateTime timestamp;
 
   ConflictRecord({
     required this.id,
@@ -312,4 +305,11 @@ class ConflictRecord {
     required this.lastError,
     required this.timestamp,
   });
+  final int id;
+  final String uuid;
+  final String targetTable;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String lastError;
+  final DateTime timestamp;
 }

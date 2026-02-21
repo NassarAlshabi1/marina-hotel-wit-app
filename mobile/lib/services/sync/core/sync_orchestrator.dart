@@ -6,15 +6,14 @@ import '../models/sync_state.dart';
 import '../models/sync_result.dart';
 import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
-import '../workers/sync_worker.dart';
 import 'network_connectivity_listener.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
-  static SyncOrchestrator? _instance;
-  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   SyncOrchestrator._();
+  static SyncOrchestrator? _instance;
+  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   final List<SyncAdapter> _adapters = [];
   
@@ -83,9 +82,9 @@ class SyncOrchestrator {
         }
       }
 
-      final allSuccess = results.values.every((r) => r?.isSuccess ?? false);
-      final totalPushed = results.values.fold<int>(0, (sum, r) => sum + (r?.pushedCount ?? 0));
-      final totalPulled = results.values.fold<int>(0, (sum, r) => sum + (r?.pulledCount ?? 0));
+      final allSuccess = results.values.every((r) => r.isSuccess ?? false);
+      final totalPushed = results.values.fold<int>(0, (sum, r) => sum + (r.pushedCount ?? 0));
+      final totalPulled = results.values.fold<int>(0, (sum, r) => sum + (r.pulledCount ?? 0));
 
       final result = SyncResult.success(
         pushed: totalPushed,
@@ -111,7 +110,7 @@ class SyncOrchestrator {
     required bool pull,
   }) async {
     return _retryStrategy.execute(() async {
-      return await adapter.sync(push: push, pull: pull);
+      return adapter.sync(push: push, pull: pull);
     });
   }
 

@@ -1,6 +1,7 @@
 /// Sync Orchestrator
 /// منسق المزامنة - يدير عملية المزامنة الكاملة
 /// Pull → Resolve → Push → Notify
+library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -13,6 +14,18 @@ import '../processors/outbox_processor.dart';
 /// منسق المزامنة الرئيسي
 /// يدور حول النمط: Pull → Resolve → Push → Notify
 class SyncOrchestrator {
+
+  SyncOrchestrator({
+    required DeltaSyncEngine syncEngine,
+    required OutboxProcessor outbox,
+    required VectorClockManager clockManager,
+    required SyncConfiguration config,
+    List<SyncStrategy>? strategies,
+  })  : _syncEngine = syncEngine,
+        _outbox = outbox,
+        _clockManager = clockManager,
+        _config = config,
+        _strategies = strategies ?? [];
   final DeltaSyncEngine _syncEngine;
   final OutboxProcessor _outbox;
   // ignore: unused_field
@@ -31,18 +44,6 @@ class SyncOrchestrator {
   // ✅ CHANGED: استخدام SyncState مركزي بدلاً من متغيرات منفصلة لضمان الاتساق (Single Source of Truth)
   // PRIORITY: P0
   SyncState _currentSyncState = SyncState.initial();
-
-  SyncOrchestrator({
-    required DeltaSyncEngine syncEngine,
-    required OutboxProcessor outbox,
-    required VectorClockManager clockManager,
-    required SyncConfiguration config,
-    List<SyncStrategy>? strategies,
-  })  : _syncEngine = syncEngine,
-        _outbox = outbox,
-        _clockManager = clockManager,
-        _config = config,
-        _strategies = strategies ?? [];
 
   /// Stream لحالة المزامنة
   Stream<SyncState> get stateStream => _stateController.stream;
@@ -262,17 +263,17 @@ class SyncOrchestrator {
 
   /// مزامنة اتجاه واحد فقط
   Future<DeltaSyncResult> syncDirection(SyncDirection direction) async {
-    return await performFullSync(direction: direction);
+    return performFullSync(direction: direction);
   }
 
   /// سحب التغييرات فقط (Pull)
   Future<DeltaSyncResult> pullOnly() async {
-    return await syncDirection(SyncDirection.download);
+    return syncDirection(SyncDirection.download);
   }
 
   /// رفع التغييرات فقط (Push)
   Future<DeltaSyncResult> pushOnly() async {
-    return await syncDirection(SyncDirection.upload);
+    return syncDirection(SyncDirection.upload);
   }
 
   /// التحقق من وجود تغييرات معلقة
@@ -326,11 +327,11 @@ class SyncOrchestrator {
     _immediateSyncTimer?.cancel();
     _immediateSyncTimer = Timer(const Duration(seconds: 2), () async {
       if (!_currentSyncState.isSyncing) {
-        developer.log("Immediate sync triggered after local change", name: 'Sync');
+        developer.log('Immediate sync triggered after local change', name: 'Sync');
         try {
           await pushOnly();
         } catch (e) {
-          developer.log("Immediate sync failed: $e", name: 'Sync');
+          developer.log('Immediate sync failed: $e', name: 'Sync');
         }
       }
     });
@@ -347,15 +348,12 @@ class SyncOrchestrator {
       case SyncEventType.syncFailed:
         _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.failed);
         _emitState();
-        break;
       case SyncEventType.syncStarted:
         _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.syncing, isSyncing: true);
         _emitState();
-        break;
       case SyncEventType.syncCompleted:
         _currentSyncState = _currentSyncState.copyWith(status: SyncStatus.synced, lastSyncAt: DateTime.now(), isSyncing: false);
         _emitState();
-        break;
       default:
         break;
     }
@@ -379,10 +377,6 @@ class SyncOrchestrator {
 
 /// حالة المزامنة
 class SyncState {
-  final SyncStatus status;
-  final bool isSyncing;
-  final DateTime? lastSyncAt;
-  final String? error;
 
   SyncState({
     required this.status,
@@ -390,6 +384,16 @@ class SyncState {
     this.lastSyncAt,
     this.error,
   });
+
+  // ✅ ADDED: الحالة الأولية
+  factory SyncState.initial() => SyncState(
+        status: SyncStatus.idle,
+        isSyncing: false,
+      );
+  final SyncStatus status;
+  final bool isSyncing;
+  final DateTime? lastSyncAt;
+  final String? error;
 
   // ✅ ADDED: دالة copyWith لتسهيل تحديث الحالة بشكل آمن (Immutable State Management)
   SyncState copyWith({
@@ -406,12 +410,6 @@ class SyncState {
     );
   }
 
-  // ✅ ADDED: الحالة الأولية
-  factory SyncState.initial() => SyncState(
-        status: SyncStatus.idle,
-        isSyncing: false,
-      );
-
   bool get isIdle => !isSyncing;
   bool get hasError => error != null;
   bool get isSynced => status == SyncStatus.synced;
@@ -423,16 +421,6 @@ class SyncState {
 
 /// تقدم المزامنة
 class SyncProgress {
-  final SyncPhase phase;
-  final String message;
-  final int? pendingToPush;
-  final int? conflictsFound;
-  final int? uploaded;
-  final int? downloaded;
-  final int? conflicts;
-  final int? durationMs;
-  final bool completed;
-  final String? error;
 
   SyncProgress({
     required this.phase,
@@ -446,6 +434,16 @@ class SyncProgress {
     this.completed = false,
     this.error,
   });
+  final SyncPhase phase;
+  final String message;
+  final int? pendingToPush;
+  final int? conflictsFound;
+  final int? uploaded;
+  final int? downloaded;
+  final int? conflicts;
+  final int? durationMs;
+  final bool completed;
+  final String? error;
 
   SyncProgress copyWith({
     SyncPhase? phase,
@@ -495,15 +493,15 @@ abstract class SyncStrategy {
 
 /// سياق المزامنة
 class SyncContext {
-  final SyncDirection direction;
-  final DateTime? since;
-  final Map<String, dynamic> metadata;
 
   SyncContext({
     required this.direction,
     this.since,
     this.metadata = const {},
   });
+  final SyncDirection direction;
+  final DateTime? since;
+  final Map<String, dynamic> metadata;
 }
 
 /// استثناء: المزامنة قيد التنفيذ

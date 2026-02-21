@@ -9,8 +9,8 @@ import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
-  final String? bookingId;
   const PaymentHistoryScreen({super.key, this.bookingId});
+  final String? bookingId;
 
   @override
   ConsumerState<PaymentHistoryScreen> createState() =>
@@ -403,7 +403,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _selectedRevenueType,
+                    initialValue: _selectedRevenueType,
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
                       border: OutlineInputBorder(),
@@ -425,7 +425,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedPaymentMethod,
+                    initialValue: _selectedPaymentMethod,
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',
                       border: OutlineInputBorder(),

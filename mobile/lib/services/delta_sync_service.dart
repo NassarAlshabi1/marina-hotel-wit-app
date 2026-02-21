@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
-import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -168,7 +166,7 @@ class DeltaSyncService {
     if (useExistingTransaction) {
       await action();
     } else {
-      await db.transaction(() async => await action());
+      await db.transaction(() async => action());
     }
   }
 
@@ -254,8 +252,9 @@ class DeltaSyncService {
   Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
     final entries = source.entries.map((e) {
       dynamic val = e.value;
-      if (val is Map<String, dynamic>) val = _sortedMap(val);
-      else if (val is List) val = val.map((i) => i is Map<String, dynamic> ? _sortedMap(i) : i).toList();
+      if (val is Map<String, dynamic>) {
+        val = _sortedMap(val);
+      } else if (val is List) val = val.map((i) => i is Map<String, dynamic> ? _sortedMap(i) : i).toList();
       return MapEntry(e.key, val);
     }).toList()..sort((a, b) => a.key.compareTo(b.key));
     return Map<String, dynamic>.fromEntries(entries);

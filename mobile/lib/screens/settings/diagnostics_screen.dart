@@ -102,7 +102,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
         .read(syncHealthProvider)
         .maybeWhen(data: (value) => value, orElse: () => null);
     final logs = DiagnosticsLogger.instance.getLogs();
-    final encoder = const JsonEncoder.withIndent('  ');
+    const encoder = JsonEncoder.withIndent('  ');
     final payload = {
       'generatedAt': DateTime.now().toIso8601String(),
       'sync': _syncToMap(health),
@@ -279,7 +279,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   Future<void> _openTableDetails(String table) async {
     final data = _snapshot?[table];
     if (data == null) return;
-    final encoder = const JsonEncoder.withIndent('  ');
+    const encoder = JsonEncoder.withIndent('  ');
     final jsonStr = encoder.convert({table: data});
     await showModalBottomSheet(
       context: context,
@@ -457,7 +457,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       child: Column(
         children: [
           DropdownButtonFormField<String>(
-            value: _selectedTable,
+            initialValue: _selectedTable,
             decoration: const InputDecoration(
               labelText: 'عرض البيانات',
               border: OutlineInputBorder(),

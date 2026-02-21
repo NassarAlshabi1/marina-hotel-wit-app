@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -10,9 +9,9 @@ import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
-  final Booking booking;
 
   const BookingCheckoutScreen({super.key, required this.booking});
+  final Booking booking;
 
   @override
   ConsumerState<BookingCheckoutScreen> createState() =>
@@ -43,7 +42,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);
@@ -380,7 +379,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedMethod,
+                initialValue: selectedMethod,
                 items: const [
                   DropdownMenuItem(value: 'نقدي', child: Text('نقدي')),
                   DropdownMenuItem(value: 'تحويل', child: Text('تحويل بنكي')),
@@ -403,7 +402,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       ),
     );
 
-    if (result == true) {
+    if (result ?? false) {
       final amount = double.tryParse(amountController.text) ?? 0.0;
       if (amount <= 0) return;
 
@@ -441,7 +440,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       ),
     );
 
-    if (confirm == true) {
+    if (confirm ?? false) {
       setState(() => _isProcessing = true);
       try {
         final bookingsRepo = ref.read(bookingsRepoProvider);

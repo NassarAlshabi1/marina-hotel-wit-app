@@ -4,10 +4,10 @@ import 'sync_orchestrator.dart';
 
 /// مستمع حالة الشبكة - يراقب تغيرات الاتصال ويقوم بتشغيل المزامنة تلقائياً
 class NetworkConnectivityListener {
-  static NetworkConnectivityListener? _instance;
-  static NetworkConnectivityListener get instance => _instance ??= NetworkConnectivityListener._();
 
   NetworkConnectivityListener._();
+  static NetworkConnectivityListener? _instance;
+  static NetworkConnectivityListener get instance => _instance ??= NetworkConnectivityListener._();
 
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _isInitialized = false;
@@ -16,9 +16,7 @@ class NetworkConnectivityListener {
   void startMonitoring() {
     if (_isInitialized) return;
 
-    _subscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
-      _handleConnectivityChange(results);
-    });
+    _subscription = Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
 
     _isInitialized = true;
   }

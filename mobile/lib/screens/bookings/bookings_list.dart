@@ -148,7 +148,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                             // Use cached total due if available, otherwise fallback to simple calculation
                             final totalAmount = booking.totalDueCached > 0 
                                 ? booking.totalDueCached 
-                                : (actualNights * price).toDouble();
+                                : (actualNights * price);
                             return _BookingRow(
                               index: index,
                               booking: booking,
@@ -204,7 +204,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                       
                       final totalAmount = booking.totalDueCached > 0 
                           ? booking.totalDueCached 
-                          : (actualNights * price).toDouble();
+                          : (actualNights * price);
                       return _BookingRow(
                         index: index + 1,
                         booking: booking,
@@ -399,9 +399,9 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-    child: Row(
-      children: const [
+    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+    child: const Row(
+      children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),
         _HeaderCell('بيانات النزيل', flex: 2),
         _HeaderCell('الغرفة'),
@@ -459,11 +459,11 @@ class _BookingRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
-    final baseTextStyle = const TextStyle(color: Colors.black);
+    const baseTextStyle = TextStyle(color: Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
     final nightsLabel = actualNights != expectedNights
-        ? '$expectedNights (${actualNights} فعلي)'
+        ? '$expectedNights ($actualNights فعلي)'
         : expectedNights.toString();
     final plannedText = plannedCheckout != null
         ? _formatDate(plannedCheckout!.toIso8601String())
@@ -494,7 +494,7 @@ class _BookingRow extends ConsumerWidget {
             : 0.0;
         final remaining = (totalAmount - paid)
             .clamp(0.0, totalAmount)
-            .toDouble();
+            ;
         final Color statusColor = remaining <= 0.0
             ? Colors.green
             : (paid > 0 ? Colors.orange : Colors.red);
@@ -695,12 +695,10 @@ Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
       case 'مكتمل':
         bg = Colors.blue.shade100;
         txt = 'مكتمل';
-        break;
       case 'cancelled':
       case 'ملغي':
         bg = Colors.red.shade100;
         txt = 'ملغي';
-        break;
       default:
         bg = Colors.grey.shade100;
         txt = status;

@@ -5,12 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
-  final DateTime startTime;
-  final DateTime? endTime;
-  final bool success;
-  final String? error;
-  final int recordsSynced;
-  final int conflictsResolved;
 
   SyncSession({
     required this.startTime,
@@ -20,6 +14,21 @@ class SyncSession {
     this.recordsSynced = 0,
     this.conflictsResolved = 0,
   });
+
+  factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
+    startTime: DateTime.parse(json['startTime']),
+    endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
+    success: json['success'] ?? false,
+    error: json['error'],
+    recordsSynced: json['recordsSynced'] ?? 0,
+    conflictsResolved: json['conflictsResolved'] ?? 0,
+  );
+  final DateTime startTime;
+  final DateTime? endTime;
+  final bool success;
+  final String? error;
+  final int recordsSynced;
+  final int conflictsResolved;
 
   Duration get duration => (endTime ?? DateTime.now()).difference(startTime);
 
@@ -31,27 +40,10 @@ class SyncSession {
     'recordsSynced': recordsSynced,
     'conflictsResolved': conflictsResolved,
   };
-
-  factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
-    startTime: DateTime.parse(json['startTime']),
-    endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
-    success: json['success'] ?? false,
-    error: json['error'],
-    recordsSynced: json['recordsSynced'] ?? 0,
-    conflictsResolved: json['conflictsResolved'] ?? 0,
-  );
 }
 
 /// إحصائيات المزامنة
 class SyncStats {
-  final int totalSyncs;
-  final int successfulSyncs;
-  final int failedSyncs;
-  final Duration averageDuration;
-  final double successRate;
-  final int totalRecordsSynced;
-  final int totalConflictsResolved;
-  final SyncSession? lastSync;
 
   SyncStats({
     required this.totalSyncs,
@@ -63,6 +55,14 @@ class SyncStats {
     required this.totalConflictsResolved,
     this.lastSync,
   });
+  final int totalSyncs;
+  final int successfulSyncs;
+  final int failedSyncs;
+  final Duration averageDuration;
+  final double successRate;
+  final int totalRecordsSynced;
+  final int totalConflictsResolved;
+  final SyncSession? lastSync;
 
   String get healthStatus {
     if (successRate > 0.95) return '🟢 ممتاز';
@@ -95,10 +95,10 @@ class SyncStats {
 /// metrics.recordSuccess(recordsSynced: 100);
 /// ```
 class SyncMetrics {
-  static SyncMetrics? _instance;
-  static SyncMetrics get instance => _instance ??= SyncMetrics._();
 
   SyncMetrics._();
+  static SyncMetrics? _instance;
+  static SyncMetrics get instance => _instance ??= SyncMetrics._();
 
   SyncSession? _currentSession;
   final List<SyncSession> _history = [];

@@ -3,13 +3,6 @@ import '../constants/ui_constants.dart';
 
 /// Info Row Widget - عرض معلومة بصيغة (Label: Value)
 class InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData? icon;
-  final Color? iconColor;
-  final TextStyle? labelStyle;
-  final TextStyle? valueStyle;
-  final bool isExpandable;
 
   const InfoRow({
     super.key,
@@ -21,6 +14,13 @@ class InfoRow extends StatelessWidget {
     this.valueStyle,
     this.isExpandable = false,
   });
+  final String label;
+  final String value;
+  final IconData? icon;
+  final Color? iconColor;
+  final TextStyle? labelStyle;
+  final TextStyle? valueStyle;
+  final bool isExpandable;
 
   @override
   Widget build(BuildContext context) {
@@ -49,8 +49,7 @@ class InfoRow extends StatelessWidget {
                       TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 const SizedBox(width: UIConstants.spacingSM),
-                isExpandable
-                    ? Expanded(
+                if (isExpandable) Expanded(
                         child: Text(
                           value,
                           style:
@@ -61,8 +60,7 @@ class InfoRow extends StatelessWidget {
                               ),
                           textAlign: TextAlign.end,
                         ),
-                      )
-                    : Text(
+                      ) else Text(
                         value,
                         style:
                             valueStyle ??
@@ -83,12 +81,6 @@ class InfoRow extends StatelessWidget {
 
 /// Stat Card Widget - عرض إحصائية برقم وأيقونة
 class StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-  final String? subtitle;
 
   const StatCard({
     super.key,
@@ -99,6 +91,12 @@ class StatCard extends StatelessWidget {
     this.onTap,
     this.subtitle,
   });
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -168,11 +166,6 @@ class StatCard extends StatelessWidget {
 
 /// Status Badge Widget - عرض حالة بلون وأيقونة
 class StatusBadge extends StatelessWidget {
-  final String status;
-  final Color? color;
-  final IconData? icon;
-  final bool showIcon;
-  final double? fontSize;
 
   const StatusBadge({
     super.key,
@@ -182,6 +175,11 @@ class StatusBadge extends StatelessWidget {
     this.showIcon = true,
     this.fontSize,
   });
+  final String status;
+  final Color? color;
+  final IconData? icon;
+  final bool showIcon;
+  final double? fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -221,10 +219,6 @@ class StatusBadge extends StatelessWidget {
 
 /// Section Header Widget - عنوان قسم
 class SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData? icon;
-  final Widget? action;
-  final Color? color;
 
   const SectionHeader({
     super.key,
@@ -233,6 +227,10 @@ class SectionHeader extends StatelessWidget {
     this.action,
     this.color,
   });
+  final String title;
+  final IconData? icon;
+  final Widget? action;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -270,10 +268,6 @@ class SectionHeader extends StatelessWidget {
 
 /// Empty State Widget - عرض حالة فارغة
 class EmptyStateWidget extends StatelessWidget {
-  final String message;
-  final IconData icon;
-  final String? actionLabel;
-  final VoidCallback? onAction;
 
   const EmptyStateWidget({
     super.key,
@@ -282,6 +276,10 @@ class EmptyStateWidget extends StatelessWidget {
     this.actionLabel,
     this.onAction,
   });
+  final String message;
+  final IconData icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -319,9 +317,9 @@ class EmptyStateWidget extends StatelessWidget {
 
 /// Loading State Widget - عرض حالة تحميل
 class LoadingStateWidget extends StatelessWidget {
-  final String? message;
 
   const LoadingStateWidget({super.key, this.message});
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -345,10 +343,10 @@ class LoadingStateWidget extends StatelessWidget {
 
 /// Error State Widget - عرض حالة خطأ
 class ErrorStateWidget extends StatelessWidget {
-  final String message;
-  final VoidCallback? onRetry;
 
   const ErrorStateWidget({super.key, required this.message, this.onRetry});
+  final String message;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -386,9 +384,6 @@ class ErrorStateWidget extends StatelessWidget {
 
 /// Info Badge Widget - badge للأرقام والإشعارات
 class InfoBadge extends StatelessWidget {
-  final String text;
-  final Color? backgroundColor;
-  final Color? textColor;
 
   const InfoBadge({
     super.key,
@@ -396,6 +391,9 @@ class InfoBadge extends StatelessWidget {
     this.backgroundColor,
     this.textColor,
   });
+  final String text;
+  final Color? backgroundColor;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {

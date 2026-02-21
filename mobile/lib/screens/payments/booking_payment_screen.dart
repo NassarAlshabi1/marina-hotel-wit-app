@@ -19,9 +19,9 @@ import '../../providers/repository_providers.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
-  final db.Booking booking;
 
   const BookingPaymentScreen({super.key, required this.booking});
+  final db.Booking booking;
 
   @override
   ConsumerState<BookingPaymentScreen> createState() =>
@@ -43,7 +43,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return Payment(
       id: p.localUuid,
       bookingId: widget.booking.localUuid,
-      amount: p.amount.toDouble(),
+      amount: p.amount,
       method: _mapDbMethodToUi(p.paymentMethod),
       status: PaymentStatus.completed,
       paymentDate: DateTime.tryParse(p.paymentDate) ?? DateTime.now(),
@@ -142,7 +142,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);
@@ -327,9 +327,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
                   final summary = BookingPaymentSummary(
                     bookingId: booking.localUuid,
-                    totalAmount: totalAmount.toDouble(),
-                    paidAmount: paidAmount.toDouble(),
-                    remainingAmount: remainingAmount.toDouble(),
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount,
+                    remainingAmount: remainingAmount,
                     payments: uiPayments,
                     overallStatus: remainingAmount <= 0
                         ? PaymentStatus.completed
@@ -357,7 +357,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(25),
                         ),
                         child: TabBar(
@@ -437,8 +437,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            summary.isFullyPaid ? Colors.green.shade50 : Colors.blue.shade50,
-            summary.isFullyPaid ? Colors.green.shade100 : Colors.blue.shade100,
+            if (summary.isFullyPaid) Colors.green.shade50 else Colors.blue.shade50,
+            if (summary.isFullyPaid) Colors.green.shade100 else Colors.blue.shade100,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -547,7 +547,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 context,
                 icon: Icons.attach_money,
                 label: 'سعر الليلة',
-                value: '${_currencyFmt.format(roomRate)}',
+                value: _currencyFmt.format(roomRate),
               ),
               // _buildDetailChip(
               //   context,
@@ -634,9 +634,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'تقدم الدفع',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -708,7 +708,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Column(
         children: [
           Text(
-            '${_currencyFmt.format(amount)}',
+            _currencyFmt.format(amount),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -762,10 +762,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildNewPaymentTab(BookingPaymentSummary summary) {
     if (summary.isFullyPaid) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.check_circle, size: 80, color: Colors.green),
             SizedBox(height: 16),
             Text(
@@ -1309,7 +1309,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         child: Column(
           children: [
-            Icon(Icons.access_time, color: Colors.blue, size: 32),
+            const Icon(Icons.access_time, color: Colors.blue, size: 32),
             const SizedBox(height: 8),
             Text(
               'خيارات تمديد الإقامة ستظهر عند تجاوز الليالي المخططة',
@@ -1333,7 +1333,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         children: [
           Row(
             children: [
-              Icon(Icons.schedule, color: Colors.orange, size: 20),
+              const Icon(Icons.schedule, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               Text(
                 'إقامة ممددة - $extraNights ليلة إضافية',
@@ -1407,7 +1407,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 textAlign: TextAlign.center,
               ),
               Text(
-                '${_currencyFmt.format(amount)}',
+                _currencyFmt.format(amount),
                 style: const TextStyle(fontSize: 11),
               ),
             ],
@@ -1429,7 +1429,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.hotel, color: Colors.orange),
+            const Icon(Icons.hotel, color: Colors.orange),
             const SizedBox(width: 8),
             Text('دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'),
           ],
@@ -1674,7 +1674,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
       return;
     }
-    final double amount = parsedAmount.toDouble();
+    final double amount = parsedAmount;
 
     setState(() {
       _isSavingPayment = true;
@@ -1741,7 +1741,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final receipt = Payment(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         bookingId: widget.booking.localUuid,
-        amount: amount.toDouble(),
+        amount: amount,
         method: method,
         status: PaymentStatus.completed,
         paymentDate: DateTime.now(),
@@ -2012,7 +2012,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم إرسال كشف حساب تفصيلي للعميل:'),
+            const Text('سيتم إرسال كشف حساب تفصيلي للعميل:'),
             const SizedBox(height: 12),
             _buildStatementPreviewRow('العميل', widget.booking.guestName),
             _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
@@ -2222,8 +2222,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           final double roomRate = roomSnap.data?.price ?? 0;
 
           return AlertDialog(
-            title: Row(
-              children: const [
+            title: const Row(
+              children: [
                 Icon(Icons.add_circle_outline, color: Colors.blue),
                 SizedBox(width: 8),
                 Text('تمديد الإقامة'),
@@ -2325,7 +2325,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // تحديث تاريخ المغادرة المخطط
     final currentCheckout = widget.booking.checkoutDate != null
         ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : DateTime.now().add(Duration(days: 1));
+        : DateTime.now().add(const Duration(days: 1));
 
     final newCheckout = (currentCheckout ?? DateTime.now()).add(
       Duration(days: additionalNights),
@@ -2441,7 +2441,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 }
 
 class _PaymentTotals {
+  const _PaymentTotals(this.total, this.remaining);
   final double total;
   final double remaining;
-  const _PaymentTotals(this.total, this.remaining);
 }

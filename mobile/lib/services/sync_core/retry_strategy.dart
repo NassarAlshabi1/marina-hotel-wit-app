@@ -5,12 +5,6 @@ import 'package:flutter/foundation.dart';
 enum RetryBackoffType { linear, exponential, fibonacci }
 
 class RetryConfig {
-  final int maxAttempts;
-  final Duration initialDelay;
-  final Duration maxDelay;
-  final RetryBackoffType backoffType;
-  final double backoffMultiplier;
-  final double jitterFactor;
 
   const RetryConfig({
     this.maxAttempts = 5,
@@ -20,6 +14,12 @@ class RetryConfig {
     this.backoffMultiplier = 2.0,
     this.jitterFactor = 0.1,
   });
+  final int maxAttempts;
+  final Duration initialDelay;
+  final Duration maxDelay;
+  final RetryBackoffType backoffType;
+  final double backoffMultiplier;
+  final double jitterFactor;
 
   static const conservative = RetryConfig(
     maxAttempts: 3,
@@ -45,10 +45,10 @@ class RetryConfig {
 }
 
 class RetryStrategy {
-  final RetryConfig config;
-  final Random _random = Random();
 
   RetryStrategy({RetryConfig? config}) : config = config ?? const RetryConfig();
+  final RetryConfig config;
+  final Random _random = Random();
 
   Duration calculateDelay(int attemptNumber) {
     if (attemptNumber <= 0) return Duration.zero;
@@ -58,17 +58,14 @@ class RetryStrategy {
     switch (config.backoffType) {
       case RetryBackoffType.linear:
         baseDelay = config.initialDelay * attemptNumber;
-        break;
 
       case RetryBackoffType.exponential:
         final exponential = pow(config.backoffMultiplier, attemptNumber - 1);
         baseDelay = config.initialDelay * exponential.toInt();
-        break;
 
       case RetryBackoffType.fibonacci:
         final fib = _fibonacci(attemptNumber);
         baseDelay = config.initialDelay * fib;
-        break;
     }
 
     if (baseDelay > config.maxDelay) {

@@ -354,7 +354,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return roomsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('خطأ: $e')),
-          data: (rooms) => _buildRoomsCard(rooms),
+          data: _buildRoomsCard,
         );
       },
     );
@@ -725,7 +725,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),

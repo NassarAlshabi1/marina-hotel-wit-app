@@ -7,15 +7,6 @@ import '../utils/time.dart';
 import 'local_db.dart';
 
 class BookingCalculationResult {
-  final List<NightlyBreakdown> breakdown;
-  final FinancialSummary financialSummary;
-  final DateTime checkin;
-  final DateTime checkout;
-  final bool bookingActive;
-  final String stayDurationIso;
-  final int? lastNightEpoch;
-  final String hotelDayCheckin;
-  final String hotelDayCheckout;
 
   const BookingCalculationResult({
     required this.breakdown,
@@ -28,6 +19,15 @@ class BookingCalculationResult {
     required this.hotelDayCheckin,
     required this.hotelDayCheckout,
   });
+  final List<NightlyBreakdown> breakdown;
+  final FinancialSummary financialSummary;
+  final DateTime checkin;
+  final DateTime checkout;
+  final bool bookingActive;
+  final String stayDurationIso;
+  final int? lastNightEpoch;
+  final String hotelDayCheckin;
+  final String hotelDayCheckout;
 }
 
 class EnhancedBookingCalculationService {
@@ -329,7 +329,7 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    return (db.select(db.bookingPriceAdjustments)
           ..where(
             (a) =>
                 (a.bookingLocalId.equals(booking.id) |
@@ -530,7 +530,7 @@ class EnhancedBookingCalculationService {
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+        normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {

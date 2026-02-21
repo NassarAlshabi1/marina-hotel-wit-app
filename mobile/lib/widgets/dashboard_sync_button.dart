@@ -167,8 +167,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Row(
-                  children: const [
+                content: const Row(
+                  children: [
                     Icon(Icons.cloud_off, color: Colors.white),
                     SizedBox(width: 8),
                     Expanded(
@@ -179,7 +179,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   ],
                 ),
                 backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 3),
                 action: SnackBarAction(
                   label: 'تسجيل الدخول',
                   textColor: Colors.white,
@@ -238,7 +238,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           SnackBar(
             content: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
@@ -246,7 +246,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     '📤 رفع $_pendingChangesCount تغيير إلى $targetText...',
@@ -255,7 +255,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -303,8 +303,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             SnackBar(
               content: Row(
                 children: [
-                  Icon(Icons.cloud_done, color: Colors.white),
-                  SizedBox(width: 8),
+                  const Icon(Icons.cloud_done, color: Colors.white),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '✅ تم رفع التغييرات إلى ${successTargets.join(' + ')}',
@@ -313,7 +313,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         } else if (successTargets.isEmpty) {
@@ -321,8 +321,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             SnackBar(
               content: Row(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.white),
-                  SizedBox(width: 8),
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '❌ فشل رفع التغييرات إلى ${failedTargets.join(' + ')}',
@@ -331,7 +331,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
+              duration: const Duration(seconds: 4),
               action: SnackBarAction(
                 label: 'إعادة',
                 textColor: Colors.white,
@@ -346,26 +346,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       Icon(Icons.warning, color: Colors.white),
                       SizedBox(width: 8),
                       Text('⚠️ نجح جزئياً'),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '✅ نجح: ${successTargets.join(', ')}',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   Text(
                     '❌ فشل: ${failedTargets.join(', ')}',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ],
               ),
               backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -377,7 +377,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.error_outline, color: Colors.white),
                 SizedBox(width: 8),
@@ -389,7 +389,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'إعادة',
               textColor: Colors.white,

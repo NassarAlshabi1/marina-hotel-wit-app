@@ -17,9 +17,9 @@ import '../utils/id.dart';
 
 /// استثناء يُرمى عند فشل التحقق من صحة بيانات النسخة الاحتياطية
 class RestoreValidationException implements Exception {
-  final String message;
 
   RestoreValidationException(this.message);
+  final String message;
 
   @override
   String toString() => 'RestoreValidationException: $message';
@@ -27,10 +27,6 @@ class RestoreValidationException implements Exception {
 
 /// نموذج لتخزين معلومات اللقطة الاحتياطية
 class RestoreSnapshot {
-  final String filePath;
-  final DateTime createdAt;
-  final Map<String, int> recordCounts;
-  final int totalSizeBytes;
 
   RestoreSnapshot({
     required this.filePath,
@@ -39,13 +35,6 @@ class RestoreSnapshot {
     required this.totalSizeBytes,
   });
 
-  Map<String, dynamic> toJson() => {
-    'filePath': filePath,
-    'createdAt': createdAt.toIso8601String(),
-    'recordCounts': recordCounts,
-    'totalSizeBytes': totalSizeBytes,
-  };
-
   factory RestoreSnapshot.fromJson(Map<String, dynamic> json) =>
       RestoreSnapshot(
         filePath: json['filePath'] as String,
@@ -53,18 +42,21 @@ class RestoreSnapshot {
         recordCounts: Map<String, int>.from(json['recordCounts'] as Map),
         totalSizeBytes: json['totalSizeBytes'] as int,
       );
+  final String filePath;
+  final DateTime createdAt;
+  final Map<String, int> recordCounts;
+  final int totalSizeBytes;
+
+  Map<String, dynamic> toJson() => {
+    'filePath': filePath,
+    'createdAt': createdAt.toIso8601String(),
+    'recordCounts': recordCounts,
+    'totalSizeBytes': totalSizeBytes,
+  };
 }
 
 /// تقرير شامل عن عملية الإصلاح التلقائي
 class RestoreFixReport {
-  final bool success;
-  final int bookingsFixed;
-  final int roomsUpdated;
-  final int paymentsRecalculated;
-  final List<String> changes;
-  final String? error;
-  final DateTime executedAt;
-  final int durationMs;
 
   RestoreFixReport({
     required this.success,
@@ -77,17 +69,6 @@ class RestoreFixReport {
     required this.durationMs,
   });
 
-  Map<String, dynamic> toJson() => {
-    'success': success,
-    'bookingsFixed': bookingsFixed,
-    'roomsUpdated': roomsUpdated,
-    'paymentsRecalculated': paymentsRecalculated,
-    'changes': changes,
-    'error': error,
-    'executedAt': executedAt.toIso8601String(),
-    'durationMs': durationMs,
-  };
-
   factory RestoreFixReport.fromJson(Map<String, dynamic> json) =>
       RestoreFixReport(
         success: json['success'] as bool,
@@ -99,11 +80,36 @@ class RestoreFixReport {
         executedAt: DateTime.parse(json['executedAt'] as String),
         durationMs: json['durationMs'] as int,
       );
+  final bool success;
+  final int bookingsFixed;
+  final int roomsUpdated;
+  final int paymentsRecalculated;
+  final List<String> changes;
+  final String? error;
+  final DateTime executedAt;
+  final int durationMs;
+
+  Map<String, dynamic> toJson() => {
+    'success': success,
+    'bookingsFixed': bookingsFixed,
+    'roomsUpdated': roomsUpdated,
+    'paymentsRecalculated': paymentsRecalculated,
+    'changes': changes,
+    'error': error,
+    'executedAt': executedAt.toIso8601String(),
+    'durationMs': durationMs,
+  };
 }
 
 /// خدمة الإصلاح التلقائي للنسخة الاحتياطية
 /// تقوم بإعادة حساب الليالي، حالات الغرف، والمدفوعات بعد استعادة النسخة الاحتياطية
 class RestoreFixService {
+
+  RestoreFixService(this.db, {this.onBeforeCommit})
+    : bookingsDao = BookingsDao(db, OutboxDao(db)),
+      roomsDao = RoomsDao(db, OutboxDao(db)),
+      paymentsDao = PaymentsDao(db, OutboxDao(db)),
+      debtsDao = DebtsDao(db, OutboxDao(db));
   final AppDatabase db;
   final BookingsDao bookingsDao;
   final RoomsDao roomsDao;
@@ -111,12 +117,6 @@ class RestoreFixService {
   final DebtsDao debtsDao;
   final Future<void> Function()? onBeforeCommit;
   bool _conflictTableReady = false;
-
-  RestoreFixService(this.db, {this.onBeforeCommit})
-    : bookingsDao = BookingsDao(db, OutboxDao(db)),
-      roomsDao = RoomsDao(db, OutboxDao(db)),
-      paymentsDao = PaymentsDao(db, OutboxDao(db)),
-      debtsDao = DebtsDao(db, OutboxDao(db));
 
   // ملاحظة: جميع المبالغ المالية تستخدم int (الريال اليمني بدون كسور)
 
@@ -178,7 +178,7 @@ class RestoreFixService {
     }
 
     if (useTransaction) {
-      return await db.transaction<RestoreSnapshot>(doCreate);
+      return db.transaction<RestoreSnapshot>(doCreate);
     }
     return doCreate();
   }
@@ -670,7 +670,7 @@ class RestoreFixService {
     final context = await _prepareRebuildContext(restoreMoment);
 
     if (context.bookings.isEmpty) {
-      return await _handleEmptyBookings();
+      return _handleEmptyBookings();
     }
 
     final nightsResult = await _rebuildBookingNights(context);
@@ -836,7 +836,7 @@ class RestoreFixService {
 
       final accumulator = ledger.putIfAbsent(
         night.hotelDayKey,
-        () => _LedgerAccumulator(),
+        _LedgerAccumulator.new,
       );
       accumulator.totalIncome += night.finalRate;
       accumulator.bookingsProcessed += 1;
@@ -870,7 +870,7 @@ class RestoreFixService {
       final String key =
           payment.hotelDayKey ??
           _hotelDayKey(_parseDate(payment.paymentDate) ?? restoreMoment);
-      final accumulator = ledger.putIfAbsent(key, () => _LedgerAccumulator());
+      final accumulator = ledger.putIfAbsent(key, _LedgerAccumulator.new);
       accumulator.paymentsProcessed += 1;
       accumulator.paymentsTotal += payment.amount;
     }
@@ -887,7 +887,7 @@ class RestoreFixService {
 
     final pendingAccumulator = ledger.putIfAbsent(
       calculation.hotelDayCheckout,
-      () => _LedgerAccumulator(),
+      _LedgerAccumulator.new,
     );
     if (remaining > 0) {
       pendingAccumulator.pendingBalance += remaining;
@@ -907,9 +907,9 @@ class RestoreFixService {
         lastNightEpoch: Value(calculation.lastNightEpoch),
         isOverdue: Value(isOverdue),
         needsCheckoutReview: Value(needsReview),
-        totalDueCached: Value(totalDue.toDouble()),
-        totalPaidCached: Value(totalPaid.toDouble()),
-        remainingBalanceCached: Value(remaining.toDouble()),
+        totalDueCached: Value(totalDue),
+        totalPaidCached: Value(totalPaid),
+        remainingBalanceCached: Value(remaining),
         isFullyPaid: Value(isFullyPaid),
         hotelDayCheckin: Value(calculation.hotelDayCheckin),
         hotelDayCheckout: Value(calculation.hotelDayCheckout),
@@ -939,7 +939,7 @@ class RestoreFixService {
       final String key =
           expense.hotelDayKey ??
           _hotelDayKey(_parseDate(expense.date) ?? context.restoreMoment);
-      final accumulator = ledger.putIfAbsent(key, () => _LedgerAccumulator());
+      final accumulator = ledger.putIfAbsent(key, _LedgerAccumulator.new);
       accumulator.totalExpenses += expense.amount;
       accumulator.expensesProcessed += 1;
     }
@@ -1013,7 +1013,7 @@ class RestoreFixService {
     _NightsRebuildResult nightsResult,
   ) async {
     if (nightsResult.roomLastOccupied.isEmpty) {
-      return _RoomsUpdateResult(roomsTouched: 0);
+      return const _RoomsUpdateResult(roomsTouched: 0);
     }
 
     final int stamp = Time.nowEpoch();
@@ -1318,7 +1318,7 @@ class RestoreFixService {
       query.limit(limit);
     }
 
-    return await query.get();
+    return query.get();
   }
 
   /// تصدير سجلات الإصلاح كـ JSON

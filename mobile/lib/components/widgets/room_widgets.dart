@@ -5,9 +5,6 @@ import '../../utils/status_utils.dart';
 
 /// Widget لعرض بطاقة غرفة واحدة
 class RoomCard extends StatelessWidget {
-  final Room room;
-  final VoidCallback? onTap;
-  final bool compact;
 
   const RoomCard({
     super.key,
@@ -15,6 +12,9 @@ class RoomCard extends StatelessWidget {
     this.onTap,
     this.compact = false,
   });
+  final Room room;
+  final VoidCallback? onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -101,13 +101,6 @@ class RoomCard extends StatelessWidget {
 
 /// Widget لعرض عنوان الطابق مع الإحصائيات
 class FloorHeader extends StatelessWidget {
-  final String floorNumber;
-  final int totalRooms;
-  final int occupiedRooms;
-  final int availableRooms;
-  final bool isCollapsible;
-  final bool isExpanded;
-  final VoidCallback? onToggle;
 
   const FloorHeader({
     super.key,
@@ -119,6 +112,13 @@ class FloorHeader extends StatelessWidget {
     this.isExpanded = true,
     this.onToggle,
   });
+  final String floorNumber;
+  final int totalRooms;
+  final int occupiedRooms;
+  final int availableRooms;
+  final bool isCollapsible;
+  final bool isExpanded;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -180,10 +180,6 @@ class FloorHeader extends StatelessWidget {
 
 /// Widget لعرض إحصائيات الطابق
 class FloorStats extends StatelessWidget {
-  final int occupied;
-  final int available;
-  final int total;
-  final bool compact;
 
   const FloorStats({
     super.key,
@@ -192,6 +188,10 @@ class FloorStats extends StatelessWidget {
     required this.total,
     this.compact = false,
   });
+  final int occupied;
+  final int available;
+  final int total;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -258,10 +258,6 @@ class FloorStats extends StatelessWidget {
 
 /// Widget لعرض شبكة الغرف
 class RoomsGrid extends StatelessWidget {
-  final List<Room> rooms;
-  final Function(Room) onRoomTap;
-  final int crossAxisCount;
-  final double childAspectRatio;
 
   const RoomsGrid({
     super.key,
@@ -270,6 +266,10 @@ class RoomsGrid extends StatelessWidget {
     this.crossAxisCount = 4,
     this.childAspectRatio = 1.2,
   });
+  final List<Room> rooms;
+  final Function(Room) onRoomTap;
+  final int crossAxisCount;
+  final double childAspectRatio;
 
   @override
   Widget build(BuildContext context) {
@@ -297,11 +297,6 @@ class RoomsGrid extends StatelessWidget {
 
 /// Widget لعرض قسم طابق كامل
 class FloorSection extends StatefulWidget {
-  final String floorNumber;
-  final List<Room> rooms;
-  final Function(Room) onRoomTap;
-  final bool isCollapsible;
-  final bool initiallyExpanded;
 
   const FloorSection({
     super.key,
@@ -311,6 +306,11 @@ class FloorSection extends StatefulWidget {
     this.isCollapsible = false,
     this.initiallyExpanded = true,
   });
+  final String floorNumber;
+  final List<Room> rooms;
+  final Function(Room) onRoomTap;
+  final bool isCollapsible;
+  final bool initiallyExpanded;
 
   @override
   State<FloorSection> createState() => _FloorSectionState();
@@ -397,9 +397,6 @@ class _FloorSectionState extends State<FloorSection>
 
 /// Widget لعرض تفاصيل الغرفة في حوار
 class RoomDetailsDialog extends StatelessWidget {
-  final Room room;
-  final VoidCallback? onBookRoom;
-  final VoidCallback? onViewBookings;
 
   const RoomDetailsDialog({
     super.key,
@@ -407,6 +404,9 @@ class RoomDetailsDialog extends StatelessWidget {
     this.onBookRoom,
     this.onViewBookings,
   });
+  final Room room;
+  final VoidCallback? onBookRoom;
+  final VoidCallback? onViewBookings;
 
   @override
   Widget build(BuildContext context) {

@@ -11,12 +11,6 @@ enum IssueType {
 }
 
 class IntegrityIssue {
-  final IssueType type;
-  final String table;
-  final String? uuid;
-  final String description;
-  final Map<String, dynamic>? metadata;
-  final bool isCritical;
 
   IntegrityIssue({
     required this.type,
@@ -26,6 +20,12 @@ class IntegrityIssue {
     this.metadata,
     this.isCritical = false,
   });
+  final IssueType type;
+  final String table;
+  final String? uuid;
+  final String description;
+  final Map<String, dynamic>? metadata;
+  final bool isCritical;
 
   @override
   String toString() =>
@@ -50,15 +50,15 @@ class IntegrityIssue {
 }
 
 class IntegrityReport {
-  final List<IntegrityIssue> issues;
-  final DateTime timestamp;
-  final Duration checkDuration;
 
   IntegrityReport({
     required this.issues,
     required this.timestamp,
     Duration? checkDuration,
   }) : checkDuration = checkDuration ?? Duration.zero;
+  final List<IntegrityIssue> issues;
+  final DateTime timestamp;
+  final Duration checkDuration;
 
   bool get hasIssues => issues.isNotEmpty;
   bool get hasCriticalIssues => issues.any((i) => i.isCritical);
@@ -76,13 +76,13 @@ class IntegrityReport {
   @override
   String toString() {
     return 'IntegrityReport: ${issues.length} issues found '
-        '(${criticalIssueCount} critical) at ${timestamp.toIso8601String()}';
+        '($criticalIssueCount critical) at ${timestamp.toIso8601String()}';
   }
 }
 
 class SyncIntegrityChecker {
-  static final instance = SyncIntegrityChecker._();
   SyncIntegrityChecker._();
+  static final instance = SyncIntegrityChecker._();
 
   Future<IntegrityReport> verify(AppDatabase db) async {
     final startTime = DateTime.now();
@@ -350,13 +350,10 @@ class SyncIntegrityChecker {
     switch (issue.type) {
       case IssueType.orphanedRecord:
         await _fixOrphanedRecord(db, issue);
-        break;
       case IssueType.versionInconsistency:
         await _fixVersionInconsistency(db, issue);
-        break;
       case IssueType.amountMismatch:
         await _fixAmountMismatch(db, issue);
-        break;
       default:
         throw UnsupportedError('Cannot auto-fix issue type: ${issue.type}');
     }

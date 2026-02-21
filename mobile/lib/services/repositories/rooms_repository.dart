@@ -138,7 +138,7 @@ class RoomsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {

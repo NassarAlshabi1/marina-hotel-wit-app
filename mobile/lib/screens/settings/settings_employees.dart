@@ -224,7 +224,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: isActive ? Colors.green : Colors.red,
-                  child: Icon(Icons.person, color: Colors.white, size: 24),
+                  child: const Icon(Icons.person, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -489,7 +489,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
                     border: OutlineInputBorder(),

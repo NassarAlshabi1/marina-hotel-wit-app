@@ -359,7 +359,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
     return AppScaffold(
       title: 'تقرير مدفوعات النزلاء',
-      actions: [],
+      actions: const [],
       body: Column(
         children: [
           Container(
@@ -582,7 +582,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${row.paymentMethod}',
+                        row.paymentMethod,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[600],
@@ -623,10 +623,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 }
 
 class _PaymentProcessParams {
-  final List<Map<String, dynamic>> payments;
-  final List<Map<String, dynamic>> bookings;
 
   _PaymentProcessParams({required this.payments, required this.bookings});
+  final List<Map<String, dynamic>> payments;
+  final List<Map<String, dynamic>> bookings;
 }
 
 class _PaymentReportRow {
@@ -688,7 +688,7 @@ _PaymentsReportResult _processPaymentsData(_PaymentProcessParams params) {
     DateTime paymentDate = DateTime.now();
     if (p['payment_date'] != null) {
       try {
-        String val = p['payment_date'].toString();
+        final String val = p['payment_date'].toString();
         paymentDate = DateTime.parse(val.contains('T') ? val : val.replaceFirst(' ', 'T'));
       } catch (_) {}
     }

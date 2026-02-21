@@ -105,7 +105,7 @@ class BookingDerivedFieldsService {
         .get();
 
     final active = activeBookings
-        .where((b) => StatusUtils.isBookingActive(b))
+        .where(StatusUtils.isBookingActive)
         .toList();
 
     int refreshed = 0;
@@ -332,7 +332,7 @@ class BookingDerivedFieldsService {
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);

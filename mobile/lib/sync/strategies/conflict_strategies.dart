@@ -1,5 +1,6 @@
 /// Conflict Resolution Strategies
 /// استراتيجيات حل التعارضات المختلفة
+library;
 
 import '../models/sync_models.dart';
 import '../vector_clock.dart';
@@ -7,9 +8,6 @@ import '../vector_clock.dart';
 /// محلل التعارضات الرئيسي
 /// يختار الاستراتيجية المناسبة ويطبقها
 class ConflictResolver {
-  final ConflictStrategy _defaultStrategy;
-  final Map<String, ConflictStrategy> _tableStrategies;
-  final SmartMergeResolver? _smartMergeResolver;
 
   ConflictResolver({
     ConflictStrategy defaultStrategy = ConflictStrategy.newerWins,
@@ -18,6 +16,9 @@ class ConflictResolver {
   })  : _defaultStrategy = defaultStrategy,
         _tableStrategies = tableStrategies ?? {},
         _smartMergeResolver = smartMergeResolver;
+  final ConflictStrategy _defaultStrategy;
+  final Map<String, ConflictStrategy> _tableStrategies;
+  final SmartMergeResolver? _smartMergeResolver;
 
   /// حل تعارض باستخدام الاستراتيجية المحددة
   ConflictResolutionResult resolve(SyncConflict conflict) {
@@ -279,10 +280,10 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
 /// مدير التعارضات
 /// يتتبع جميع التعارضات ويساعد في حلها
 class ConflictManager {
-  final List<SyncConflict> _conflicts = [];
-  final int _maxHistory;
 
   ConflictManager({int maxHistory = 100}) : _maxHistory = maxHistory;
+  final List<SyncConflict> _conflicts = [];
+  final int _maxHistory;
 
   /// قائمة التعارضات
   List<SyncConflict> get conflicts => List.unmodifiable(_conflicts);
@@ -360,11 +361,6 @@ class ConflictManager {
 
 /// إحصائيات التعارضات
 class ConflictStats {
-  final int total;
-  final int active;
-  final int resolved;
-  final Map<String, int> byTable;
-  final Map<ConflictResolution?, int> byResolution;
 
   ConflictStats({
     required this.total,
@@ -373,6 +369,11 @@ class ConflictStats {
     required this.byTable,
     required this.byResolution,
   });
+  final int total;
+  final int active;
+  final int resolved;
+  final Map<String, int> byTable;
+  final Map<ConflictResolution?, int> byResolution;
 
   @override
   String toString() =>

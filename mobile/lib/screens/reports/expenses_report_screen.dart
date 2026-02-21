@@ -15,7 +15,6 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
-import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
@@ -161,7 +160,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           : null;
 
       // 1. جلب البيانات من DB
-      var expenses = await expensesDao.listFiltered(
+      final expenses = await expensesDao.listFiltered(
         from: fromStr,
         to: toStr,
         expenseType: selectedType,
@@ -231,7 +230,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedTypeLabel = _selectedType?.isNotEmpty == true
+    final selectedTypeLabel = _selectedType?.isNotEmpty ?? false
         ? _selectedType!
         : 'الكل';
     
@@ -313,7 +312,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final cells = [
         _dateLabelFormat.format(row.date),
         row.type,
-        row.description.isNotEmpty ? row.description : '-',
+        if (row.description.isNotEmpty) row.description else '-',
         EnhancedPdfUtils.formatNumber(row.amount),
       ];
       if (widget.includeEmployeeDetails) {
@@ -429,7 +428,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     return AppScaffold(
       title: widget.title,
-      actions: [], 
+      actions: const [], 
       body: Column(
         children: [
           Container(
@@ -507,7 +506,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                          child: SizedBox(
                            height: inputsHeight,
                            child: DropdownButtonFormField<String?>(
-                             value: _selectedType,
+                             initialValue: _selectedType,
                              style: const TextStyle(fontSize: 12, color: Colors.black),
                              decoration: InputDecoration(
                                labelText: widget.typeLabel,
@@ -708,11 +707,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 }
 
 class _ExpenseProcessParams {
+
+  _ExpenseProcessParams({required this.expenses, required this.employees, this.allowedTypes});
   final List<Map<String, dynamic>> expenses;
   final List<Map<String, dynamic>> employees;
   final List<String>? allowedTypes;
-
-  _ExpenseProcessParams({required this.expenses, required this.employees, this.allowedTypes});
 }
 
 class _ExpenseReportRow {
@@ -747,7 +746,7 @@ _ExpensesReportResult _processExpensesData(_ExpenseProcessParams params) {
   double totalAmount = 0;
 
   for (final expense in params.expenses) {
-    var expenseType = (expense['expense_type'] ?? expense['type'] ?? '').toString();
+    final expenseType = (expense['expense_type'] ?? expense['type'] ?? '').toString();
     
     // فلترة الأنواع إذا لزم الأمر
     if (params.allowedTypes != null && params.allowedTypes!.isNotEmpty) {

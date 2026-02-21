@@ -57,7 +57,7 @@ class _AppwriteSettingsScreenV2State
       body: Column(
         children: [
           // Tab Bar
-          Container(
+          ColoredBox(
             color: Colors.grey.shade100,
             child: TabBar(
               controller: _tabController,
@@ -102,7 +102,7 @@ class _AppwriteSettingsScreenV2State
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(

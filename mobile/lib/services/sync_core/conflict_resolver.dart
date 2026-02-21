@@ -6,12 +6,6 @@ enum ConflictStrategy { newerWins, devicePriority, manualResolve }
 
 /// معلومات التضارب
 class DataConflict {
-  final String table;
-  final String uuid;
-  final Map<String, dynamic> localData;
-  final Map<String, dynamic> remoteData;
-  final DateTime localTimestamp;
-  final DateTime remoteTimestamp;
 
   DataConflict({
     required this.table,
@@ -21,6 +15,12 @@ class DataConflict {
     required this.localTimestamp,
     required this.remoteTimestamp,
   });
+  final String table;
+  final String uuid;
+  final Map<String, dynamic> localData;
+  final Map<String, dynamic> remoteData;
+  final DateTime localTimestamp;
+  final DateTime remoteTimestamp;
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
 

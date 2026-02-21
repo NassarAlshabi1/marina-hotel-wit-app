@@ -4,8 +4,6 @@ import 'dart:convert';
 class VectorClock {
   VectorClock(this.clocks);
 
-  final Map<String, int> clocks;
-
   factory VectorClock.empty() => VectorClock({});
 
   factory VectorClock.fromJson(String json) {
@@ -17,6 +15,8 @@ class VectorClock {
       return VectorClock.empty();
     }
   }
+
+  final Map<String, int> clocks;
 
   String toJson() => jsonEncode(clocks);
 
