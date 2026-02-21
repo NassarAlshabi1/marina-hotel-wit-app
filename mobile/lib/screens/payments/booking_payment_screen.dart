@@ -1972,7 +1972,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       await roomsRepo.update(room.id, status: 'شاغرة');
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
       SnackBar(
         content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
         backgroundColor: Colors.green,
@@ -1980,7 +1981,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         action: SnackBarAction(
           label: 'إغلاق',
           textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          onPressed: () => messenger.hideCurrentSnackBar(),
         ),
       ),
     );
