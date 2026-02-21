@@ -28,6 +28,8 @@ concurrency:
 jobs:
   build-windows-release:
     runs-on: windows-latest
+    permissions:
+      contents: read
     timeout-minutes: 45
     defaults:
       run:
