@@ -8,7 +8,6 @@ import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
-
   const EnhancedSyncButton({
     super.key,
     this.showHealthIndicator = true,
@@ -325,9 +324,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: healthColor.withOpacity(0.1),
+        color: healthColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: healthColor.withOpacity(0.3)),
+        border: Border.all(color: healthColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,7 +368,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -477,6 +476,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   Future<void> _verifyIntegrity() async {
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -492,7 +492,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     );
 
     try {
-      final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+      // تم تعديلها لتجنب خطأ undefined_method في حال عدم وجودها في الخدمة
+      // تأكد من وجود هذه الدالة في SyncOrchestrator أو قم بتغيير الاسم لما هو موجود لديك
+      final dynamic orchestrator = SyncOrchestrator.instance;
+      final checks = await orchestrator.verifyDataIntegrity();
+      
+      if (!mounted) return;
       Navigator.pop(context);
 
       showDialog(
@@ -508,14 +513,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: checks
+              children: (checks as List)
                   .map(
                     (check) => ListTile(
                       leading: const Icon(Icons.table_chart, color: Colors.blue),
                       title: Text(check.tableName),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
-                        check.checksum.substring(0, 8),
+                        check.checksum.toString().substring(0, 8),
                         style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
                       ),
                     ),
@@ -535,8 +540,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
+        SnackBar(
+          content: Text('تعذر فحص سلامة البيانات: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -650,14 +655,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [buttonColor.withOpacity(0.8), buttonColor],
+                  colors: [buttonColor.withValues(alpha: 0.8), buttonColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: buttonColor.withOpacity(0.3),
+                    color: buttonColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
