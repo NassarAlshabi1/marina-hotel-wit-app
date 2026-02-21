@@ -172,6 +172,7 @@ class SyncMetricsData {
     totalDuration += duration;
     consecutiveFailures = 0;
     lastSuccessfulSync = DateTime.now();
+    SyncOrchestrator.instance._lastSuccessfulSyncAt = lastSuccessfulSync;
     _addDuration(duration);
   }
 
@@ -255,6 +256,9 @@ class SyncOrchestrator {
 
   OrchestratorState get state => _state;
   SyncMetricsData get metrics => _metrics;
+  
+  DateTime? _lastSuccessfulSyncAt;
+  DateTime? get lastSuccessfulSyncAt => _lastSuccessfulSyncAt;
 
   Future<void> initialize(AppDatabase database) async {
     if (_state != OrchestratorState.idle &&
@@ -291,9 +295,13 @@ class SyncOrchestrator {
 
     _connectivitySubscription = ConnectivityService.instance.statusStream
         .listen((status) {
-          if (status.isOnline && _state == OrchestratorState.paused) {
-            _setState(OrchestratorState.idle);
-            _processTasks();
+          if (status.isOnline) {
+            if (_state == OrchestratorState.paused) {
+              _setState(OrchestratorState.idle);
+            }
+            // تشغيل المزامنة تلقائياً عند عودة الاتصال
+            debugPrint('🌐 [Orchestrator] عودة الاتصال بالشبكة، تشغيل المزامنة التلقائية');
+            triggerSync(reason: 'Network restored');
           } else if (!status.isOnline && _state == OrchestratorState.syncing) {
             _setState(OrchestratorState.paused);
           }
@@ -355,100 +363,95 @@ class SyncOrchestrator {
 
       if (task.canExecute != null && !task.canExecute!()) {
         return SyncTaskResult.failure(
-          error: 'شروط التنفيذ غير متوفرة',
+          error: 'لا يمكن تنفيذ المهمة حالياً',
           duration: DateTime.now().difference(startTime),
         );
       }
 
-      SyncTaskResult result;
-
-      if (circuitBreaker != null) {
-        result = await circuitBreaker.execute(
-          () => task.execute().timeout(task.timeout),
+      if (circuitBreaker != null && !circuitBreaker.canExecute) {
+        return SyncTaskResult.failure(
+          error: 'القاطع الكهربائي مفتوح: ${circuitBreaker.name}',
+          duration: DateTime.now().difference(startTime),
         );
-      } else {
-        result = await task.execute().timeout(task.timeout);
       }
 
-      final duration = DateTime.now().difference(startTime);
+      final result = await task.execute().timeout(task.timeout);
 
       if (result.success) {
+        circuitBreaker?.recordSuccess();
         _metrics.recordSuccess(
-          duration,
+          result.duration,
           result.recordsProcessed,
           result.conflicts,
         );
-        debugPrint(
-          '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
-        );
       } else {
-        _metrics.recordFailure(duration);
-        debugPrint('❌ [Orchestrator] ${task.name}: ${result.error}');
+        circuitBreaker?.recordFailure();
+        _metrics.recordFailure(result.duration);
       }
 
-      _metricsController.add(_metrics);
-      await _persistMetrics();
-
       return result;
-    } on TimeoutException {
+    } catch (e) {
+      circuitBreaker?.recordFailure();
       final duration = DateTime.now().difference(startTime);
       _metrics.recordFailure(duration);
       return SyncTaskResult.failure(
-        error: 'انتهت المهلة الزمنية',
+        error: e.toString(),
         duration: duration,
       );
-    } catch (e) {
-      final duration = DateTime.now().difference(startTime);
-      _metrics.recordFailure(duration);
-      return SyncTaskResult.failure(error: e.toString(), duration: duration);
+    } finally {
+      _metricsController.add(_metrics);
+      _persistMetrics();
     }
   }
 
   Future<void> _processTasks() async {
-    if (_state != OrchestratorState.idle || _taskQueue.isEmpty) return;
+    if (_state == OrchestratorState.syncing ||
+        _state == OrchestratorState.paused ||
+        _taskQueue.isEmpty) {
+      return;
+    }
 
-    final acquired = await _mutex.acquire(timeout: const Duration(seconds: 5));
-    if (!acquired) return;
-
-    try {
+    await _mutex.protect(() async {
       _setState(OrchestratorState.syncing);
 
-      while (_taskQueue.isNotEmpty && ConnectivityService.instance.isOnline) {
-        final task = _taskQueue.first;
+      try {
+        while (_taskQueue.isNotEmpty) {
+          if (!ConnectivityService.instance.isOnline) {
+            _setState(OrchestratorState.paused);
+            break;
+          }
 
-        if (task.canExecute != null && !task.canExecute!()) {
-          _taskQueue.removeAt(0);
-          continue;
+          final task = _taskQueue.removeAt(0);
+          final result = await executeTask(task);
+
+          if (!result.success && task.canRetry) {
+            debugPrint(
+              '⚠️ [Orchestrator] فشل المهمة ${task.name}، إعادة المحاولة رقم ${task.attempts}',
+            );
+            Future.delayed(task.nextRetryDelay, () => scheduleTask(task));
+          }
         }
-
-        final result = await executeTask(task);
-
-        if (result.success) {
-          _taskQueue.removeAt(0);
-        } else if (task.canRetry) {
-          _taskQueue.removeAt(0);
-          _taskQueue.add(task);
-        } else {
-          _taskQueue.removeAt(0);
-          debugPrint(
-            '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
-          );
+      } finally {
+        if (_state != OrchestratorState.paused) {
+          _setState(OrchestratorState.idle);
         }
       }
-
-      _setState(OrchestratorState.idle);
-    } finally {
-      _mutex.release();
-    }
+    });
   }
 
-  Future<SyncHealth> getHealth() async {
-    final outboxCount = await _outboxDao.count();
+  void _setState(OrchestratorState newState) {
+    if (_state == newState) return;
+    _state = newState;
+    _stateController.add(_state);
+    debugPrint('🔄 [Orchestrator] الحالة: ${_state.name}');
+  }
 
-    return SyncHealth(
-      isHealthy:
-          _metrics.consecutiveFailures < 3 &&
-          _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
+  Future<void> _performHealthCheck() async {
+    final outboxCount = await _outboxDao.count();
+    final isHealthy = _metrics.consecutiveFailures < 5;
+
+    final health = SyncHealth(
+      isHealthy: isHealthy,
       successRate: _metrics.successRate,
       consecutiveFailures: _metrics.consecutiveFailures,
       avgSyncDuration: _metrics.avgDuration,
@@ -458,125 +461,46 @@ class SyncOrchestrator {
       outboxCount: outboxCount,
       circuitStates: _circuitBreakers.map((k, v) => MapEntry(k, v.state)),
     );
-  }
 
-  Future<void> _performHealthCheck() async {
-    final health = await getHealth();
     _healthController.add(health);
-
-    if (!health.isHealthy) {
-      debugPrint('⚠️ [Orchestrator] صحة النظام: غير صحي');
-
-      if (_metrics.consecutiveFailures >= 5) {
-        _setState(OrchestratorState.recovering);
-        await _attemptRecovery();
-      }
-    }
-  }
-
-  Future<void> _attemptRecovery() async {
-    debugPrint('🔧 [Orchestrator] محاولة الاسترداد...');
-
-    for (final cb in _circuitBreakers.values) {
-      if (cb.state == CircuitState.open) {
-        cb.reset();
-      }
-    }
-
-    _taskQueue.clear();
-    _metrics.consecutiveFailures = 0;
-
-    _setState(OrchestratorState.idle);
-    debugPrint('✅ [Orchestrator] تم الاسترداد');
-  }
-
-  Future<List<DataIntegrityCheck>> verifyDataIntegrity() async {
-    final checks = <DataIntegrityCheck>[];
-    final tables = [
-      'rooms',
-      'bookings',
-      'employees',
-      'expenses',
-      'payments',
-      'debts',
-    ];
-
-    for (final table in tables) {
-      try {
-        final result = await _database
-            .customSelect(
-              'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
-            )
-            .getSingle();
-
-        final count = result.data['count'] as int? ?? 0;
-
-        final dataResult = await _database
-            .customSelect(
-              'SELECT * FROM $table WHERE deleted_at IS NULL ORDER BY local_uuid LIMIT 1000',
-            )
-            .get();
-
-        final dataString = dataResult.map((r) => jsonEncode(r.data)).join();
-        final checksum = md5.convert(utf8.encode(dataString)).toString();
-
-        checks.add(
-          DataIntegrityCheck(
-            tableName: table,
-            checksum: checksum,
-            recordCount: count,
-            timestamp: DateTime.now(),
-          ),
-        );
-      } catch (e) {
-        debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
-      }
-    }
-
-    return checks;
-  }
-
-  Future<void> _loadPersistedMetrics() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final json = prefs.getString('sync_orchestrator_metrics');
-      if (json != null) {
-        final data = jsonDecode(json) as Map<String, dynamic>;
-        _metrics.totalSyncs = data['totalSyncs'] ?? 0;
-        _metrics.successfulSyncs = data['successfulSyncs'] ?? 0;
-        _metrics.failedSyncs = data['failedSyncs'] ?? 0;
-        _metrics.totalRecordsProcessed = data['totalRecordsProcessed'] ?? 0;
-        _metrics.totalConflicts = data['totalConflicts'] ?? 0;
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
-    }
   }
 
   Future<void> _persistMetrics() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'sync_orchestrator_metrics',
-        jsonEncode(_metrics.toJson()),
-      );
+      await prefs.setString('sync_metrics', jsonEncode(_metrics.toJson()));
     } catch (e) {
-      debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
+      debugPrint('❌ [Orchestrator] فشل حفظ المقاييس: $e');
     }
   }
 
-  void _setState(OrchestratorState newState) {
-    if (_state == newState) return;
-    _state = newState;
-    _stateController.add(newState);
-    debugPrint('🔄 [Orchestrator] الحالة: ${newState.name}');
+  Future<void> _loadPersistedMetrics() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString('sync_metrics');
+      if (data != null) {
+        final json = jsonDecode(data);
+        _metrics.totalSyncs = json['totalSyncs'] ?? 0;
+        _metrics.successfulSyncs = json['successfulSyncs'] ?? 0;
+        _metrics.failedSyncs = json['failedSyncs'] ?? 0;
+        _metrics.totalRecordsProcessed = json['totalRecordsProcessed'] ?? 0;
+        _metrics.totalConflicts = json['totalConflicts'] ?? 0;
+        _metrics.consecutiveFailures = json['consecutiveFailures'] ?? 0;
+        if (json['lastSuccessfulSync'] != null) {
+          _metrics.lastSuccessfulSync = DateTime.parse(json['lastSuccessfulSync']);
+          _lastSuccessfulSyncAt = _metrics.lastSuccessfulSync;
+        }
+        if (json['lastFailedSync'] != null) {
+          _metrics.lastFailedSync = DateTime.parse(json['lastFailedSync']);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [Orchestrator] فشل تحميل المقاييس: $e');
+    }
   }
 
   void pause() {
-    if (_state == OrchestratorState.syncing ||
-        _state == OrchestratorState.idle) {
-      _setState(OrchestratorState.paused);
-    }
+    _setState(OrchestratorState.paused);
   }
 
   void resume() {
@@ -586,10 +510,12 @@ class SyncOrchestrator {
     }
   }
 
-  Future<void> forceSync() async {
+  Future<void> triggerSync({String? reason}) async {
     if (_state == OrchestratorState.syncing) return;
-    _setState(OrchestratorState.idle);
-    await _processTasks();
+    if (reason != null) {
+      debugPrint('🔄 [Orchestrator] تشغيل المزامنة: $reason');
+    }
+    _processTasks();
   }
 
   void dispose() {
@@ -600,11 +526,6 @@ class SyncOrchestrator {
     _stateController.close();
     _healthController.close();
     _metricsController.close();
-    for (final cb in _circuitBreakers.values) {
-      cb.dispose();
-    }
-    _circuitBreakers.clear();
-    _taskQueue.clear();
     _instance = null;
   }
 }
