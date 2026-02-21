@@ -18,6 +18,9 @@ on:
       - main
       - 'capy/**'
       - 'feature/**'
+      - '**/**'
+      - '**'
+      
   pull_request:
     branches:
       - main
