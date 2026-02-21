@@ -37,6 +37,11 @@ class CircuitBreaker {
   int get failureCount => _failureCount;
   int get successCount => _successCount;
 
+  bool get canExecute => _state != CircuitState.open || _shouldAttemptReset();
+
+  void recordSuccess() => _onSuccess();
+  void recordFailure() => _onFailure();
+
   Future<T> execute<T>(Future<T> Function() operation) async {
     if (_state == CircuitState.open) {
       if (_shouldAttemptReset()) {

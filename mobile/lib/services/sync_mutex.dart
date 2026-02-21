@@ -53,4 +53,10 @@ class SyncMutex {
       release();
     }
   }
+
+  /// Alias for runExclusive to match some usage patterns
+  Future<T?> protect<T>(
+    Future<T> Function() action, {
+    Duration? timeout,
+  }) => runExclusive(action, timeout: timeout);
 }
