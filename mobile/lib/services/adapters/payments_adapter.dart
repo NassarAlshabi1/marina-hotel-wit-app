@@ -93,7 +93,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         src,
         altKey: 'payment_id',
       ),
-      bookingLocalId: d.Value(refs.bookingLocalId!),
+      bookingLocalId: d.Value(refs.bookingLocalId),
       serverBookingId: _vInt(
         json,
         'serverBookingId',
