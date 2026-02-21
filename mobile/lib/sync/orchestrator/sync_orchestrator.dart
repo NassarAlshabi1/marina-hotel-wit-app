@@ -280,7 +280,8 @@ class SyncOrchestrator {
     return await _outbox.pendingCount > 0;
   }
 
-  /// إضافة تغيير محلي للمزامنة
+  /// إضافة تغيير محلي للمزامنة وتفعيل المزامنة الفورية
+  /// PRIORITY: P0 Real-time Sync
   Future<String> queueLocalChange({
     required String table,
     required String uuid,
@@ -296,14 +297,43 @@ class SyncOrchestrator {
 
     developer.log('Queued change: $table/$uuid ($operation)', name: 'Sync');
 
+    // ✅ ADDED: تفعيل المزامنة التلقائية فوراً بعد الإضافة (Real-time Sync)
+    if (_config.realtimeSyncEnabled) {
+      _triggerImmediateSync();
+    }
+
     return id;
   }
 
-  /// إضافة مجموعة تغييرات
+  /// إضافة مجموعة تغييرات وتفعيل المزامنة الفورية
+  /// PRIORITY: P0 Real-time Sync
   Future<List<String>> queueBatchChanges(List<ChangeRequest> requests) async {
     final ids = await _outbox.enqueueBatch(requests);
     developer.log('Queued ${ids.length} changes in batch', name: 'Sync');
+
+    // ✅ ADDED: تفعيل المزامنة التلقائية فوراً بعد إضافة الدفعة (Real-time Sync)
+    if (_config.realtimeSyncEnabled) {
+      _triggerImmediateSync();
+    }
+
     return ids;
+  }
+
+  /// ✅ ADDED: دالة لتفعيل المزامنة الفورية مع تجنب التكرار (Debouncing)
+  /// PRIORITY: P0 Real-time Sync
+  Timer? _immediateSyncTimer;
+  void _triggerImmediateSync() {
+    _immediateSyncTimer?.cancel();
+    _immediateSyncTimer = Timer(const Duration(seconds: 2), () async {
+      if (!_currentSyncState.isSyncing) {
+        developer.log("Immediate sync triggered after local change", name: 'Sync');
+        try {
+          await pushOnly();
+        } catch (e) {
+          developer.log("Immediate sync failed: $e", name: 'Sync');
+        }
+      }
+    });
   }
 
   /// معالجة حدث من SyncEngine
