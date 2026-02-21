@@ -42,11 +42,10 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       uuid: bookingUuid,
     );
 
-    // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
-    if (resolvedId == null && localId != null) {
-      // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
+    // Warning if we have a booking reference but couldn't resolve it
+    if (resolvedId == null && (localId != null || serverBookingId != null || bookingUuid != null)) {
       debugPrint(
-        '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
+        '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId, serverId: $serverBookingId, uuid: $bookingUuid',
       );
     }
 
@@ -73,6 +72,13 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+
+    // If bookingLocalId is still null after resolution, we must throw an exception
+    // to prevent FOREIGN KEY constraint failure in the database.
+    if (refs.bookingLocalId == null) {
+      throw Exception('Cannot create Payment: bookingLocalId is null and could not be resolved.');
+    }
+
     return PaymentsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -87,9 +93,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         src,
         altKey: 'payment_id',
       ),
-      bookingLocalId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      bookingLocalId: d.Value(refs.bookingLocalId!),
       serverBookingId: _vInt(
         json,
         'serverBookingId',

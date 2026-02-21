@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 
 import '../local_db.dart';
 import '../../utils/id.dart';
@@ -42,6 +43,14 @@ class NightsAdapter
       serverId: serverBookingId,
       uuid: bookingUuid,
     );
+
+    // Warning if we have a booking reference but couldn't resolve it
+    if (resolvedId == null && (localId != null || serverBookingId != null || bookingUuid != null)) {
+      debugPrint(
+        '[NightsAdapter] Warning: Could not resolve booking for localId: $localId, serverId: $serverBookingId, uuid: $bookingUuid',
+      );
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -65,6 +74,13 @@ class NightsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+
+    // If bookingLocalId is still null after resolution, we must throw an exception
+    // to prevent FOREIGN KEY constraint failure in the database.
+    if (refs.bookingLocalId == null) {
+      throw Exception('Cannot create BookingNight: bookingLocalId is null and could not be resolved.');
+    }
+
     return BookingNightsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -73,9 +89,7 @@ class NightsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      bookingLocalId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId!)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      bookingLocalId: d.Value(refs.bookingLocalId!),
       hotelDayKey: _vStr(
         json,
         'hotelDayKey',
