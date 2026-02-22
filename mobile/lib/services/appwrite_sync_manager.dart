@@ -2413,10 +2413,34 @@ class AppwriteSyncManager {
         .getSingleOrNull();
   }
 
-  /// تحميل جميع البيانات من الخادم
+  /// تحميل جميع البيانات من الخادم مع تعطيل القيود الخارجية مؤقتاً
   Future<void> pullAllRemoteData() async {
-    _logger.info('Pulling all remote data...', tag: 'SYNC');
-    await pullRemoteChanges();
+    _logger.info('Pulling all remote data with FK disabled...', tag: 'SYNC');
+    await startFullSync();
+  }
+
+  /// دالة wrapper لتنفيذ المزامنة الكاملة مع تعطيل FOREIGN KEY
+  Future<void> startFullSync() async {
+    try {
+      _logger.info('Disabling FOREIGN KEY constraints for sync', tag: 'SYNC');
+      await database.customStatement('PRAGMA foreign_keys=OFF');
+      
+      // تنفيذ سحب البيانات الفعلي
+      await pullRemoteChanges();
+      
+      _logger.info('Full sync completed successfully', tag: 'SYNC');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Error during startFullSync',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
+      rethrow;
+    } finally {
+      _logger.info('Re-enabling FOREIGN KEY constraints', tag: 'SYNC');
+      await database.customStatement('PRAGMA foreign_keys=ON');
+    }
   }
 
   /// إعادة تعيين حالة المزامنة
