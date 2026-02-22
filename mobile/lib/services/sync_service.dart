@@ -112,7 +112,7 @@ class SyncService {
     }
     final payload = computation.toPayload();
     try {
-      final changes = List<Map<String, dynamic>>.from(payload['changes']);
+      final changes = List<Map<String, dynamic>>.from(payload);
       final response = await ApiService.I.syncPush(changes).timeout(timeout);
       if (response['success'] != true) {
         return;
