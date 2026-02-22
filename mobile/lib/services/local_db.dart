@@ -647,8 +647,779 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA foreign_keys = ON');
     },
     onUpgrade: (m, from, to) async {
-      // باقي الترقيات كما هي (لم يتم تغييرها)
-      // ... (نفس الكود السابق)
+      if (from < 2) {
+        await m.addColumn(bookings, bookings.guestIdType);
+        await m.addColumn(bookings, bookings.guestIdNumber);
+        await m.addColumn(bookings, bookings.guestIdIssueDate);
+        await m.addColumn(bookings, bookings.guestIdIssuePlace);
+        await m.addColumn(bookings, bookings.actualCheckout);
+        await m.addColumn(bookings, bookings.expectedNights);
+        await m.database.customStatement(
+          'UPDATE bookings SET expected_nights = calculated_nights',
+        );
+      }
+      if (from < 3) {
+        await m.database.customStatement(
+          'ALTER TABLE rooms RENAME TO rooms_old',
+        );
+        await m.createTable(rooms);
+        await m.database.customStatement(
+          'INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
+          'SELECT room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin FROM rooms_old',
+        );
+        await m.database.customStatement('DROP TABLE rooms_old');
+      }
+      if (from < 4) {
+        await m.createTable(debts);
+      }
+      if (from < 5 && from >= 4) {
+        await m.addColumn(debts, debts.dateRecorded);
+        await m.addColumn(debts, debts.debtReason);
+        await m.addColumn(debts, debts.isSettled);
+      }
+      if (from < 6) {
+        await m.createTable(shiftNotes);
+      }
+      if (from < 7) {
+        await m.addColumn(payments, payments.referenceNumber);
+      }
+      if (from < 10) {
+        await m.createTable(restoreFixLog);
+      }
+      if (from < 11) {
+        await m.createTable(syncQueue);
+      }
+      if (from < 12) {
+        await m.createTable(syncLog);
+        await m.createTable(syncConflicts);
+      }
+      if (from < 13) {
+        // SyncFields ISO/Epoch columns
+        await m.addColumn(bookings, bookings.createdAtIso);
+        await m.addColumn(bookings, bookings.updatedAtIso);
+        await m.addColumn(bookings, bookings.deletedAtIso);
+        await m.addColumn(bookings, bookings.createdAtEpoch);
+        await m.addColumn(bookings, bookings.lastModifiedEpoch);
+        await m.addColumn(rooms, rooms.createdAtIso);
+        await m.addColumn(rooms, rooms.updatedAtIso);
+        await m.addColumn(rooms, rooms.deletedAtIso);
+        await m.addColumn(rooms, rooms.createdAtEpoch);
+        await m.addColumn(rooms, rooms.lastModifiedEpoch);
+        await m.addColumn(employees, employees.createdAtIso);
+        await m.addColumn(employees, employees.updatedAtIso);
+        await m.addColumn(employees, employees.deletedAtIso);
+        await m.addColumn(employees, employees.createdAtEpoch);
+        await m.addColumn(employees, employees.lastModifiedEpoch);
+        await m.addColumn(expenses, expenses.createdAtIso);
+        await m.addColumn(expenses, expenses.updatedAtIso);
+        await m.addColumn(expenses, expenses.deletedAtIso);
+        await m.addColumn(expenses, expenses.createdAtEpoch);
+        await m.addColumn(expenses, expenses.lastModifiedEpoch);
+        await m.addColumn(cashTransactions, cashTransactions.createdAtIso);
+        await m.addColumn(cashTransactions, cashTransactions.updatedAtIso);
+        await m.addColumn(cashTransactions, cashTransactions.deletedAtIso);
+        await m.addColumn(cashTransactions, cashTransactions.createdAtEpoch);
+        await m.addColumn(cashTransactions, cashTransactions.lastModifiedEpoch);
+        await m.addColumn(payments, payments.createdAtIso);
+        await m.addColumn(payments, payments.updatedAtIso);
+        await m.addColumn(payments, payments.deletedAtIso);
+        await m.addColumn(payments, payments.createdAtEpoch);
+        await m.addColumn(payments, payments.lastModifiedEpoch);
+        await m.addColumn(debts, debts.createdAtIso);
+        await m.addColumn(debts, debts.updatedAtIso);
+        await m.addColumn(debts, debts.deletedAtIso);
+        await m.addColumn(debts, debts.createdAtEpoch);
+        await m.addColumn(debts, debts.lastModifiedEpoch);
+        await m.addColumn(bookingNotes, bookingNotes.createdAtIso);
+        await m.addColumn(bookingNotes, bookingNotes.updatedAtIso);
+        await m.addColumn(bookingNotes, bookingNotes.deletedAtIso);
+        await m.addColumn(bookingNotes, bookingNotes.createdAtEpoch);
+        await m.addColumn(bookingNotes, bookingNotes.lastModifiedEpoch);
+      }
+      if (from < 14) {
+        await m.addColumn(bookings, bookings.totalNightsCached);
+        await m.addColumn(bookings, bookings.stayDurationIso);
+        await m.addColumn(bookings, bookings.lastNightEpoch);
+        await m.addColumn(bookings, bookings.isOverdue);
+        await m.addColumn(bookings, bookings.needsCheckoutReview);
+        await m.addColumn(bookings, bookings.totalDueCached);
+        await m.addColumn(bookings, bookings.totalPaidCached);
+        await m.addColumn(bookings, bookings.remainingBalanceCached);
+        await m.addColumn(bookings, bookings.isFullyPaid);
+        await m.addColumn(bookings, bookings.hotelDayCheckin);
+        await m.addColumn(bookings, bookings.hotelDayCheckout);
+        await m.addColumn(rooms, rooms.cleaningStatus);
+        await m.addColumn(rooms, rooms.lastCleanedHotelDay);
+        await m.addColumn(rooms, rooms.lastOccupiedHotelDay);
+        await m.addColumn(rooms, rooms.requiresMaintenance);
+        await m.addColumn(expenses, expenses.hotelDayKey);
+        await m.addColumn(expenses, expenses.categoryUuid);
+        await m.addColumn(expenses, expenses.cashFlowUuid);
+        await m.addColumn(expenses, expenses.isAutoGenerated);
+        await m.addColumn(payments, payments.hotelDayKey);
+        await m.addColumn(payments, payments.isPendingBalance);
+        await m.addColumn(payments, payments.linkedDebtUuid);
+        await m.addColumn(payments, payments.bookingUuidCache);
+        await m.addColumn(debts, debts.debtUuid);
+        await m.addColumn(debts, debts.hotelDayOpened);
+        await m.addColumn(debts, debts.hotelDayClosed);
+        await m.addColumn(debts, debts.isFromAutoFix);
+        await m.addColumn(debts, debts.settlementConfirmed);
+      }
+      if (from < 15) {
+        await m.createTable(bookingNights);
+        await m.createTable(hotelDayLedger);
+        await m.createTable(autoFixRuns);
+        await m.createTable(integrityViolations);
+        await m.createTable(appSessions);
+        await m.createTable(salaryCycles);
+        await m.createTable(salaryPayments);
+      }
+      if (from < 17) {
+        await m.addColumn(outbox, outbox.idempotencyKey);
+      }
+      if (from < 18) {
+        try {
+          await m.addColumn(outbox, outbox.processingStatus);
+        } catch (e, st) {
+          developer.log(
+            'Migration add processingStatus failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(outbox, outbox.processingStartedAt);
+        } catch (e, st) {
+          developer.log(
+            'Migration add processingStartedAt failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(outbox, outbox.processingWorker);
+        } catch (e, st) {
+          developer.log(
+            'Migration add processingWorker failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 19) {
+        try {
+          await m.addColumn(bookings, bookings.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add bookings.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(rooms, rooms.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add rooms.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(employees, employees.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add employees.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(expenses, expenses.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add expenses.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(cashTransactions, cashTransactions.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add cashTransactions.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add payments.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(debts, debts.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add debts.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(bookingNotes, bookingNotes.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add bookingNotes.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add bookingNights.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(hotelDayLedger, hotelDayLedger.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add hotelDayLedger.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(salaryCycles, salaryCycles.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add salaryCycles.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(salaryPayments, salaryPayments.vectorClock);
+        } catch (e, st) {
+          developer.log(
+            'Migration add salaryPayments.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 20) {
+        // إصلاح مشكلة serverId في الجداول القديمة
+        // التحقق من وجود عمود serverId في جدول rooms وإضافته إذا لم يكن موجوداً
+        try {
+          await m.database.customStatement(
+            'SELECT server_id FROM rooms LIMIT 1',
+          );
+          developer.log(
+            'serverId column already exists in rooms table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          // العمود غير موجود، نحتاج لإضافته
+          try {
+            await m.addColumn(rooms, rooms.serverId);
+            developer.log(
+              'Added serverId column to rooms table',
+              name: 'db.migration',
+            );
+          } catch (e2, st2) {
+            developer.log(
+              'Failed to add serverId column to rooms',
+              error: e2,
+              stackTrace: st2,
+              name: 'db.migration',
+            );
+          }
+        }
+
+        // التحقق من وجود عمود serverId في باقي الجداول
+        final tablesToCheck = [
+          'bookings',
+          'employees',
+          'expenses',
+          'cash_transactions',
+          'payments',
+          'debts',
+        ];
+
+        for (final tableName in tablesToCheck) {
+          try {
+            await m.database.customStatement(
+              'SELECT server_id FROM $tableName LIMIT 1',
+            );
+          } catch (e) {
+            // العمود غير موجود
+            try {
+              await m.database.customStatement(
+                'ALTER TABLE $tableName ADD COLUMN server_id INTEGER',
+              );
+              developer.log(
+                'Added serverId column to $tableName table',
+                name: 'db.migration',
+              );
+            } catch (e2, st2) {
+              developer.log(
+                'Failed to add serverId to $tableName',
+                error: e2,
+                stackTrace: st2,
+                name: 'db.migration',
+              );
+            }
+          }
+        }
+      }
+
+      if (from < 21) {
+        // إضافة حقول المزامنة لجدول الملاحظات
+        await m.database.customStatement(
+          'ALTER TABLE shift_notes RENAME TO shift_notes_old',
+        );
+
+        await m.createTable(shiftNotes);
+
+        final oldNotes = await m.database
+            .customSelect('SELECT * FROM shift_notes_old')
+            .get();
+        final now = DateTime.now();
+
+        for (final row in oldNotes) {
+          final uuid = const Uuid().v4();
+
+          int createdTimestamp;
+          final oldCreatedRaw = row.data['created_at'];
+          if (oldCreatedRaw is int) {
+            createdTimestamp = oldCreatedRaw;
+          } else if (oldCreatedRaw is String) {
+            createdTimestamp =
+                DateTime.tryParse(oldCreatedRaw)?.millisecondsSinceEpoch ??
+                now.millisecondsSinceEpoch;
+          } else {
+            createdTimestamp = now.millisecondsSinceEpoch;
+          }
+
+          final isoDate = DateTime.fromMillisecondsSinceEpoch(
+            createdTimestamp,
+          ).toIso8601String();
+
+          await m.database.customInsert(
+            'INSERT INTO shift_notes ('
+            'title, content, priority, shift_type, is_read, created_by, '
+            'expires_at, '
+            'local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, '
+            'created_at_iso, updated_at_iso, deleted_at_iso, version, origin'
+            ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            variables: [
+              Variable<String>(row.data['title'] as String),
+              Variable<String>(row.data['content'] as String),
+              Variable<String>(row.data['priority'] as String),
+              Variable<String>(row.data['shift_type'] as String),
+              Variable<int>(row.data['is_read'] as int),
+              Variable<String>(row.data['created_by'] as String),
+              Variable<String>(row.data['expires_at'] as String?),
+              Variable<String>(uuid),
+              Variable<int>(null),
+              Variable<int>(createdTimestamp),
+              Variable<int>(createdTimestamp),
+              Variable<int>(null),
+              Variable<int>(createdTimestamp),
+              Variable<String>(isoDate),
+              Variable<String>(isoDate),
+              Variable<String>(null),
+              Variable<int>(1),
+              Variable<String>('local'),
+            ],
+          );
+        }
+
+        await m.database.customStatement('DROP TABLE shift_notes_old');
+      }
+
+      if (from < 22) {
+        // إضافة حقل التخفيض للحجوزات
+        await m.addColumn(bookings, bookings.discount);
+      }
+      if (from < 23) {
+        // إضافة حقل نوع التخفيض (total أو per_night)
+        await m.addColumn(bookings, bookings.discountType);
+      }
+      if (from < 24) {
+        // Migration 24: تحويل المبالغ المالية من REAL إلى INTEGER
+        // وإضافة جدول BookingPriceAdjustments
+
+        // 1. إنشاء جداول التعديلات والسجلات
+        try {
+          await m.createTable(bookingPriceAdjustments);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create bookingPriceAdjustments failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.createTable(priceAdjustments);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create priceAdjustments failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.createTable(auditLogs);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create auditLogs failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.createTable(paymentVoids);
+        } catch (e) {
+          developer.log(
+            'Migration 24: create paymentVoids failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // 2. تحويل المبالغ في الجداول الموجودة من REAL إلى INTEGER
+        // نستخدم CAST للتحويل مع تقريب القيم
+
+        // rooms.price
+        try {
+          await m.database.customStatement(
+            'UPDATE rooms SET price = CAST(ROUND(price) AS INTEGER) WHERE price IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: rooms.price conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // bookings cached fields
+        try {
+          await m.database.customStatement(
+            'UPDATE bookings SET '
+            'discount = CAST(ROUND(discount) AS INTEGER), '
+            'total_due_cached = CAST(ROUND(total_due_cached) AS INTEGER), '
+            'total_paid_cached = CAST(ROUND(total_paid_cached) AS INTEGER), '
+            'remaining_balance_cached = CAST(ROUND(remaining_balance_cached) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: bookings conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // employees.basic_salary
+        try {
+          await m.database.customStatement(
+            'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: employees conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // expenses.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: expenses conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // cash_transactions.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: cash_transactions conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // payments.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: payments conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // debts amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE debts SET '
+            'total_amount = CAST(ROUND(total_amount) AS INTEGER), '
+            'paid_amount = CAST(ROUND(paid_amount) AS INTEGER), '
+            'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: debts conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // booking_nights.nightly_rate + إضافة الأعمدة الجديدة
+        try {
+          await m.database.customStatement(
+            'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: booking_nights.nightly_rate conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // إضافة أعمدة BookingNights الجديدة (baseRate, adjustment, finalRate)
+        try {
+          await m.addColumn(bookingNights, bookingNights.baseRate);
+        } catch (e) {
+          developer.log(
+            'Migration 24: add baseRate failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.adjustment);
+        } catch (e) {
+          developer.log(
+            'Migration 24: add adjustment failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.finalRate);
+        } catch (e) {
+          developer.log(
+            'Migration 24: add finalRate failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(bookingNights, bookingNights.appliedAdjustmentUuid);
+        } catch (e) {
+          developer.log(
+            'Migration 24: add appliedAdjustmentUuid failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // تحديث القيم الافتراضية للأعمدة الجديدة
+        try {
+          await m.database.customStatement(
+            'UPDATE booking_nights SET '
+            'base_rate = COALESCE(nightly_rate, 0), '
+            'adjustment = 0, '
+            'final_rate = COALESCE(nightly_rate, 0) '
+            'WHERE base_rate IS NULL OR base_rate = 0',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: booking_nights defaults failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // hotel_day_ledger amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE hotel_day_ledger SET '
+            'total_income = CAST(ROUND(total_income) AS INTEGER), '
+            'total_expenses = CAST(ROUND(total_expenses) AS INTEGER), '
+            'pending_balances = CAST(ROUND(pending_balances) AS INTEGER), '
+            'occupancy_rate = CAST(ROUND(occupancy_rate) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: hotel_day_ledger conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // price_adjustments amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE price_adjustments SET '
+            'previous_value = CAST(ROUND(previous_value) AS INTEGER), '
+            'new_value = CAST(ROUND(new_value) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: price_adjustments conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // payment_voids.voided_amount
+        try {
+          await m.database.customStatement(
+            'UPDATE payment_voids SET voided_amount = CAST(ROUND(voided_amount) AS INTEGER) WHERE voided_amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: payment_voids conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // salary_cycles amounts
+        try {
+          await m.database.customStatement(
+            'UPDATE salary_cycles SET '
+            'expected_amount = CAST(ROUND(expected_amount) AS INTEGER), '
+            'actual_paid = CAST(ROUND(actual_paid) AS INTEGER), '
+            'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
+            'WHERE 1=1',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: salary_cycles conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // salary_payments.amount
+        try {
+          await m.database.customStatement(
+            'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: salary_payments conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // audit_logs.amount_impact
+        try {
+          await m.database.customStatement(
+            'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 24: audit_logs conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // إضافة حقل discountStartDate للحجوزات إذا لم يكن موجوداً
+        try {
+          await m.addColumn(bookings, bookings.discountStartDate);
+        } catch (e) {
+          developer.log(
+            'Migration 24: add discountStartDate already exists or failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 25) {
+        try {
+          await m.addColumn(
+            bookingNights,
+            bookingNights.appliedAdjustmentsJson,
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 25: add appliedAdjustmentsJson failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 26) {
+        try {
+          await m.addColumn(
+            bookingPriceAdjustments,
+            bookingPriceAdjustments.adjustmentMode,
+          );
+          developer.log(
+            'Migration 26: added adjustmentMode column to booking_price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 26: add adjustmentMode failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 27) {
+        try {
+          await m.addColumn(outbox, outbox.remotePayload);
+          await m.addColumn(bookings, bookings.financialHash);
+          await m.addColumn(bookings, bookings.financialFrozenAt);
+          developer.log(
+            'Migration 27: added remotePayload to outbox, financialHash/financialFrozenAt to bookings',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log('Migration 27 failed: $e', name: 'db.migration');
+        }
+      }
+      if (from < 28) {
+        try {
+          await m.createTable(guestInfos);
+          developer.log(
+            'Migration 28: created guest_infos table',
+            name: 'db.migration',
+          );
+        } catch (e, st) {
+          developer.log(
+            'Migration 28 failed: $e',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
+        }
+      }
     },
   );
 
@@ -714,9 +1485,13 @@ class AppDatabase extends _$AppDatabase {
     }
 
     List<Map<String, dynamic>>? asListIfPresent(String key) {
-      if (!merged.containsKey(key)) return null;
+      if (!merged.containsKey(key)) {
+        return null;
+      }
       final value = merged[key];
-      if (value == null) return <Map<String, dynamic>>[];
+      if (value == null) {
+        return <Map<String, dynamic>>[];
+      }
       if (value is! List) {
         throw StateError(
           'Invalid snapshot table type for $key: ${value.runtimeType}',
@@ -726,159 +1501,115 @@ class AppDatabase extends _$AppDatabase {
     }
 
     await transaction(() async {
-      // تعطيل foreign keys مؤقتاً
+      // تعطيل foreign key constraints مؤقتاً لتجنب مشاكل الحذف
       await customStatement('PRAGMA foreign_keys = OFF');
 
-      // دالة مساعدة للجداول المستقلة (لا تعتمد على bookings)
-      Future<void> replaceIndependentTable<T extends Insertable<dynamic>>(
+      Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
         TableInfo<Table, dynamic> table,
         String key,
         T Function(Map<String, dynamic> json) fromJson,
       ) async {
         final rows = asListIfPresent(key);
-        if (rows == null) return;
+        if (rows == null) {
+          return;
+        }
         await delete(table).go();
         await batch((batch) {
-          batch.insertAll(table, rows.map(fromJson).toList(),
-              mode: InsertMode.insertOrReplace);
+          batch.insertAll(
+            table,
+            rows.map(fromJson).toList(),
+            mode: InsertMode.insertOrReplace,
+          );
         });
       }
 
-      // 1. استيراد الجداول المستقلة
-      await replaceIndependentTable(rooms, 'rooms', Room.fromJson);
-      await replaceIndependentTable(employees, 'employees', Employee.fromJson);
-      await replaceIndependentTable(shiftNotes, 'shift_notes', ShiftNote.fromJson);
-      await replaceIndependentTable(guestInfos, 'guest_infos', GuestInfo.fromJson);
-      await replaceIndependentTable(expenses, 'expenses', Expense.fromJson);
-      await replaceIndependentTable(cashTransactions, 'cash_transactions', CashTransaction.fromJson);
-      await replaceIndependentTable(hotelDayLedger, 'hotel_day_ledger', HotelDayLedgerEntry.fromJson);
-      await replaceIndependentTable(autoFixRuns, 'auto_fix_runs', AutoFixRun.fromJson);
-      await replaceIndependentTable(integrityViolations, 'integrity_violations', IntegrityViolation.fromJson);
-      await replaceIndependentTable(appSessions, 'app_sessions', AppSession.fromJson);
-      await replaceIndependentTable(salaryCycles, 'salary_cycles', SalaryCycle.fromJson);
-      await replaceIndependentTable(salaryPayments, 'salary_payments', SalaryPayment.fromJson);
-      await replaceIndependentTable(priceAdjustments, 'price_adjustments', PriceAdjustment.fromJson);
-      await replaceIndependentTable(auditLogs, 'audit_logs', AuditLog.fromJson);
-      await replaceIndependentTable(paymentVoids, 'payment_voids', PaymentVoid.fromJson);
+      await replaceTableIfNonEmpty<Room>(
+        rooms,
+        'rooms',
+        (row) => Room.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<Booking>(
+        bookings,
+        'bookings',
+        (row) => Booking.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<BookingNote>(
+        bookingNotes,
+        'booking_notes',
+        (row) => BookingNote.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<ShiftNote>(
+        shiftNotes,
+        'shift_notes',
+        (row) => ShiftNote.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<Employee>(
+        employees,
+        'employees',
+        (row) => Employee.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<Expense>(
+        expenses,
+        'expenses',
+        (row) => Expense.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<CashTransaction>(
+        cashTransactions,
+        'cash_transactions',
+        (row) => CashTransaction.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<Payment>(
+        payments,
+        'payments',
+        (row) => Payment.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<Debt>(
+        debts,
+        'debts',
+        (row) => Debt.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<BookingNight>(
+        bookingNights,
+        'booking_nights',
+        (row) => BookingNight.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<HotelDayLedgerEntry>(
+        hotelDayLedger,
+        'hotel_day_ledger',
+        (row) => HotelDayLedgerEntry.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<AutoFixRun>(
+        autoFixRuns,
+        'auto_fix_runs',
+        (row) => AutoFixRun.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<IntegrityViolation>(
+        integrityViolations,
+        'integrity_violations',
+        (row) => IntegrityViolation.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<AppSession>(
+        appSessions,
+        'app_sessions',
+        (row) => AppSession.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<SalaryCycle>(
+        salaryCycles,
+        'salary_cycles',
+        (row) => SalaryCycle.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<SalaryPayment>(
+        salaryPayments,
+        'salary_payments',
+        (row) => SalaryPayment.fromJson(row),
+      );
+      await replaceTableIfNonEmpty<BookingPriceAdjustment>(
+        bookingPriceAdjustments,
+        'booking_price_adjustments',
+        (row) => BookingPriceAdjustment.fromJson(row),
+      );
 
-      // 2. استيراد bookings (لأنها مرجع للجداول الأخرى)
-      await replaceIndependentTable(bookings, 'bookings', Booking.fromJson);
-
-      // 3. بناء الخرائط اللازمة
-      final bookingsList = await select(bookings).get();
-      final serverIdToLocalId = <int, int>{};
-      final uuidToLocalId = <String, int>{};
-      for (final b in bookingsList) {
-        if (b.serverBookingId != null) {
-          serverIdToLocalId[b.serverBookingId!] = b.id;
-        }
-        uuidToLocalId[b.localUuid] = b.id;
-      }
-
-      // دالة مساعدة لتحويل المفتاح الأجنبي
-      int? resolveBookingId(Map<String, dynamic> row, {bool preferUuid = false}) {
-        final possibleKeys = ['booking_local_id', 'bookingLocalId', 'bookingId', 'booking_id'];
-        for (final key in possibleKeys) {
-          final value = row[key];
-          if (value != null) {
-            if (value is int) {
-              return serverIdToLocalId[value];
-            } else if (value is String) {
-              final parsed = int.tryParse(value);
-              if (parsed != null) {
-                return serverIdToLocalId[parsed];
-              } else if (preferUuid) {
-                return uuidToLocalId[value];
-              }
-            }
-          }
-        }
-        return null;
-      }
-
-      // 4. معالجة booking_nights
-      final nights = asListIfPresent('booking_nights');
-      if (nights != null) {
-        await delete(bookingNights).go();
-        for (final night in nights) {
-          final localId = resolveBookingId(night);
-          if (localId != null) {
-            night['booking_local_id'] = localId;
-            await into(bookingNights).insert(BookingNight.fromJson(night));
-          } else {
-            developer.log('⚠️ تخطي ليلة لحجز غير موجود: $night', name: 'AppDatabase');
-          }
-        }
-      }
-
-      // 5. معالجة payments
-      final paymentsList = asListIfPresent('payments');
-      if (paymentsList != null) {
-        await delete(payments).go();
-        for (final payment in paymentsList) {
-          final localId = resolveBookingId(payment);
-          if (localId != null) {
-            payment['booking_local_id'] = localId;
-            await into(payments).insert(Payment.fromJson(payment));
-          } else {
-            developer.log('⚠️ تخطي دفعة لحجز غير موجود: $payment', name: 'AppDatabase');
-          }
-        }
-      }
-
-      // 6. معالجة debts
-      final debtsList = asListIfPresent('debts');
-      if (debtsList != null) {
-        await delete(debts).go();
-        for (final debt in debtsList) {
-          final localId = resolveBookingId(debt);
-          if (localId != null) {
-            debt['booking_local_id'] = localId;
-            await into(debts).insert(Debt.fromJson(debt));
-          } else {
-            developer.log('⚠️ تخطي دين لحجز غير موجود: $debt', name: 'AppDatabase');
-          }
-        }
-      }
-
-      // 7. معالجة booking_notes
-      final notes = asListIfPresent('booking_notes');
-      if (notes != null) {
-        await delete(bookingNotes).go();
-        for (final note in notes) {
-          final localId = resolveBookingId(note);
-          if (localId != null) {
-            note['booking_id'] = localId;
-            await into(bookingNotes).insert(BookingNote.fromJson(note));
-          } else {
-            developer.log('⚠️ تخطي ملاحظة لحجز غير موجود: $note', name: 'AppDatabase');
-          }
-        }
-      }
-
-      // 8. معالجة booking_price_adjustments (تعتمد على uuid بشكل رئيسي، ولكن قد تحتوي على bookingLocalId)
-      final adjustments = asListIfPresent('booking_price_adjustments');
-      if (adjustments != null) {
-        await delete(bookingPriceAdjustments).go();
-        for (final adj in adjustments) {
-          final bookingUuid = adj['booking_local_uuid'] ?? adj['bookingLocalUuid'];
-          if (bookingUuid is String && uuidToLocalId.containsKey(bookingUuid)) {
-            adj['booking_local_uuid'] = bookingUuid;
-            adj['booking_local_id'] = uuidToLocalId[bookingUuid];
-          } else {
-            final localId = resolveBookingId(adj, preferUuid: false);
-            if (localId != null) {
-              adj['booking_local_id'] = localId;
-            } else {
-              developer.log('⚠️ تخطي تعديل سعر لحجز غير موجود: $adj', name: 'AppDatabase');
-              continue;
-            }
-          }
-          await into(bookingPriceAdjustments).insert(BookingPriceAdjustment.fromJson(adj));
-        }
-      }
-
-      // إعادة تفعيل foreign keys
+      // إعادة تفعيل foreign key constraints
       await customStatement('PRAGMA foreign_keys = ON');
     });
   }
