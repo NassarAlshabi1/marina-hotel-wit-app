@@ -1639,6 +1639,11 @@ class DatabaseManager {
   static bool get isInitialized => _instance != null;
   static bool get isRestoring => _isRestoring;
 
+  static Future<String> get databasePath async {
+    final dbDir = await sqflite.getDatabasesPath();
+    return p.join(dbDir, _dbFileName);
+  }
+
   static Future<T> runWithRestoreGuard<T>(Future<T> Function() action) async {
     _isRestoring = true;
     try {
