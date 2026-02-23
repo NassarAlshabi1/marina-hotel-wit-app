@@ -1363,52 +1363,58 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _bookingToRemote(Booking booking) {
-    final data = <String, dynamic>{
-      'roomNumber': booking.roomNumber,
-      'guestName': booking.guestName,
-      'guestPhone': booking.guestPhone,
-      'guestIdType': booking.guestIdType,
-      'guestIdNumber': booking.guestIdNumber,
-      'guestNationality': booking.guestNationality,
-      'checkinDate': booking.checkinDate,
-      'status': booking.status,
-      'expectedNights': booking.expectedNights,
-      'calculatedNights': booking.calculatedNights,
-      'discount': booking.discount,
-      'isOverdue': booking.isOverdue,
-      'isFullyPaid': booking.isFullyPaid,
-      'remainingBalanceCached': booking.remainingBalanceCached,
-      'totalDueCached': booking.totalDueCached,
-      'totalPaidCached': booking.totalPaidCached,
-      'totalNightsCached': booking.totalNightsCached,
-      'needsCheckoutReview': booking.needsCheckoutReview,
-      'localUuid': booking.localUuid,
-      'createdAt': booking.createdAt,
-      'updatedAt': booking.updatedAt,
-      'lastModified': booking.lastModified,
-      'version': booking.version,
-      'origin': booking.origin,
-    };
-    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
-    _putIfNotNull(data, 'serverId', booking.serverId);
-    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
-    _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
-    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
-    _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
-    _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
-    _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
-    _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
-    _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
-    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
-    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
-    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
-    _putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
-    _putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
-    _putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
-    _putIfStringNotEmpty(data, 'financialFrozenAt', booking.financialFrozenAt);
-    _putIfStringNotEmpty(data, 'notes', booking.notes);
-    return data;
-  }
+  final data = <String, dynamic>{
+    'roomNumber': booking.roomNumber,
+    'guestName': booking.guestName,
+    'guestPhone': booking.guestPhone,
+    'guestIdType': booking.guestIdType,
+    'guestIdNumber': booking.guestIdNumber,
+    'guestNationality': booking.guestNationality,
+    'checkinDate': booking.checkinDate,
+    'status': booking.status,
+    'expectedNights': booking.expectedNights,
+    'calculatedNights': booking.calculatedNights,
+    'discount': booking.discount,
+    'isOverdue': booking.isOverdue,
+    'isFullyPaid': booking.isFullyPaid,
+    'remainingBalanceCached': booking.remainingBalanceCached,
+    'totalDueCached': booking.totalDueCached,
+    'totalPaidCached': booking.totalPaidCached,
+    'totalNightsCached': booking.totalNightsCached,
+    'needsCheckoutReview': booking.needsCheckoutReview,
+    'localUuid': booking.localUuid,
+    'createdAt': booking.createdAt,
+    'updatedAt': booking.updatedAt,
+    'lastModified': booking.lastModified,
+    'version': booking.version,
+    'origin': booking.origin,
+  };
+  
+  _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
+  _putIfNotNull(data, 'serverId', booking.serverId);
+  _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+  _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
+  _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
+  _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
+  _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
+  _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
+  _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
+  _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
+  _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
+  _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
+  
+  // ✅ تصحيح: discountStartData (Data وليس Date)
+  _putIfStringNotEmpty(data, 'discountType', booking.discountType);
+  _putIfStringNotEmpty(data, 'discountStartData', booking.discountStartDate);
+  
+  _putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
+  _putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
+  _putIfStringNotEmpty(data, 'financialFrozenAt', booking.financialFrozenAt);
+  _putIfStringNotEmpty(data, 'notes', booking.notes);
+  
+  return data;
+}
+
 
   Map<String, dynamic> _expenseToRemote(Expense expense) {
     final data = <String, dynamic>{
