@@ -105,7 +105,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
-      await outboxDao.clearAll();
+      await outboxDao.removeAllPending();
       debugPrint('✅ تم تنظيف outbox بنجاح');
     } catch (e) {
       debugPrint('⚠️ فشل تنظيف outbox: $e');
