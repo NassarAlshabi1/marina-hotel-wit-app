@@ -19,6 +19,7 @@ class AppwriteDeltaSyncResult {
   final int pushedCount;
   final int pulledCount;
   final int conflictCount;
+  final int failedCount;
 
   AppwriteDeltaSyncResult({
     required this.success,
@@ -26,6 +27,7 @@ class AppwriteDeltaSyncResult {
     this.pushedCount = 0,
     this.pulledCount = 0,
     this.conflictCount = 0,
+    this.failedCount = 0,
   });
 
   int get recordsPulled => pulledCount;
@@ -135,7 +137,7 @@ class AppwriteDeltaSync {
           : 'تم رفع ${successfulChanges.length} تغيير بنجاح';
 
       _logger.info('✅ $message', tag: 'DELTA_SYNC');
-      return AppwriteDeltaSyncResult(success: !hasFailures, message: message, pushedCount: successfulChanges.length);
+      return AppwriteDeltaSyncResult(success: !hasFailures, message: message, pushedCount: successfulChanges.length, failedCount: failedChanges.length);
     } catch (e) {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());

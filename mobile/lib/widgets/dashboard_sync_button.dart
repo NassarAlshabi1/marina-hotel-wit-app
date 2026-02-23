@@ -10,6 +10,7 @@ import '../services/daos/sync_log_dao.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_core/conflict_resolver.dart';
+import '../services/local_db.dart'; // For DatabaseManager;
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -79,7 +80,7 @@ class _DashboardSyncButtonState
       /// تنظيف outbox عند نجاح كامل
       if (pushResult.failedCount == 0) {
         final dao = OutboxDao(db);
-        await dao.clear();
+        await dao.removeAllPending();
       }
 
       /// ===============================
@@ -90,10 +91,10 @@ class _DashboardSyncButtonState
       /// ===============================
       /// 3️⃣ Backup to Google Drive
       /// ===============================
-      final driveService = ref.read(googleDriveServiceProvider);
+      final driveService = ref.read(googleDriveBackupServiceProvider);
 
       await driveService.uploadDatabaseBackup(
-        databasePath: db.path,
+        databasePath: await DatabaseManager.databasePath,
       );
 
       await _loadPendingCount();
@@ -132,10 +133,10 @@ class _DashboardSyncButtonState
 
     try {
       final db = ref.read(databaseProvider);
-      final driveService = ref.read(googleDriveServiceProvider);
+      final driveService = ref.read(googleDriveBackupServiceProvider);
 
       await driveService.downloadLatestBackup(
-        databasePath: db.path,
+        databasePath: await DatabaseManager.databasePath,
       );
 
       await _loadPendingCount();
