@@ -31,45 +31,42 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   int _pendingChangesCount = 0;
   DateTime? _lastSyncTime;
   
-  // ✅ تحسين: تخزين مؤقت للقيم الثابتة لتجنب القراءات المتكررة
+  // كاش للبيانات الثابتة
   String? _cachedDeviceId;
-  SharedPreferences? _cachedPrefs;
-  // ✅ تحسين: متغير لمنع الضغط المتكرر السريع
-  DateTime? _lastPushAttempt;
-  static const _pushDebounceMs = 500;
+  SharedPreferences? _prefs;
+  DateTime? _lastPushClick;
+  static const _debounceMs = 300;
 
   @override
   void initState() {
     super.initState();
     _pullAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 800),
     );
     _pushAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 800),
     );
 
-    _initializeCache();
+    _initCache();
     _loadPendingChangesCount();
 
-    // ✅ تحسين: تقليل الفترة إلى 5 ثوانٍ بدلاً من 2 لتقليل الضغط على قاعدة البيانات
-    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted && !_isPulling && !_isPushing) {
         _loadPendingChangesCount();
       }
     });
   }
 
-  // ✅ تحسين: تهيئة الكاش مرة واحدة
-  Future<void> _initializeCache() async {
-    _cachedPrefs = await SharedPreferences.getInstance();
-    _cachedDeviceId = _cachedPrefs?.getString('device_id');
+  Future<void> _initCache() async {
+    _prefs = await SharedPreferences.getInstance();
+    _cachedDeviceId = _prefs?.getString('device_id');
     if (_cachedDeviceId == null) {
       _cachedDeviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
-      await _cachedPrefs?.setString('device_id', _cachedDeviceId!);
+      await _prefs?.setString('device_id', _cachedDeviceId!);
     }
-    _appwriteEnabled = _cachedPrefs?.getBool('appwrite_sync_enabled') ?? true;
+    _appwriteEnabled = _prefs?.getBool('appwrite_sync_enabled') ?? true;
     if (mounted) setState(() {});
   }
 
@@ -84,35 +81,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<void> _loadPendingChangesCount() async {
     try {
       final db = ref.read(databaseProvider);
-      final outboxDao = OutboxDao(db);
-      final count = await outboxDao.count();
-      if (mounted) {
-        setState(() {
-          _pendingChangesCount = count;
-        });
-      }
+      final count = await OutboxDao(db).count();
+      if (mounted) setState(() => _pendingChangesCount = count);
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
+      debugPrint('❌ خطأ في تحميل عدد التغييرات: $e');
     }
   }
 
-  // ✅ تحسين: استخدام الكاش بدلاً من القراءة المتكررة
-  bool _isAppwriteSyncEnabled() {
-    return _cachedPrefs?.getBool('appwrite_sync_enabled') ?? false;
-  }
+  bool get _isAppwriteSyncEnabled => 
+    _prefs?.getBool('appwrite_sync_enabled') ?? false;
 
-  /// سحب التغييرات من Appwrite (Pull فقط - بدون دفع)
+  /// سحب التغييرات من Appwrite (Pull فقط)
   Future<void> _pullChanges(BuildContext context) async {
     if (_isPulling) return;
 
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
     final deviceId = _cachedDeviceId ?? 'unknown';
-
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
-    
-    // ✅ تحسين: تنفيذ التسجيل بشكل غير متزامن بدون انتظار
+
     unawaited(syncLogDao.logSync(
       syncId: syncId,
       direction: 'pull',
@@ -125,48 +113,36 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     if (mounted) setState(() => _isPulling = true);
 
     try {
-      final appwriteEnabled = _isAppwriteSyncEnabled();
-      if (!appwriteEnabled) {
-        if (mounted) {
-          _showSnackBar(
-            'مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات',
-            Colors.orange,
-          );
-        }
+      if (!_isAppwriteSyncEnabled) {
+        _showSnack('مزامنة Appwrite معطلة', Colors.orange);
         return;
       }
 
-      // ✅ تحسين: التحقق من الاتصال بشكل أسرع باستخدام القيمة المخزنة أولاً
-      final connectionStatus = ref.read(connectionStatusProvider);
-      if (!connectionStatus.isConnected) {
+      final connState = ref.read(connectionStatusProvider);
+      if (!connState.isConnected) {
         await ref.read(connectionStatusProvider.notifier).checkConnection();
         if (!ref.read(connectionStatusProvider).isConnected) {
-          if (mounted) _showSnackBar('لا يوجد اتصال بـ Appwrite', Colors.red);
+          _showSnack('لا يوجد اتصال', Colors.red);
           return;
         }
       }
 
-      if (mounted) {
-        _showLoadingSnackBar('⬇️ جاري سحب التغييرات من السيرفر...');
-      }
+      _showLoading('⬇️ جاري السحب...');
 
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
         final appwriteService = ref.read(appwriteServiceProvider);
-        final db = ref.read(databaseProvider);
         await deltaSync.initialize(appwriteService, db);
       }
 
-      // ✅ تحسين: تنفيذ السحب وحل التعارضات بشكل متوازي حيثما أمكن
       final pullResult = await deltaSync.pullDeltaChanges();
       final pulledCount = pullResult.recordsPulled;
 
-      // ✅ تحسين: تنظيف Outbox بشكل غير متزامن إذا وجدت بيانات
+      // تنظيف Outbox بعد السحب
       if (pulledCount > 0) {
         unawaited(OutboxDao(db).removeAllPending());
       }
 
-      // ✅ تحسين: حل التعارضات فوراً بدون رسالة منفصلة
       int conflictsResolved = 0;
       if (pullResult.hasConflicts) {
         conflictsResolved = await _resolveConflicts();
@@ -187,13 +163,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (mounted) {
         setState(() => _lastSyncTime = DateTime.now());
-        _showSuccessSnackBar(
-          '✅ تم سحب التغييرات بنجاح!',
-          '⬇️ استُلِم: $pulledCount ${conflictsResolved > 0 ? '  ⚖️ تعارضات محلولة: $conflictsResolved' : ''}',
-        );
+        _showSuccess('✅ تم السحب', '⬇️ $pulledCount سجل ${conflictsResolved > 0 ? '⚖️ $conflictsResolved' : ''}');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
+      debugPrint('❌ خطأ في السحب: $e');
       stopwatch.stop();
       unawaited(syncLogDao.logSync(
         syncId: syncId,
@@ -201,10 +174,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         deviceId: deviceId,
         target: 'Appwrite',
         status: 'failed',
-        errorMessage: _sanitizeError(e.toString()),
+        errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,
       ));
-      if (mounted) _showErrorSnackBar('تعذر سحب التغييرات: ${e.toString()}');
+      _showSnack('خطأ في السحب', Colors.red);
     } finally {
       _pullAnimationController.stop();
       _pullAnimationController.reset();
@@ -213,128 +186,97 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// رفع التغييرات المحلية (Push فقط) - ✅ نسخة محسّنة للسرعة
+  /// رفع التغييرات المحلية (Push) مع تنظيف Outbox
   Future<void> _pushChanges(BuildContext context) async {
-    // ✅ تحسين: منع الضغط المتكرر السريع (Debounce)
     final now = DateTime.now();
-    if (_lastPushAttempt != null && 
-        now.difference(_lastPushAttempt!).inMilliseconds < _pushDebounceMs) {
+    if (_lastPushClick != null && 
+        now.difference(_lastPushClick!).inMilliseconds < _debounceMs) {
       return;
     }
-    _lastPushAttempt = now;
-
+    _lastPushClick = now;
+    
     if (_isPushing) return;
-
-    // ✅ تحسين: قراءة العدد مباشرة من الكاش بدلاً من قاعدة البيانات
     if (_pendingChangesCount == 0) {
-      // تحديث سريع للتأكد
-      await _loadPendingChangesCount();
-      if (_pendingChangesCount == 0) {
-        if (mounted) {
-          _showSnackBar('✅ لا توجد تغييرات جديدة للرفع', Colors.green);
-        }
-        return;
-      }
+      _showSnack('لا توجد تغييرات', Colors.green);
+      return;
+    }
+
+    if (!_isAppwriteSyncEnabled) {
+      _showSnack('المزامنة معطلة', Colors.orange);
+      return;
     }
 
     final stopwatch = Stopwatch()..start();
     final syncId = 'push_${now.millisecondsSinceEpoch}';
     final deviceId = _cachedDeviceId ?? 'unknown';
-
     final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    
-    // ✅ تحسين: بدء التسجيل بشكل غير متزامن
-    unawaited(syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: deviceId,
-      target: 'Appwrite',
-      status: 'in_progress',
-    ));
 
     _pushAnimationController.repeat();
     if (mounted) setState(() => _isPushing = true);
 
     try {
-      // ✅ تحسين: قراءة جميع الإعدادات مرة واحدة من الكاش
-      final appwriteEnabled = _isAppwriteSyncEnabled();
-      
-      // ✅ تحسين: التحقق من الاتصال مباشرة بدون قراءة إضافية
-      bool appwriteConnected = false;
-      if (appwriteEnabled) {
-        appwriteConnected = ref.read(connectionStatusProvider).isConnected;
-      }
-
-      if (!appwriteEnabled || !appwriteConnected) {
-        if (mounted) {
-          _showSnackBar(
-            !appwriteEnabled 
-              ? 'ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات'
-              : 'لا يوجد اتصال بـ Appwrite',
-            Colors.orange,
-          );
+      final connState = ref.read(connectionStatusProvider);
+      if (!connState.isConnected) {
+        await ref.read(connectionStatusProvider.notifier).checkConnection();
+        if (!ref.read(connectionStatusProvider).isConnected) {
+          _showSnack('لا يوجد اتصال', Colors.red);
+          return;
         }
-        return;
       }
 
-      if (mounted) {
-        _showLoadingSnackBar('⬆️ جاري الرفع السريع...');
-      }
+      _showLoading('⬆️ جاري الرفع...');
 
-      // ✅ تحسين: تهيئة DeltaSync مباشرة بدون فحوصات مكررة
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
         final appwriteService = ref.read(appwriteServiceProvider);
         await deltaSync.initialize(appwriteService, db);
       }
 
-      // ✅ تحسين: تنفيذ الرفع مباشرة
-      final pushResult = await deltaSync.pushDeltaChanges();
-      final pushedCount = pushResult.recordsPushed;
+      final result = await deltaSync.pushDeltaChanges();
 
-      // ✅ تحسين: تحديث العدد بشكل فوري
-      await _loadPendingChangesCount();
+      // ✅ تنظيف Outbox فوراً بعد النجاح
+      if (result.success && result.recordsPushed > 0) {
+        final outboxDao = OutboxDao(db);
+        final cleanedCount = await outboxDao.removeAllPending();
+        debugPrint('🧹 تم تنظيف Outbox: $cleanedCount سجل');
+        
+        if (mounted) {
+          setState(() => _pendingChangesCount = 0);
+        }
+      } else {
+        await _loadPendingChangesCount();
+      }
 
       stopwatch.stop();
-      
-      // ✅ تحسين: تسجيل النتيجة بشكل غير متزامن
-      unawaited(syncLogDao.logSync(
+      unawaited(_logSync(
         syncId: syncId,
-        direction: 'push',
         deviceId: deviceId,
-        target: 'Appwrite',
-        status: pushResult.success ? 'success' : 'failed',
-        recordsPushed: pushedCount,
-        durationMs: stopwatch.elapsedMilliseconds,
+        success: result.success,
+        pushed: result.recordsPushed,
+        duration: stopwatch.elapsedMilliseconds,
       ));
 
       if (mounted) {
         setState(() => _lastSyncTime = DateTime.now());
-        if (pushResult.success) {
-          _showSuccessSnackBar(
-            '✅ تم الرفع بنجاح!',
-            '⬆️ أُرسل: $pushedCount في ${stopwatch.elapsedMilliseconds}ms',
-          );
+        if (result.success) {
+          _showSuccess('✅ تم الرفع والتنظيف', '⬆️ ${result.recordsPushed} سجل');
         } else {
-          _showErrorSnackBar('فشل الرفع', onRetry: () => _pushChanges(context));
+          _showSnack('فشل الرفع', Colors.red);
         }
       }
 
       ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
-      debugPrint('❌ فشل رفع التغييرات: $e');
+      debugPrint('❌ خطأ: $e');
       stopwatch.stop();
-      unawaited(syncLogDao.logSync(
+      unawaited(_logSync(
         syncId: syncId,
-        direction: 'push',
         deviceId: deviceId,
-        target: 'Appwrite',
-        status: 'failed',
-        errorMessage: _sanitizeError(e.toString()),
-        durationMs: stopwatch.elapsedMilliseconds,
+        success: false,
+        error: e.toString(),
+        duration: stopwatch.elapsedMilliseconds,
       ));
-      if (mounted) _showErrorSnackBar('تعذر الرفع', onRetry: () => _pushChanges(context));
+      _showSnack('خطأ في الرفع', Colors.red);
     } finally {
       _pushAnimationController.stop();
       _pushAnimationController.reset();
@@ -342,96 +284,31 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  // ✅ تحسين: دوال مساعدة مختصرة لعرض الرسائل بشكل أسرع
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _logSync({
+    required String syncId,
+    required String deviceId,
+    required bool success,
+    int? pushed,
+    String? error,
+    required int duration,
+  }) async {
+    try {
+      final db = ref.read(databaseProvider);
+      await SyncLogDao(db).logSync(
+        syncId: syncId,
+        direction: 'push',
+        deviceId: deviceId,
+        target: 'Appwrite',
+        status: success ? 'success' : 'failed',
+        recordsPushed: pushed,
+        errorMessage: error,
+        durationMs: duration,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في التسجيل: $e');
+    }
   }
 
-  void _showLoadingSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.blue,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String title, String subtitle) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.cloud_done, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(fontSize: 12)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message, {VoidCallback? onRetry}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-        action: onRetry != null
-            ? SnackBarAction(
-                label: 'إعادة',
-                textColor: Colors.white,
-                onPressed: onRetry,
-              )
-            : null,
-      ),
-    );
-  }
-
-  String _sanitizeError(String error) {
-    return error
-        .replaceAll(RegExp(r'Bearer\s+[a-zA-Z0-9\-\._]+'), 'Bearer [REDACTED]')
-        .replaceAll(RegExp(r'key=[a-zA-Z0-9]+'), 'key=[REDACTED]')
-        .replaceAll(RegExp(r'project=[a-zA-Z0-9]+'), 'project=[REDACTED]')
-        .replaceAll(RegExp(r'secret=[a-zA-Z0-9]+'), 'secret=[REDACTED]');
-  }
-
-  /// حل التعارضات بين البيانات المحلية والبعيدة
   Future<int> _resolveConflicts() async {
     int resolvedCount = 0;
     try {
@@ -478,57 +355,91 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
+  void _showSnack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showLoading(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 16, height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(msg),
+          ],
+        ),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 10),
+      ),
+    );
+  }
+
+  void _showSuccess(String title, String subtitle) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(subtitle, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   String _formatLastSyncTime(DateTime? lastSync) {
     if (lastSync == null) return '';
-    final difference = DateTime.now().difference(lastSync);
-
-    if (difference.inSeconds < 60) return 'منذ ${difference.inSeconds} ثانية';
-    if (difference.inMinutes < 60) return 'منذ ${difference.inMinutes} دقيقة';
-    if (difference.inHours < 24) return 'منذ ${difference.inHours} ساعة';
-    return 'منذ ${difference.inDays} يوم';
+    final diff = DateTime.now().difference(lastSync);
+    if (diff.inSeconds < 60) return 'منذ ${diff.inSeconds}ث';
+    if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes}د';
+    if (diff.inHours < 24) return 'منذ ${diff.inHours}س';
+    return 'منذ ${diff.inDays}ي';
   }
 
   Widget _buildPullButton(bool hasRemoteChanges, int pendingCount) {
-    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
-
-    Color buttonColor;
-    IconData buttonIcon;
-    String buttonText;
-
-    if (_isPulling) {
-      buttonColor = Colors.blue;
-      buttonIcon = Icons.cloud_download;
-      buttonText = 'جاري السحب...';
-    } else if (hasRemoteChanges) {
-      buttonColor = Colors.blue;
-      buttonIcon = Icons.cloud_download;
-      buttonText = 'سحب التغييرات';
-    } else {
-      buttonColor = Colors.blueGrey;
-      buttonIcon = Icons.cloud_download;
-      buttonText = 'تحقق من التحديثات';
-    }
+    final enabled = hasRemoteChanges && _appwriteEnabled && !_isPulling && !_isPushing;
 
     return Tooltip(
-      message: hasRemoteChanges
-          ? 'اضغط لسحب التغييرات الجديدة من السيرفر'
-          : 'تحقق من وجود تحديثات جديدة في السحابة',
+      message: hasRemoteChanges ? 'سحب $pendingCount تغيير' : 'لا توجد تحديثات',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 200), // ✅ أسرع
+            duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor.withOpacity(0.85), buttonColor],
+                colors: [
+                  enabled ? Colors.blue.withOpacity(0.85) : Colors.grey.shade400,
+                  enabled ? Colors.blue : Colors.grey.shade500,
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: buttonColor.withOpacity(pullEnabled ? 0.4 : 0.1),
-                  blurRadius: pullEnabled ? 8 : 4,
+                  color: enabled ? Colors.blue.withOpacity(0.4) : Colors.transparent,
+                  blurRadius: enabled ? 8 : 0,
                   offset: const Offset(0, 2),
                 ),
               ],
@@ -537,25 +448,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: pullEnabled ? () => _pullChanges(context) : null,
+                onTap: enabled ? () => _pullChanges(context) : null,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_isPulling)
                         RotationTransition(
                           turns: _pullAnimationController,
-                          child: Icon(buttonIcon, size: 14, color: Colors.white),
+                          child: const Icon(Icons.cloud_download, size: 16, color: Colors.white),
                         )
                       else
-                        Icon(buttonIcon, size: 14, color: Colors.white),
+                        Icon(
+                          hasRemoteChanges ? Icons.cloud_download : Icons.cloud_done,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       const SizedBox(width: 6),
                       Text(
-                        buttonText,
+                        _isPulling ? 'جاري السحب...' : (hasRemoteChanges ? 'سحب' : 'لا جديد'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -567,23 +482,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ),
           if (hasRemoteChanges && !_isPulling && pendingCount > 0)
             Positioned(
-              top: -6,
-              right: -6,
+              top: -8,
+              right: -8,
               child: Container(
-                padding: const EdgeInsets.all(5),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.blue,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.5),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ],
                 ),
-                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 child: Center(
                   child: Text(
                     pendingCount > 99 ? '99+' : '$pendingCount',
@@ -602,46 +510,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   Widget _buildPushButton(bool hasChanges) {
-    final bool pushEnabled = hasChanges && !_isPulling && !_isPushing;
-
-    Color buttonColor;
-    IconData buttonIcon;
-    String buttonText;
-
-    if (_isPushing) {
-      buttonColor = Colors.purple;
-      buttonIcon = Icons.cloud_upload;
-      buttonText = 'جاري الرفع...';
-    } else if (hasChanges) {
-      buttonColor = Colors.purple;
-      buttonIcon = Icons.cloud_upload;
-      buttonText = 'رفع التغييرات';
-    } else {
-      buttonColor = Colors.grey.shade400;
-      buttonIcon = Icons.cloud_done;
-      buttonText = 'محدّث';
-    }
+    final enabled = hasChanges && !_isPulling && !_isPushing;
 
     return Tooltip(
-      message: hasChanges
-          ? 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة'
-          : 'جميع التغييرات مرفوعة',
+      message: hasChanges ? 'رفع $_pendingChangesCount تغيير' : 'لا توجد تغييرات',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 200), // ✅ أسرع
+            duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor.withOpacity(0.85), buttonColor],
+                colors: [
+                  enabled ? Colors.purple.withOpacity(0.85) : Colors.grey.shade400,
+                  enabled ? Colors.purple : Colors.grey.shade500,
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: buttonColor.withOpacity(pushEnabled ? 0.4 : 0.1),
-                  blurRadius: pushEnabled ? 8 : 4,
+                  color: enabled ? Colors.purple.withOpacity(0.4) : Colors.transparent,
+                  blurRadius: enabled ? 8 : 0,
                   offset: const Offset(0, 2),
                 ),
               ],
@@ -650,25 +541,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: pushEnabled ? () => _pushChanges(context) : null,
+                onTap: enabled ? () => _pushChanges(context) : null,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_isPushing)
                         RotationTransition(
                           turns: _pushAnimationController,
-                          child: Icon(buttonIcon, size: 14, color: Colors.white),
+                          child: const Icon(Icons.cloud_upload, size: 16, color: Colors.white),
                         )
                       else
-                        Icon(buttonIcon, size: 14, color: Colors.white),
+                        Icon(
+                          hasChanges ? Icons.cloud_upload : Icons.cloud_done,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       const SizedBox(width: 6),
                       Text(
-                        buttonText,
+                        _isPushing ? 'جاري الرفع...' : (hasChanges ? 'رفع' : 'محدّث'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -680,23 +575,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ),
           if (hasChanges && !_isPushing)
             Positioned(
-              top: -6,
-              right: -6,
+              top: -8,
+              right: -8,
               child: Container(
-                padding: const EdgeInsets.all(5),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.red,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.5),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ],
                 ),
-                constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 child: Center(
                   child: Text(
                     _pendingChangesCount > 99 ? '99+' : '$_pendingChangesCount',
@@ -780,9 +668,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                                 : _isPushing
                                     ? 'جاري الرفع...'
                                     : hasLocalChanges
-                                        ? '$_pendingChangesCount تغيير محلي معلق'
+                                        ? '$_pendingChangesCount تغيير محلي'
                                         : hasRemoteChanges
-                                            ? '$pendingRemoteCount تحديث من السيرفر'
+                                            ? '$pendingRemoteCount تحديث'
                                             : 'محدّث',
                             style: TextStyle(
                               fontSize: 11,
@@ -813,4 +701,5 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       },
     );
-  ‌‍
+  }
+}
