@@ -247,7 +247,7 @@ class GoogleDriveDeltaSync {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
-    return '${deltaSyncPrefix}${dateStr}_$timeStr.json';
+    return '$deltaSyncPrefix${dateStr}_$timeStr.json';
   }
 
   Future<void> _uploadDeltaFile(
@@ -281,7 +281,7 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    return await _database!.transaction(() async {
+    return _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
       int applied = 0;
 
@@ -361,55 +361,41 @@ class GoogleDriveDeltaSync {
     switch (entity) {
       case 'rooms':
         await registry.rooms.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'bookings':
         await registry.bookings.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'payments':
         await registry.payments.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'expenses':
         await registry.expenses.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'debts':
         await registry.debts.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'employees':
         await registry.employees.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'booking_notes':
         await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'booking_nights':
         await registry.nights.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'salary_cycles':
         await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'salary_payments':
         await registry.salaryPayments.upsertFromJson(
           payload,
           src: Source.drive,
         );
-        break;
       case 'cash_transactions':
         await registry.cashTransactions.upsertFromJson(
           payload,
           src: Source.drive,
         );
-        break;
       case 'shift_notes':
         await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'price_adjustments':
-        await registry.priceAdjustments.upsertFromJson(payload, src: Source.drive);
-        break;
+        await registry.priceAdjustments
+            .upsertFromJson(payload, src: Source.drive);
       case 'audit_logs':
         await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'payment_voids':
         await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
-        break;
     }
   }
 
@@ -422,72 +408,86 @@ class GoogleDriveDeltaSync {
       case 'rooms':
         await (db.delete(
           db.rooms,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'bookings':
         await (db.delete(
           db.bookings,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'payments':
         await (db.delete(
           db.payments,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'expenses':
         await (db.delete(
           db.expenses,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'debts':
         await (db.delete(
           db.debts,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'employees':
         await (db.delete(
           db.employees,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'booking_notes':
         await (db.delete(
           db.bookingNotes,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'booking_nights':
         await (db.delete(
           db.bookingNights,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'salary_cycles':
         await (db.delete(
           db.salaryCycles,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'salary_payments':
         await (db.delete(
           db.salaryPayments,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'cash_transactions':
         await (db.delete(
           db.cashTransactions,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'shift_notes':
         await (db.delete(
           db.shiftNotes,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'price_adjustments':
         await (db.delete(
           db.priceAdjustments,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
       case 'payment_voids':
         await (db.delete(
           db.paymentVoids,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .go();
         return;
     }
   }
@@ -502,17 +502,16 @@ class GoogleDriveDeltaSync {
     if (operation == 'delete') {
       await (db.delete(
         db.cashTransactions,
-      )..where((t) => t.localUuid.equals(localUuid))).go();
+      )..where((t) => t.localUuid.equals(localUuid)))
+          .go();
       return;
     }
 
-    final transactionType =
-        _asString(data['transaction_type']) ??
+    final transactionType = _asString(data['transaction_type']) ??
         _asString(data['transactionType']);
     if (transactionType == null || transactionType.isEmpty) return;
 
-    final transactionTime =
-        _asString(data['transaction_time']) ??
+    final transactionTime = _asString(data['transaction_time']) ??
         _asString(data['transactionTime']) ??
         Time.nowIso();
 
@@ -540,7 +539,7 @@ class GoogleDriveDeltaSync {
             Time.nowEpoch(),
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('google_drive_delta'),
+      origin: const d.Value('google_drive_delta'),
       registerId: _nullableValue<int>(
         _asInt(data['register_id']) ?? _asInt(data['registerId']),
       ),
@@ -678,13 +677,12 @@ class GoogleDriveDeltaSync {
 }
 
 class DeltaSyncResult {
-  final bool success;
-  final String message;
-  final int changesCount;
-
   DeltaSyncResult({
     required this.success,
     required this.message,
     this.changesCount = 0,
   });
+  final bool success;
+  final String message;
+  final int changesCount;
 }

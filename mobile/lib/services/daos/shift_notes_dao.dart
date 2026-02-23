@@ -71,7 +71,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           },
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'create');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'shift_notes', operation: 'create');
       }
       return id;
     });
@@ -90,7 +91,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     return transaction(() async {
       final existing = await (select(
         shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      )..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       if (existing == null) return false;
 
       final now = Time.nowEpoch();
@@ -106,7 +108,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
       final rows = await (update(
         shiftNotes,
-      )..where((t) => t.id.equals(id))).write(companion);
+      )..where((t) => t.id.equals(id)))
+          .write(companion);
 
       if (rows > 0 && !originIsServer) {
         final payload = <String, dynamic>{};
@@ -125,7 +128,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
             payload: payload,
             clientTs: now,
           );
-          SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'update');
+          SyncGuardian.instance
+              .notifyLocalChange(table: 'shift_notes', operation: 'update');
         }
       }
       return rows > 0;
@@ -137,18 +141,19 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     return transaction(() async {
       final existing = await (select(
         shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      )..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       if (existing == null) return false;
 
       final now = Time.nowEpoch();
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-          .write(
-            ShiftNotesCompanion(
-              isRead: const Value(1),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(shiftNotes)..where((t) => t.id.equals(id))).write(
+        ShiftNotesCompanion(
+          isRead: const Value(1),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
 
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
@@ -159,7 +164,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {'is_read': 1},
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'update');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'shift_notes', operation: 'update');
       }
       return rows > 0;
     });
@@ -170,18 +176,19 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     return transaction(() async {
       final existing = await (select(
         shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      )..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       if (existing == null) return false;
 
       final now = Time.nowEpoch();
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-          .write(
-            ShiftNotesCompanion(
-              isRead: const Value(0),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(shiftNotes)..where((t) => t.id.equals(id))).write(
+        ShiftNotesCompanion(
+          isRead: const Value(0),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
 
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
@@ -192,7 +199,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {'is_read': 0},
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'update');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'shift_notes', operation: 'update');
       }
       return rows > 0;
     });
@@ -203,7 +211,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     return transaction(() async {
       final existing = await (select(
         shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      )..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       if (existing == null) return false; // Already deleted or doesn't exist
 
       // Soft delete if using SyncFields, but original code used hard delete.
@@ -214,14 +223,14 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       // SyncFields adds `deletedAt`. We should use Soft Delete.
 
       final now = Time.nowEpoch();
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-          .write(
-            ShiftNotesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(shiftNotes)..where((t) => t.id.equals(id))).write(
+        ShiftNotesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
 
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
@@ -232,7 +241,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {}, // Payload often empty for delete, or ID only
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'shift_notes', operation: 'delete');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'shift_notes', operation: 'delete');
       }
       return rows > 0;
     });
@@ -256,7 +266,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       ..addColumns([shiftNotes.id.count()])
       ..where(shiftNotes.isRead.equals(0));
     return query.watchSingle().map(
-      (row) => row.read(shiftNotes.id.count()) ?? 0,
-    );
+          (row) => row.read(shiftNotes.id.count()) ?? 0,
+        );
   }
 }

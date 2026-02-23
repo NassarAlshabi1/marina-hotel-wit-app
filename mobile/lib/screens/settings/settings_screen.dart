@@ -309,7 +309,7 @@ class SettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'المستخدمين',
-                    (usersCountAsync.value?.toString()) ?? '---',
+                    usersCountAsync.value?.toString() ?? '---',
                     Icons.admin_panel_settings,
                     Colors.purple,
                   ),
@@ -370,11 +370,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    final crossAxisCount = 3;
+    const crossAxisCount = 3;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
@@ -462,11 +462,11 @@ class SettingsScreen extends ConsumerWidget {
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AboutDialog(
+      builder: (context) => const AboutDialog(
         applicationName: 'تطبيق إدارة الفندق',
         applicationVersion: '1.2',
         applicationLegalese: '© 2026 Marina Hotel',
-        children: const [
+        children: [
           Text('تطبيق شامل لإدارة العمليات الفندقية'),
           SizedBox(height: 6),
           Text('تصميم Eng: Nassar Alshabi'),
@@ -478,12 +478,6 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 class _SettingsItem {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
   const _SettingsItem({
     required this.title,
     required this.subtitle,
@@ -491,4 +485,9 @@ class _SettingsItem {
     required this.color,
     required this.onTap,
   });
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 }

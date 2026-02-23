@@ -105,13 +105,12 @@ class FileManagementService {
         throw Exception('لا توجد ملفات للمشاركة');
       }
 
-      final xFiles = filePaths.map((path) => XFile(path)).toList();
+      final xFiles = filePaths.map(XFile.new).toList();
 
       await Share.shareXFiles(
         xFiles,
         subject: 'ملفات مارينا هوتيل',
-        text:
-            customMessage ??
+        text: customMessage ??
             'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
       );
 
@@ -341,14 +340,13 @@ class FileManagementService {
 
       // إضافة العناوين
       final firstRow = tableData.first as Map<String, dynamic>;
-      final headers = firstRow.keys
-          .map((key) => _translateColumnName(key))
-          .join(',');
+      final headers = firstRow.keys.map(_translateColumnName).join(',');
       csvContent.writeln(headers);
 
       // إضافة البيانات
       for (final row in tableData) {
-        final values = (row as Map<String, dynamic>).values
+        final values = (row as Map<String, dynamic>)
+            .values
             .map((value) => _escapeCsvValue(value?.toString() ?? ''))
             .join(',');
         csvContent.writeln(values);

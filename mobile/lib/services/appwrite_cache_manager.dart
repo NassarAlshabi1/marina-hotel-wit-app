@@ -5,11 +5,10 @@ import 'appwrite_config.dart';
 
 /// نموذج عنصر الذاكرة المؤقتة
 class CacheEntry<T> {
+  CacheEntry({required this.data, required this.timestamp, required this.ttl});
   final T data;
   final DateTime timestamp;
   final Duration ttl;
-
-  CacheEntry({required this.data, required this.timestamp, required this.ttl});
 
   bool get isExpired => DateTime.now().difference(timestamp) > ttl;
 
@@ -24,15 +23,6 @@ class CacheEntry<T> {
 
 /// إحصائيات الذاكرة المؤقتة
 class CacheStatistics {
-  final int totalEntries;
-  final int validEntries;
-  final int expiredEntries;
-  final int totalSizeBytes;
-  final int maxSizeBytes;
-  final double hitRate;
-  final int hits;
-  final int misses;
-
   CacheStatistics({
     required this.totalEntries,
     required this.validEntries,
@@ -43,6 +33,14 @@ class CacheStatistics {
     required this.hits,
     required this.misses,
   });
+  final int totalEntries;
+  final int validEntries;
+  final int expiredEntries;
+  final int totalSizeBytes;
+  final int maxSizeBytes;
+  final double hitRate;
+  final int hits;
+  final int misses;
 
   double get usagePercentage =>
       maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
@@ -53,10 +51,10 @@ class CacheStatistics {
 
 /// مدير الذاكرة المؤقتة
 class AppwriteCacheManager {
-  static final AppwriteCacheManager _instance =
-      AppwriteCacheManager._internal();
   factory AppwriteCacheManager() => _instance;
   AppwriteCacheManager._internal();
+  static final AppwriteCacheManager _instance =
+      AppwriteCacheManager._internal();
 
   final Map<String, CacheEntry> _cache = HashMap();
   Timer? _cleanupTimer;
@@ -168,9 +166,7 @@ class AppwriteCacheManager {
   /// مسح العناصر بناءً على نمط (pattern)
   int clearByPattern(String pattern) {
     final regex = RegExp(pattern);
-    final keysToRemove = _cache.keys
-        .where((key) => regex.hasMatch(key))
-        .toList();
+    final keysToRemove = _cache.keys.where(regex.hasMatch).toList();
 
     for (final key in keysToRemove) {
       _cache.remove(key);

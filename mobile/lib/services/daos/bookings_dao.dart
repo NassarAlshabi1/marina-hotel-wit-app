@@ -99,7 +99,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'create');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'bookings', operation: 'create');
       }
       return id;
     });
@@ -120,7 +121,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         bookings,
-      )..where((t) => t.id.equals(id))).write(comp);
+      )..where((t) => t.id.equals(id)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -128,7 +130,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'update');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'bookings', operation: 'update');
       }
       return rows;
     });
@@ -139,14 +142,14 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(bookings)..where((t) => t.id.equals(id)))
-          .write(
-            BookingsCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(bookings)..where((t) => t.id.equals(id))).write(
+        BookingsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'delete',
@@ -154,7 +157,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'delete');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'bookings', operation: 'delete');
       }
       return rows;
     });
@@ -195,11 +199,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
-    final row =
-        await (select(bookings)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
+    final row = await (select(bookings)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
     if (row == null) return null;
     return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
   }

@@ -29,18 +29,18 @@ final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
   final integrityReport = results[3] as IntegrityReport;
 
   final guardianHealthSnapshot = await guardian.watchHealth().first.timeout(
-    const Duration(seconds: 2),
-    onTimeout: () => const SyncHealthSnapshot(
-      lastSyncAt: null,
-      failedAttempts: 0,
-      pendingEvents: false,
-      isInitialized: false,
-      lastError: null,
-      monitoringActive: false,
-      priorityOverridden: false,
-      status: null,
-    ),
-  );
+        const Duration(seconds: 2),
+        onTimeout: () => const SyncHealthSnapshot(
+          lastSyncAt: null,
+          failedAttempts: 0,
+          pendingEvents: false,
+          isInitialized: false,
+          lastError: null,
+          monitoringActive: false,
+          priorityOverridden: false,
+          status: null,
+        ),
+      );
 
   return SyncDashboardData(
     guardianHealth: guardianHealthSnapshot,
@@ -53,13 +53,6 @@ final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
 });
 
 class SyncDashboardData {
-  final SyncHealthSnapshot guardianHealth;
-  final SyncHealth orchestratorHealth;
-  final SyncMetricsData? orchestratorMetrics;
-  final QueueStats queueStats;
-  final SyncHealthMetrics healthMetrics;
-  final IntegrityReport? integrityReport;
-
   const SyncDashboardData({
     required this.guardianHealth,
     required this.orchestratorHealth,
@@ -68,4 +61,10 @@ class SyncDashboardData {
     required this.healthMetrics,
     this.integrityReport,
   });
+  final SyncHealthSnapshot guardianHealth;
+  final SyncHealth orchestratorHealth;
+  final SyncMetricsData? orchestratorMetrics;
+  final QueueStats queueStats;
+  final SyncHealthMetrics healthMetrics;
+  final IntegrityReport? integrityReport;
 }

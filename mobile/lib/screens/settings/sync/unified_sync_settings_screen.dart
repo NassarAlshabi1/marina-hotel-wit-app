@@ -71,15 +71,15 @@ class _UnifiedSyncSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   color: UIConstants.syncColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'حالة المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -91,13 +91,13 @@ class _UnifiedSyncSettingsScreenState
               value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
               icon: Icons.schedule,
             ),
-            InfoRow(
+            const InfoRow(
               label: 'حالة الاتصال',
               value: 'متصل',
               icon: Icons.wifi,
               iconColor: Colors.green,
             ),
-            InfoRow(
+            const InfoRow(
               label: 'عناصر معلقة',
               value: '0',
               icon: Icons.pending,
@@ -138,7 +138,7 @@ class _UnifiedSyncSettingsScreenState
             subtitle: const Text('15 دقيقة'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showSyncIntervalDialog(),
+            onTap: _showSyncIntervalDialog,
           ),
         ],
       ),
@@ -153,8 +153,8 @@ class _UnifiedSyncSettingsScreenState
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -162,8 +162,8 @@ class _UnifiedSyncSettingsScreenState
                   color: UIConstants.syncColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'الأداء والبطارية',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -207,8 +207,8 @@ class _UnifiedSyncSettingsScreenState
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -216,8 +216,8 @@ class _UnifiedSyncSettingsScreenState
                   color: Colors.purple,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'المزامنة الذكية',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -261,8 +261,8 @@ class _UnifiedSyncSettingsScreenState
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -270,8 +270,8 @@ class _UnifiedSyncSettingsScreenState
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'Appwrite Sync',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -344,7 +344,7 @@ class _UnifiedSyncSettingsScreenState
           ListTile(
             title: const Text('إعادة تعيين المزامنة'),
             subtitle: const Text('إعادة تهيئة نظام المزامنة'),
-            leading: Icon(Icons.restore, color: Colors.orange),
+            leading: const Icon(Icons.restore, color: Colors.orange),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {},
           ),

@@ -138,9 +138,9 @@ class _SyncHealthDashboardScreenState
             Text(
               statusText,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             StatusIndicator(status: status),
@@ -172,8 +172,8 @@ class _SyncHealthDashboardScreenState
             final crossAxisCount = width < 360
                 ? 1
                 : width < 600
-                ? 2
-                : 3;
+                    ? 2
+                    : 3;
             return GridView.count(
               crossAxisCount: crossAxisCount,
               shrinkWrap: true,
@@ -205,9 +205,8 @@ class _SyncHealthDashboardScreenState
                   title: 'معدل التعارضات',
                   value: '${(metrics.conflictRate * 100).toStringAsFixed(0)}%',
                   icon: Icons.merge_type,
-                  color: metrics.conflictRate > 0.3
-                      ? Colors.orange
-                      : Colors.green,
+                  color:
+                      metrics.conflictRate > 0.3 ? Colors.orange : Colors.green,
                 ),
                 MetricCard(
                   title: 'آخر مزامنة ناجحة',
@@ -516,15 +515,13 @@ class _SyncHealthDashboardScreenState
 
     final hasIssues = report.hasIssues;
     final hasCritical = report.hasCriticalIssues;
-    final statusColor = hasCritical
-        ? Colors.red
-        : (hasIssues ? Colors.orange : Colors.green);
+    final statusColor =
+        hasCritical ? Colors.red : (hasIssues ? Colors.orange : Colors.green);
     final statusIcon = hasCritical
         ? Icons.error
         : (hasIssues ? Icons.warning : Icons.check_circle);
-    final statusText = hasCritical
-        ? 'مشاكل حرجة'
-        : (hasIssues ? 'تحذيرات' : 'سليم');
+    final statusText =
+        hasCritical ? 'مشاكل حرجة' : (hasIssues ? 'تحذيرات' : 'سليم');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,7 +620,7 @@ class _SyncHealthDashboardScreenState
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ],
                 if (!hasIssues) ...[
@@ -676,11 +673,6 @@ class _SyncHealthDashboardScreenState
 }
 
 class MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color? color;
-
   const MetricCard({
     super.key,
     required this.title,
@@ -688,6 +680,10 @@ class MetricCard extends StatelessWidget {
     required this.icon,
     this.color,
   });
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -727,9 +723,8 @@ class MetricCard extends StatelessWidget {
 }
 
 class StatusIndicator extends StatelessWidget {
-  final SyncHealthStatus status;
-
   const StatusIndicator({super.key, required this.status});
+  final SyncHealthStatus status;
 
   Color get color {
     switch (status) {
@@ -786,14 +781,13 @@ class StatusIndicator extends StatelessWidget {
 }
 
 class CircuitBreakerCard extends StatelessWidget {
-  final String name;
-  final CircuitState state;
-
   const CircuitBreakerCard({
     super.key,
     required this.name,
     required this.state,
   });
+  final String name;
+  final CircuitState state;
 
   @override
   Widget build(BuildContext context) {

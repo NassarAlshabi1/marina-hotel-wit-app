@@ -1,16 +1,6 @@
 import 'local_db.dart';
 
 class SalaryEntitlement {
-  final Employee employee;
-  final DateTime hireDate;
-  final int totalMonthsWorked;
-  final double basicSalary;
-  final double totalEntitlement;
-  final double totalWithdrawals;
-  final double totalDeductions;
-  final double netEntitlement;
-  final List<SalaryTransaction> transactions;
-
   SalaryEntitlement({
     required this.employee,
     required this.hireDate,
@@ -22,31 +12,39 @@ class SalaryEntitlement {
     required this.netEntitlement,
     required this.transactions,
   });
+  final Employee employee;
+  final DateTime hireDate;
+  final int totalMonthsWorked;
+  final double basicSalary;
+  final double totalEntitlement;
+  final double totalWithdrawals;
+  final double totalDeductions;
+  final double netEntitlement;
+  final List<SalaryTransaction> transactions;
 }
 
 class SalaryTransaction {
-  final String type;
-  final double amount;
-  final String date;
-  final String? note;
-
   SalaryTransaction({
     required this.type,
     required this.amount,
     required this.date,
     this.note,
   });
+  final String type;
+  final double amount;
+  final String date;
+  final String? note;
 }
 
 class SalaryEntitlementService {
-  final AppDatabase _db;
-
   SalaryEntitlementService(this._db);
+  final AppDatabase _db;
 
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
     final employees = await (_db.select(
       _db.employees,
-    )..where((e) => e.status.equals('active'))).get();
+    )..where((e) => e.status.equals('active')))
+        .get();
 
     final entitlements = <SalaryEntitlement>[];
     for (final employee in employees) {
@@ -70,11 +68,12 @@ class SalaryEntitlementService {
     }
 
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
-    final totalEntitlement = (totalMonthsWorked * employee.basicSalary).toDouble();
+    final totalEntitlement = totalMonthsWorked * employee.basicSalary;
 
     final expenses = await (_db.select(
       _db.expenses,
-    )..where((e) => e.relatedId.equals(employee.id))).get();
+    )..where((e) => e.relatedId.equals(employee.id)))
+        .get();
 
     double totalWithdrawals = 0;
     double totalDeductions = 0;

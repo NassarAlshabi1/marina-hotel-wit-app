@@ -54,13 +54,13 @@ class _SalaryEntitlementsScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entitlements.isEmpty
-          ? const Center(
-              child: Text(
-                'لا يوجد موظفين نشطين',
-                style: TextStyle(fontSize: 12),
-              ),
-            )
-          : RefreshIndicator(onRefresh: _loadData, child: _buildContent()),
+              ? const Center(
+                  child: Text(
+                    'لا يوجد موظفين نشطين',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                )
+              : RefreshIndicator(onRefresh: _loadData, child: _buildContent()),
     );
   }
 
@@ -75,7 +75,7 @@ class _SalaryEntitlementsScreenState
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ..._entitlements.map((e) => _buildEmployeeCard(e)),
+        ..._entitlements.map(_buildEmployeeCard),
       ],
     );
   }
@@ -205,9 +205,7 @@ class _SalaryEntitlementsScreenState
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
-                  ...ent.transactions
-                      .take(5)
-                      .map(
+                  ...ent.transactions.take(5).map(
                         (tx) => Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Row(

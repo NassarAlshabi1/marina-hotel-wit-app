@@ -45,11 +45,13 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
   Stream<Room?> watchById(int id) =>
       (select(rooms)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<Room?> getByNumber(String roomNumber) => (select(
-    rooms,
-  )..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
+        rooms,
+      )..where((t) => t.roomNumber.equals(roomNumber)))
+          .getSingleOrNull();
   Stream<Room?> watchByNumber(String roomNumber) => (select(
-    rooms,
-  )..where((t) => t.roomNumber.equals(roomNumber))).watchSingleOrNull();
+        rooms,
+      )..where((t) => t.roomNumber.equals(roomNumber)))
+          .watchSingleOrNull();
 
   Future<String> insertOne(
     RoomsCompanion data, {
@@ -75,7 +77,8 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromRoom(comp),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'create');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'rooms', operation: 'create');
       }
       return comp.roomNumber.value;
     });
@@ -96,7 +99,8 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         rooms,
-      )..where((t) => t.id.equals(id))).write(comp);
+      )..where((t) => t.id.equals(id)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'rooms',
@@ -106,7 +110,8 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromRoom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'update');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'rooms', operation: 'update');
       }
       return rows;
     });
@@ -127,7 +132,8 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         rooms,
-      )..where((t) => t.roomNumber.equals(roomNumber))).write(comp);
+      )..where((t) => t.roomNumber.equals(roomNumber)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'rooms',
@@ -137,7 +143,8 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromRoom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'update');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'rooms', operation: 'update');
       }
       return rows;
     });
@@ -151,16 +158,16 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getByNumber(roomNumber);
       if (existing == null) return 0;
-      final rows =
-          await (update(
-            rooms,
-          )..where((t) => t.roomNumber.equals(roomNumber))).write(
-            RoomsCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows = await (update(
+        rooms,
+      )..where((t) => t.roomNumber.equals(roomNumber)))
+          .write(
+        RoomsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'rooms',
@@ -170,7 +177,8 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           payload: {'room_number': roomNumber},
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'rooms', operation: 'delete');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'rooms', operation: 'delete');
       }
       return rows;
     });

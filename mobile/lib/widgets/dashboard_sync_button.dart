@@ -1,15 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../services/daos/outbox_dao.dart';
-import '../services/daos/sync_log_dao.dart';
 import '../services/appwrite_delta_sync.dart';
-import '../services/appwrite_realtime_sync.dart';
-import '../services/sync_core/conflict_resolver.dart';
 import '../services/local_db.dart'; // For DatabaseManager;
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -20,8 +16,7 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
       _DashboardSyncButtonState();
 }
 
-class _DashboardSyncButtonState
-    extends ConsumerState<DashboardSyncButton>
+class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     with SingleTickerProviderStateMixin {
   bool _isSyncing = false;
   int _pendingCount = 0;
@@ -191,8 +186,7 @@ class _DashboardSyncButtonState
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: _isSyncing
@@ -204,25 +198,24 @@ class _DashboardSyncButtonState
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _isSyncing
-                    ? RotationTransition(
-                        turns: _controller,
-                        child: const Icon(
-                          Icons.sync,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.sync,
-                        size: 16,
-                        color: Colors.white,
-                      ),
+                if (_isSyncing)
+                  RotationTransition(
+                    turns: _controller,
+                    child: const Icon(
+                      Icons.sync,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.sync,
+                    size: 16,
+                    color: Colors.white,
+                  ),
                 const SizedBox(width: 6),
                 Text(
-                  _isSyncing
-                      ? 'جاري المزامنة...'
-                      : 'مزامنة',
+                  _isSyncing ? 'جاري المزامنة...' : 'مزامنة',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -232,7 +225,6 @@ class _DashboardSyncButtonState
               ],
             ),
           ),
-
           if (hasChanges && !_isSyncing)
             Positioned(
               top: -6,

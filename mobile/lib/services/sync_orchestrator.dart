@@ -27,19 +27,6 @@ enum OrchestratorState {
 }
 
 class SyncTask {
-  final String id;
-  final String name;
-  final SyncPriority priority;
-  final SyncStrategy strategy;
-  final SyncDirection direction;
-  final Future<SyncTaskResult> Function() execute;
-  final bool Function()? canExecute;
-  final Duration timeout;
-  final int maxRetries;
-  int attempts;
-  DateTime? lastAttempt;
-  DateTime createdAt;
-
   SyncTask({
     required this.id,
     required this.name,
@@ -54,23 +41,28 @@ class SyncTask {
     this.lastAttempt,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
+  final String id;
+  final String name;
+  final SyncPriority priority;
+  final SyncStrategy strategy;
+  final SyncDirection direction;
+  final Future<SyncTaskResult> Function() execute;
+  final bool Function()? canExecute;
+  final Duration timeout;
+  final int maxRetries;
+  int attempts;
+  DateTime? lastAttempt;
+  DateTime createdAt;
 
   bool get canRetry => attempts < maxRetries;
 
   Duration get nextRetryDelay {
-    final baseDelay = Duration(seconds: 5);
+    const baseDelay = Duration(seconds: 5);
     return baseDelay * (1 << attempts.clamp(0, 5));
   }
 }
 
 class SyncTaskResult {
-  final bool success;
-  final int recordsProcessed;
-  final int conflicts;
-  final Duration duration;
-  final String? error;
-  final Map<String, dynamic>? metadata;
-
   const SyncTaskResult({
     required this.success,
     this.recordsProcessed = 0,
@@ -85,37 +77,35 @@ class SyncTaskResult {
     int conflicts = 0,
     required Duration duration,
     Map<String, dynamic>? metadata,
-  }) => SyncTaskResult(
-    success: true,
-    recordsProcessed: recordsProcessed,
-    conflicts: conflicts,
-    duration: duration,
-    metadata: metadata,
-  );
+  }) =>
+      SyncTaskResult(
+        success: true,
+        recordsProcessed: recordsProcessed,
+        conflicts: conflicts,
+        duration: duration,
+        metadata: metadata,
+      );
 
   factory SyncTaskResult.failure({
     required String error,
     required Duration duration,
     Map<String, dynamic>? metadata,
-  }) => SyncTaskResult(
-    success: false,
-    duration: duration,
-    error: error,
-    metadata: metadata,
-  );
+  }) =>
+      SyncTaskResult(
+        success: false,
+        duration: duration,
+        error: error,
+        metadata: metadata,
+      );
+  final bool success;
+  final int recordsProcessed;
+  final int conflicts;
+  final Duration duration;
+  final String? error;
+  final Map<String, dynamic>? metadata;
 }
 
 class SyncHealth {
-  final bool isHealthy;
-  final double successRate;
-  final int consecutiveFailures;
-  final Duration avgSyncDuration;
-  final DateTime? lastSuccessfulSync;
-  final DateTime? lastFailedSync;
-  final int pendingTasks;
-  final int outboxCount;
-  final Map<String, CircuitState> circuitStates;
-
   const SyncHealth({
     required this.isHealthy,
     required this.successRate,
@@ -127,18 +117,27 @@ class SyncHealth {
     required this.outboxCount,
     required this.circuitStates,
   });
+  final bool isHealthy;
+  final double successRate;
+  final int consecutiveFailures;
+  final Duration avgSyncDuration;
+  final DateTime? lastSuccessfulSync;
+  final DateTime? lastFailedSync;
+  final int pendingTasks;
+  final int outboxCount;
+  final Map<String, CircuitState> circuitStates;
 
   Map<String, dynamic> toJson() => {
-    'isHealthy': isHealthy,
-    'successRate': successRate,
-    'consecutiveFailures': consecutiveFailures,
-    'avgSyncDurationMs': avgSyncDuration.inMilliseconds,
-    'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
-    'lastFailedSync': lastFailedSync?.toIso8601String(),
-    'pendingTasks': pendingTasks,
-    'outboxCount': outboxCount,
-    'circuitStates': circuitStates.map((k, v) => MapEntry(k, v.name)),
-  };
+        'isHealthy': isHealthy,
+        'successRate': successRate,
+        'consecutiveFailures': consecutiveFailures,
+        'avgSyncDurationMs': avgSyncDuration.inMilliseconds,
+        'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
+        'lastFailedSync': lastFailedSync?.toIso8601String(),
+        'pendingTasks': pendingTasks,
+        'outboxCount': outboxCount,
+        'circuitStates': circuitStates.map((k, v) => MapEntry(k, v.name)),
+      };
 }
 
 class SyncMetricsData {
@@ -192,45 +191,43 @@ class SyncMetricsData {
   }
 
   Map<String, dynamic> toJson() => {
-    'totalSyncs': totalSyncs,
-    'successfulSyncs': successfulSyncs,
-    'failedSyncs': failedSyncs,
-    'successRate': successRate,
-    'totalRecordsProcessed': totalRecordsProcessed,
-    'totalConflicts': totalConflicts,
-    'avgDurationMs': avgDuration.inMilliseconds,
-    'consecutiveFailures': consecutiveFailures,
-    'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
-    'lastFailedSync': lastFailedSync?.toIso8601String(),
-  };
+        'totalSyncs': totalSyncs,
+        'successfulSyncs': successfulSyncs,
+        'failedSyncs': failedSyncs,
+        'successRate': successRate,
+        'totalRecordsProcessed': totalRecordsProcessed,
+        'totalConflicts': totalConflicts,
+        'avgDurationMs': avgDuration.inMilliseconds,
+        'consecutiveFailures': consecutiveFailures,
+        'lastSuccessfulSync': lastSuccessfulSync?.toIso8601String(),
+        'lastFailedSync': lastFailedSync?.toIso8601String(),
+      };
 }
 
 class DataIntegrityCheck {
-  final String tableName;
-  final String checksum;
-  final int recordCount;
-  final DateTime timestamp;
-
   const DataIntegrityCheck({
     required this.tableName,
     required this.checksum,
     required this.recordCount,
     required this.timestamp,
   });
+  final String tableName;
+  final String checksum;
+  final int recordCount;
+  final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-    'tableName': tableName,
-    'checksum': checksum,
-    'recordCount': recordCount,
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'tableName': tableName,
+        'checksum': checksum,
+        'recordCount': recordCount,
+        'timestamp': timestamp.toIso8601String(),
+      };
 }
 
 class SyncOrchestrator {
+  SyncOrchestrator._();
   static SyncOrchestrator? _instance;
   static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
-
-  SyncOrchestrator._();
 
   late AppDatabase _database;
   late OutboxDao _outboxDao;
@@ -289,15 +286,15 @@ class SyncOrchestrator {
 
     await ConnectivityService.instance.initialize();
 
-    _connectivitySubscription = ConnectivityService.instance.statusStream
-        .listen((status) {
-          if (status.isOnline && _state == OrchestratorState.paused) {
-            _setState(OrchestratorState.idle);
-            _processTasks();
-          } else if (!status.isOnline && _state == OrchestratorState.syncing) {
-            _setState(OrchestratorState.paused);
-          }
-        });
+    _connectivitySubscription =
+        ConnectivityService.instance.statusStream.listen((status) {
+      if (status.isOnline && _state == OrchestratorState.paused) {
+        _setState(OrchestratorState.idle);
+        _processTasks();
+      } else if (!status.isOnline && _state == OrchestratorState.syncing) {
+        _setState(OrchestratorState.paused);
+      }
+    });
 
     _healthCheckTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -446,8 +443,7 @@ class SyncOrchestrator {
     final outboxCount = await _outboxDao.count();
 
     return SyncHealth(
-      isHealthy:
-          _metrics.consecutiveFailures < 3 &&
+      isHealthy: _metrics.consecutiveFailures < 3 &&
           _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
       successRate: _metrics.successRate,
       consecutiveFailures: _metrics.consecutiveFailures,

@@ -44,8 +44,7 @@ class PriceAdjustmentsAdapter
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
+    final lastModified = refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
 
@@ -57,16 +56,24 @@ class PriceAdjustmentsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      targetType: _vStr(json, 'targetType', src, altKey: 'target_type', fallback: ''),
-      targetUuid: _vStr(json, 'targetUuid', src, altKey: 'target_uuid', fallback: ''),
-      adjustmentType: _vStr(json, 'adjustmentType', src, altKey: 'adjustment_type', fallback: ''),
-      previousValue: _vInt(json, 'previousValue', src, altKey: 'previous_value', fallback: 0),
+      targetType:
+          _vStr(json, 'targetType', src, altKey: 'target_type', fallback: ''),
+      targetUuid:
+          _vStr(json, 'targetUuid', src, altKey: 'target_uuid', fallback: ''),
+      adjustmentType: _vStr(json, 'adjustmentType', src,
+          altKey: 'adjustment_type', fallback: ''),
+      previousValue: _vInt(json, 'previousValue', src,
+          altKey: 'previous_value', fallback: 0),
       newValue: _vInt(json, 'newValue', src, altKey: 'new_value', fallback: 0),
       reason: _vStr(json, 'reason', src),
-      effectiveDate: _vStr(json, 'effectiveDate', src, altKey: 'effective_date', fallback: ''),
-      appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by', fallback: ''),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
-      isReversed: _vBool(json, 'isReversed', src, altKey: 'is_reversed', fallback: false),
+      effectiveDate: _vStr(json, 'effectiveDate', src,
+          altKey: 'effective_date', fallback: ''),
+      appliedBy:
+          _vStr(json, 'appliedBy', src, altKey: 'applied_by', fallback: ''),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src,
+          altKey: 'hotel_day_key', fallback: ''),
+      isReversed: _vBool(json, 'isReversed', src,
+          altKey: 'is_reversed', fallback: false),
       reversedAt: _vStr(json, 'reversedAt', src, altKey: 'reversed_at'),
       reversedBy: _vStr(json, 'reversedBy', src, altKey: 'reversed_by'),
       createdAt: d.Value(createdAt),
@@ -121,8 +128,7 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v =
-      _asInt(json, key, src) ??
+  final v = _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -135,8 +141,7 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v =
-      _asString(json, key, src) ??
+  final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -149,8 +154,7 @@ d.Value<bool> _vBool(
   String? altKey,
   bool? fallback,
 }) {
-  final v =
-      _asBool(json, key, src) ??
+  final v = _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

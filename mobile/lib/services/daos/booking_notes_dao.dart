@@ -61,7 +61,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'booking_notes', operation: 'create');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'booking_notes', operation: 'create');
       }
       return id;
     });
@@ -82,7 +83,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         bookingNotes,
-      )..where((t) => t.id.equals(id))).write(comp);
+      )..where((t) => t.id.equals(id)))
+          .write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -92,7 +94,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'booking_notes', operation: 'update');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'booking_notes', operation: 'update');
       }
       return rows;
     });
@@ -103,14 +106,14 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
-          .write(
-            BookingNotesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows =
+          await (update(bookingNotes)..where((t) => t.id.equals(id))).write(
+        BookingNotesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -120,7 +123,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {'id': id},
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(table: 'booking_notes', operation: 'delete');
+        SyncGuardian.instance
+            .notifyLocalChange(table: 'booking_notes', operation: 'delete');
       }
       return rows;
     });

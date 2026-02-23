@@ -36,16 +36,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   String get screenId => 'information_screen';
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final guestInfosAsync = ref.watch(guestInfoListProvider);
     final currentEntries = guestInfosAsync.maybeWhen(
@@ -77,7 +67,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           label: const Text('إضافة سجل'),
         ),
         body: guestInfosAsync.when(
-          data: (entries) => _buildContent(entries),
+          data: _buildContent,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) =>
               Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
@@ -237,7 +227,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       validator: _requiredValidator,
                     ),
                     DropdownButtonFormField<String>(
-                      value: selectedIdType,
+                      initialValue: selectedIdType,
                       decoration:
                           const InputDecoration(labelText: 'نوع الهوية'),
                       items: _idTypes
@@ -417,7 +407,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         pw.MultiPage(
           pageFormat: pdf.PdfPageFormat.a4,
           textDirection: pw.TextDirection.rtl,
-          margin: const pw.EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
+          margin: const pw.EdgeInsets.only(
+              top: 10, left: 20, right: 20, bottom: 20),
           theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
           header: (context) {
             return pw.Column(
@@ -522,7 +513,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               ),
               cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.center,
-              border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+              border:
+                  pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
               headerAlignments: {
                 0: pw.Alignment.centerRight,
                 1: pw.Alignment.centerRight,

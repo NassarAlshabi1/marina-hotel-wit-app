@@ -39,12 +39,6 @@ enum AdjustmentMode {
 }
 
 class AdjustmentPreview {
-  final double originalTotal;
-  final double adjustedTotal;
-  final double difference;
-  final int nightsAffected;
-  final List<NightBreakdown> nightlyBreakdown;
-
   AdjustmentPreview({
     required this.originalTotal,
     required this.adjustedTotal,
@@ -52,15 +46,14 @@ class AdjustmentPreview {
     required this.nightsAffected,
     required this.nightlyBreakdown,
   });
+  final double originalTotal;
+  final double adjustedTotal;
+  final double difference;
+  final int nightsAffected;
+  final List<NightBreakdown> nightlyBreakdown;
 }
 
 class NightBreakdown {
-  final String hotelDayKey;
-  final double baseRate;
-  final double adjustment;
-  final double finalRate;
-  final String? adjustmentUuid;
-
   NightBreakdown({
     required this.hotelDayKey,
     required this.baseRate,
@@ -68,15 +61,14 @@ class NightBreakdown {
     required this.finalRate,
     this.adjustmentUuid,
   });
+  final String hotelDayKey;
+  final double baseRate;
+  final double adjustment;
+  final double finalRate;
+  final String? adjustmentUuid;
 }
 
 class LostRevenueReport {
-  final double totalPotentialRevenue;
-  final double totalActualRevenue;
-  final double totalLostRevenue;
-  final double totalGainedRevenue;
-  final List<BookingLostRevenue> bookingDetails;
-
   LostRevenueReport({
     required this.totalPotentialRevenue,
     required this.totalActualRevenue,
@@ -84,18 +76,14 @@ class LostRevenueReport {
     required this.totalGainedRevenue,
     required this.bookingDetails,
   });
+  final double totalPotentialRevenue;
+  final double totalActualRevenue;
+  final double totalLostRevenue;
+  final double totalGainedRevenue;
+  final List<BookingLostRevenue> bookingDetails;
 }
 
 class BookingLostRevenue {
-  final int bookingId;
-  final String guestName;
-  final String roomNumber;
-  final double potentialRevenue;
-  final double actualRevenue;
-  final double lostRevenue;
-  final double gainedRevenue;
-  final List<AdjustmentSummary> adjustments;
-
   BookingLostRevenue({
     required this.bookingId,
     required this.guestName,
@@ -106,17 +94,17 @@ class BookingLostRevenue {
     required this.gainedRevenue,
     required this.adjustments,
   });
+  final int bookingId;
+  final String guestName;
+  final String roomNumber;
+  final double potentialRevenue;
+  final double actualRevenue;
+  final double lostRevenue;
+  final double gainedRevenue;
+  final List<AdjustmentSummary> adjustments;
 }
 
 class AdjustmentSummary {
-  final String uuid;
-  final AdjustmentType type;
-  final double amount;
-  final String effectiveHotelDay;
-  final String? endHotelDay;
-  final int nightsAffected;
-  final double totalImpact;
-
   AdjustmentSummary({
     required this.uuid,
     required this.type,
@@ -126,13 +114,19 @@ class AdjustmentSummary {
     required this.nightsAffected,
     required this.totalImpact,
   });
+  final String uuid;
+  final AdjustmentType type;
+  final double amount;
+  final String effectiveHotelDay;
+  final String? endHotelDay;
+  final int nightsAffected;
+  final double totalImpact;
 }
 
 class BookingPriceAdjustmentService {
+  BookingPriceAdjustmentService(this.db, {this.derivedFieldsService});
   final AppDatabase db;
   final BookingDerivedFieldsService? derivedFieldsService;
-
-  BookingPriceAdjustmentService(this.db, {this.derivedFieldsService});
 
   Future<AdjustmentPreview> previewAdjustment({
     required int bookingId,
@@ -225,7 +219,7 @@ class BookingPriceAdjustmentService {
     required int totalNights,
   }) {
     final sign = type == AdjustmentType.discount ? -1.0 : 1.0;
-    
+
     switch (mode) {
       case AdjustmentMode.perNight:
         return sign * amount.toDouble();
@@ -334,7 +328,7 @@ class BookingPriceAdjustmentService {
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(
       String bookingLocalUuid) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    return (db.select(db.bookingPriceAdjustments)
           ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
           ..where((a) => a.isActive.equals(true))
           ..where((a) => a.deletedAt.isNull())
@@ -344,7 +338,7 @@ class BookingPriceAdjustmentService {
 
   Future<List<BookingPriceAdjustment>> getAllAdjustments(
       String bookingLocalUuid) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    return (db.select(db.bookingPriceAdjustments)
           ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
           ..where((a) => a.deletedAt.isNull())
           ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
@@ -387,7 +381,8 @@ class BookingPriceAdjustmentService {
     for (final booking in bookings) {
       final hasSurcharge = await (db.select(db.bookingPriceAdjustments)
             ..where((a) => a.bookingLocalId.equals(booking.id))
-            ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
+            ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
             ..where((a) => a.isActive.equals(true))
             ..where((a) => a.deletedAt.isNull()))
           .get();
@@ -408,7 +403,8 @@ class BookingPriceAdjustmentService {
       ..where((a) => a.deletedAt.isNull());
 
     if (fromHotelDay != null) {
-      query.where((a) => a.effectiveHotelDay.isBiggerOrEqualValue(fromHotelDay));
+      query
+          .where((a) => a.effectiveHotelDay.isBiggerOrEqualValue(fromHotelDay));
     }
     if (toHotelDay != null) {
       query.where((a) => a.effectiveHotelDay.isSmallerOrEqualValue(toHotelDay));
@@ -416,7 +412,8 @@ class BookingPriceAdjustmentService {
 
     final adjustments = await query.get();
 
-    final bookingIds = adjustments.map((a) => a.bookingLocalId).whereType<int>().toSet();
+    final bookingIds =
+        adjustments.map((a) => a.bookingLocalId).whereType<int>().toSet();
 
     double totalPotentialRevenue = 0;
     double totalActualRevenue = 0;
@@ -440,9 +437,8 @@ class BookingPriceAdjustmentService {
             ..where((n) => n.deletedAt.isNull()))
           .get();
 
-      final bookingAdjustments = adjustments
-          .where((a) => a.bookingLocalId == bookingId)
-          .toList();
+      final bookingAdjustments =
+          adjustments.where((a) => a.bookingLocalId == bookingId).toList();
 
       final double potentialRevenue = nights.length * room.price;
       final double actualRevenue = nights.fold<double>(
@@ -469,7 +465,7 @@ class BookingPriceAdjustmentService {
         }
 
         final type = AdjustmentType.fromValue(adj.adjustmentType);
-        final double signedAmount = adj.amount.toDouble();
+        final double signedAmount = adj.amount;
         final double impact = type == AdjustmentType.discount
             ? -signedAmount * nightsAffected
             : signedAmount * nightsAffected;
@@ -483,7 +479,7 @@ class BookingPriceAdjustmentService {
         adjustmentSummaries.add(AdjustmentSummary(
           uuid: adj.localUuid,
           type: type,
-          amount: adj.amount.toDouble(),
+          amount: adj.amount,
           effectiveHotelDay: adj.effectiveHotelDay,
           endHotelDay: adj.endHotelDay,
           nightsAffected: nightsAffected,

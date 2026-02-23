@@ -6,17 +6,7 @@ part 'sync_log_dao.g.dart';
 
 /// نموذج مبسط لسجل المزامنة للعرض
 class SyncLogEntry {
-  final int id;
-  final String syncId;
-  final String direction; // pull, push, bidirectional
-  final String deviceId;
-  final String status; // success, failed, partial
-  final DateTime createdAt;
-  final DateTime? completedAt;
-  final int? recordsCount;
-  final String? errorMessage;
-  final int? durationMs;
-  final String? target; // Appwrite, GoogleDrive
+  // Appwrite, GoogleDrive
 
   SyncLogEntry({
     required this.id,
@@ -31,19 +21,21 @@ class SyncLogEntry {
     this.durationMs,
     this.target,
   });
+  final int id;
+  final String syncId;
+  final String direction; // pull, push, bidirectional
+  final String deviceId;
+  final String status; // success, failed, partial
+  final DateTime createdAt;
+  final DateTime? completedAt;
+  final int? recordsCount;
+  final String? errorMessage;
+  final int? durationMs;
+  final String? target;
 }
 
 /// إحصائيات المزامنة
 class SyncStats {
-  final int totalSyncs;
-  final int successfulSyncs;
-  final int failedSyncs;
-  final double successRate;
-  final int totalRecordsPulled;
-  final int totalRecordsPushed;
-  final DateTime? lastSync;
-  final int averageDurationMs;
-
   SyncStats({
     required this.totalSyncs,
     required this.successfulSyncs,
@@ -54,11 +46,19 @@ class SyncStats {
     this.lastSync,
     required this.averageDurationMs,
   });
+  final int totalSyncs;
+  final int successfulSyncs;
+  final int failedSyncs;
+  final double successRate;
+  final int totalRecordsPulled;
+  final int totalRecordsPushed;
+  final DateTime? lastSync;
+  final int averageDurationMs;
 }
 
 @DriftAccessor(tables: [SyncLog, SyncConflicts])
 class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
-  SyncLogDao(AppDatabase db) : super(db);
+  SyncLogDao(super.db);
 
   /// تسجيل عملية مزامنة جديدة أو تحديث حالة عملية موجودة
   /// [operations] can be null if no operations list is available
@@ -85,7 +85,8 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     Map<String, dynamic> mergedMetadata = {};
     if (existingEntry != null) {
       try {
-        mergedMetadata = jsonDecode(existingEntry.metadata) as Map<String, dynamic>;
+        mergedMetadata =
+            jsonDecode(existingEntry.metadata) as Map<String, dynamic>;
       } catch (_) {}
     }
 
@@ -115,7 +116,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       final count = await (update(syncLog)
             ..where((t) => t.syncId.equals(syncId)))
           .write(updateEntry);
-          
+
       return existingEntry.id;
     } else {
       // إدراج سجل جديد
@@ -132,7 +133,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
         operations: const Value.absent(),
       );
 
-      return await into(syncLog).insert(entry);
+      return into(syncLog).insert(entry);
     }
   }
 
@@ -163,7 +164,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       try {
         metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
       } catch (_) {}
-      
+
       return SyncLogEntry(
         id: row.id,
         syncId: row.syncId,
@@ -171,8 +172,10 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
         deviceId: row.deviceId,
         status: row.status,
         createdAt: DateTime.parse(row.createdAt),
-        completedAt: row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
-        recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
+        completedAt:
+            row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
+        recordsCount: (metadata['recordsPulled'] as int?) ??
+            (metadata['recordsPushed'] as int?),
         errorMessage: metadata['errorMessage'] as String?,
         durationMs: metadata['durationMs'] as int?,
         target: metadata['target'] as String?,
@@ -185,7 +188,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final query = select(syncLog)
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
       ..limit(1);
-    
+
     final result = await query.getSingleOrNull();
     if (result == null) return null;
 
@@ -193,7 +196,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     try {
       metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
     } catch (_) {}
-    
+
     return SyncLogEntry(
       id: result.id,
       syncId: result.syncId,
@@ -201,8 +204,11 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       deviceId: result.deviceId,
       status: result.status,
       createdAt: DateTime.parse(result.createdAt),
-      completedAt: result.completedAt != null ? DateTime.parse(result.completedAt!) : null,
-      recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
+      completedAt: result.completedAt != null
+          ? DateTime.parse(result.completedAt!)
+          : null,
+      recordsCount: (metadata['recordsPulled'] as int?) ??
+          (metadata['recordsPushed'] as int?),
       errorMessage: metadata['errorMessage'] as String?,
       durationMs: metadata['durationMs'] as int?,
       target: metadata['target'] as String?,
@@ -212,13 +218,15 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   /// إحصائيات المزامنة
   Future<SyncStats> getSyncStats({DateTime? since}) async {
     var query = select(syncLog);
-    
+
     if (since != null) {
-      query = query..where((t) => t.createdAt.isBiggerOrEqualValue(since.toIso8601String()));
+      query = query
+        ..where(
+            (t) => t.createdAt.isBiggerOrEqualValue(since.toIso8601String()));
     }
 
     final results = await query.get();
-    
+
     if (results.isEmpty) {
       return SyncStats(
         totalSyncs: 0,
@@ -246,7 +254,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       try {
         metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
       } catch (_) {}
-      
+
       if (row.status == 'success') {
         successful++;
       } else {
@@ -265,7 +273,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
 
     // إذا لم تكن هناك سجلات، نعيد القيم الصفرية (تمت معالجتها بالفعل في الأعلى، لكن للأمان)
     if (count == 0) {
-       return SyncStats(
+      return SyncStats(
         totalSyncs: 0,
         successfulSyncs: 0,
         failedSyncs: 0,
@@ -291,11 +299,11 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   /// حذف السجلات القديمة (للصيانة)
   Future<int> deleteOldLogs({required Duration olderThan}) async {
     final cutoff = DateTime.now().subtract(olderThan);
-    
+
     final query = delete(syncLog)
       ..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
-    
-    return await query.go();
+
+    return query.go();
   }
 
   /// عدد السجلات
@@ -313,24 +321,27 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       ..limit(limit);
 
     return query.watch().map((rows) => rows.map((row) {
-      Map<String, dynamic> metadata = {};
-      try {
-        metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
-      } catch (_) {}
-      
-      return SyncLogEntry(
-        id: row.id,
-        syncId: row.syncId,
-        direction: row.direction,
-        deviceId: row.deviceId,
-        status: row.status,
-        createdAt: DateTime.parse(row.createdAt),
-        completedAt: row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
-        recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
-        errorMessage: metadata['errorMessage'] as String?,
-        durationMs: metadata['durationMs'] as int?,
-        target: metadata['target'] as String?,
-      );
-    }).toList());
+          Map<String, dynamic> metadata = {};
+          try {
+            metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+          } catch (_) {}
+
+          return SyncLogEntry(
+            id: row.id,
+            syncId: row.syncId,
+            direction: row.direction,
+            deviceId: row.deviceId,
+            status: row.status,
+            createdAt: DateTime.parse(row.createdAt),
+            completedAt: row.completedAt != null
+                ? DateTime.parse(row.completedAt!)
+                : null,
+            recordsCount: (metadata['recordsPulled'] as int?) ??
+                (metadata['recordsPushed'] as int?),
+            errorMessage: metadata['errorMessage'] as String?,
+            durationMs: metadata['durationMs'] as int?,
+            target: metadata['target'] as String?,
+          );
+        }).toList());
   }
 }

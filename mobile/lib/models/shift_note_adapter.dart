@@ -23,7 +23,7 @@ class ShiftNoteAdapter {
   static ShiftNote fromBookingNote(BookingNote bookingNote) {
     // فك تشفير العنوان والمحتوى
     final parts = bookingNote.noteText.split('|||');
-    final title = parts.length >= 1 ? parts[0] : 'ملاحظة';
+    final title = parts.isNotEmpty ? parts[0] : 'ملاحظة';
     final content = parts.length >= 2 ? parts[1] : bookingNote.noteText;
 
     // فك تشفير الأولوية والنوبة
@@ -40,9 +40,8 @@ class ShiftNoteAdapter {
           ? DateTime.tryParse(bookingNote.alertUntil!)
           : null,
       isRead: bookingNote.isActive == 0, // عكس المنطق
-      status: bookingNote.isActive == 1
-          ? NoteStatus.active
-          : NoteStatus.completed,
+      status:
+          bookingNote.isActive == 1 ? NoteStatus.active : NoteStatus.completed,
       createdBy: 'user', // قيمة افتراضية
     );
   }
@@ -52,15 +51,15 @@ class ShiftNoteAdapter {
     final priorityCode = priority == NotePriority.high
         ? 'H'
         : priority == NotePriority.medium
-        ? 'M'
-        : 'L';
+            ? 'M'
+            : 'L';
     final shiftCode = shiftType == ShiftType.morning
         ? 'MOR'
         : shiftType == ShiftType.evening
-        ? 'EVE'
-        : shiftType == ShiftType.night
-        ? 'NIG'
-        : 'ALL';
+            ? 'EVE'
+            : shiftType == ShiftType.night
+                ? 'NIG'
+                : 'ALL';
     return '$priorityCode-$shiftCode';
   }
 
@@ -76,16 +75,16 @@ class ShiftNoteAdapter {
       final priority = priorityCode == 'H'
           ? NotePriority.high
           : priorityCode == 'M'
-          ? NotePriority.medium
-          : NotePriority.low;
+              ? NotePriority.medium
+              : NotePriority.low;
 
       final shiftType = shiftCode == 'MOR'
           ? ShiftType.morning
           : shiftCode == 'EVE'
-          ? ShiftType.evening
-          : shiftCode == 'NIG'
-          ? ShiftType.night
-          : ShiftType.all;
+              ? ShiftType.evening
+              : shiftCode == 'NIG'
+                  ? ShiftType.night
+                  : ShiftType.all;
 
       return (priority, shiftType);
     } catch (e) {
@@ -96,17 +95,6 @@ class ShiftNoteAdapter {
 
 // نماذج البيانات للملاحظات
 class ShiftNote {
-  final String id;
-  String title;
-  String content;
-  NotePriority priority;
-  ShiftType shiftType;
-  final DateTime createdAt;
-  DateTime? expiresAt;
-  bool isRead;
-  NoteStatus status;
-  final String createdBy;
-
   ShiftNote({
     required this.id,
     required this.title,
@@ -119,6 +107,16 @@ class ShiftNote {
     this.status = NoteStatus.active,
     required this.createdBy,
   });
+  final String id;
+  String title;
+  String content;
+  NotePriority priority;
+  ShiftType shiftType;
+  final DateTime createdAt;
+  DateTime? expiresAt;
+  bool isRead;
+  NoteStatus status;
+  final String createdBy;
 
   /// تحديث الملاحظة من البيانات الجديدة
   void updateFrom(ShiftNote other) {

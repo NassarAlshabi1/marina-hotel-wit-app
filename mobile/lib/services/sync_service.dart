@@ -24,15 +24,15 @@ enum SyncStatus { idle, pushing, pulling, error }
 
 class SyncService {
   SyncService(this.db)
-    : roomsDao = RoomsDao(db, OutboxDao(db)),
-      bookingsDao = BookingsDao(db, OutboxDao(db)),
-      notesDao = BookingNotesDao(db, OutboxDao(db)),
-      employeesDao = EmployeesDao(db, OutboxDao(db)),
-      expensesDao = ExpensesDao(db, OutboxDao(db)),
-      cashDao = CashTransactionsDao(db, OutboxDao(db)),
-      paymentsDao = PaymentsDao(db, OutboxDao(db)),
-      deltaSyncService = DeltaSyncService(db),
-      _performanceOptimizer = SyncPerformanceOptimizer();
+      : roomsDao = RoomsDao(db, OutboxDao(db)),
+        bookingsDao = BookingsDao(db, OutboxDao(db)),
+        notesDao = BookingNotesDao(db, OutboxDao(db)),
+        employeesDao = EmployeesDao(db, OutboxDao(db)),
+        expensesDao = ExpensesDao(db, OutboxDao(db)),
+        cashDao = CashTransactionsDao(db, OutboxDao(db)),
+        paymentsDao = PaymentsDao(db, OutboxDao(db)),
+        deltaSyncService = DeltaSyncService(db),
+        _performanceOptimizer = SyncPerformanceOptimizer();
 
   final AppDatabase db;
   final RoomsDao roomsDao;
@@ -162,16 +162,17 @@ class SyncService {
         final now = Time.nowEpoch();
         final state = await (db.select(
           db.syncState,
-        )..where((t) => t.id.equals(1))).getSingleOrNull();
-        await (db.into(db.syncState)).insertOnConflictUpdate(
-          SyncStateCompanion(
-            id: const d.Value(1),
-            lastServerTs: d.Value(state?.lastServerTs ?? 0),
-            lastPullTs: d.Value(state?.lastPullTs ?? 0),
-            lastPushTs: d.Value(now),
-            isSyncing: const d.Value(0),
-          ),
-        );
+        )..where((t) => t.id.equals(1)))
+            .getSingleOrNull();
+        await db.into(db.syncState).insertOnConflictUpdate(
+              SyncStateCompanion(
+                id: const d.Value(1),
+                lastServerTs: d.Value(state?.lastServerTs ?? 0),
+                lastPullTs: d.Value(state?.lastPullTs ?? 0),
+                lastPushTs: d.Value(now),
+                isSyncing: const d.Value(0),
+              ),
+            );
       });
     } catch (e) {
       debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
@@ -195,7 +196,8 @@ class SyncService {
 
     final state = await (db.select(
       db.syncState,
-    )..where((t) => t.id.equals(1))).getSingleOrNull();
+    )..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
     final since = state?.lastServerTs ?? 0;
     final res = await ApiService.I
         .syncPull(since)
@@ -203,7 +205,7 @@ class SyncService {
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
 
-    const Map<String, int> _entityPriority = {
+    const Map<String, int> entityPriority = {
       'rooms': 0,
       'employees': 1,
       'cash_transactions': 1,
@@ -215,11 +217,11 @@ class SyncService {
       'debts': 5,
       'hotel_day_ledger': 6,
     };
-    int _priority(String entity) => _entityPriority[entity] ?? 10;
+    int priority(String entity) => entityPriority[entity] ?? 10;
     data.sort((a, b) {
       final ea = (a['entity'] as String?) ?? '';
       final eb = (b['entity'] as String?) ?? '';
-      return _priority(ea).compareTo(_priority(eb));
+      return priority(ea).compareTo(priority(eb));
     });
 
     await db.transaction(() async {
@@ -246,14 +248,14 @@ class SyncService {
       }
 
       final now = Time.nowEpoch();
-      await (db.into(db.syncState)).insertOnConflictUpdate(
-        SyncStateCompanion(
-          id: const d.Value(1),
-          lastServerTs: d.Value(maxTs),
-          lastPullTs: d.Value(now),
-          isSyncing: const d.Value(0),
-        ),
-      );
+      await db.into(db.syncState).insertOnConflictUpdate(
+            SyncStateCompanion(
+              id: const d.Value(1),
+              lastServerTs: d.Value(maxTs),
+              lastPullTs: d.Value(now),
+              isSyncing: const d.Value(0),
+            ),
+          );
     });
 
     await RoomsRepository(db).refreshAllRoomOccupancy(originIsServer: true);
@@ -271,26 +273,29 @@ class SyncService {
       case 'rooms':
         final row = await (db.select(
           db.rooms,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (row != null) {
           await (db.update(
             db.rooms,
-          )..where((t) => t.localUuid.equals(localUuid))).write(
+          )..where((t) => t.localUuid.equals(localUuid)))
+              .write(
             RoomsCompanion(
               serverId: d.Value(sid),
               lastModified: d.Value(Time.nowEpoch()),
             ),
           );
         }
-        break;
       case 'bookings':
         final row = await (db.select(
           db.bookings,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (row != null) {
           await (db.update(
             db.bookings,
-          )..where((t) => t.id.equals(row.id))).write(
+          )..where((t) => t.id.equals(row.id)))
+              .write(
             BookingsCompanion(
               serverBookingId: d.Value(sid),
               serverId: d.Value(sid),
@@ -298,75 +303,80 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'booking_notes':
         final rowN = await (db.select(
           db.bookingNotes,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (rowN != null) {
           await (db.update(
             db.bookingNotes,
-          )..where((t) => t.id.equals(rowN.id))).write(
+          )..where((t) => t.id.equals(rowN.id)))
+              .write(
             BookingNotesCompanion(
               serverId: d.Value(sid),
               lastModified: d.Value(Time.nowEpoch()),
             ),
           );
         }
-        break;
       case 'employees':
         final rowE = await (db.select(
           db.employees,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (rowE != null) {
           await (db.update(
             db.employees,
-          )..where((t) => t.id.equals(rowE.id))).write(
+          )..where((t) => t.id.equals(rowE.id)))
+              .write(
             EmployeesCompanion(
               serverId: d.Value(sid),
               lastModified: d.Value(Time.nowEpoch()),
             ),
           );
         }
-        break;
       case 'expenses':
         final rowX = await (db.select(
           db.expenses,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (rowX != null) {
           await (db.update(
             db.expenses,
-          )..where((t) => t.id.equals(rowX.id))).write(
+          )..where((t) => t.id.equals(rowX.id)))
+              .write(
             ExpensesCompanion(
               serverId: d.Value(sid),
               lastModified: d.Value(Time.nowEpoch()),
             ),
           );
         }
-        break;
       case 'cash_transactions':
         final rowC = await (db.select(
           db.cashTransactions,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (rowC != null) {
           await (db.update(
             db.cashTransactions,
-          )..where((t) => t.id.equals(rowC.id))).write(
+          )..where((t) => t.id.equals(rowC.id)))
+              .write(
             CashTransactionsCompanion(
               serverId: d.Value(sid),
               lastModified: d.Value(Time.nowEpoch()),
             ),
           );
         }
-        break;
       case 'payments':
         final rowP = await (db.select(
           db.payments,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (rowP != null) {
           await (db.update(
             db.payments,
-          )..where((t) => t.id.equals(rowP.id))).write(
+          )..where((t) => t.id.equals(rowP.id)))
+              .write(
             PaymentsCompanion(
               serverPaymentId: d.Value(sid),
               serverId: d.Value(sid),
@@ -374,11 +384,11 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'debts':
         final rowD = await (db.select(
           db.debts,
-        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        )..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
         if (rowD != null) {
           await (db.update(db.debts)..where((t) => t.id.equals(rowD.id))).write(
             DebtsCompanion(
@@ -387,7 +397,6 @@ class SyncService {
             ),
           );
         }
-        break;
     }
   }
 
@@ -404,7 +413,8 @@ class SyncService {
         if (rn == null || rn.isEmpty) return;
         final local = await (db.select(
           db.rooms,
-        )..where((t) => t.roomNumber.equals(rn))).getSingleOrNull();
+        )..where((t) => t.roomNumber.equals(rn)))
+            .getSingleOrNull();
         if (local != null) {
           if (serverTs >= local.lastModified) {
             await roomsDao.updateByNumber(
@@ -444,14 +454,14 @@ class SyncService {
         if (op == 'delete' || data['deleted_at'] != null) {
           await roomsDao.softDelete(rn, originIsServer: true);
         }
-        break;
       case 'bookings':
         final sbid = data['booking_id'] as int?;
         Booking? local;
         if (sbid != null) {
           local = await (db.select(
             db.bookings,
-          )..where((t) => t.serverBookingId.equals(sbid))).getSingleOrNull();
+          )..where((t) => t.serverBookingId.equals(sbid)))
+              .getSingleOrNull();
         }
         final room = data['room_number'] as String?;
         if (room != null && room.isNotEmpty) {
@@ -463,9 +473,8 @@ class SyncService {
               local.id,
               BookingsCompanion(
                 serverBookingId: d.Value(sbid),
-                roomNumber: room != null
-                    ? d.Value(room)
-                    : const d.Value.absent(),
+                roomNumber:
+                    room != null ? d.Value(room) : const d.Value.absent(),
                 guestName: data['guest_name'] != null
                     ? d.Value(data['guest_name'])
                     : const d.Value.absent(),
@@ -505,8 +514,7 @@ class SyncService {
           );
         }
         if (op == 'delete' || data['deleted_at'] != null) {
-          final target =
-              local ??
+          final target = local ??
               await (db.select(db.bookings)
                     ..where((t) => t.serverBookingId.equals(sbid ?? -1)))
                   .getSingleOrNull();
@@ -514,14 +522,14 @@ class SyncService {
             await bookingsDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'booking_notes':
         final nid = data['note_id'] as int?;
         BookingNote? ln;
         if (nid != null) {
           ln = await (db.select(
             db.bookingNotes,
-          )..where((t) => t.serverId.equals(nid))).getSingleOrNull();
+          )..where((t) => t.serverId.equals(nid)))
+              .getSingleOrNull();
         }
         if (ln != null) {
           if (serverTs >= ln.lastModified) {
@@ -553,23 +561,23 @@ class SyncService {
           );
         }
         if (op == 'delete' || data['deleted_at'] != null) {
-          final target =
-              ln ??
+          final target = ln ??
               await (db.select(
                 db.bookingNotes,
-              )..where((t) => t.serverId.equals(nid ?? -1))).getSingleOrNull();
+              )..where((t) => t.serverId.equals(nid ?? -1)))
+                  .getSingleOrNull();
           if (target != null) {
             await notesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'employees':
         final sid = data['id'] as int?;
         Employee? le;
         if (sid != null) {
           le = await (db.select(
             db.employees,
-          )..where((t) => t.serverId.equals(sid))).getSingleOrNull();
+          )..where((t) => t.serverId.equals(sid)))
+              .getSingleOrNull();
         }
         if (le != null) {
           if (serverTs >= le.lastModified) {
@@ -601,23 +609,23 @@ class SyncService {
           );
         }
         if (op == 'delete' || data['deleted_at'] != null) {
-          final target =
-              le ??
+          final target = le ??
               await (db.select(
                 db.employees,
-              )..where((t) => t.serverId.equals(sid ?? -1))).getSingleOrNull();
+              )..where((t) => t.serverId.equals(sid ?? -1)))
+                  .getSingleOrNull();
           if (target != null) {
             await employeesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'expenses':
         final xid = data['id'] as int?;
         Expense? lx;
         if (xid != null) {
           lx = await (db.select(
             db.expenses,
-          )..where((t) => t.serverId.equals(xid))).getSingleOrNull();
+          )..where((t) => t.serverId.equals(xid)))
+              .getSingleOrNull();
         }
         if (lx != null) {
           if (serverTs >= lx.lastModified) {
@@ -653,22 +661,22 @@ class SyncService {
           );
         }
         if (op == 'delete' || data['deleted_at'] != null) {
-          final target =
-              lx ??
+          final target = lx ??
               await (db.select(
                 db.expenses,
-              )..where((t) => t.serverId.equals(xid ?? -1))).getSingleOrNull();
+              )..where((t) => t.serverId.equals(xid ?? -1)))
+                  .getSingleOrNull();
           if (target != null) {
             await expensesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'cash_transactions':
         final cid = data['id'] as int?;
         final lc = cid != null
             ? await (db.select(
                 db.cashTransactions,
-              )..where((t) => t.serverId.equals(cid))).getSingleOrNull()
+              )..where((t) => t.serverId.equals(cid)))
+                .getSingleOrNull()
             : null;
         if (lc != null) {
           if (serverTs >= lc.lastModified) {
@@ -712,22 +720,22 @@ class SyncService {
           );
         }
         if (op == 'delete' || data['deleted_at'] != null) {
-          final target =
-              lc ??
+          final target = lc ??
               await (db.select(
                 db.cashTransactions,
-              )..where((t) => t.serverId.equals(cid ?? -1))).getSingleOrNull();
+              )..where((t) => t.serverId.equals(cid ?? -1)))
+                  .getSingleOrNull();
           if (target != null) {
             await cashDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'payments':
         final pid = data['payment_id'] as int?;
         final lp = pid != null
             ? await (db.select(
                 db.payments,
-              )..where((t) => t.serverPaymentId.equals(pid))).getSingleOrNull()
+              )..where((t) => t.serverPaymentId.equals(pid)))
+                .getSingleOrNull()
             : null;
         if (lp != null) {
           if (serverTs >= lp.lastModified) {
@@ -775,8 +783,7 @@ class SyncService {
           );
         }
         if (op == 'delete' || data['deleted_at'] != null) {
-          final target =
-              lp ??
+          final target = lp ??
               await (db.select(db.payments)
                     ..where((t) => t.serverPaymentId.equals(pid ?? -1)))
                   .getSingleOrNull();
@@ -784,13 +791,10 @@ class SyncService {
             await paymentsDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'booking_nights':
         await _applyBookingNight(op, serverTs, data);
-        break;
       case 'hotel_day_ledger':
         await _applyHotelDayLedger(op, serverTs, data);
-        break;
     }
   }
 
@@ -806,9 +810,9 @@ class SyncService {
 
     final existing = await (db.select(
       db.bookingNights,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-    final bool isDelete =
-        op == 'delete' ||
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    final bool isDelete = op == 'delete' ||
         (data.containsKey('deleted_at') && data['deleted_at'] != null);
     final int normalizedServerTs = _normalizeTimestampField(
       serverTs,
@@ -836,11 +840,11 @@ class SyncService {
     );
     final int? deletedAt =
         data.containsKey('deleted_at') && data['deleted_at'] != null
-        ? _normalizeTimestampField(
-            data['deleted_at'],
-            fallback: normalizedServerTs,
-          )
-        : null;
+            ? _normalizeTimestampField(
+                data['deleted_at'],
+                fallback: normalizedServerTs,
+              )
+            : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
     final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso = _maybeIsoFromData(
@@ -852,11 +856,11 @@ class SyncService {
       if (existing != null) {
         await (db.update(
           db.bookingNights,
-        )..where((t) => t.id.equals(existing.id))).write(
+        )..where((t) => t.id.equals(existing.id)))
+            .write(
           BookingNightsCompanion(
-            deletedAt: deletedAt != null
-                ? d.Value(deletedAt)
-                : const d.Value.absent(),
+            deletedAt:
+                deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
             deletedAtIso: deletedIso != null
                 ? d.Value(deletedIso)
                 : const d.Value.absent(),
@@ -895,15 +899,13 @@ class SyncService {
       isProcessedByAutoFix: _boolValue(data['is_processed_by_auto_fix']),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(updatedAt),
-      deletedAt: deletedAt != null
-          ? d.Value(deletedAt)
-          : const d.Value.absent(),
+      deletedAt:
+          deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
       lastModified: d.Value(lastModified),
       createdAtIso: d.Value(createdIso),
       updatedAtIso: d.Value(updatedIso),
-      deletedAtIso: deletedIso != null
-          ? d.Value(deletedIso)
-          : const d.Value.absent(),
+      deletedAtIso:
+          deletedIso != null ? d.Value(deletedIso) : const d.Value.absent(),
       createdAtEpoch: d.Value(createdEpoch),
       lastModifiedEpoch: d.Value(lastModifiedEpoch),
       version: _intValue(data['version']),
@@ -915,7 +917,8 @@ class SyncService {
     } else {
       await (db.update(
         db.bookingNights,
-      )..where((t) => t.id.equals(existing.id))).write(companion);
+      )..where((t) => t.id.equals(existing.id)))
+          .write(companion);
     }
   }
 
@@ -931,7 +934,8 @@ class SyncService {
 
     final existing = await (db.select(
       db.hotelDayLedger,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
     final bool isDelete = op == 'delete' || data['deleted_at'] != null;
     final int normalizedServerTs = _normalizeTimestampField(
       serverTs,
@@ -959,11 +963,11 @@ class SyncService {
     );
     final int? deletedAt =
         data.containsKey('deleted_at') && data['deleted_at'] != null
-        ? _normalizeTimestampField(
-            data['deleted_at'],
-            fallback: normalizedServerTs,
-          )
-        : null;
+            ? _normalizeTimestampField(
+                data['deleted_at'],
+                fallback: normalizedServerTs,
+              )
+            : null;
     final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
     final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso = _maybeIsoFromData(
@@ -975,11 +979,11 @@ class SyncService {
       if (existing != null) {
         await (db.update(
           db.hotelDayLedger,
-        )..where((t) => t.id.equals(existing.id))).write(
+        )..where((t) => t.id.equals(existing.id)))
+            .write(
           HotelDayLedgerCompanion(
-            deletedAt: deletedAt != null
-                ? d.Value(deletedAt)
-                : const d.Value.absent(),
+            deletedAt:
+                deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
             deletedAtIso: deletedIso != null
                 ? d.Value(deletedIso)
                 : const d.Value.absent(),
@@ -1014,15 +1018,13 @@ class SyncService {
       status: d.Value(_asString(data['status']) ?? 'draft'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(updatedAt),
-      deletedAt: deletedAt != null
-          ? d.Value(deletedAt)
-          : const d.Value.absent(),
+      deletedAt:
+          deletedAt != null ? d.Value(deletedAt) : const d.Value.absent(),
       lastModified: d.Value(lastModified),
       createdAtIso: d.Value(createdIso),
       updatedAtIso: d.Value(updatedIso),
-      deletedAtIso: deletedIso != null
-          ? d.Value(deletedIso)
-          : const d.Value.absent(),
+      deletedAtIso:
+          deletedIso != null ? d.Value(deletedIso) : const d.Value.absent(),
       createdAtEpoch: d.Value(createdEpoch),
       lastModifiedEpoch: d.Value(lastModifiedEpoch),
       version: _intValue(data['version']),
@@ -1034,7 +1036,8 @@ class SyncService {
     } else {
       await (db.update(
         db.hotelDayLedger,
-      )..where((t) => t.id.equals(existing.id))).write(companion);
+      )..where((t) => t.id.equals(existing.id)))
+          .write(companion);
     }
   }
 
@@ -1042,7 +1045,8 @@ class SyncService {
     if (roomNumber.isEmpty) return;
     final existing = await (db.select(
       db.rooms,
-    )..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
+    )..where((t) => t.roomNumber.equals(roomNumber)))
+        .getSingleOrNull();
     if (existing != null) return;
     await roomsDao.insertOne(
       RoomsCompanion(
@@ -1119,9 +1123,9 @@ String? _maybeIsoFromData(dynamic value, int? secondsFallback) {
 }
 
 String _secondsToIso(int seconds) => DateTime.fromMillisecondsSinceEpoch(
-  seconds * 1000,
-  isUtc: true,
-).toIso8601String();
+      seconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
 
 d.Value<int> _intValue(dynamic value) {
   final parsed = _asInt(value);

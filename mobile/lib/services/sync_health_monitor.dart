@@ -28,10 +28,9 @@ class SyncHealthMetrics {
 
 /// مراقب صحة المزامنة - يكتشف المشاكل ويقترح حلول
 class SyncHealthMonitor {
+  SyncHealthMonitor._();
   static SyncHealthMonitor? _instance;
   static SyncHealthMonitor get instance => _instance ??= SyncHealthMonitor._();
-
-  SyncHealthMonitor._();
 
   final _metricsController = StreamController<SyncHealthMetrics>.broadcast();
   Stream<SyncHealthMetrics> get metricsStream => _metricsController.stream;
@@ -130,8 +129,7 @@ class SyncHealthMonitor {
     final avgDuration = _syncDurations.isEmpty
         ? Duration.zero
         : Duration(
-            milliseconds:
-                _syncDurations
+            milliseconds: _syncDurations
                     .map((d) => d.inMilliseconds)
                     .reduce((a, b) => a + b) ~/
                 _syncDurations.length,
@@ -173,7 +171,7 @@ class SyncHealthMonitor {
     if (_consecutiveFailures >= 3) return 0.5;
 
     final timeSinceSuccess = _lastSuccessAt == null
-        ? Duration(days: 365)
+        ? const Duration(days: 365)
         : DateTime.now().difference(_lastSuccessAt!);
 
     if (timeSinceSuccess.inHours > 48) return 0.7;

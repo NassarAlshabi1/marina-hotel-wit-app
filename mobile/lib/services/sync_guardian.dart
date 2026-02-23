@@ -179,7 +179,8 @@ class SyncGuardian {
     _pendingMonitor = Timer.periodic(const Duration(minutes: 5), (_) async {
       final prefs = await SharedPreferences.getInstance();
       final googleDrivePending = prefs.getBool('auto_sync_pending') ?? false;
-      final appwritePending = prefs.getBool('appwrite_auto_sync_pending') ?? false;
+      final appwritePending =
+          prefs.getBool('appwrite_auto_sync_pending') ?? false;
       _pendingEvents = googleDrivePending || appwritePending;
       if (_pendingEvents) {
         await _consumePending(force: false);
@@ -215,7 +216,8 @@ class SyncGuardian {
   Future<void> _refreshPendingFlag() async {
     final prefs = await SharedPreferences.getInstance();
     final googleDrivePending = prefs.getBool('auto_sync_pending') ?? false;
-    final appwritePending = prefs.getBool('appwrite_auto_sync_pending') ?? false;
+    final appwritePending =
+        prefs.getBool('appwrite_auto_sync_pending') ?? false;
     _pendingEvents = googleDrivePending || appwritePending;
   }
 

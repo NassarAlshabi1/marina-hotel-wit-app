@@ -1,6 +1,7 @@
 /// Delta Sync Engine
 /// محرك المزامنة المتغيرة - يزامن فقط ما تغير
 /// بناءً على Vector Clock و Outbox Pattern
+library;
 
 import 'dart:async';
 
@@ -8,7 +9,7 @@ import 'models/sync_models.dart';
 import 'vector_clock.dart';
 
 /// محرك المزامنة الدلتا المتغيرة
-/// 
+///
 /// الميزات الرئيسية:
 /// - مزامنة فقط التغييرات (Delta) بدلاً من البيانات الكاملة
 /// - استخدام Vector Clock للتعرف على الترتيب الزمني
@@ -16,15 +17,6 @@ import 'vector_clock.dart';
 /// - حل تلقائي للتعارضات
 /// - Exponential backoff للمحاولات الفاشلة
 class DeltaSyncEngine {
-  final SyncConfiguration _config;
-  final VectorClockManager _clockManager;
-  final OutboxDataSource _outbox;
-  final InboxDataSource _inbox;
-  final RemoteDataSource _remote;
-  final ConflictResolver _conflictResolver;
-  
-  final _eventController = StreamController<SyncEvent>.broadcast();
-  
   DeltaSyncEngine({
     required SyncConfiguration config,
     required VectorClockManager clockManager,
@@ -38,12 +30,20 @@ class DeltaSyncEngine {
         _inbox = inbox,
         _remote = remote,
         _conflictResolver = conflictResolver;
+  final SyncConfiguration _config;
+  final VectorClockManager _clockManager;
+  final OutboxDataSource _outbox;
+  final InboxDataSource _inbox;
+  final RemoteDataSource _remote;
+  final ConflictResolver _conflictResolver;
+
+  final _eventController = StreamController<SyncEvent>.broadcast();
 
   /// Stream للأحداث
   Stream<SyncEvent> get events => _eventController.stream;
 
   /// مزامنة دلتا كاملة
-  /// 
+  ///
   /// الترتيب: Pull أولاً ← Resolve ← Push
   /// هذا يضمن عدم الكتابة فوق بيانات أحدث على السيرفر
   Future<DeltaSyncResult> sync({
@@ -51,15 +51,16 @@ class DeltaSyncEngine {
     DateTime? since,
   }) async {
     _emitEvent(SyncEventType.syncStarted);
-    
+
     final stopwatch = Stopwatch()..start();
     var result = DeltaSyncResult(timestamp: DateTime.now());
-    
+
     try {
       // ⬇️ المرحلة 1: سحب التغييرات من السيرفر (Pull)
-      if (direction == SyncDirection.download || direction == SyncDirection.bidirectional) {
+      if (direction == SyncDirection.download ||
+          direction == SyncDirection.bidirectional) {
         _emitEvent(SyncEventType.remoteChange);
-        
+
         final pullResult = await _pullChanges(since: since);
         result = result.copyWith(
           downloadedCount: pullResult.successCount,
@@ -68,7 +69,8 @@ class DeltaSyncEngine {
       }
 
       // ⬆️ المرحلة 2: رفع التغييرات المحلية (Push)
-      if (direction == SyncDirection.upload || direction == SyncDirection.bidirectional) {
+      if (direction == SyncDirection.upload ||
+          direction == SyncDirection.bidirectional) {
         final pushResult = await _pushChanges();
         result = result.copyWith(
           uploadedCount: pushResult.successCount,
@@ -78,18 +80,17 @@ class DeltaSyncEngine {
       }
 
       stopwatch.stop();
-      
+
       _emitEvent(SyncEventType.syncCompleted);
-      
+
       return result.copyWith(
         success: result.errorCount == 0,
         conflictCount: result.conflicts.length,
       );
-      
     } catch (e) {
       stopwatch.stop();
       _emitEvent(SyncEventType.syncFailed);
-      
+
       return DeltaSyncResult(
         success: false,
         errorCount: 1,
@@ -102,11 +103,13 @@ class DeltaSyncEngine {
   /// ⬇️ سحب التغييرات من السيرفر
   Future<PullResult> _pullChanges({DateTime? since}) async {
     final result = PullResult();
-    
+
     try {
       // جلب التغييرات من السيرفر
       final remoteChanges = await _remote.fetchChanges(
-        since: since ?? await _outbox.getLastSyncTimestamp() ?? DateTime.fromMillisecondsSinceEpoch(0),
+        since: since ??
+            await _outbox.getLastSyncTimestamp() ??
+            DateTime.fromMillisecondsSinceEpoch(0),
         limit: _config.batchSize,
       );
 
@@ -123,13 +126,12 @@ class DeltaSyncEngine {
       for (final change in remoteChanges) {
         try {
           final applyResult = await _applyRemoteChange(change);
-          
+
           if (applyResult.hasConflict) {
             result.conflicts.add(applyResult.conflict!);
           } else if (applyResult.success) {
             result.successCount++;
           }
-          
         } catch (e) {
           result.errors.add('Failed to apply ${change.uuid}: $e');
         }
@@ -143,7 +145,6 @@ class DeltaSyncEngine {
 
       // تحديث وقت آخر مزامنة
       await _outbox.updateLastSyncTimestamp(DateTime.now());
-
     } catch (e) {
       result.errors.add('Pull failed: $e');
     }
@@ -155,7 +156,7 @@ class DeltaSyncEngine {
   Future<ApplyChangeResult> _applyRemoteChange(DeltaChange change) async {
     // جلب السجل المحلي المقابل
     final localRecord = await _outbox.getLocalRecord(change.table, change.uuid);
-    
+
     if (localRecord == null) {
       // لا يوجد سجل محلي - تطبيق مباشر
       await _outbox.applyChange(change);
@@ -165,7 +166,7 @@ class DeltaSyncEngine {
     // مقارنة Vector Clocks
     final remoteClock = VectorClock.fromJson(change.vectorClock);
     final localClockStr = localRecord['vector_clock'] as String?;
-    
+
     if (localClockStr == null) {
       // السجل المحلي بدون Vector Clock - السجل البعيد أحدث
       await _outbox.applyChange(change);
@@ -187,8 +188,9 @@ class DeltaSyncEngine {
 
       case VectorClockComparison.concurrent:
         // ⚠️ تعارض حقيقي - حل التعارض
-        _emitEvent(SyncEventType.conflictDetected, table: change.table, uuid: change.uuid);
-        
+        _emitEvent(SyncEventType.conflictDetected,
+            table: change.table, uuid: change.uuid);
+
         final conflict = SyncConflict(
           id: 'conflict_${change.uuid}_${DateTime.now().millisecondsSinceEpoch}',
           table: change.table,
@@ -200,14 +202,15 @@ class DeltaSyncEngine {
 
         // حل التعارض تلقائياً
         final resolution = await _conflictResolver.resolve(conflict);
-        
+
         if (resolution.winner == Winner.remote) {
           await _outbox.applyChange(change);
         }
         // إذا كان المحلي فائزاً، نتركه كما هو
 
-        _emitEvent(SyncEventType.conflictResolved, table: change.table, uuid: change.uuid);
-        
+        _emitEvent(SyncEventType.conflictResolved,
+            table: change.table, uuid: change.uuid);
+
         return ApplyChangeResult.conflict(conflict);
 
       case VectorClockComparison.equal:
@@ -219,7 +222,7 @@ class DeltaSyncEngine {
   /// ⬆️ رفع التغييرات المحلية
   Future<PushResult> _pushChanges() async {
     final result = PushResult();
-    
+
     try {
       // جلب التغييرات المعلقة
       final pendingChanges = await _outbox.fetchPending(
@@ -232,11 +235,11 @@ class DeltaSyncEngine {
 
       // تحديث Vector Clock لكل تغيير
       final changesToPush = <DeltaChange>[];
-      
+
       for (final change in pendingChanges) {
         // تسجيل الحدث وزيادة العداد
         final newClock = _clockManager.recordLocalEvent();
-        
+
         final updatedChange = DeltaChange(
           id: change.id,
           table: change.table,
@@ -249,7 +252,7 @@ class DeltaSyncEngine {
           deviceId: _clockManager.deviceId,
           retryCount: change.retryCount,
         );
-        
+
         changesToPush.add(updatedChange);
       }
 
@@ -260,7 +263,7 @@ class DeltaSyncEngine {
       for (var i = 0; i < changesToPush.length; i++) {
         final change = changesToPush[i];
         final success = pushResult.successfulIds.contains(change.id);
-        
+
         if (success) {
           await _outbox.markAsSynced(change.id);
           result.successCount++;
@@ -271,7 +274,6 @@ class DeltaSyncEngine {
           result.errors.add('${change.id}: $error');
         }
       }
-
     } catch (e) {
       result.errors.add('Push failed: $e');
     }
@@ -282,7 +284,7 @@ class DeltaSyncEngine {
   /// معالجة فشل الرفع
   Future<void> _handlePushFailure(DeltaChange change, String error) async {
     final newRetryCount = change.retryCount + 1;
-    
+
     if (newRetryCount >= _config.maxRetries) {
       // تجاوز الحد الأقصى - تحديد كفاشل نهائي
       await _outbox.markAsFailed(change.id, error);
@@ -290,7 +292,7 @@ class DeltaSyncEngine {
       // Exponential backoff
       final delaySeconds = _calculateBackoffDelay(newRetryCount);
       final nextRetryAt = DateTime.now().add(Duration(seconds: delaySeconds));
-      
+
       await _outbox.scheduleRetry(
         change.id,
         error: error,
@@ -311,14 +313,14 @@ class DeltaSyncEngine {
   /// حساب checksum للتحقق من سلامة البيانات
   String? _calculateChecksum(Map<String, dynamic> data) {
     if (data.isEmpty) return null;
-    
+
     final sortedKeys = data.keys.toList()..sort();
     final buffer = StringBuffer();
-    
+
     for (final key in sortedKeys) {
       buffer.write('$key:${data[key]}|');
     }
-    
+
     return buffer.toString().hashCode.toString();
   }
 
@@ -341,7 +343,7 @@ class DeltaSyncEngine {
 
   /// الحصول على عدد التغييرات المعلقة
   Future<int> pendingChangesCount() async {
-    return await _outbox.pendingCount();
+    return _outbox.pendingCount();
   }
 
   /// إلغاء الاشتراك
@@ -366,11 +368,6 @@ class PushResult {
 
 /// نتيجة تطبيق تغيير
 class ApplyChangeResult {
-  final bool success;
-  final bool skipped;
-  final bool hasConflict;
-  final SyncConflict? conflict;
-
   ApplyChangeResult._({
     required this.success,
     this.skipped = false,
@@ -378,14 +375,18 @@ class ApplyChangeResult {
     this.conflict,
   });
 
-  factory ApplyChangeResult.success() => 
-    ApplyChangeResult._(success: true);
-  
-  factory ApplyChangeResult.skipped() => 
-    ApplyChangeResult._(success: false, skipped: true);
-  
-  factory ApplyChangeResult.conflict(SyncConflict conflict) => 
-    ApplyChangeResult._(success: false, hasConflict: true, conflict: conflict);
+  factory ApplyChangeResult.success() => ApplyChangeResult._(success: true);
+
+  factory ApplyChangeResult.skipped() =>
+      ApplyChangeResult._(success: false, skipped: true);
+
+  factory ApplyChangeResult.conflict(SyncConflict conflict) =>
+      ApplyChangeResult._(
+          success: false, hasConflict: true, conflict: conflict);
+  final bool success;
+  final bool skipped;
+  final bool hasConflict;
+  final SyncConflict? conflict;
 }
 
 /// مصدر بيانات Outbox (التغييرات المحلية)
@@ -393,7 +394,10 @@ abstract class OutboxDataSource {
   Future<List<DeltaChange>> fetchPending({required int batchSize});
   Future<void> markAsSynced(String id);
   Future<void> markAsFailed(String id, String error);
-  Future<void> scheduleRetry(String id, {required String error, required int retryCount, required DateTime nextRetryAt});
+  Future<void> scheduleRetry(String id,
+      {required String error,
+      required int retryCount,
+      required DateTime nextRetryAt});
   Future<int> pendingCount();
   Future<DateTime?> getLastSyncTimestamp();
   Future<void> updateLastSyncTimestamp(DateTime timestamp);
@@ -410,19 +414,19 @@ abstract class InboxDataSource {
 
 /// مصدر البيانات البعيدة
 abstract class RemoteDataSource {
-  Future<List<DeltaChange>> fetchChanges({required DateTime since, required int limit});
+  Future<List<DeltaChange>> fetchChanges(
+      {required DateTime since, required int limit});
   Future<PushChangesResult> pushChanges(List<DeltaChange> changes);
 }
 
 /// نتيجة رفع التغييرات
 class PushChangesResult {
-  final List<String> successfulIds;
-  final Map<String, String> errors;
-
   PushChangesResult({
     this.successfulIds = const [],
     this.errors = const {},
   });
+  final List<String> successfulIds;
+  final Map<String, String> errors;
 }
 
 /// محلل التعارضات

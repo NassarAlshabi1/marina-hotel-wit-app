@@ -27,8 +27,7 @@ class CashTransactionsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final uuid =
-        _asString(json, 'localUuid', src) ??
+    final uuid = _asString(json, 'localUuid', src) ??
         _asString(json, 'local_uuid', src) ??
         IdGen.uuid();
     // ignore: unused_local_variable
@@ -57,8 +56,7 @@ class CashTransactionsAdapter
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
+    final lastModified = refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
 
@@ -137,8 +135,7 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v =
-      _asInt(json, key, src) ??
+  final v = _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -151,8 +148,7 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v =
-      _asString(json, key, src) ??
+  final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -165,8 +161,7 @@ d.Value<double> _vDouble(
   String? altKey,
   double? fallback,
 }) {
-  final v =
-      _asDouble(json, key, src) ??
+  final v = _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

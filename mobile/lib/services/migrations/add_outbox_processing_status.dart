@@ -29,7 +29,7 @@ class AddOutboxProcessingStatusMigration {
       debugPrint('✅ Migration completed successfully');
     } catch (e, stackTrace) {
       debugPrint('❌ Migration failed: $e');
-      debugPrint('Stack trace: ${stackTrace.toString()}');
+      debugPrint('Stack trace: $stackTrace');
       rethrow;
     }
   }

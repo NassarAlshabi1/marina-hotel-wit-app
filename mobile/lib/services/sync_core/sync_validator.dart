@@ -1,12 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 class ValidationResult {
-  final bool isValid;
-  final String? error;
-  final List<String> warnings;
-
   ValidationResult({required this.isValid, this.error, List<String>? warnings})
-    : warnings = warnings ?? [];
+      : warnings = warnings ?? [];
 
   factory ValidationResult.valid({List<String>? warnings}) {
     return ValidationResult(isValid: true, warnings: warnings);
@@ -15,13 +11,15 @@ class ValidationResult {
   factory ValidationResult.invalid(String error, {List<String>? warnings}) {
     return ValidationResult(isValid: false, error: error, warnings: warnings);
   }
+  final bool isValid;
+  final String? error;
+  final List<String> warnings;
 }
 
 class SyncValidator {
+  SyncValidator._();
   static SyncValidator? _instance;
   static SyncValidator get instance => _instance ??= SyncValidator._();
-
-  SyncValidator._();
 
   ValidationResult validateSyncData(Map<String, dynamic> data) {
     final warnings = <String>[];

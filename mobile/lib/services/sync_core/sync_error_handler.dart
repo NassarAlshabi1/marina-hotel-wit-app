@@ -13,21 +13,20 @@ enum SyncErrorType {
 }
 
 class SyncError {
-  final SyncErrorType type;
-  final String message;
-  final dynamic originalError;
-  final StackTrace? stackTrace;
-  final DateTime timestamp;
-  final Map<String, dynamic>? context;
-
   SyncError({
     required this.type,
     required this.message,
     this.originalError,
     this.stackTrace,
     Map<String, dynamic>? context,
-  }) : timestamp = DateTime.now(),
-       context = context;
+  })  : timestamp = DateTime.now(),
+        context = context;
+  final SyncErrorType type;
+  final String message;
+  final dynamic originalError;
+  final StackTrace? stackTrace;
+  final DateTime timestamp;
+  final Map<String, dynamic>? context;
 
   bool get isRetryable {
     switch (type) {
@@ -46,19 +45,18 @@ class SyncError {
   }
 
   Map<String, dynamic> toJson() => {
-    'type': type.name,
-    'message': message,
-    'timestamp': timestamp.toIso8601String(),
-    'context': context,
-    'isRetryable': isRetryable,
-  };
+        'type': type.name,
+        'message': message,
+        'timestamp': timestamp.toIso8601String(),
+        'context': context,
+        'isRetryable': isRetryable,
+      };
 }
 
 class SyncErrorHandler {
+  SyncErrorHandler._();
   static SyncErrorHandler? _instance;
   static SyncErrorHandler get instance => _instance ??= SyncErrorHandler._();
-
-  SyncErrorHandler._();
 
   final _errorController = StreamController<SyncError>.broadcast();
   Stream<SyncError> get errorStream => _errorController.stream;
@@ -207,9 +205,8 @@ class SyncErrorHandler {
   }
 
   List<SyncError> getRecentErrors({int limit = 10}) {
-    final start = _errorHistory.length > limit
-        ? _errorHistory.length - limit
-        : 0;
+    final start =
+        _errorHistory.length > limit ? _errorHistory.length - limit : 0;
     return _errorHistory.sublist(start);
   }
 

@@ -8,8 +8,8 @@ import '../../utils/time.dart';
 
 class ExpensesRepository {
   ExpensesRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = ExpensesDao(db, OutboxDao(db));
+      : outbox = OutboxDao(db),
+        dao = ExpensesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final ExpensesDao dao;
@@ -20,7 +20,8 @@ class ExpensesRepository {
     String? from,
     String? to,
     String? expenseType,
-  }) => dao.listFiltered(from: from, to: to, expenseType: expenseType);
+  }) =>
+      dao.listFiltered(from: from, to: to, expenseType: expenseType);
 
   Future<int> create({
     required String expenseType,
@@ -30,9 +31,8 @@ class ExpensesRepository {
     required String date,
   }) async {
     final normalizedDate = Time.safeIsoToDateString(date);
-    final hotelDayKey = normalizedDate.isNotEmpty
-        ? normalizedDate
-        : Time.hotelDayKey();
+    final hotelDayKey =
+        normalizedDate.isNotEmpty ? normalizedDate : Time.hotelDayKey();
     final result = await dao.insertOne(
       ExpensesCompanion(
         expenseType: d.Value(expenseType),
@@ -63,13 +63,11 @@ class ExpensesRepository {
     final result = await dao.updateById(
       id,
       ExpensesCompanion(
-        expenseType: expenseType != null
-            ? d.Value(expenseType)
-            : const d.Value.absent(),
+        expenseType:
+            expenseType != null ? d.Value(expenseType) : const d.Value.absent(),
         relatedId: d.Value(relatedId),
-        description: description != null
-            ? d.Value(description)
-            : const d.Value.absent(),
+        description:
+            description != null ? d.Value(description) : const d.Value.absent(),
         amount: amount != null ? d.Value(amount) : const d.Value.absent(),
         date: normalizedDate != null
             ? d.Value(normalizedDate)
@@ -128,7 +126,7 @@ class ExpensesRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   /// الحصول على إجمالي المصروفات لتاريخ محدد

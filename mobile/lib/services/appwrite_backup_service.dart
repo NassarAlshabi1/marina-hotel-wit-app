@@ -8,22 +8,21 @@ import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
 
 class AppwriteBackupResult {
-  final File file;
-  final Map<String, int> counts;
-  final int totalRecords;
-  final DateTime timestamp;
-
   const AppwriteBackupResult({
     required this.file,
     required this.counts,
     required this.totalRecords,
     required this.timestamp,
   });
+  final File file;
+  final Map<String, int> counts;
+  final int totalRecords;
+  final DateTime timestamp;
 }
 
 class AppwriteBackupService {
   AppwriteBackupService({AppwriteService? appwriteService})
-    : _appwriteService = appwriteService ?? AppwriteService();
+      : _appwriteService = appwriteService ?? AppwriteService();
 
   final AppwriteService _appwriteService;
 
@@ -51,17 +50,17 @@ class AppwriteBackupService {
 
   Future<List<dynamic>> _listAllCollections() async {
     final allCollections = <dynamic>[];
-    final limit = AppwriteConfig.maxPageSize;
+    const limit = AppwriteConfig.maxPageSize;
     var offset = 0;
     var usedFallback = false;
 
     while (true) {
       try {
-        final result = await (_appwriteService.databases as dynamic)
-            .listCollections(
-              databaseId: AppwriteConfigManager.databaseId,
-              queries: [Query.limit(limit), Query.offset(offset)],
-            );
+        final result =
+            await (_appwriteService.databases as dynamic).listCollections(
+          databaseId: AppwriteConfigManager.databaseId,
+          queries: [Query.limit(limit), Query.offset(offset)],
+        );
         final batch = (result as dynamic).collections as List<dynamic>? ?? [];
         if (batch.isEmpty) {
           break;
@@ -80,11 +79,11 @@ class AppwriteBackupService {
     if (allCollections.isEmpty && usedFallback) {
       for (final id in _defaultCollectionIds) {
         try {
-          final collection = await (_appwriteService.databases as dynamic)
-              .getCollection(
-                databaseId: AppwriteConfigManager.databaseId,
-                collectionId: id,
-              );
+          final collection =
+              await (_appwriteService.databases as dynamic).getCollection(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: id,
+          );
           allCollections.add(collection);
         } catch (_) {
           allCollections.add({r'$id': id});
@@ -148,9 +147,8 @@ class AppwriteBackupService {
         collectionId: id,
         useCache: false,
       );
-      collections[id] = docs
-          .map((doc) => {r'$id': doc.$id, ...doc.data})
-          .toList();
+      collections[id] =
+          docs.map((doc) => {r'$id': doc.$id, ...doc.data}).toList();
       counts[id] = docs.length;
     }
 

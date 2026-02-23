@@ -43,13 +43,10 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
             switch (value) {
               case 'export':
                 _exportLogs();
-                break;
               case 'share':
                 _shareLogs(filteredLogs);
-                break;
               case 'clear':
                 _clearLogs();
-                break;
             }
           },
           itemBuilder: (context) => const [
@@ -325,8 +322,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   List<LogEntry> _filterLogs(List<LogEntry> logs) {
     return logs.where((log) {
       final matchesLevel = _filterLevel == null || log.level == _filterLevel;
-      final matchesQuery =
-          _searchQuery.isEmpty ||
+      final matchesQuery = _searchQuery.isEmpty ||
           log.message.toLowerCase().contains(_searchQuery) ||
           log.tag.toLowerCase().contains(_searchQuery) ||
           (log.error?.toString().toLowerCase().contains(_searchQuery) ?? false);

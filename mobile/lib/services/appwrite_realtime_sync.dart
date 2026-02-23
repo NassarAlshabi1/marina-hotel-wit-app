@@ -6,10 +6,10 @@ import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 
 class AppwriteRealtimeSync {
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -113,7 +113,8 @@ class AppwriteRealtimeSync {
     if (updatedAt != null) {
       try {
         final serverTime = DateTime.parse(updatedAt);
-        if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
+        if (_lastServerUpdate == null ||
+            serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
       } catch (e) {
@@ -133,7 +134,8 @@ class AppwriteRealtimeSync {
 
       // ✅ تحسين: زيادة عداد التغييرات
       pendingRemoteChangesCount.value++;
-      debugPrint('📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
+      debugPrint(
+          '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
     });
   }
 

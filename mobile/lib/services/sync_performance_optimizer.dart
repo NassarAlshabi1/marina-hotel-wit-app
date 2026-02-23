@@ -7,12 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
 class SyncPerformanceOptimizer {
-  static final SyncPerformanceOptimizer _instance =
-      SyncPerformanceOptimizer._internal();
-
   factory SyncPerformanceOptimizer() => _instance;
 
   SyncPerformanceOptimizer._internal();
+  static final SyncPerformanceOptimizer _instance =
+      SyncPerformanceOptimizer._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static SyncPerformanceOptimizer get instance => _instance;
@@ -119,29 +118,22 @@ class SyncPerformanceOptimizer {
     if (results.isEmpty) return 'لا يوجد اتصال';
 
     final List<String> types = [];
-    for (var result in results) {
+    for (final result in results) {
       switch (result) {
         case ConnectivityResult.wifi:
           types.add('WiFi');
-          break;
         case ConnectivityResult.mobile:
           types.add('بيانات الهاتف');
-          break;
         case ConnectivityResult.ethernet:
           types.add('إيثرنت');
-          break;
         case ConnectivityResult.vpn:
           types.add('VPN');
-          break;
         case ConnectivityResult.bluetooth:
           types.add('بلوتوث');
-          break;
         case ConnectivityResult.other:
           types.add('أخرى');
-          break;
         case ConnectivityResult.none:
           types.add('لا يوجد اتصال');
-          break;
       }
     }
     return types.join(' + ');
@@ -340,7 +332,7 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من تفعيل WiFi Only
   Future<bool> isWifiOnlyEnabled() async {
-    return await _isWifiOnlyEnabled();
+    return _isWifiOnlyEnabled();
   }
 
   /// حساب الفترة المحسنة للمزامنة بناءً على الأداء
@@ -362,7 +354,7 @@ class SyncPerformanceOptimizer {
 
       // زيادة الفترة مع كل فشل متتالي
       if (_syncAttempts > 0) {
-        optimizedInterval += (_syncAttempts * 30); // إضافة 30 ثانية لكل فشل
+        optimizedInterval += _syncAttempts * 30; // إضافة 30 ثانية لكل فشل
       }
 
       debugPrint(

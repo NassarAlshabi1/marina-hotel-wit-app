@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 /// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
-  static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
+  static final NumberFormat _decimalFormatter =
+      NumberFormat('#,##0.00', 'en_US');
 
   /// تقريب المبلغ بشكل صحيح (banker's rounding avoided, standard rounding)
   static int _roundAmount(double amount) {

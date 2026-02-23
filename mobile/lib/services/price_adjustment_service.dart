@@ -6,10 +6,9 @@ import 'auto_backup_manager.dart';
 import '../utils/time.dart';
 
 class PriceAdjustmentService {
+  PriceAdjustmentService(this.db);
   final AppDatabase db;
   static const _uuid = Uuid();
-
-  PriceAdjustmentService(this.db);
 
   Future<PriceAdjustmentResult> applyRoomPriceChange({
     required String roomNumber,
@@ -55,7 +54,7 @@ class PriceAdjustmentService {
     await db.into(db.priceAdjustments).insert(adjustmentRecord);
 
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
-    
+
     int nightsUpdated = 0;
     int bookingsAffected = 0;
     final auditEntries = <String>[];
@@ -68,7 +67,7 @@ class PriceAdjustmentService {
         adjustmentUuid: adjustmentUuid,
         appliedBy: appliedBy,
       );
-      
+
       if (result.nightsUpdated > 0) {
         bookingsAffected++;
         nightsUpdated += result.nightsUpdated;
@@ -102,9 +101,16 @@ class PriceAdjustmentService {
   }
 
   Future<List<Booking>> _getActiveBookingsForRoom(String roomNumber) async {
-    final activeStatuses = ['مؤكد', 'confirmed', 'نشط', 'active', 'مسجل دخول', 'checked_in'];
-    
-    return await (db.select(db.bookings)
+    final activeStatuses = [
+      'مؤكد',
+      'confirmed',
+      'نشط',
+      'active',
+      'مسجل دخول',
+      'checked_in'
+    ];
+
+    return (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.deletedAt.isNull())
           ..where((b) => b.actualCheckout.isNull())
@@ -130,13 +136,13 @@ class PriceAdjustmentService {
 
     for (final night in nights) {
       final oldRate = night.nightlyRate;
-      
+
       double adjustedRate = newPrice;
       if (booking.discount > 0 && booking.discountType != 'total') {
         final discountStartDate = booking.discountStartDate != null
             ? DateTime.tryParse(booking.discountStartDate!)
             : null;
-        
+
         if (discountStartDate != null) {
           final discountHotelDay = Time.hotelDayKey(now: discountStartDate);
           if (night.hotelDayKey.compareTo(discountHotelDay) >= 0) {
@@ -150,13 +156,12 @@ class PriceAdjustmentService {
       adjustedRate = double.parse(adjustedRate.toStringAsFixed(2));
 
       if ((oldRate - adjustedRate).abs() > 0.001) {
-        await (db.update(db.bookingNights)
-              ..where((n) => n.id.equals(night.id)))
+        await (db.update(db.bookingNights)..where((n) => n.id.equals(night.id)))
             .write(BookingNightsCompanion(
-              nightlyRate: Value(adjustedRate),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ));
+          nightlyRate: Value(adjustedRate),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ));
 
         updated++;
         entries.add(
@@ -182,7 +187,8 @@ class PriceAdjustmentService {
 
     double totalDue = totalNightAmount;
     if (booking.discount > 0 && booking.discountType == 'total') {
-      totalDue = (totalNightAmount - booking.discount).clamp(0.0, totalNightAmount);
+      totalDue =
+          (totalNightAmount - booking.discount).clamp(0.0, totalNightAmount);
     }
     totalDue = double.parse(totalDue.toStringAsFixed(2));
 
@@ -214,24 +220,24 @@ class PriceAdjustmentService {
   }) async {
     final now = DateTime.now();
     await db.into(db.auditLogs).insert(AuditLogsCompanion(
-      localUuid: Value(_uuid.v4()),
-      operationType: Value(action),
-      entityType: const Value('booking_nights'),
-      entityUuid: const Value(''),
-      previousState: const Value(null),
-      newState: Value(details),
-      performedBy: Value(performedBy),
-      deviceId: const Value('app'),
-      hotelDayKey: Value(Time.hotelDayKey(now: now)),
-      timestamp: Value(Time.nowEpoch()),
-      timestampIso: Value(now.toIso8601String()),
-      isFinancial: const Value(true),
-      createdAt: Value(Time.nowEpoch()),
-    ));
+          localUuid: Value(_uuid.v4()),
+          operationType: Value(action),
+          entityType: const Value('booking_nights'),
+          entityUuid: const Value(''),
+          previousState: const Value(null),
+          newState: Value(details),
+          performedBy: Value(performedBy),
+          deviceId: const Value('app'),
+          hotelDayKey: Value(Time.hotelDayKey(now: now)),
+          timestamp: Value(Time.nowEpoch()),
+          timestampIso: Value(now.toIso8601String()),
+          isFinancial: const Value(true),
+          createdAt: Value(Time.nowEpoch()),
+        ));
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {
-    return await (db.select(db.priceAdjustments)
+    return (db.select(db.priceAdjustments)
           ..where((p) => p.targetType.equals('room'))
           ..where((p) => p.targetUuid.equals(roomUuid))
           ..orderBy([(p) => OrderingTerm.desc(p.createdAt)]))
@@ -242,7 +248,7 @@ class PriceAdjustmentService {
     String startDate,
     String endDate,
   ) async {
-    return await (db.select(db.priceAdjustments)
+    return (db.select(db.priceAdjustments)
           ..where((p) => p.hotelDayKey.isBiggerOrEqualValue(startDate))
           ..where((p) => p.hotelDayKey.isSmallerOrEqualValue(endDate))
           ..orderBy([(p) => OrderingTerm.desc(p.createdAt)]))
@@ -258,7 +264,7 @@ class PriceAdjustmentService {
     final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
 
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
-    
+
     int totalNightsAffected = 0;
     double totalOldAmount = 0;
     double totalNewAmount = 0;
@@ -268,7 +274,8 @@ class PriceAdjustmentService {
       final nights = await (db.select(db.bookingNights)
             ..where((n) => n.bookingLocalId.equals(booking.id))
             ..where((n) => n.deletedAt.isNull())
-            ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
+            ..where(
+                (n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
           .get();
 
       if (nights.isEmpty) continue;
@@ -278,7 +285,7 @@ class PriceAdjustmentService {
 
       for (final night in nights) {
         bookingOldTotal += night.nightlyRate;
-        
+
         double adjustedRate = newPrice;
         if (booking.discount > 0 && booking.discountType != 'total') {
           adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice);
@@ -315,13 +322,6 @@ class PriceAdjustmentService {
 }
 
 class PriceAdjustmentResult {
-  final bool success;
-  final String? error;
-  final String? adjustmentUuid;
-  final int bookingsAffected;
-  final int nightsUpdated;
-  final List<String> auditEntries;
-
   PriceAdjustmentResult({
     required this.success,
     this.error,
@@ -330,14 +330,19 @@ class PriceAdjustmentResult {
     this.nightsUpdated = 0,
     this.auditEntries = const [],
   });
+  final bool success;
+  final String? error;
+  final String? adjustmentUuid;
+  final int bookingsAffected;
+  final int nightsUpdated;
+  final List<String> auditEntries;
 }
 
 class _NightUpdateResult {
-  final int nightsUpdated;
-  final List<String> auditEntries;
-
   _NightUpdateResult({
     required this.nightsUpdated,
     required this.auditEntries,
   });
+  final int nightsUpdated;
+  final List<String> auditEntries;
 }

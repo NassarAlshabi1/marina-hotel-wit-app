@@ -24,15 +24,6 @@ enum SyncAnalyticsEvent {
 
 /// إحصائيات المزامنة
 class SyncStats {
-  final int totalPushOperations;
-  final int totalPullOperations;
-  final int totalConflicts;
-  final int totalFailures;
-  final int totalRetries;
-  final Duration averageSyncTime;
-  final DateTime? lastSyncTime;
-  final bool isHealthy;
-
   const SyncStats({
     required this.totalPushOperations,
     required this.totalPullOperations,
@@ -43,6 +34,14 @@ class SyncStats {
     this.lastSyncTime,
     required this.isHealthy,
   });
+  final int totalPushOperations;
+  final int totalPullOperations;
+  final int totalConflicts;
+  final int totalFailures;
+  final int totalRetries;
+  final Duration averageSyncTime;
+  final DateTime? lastSyncTime;
+  final bool isHealthy;
 
   SyncStats copyWith({
     int? totalPushOperations,
@@ -53,36 +52,39 @@ class SyncStats {
     Duration? averageSyncTime,
     DateTime? lastSyncTime,
     bool? isHealthy,
-  }) => SyncStats(
-    totalPushOperations: totalPushOperations ?? this.totalPushOperations,
-    totalPullOperations: totalPullOperations ?? this.totalPullOperations,
-    totalConflicts: totalConflicts ?? this.totalConflicts,
-    totalFailures: totalFailures ?? this.totalFailures,
-    totalRetries: totalRetries ?? this.totalRetries,
-    averageSyncTime: averageSyncTime ?? this.averageSyncTime,
-    lastSyncTime: lastSyncTime ?? this.lastSyncTime,
-    isHealthy: isHealthy ?? this.isHealthy,
-  );
+  }) =>
+      SyncStats(
+        totalPushOperations: totalPushOperations ?? this.totalPushOperations,
+        totalPullOperations: totalPullOperations ?? this.totalPullOperations,
+        totalConflicts: totalConflicts ?? this.totalConflicts,
+        totalFailures: totalFailures ?? this.totalFailures,
+        totalRetries: totalRetries ?? this.totalRetries,
+        averageSyncTime: averageSyncTime ?? this.averageSyncTime,
+        lastSyncTime: lastSyncTime ?? this.lastSyncTime,
+        isHealthy: isHealthy ?? this.isHealthy,
+      );
 
   Map<String, dynamic> toJson() => {
-    'totalPushOperations': totalPushOperations,
-    'totalPullOperations': totalPullOperations,
-    'totalConflicts': totalConflicts,
-    'totalFailures': totalFailures,
-    'totalRetries': totalRetries,
-    'averageSyncTimeMs': averageSyncTime.inMilliseconds,
-    'lastSyncTime': lastSyncTime?.toIso8601String(),
-    'isHealthy': isHealthy,
-    'failureRate': totalPushOperations > 0 ? totalFailures / totalPushOperations : 0.0,
-    'retryRate': totalPushOperations > 0 ? totalRetries / totalPushOperations : 0.0,
-  };
+        'totalPushOperations': totalPushOperations,
+        'totalPullOperations': totalPullOperations,
+        'totalConflicts': totalConflicts,
+        'totalFailures': totalFailures,
+        'totalRetries': totalRetries,
+        'averageSyncTimeMs': averageSyncTime.inMilliseconds,
+        'lastSyncTime': lastSyncTime?.toIso8601String(),
+        'isHealthy': isHealthy,
+        'failureRate':
+            totalPushOperations > 0 ? totalFailures / totalPushOperations : 0.0,
+        'retryRate':
+            totalPushOperations > 0 ? totalRetries / totalPushOperations : 0.0,
+      };
 }
 
 /// خدمة التحليلات للمزامنة
 class AnalyticsService {
-  static final AnalyticsService _instance = AnalyticsService._internal();
   factory AnalyticsService() => _instance;
   AnalyticsService._internal();
+  static final AnalyticsService _instance = AnalyticsService._internal();
 
   FirebaseAnalytics? _analytics;
   bool _isEnabled = true;
@@ -104,7 +106,8 @@ class AnalyticsService {
       await _analytics!.setAnalyticsCollectionEnabled(true);
       developer.log('✅ AnalyticsService initialized', name: 'AnalyticsService');
     } catch (e) {
-      developer.log('⚠️ Analytics initialization failed: $e', name: 'AnalyticsService');
+      developer.log('⚠️ Analytics initialization failed: $e',
+          name: 'AnalyticsService');
       // لا نوقف التطبيق بسبب فشل التحليلات
     }
   }
@@ -304,19 +307,14 @@ class AnalyticsService {
     switch (event) {
       case SyncAnalyticsEvent.dataPushed:
         _sessionPushCount++;
-        break;
       case SyncAnalyticsEvent.dataPulled:
         _sessionPullCount++;
-        break;
       case SyncAnalyticsEvent.conflictResolved:
         _sessionConflicts++;
-        break;
       case SyncAnalyticsEvent.syncFailed:
         _sessionFailures++;
-        break;
       case SyncAnalyticsEvent.retryAttempt:
         _sessionRetries++;
-        break;
       default:
         break;
     }
@@ -377,7 +375,8 @@ class AnalyticsService {
     try {
       await _analytics?.logEvent(
         name: name,
-        parameters: parameters.map((key, value) => MapEntry(key, value as Object)),
+        parameters:
+            parameters.map((key, value) => MapEntry(key, value as Object)),
       );
     } catch (e) {
       // تجاهل الأخطاء

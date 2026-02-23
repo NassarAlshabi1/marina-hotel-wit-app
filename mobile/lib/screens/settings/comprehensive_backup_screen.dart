@@ -213,7 +213,7 @@ class _ComprehensiveBackupScreenState
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _statusMessage?.contains('خطأ') == true
+                        color: _statusMessage?.contains('خطأ') ?? false
                             ? Colors.red
                             : Colors.black87,
                       ),

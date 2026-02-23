@@ -18,16 +18,17 @@ class AppwriteToolsTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
+        const SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
         _buildTestingToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
+        const SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
         _buildMaintenanceToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
+        const SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
         _buildDataManagementCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
+        const SectionHeader(
+            title: 'السجلات والإحصائيات', icon: Icons.analytics),
         _buildLogsStatsCard(context, ref),
       ],
     );
@@ -325,7 +326,8 @@ class AppwriteToolsTab extends ConsumerWidget {
                     child: Text('• ${issue.toArabicMessage()}'),
                   ),
                 ),
-                if (report.issueCount > issues.length) Text('... والمزيد'),
+                if (report.issueCount > issues.length)
+                  const Text('... والمزيد'),
               ],
             ],
           ),
@@ -512,9 +514,8 @@ class AppwriteToolsTab extends ConsumerWidget {
             color: result ? Colors.green : Colors.blue,
             size: 48,
           ),
-          title: Text(result
-              ? 'تم سحب البيانات بنجاح'
-              : 'لا توجد بيانات جديدة'),
+          title:
+              Text(result ? 'تم سحب البيانات بنجاح' : 'لا توجد بيانات جديدة'),
           content: Text(result
               ? 'تم سحب جميع البيانات من Appwrite وحفظها محلياً.'
               : 'البيانات المحلية محدّثة بالفعل.'),

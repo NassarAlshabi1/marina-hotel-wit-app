@@ -12,10 +12,10 @@ enum ConnectionStatus { online, offline, checking, unknown }
 /// يتتبع حالة الاتصال بالإنترنت و Appwrite Server
 /// ويوفر stream للاستماع للتغييرات
 class ConnectionStateManager extends ChangeNotifier {
-  static final ConnectionStateManager _instance =
-      ConnectionStateManager._internal();
   factory ConnectionStateManager() => _instance;
   ConnectionStateManager._internal();
+  static final ConnectionStateManager _instance =
+      ConnectionStateManager._internal();
 
   final _logger = AppwriteLogger();
   final _connectivity = Connectivity();

@@ -6,35 +6,34 @@ import '../models/sync_state.dart';
 import '../models/sync_result.dart';
 import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
-import '../workers/sync_worker.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
+  SyncOrchestrator._();
   static SyncOrchestrator? _instance;
   static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
-  SyncOrchestrator._();
-
   final List<SyncAdapter> _adapters = [];
-  final StreamController<SyncState> _stateController = StreamController<SyncState>.broadcast();
+  final StreamController<SyncState> _stateController =
+      StreamController<SyncState>.broadcast();
   final RetryStrategy _retryStrategy = ExponentialBackoffStrategy();
-  
+
   Stream<SyncState> get stateStream => _stateController.stream;
-  
+
   bool _isInitialized = false;
   bool _isSyncing = false;
 
   /// تهيئة المنظم
   Future<void> initialize(List<SyncAdapter> adapters) async {
     if (_isInitialized) return;
-    
+
     _adapters.addAll(adapters);
-    
+
     // تهيئة جميع المحولات
     for (final adapter in _adapters) {
       await adapter.initialize();
     }
-    
+
     _isInitialized = true;
     _emitState(SyncState.idle());
   }
@@ -66,15 +65,17 @@ class SyncOrchestrator {
 
         final result = await _syncWithRetry(adapter, push: push, pull: pull);
         results[adapter.name] = result;
-        
+
         if (result.isSuccess) {
           completed++;
         }
       }
 
-      final allSuccess = results.values.every((r) => r?.isSuccess ?? false);
-      final totalPushed = results.values.fold<int>(0, (sum, r) => sum + (r?.pushedCount ?? 0));
-      final totalPulled = results.values.fold<int>(0, (sum, r) => sum + (r?.pulledCount ?? 0));
+      final allSuccess = results.values.every((r) => r.isSuccess ?? false);
+      final totalPushed =
+          results.values.fold<int>(0, (sum, r) => sum + (r.pushedCount ?? 0));
+      final totalPulled =
+          results.values.fold<int>(0, (sum, r) => sum + (r.pulledCount ?? 0));
 
       final result = SyncResult.success(
         pushed: totalPushed,
@@ -82,7 +83,8 @@ class SyncOrchestrator {
         adapters: results,
       );
 
-      _emitState(allSuccess ? SyncState.idle() : SyncState.error(result.message));
+      _emitState(
+          allSuccess ? SyncState.idle() : SyncState.error(result.message));
       return result;
     } catch (e) {
       final errorResult = SyncResult.error('خطأ في المزامنة: $e');
@@ -100,7 +102,7 @@ class SyncOrchestrator {
     required bool pull,
   }) async {
     return _retryStrategy.execute(() async {
-      return await adapter.sync(push: push, pull: pull);
+      return adapter.sync(push: push, pull: pull);
     });
   }
 
@@ -117,10 +119,10 @@ class SyncOrchestrator {
   /// الحصول على حالة المزامنة الحالية
   Future<SyncStatus> getCurrentStatus() async {
     if (_isSyncing) return SyncStatus.syncing;
-    
+
     final anyEnabled = _adapters.any((a) => a.isEnabled);
     if (!anyEnabled) return SyncStatus.disabled;
-    
+
     return SyncStatus.idle;
   }
 

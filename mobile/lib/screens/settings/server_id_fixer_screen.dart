@@ -14,7 +14,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
   bool _isProcessing = false;
   String _status = '';
   int _updatedCount = 0;
-  List<String> _logs = [];
+  final List<String> _logs = [];
 
   final Map<String, String> _roomsMapping = {
     '82f73ed9-7c51-4696-93a8-c3fa753725f7':
@@ -177,8 +177,8 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Icon(Icons.info_outline, color: Colors.blue),
                         SizedBox(width: 8),
                         Text(
@@ -233,8 +233,8 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                 color: _status == 'اكتمل بنجاح'
                     ? Colors.green.shade50
                     : _status == 'فشل'
-                    ? Colors.red.shade50
-                    : Colors.orange.shade50,
+                        ? Colors.red.shade50
+                        : Colors.orange.shade50,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -243,13 +243,13 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                         _status == 'اكتمل بنجاح'
                             ? Icons.check_circle
                             : _status == 'فشل'
-                            ? Icons.error
-                            : Icons.pending,
+                                ? Icons.error
+                                : Icons.pending,
                         color: _status == 'اكتمل بنجاح'
                             ? Colors.green
                             : _status == 'فشل'
-                            ? Colors.red
-                            : Colors.orange,
+                                ? Colors.red
+                                : Colors.orange,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -272,7 +272,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: Container(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),

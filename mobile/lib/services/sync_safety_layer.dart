@@ -218,7 +218,7 @@ class SyncSafetyLayer {
         }
       }
 
-      return await _attemptFileRestore(db, file.path);
+      return _attemptFileRestore(db, file.path);
     }
   }
 

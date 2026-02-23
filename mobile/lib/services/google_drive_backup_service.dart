@@ -25,23 +25,6 @@ import 'appwrite_service.dart';
 enum BackupFormat { json, sqlite }
 
 class DriveBackupFile {
-  final String fileId;
-  final String fileName;
-  final DateTime createdTime;
-  final int? size;
-  final Map<String, dynamic>? metadata;
-
-  Map<String, String> get appProperties =>
-      metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
-
-  BackupFormat get format {
-    final raw = metadata?['format'] as String?;
-    return BackupFormat.values.firstWhere(
-      (f) => f.name == raw,
-      orElse: () => BackupFormat.json,
-    );
-  }
-
   DriveBackupFile({
     required this.fileId,
     required this.fileName,
@@ -59,16 +42,25 @@ class DriveBackupFile {
       metadata: file.appProperties,
     );
   }
+  final String fileId;
+  final String fileName;
+  final DateTime createdTime;
+  final int? size;
+  final Map<String, dynamic>? metadata;
+
+  Map<String, String> get appProperties =>
+      metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
+
+  BackupFormat get format {
+    final raw = metadata?['format'] as String?;
+    return BackupFormat.values.firstWhere(
+      (f) => f.name == raw,
+      orElse: () => BackupFormat.json,
+    );
+  }
 }
 
 class BackupMetadata {
-  final String appVersion;
-  final int databaseVersion;
-  final DateTime backupTimestamp;
-  final int totalRecords;
-  final String deviceInfo;
-  final BackupFormat format;
-
   BackupMetadata({
     required this.appVersion,
     required this.databaseVersion,
@@ -77,15 +69,6 @@ class BackupMetadata {
     required this.deviceInfo,
     this.format = BackupFormat.json,
   });
-
-  Map<String, dynamic> toJson() => {
-    'app_version': appVersion,
-    'database_version': databaseVersion,
-    'backup_timestamp': backupTimestamp.toIso8601String(),
-    'total_records': totalRecords,
-    'device_info': deviceInfo,
-    'format': format.name,
-  };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
     final rawFormat = json['format'] as String?;
@@ -102,13 +85,27 @@ class BackupMetadata {
       format: format,
     );
   }
+  final String appVersion;
+  final int databaseVersion;
+  final DateTime backupTimestamp;
+  final int totalRecords;
+  final String deviceInfo;
+  final BackupFormat format;
+
+  Map<String, dynamic> toJson() => {
+        'app_version': appVersion,
+        'database_version': databaseVersion,
+        'backup_timestamp': backupTimestamp.toIso8601String(),
+        'total_records': totalRecords,
+        'device_info': deviceInfo,
+        'format': format.name,
+      };
 }
 
 class GoogleAuthClient extends http.BaseClient {
+  GoogleAuthClient(this._headers) : _client = http.Client();
   final Map<String, String> _headers;
   final http.Client _client;
-
-  GoogleAuthClient(this._headers) : _client = http.Client();
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
@@ -124,6 +121,9 @@ class GoogleAuthClient extends http.BaseClient {
 }
 
 class GoogleDriveBackupService {
+  GoogleDriveBackupService() {
+    _initializeGoogleSignIn();
+  }
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   static const List<String> _scopes = [
@@ -136,7 +136,7 @@ class GoogleDriveBackupService {
     if (error is PlatformException) {
       switch (error.code) {
         case 'sign_in_failed':
-          if (error.message?.contains('10') == true) {
+          if (error.message?.contains('10') ?? false) {
             return 'خطأ في إعدادات التطبيق. تم إصلاح هذا الخطأ في التحديث الجديد.';
           }
           return 'فشل في تسجيل الدخول. تأكد من اتصال الإنترنت وأعد المحاولة.';
@@ -162,10 +162,6 @@ class GoogleDriveBackupService {
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
-
-  GoogleDriveBackupService() {
-    _initializeGoogleSignIn();
-  }
 
   void _initializeGoogleSignIn() {
     _googleSignIn = GoogleSignIn(scopes: _scopes);
@@ -204,7 +200,7 @@ class GoogleDriveBackupService {
         );
         _driveApi = null;
         await _ensureDriveClient();
-        return await action();
+        return action();
       }
       rethrow;
     }
@@ -255,8 +251,8 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      final GoogleSignInAccount? account = await _googleSignIn!
-          .signInSilently();
+      final GoogleSignInAccount? account =
+          await _googleSignIn!.signInSilently();
 
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
@@ -327,7 +323,7 @@ class GoogleDriveBackupService {
       }
 
       try {
-        final query =
+        const query =
             "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         final searchResult = await _driveApi!.files.list(q: query);
 
@@ -370,12 +366,12 @@ class GoogleDriveBackupService {
       final salaryCyclesData = await db.select(db.salaryCycles).get();
       final salaryPaymentsData = await db.select(db.salaryPayments).get();
       final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
-      final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
+      final bookingPriceAdjData =
+          await db.select(db.bookingPriceAdjustments).get();
       final auditLogsData = await db.select(db.auditLogs).get();
       final paymentVoidsData = await db.select(db.paymentVoids).get();
 
-      final totalRecords =
-          roomsData.length +
+      final totalRecords = roomsData.length +
           bookingsData.length +
           bookingNotesData.length +
           bookingNightsData.length +
@@ -407,38 +403,28 @@ class GoogleDriveBackupService {
         'rooms': roomsData.map((room) => room.toJson()).toList(),
         'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
         'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
-        'booking_nights': bookingNightsData
-            .map((night) => night.toJson())
-            .toList(),
+        'booking_nights':
+            bookingNightsData.map((night) => night.toJson()).toList(),
         'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
         'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
-        'employees': employeesData
-            .map((employee) => employee.toJson())
-            .toList(),
+        'employees':
+            employeesData.map((employee) => employee.toJson()).toList(),
         'expenses': expensesData.map((expense) => expense.toJson()).toList(),
         'cash_transactions': cashTransactionsData
             .map((transaction) => transaction.toJson())
             .toList(),
         'payments': paymentsData.map((payment) => payment.toJson()).toList(),
         'debts': debtsData.map((debt) => debt.toJson()).toList(),
-        'salary_cycles': salaryCyclesData
-            .map((cycle) => cycle.toJson())
-            .toList(),
-        'salary_payments': salaryPaymentsData
-            .map((payment) => payment.toJson())
-            .toList(),
-        'price_adjustments': priceAdjustmentsData
-            .map((adj) => adj.toJson())
-            .toList(),
-        'booking_price_adjustments': bookingPriceAdjData
-            .map((adj) => adj.toJson())
-            .toList(),
-        'audit_logs': auditLogsData
-            .map((log) => log.toJson())
-            .toList(),
-        'payment_voids': paymentVoidsData
-            .map((v) => v.toJson())
-            .toList(),
+        'salary_cycles':
+            salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
+        'salary_payments':
+            salaryPaymentsData.map((payment) => payment.toJson()).toList(),
+        'price_adjustments':
+            priceAdjustmentsData.map((adj) => adj.toJson()).toList(),
+        'booking_price_adjustments':
+            bookingPriceAdjData.map((adj) => adj.toJson()).toList(),
+        'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
+        'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
       };
 
       _log('✅ تم تصدير البيانات: $totalRecords سجل');
@@ -498,7 +484,7 @@ class GoogleDriveBackupService {
         }
 
         final fileName =
-            '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
+            '$prefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
 
         final driveFile = drive.File()
           ..name = fileName
@@ -588,12 +574,10 @@ class GoogleDriveBackupService {
     int expectedSize,
   ) async {
     try {
-      final file =
-          await _driveApi!.files.get(
-                fileId,
-                $fields: 'id,name,size,appProperties',
-              )
-              as drive.File;
+      final file = await _driveApi!.files.get(
+        fileId,
+        $fields: 'id,name,size,appProperties',
+      ) as drive.File;
 
       final actualSize = file.size != null ? int.tryParse(file.size!) ?? 0 : 0;
 
@@ -694,12 +678,10 @@ class GoogleDriveBackupService {
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
     return _runWithAuth<Map<String, dynamic>>(() async {
-      final media =
-          await _driveApi!.files.get(
-                fileId,
-                downloadOptions: drive.DownloadOptions.fullMedia,
-              )
-              as drive.Media;
+      final media = await _driveApi!.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
 
       final List<int> dataStore = [];
       await for (final data in media.stream) {
@@ -1044,7 +1026,7 @@ class GoogleDriveBackupService {
               final settings = Map<String, dynamic>.from(rawSettings);
               final prefs = await SharedPreferences.getInstance();
 
-              final keys = SystemSettingKeys.all;
+              const keys = SystemSettingKeys.all;
 
               bool settingsChanged = false;
               for (final key in keys) {
@@ -1071,12 +1053,10 @@ class GoogleDriveBackupService {
 
                 final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
                 final parts = timeStr.split(':');
-                final parsedHour = parts.isNotEmpty
-                    ? int.tryParse(parts[0])
-                    : null;
-                final parsedMinute = parts.length > 1
-                    ? int.tryParse(parts[1])
-                    : null;
+                final parsedHour =
+                    parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+                final parsedMinute =
+                    parts.length > 1 ? int.tryParse(parts[1]) : null;
 
                 final hour = (parsedHour ?? 21).clamp(0, 23);
                 final minute = (parsedMinute ?? 0).clamp(0, 59);
@@ -1186,13 +1166,10 @@ class GoogleDriveBackupService {
     switch (frequency) {
       case 'daily':
         frequencyDuration = const Duration(days: 1);
-        break;
       case 'weekly':
         frequencyDuration = const Duration(days: 7);
-        break;
       case 'monthly':
         frequencyDuration = const Duration(days: 30);
-        break;
       default:
         frequencyDuration = const Duration(days: 1);
     }

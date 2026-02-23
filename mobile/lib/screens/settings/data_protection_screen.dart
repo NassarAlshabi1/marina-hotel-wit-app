@@ -28,8 +28,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   bool _scheduledEnabled = false;
   bool _googleDriveSyncEnabled = false;
   bool _googleDriveSyncDisableOnStart = false;
-  bool _googleDrivePushEnabled = true;   // Push مفعّل افتراضياً
-  bool _googleDrivePullEnabled = false;  // Pull معطل افتراضياً (وضع Push فقط)
+  bool _googleDrivePushEnabled = true; // Push مفعّل افتراضياً
+  bool _googleDrivePullEnabled = false; // Pull معطل افتراضياً (وضع Push فقط)
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 21, minute: 0);
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60];
   final Map<ConflictResolution, String> _conflictDescriptions = {
@@ -65,10 +65,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         prefs.getBool('google_drive_sync_enabled') ?? false;
     final googleDriveSyncDisableOnStart =
         prefs.getBool('google_drive_sync_disable_on_start') ?? false;
-    final googleDrivePushEnabled =
-        prefs.getBool('gd_unified_push_enabled') ?? true;   // Push مفعّل افتراضياً
-    final googleDrivePullEnabled =
-        prefs.getBool('gd_unified_pull_enabled') ?? false;  // Pull معطل افتراضياً (Push فقط)
+    final googleDrivePushEnabled = prefs.getBool('gd_unified_push_enabled') ??
+        true; // Push مفعّل افتراضياً
+    final googleDrivePullEnabled = prefs.getBool('gd_unified_pull_enabled') ??
+        false; // Pull معطل افتراضياً (Push فقط)
     if (!mounted) return;
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
@@ -785,7 +785,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 data: (stats) {
                   final lastSyncLabel =
                       _formatOptionalDate(stats['lastSyncTime'] as String?) ??
-                      '---';
+                          '---';
                   final successRate = stats['successRate'];
                   final successLabel = successRate is num
                       ? '${successRate.toStringAsFixed(0)}%'
@@ -818,7 +818,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _appwriteBusy ? null : () => _runAppwriteSync(),
+                onPressed: _appwriteBusy ? null : _runAppwriteSync,
                 icon: _appwriteBusy
                     ? const SizedBox(
                         width: 16,
@@ -889,7 +889,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     return statusAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => _buildErrorCard('تعذر تحميل إعدادات المزامنة'),
-      data: (status) => _buildSyncContent(status),
+      data: _buildSyncContent,
     );
   }
 
@@ -1021,7 +1021,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           const SizedBox(height: 12),
           _buildCard(
             DropdownButtonFormField<int>(
-              value: _intervalOptions.contains(syncInterval)
+              initialValue: _intervalOptions.contains(syncInterval)
                   ? syncInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -1048,7 +1048,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             Column(
               children: [
                 DropdownButtonFormField<ConflictResolution>(
-                  value: resolution,
+                  initialValue: resolution,
                   decoration: const InputDecoration(
                     labelText: 'استراتيجية حل التضارب',
                     prefixIcon: Icon(Icons.merge_type),
@@ -1131,7 +1131,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _retentionDaysController.text = retentionDays.toString();
     }
     final statusMessage = backupState.message;
-    final double? progress = backupState.progress?.clamp(0.0, 1.0).toDouble();
+    final double? progress = backupState.progress?.clamp(0.0, 1.0);
     final bool isErrorMessage = backupState.status == BackupStatus.error;
     final bool isSuccessMessage = backupState.status == BackupStatus.success;
     final lastLocalBackup = backupState.lastLocalBackupTime;
@@ -1145,8 +1145,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               color: isErrorMessage
                   ? Colors.red.shade50
                   : isSuccessMessage
-                  ? Colors.green.shade50
-                  : Colors.blue.shade50,
+                      ? Colors.green.shade50
+                      : Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -1155,8 +1155,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 color: isErrorMessage
                     ? Colors.red.shade700
                     : isSuccessMessage
-                    ? Colors.green.shade700
-                    : Colors.blue.shade700,
+                        ? Colors.green.shade700
+                        : Colors.blue.shade700,
                 fontWeight: FontWeight.w600,
               ),
             ),

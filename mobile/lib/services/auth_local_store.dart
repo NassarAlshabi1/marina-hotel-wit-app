@@ -148,9 +148,8 @@ class AuthLocalStore {
       return null;
     }
 
-    final perms = normalized == 'admin'
-        ? ['all']
-        : await getPermissions(normalized);
+    final perms =
+        normalized == 'admin' ? ['all'] : await getPermissions(normalized);
     return {
       'id': account['id'] ?? 0,
       'username': normalized,
@@ -320,7 +319,7 @@ class AuthLocalStore {
   Future<List<String>> getAllUsernames() async {
     final names = <String>{..._fixedAccounts.keys};
     final custom = await _loadCustomAccounts();
-    names.addAll(custom.keys.map((e) => e.toString()));
+    names.addAll(custom.keys.map((e) => e));
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     if (raw != null) {

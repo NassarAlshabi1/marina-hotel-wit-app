@@ -64,9 +64,8 @@ class GuestInfoRepository {
         idNumber: idNumber != null
             ? d.Value(idNumber.trim())
             : const d.Value.absent(),
-        idType: idType != null
-            ? d.Value(idType.trim())
-            : const d.Value.absent(),
+        idType:
+            idType != null ? d.Value(idType.trim()) : const d.Value.absent(),
         issueDate: _nullableValue(issueDate),
         issuePlace: _nullableValue(issuePlace),
         governorate: _nullableValue(governorate),

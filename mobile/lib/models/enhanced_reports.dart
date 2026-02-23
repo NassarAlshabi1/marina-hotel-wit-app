@@ -7,12 +7,6 @@ import '../utils/enhanced_pdf_utils.dart';
 
 /// تقرير دفوعات محسّن
 class EnhancedPaymentsReport {
-  final List<PaymentReportItem> payments;
-  final DateTime fromDate;
-  final DateTime toDate;
-  final String? roomFilter;
-  final String generatedBy;
-
   EnhancedPaymentsReport({
     required this.payments,
     required this.fromDate,
@@ -20,6 +14,11 @@ class EnhancedPaymentsReport {
     this.roomFilter,
     required this.generatedBy,
   });
+  final List<PaymentReportItem> payments;
+  final DateTime fromDate;
+  final DateTime toDate;
+  final String? roomFilter;
+  final String generatedBy;
 
   double get totalAmount =>
       payments.fold(0, (sum, payment) => sum + payment.amount);
@@ -361,14 +360,6 @@ class EnhancedPaymentsReport {
 
 /// عنصر تقرير الدفعة
 class PaymentReportItem {
-  final String guestName;
-  final String roomNumber;
-  final double amount;
-  final String method;
-  final DateTime paymentDate;
-  final String? receivedBy;
-  final String? notes;
-
   PaymentReportItem({
     required this.guestName,
     required this.roomNumber,
@@ -378,29 +369,29 @@ class PaymentReportItem {
     this.receivedBy,
     this.notes,
   });
+  final String guestName;
+  final String roomNumber;
+  final double amount;
+  final String method;
+  final DateTime paymentDate;
+  final String? receivedBy;
+  final String? notes;
 }
 
 /// ملخص يومي
 class DailySummary {
-  final DateTime date;
-  double totalAmount;
-  int transactionCount;
-
   DailySummary({
     required this.date,
     required this.totalAmount,
     required this.transactionCount,
   });
+  final DateTime date;
+  double totalAmount;
+  int transactionCount;
 }
 
 /// تقرير المصروفات المحسّن
 class EnhancedExpensesReport {
-  final List<ExpenseReportItem> expenses;
-  final DateTime fromDate;
-  final DateTime toDate;
-  final String? categoryFilter;
-  final String generatedBy;
-
   EnhancedExpensesReport({
     required this.expenses,
     required this.fromDate,
@@ -408,6 +399,11 @@ class EnhancedExpensesReport {
     this.categoryFilter,
     required this.generatedBy,
   });
+  final List<ExpenseReportItem> expenses;
+  final DateTime fromDate;
+  final DateTime toDate;
+  final String? categoryFilter;
+  final String generatedBy;
 
   double get totalAmount =>
       expenses.fold(0, (sum, expense) => sum + expense.amount);
@@ -468,9 +464,8 @@ class EnhancedExpensesReport {
   pw.Widget _buildExpenseReportInfo(ArabicPdfFonts fonts) {
     final periodLabel =
         '${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}';
-    final categoryLabel = categoryFilter != null
-        ? 'الفئة: $categoryFilter'
-        : 'جميع الفئات';
+    final categoryLabel =
+        categoryFilter != null ? 'الفئة: $categoryFilter' : 'جميع الفئات';
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '📊 معلومات التقرير',
@@ -662,12 +657,6 @@ class EnhancedExpensesReport {
 
 /// عنصر تقرير المصروف
 class ExpenseReportItem {
-  final String description;
-  final String category;
-  final double amount;
-  final DateTime date;
-  final String? notes;
-
   ExpenseReportItem({
     required this.description,
     required this.category,
@@ -675,17 +664,21 @@ class ExpenseReportItem {
     required this.date,
     this.notes,
   });
+  final String description;
+  final String category;
+  final double amount;
+  final DateTime date;
+  final String? notes;
 }
 
 /// ملخص الفئة
 class CategorySummary {
-  final String category;
-  double totalAmount;
-  int count;
-
   CategorySummary({
     required this.category,
     required this.totalAmount,
     required this.count,
   });
+  final String category;
+  double totalAmount;
+  int count;
 }

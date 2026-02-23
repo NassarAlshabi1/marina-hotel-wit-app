@@ -27,8 +27,7 @@ class PaymentVoidsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final bookingUuid =
-        _asString(json, 'bookingUuid', src) ??
+    final bookingUuid = _asString(json, 'bookingUuid', src) ??
         _asString(json, 'booking_uuid', src);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
@@ -48,8 +47,7 @@ class PaymentVoidsAdapter
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
+    final lastModified = refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     final voidedAt = _epoch(json, 'voidedAt', src) ?? now;
@@ -78,9 +76,12 @@ class PaymentVoidsAdapter
       ),
       bookingUuid: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache!)
-          : _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid', fallback: ''),
-      voidedAmount: _vInt(json, 'voidedAmount', src, altKey: 'voided_amount', fallback: 0),
-      voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason', fallback: ''),
+          : _vStr(json, 'bookingUuid', src,
+              altKey: 'booking_uuid', fallback: ''),
+      voidedAmount: _vInt(json, 'voidedAmount', src,
+          altKey: 'voided_amount', fallback: 0),
+      voidReason:
+          _vStr(json, 'voidReason', src, altKey: 'void_reason', fallback: ''),
       voidedBy: _vStr(json, 'voidedBy', src, altKey: 'voided_by', fallback: ''),
       voidedAt: d.Value(voidedAt),
       voidedAtIso: _vStr(
@@ -88,9 +89,11 @@ class PaymentVoidsAdapter
         'voidedAtIso',
         src,
         altKey: 'voided_at_iso',
-        fallback: DateTime.fromMillisecondsSinceEpoch(voidedAt * 1000).toIso8601String(),
+        fallback: DateTime.fromMillisecondsSinceEpoch(voidedAt * 1000)
+            .toIso8601String(),
       ),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src,
+          altKey: 'hotel_day_key', fallback: ''),
       reversalPaymentUuid: _vStr(
         json,
         'reversalPaymentUuid',
@@ -120,8 +123,10 @@ class PaymentVoidsAdapter
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'originalPaymentUuid', 'original_payment_uuid'): model.originalPaymentUuid,
-      _k(src, 'originalPaymentId', 'original_payment_id'): model.originalPaymentId,
+      _k(src, 'originalPaymentUuid', 'original_payment_uuid'):
+          model.originalPaymentUuid,
+      _k(src, 'originalPaymentId', 'original_payment_id'):
+          model.originalPaymentId,
       _k(src, 'bookingUuid', 'booking_uuid'): model.bookingUuid,
       _k(src, 'voidedAmount', 'voided_amount'): model.voidedAmount,
       _k(src, 'voidReason', 'void_reason'): model.voidReason,
@@ -129,7 +134,8 @@ class PaymentVoidsAdapter
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
       _k(src, 'voidedAtIso', 'voided_at_iso'): model.voidedAtIso,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'): model.reversalPaymentUuid,
+      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'):
+          model.reversalPaymentUuid,
       _k(src, 'approvedBy', 'approved_by'): model.approvedBy,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
@@ -149,8 +155,7 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v =
-      _asInt(json, key, src) ??
+  final v = _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -163,8 +168,7 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v =
-      _asString(json, key, src) ??
+  final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

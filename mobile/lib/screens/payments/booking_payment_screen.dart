@@ -19,9 +19,8 @@ import '../../providers/repository_providers.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
-  final db.Booking booking;
-
   const BookingPaymentScreen({super.key, required this.booking});
+  final db.Booking booking;
 
   @override
   ConsumerState<BookingPaymentScreen> createState() =>
@@ -38,12 +37,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   bool _isSavingPayment = false;
   double _debtAmount = 0;
 
-
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
       id: p.localUuid,
       bookingId: widget.booking.localUuid,
-      amount: p.amount.toDouble(),
+      amount: p.amount,
       method: _mapDbMethodToUi(p.paymentMethod),
       status: PaymentStatus.completed,
       paymentDate: DateTime.tryParse(p.paymentDate) ?? DateTime.now(),
@@ -141,9 +139,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
-        : normalized;
+    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -165,7 +161,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       discountStartDate.day,
       14,
     );
-    final effectiveStart = discountDayStart.isAfter(checkin) ? discountDayStart : checkin;
+    final effectiveStart =
+        discountDayStart.isAfter(checkin) ? discountDayStart : checkin;
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
@@ -222,10 +219,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final expectedNights = booking.expectedNights > 0
                   ? booking.expectedNights
                   : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-              final isActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
+              final isActive = actualCheckout == null &&
+                  StatusUtils.isBookingActive(booking);
               final actualNights = Time.nightsWithCutoff(
                 checkin,
-                checkout: actualCheckout ?? (isActive ? DateTime.now() : plannedCheckout),
+                checkout: actualCheckout ??
+                    (isActive ? DateTime.now() : plannedCheckout),
               );
 
               final dbInstance = ref.watch(databaseProvider);
@@ -233,170 +232,179 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final discountType = booking.discountType;
               final discountStartDate = _parseDateTime(
                 booking.discountStartDate,
-          );
+              );
 
-          return StreamBuilder<List<db.BookingNight>>(
-            stream:
-                (dbInstance.select(dbInstance.bookingNights)
+              return StreamBuilder<List<db.BookingNight>>(
+                stream: (dbInstance.select(dbInstance.bookingNights)
                       ..where((n) => n.bookingLocalId.equals(booking.id))
                       ..where((n) => n.deletedAt.isNull()))
                     .watch(),
-            builder: (context, nightsSnap) {
-              final nights = nightsSnap.data ?? const <db.BookingNight>[];
-              final nightsCount = nights.isNotEmpty
-                  ? nights.length
-                  : actualNights;
-              final double nightTotal = nights.isNotEmpty
-                  ? nights.fold<double>(
+                builder: (context, nightsSnap) {
+                  final nights = nightsSnap.data ?? const <db.BookingNight>[];
+                  final nightsCount =
+                      nights.isNotEmpty ? nights.length : actualNights;
+                  final double nightTotal = nights.isNotEmpty
+                      ? nights.fold<double>(
+                          0,
+                          (sum, n) =>
+                              sum +
+                              (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
+                        )
+                      : (() {
+                          final checkout = actualCheckout ??
+                              (isActive ? DateTime.now() : plannedCheckout);
+                          if (checkout == null) {
+                            return actualNights * roomRate;
+                          }
+                          if (discount > 0 && discountType == 'per_night') {
+                            final discountedNights = _countNightsWithDiscount(
+                              checkin,
+                              checkout,
+                              discountStartDate,
+                            );
+                            final fullNightsRaw =
+                                actualNights - discountedNights;
+                            final fullNights =
+                                fullNightsRaw < 0 ? 0 : fullNightsRaw;
+                            final discountedRate =
+                                (roomRate - discount).clamp(0, roomRate);
+                            return (fullNights * roomRate) +
+                                (discountedNights * discountedRate);
+                          }
+                          return actualNights * roomRate;
+                        })();
+
+                  final double totalAmount =
+                      discount > 0 && discountType == 'total'
+                          ? (nightTotal - discount).clamp(0, nightTotal)
+                          : nightTotal;
+
+                  int discountedNights = 0;
+                  int surchargeNights = 0;
+                  int normalNights = nightsCount;
+                  double totalDiscount = 0;
+                  double totalSurcharge = 0;
+
+                  if (nights.isNotEmpty) {
+                    discountedNights =
+                        nights.where((n) => n.adjustment < 0).length;
+                    surchargeNights =
+                        nights.where((n) => n.adjustment > 0).length;
+                    normalNights =
+                        nightsCount - discountedNights - surchargeNights;
+                    if (normalNights < 0) normalNights = 0;
+                    totalDiscount = nights.fold<double>(
                       0,
-                      (sum, n) =>
-                          sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
-                    )
-                  : (() {
-                      final checkout = actualCheckout ?? (isActive ? DateTime.now() : plannedCheckout);
-                      if (checkout == null) {
-                        return actualNights * roomRate;
-                      }
-                      if (discount > 0 && discountType == 'per_night') {
-                        final discountedNights = _countNightsWithDiscount(
-                          checkin,
-                          checkout,
-                          discountStartDate,
-                        );
-                        final fullNightsRaw = actualNights - discountedNights;
-                        final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
-                        final discountedRate = (roomRate - discount)
-                            .clamp(0, roomRate);
-                        return (fullNights * roomRate) +
-                            (discountedNights * discountedRate);
-                      }
-                      return actualNights * roomRate;
-                    })();
+                      (sum, n) => sum + (n.adjustment < 0 ? -n.adjustment : 0),
+                    );
+                    totalSurcharge = nights.fold<double>(
+                      0,
+                      (sum, n) => sum + (n.adjustment > 0 ? n.adjustment : 0),
+                    );
+                  } else if (discount > 0 && discountType == 'per_night') {
+                    final checkout =
+                        actualCheckout ?? plannedCheckout ?? DateTime.now();
+                    discountedNights = _countNightsWithDiscount(
+                      checkin,
+                      checkout,
+                      discountStartDate,
+                    );
+                    normalNights = nightsCount - discountedNights;
+                    if (normalNights < 0) normalNights = 0;
+                    totalDiscount = discountedNights * discount;
+                  } else if (discount > 0 && discountType == 'total') {
+                    totalDiscount = discount;
+                  }
 
-              final double totalAmount = discount > 0 && discountType == 'total'
-                  ? (nightTotal - discount).clamp(0, nightTotal)
-                  : nightTotal;
+                  return StreamBuilder<List<db.Payment>>(
+                    stream: paymentsRepo.paymentsByBooking(booking.id),
+                    builder: (context, paySnap) {
+                      final dbPayments = paySnap.data ?? const <db.Payment>[];
+                      final paidAmount = dbPayments.fold<double>(
+                        0,
+                        (s, p) => s + p.amount,
+                      );
+                      double remainingAmount = totalAmount - paidAmount;
+                      if (remainingAmount < 0) remainingAmount = 0;
+                      _remainingAmount = remainingAmount;
+                      final uiPayments =
+                          dbPayments.map(_mapDbPaymentToUi).toList();
+                      final summary = BookingPaymentSummary(
+                        bookingId: booking.localUuid,
+                        totalAmount: totalAmount,
+                        paidAmount: paidAmount,
+                        remainingAmount: remainingAmount,
+                        payments: uiPayments,
+                        overallStatus: remainingAmount <= 0
+                            ? PaymentStatus.completed
+                            : PaymentStatus.pending,
+                      );
 
-              int discountedNights = 0;
-              int surchargeNights = 0;
-              int normalNights = nightsCount;
-              double totalDiscount = 0;
-              double totalSurcharge = 0;
-
-              if (nights.isNotEmpty) {
-                discountedNights =
-                    nights.where((n) => n.adjustment < 0).length;
-                surchargeNights =
-                    nights.where((n) => n.adjustment > 0).length;
-                normalNights =
-                    nightsCount - discountedNights - surchargeNights;
-                if (normalNights < 0) normalNights = 0;
-                totalDiscount = nights.fold<double>(
-                  0,
-                  (sum, n) => sum + (n.adjustment < 0 ? -n.adjustment : 0),
-                );
-                totalSurcharge = nights.fold<double>(
-                  0,
-                  (sum, n) => sum + (n.adjustment > 0 ? n.adjustment : 0),
-                );
-              } else if (discount > 0 && discountType == 'per_night') {
-                final checkout = actualCheckout ?? plannedCheckout ?? DateTime.now();
-                discountedNights = _countNightsWithDiscount(
-                  checkin,
-                  checkout,
-                  discountStartDate,
-                );
-                normalNights = nightsCount - discountedNights;
-                if (normalNights < 0) normalNights = 0;
-                totalDiscount = discountedNights * discount;
-              } else if (discount > 0 && discountType == 'total') {
-                totalDiscount = discount;
-              }
-
-              return StreamBuilder<List<db.Payment>>(
-                stream: paymentsRepo.paymentsByBooking(booking.id),
-                builder: (context, paySnap) {
-                  final dbPayments = paySnap.data ?? const <db.Payment>[];
-                  final paidAmount = dbPayments.fold<double>(
-                    0,
-                    (s, p) => s + p.amount,
-                  );
-                  double remainingAmount = totalAmount - paidAmount;
-                  if (remainingAmount < 0) remainingAmount = 0;
-                  _remainingAmount = remainingAmount;
-                  final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
-                  final summary = BookingPaymentSummary(
-                    bookingId: booking.localUuid,
-                    totalAmount: totalAmount.toDouble(),
-                    paidAmount: paidAmount.toDouble(),
-                    remainingAmount: remainingAmount.toDouble(),
-                    payments: uiPayments,
-                    overallStatus: remainingAmount <= 0
-                        ? PaymentStatus.completed
-                        : PaymentStatus.pending,
-                  );
-
-                  return Column(
-                    children: [
-                      _buildPaymentSummaryCard(
-                        summary,
-                        roomRate: roomRate,
-                        expectedNights: expectedNights,
-                        actualNights: nightsCount,
-                        checkin: checkin,
-                        plannedCheckout: plannedCheckout,
-                        actualCheckout: actualCheckout,
-                        discount: discount,
-                        normalNights: normalNights,
-                        discountedNights: discountedNights,
-                        surchargeNights: surchargeNights,
-                        totalDiscount: totalDiscount,
-                        totalSurcharge: totalSurcharge,
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: TabBar(
-                          controller: _tabController,
-                          indicator: BoxDecoration(
-                            borderRadius: BorderRadius.circular(25),
-                            color: Theme.of(context).colorScheme.primary,
+                      return Column(
+                        children: [
+                          _buildPaymentSummaryCard(
+                            summary,
+                            roomRate: roomRate,
+                            expectedNights: expectedNights,
+                            actualNights: nightsCount,
+                            checkin: checkin,
+                            plannedCheckout: plannedCheckout,
+                            actualCheckout: actualCheckout,
+                            discount: discount,
+                            normalNights: normalNights,
+                            discountedNights: discountedNights,
+                            surchargeNights: surchargeNights,
+                            totalDiscount: totalDiscount,
+                            totalSurcharge: totalSurcharge,
                           ),
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          labelColor: Theme.of(context).colorScheme.onPrimary,
-                          unselectedLabelColor: Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant,
-                          labelStyle: const TextStyle(fontSize: 13),
-                          unselectedLabelStyle: const TextStyle(fontSize: 13),
-                          dividerColor: Colors.transparent,
-                          tabs: const [
-                            Tab(text: 'دفعة جديدة'),
-                            Tab(text: 'الإجراءات'),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildNewPaymentTab(summary),
-                            _buildActionsTab(summary),
-                          ],
-                        ),
-                      ),
-                    ],
+                          const SizedBox(height: 8),
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: TabBar(
+                              controller: _tabController,
+                              indicator: BoxDecoration(
+                                borderRadius: BorderRadius.circular(25),
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              indicatorSize: TabBarIndicatorSize.tab,
+                              labelColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                              unselectedLabelColor: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              labelStyle: const TextStyle(fontSize: 13),
+                              unselectedLabelStyle:
+                                  const TextStyle(fontSize: 13),
+                              dividerColor: Colors.transparent,
+                              tabs: const [
+                                Tab(text: 'دفعة جديدة'),
+                                Tab(text: 'الإجراءات'),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: TabBarView(
+                              controller: _tabController,
+                              children: [
+                                _buildNewPaymentTab(summary),
+                                _buildActionsTab(summary),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               );
             },
           );
-          },
-        );
         },
       ),
     );
@@ -420,12 +428,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
     final checkinText = dateFmt.format(checkin);
-    final plannedText = plannedCheckout != null
-        ? dateFmt.format(plannedCheckout)
-        : null;
-    final actualText = actualCheckout != null
-        ? dateFmt.format(actualCheckout)
-        : null;
+    final plannedText =
+        plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
+    final actualText =
+        actualCheckout != null ? dateFmt.format(actualCheckout) : null;
     final hasPhone = _currentGuestPhone.isNotEmpty;
     final identityLine = widget.booking.guestIdNumber.isEmpty
         ? widget.booking.guestIdType
@@ -437,8 +443,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            summary.isFullyPaid ? Colors.green.shade50 : Colors.blue.shade50,
-            summary.isFullyPaid ? Colors.green.shade100 : Colors.blue.shade100,
+            if (summary.isFullyPaid)
+              Colors.green.shade50
+            else
+              Colors.blue.shade50,
+            if (summary.isFullyPaid)
+              Colors.green.shade100
+            else
+              Colors.blue.shade100,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -547,7 +559,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 context,
                 icon: Icons.attach_money,
                 label: 'سعر الليلة',
-                value: '${_currencyFmt.format(roomRate)}',
+                value: _currencyFmt.format(roomRate),
               ),
               // _buildDetailChip(
               //   context,
@@ -634,9 +646,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'تقدم الدفع',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -708,7 +720,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Column(
         children: [
           Text(
-            '${_currencyFmt.format(amount)}',
+            _currencyFmt.format(amount),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -762,10 +774,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildNewPaymentTab(BookingPaymentSummary summary) {
     if (summary.isFullyPaid) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.check_circle, size: 80, color: Colors.green),
             SizedBox(height: 16),
             Text(
@@ -1214,13 +1226,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               onPressed: _isSavingPayment
                   ? null
                   : () => _processPayment(
-                      method,
-                      amountController.text,
-                      notesController.text,
-                      referenceController.text,
-                      cardDigitsController.text,
-                      bankController.text,
-                    ),
+                        method,
+                        amountController.text,
+                        notesController.text,
+                        referenceController.text,
+                        cardDigitsController.text,
+                        bankController.text,
+                      ),
               child: _isSavingPayment
                   ? const SizedBox(
                       width: 20,
@@ -1309,7 +1321,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         child: Column(
           children: [
-            Icon(Icons.access_time, color: Colors.blue, size: 32),
+            const Icon(Icons.access_time, color: Colors.blue, size: 32),
             const SizedBox(height: 8),
             Text(
               'خيارات تمديد الإقامة ستظهر عند تجاوز الليالي المخططة',
@@ -1333,7 +1345,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         children: [
           Row(
             children: [
-              Icon(Icons.schedule, color: Colors.orange, size: 20),
+              const Icon(Icons.schedule, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               Text(
                 'إقامة ممددة - $extraNights ليلة إضافية',
@@ -1388,9 +1400,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         final amount = nights * roomRate;
 
         return ElevatedButton(
-          onPressed: amount > 0
-              ? () => _showDailyPaymentDialog(nights, amount)
-              : null,
+          onPressed:
+              amount > 0 ? () => _showDailyPaymentDialog(nights, amount) : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
             foregroundColor: Colors.white,
@@ -1407,7 +1418,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 textAlign: TextAlign.center,
               ),
               Text(
-                '${_currencyFmt.format(amount)}',
+                _currencyFmt.format(amount),
                 style: const TextStyle(fontSize: 11),
               ),
             ],
@@ -1429,7 +1440,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.hotel, color: Colors.orange),
+            const Icon(Icons.hotel, color: Colors.orange),
             const SizedBox(width: 8),
             Text('دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'),
           ],
@@ -1509,9 +1520,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final now = DateTime.now();
     final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
     final currentTotal = currentNights * roomRate;
-    final allPayments = await paymentsRepo
-        .paymentsByBooking(widget.booking.id)
-        .first;
+    final allPayments =
+        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
     double newRemaining = currentTotal - totalPaid;
     if (newRemaining < 0) newRemaining = 0;
@@ -1603,11 +1613,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       checkout: actualCheckout ?? plannedCheckout,
     );
 
-    final nights =
-        await (dbInstance.select(dbInstance.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
-              ..where((n) => n.deletedAt.isNull()))
-            .get();
+    final nights = await (dbInstance.select(dbInstance.bookingNights)
+          ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+          ..where((n) => n.deletedAt.isNull()))
+        .get();
     final discount = widget.booking.discount;
     final discountType = widget.booking.discountType;
     final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
@@ -1630,8 +1639,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               );
               final fullNightsRaw = actualNights - discountedNights;
               final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
-              final discountedRate =
-                  (roomRate - discount).clamp(0, roomRate);
+              final discountedRate = (roomRate - discount).clamp(0, roomRate);
               return (fullNights * roomRate) +
                   (discountedNights * discountedRate);
             }
@@ -1641,9 +1649,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final double totalAmount = discount > 0 && discountType == 'total'
         ? (nightTotal - discount).clamp(0, nightTotal)
         : nightTotal;
-    final payments = await paymentsRepo
-        .paymentsByBooking(widget.booking.id)
-        .first;
+    final payments =
+        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
     final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) remainingAmount = 0;
@@ -1674,7 +1681,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
       return;
     }
-    final double amount = parsedAmount.toDouble();
+    final double amount = parsedAmount;
 
     setState(() {
       _isSavingPayment = true;
@@ -1741,7 +1748,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final receipt = Payment(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         bookingId: widget.booking.localUuid,
-        amount: amount.toDouble(),
+        amount: amount,
         method: method,
         status: PaymentStatus.completed,
         paymentDate: DateTime.now(),
@@ -2012,7 +2019,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم إرسال كشف حساب تفصيلي للعميل:'),
+            const Text('سيتم إرسال كشف حساب تفصيلي للعميل:'),
             const SizedBox(height: 12),
             _buildStatementPreviewRow('العميل', widget.booking.guestName),
             _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
@@ -2027,9 +2034,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             _buildStatementPreviewRow(
               'المتبقي',
               _currencyFmt.format(summary.remainingAmount),
-              valueColor: summary.remainingAmount > 0
-                  ? Colors.red
-                  : Colors.green,
+              valueColor:
+                  summary.remainingAmount > 0 ? Colors.red : Colors.green,
             ),
             const Divider(height: 16),
             Row(
@@ -2222,8 +2228,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           final double roomRate = roomSnap.data?.price ?? 0;
 
           return AlertDialog(
-            title: Row(
-              children: const [
+            title: const Row(
+              children: [
                 Icon(Icons.add_circle_outline, color: Colors.blue),
                 SizedBox(width: 8),
                 Text('تمديد الإقامة'),
@@ -2325,7 +2331,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // تحديث تاريخ المغادرة المخطط
     final currentCheckout = widget.booking.checkoutDate != null
         ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : DateTime.now().add(Duration(days: 1));
+        : DateTime.now().add(const Duration(days: 1));
 
     final newCheckout = (currentCheckout ?? DateTime.now()).add(
       Duration(days: additionalNights),
@@ -2441,7 +2447,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 }
 
 class _PaymentTotals {
+  const _PaymentTotals(this.total, this.remaining);
   final double total;
   final double remaining;
-  const _PaymentTotals(this.total, this.remaining);
 }

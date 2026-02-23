@@ -377,14 +377,30 @@ class AppwriteSchemaVerifier {
       'name': 'Price Adjustments',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
         {'key': 'targetType', 'type': 'string', 'size': 20, 'required': true},
         {'key': 'targetUuid', 'type': 'string', 'size': 36, 'required': true},
-        {'key': 'adjustmentType', 'type': 'string', 'size': 30, 'required': true},
+        {
+          'key': 'adjustmentType',
+          'type': 'string',
+          'size': 30,
+          'required': true
+        },
         {'key': 'previousValue', 'type': 'double', 'required': true},
         {'key': 'newValue', 'type': 'double', 'required': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
-        {'key': 'effectiveDate', 'type': 'string', 'size': 30, 'required': true},
+        {
+          'key': 'effectiveDate',
+          'type': 'string',
+          'size': 30,
+          'required': true
+        },
         {'key': 'appliedBy', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 10, 'required': true},
         {'key': 'isReversed', 'type': 'boolean', 'default': false},
@@ -396,8 +412,19 @@ class AppwriteSchemaVerifier {
       'name': 'Audit Logs',
       'includeSyncFields': false,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'operationType', 'type': 'string', 'size': 30, 'required': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {
+          'key': 'operationType',
+          'type': 'string',
+          'size': 30,
+          'required': true
+        },
         {'key': 'entityType', 'type': 'string', 'size': 30, 'required': true},
         {'key': 'entityUuid', 'type': 'string', 'size': 36, 'required': true},
         {'key': 'entityId', 'type': 'integer'},
@@ -419,8 +446,19 @@ class AppwriteSchemaVerifier {
       'name': 'Payment Voids',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'originalPaymentUuid', 'type': 'string', 'size': 36, 'required': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {
+          'key': 'originalPaymentUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true
+        },
         {'key': 'originalPaymentId', 'type': 'integer', 'required': true},
         {'key': 'bookingUuid', 'type': 'string', 'size': 36, 'required': true},
         {'key': 'voidedAmount', 'type': 'integer', 'required': true},
@@ -437,13 +475,38 @@ class AppwriteSchemaVerifier {
       'name': 'Booking Price Adjustments',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'bookingLocalUuid', 'type': 'string', 'size': 36, 'required': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {
+          'key': 'bookingLocalUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true
+        },
         {'key': 'bookingLocalId', 'type': 'integer'},
-        {'key': 'adjustmentType', 'type': 'integer', 'required': true}, // 0=discount, 1=surcharge
-        {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'}, // per_night, total, percentage
+        {
+          'key': 'adjustmentType',
+          'type': 'integer',
+          'required': true
+        }, // 0=discount, 1=surcharge
+        {
+          'key': 'adjustmentMode',
+          'type': 'string',
+          'size': 20,
+          'default': 'per_night'
+        }, // per_night, total, percentage
         {'key': 'amount', 'type': 'double', 'required': true},
-        {'key': 'effectiveHotelDay', 'type': 'string', 'size': 10, 'required': true},
+        {
+          'key': 'effectiveHotelDay',
+          'type': 'string',
+          'size': 10,
+          'required': true
+        },
         {'key': 'endHotelDay', 'type': 'string', 'size': 10},
         {'key': 'isActive', 'type': 'boolean', 'default': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
@@ -538,8 +601,8 @@ class AppwriteSchemaVerifier {
       'total': totalCollections,
       'found': foundCollections,
       'missing': missingCollections,
-      'percentage': ((foundCollections / totalCollections) * 100)
-          .toStringAsFixed(1),
+      'percentage':
+          ((foundCollections / totalCollections) * 100).toStringAsFixed(1),
     };
 
     debugPrint('═══════════════════════════════════════');

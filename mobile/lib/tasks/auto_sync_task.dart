@@ -23,8 +23,7 @@ void autoSyncCallbackDispatcher() {
       final prefs = await SharedPreferences.getInstance();
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;
-      final appwriteEnabled =
-          prefs.getBool('appwrite_sync_enabled') ?? false;
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
 
       // لا توجد خدمة مزامنة مفعلة - اعتبار المهمة ناجحة
       if (!googleDriveEnabled && !appwriteEnabled) {
@@ -46,7 +45,8 @@ void autoSyncCallbackDispatcher() {
       // Appwrite sync يُدار منفصلاً عبر AppwriteAutoSyncTask
       // نتحقق فقط من حالة المزامنة الأخيرة
       if (appwriteEnabled) {
-        final lastSyncFailed = prefs.getBool('appwrite_last_sync_failed') ?? false;
+        final lastSyncFailed =
+            prefs.getBool('appwrite_last_sync_failed') ?? false;
         if (lastSyncFailed) {
           success = false;
         }

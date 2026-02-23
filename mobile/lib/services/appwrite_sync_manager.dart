@@ -29,14 +29,6 @@ enum SyncStatus { idle, syncing, success, failed, partial }
 
 /// نتيجة المزامنة
 class SyncResult {
-  final SyncStatus status;
-  final int recordsPushed;
-  final int recordsPulled;
-  final int conflicts;
-  final String? errorMessage;
-  final DateTime timestamp;
-  final Duration duration;
-
   SyncResult({
     required this.status,
     this.recordsPushed = 0,
@@ -46,24 +38,20 @@ class SyncResult {
     required this.timestamp,
     required this.duration,
   });
+  final SyncStatus status;
+  final int recordsPushed;
+  final int recordsPulled;
+  final int conflicts;
+  final String? errorMessage;
+  final DateTime timestamp;
+  final Duration duration;
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
 }
 
-
-
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
-  static AppwriteSyncManager? _instance;
-
-  final AppwriteService appwriteService;
-  final AppDatabase database;
-  final OutboxDao outboxDao;
-  late final BookingsRepository _bookingsRepository;
-  late final AdapterRegistry _adapterRegistry;
-  final SyncMutex _mutex = SyncMutex();
-
   factory AppwriteSyncManager({
     required AppwriteService appwriteService,
     required AppDatabase database,
@@ -82,6 +70,14 @@ class AppwriteSyncManager {
     _adapterRegistry = AdapterRegistry(database);
     _bookingsRepository = BookingsRepository(database);
   }
+  static AppwriteSyncManager? _instance;
+
+  final AppwriteService appwriteService;
+  final AppDatabase database;
+  final OutboxDao outboxDao;
+  late final BookingsRepository _bookingsRepository;
+  late final AdapterRegistry _adapterRegistry;
+  final SyncMutex _mutex = SyncMutex();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -347,7 +343,7 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+    _outboxSubscription = database.select(database.outbox).watch().listen(
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
@@ -436,7 +432,7 @@ class AppwriteSyncManager {
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    final int conflicts = 0;
+    const int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
@@ -463,10 +459,10 @@ class AppwriteSyncManager {
         'syncType': push && pull
             ? 'full'
             : push
-            ? 'push'
-            : pull
-            ? 'pull'
-            : 'noop',
+                ? 'push'
+                : pull
+                    ? 'pull'
+                    : 'noop',
         'startTime': startTime.toIso8601String(),
         'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
@@ -535,52 +531,61 @@ class AppwriteSyncManager {
           return debtsSynced;
         }, phaseMs);
 
-        recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
+        recordsPulled +=
+            await _timePhase('syncBookingPriceAdjustments', () async {
           final adjustments = await appwriteService.listDocuments(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
           );
-          final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
-          _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
+          final adjustmentsSynced =
+              await _syncBookingPriceAdjustments(adjustments);
+          _logger.debug('Synced $adjustmentsSynced booking price adjustments',
+              tag: 'SYNC');
           return adjustmentsSynced;
         }, phaseMs);
 
         recordsPulled += await _timePhase('syncBookingNights', () async {
-          final bookingNights = await appwriteService.listBookingNights(useCache: false);
+          final bookingNights =
+              await appwriteService.listBookingNights(useCache: false);
           final synced = await _syncBookingNights(bookingNights);
           _logger.debug('Synced $synced booking nights', tag: 'SYNC');
           return synced;
         }, phaseMs);
 
         recordsPulled += await _timePhase('syncBookingNotes', () async {
-          final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
+          final bookingNotes =
+              await appwriteService.listBookingNotes(useCache: false);
           final synced = await _syncBookingNotes(bookingNotes);
           _logger.debug('Synced $synced booking notes', tag: 'SYNC');
           return synced;
         }, phaseMs);
 
         recordsPulled += await _timePhase('syncCashTransactions', () async {
-          final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
+          final cashTransactions =
+              await appwriteService.listCashTransactions(useCache: false);
           final synced = await _syncCashTransactions(cashTransactions);
           _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
           return synced;
         }, phaseMs);
 
         recordsPulled += await _timePhase('syncShiftNotes', () async {
-          final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
+          final shiftNotes =
+              await appwriteService.listShiftNotes(useCache: false);
           final synced = await _syncShiftNotes(shiftNotes);
           _logger.debug('Synced $synced shift notes', tag: 'SYNC');
           return synced;
         }, phaseMs);
 
         recordsPulled += await _timePhase('syncSalaryCycles', () async {
-          final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
+          final salaryCycles =
+              await appwriteService.listSalaryCycles(useCache: false);
           final synced = await _syncSalaryCycles(salaryCycles);
           _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
           return synced;
         }, phaseMs);
 
         recordsPulled += await _timePhase('syncSalaryPayments', () async {
-          final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
+          final salaryPayments =
+              await appwriteService.listSalaryPayments(useCache: false);
           final synced = await _syncSalaryPayments(salaryPayments);
           _logger.debug('Synced $synced salary payments', tag: 'SYNC');
           return synced;
@@ -698,7 +703,7 @@ class AppwriteSyncManager {
       var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
       if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
         const ellipsis = '…';
-        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
+        const maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
         if (maxLen > 0) {
           encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
         } else {
@@ -810,21 +815,19 @@ class AppwriteSyncManager {
         'totalSyncs': totalSyncs,
         'successfulSyncs': successfulSyncs,
         'failedSyncs': failedSyncs,
-        'successRate': totalSyncs > 0
-            ? (successfulSyncs / totalSyncs * 100)
-            : 0.0,
+        'successRate':
+            totalSyncs > 0 ? (successfulSyncs / totalSyncs * 100) : 0.0,
         'totalRecordsPushed': totalRecordsPushed,
         'totalRecordsPulled': totalRecordsPulled,
         'totalConflicts': totalConflicts,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
         'outboxCount': outboxCount,
-        'lastErrorMessage': lastFailed != null
-            ? (lastFailed['errorMessage'] ?? '')
-            : null,
+        'lastErrorMessage':
+            lastFailed != null ? (lastFailed['errorMessage'] ?? '') : null,
         'lastErrorTime': lastFailed != null
             ? (lastFailed['timestamp'] ??
-                  lastFailed['endTime'] ??
-                  lastFailed['startTime'])
+                lastFailed['endTime'] ??
+                lastFailed['startTime'])
             : null,
         'timeline': timeline,
       };
@@ -878,23 +881,21 @@ class AppwriteSyncManager {
   }
 
   Future<int> _syncBookings(List<models.Document> documents) async {
-  if (documents.isEmpty) return 0;
-  var processed = 0;
-  for (final doc in documents) {
-    try {
-      final data = Map<String, dynamic>.from(doc.data);
-      data['localUuid'] ??= doc.$id;
-      
-      if (data.containsKey('discountStartData')) {
-        data['discountStartDate'] = data.remove('discountStartData');
-      }
-      
-      await _adapterRegistry.bookings.upsertFromJson(
-        data,
-        src: Source.appwrite,
-      );
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
 
- 
+        if (data.containsKey('discountStartData')) {
+          data['discountStartDate'] = data.remove('discountStartData');
+        }
+
+        await _adapterRegistry.bookings.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
 
         // TRIGGER POST-SYNC PROCESSING
         // 1. Resolve local ID from UUID
@@ -906,9 +907,10 @@ class AppwriteSyncManager {
         if (booking != null) {
           // 2. Convert legacy discount to adjustments
           await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
-          
+
           // 3. Recalculate derived fields (nightly rates, total due)
-          await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+          await _bookingsRepository.derivedFields
+              .refreshForBookingId(booking.id);
         }
 
         processed++;
@@ -1318,31 +1320,36 @@ class AppwriteSyncManager {
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
     return (database.select(
       database.rooms,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
   }
 
   Future<Booking?> _getBookingByLocalUuid(String localUuid) {
     return (database.select(
       database.bookings,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
   }
 
   Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
     return (database.select(
       database.expenses,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
   }
 
   Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
     return (database.select(
       database.payments,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
   }
 
   Future<Debt?> _getDebtByLocalUuid(String localUuid) {
     return (database.select(
       database.debts,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    )..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
   }
 
   Map<String, dynamic> _roomToRemote(Room room) {
@@ -1365,63 +1372,63 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
     _putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
-    _putIfStringNotEmpty(data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
+    _putIfStringNotEmpty(
+        data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
     return data;
   }
 
   Map<String, dynamic> _bookingToRemote(Booking booking) {
-  final data = <String, dynamic>{
-    'roomNumber': booking.roomNumber,
-    'guestName': booking.guestName,
-    'guestPhone': booking.guestPhone,
-    'guestIdType': booking.guestIdType,
-    'guestIdNumber': booking.guestIdNumber,
-    'guestNationality': booking.guestNationality,
-    'checkinDate': booking.checkinDate,
-    'status': booking.status,
-    'expectedNights': booking.expectedNights,
-    'calculatedNights': booking.calculatedNights,
-    'discount': booking.discount,
-    'isOverdue': booking.isOverdue,
-    'isFullyPaid': booking.isFullyPaid,
-    'remainingBalanceCached': booking.remainingBalanceCached,
-    'totalDueCached': booking.totalDueCached,
-    'totalPaidCached': booking.totalPaidCached,
-    'totalNightsCached': booking.totalNightsCached,
-    'needsCheckoutReview': booking.needsCheckoutReview,
-    'localUuid': booking.localUuid,
-    'createdAt': booking.createdAt,
-    'updatedAt': booking.updatedAt,
-    'lastModified': booking.lastModified,
-    'version': booking.version,
-    'origin': booking.origin,
-  };
-  
-  _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
-  _putIfNotNull(data, 'serverId', booking.serverId);
-  _putIfNotNull(data, 'deletedAt', booking.deletedAt);
-  _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
-  _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
-  _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
-  _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
-  _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
-  _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
-  _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
-  _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
-  _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
-  
-  // ✅ تصحيح: discountStartData (Data وليس Date)
-  _putIfStringNotEmpty(data, 'discountType', booking.discountType);
-  _putIfStringNotEmpty(data, 'discountStartData', booking.discountStartDate);
-  
-  _putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
-  _putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
-  _putIfStringNotEmpty(data, 'financialFrozenAt', booking.financialFrozenAt);
-  _putIfStringNotEmpty(data, 'notes', booking.notes);
-  
-  return data;
-}
+    final data = <String, dynamic>{
+      'roomNumber': booking.roomNumber,
+      'guestName': booking.guestName,
+      'guestPhone': booking.guestPhone,
+      'guestIdType': booking.guestIdType,
+      'guestIdNumber': booking.guestIdNumber,
+      'guestNationality': booking.guestNationality,
+      'checkinDate': booking.checkinDate,
+      'status': booking.status,
+      'expectedNights': booking.expectedNights,
+      'calculatedNights': booking.calculatedNights,
+      'discount': booking.discount,
+      'isOverdue': booking.isOverdue,
+      'isFullyPaid': booking.isFullyPaid,
+      'remainingBalanceCached': booking.remainingBalanceCached,
+      'totalDueCached': booking.totalDueCached,
+      'totalPaidCached': booking.totalPaidCached,
+      'totalNightsCached': booking.totalNightsCached,
+      'needsCheckoutReview': booking.needsCheckoutReview,
+      'localUuid': booking.localUuid,
+      'createdAt': booking.createdAt,
+      'updatedAt': booking.updatedAt,
+      'lastModified': booking.lastModified,
+      'version': booking.version,
+      'origin': booking.origin,
+    };
 
+    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
+    _putIfNotNull(data, 'serverId', booking.serverId);
+    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
+    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
+    _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
+    _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
+    _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
+    _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
+    _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
+    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
+    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
+
+    // ✅ تصحيح: discountStartData (Data وليس Date)
+    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
+    _putIfStringNotEmpty(data, 'discountStartData', booking.discountStartDate);
+
+    _putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
+    _putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
+    _putIfStringNotEmpty(data, 'financialFrozenAt', booking.financialFrozenAt);
+    _putIfStringNotEmpty(data, 'notes', booking.notes);
+
+    return data;
+  }
 
   Map<String, dynamic> _expenseToRemote(Expense expense) {
     final data = <String, dynamic>{
@@ -1882,9 +1889,8 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['booking_nights']} ليلة حجز', tag: 'SYNC');
 
       // رفع المعاملات النقدية
-      final cashTransactions = await database
-          .select(database.cashTransactions)
-          .get();
+      final cashTransactions =
+          await database.select(database.cashTransactions).get();
       for (final transaction in cashTransactions) {
         if (skipDeleted && transaction.deletedAt != null) continue;
         try {
@@ -1920,9 +1926,8 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['salary_cycles']} دورة راتب', tag: 'SYNC');
 
       // رفع دفعات الرواتب
-      final salaryPayments = await database
-          .select(database.salaryPayments)
-          .get();
+      final salaryPayments =
+          await database.select(database.salaryPayments).get();
       for (final payment in salaryPayments) {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
@@ -1955,11 +1960,13 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['shift_notes']} ملاحظة شيفت', tag: 'SYNC');
 
       // رفع تعديلات أسعار الحجوزات
-      final adjustments = await database.select(database.bookingPriceAdjustments).get();
+      final adjustments =
+          await database.select(database.bookingPriceAdjustments).get();
       for (final adj in adjustments) {
         if (skipDeleted && adj.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
+          final payload =
+              _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
             adj,
             src: Source.appwrite,
           );
@@ -1968,16 +1975,18 @@ class AppwriteSyncManager {
             documentId: adj.localUuid,
             data: payload,
           );
-          stats['booking_price_adjustments'] = (stats['booking_price_adjustments'] ?? 0) + 1;
+          stats['booking_price_adjustments'] =
+              (stats['booking_price_adjustments'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع تعديل سعر حجز: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info('✅ تم رفع ${stats['booking_price_adjustments']} تعديل سعر حجز', tag: 'SYNC');
+      _logger.info(
+          '✅ تم رفع ${stats['booking_price_adjustments']} تعديل سعر حجز',
+          tag: 'SYNC');
 
-      final totalRecords =
-          stats['rooms']! +
+      final totalRecords = stats['rooms']! +
           stats['bookings']! +
           stats['booking_notes']! +
           stats['booking_nights']! +
@@ -2068,8 +2077,10 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverId', night.serverId);
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
-    _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
-    _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
+    _putIfStringNotEmpty(
+        data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
+    _putIfStringNotEmpty(
+        data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     return data;
   }
 
@@ -2419,7 +2430,8 @@ class AppwriteSyncManager {
     return true;
   }
 
-  Future<BookingPriceAdjustment?> _getBookingPriceAdjustmentByLocalUuid(String uuid) {
+  Future<BookingPriceAdjustment?> _getBookingPriceAdjustmentByLocalUuid(
+      String uuid) {
     return (database.select(database.bookingPriceAdjustments)
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
@@ -2437,10 +2449,10 @@ class AppwriteSyncManager {
     try {
       _logger.info('Disabling FOREIGN KEY constraints for sync', tag: 'SYNC');
       await database.customStatement('PRAGMA foreign_keys=OFF');
-      
+
       // تنفيذ سحب البيانات الفعلي
       await pullRemoteChanges();
-      
+
       _logger.info('Full sync completed successfully', tag: 'SYNC');
     } catch (e, stackTrace) {
       _logger.error(
@@ -2615,22 +2627,24 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
+        final result =
+            await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
-        
+
         // Refresh calculations for the affected booking
         if (result > 0) {
-           final adj = await (database.select(database.bookingPriceAdjustments)
-            ..where((t) => t.id.equals(result)))
-            .getSingleOrNull();
-           
-           if (adj != null && adj.bookingLocalId != null) {
-              await _bookingsRepository.derivedFields.refreshForBookingId(adj.bookingLocalId!);
-           }
+          final adj = await (database.select(database.bookingPriceAdjustments)
+                ..where((t) => t.id.equals(result)))
+              .getSingleOrNull();
+
+          if (adj != null && adj.bookingLocalId != null) {
+            await _bookingsRepository.derivedFields
+                .refreshForBookingId(adj.bookingLocalId!);
+          }
         }
-        
+
         processed++;
       } catch (e) {
         _logger.warning(

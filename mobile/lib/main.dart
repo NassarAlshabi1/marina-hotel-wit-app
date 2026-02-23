@@ -80,7 +80,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) => DiagnosticsLogger.instance.recordError(
@@ -316,9 +316,8 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!
-          .difference(DateTime.now())
-          .inSeconds;
+      final secondsUntil =
+          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -539,26 +538,25 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       AppSessionManager.onAppOpen().catchError(
         (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
       );
-      ref
-          .read(backupStatusProvider.notifier)
-          .refreshSignInStatus()
-          .catchError(
+      ref.read(backupStatusProvider.notifier).refreshSignInStatus().catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
       unawaited(_autoPullAppwriteOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
-      );
+            (e, s) =>
+                debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+          );
       SyncGuardian.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
-      );
+            (e, s) =>
+                debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+          );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
-        () => AppSessionManager.onAppCloseOrBackground(),
+        AppSessionManager.onAppCloseOrBackground,
       ).catchError(
         (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );

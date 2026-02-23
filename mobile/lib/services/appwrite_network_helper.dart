@@ -4,10 +4,10 @@ import 'appwrite_logger.dart';
 
 /// مساعد للعمليات الشبكية مع Retry Logic و Timeout
 class AppwriteNetworkHelper {
-  static final AppwriteNetworkHelper _instance =
-      AppwriteNetworkHelper._internal();
   factory AppwriteNetworkHelper() => _instance;
   AppwriteNetworkHelper._internal();
+  static final AppwriteNetworkHelper _instance =
+      AppwriteNetworkHelper._internal();
 
   final _logger = AppwriteLogger();
 
@@ -189,10 +189,9 @@ class AppwriteNetworkHelper {
 
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
-      final jitter =
-          (exponentialDelay *
+      final jitter = exponentialDelay *
           0.2 *
-          (0.5 + (DateTime.now().millisecond % 100) / 100));
+          (0.5 + (DateTime.now().millisecond % 100) / 100);
       return Duration(milliseconds: (exponentialDelay + jitter).round());
     }
 

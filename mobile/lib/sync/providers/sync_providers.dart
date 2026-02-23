@@ -1,5 +1,6 @@
 /// Sync Providers
 /// Providers Riverpod للمزامنة
+library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -50,7 +51,8 @@ class SyncConfigurationNotifier extends StateNotifier<SyncConfiguration> {
       state = state.copyWith(autoSyncInterval: interval);
   void setConflictStrategy(ConflictStrategy strategy) =>
       state = state.copyWith(conflictStrategy: strategy);
-  void setRequireWifi(bool require) => state = state.copyWith(requireWifi: require);
+  void setRequireWifi(bool require) =>
+      state = state.copyWith(requireWifi: require);
   void setRequireCharging(bool require) =>
       state = state.copyWith(requireCharging: require);
 }
@@ -125,7 +127,8 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
     outbox: ref.watch(outboxDataSourceProvider),
     inbox: ref.watch(inboxDataSourceProvider),
     remote: ref.watch(remoteDataSourceProvider),
-    conflictResolver: _ConflictResolverAdapter(ref.watch(conflictResolverProvider)),
+    conflictResolver:
+        _ConflictResolverAdapter(ref.watch(conflictResolverProvider)),
   );
 });
 
@@ -163,9 +166,7 @@ final syncStateProvider = StreamProvider<SyncState>((ref) {
   });
 
   // إيقاف عند التخلص
-  ref.onDispose(() {
-    orchestrator.stopAutoSync();
-  });
+  ref.onDispose(orchestrator.stopAutoSync);
 
   return orchestrator.stateStream;
 });
@@ -257,22 +258,24 @@ final backgroundSyncInitProvider = Provider<Future<void>>((ref) async {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Provider لتنفيذ مزامنة يدوية
-final manualSyncProvider = FutureProvider.family<DeltaSyncResult, SyncDirection?>(
+final manualSyncProvider =
+    FutureProvider.family<DeltaSyncResult, SyncDirection?>(
   (ref, direction) async {
     final orchestrator = ref.read(syncOrchestratorProvider);
-    return await orchestrator.performFullSync(
+    return orchestrator.performFullSync(
       direction: direction ?? SyncDirection.bidirectional,
     );
   },
 );
 
 /// Provider لإضافة تغيير للمزامنة
-final queueChangeProvider = Provider<Future<String> Function({
-  required String table,
-  required String uuid,
-  required SyncOperation operation,
-  required Map<String, dynamic> data,
-})>((ref) {
+final queueChangeProvider = Provider<
+    Future<String> Function({
+      required String table,
+      required String uuid,
+      required SyncOperation operation,
+      required Map<String, dynamic> data,
+    })>((ref) {
   return ({
     required String table,
     required String uuid,
@@ -280,7 +283,7 @@ final queueChangeProvider = Provider<Future<String> Function({
     required Map<String, dynamic> data,
   }) async {
     final orchestrator = ref.read(syncOrchestratorProvider);
-    return await orchestrator.queueLocalChange(
+    return orchestrator.queueLocalChange(
       table: table,
       uuid: uuid,
       operation: operation,
@@ -294,22 +297,21 @@ final realtimeSyncControlProvider = Provider<RealtimeSyncControl>((ref) {
   final service = ref.watch(realtimeSyncServiceProvider);
 
   return RealtimeSyncControl(
-    start: () => service.start(),
-    stop: () => service.stop(),
-    reconnect: () => service.reconnect(),
+    start: service.start,
+    stop: service.stop,
+    reconnect: service.reconnect,
   );
 });
 
 class RealtimeSyncControl {
-  final Future<void> Function() start;
-  final Future<void> Function() stop;
-  final Future<void> Function() reconnect;
-
   RealtimeSyncControl({
     required this.start,
     required this.stop,
     required this.reconnect,
   });
+  final Future<void> Function() start;
+  final Future<void> Function() stop;
+  final Future<void> Function() reconnect;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -372,8 +374,8 @@ final hasPendingChangesProvider = Provider<bool>((ref) {
 });
 
 class _ConflictResolverAdapter implements engine.ConflictResolver {
-  final ConflictResolver _inner;
   _ConflictResolverAdapter(this._inner);
+  final ConflictResolver _inner;
 
   @override
   Future<ConflictResolutionResult> resolve(SyncConflict conflict) async {

@@ -21,7 +21,7 @@ final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((
   ref,
 ) async {
   final service = ref.read(restoreFixServiceProvider);
-  return await service.getFixLogs(limit: 50);
+  return service.getFixLogs(limit: 50);
 });
 
 // مقدم لحالة التحميل
@@ -271,10 +271,7 @@ class RestoreFixScreen extends ConsumerWidget {
                 }
 
                 return Column(
-                  children: logs
-                      .take(10)
-                      .map((log) => _buildLogEntry(log))
-                      .toList(),
+                  children: logs.take(10).map(_buildLogEntry).toList(),
                 );
               },
               loading: () => const Center(

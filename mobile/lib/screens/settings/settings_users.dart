@@ -36,7 +36,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final isAdmin = auth.currentUser?.isAdmin == true;
+    final isAdmin = auth.currentUser?.isAdmin ?? false;
 
     return AppScaffold(
       title: 'إدارة المستخدمين والصلاحيات',
@@ -184,8 +184,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                            ? 'الاسم مطلوب'
-                            : null,
+                                ? 'الاسم مطلوب'
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -195,8 +195,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         ),
                         validator: (value) =>
                             (value == null || value.trim().isEmpty)
-                            ? 'اسم المستخدم مطلوب'
-                            : null,
+                                ? 'اسم المستخدم مطلوب'
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -207,8 +207,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         obscureText: true,
                         validator: (value) =>
                             (value == null || value.length < 4)
-                            ? 'أدخل 4 أرقام/رموز على الأقل'
-                            : null,
+                                ? 'أدخل 4 أرقام/رموز على الأقل'
+                                : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -223,7 +223,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: userType,
+                        initialValue: userType,
                         decoration: const InputDecoration(
                           labelText: 'نوع المستخدم',
                         ),
@@ -315,9 +315,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             localError = null;
                           });
                           try {
-                            await ref
-                                .read(authProvider.notifier)
-                                .addUser(
+                            await ref.read(authProvider.notifier).addUser(
                                   username: usernameCtrl.text.trim(),
                                   password: passwordCtrl.text,
                                   fullName: fullNameCtrl.text.trim(),
@@ -337,9 +335,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             setStateDialog(() {
                               saving = false;
                               localError = e.toString().replaceAll(
-                                'Exception: ',
-                                '',
-                              );
+                                    'Exception: ',
+                                    '',
+                                  );
                             });
                           }
                         },
@@ -366,11 +364,6 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
 }
 
 class _UserAccountSummary {
-  final String username;
-  final String displayName;
-  final String userType;
-  final bool isFixed;
-
   const _UserAccountSummary({
     required this.username,
     required this.displayName,
@@ -386,6 +379,10 @@ class _UserAccountSummary {
       isFixed: map['is_fixed'] == true,
     );
   }
+  final String username;
+  final String displayName;
+  final String userType;
+  final bool isFixed;
 }
 
 class UserPermissionsCard extends ConsumerStatefulWidget {
@@ -428,7 +425,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   @override
   Widget build(BuildContext context) {
     final isAdminUser = widget.username == 'admin';
-    final allKeys = AuthLocalStore.permissionKeys;
+    const allKeys = AuthLocalStore.permissionKeys;
 
     return Card(
       child: Padding(

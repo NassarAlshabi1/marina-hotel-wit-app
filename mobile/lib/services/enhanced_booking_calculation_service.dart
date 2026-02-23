@@ -7,16 +7,6 @@ import '../utils/time.dart';
 import 'local_db.dart';
 
 class BookingCalculationResult {
-  final List<NightlyBreakdown> breakdown;
-  final FinancialSummary financialSummary;
-  final DateTime checkin;
-  final DateTime checkout;
-  final bool bookingActive;
-  final String stayDurationIso;
-  final int? lastNightEpoch;
-  final String hotelDayCheckin;
-  final String hotelDayCheckout;
-
   const BookingCalculationResult({
     required this.breakdown,
     required this.financialSummary,
@@ -28,6 +18,15 @@ class BookingCalculationResult {
     required this.hotelDayCheckin,
     required this.hotelDayCheckout,
   });
+  final List<NightlyBreakdown> breakdown;
+  final FinancialSummary financialSummary;
+  final DateTime checkin;
+  final DateTime checkout;
+  final bool bookingActive;
+  final String stayDurationIso;
+  final int? lastNightEpoch;
+  final String hotelDayCheckin;
+  final String hotelDayCheckout;
 }
 
 class EnhancedBookingCalculationService {
@@ -114,9 +113,9 @@ class EnhancedBookingCalculationService {
     int bookingId, {
     DateTime? now,
   }) async {
-    final booking =
-        await (db.select(db.bookings)..where((b) => b.id.equals(bookingId)))
-            .getSingleOrNull();
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId)))
+        .getSingleOrNull();
     if (booking == null) return;
 
     final calculation = await calculateForBooking(booking, now: now);
@@ -157,11 +156,10 @@ class EnhancedBookingCalculationService {
     Booking booking, {
     required _BookingDateRange context,
   }) async {
-    final room =
-        await (db.select(db.rooms)
-              ..where((r) => r.roomNumber.equals(booking.roomNumber))
-              ..where((r) => r.deletedAt.isNull()))
-            .getSingleOrNull();
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.roomNumber.equals(booking.roomNumber))
+          ..where((r) => r.deletedAt.isNull()))
+        .getSingleOrNull();
     final int baseRate = _asInt(room?.price ?? 0);
 
     final adjustments = await _fetchActiveAdjustments(booking);
@@ -181,15 +179,14 @@ class EnhancedBookingCalculationService {
 
       for (final adj in adjustments) {
         final effectiveDate = DateTime.parse(adj.effectiveHotelDay);
-        final endDate = adj.endHotelDay != null
-            ? DateTime.parse(adj.endHotelDay!)
-            : null;
+        final endDate =
+            adj.endHotelDay != null ? DateTime.parse(adj.endHotelDay!) : null;
         if (!_isWithinRange(nightDate, effectiveDate, endDate)) {
           continue;
         }
         final rawAmount = _asInt(adj.amount);
         final isDiscount = adj.adjustmentType == 0;
-        
+
         int adjAmount = rawAmount;
         if (adj.adjustmentMode == 'total') {
           final nightsInRange = _countNightsInRange(
@@ -201,7 +198,7 @@ class EnhancedBookingCalculationService {
             adjAmount = (rawAmount / nightsInRange).round();
           }
         }
-        
+
         final signedAmount = isDiscount ? -adjAmount : adjAmount;
         adjustmentTotal += signedAmount;
         applied.add(
@@ -250,7 +247,8 @@ class EnhancedBookingCalculationService {
       breakdown.add(
         NightlyBreakdown(
           hotelDayKey: Time.dateToString(
-            DateTime(context.checkin.year, context.checkin.month, context.checkin.day),
+            DateTime(context.checkin.year, context.checkin.month,
+                context.checkin.day),
           ),
           nightStart: context.checkin,
           nightEnd: context.checkout,
@@ -306,22 +304,20 @@ class EnhancedBookingCalculationService {
   }
 
   Future<int> _getTotalPayments(Booking booking) async {
-    final payments =
-        await (db.select(db.payments)
-              ..where(
-                (p) =>
-                    (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
-              )
-              ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isPendingBalance.equals(false))
-              ..where(
-                (p) =>
-                    p.revenueType.equals('room') |
-                    p.revenueType.equals('') |
-                    p.revenueType.isNull(),
-              ))
-            .get();
+    final payments = await (db.select(db.payments)
+          ..where(
+            (p) => (p.bookingLocalId.equals(booking.id) |
+                p.bookingUuidCache.equals(booking.localUuid)),
+          )
+          ..where((p) => p.deletedAt.isNull())
+          ..where((p) => p.isPendingBalance.equals(false))
+          ..where(
+            (p) =>
+                p.revenueType.equals('room') |
+                p.revenueType.equals('') |
+                p.revenueType.isNull(),
+          ))
+        .get();
 
     return payments.fold<int>(0, (sum, p) => sum + _asInt(p.amount));
   }
@@ -329,10 +325,9 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    return (db.select(db.bookingPriceAdjustments)
           ..where(
-            (a) =>
-                (a.bookingLocalId.equals(booking.id) |
+            (a) => (a.bookingLocalId.equals(booking.id) |
                 a.bookingLocalUuid.equals(booking.localUuid)),
           )
           ..where((a) => a.isActive.equals(true))
@@ -351,11 +346,10 @@ class EnhancedBookingCalculationService {
 
     var shouldRebuild = forceRebuild;
     if (!shouldRebuild) {
-      final existing =
-          await (db.select(db.bookingNights)
-                ..where((n) => n.bookingLocalId.equals(booking.id))
-                ..where((n) => n.deletedAt.isNull()))
-              .get();
+      final existing = await (db.select(db.bookingNights)
+            ..where((n) => n.bookingLocalId.equals(booking.id))
+            ..where((n) => n.deletedAt.isNull()))
+          .get();
       if (existing.length != breakdown.length) {
         shouldRebuild = true;
       } else {
@@ -449,13 +443,13 @@ class EnhancedBookingCalculationService {
         actualCheckout == null && StatusUtils.isBookingActive(booking);
 
     DateTime checkout = actualCheckout ?? plannedCheckout ?? checkin;
-    
+
     // For active bookings, we calculate up to the current moment (today's hotel day)
     // to reflect the balance based on elapsed days as requested by the user.
     if (bookingActive) {
       final nowHotelDay = Time.hotelDayKey(now: moment);
       final checkinHotelDay = Time.hotelDayKey(now: checkin);
-      
+
       // If today is after checkin day, we use the current moment to calculate elapsed nights.
       // If it's the same day, we still use the moment which will result in at least 1 night.
       checkout = moment;
@@ -478,7 +472,8 @@ class EnhancedBookingCalculationService {
   ) {
     if (discountStartDate == null) return true;
     final nightDay = DateTime(nightDate.year, nightDate.month, nightDate.day);
-    final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+    final discountDay = DateTime(
+        discountStartDate.year, discountStartDate.month, discountStartDate.day);
     return !nightDay.isBefore(discountDay);
   }
 
@@ -529,8 +524,7 @@ class EnhancedBookingCalculationService {
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -563,7 +557,9 @@ class EnhancedBookingCalculationService {
 
     if (checkout.hour > cutoffHour ||
         (checkout.hour == cutoffHour && checkout.minute > 0) ||
-        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
+        (checkout.hour == cutoffHour &&
+            checkout.minute == 0 &&
+            checkout.second > 0)) {
       days += 1;
     }
 
@@ -573,7 +569,9 @@ class EnhancedBookingCalculationService {
       final segStart = i == 0 ? checkin : dayDate;
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1
-          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          ? (checkout.isAfter(segStart)
+              ? checkout
+              : segStart.add(const Duration(minutes: 1)))
           : nextDay;
 
       segments.add(

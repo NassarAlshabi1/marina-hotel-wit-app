@@ -42,19 +42,11 @@ class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
 class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
 
 class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
-  final int elapsedSeconds;
   _PerformSyncAlreadyInProgress(this.elapsedSeconds);
+  final int elapsedSeconds;
 }
 
 class SyncResult {
-  final bool success;
-  final String message;
-  final int? pushedChanges;
-  final int? pulledChanges;
-  final SyncPhase phase;
-  final DateTime timestamp;
-  final String? error;
-
   const SyncResult({
     required this.success,
     required this.message,
@@ -93,6 +85,13 @@ class SyncResult {
       timestamp: DateTime.now(),
     );
   }
+  final bool success;
+  final String message;
+  final int? pushedChanges;
+  final int? pulledChanges;
+  final SyncPhase phase;
+  final DateTime timestamp;
+  final String? error;
 }
 
 class GoogleDriveUnifiedSyncCoordinator {
@@ -200,7 +199,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
 
     if (!prefs.containsKey(_prefsPushEnabledKey)) {
-      await prefs.setBool(_prefsPushEnabledKey, true);  // Push مفعّل افتراضياً
+      await prefs.setBool(_prefsPushEnabledKey, true); // Push مفعّل افتراضياً
     }
     if (!prefs.containsKey(_prefsPullEnabledKey)) {
       await prefs.setBool(_prefsPullEnabledKey, false); // Pull معطل افتراضياً
@@ -218,9 +217,11 @@ class GoogleDriveUnifiedSyncCoordinator {
       await prefs.setString(_prefsSyncModeKey, SyncMode.smart.name);
     }
 
-    _pushEnabled = prefs.getBool(_prefsPushEnabledKey) ?? true;  // Push مفعّل افتراضياً
+    _pushEnabled =
+        prefs.getBool(_prefsPushEnabledKey) ?? true; // Push مفعّل افتراضياً
     // السحب افتراضياً معطل (false) للوضع "رفع فقط" - يمكن تفعيله يدوياً من الإعدادات
-    _pullEnabled = prefs.getBool(_prefsPullEnabledKey) ?? false; // Pull معطل افتراضياً
+    _pullEnabled =
+        prefs.getBool(_prefsPullEnabledKey) ?? false; // Pull معطل افتراضياً
     _debounceSeconds =
         prefs.getInt(_prefsDebounceSecondsKey) ?? _defaultDebounceSeconds;
     _pullIntervalMinutes =
@@ -268,12 +269,11 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox))
-          .watch()
-          .listen((_) {
-            _log('📦 Detected change in outbox', level: LogLevel.debug);
-            notifyLocalChange();
-          });
+      _outboxSubscription =
+          _database!.select(_database!.outbox).watch().listen((_) {
+        _log('📦 Detected change in outbox', level: LogLevel.debug);
+        notifyLocalChange();
+      });
       _log('✅ Started outbox monitoring for auto-sync');
     }
 
@@ -375,7 +375,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     final effectiveDebounce = _debounceSeconds;
     _log(
-      '🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)',
+      '🚀 Triggering sync in ${effectiveDebounce}s ($_pendingChangesCount changes pending)',
       level: LogLevel.debug,
     );
 
@@ -646,9 +646,8 @@ class GoogleDriveUnifiedSyncCoordinator {
       return SyncMode.fullBackup;
     }
 
-    final hoursSinceFullBackup = DateTime.now()
-        .difference(_lastFullBackupTime!)
-        .inHours;
+    final hoursSinceFullBackup =
+        DateTime.now().difference(_lastFullBackupTime!).inHours;
     if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
       return SyncMode.fullBackup;
     }
@@ -774,12 +773,11 @@ class GoogleDriveUnifiedSyncCoordinator {
           (_backupService?.isSignedIn ?? false)) {
         _outboxSubscription?.cancel();
         if (_database != null) {
-          _outboxSubscription = (_database!.select(_database!.outbox))
-              .watch()
-              .listen((_) {
-                _log('📦 Detected change in outbox', level: LogLevel.debug);
-                notifyLocalChange();
-              });
+          _outboxSubscription =
+              _database!.select(_database!.outbox).watch().listen((_) {
+            _log('📦 Detected change in outbox', level: LogLevel.debug);
+            notifyLocalChange();
+          });
         }
       }
     }

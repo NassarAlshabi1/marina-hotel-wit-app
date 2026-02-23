@@ -16,7 +16,8 @@ DateTime _safeParseDateTime(String? dateStr, {DateTime? fallback}) {
   if (dateStr == null || dateStr.trim().isEmpty) {
     return fallback ?? DateTime.now();
   }
-  final normalized = dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
+  final normalized =
+      dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
   try {
     return DateTime.parse(normalized);
   } catch (_) {
@@ -61,7 +62,7 @@ class EnhancedPdfHelper {
     final baseItems = [
       InvoiceItem(
         description:
-            'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
+            'إقامة $nights ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
         quantity: nights,
         unitPrice: roomPrice,
       ),
@@ -234,9 +235,8 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests = bookings
-        .where((b) => b.status == 'checked_in')
-        .length;
+    final checkedInGuests =
+        bookings.where((b) => b.status == 'checked_in').length;
 
     pdf.addPage(
       pw.MultiPage(
@@ -414,14 +414,13 @@ class EnhancedPdfHelper {
 
 /// Widget لعرض معاينة PDF محسّنة
 class EnhancedPdfPreviewScreen extends ConsumerWidget {
-  final String title;
-  final Future<Uint8List> Function() pdfGenerator;
-
   const EnhancedPdfPreviewScreen({
     super.key,
     required this.title,
     required this.pdfGenerator,
   });
+  final String title;
+  final Future<Uint8List> Function() pdfGenerator;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

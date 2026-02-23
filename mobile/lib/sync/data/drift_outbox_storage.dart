@@ -1,5 +1,6 @@
 /// Drift Outbox Storage Implementation
 /// تطبيق OutboxStorage باستخدام Drift (raw SQL)
+library;
 
 import 'dart:convert';
 import 'package:drift/drift.dart';
@@ -7,22 +8,6 @@ import '../processors/outbox_processor.dart';
 import '../models/sync_models.dart';
 
 class OutboxRecord {
-  final String id;
-  final String tableName;
-  final String uuid;
-  final String operation;
-  final String payload;
-  final DateTime timestamp;
-  final String vectorClock;
-  final String? checksum;
-  final String? deviceId;
-  final int retryCount;
-  final String? lastError;
-  final DateTime? nextRetryAt;
-  final DateTime? syncedAt;
-  final bool isSynced;
-  final bool isFailed;
-
   OutboxRecord({
     required this.id,
     required this.tableName,
@@ -48,7 +33,8 @@ class OutboxRecord {
       uuid: row.read<String>('uuid'),
       operation: row.read<String>('operation'),
       payload: row.read<String>('payload'),
-      timestamp: DateTime.fromMillisecondsSinceEpoch(row.read<int>('timestamp')),
+      timestamp:
+          DateTime.fromMillisecondsSinceEpoch(row.read<int>('timestamp')),
       vectorClock: row.read<String>('vector_clock'),
       checksum: row.readNullable<String>('checksum'),
       deviceId: row.readNullable<String>('device_id'),
@@ -64,13 +50,27 @@ class OutboxRecord {
       isFailed: row.read<int>('is_failed') == 1,
     );
   }
+  final String id;
+  final String tableName;
+  final String uuid;
+  final String operation;
+  final String payload;
+  final DateTime timestamp;
+  final String vectorClock;
+  final String? checksum;
+  final String? deviceId;
+  final int retryCount;
+  final String? lastError;
+  final DateTime? nextRetryAt;
+  final DateTime? syncedAt;
+  final bool isSynced;
+  final bool isFailed;
 }
 
 class DriftOutboxStorage implements OutboxStorage {
+  DriftOutboxStorage(this._db);
   final GeneratedDatabase _db;
   static const String _table = 'outbox_queue';
-
-  DriftOutboxStorage(this._db);
 
   Future<void> _ensureTable() async {
     await _db.customStatement('''
@@ -238,7 +238,7 @@ class DriftOutboxStorage implements OutboxStorage {
 
   @override
   Future<int> deleteSyncedBefore(DateTime cutoff) async {
-    return await _db.customUpdate(
+    return _db.customUpdate(
       'DELETE FROM $_table WHERE is_synced = 1 AND synced_at < ?',
       variables: [Variable.withInt(cutoff.millisecondsSinceEpoch)],
     );
@@ -269,14 +269,18 @@ class DriftOutboxStorage implements OutboxStorage {
     ).get();
     final syncing = syncingRows.first.read<int>('cnt');
 
-    final syncedRows = await _db.customSelect(
-      'SELECT COUNT(*) as cnt FROM $_table WHERE is_synced = 1',
-    ).get();
+    final syncedRows = await _db
+        .customSelect(
+          'SELECT COUNT(*) as cnt FROM $_table WHERE is_synced = 1',
+        )
+        .get();
     final synced = syncedRows.first.read<int>('cnt');
 
-    final failedRows = await _db.customSelect(
-      'SELECT COUNT(*) as cnt FROM $_table WHERE is_failed = 1',
-    ).get();
+    final failedRows = await _db
+        .customSelect(
+          'SELECT COUNT(*) as cnt FROM $_table WHERE is_failed = 1',
+        )
+        .get();
     final failed = failedRows.first.read<int>('cnt');
 
     final oldestRows = await _db.customSelect(
@@ -285,7 +289,8 @@ class DriftOutboxStorage implements OutboxStorage {
          ORDER BY timestamp ASC LIMIT 1''',
     ).get();
     final oldest = oldestRows.isNotEmpty
-        ? DateTime.fromMillisecondsSinceEpoch(oldestRows.first.read<int>('timestamp'))
+        ? DateTime.fromMillisecondsSinceEpoch(
+            oldestRows.first.read<int>('timestamp'))
         : null;
 
     return OutboxStats(
