@@ -110,9 +110,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _pullAnimationController.repeat();
 
     try {
-      final syncService = ref.read(appwriteDeltaSyncProvider);
-      await syncService.syncFromRemote();
       
+    final deltaSync = AppwriteDeltaSync.instance;
+    if (!deltaSync.isInitialized) {
+      final appwriteService = ref.read(appwriteServiceProvider);
+      await deltaSync.initialize(appwriteService, db);
+    }
+
+    final pullResult = await deltaSync.pullDeltaChanges();
+    
       if (mounted) {
         setState(() {
           _lastSyncTime = DateTime.now();
@@ -152,7 +158,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _pushAnimationController.repeat();
 
     try {
-      final syncService = ref.read(appwriteDeltaSyncProvider);
+      r
+    final deltaSync = AppwriteDeltaSync.instance;
+    if (!deltaSync.isInitialized) {
+      final appwriteService = ref.read(appwriteServiceProvider);
+      await deltaSync.initialize(appwriteService, db);
+    }
+
+    final result = await deltaSync.pushDeltaChanges();
+    
+   
+    if (result.success && result.recordsPushed > 0) {
+      final outboxDao = OutboxDao(db);
+      final cleanedCount = await outboxDao.removeAllPending();
+      debugPrint('🧹 تم تنظيف Outbox: $cleanedCount سجل');
+      
+      if (mounted) {
+        setState(() => _pendingChangesCount = 0);
+      }
+    }
+
       await syncService.syncToRemote();
       
       await _loadPendingChangesCount();
