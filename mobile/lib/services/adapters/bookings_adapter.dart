@@ -8,6 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
+/// محول لتحويل بيانات الحجوزات بين JSON المحلي/السحابي وكائنات Drift.
+/// تم تعديله ليتوافق مع تسميات camelCase في Appwrite Cloud.
 class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
   BookingsAdapter(this.resolver);
   final IdResolver resolver;
@@ -21,6 +23,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
   @override
   String get tableName => 'bookings';
 
+  /// يحل المراجع (UUID, serverId) ويعيد نتيجة تحتوي على المعرف المحلول والتواريخ.
   @override
   Future<ResolveResult> resolveRefs(
     AppDatabase db,
@@ -48,6 +51,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
     );
   }
 
+  /// تحويل JSON إلى BookingsCompanion (جاهز للإدراج في Drift).
   @override
   BookingsCompanion fromJson(
     Map<String, dynamic> json, {
@@ -231,61 +235,60 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
     );
   }
 
+  /// تحويل كائن Booking إلى JSON (لإرساله إلى Appwrite).
+  /// يتم استخدام camelCase لجميع المفاتيح بفضل دالة _k.
   @override
   Map<String, dynamic> toJson(Booking model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'serverBookingId', 'booking_id'): model.serverBookingId,
-      _k(src, 'roomNumber', 'room_number'): model.roomNumber,
-      _k(src, 'guestName', 'guest_name'): model.guestName,
-      _k(src, 'guestPhone', 'guest_phone'): model.guestPhone,
-      _k(src, 'guestIdType', 'guest_id_type'): model.guestIdType,
-      _k(src, 'guestIdNumber', 'guest_id_number'): model.guestIdNumber,
-      _k(src, 'guestIdIssueDate', 'guest_id_issue_date'):
-          model.guestIdIssueDate,
-      _k(src, 'guestIdIssuePlace', 'guest_id_issue_place'):
-          model.guestIdIssuePlace,
-      _k(src, 'guestNationality', 'guest_nationality'): model.guestNationality,
-      _k(src, 'guestEmail', 'guest_email'): model.guestEmail,
-      _k(src, 'guestAddress', 'guest_address'): model.guestAddress,
-      _k(src, 'checkinDate', 'checkin_date'): model.checkinDate,
-      _k(src, 'checkoutDate', 'checkout_date'): model.checkoutDate,
-      _k(src, 'actualCheckout', 'actual_checkout'): model.actualCheckout,
-      _k(src, 'status', 'status'): model.status,
-      _k(src, 'notes', 'notes'): model.notes,
-      _k(src, 'discount', 'discount'): model.discount,
-      _k(src, 'discountType', 'discount_type'): model.discountType,
-      _k(src, 'discountStartDate', 'discount_start_date'):
-          model.discountStartDate,
-      _k(src, 'expectedNights', 'expected_nights'): model.expectedNights,
-      _k(src, 'calculatedNights', 'calculated_nights'): model.calculatedNights,
-      _k(src, 'totalNightsCached', 'total_nights_cached'):
-          model.totalNightsCached,
-      _k(src, 'stayDurationIso', 'stay_duration_iso'): model.stayDurationIso,
-      _k(src, 'lastNightEpoch', 'last_night_epoch'): model.lastNightEpoch,
-      _k(src, 'isOverdue', 'is_overdue'): model.isOverdue,
-      _k(src, 'needsCheckoutReview', 'needs_checkout_review'):
-          model.needsCheckoutReview,
-      _k(src, 'totalDueCached', 'total_due_cached'): model.totalDueCached,
-      _k(src, 'totalPaidCached', 'total_paid_cached'): model.totalPaidCached,
-      _k(src, 'remainingBalanceCached', 'remaining_balance_cached'):
-          model.remainingBalanceCached,
-      _k(src, 'isFullyPaid', 'is_fully_paid'): model.isFullyPaid,
-      _k(src, 'hotelDayCheckin', 'hotel_day_checkin'): model.hotelDayCheckin,
-      _k(src, 'hotelDayCheckout', 'hotel_day_checkout'): model.hotelDayCheckout,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'serverBookingId'): model.serverBookingId,
+      _k(src, 'roomNumber'): model.roomNumber,
+      _k(src, 'guestName'): model.guestName,
+      _k(src, 'guestPhone'): model.guestPhone,
+      _k(src, 'guestIdType'): model.guestIdType,
+      _k(src, 'guestIdNumber'): model.guestIdNumber,
+      _k(src, 'guestIdIssueDate'): model.guestIdIssueDate,
+      _k(src, 'guestIdIssuePlace'): model.guestIdIssuePlace,
+      _k(src, 'guestNationality'): model.guestNationality,
+      _k(src, 'guestEmail'): model.guestEmail,
+      _k(src, 'guestAddress'): model.guestAddress,
+      _k(src, 'checkinDate'): model.checkinDate,
+      _k(src, 'checkoutDate'): model.checkoutDate,
+      _k(src, 'actualCheckout'): model.actualCheckout,
+      _k(src, 'status'): model.status,
+      _k(src, 'notes'): model.notes,
+      _k(src, 'discount'): model.discount,
+      _k(src, 'discountType'): model.discountType,
+      _k(src, 'discountStartDate'): model.discountStartDate,
+      _k(src, 'expectedNights'): model.expectedNights,
+      _k(src, 'calculatedNights'): model.calculatedNights,
+      _k(src, 'totalNightsCached'): model.totalNightsCached,
+      _k(src, 'stayDurationIso'): model.stayDurationIso,
+      _k(src, 'lastNightEpoch'): model.lastNightEpoch,
+      _k(src, 'isOverdue'): model.isOverdue,
+      _k(src, 'needsCheckoutReview'): model.needsCheckoutReview,
+      _k(src, 'totalDueCached'): model.totalDueCached,
+      _k(src, 'totalPaidCached'): model.totalPaidCached,
+      _k(src, 'remainingBalanceCached'): model.remainingBalanceCached,
+      _k(src, 'isFullyPaid'): model.isFullyPaid,
+      _k(src, 'hotelDayCheckin'): model.hotelDayCheckin,
+      _k(src, 'hotelDayCheckout'): model.hotelDayCheckout,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
 
+// ================== الدوال المساعدة ==================
+
+/// تحويل قيمة من JSON إلى d.Value<int> مع دعم القيم البديلة والافتراضية.
 d.Value<int> _vInt(
   Map<String, dynamic> json,
   String key,
@@ -299,6 +302,7 @@ d.Value<int> _vInt(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+/// تحويل قيمة من JSON إلى d.Value<String> مع دعم القيم البديلة والافتراضية.
 d.Value<String> _vStr(
   Map<String, dynamic> json,
   String key,
@@ -312,6 +316,7 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+/// تحويل قيمة من JSON إلى d.Value<double> مع دعم القيم البديلة والافتراضية.
 d.Value<double> _vDouble(
   Map<String, dynamic> json,
   String key,
@@ -325,6 +330,7 @@ d.Value<double> _vDouble(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+/// تحويل قيمة من JSON إلى d.Value<bool> مع دعم القيم البديلة والافتراضية.
 d.Value<bool> _vBool(
   Map<String, dynamic> json,
   String key,
@@ -338,6 +344,7 @@ d.Value<bool> _vBool(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+/// استخراج قيمة epoch (عدد صحيح) من JSON، سواء كانت int أو String رقمية.
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   if (v != null) return v;
@@ -347,19 +354,21 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   return parsed;
 }
 
+/// استخراج قيمة كـ int مع محاولة التحويل من bool/num/String.
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v is bool) return v ? 1 : 0;
   if (v is int) return v;
   if (v is num) return v.toInt();
   if (v is String) {
-    // تجاهل UUID أو strings طويلة
+    // تجاهل النصوص التي تشبه UUID أو طويلة جداً (ليست أرقام)
     if (v.contains('-') || v.length > 20) return null;
     return int.tryParse(v);
   }
   return null;
 }
 
+/// استخراج قيمة كـ double مع محاولة التحويل.
 double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v is double) return v;
@@ -369,12 +378,14 @@ double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
+/// استخراج قيمة كـ String (تحويل أي شيء إلى String).
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v == null) return null;
   return v.toString();
 }
 
+/// استخراج قيمة كـ bool مع محاولة التحويل من String/num.
 bool? _asBool(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v is bool) return v;
@@ -387,6 +398,7 @@ bool? _asBool(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
+/// الوصول الأولي للقيمة من JSON مع مراعاة الاسم البديل (إذا كان المصدر drive).
 Object? _raw(Map<String, dynamic> json, String key, Source src) {
   if (json.containsKey(key)) return json[key];
   final alt = _altKey(key, src);
@@ -394,11 +406,14 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+/// اختيار اسم المفتاح المناسب عند إنشاء JSON للإرسال.
+/// تم تعديلها لإرجاع camelCase دائماً ليتوافق مع Appwrite.
+String _k(Source src, String camel) => camel;
 
+/// إنشاء مفتاح بديل بصيغة snake_case من camelCase (للبحث في JSON القديم).
+/// يُستخدم فقط عند القراءة من مصدر drive (Appwrite) للتوافق مع البيانات القديمة.
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) return camel;
+  if (src != Source.drive) return null; // فقط drive يحتاج بديلاً
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];
