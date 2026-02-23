@@ -878,16 +878,23 @@ class AppwriteSyncManager {
   }
 
   Future<int> _syncBookings(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.bookings.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
+  if (documents.isEmpty) return 0;
+  var processed = 0;
+  for (final doc in documents) {
+    try {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      
+      if (data.containsKey('discountStartData')) {
+        data['discountStartDate'] = data.remove('discountStartData');
+      }
+      
+      await _adapterRegistry.bookings.upsertFromJson(
+        data,
+        src: Source.appwrite,
+      );
+
+ 
 
         // TRIGGER POST-SYNC PROCESSING
         // 1. Resolve local ID from UUID
