@@ -157,14 +157,21 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final oldRoomNumber = _originalRooms[booking.id]!;
         final newRoomNumber = _roomSelections[booking.id]!;
         final roomChanged = oldRoomNumber != newRoomNumber;
-        final discountText =
-            _discountControllers[booking.id]?.text.trim() ?? '';
-        final discount = double.tryParse(discountText) ?? 0;
-        final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
+        
+        // استخراج قيمة الخصم مع الاحتفاظ بالأصلية إذا لم يتم التعديل
+        final discountText = _discountControllers[booking.id]?.text.trim() ?? '';
+        final discount = discountText.isNotEmpty
+            ? double.tryParse(discountText) ?? 0
+            : booking.discount; // الاحتفاظ بالقيمة الحالية
+
+        final discountType = _discountTypeSelections[booking.id] ?? booking.discountType;
+
         final discountStartDateText =
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
-        final discountStartDate =
-            discountStartDateText.isNotEmpty ? discountStartDateText : null;
+        final discountStartDate = discountStartDateText.isNotEmpty
+            ? discountStartDateText
+            : booking.discountStartDate; // الاحتفاظ بالأصلية
+
         final checkinDateText =
             _checkinDateControllers[booking.id]?.text.trim() ?? '';
         final checkinDateChanged = checkinDateText.isNotEmpty &&
