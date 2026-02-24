@@ -9,6 +9,7 @@ import '../../services/local_db.dart';
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/status_utils.dart';
 import 'guest_profile.dart';
+import '../../providers/appwrite_providers.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
   const GuestEditScreen({super.key, required this.guest});
@@ -203,6 +204,14 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
         final derivedService = BookingDerivedFieldsService(db);
         await derivedService.refreshForBookingId(booking.id);
+      }
+
+      // المزامنة الفورية مع Appwrite Cloud
+      try {
+        final syncManager = ref.read(appwriteSyncManagerProvider);
+        await syncManager.sync(push: true, pull: false);
+      } catch (e) {
+        debugPrint('خطأ في المزامنة التلقائية: $e');
       }
 
       if (mounted) {
