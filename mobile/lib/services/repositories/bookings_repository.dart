@@ -71,7 +71,7 @@ class BookingsRepository {
         discountStartDate: d.Value(discountStartDate),
       ),
     );
-    await syncLegacyDiscountToAdjustments(result);
+
     await derivedFields.refreshForBookingId(result);
     AutoBackupManager.instance.onDataChange(
       'bookings',
@@ -158,7 +158,7 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
-      await syncLegacyDiscountToAdjustments(id);
+
       await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange(
         'bookings',

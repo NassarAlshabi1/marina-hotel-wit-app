@@ -905,7 +905,7 @@ class AppwriteSyncManager {
 
         if (booking != null) {
           // 2. Convert legacy discount to adjustments
-          await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
+
           
           // 3. Recalculate derived fields (nightly rates, total due)
           await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
