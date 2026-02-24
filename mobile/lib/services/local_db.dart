@@ -9,6 +9,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import 'daos/outbox_dao.dart';
 
 part 'local_db.g.dart';
 
@@ -634,6 +635,8 @@ class SyncConflicts extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   AppDatabase._internal(super.executor);
+
+  late final OutboxDao outboxDao = OutboxDao(this);
 
   static AppDatabase forTesting(QueryExecutor executor) =>
       AppDatabase._internal(executor);
