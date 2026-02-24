@@ -625,9 +625,24 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         final bookingId = b.id;
 
         // 1. حذف ليالي الحجز (BookingNights)
-        await (db.delete(db.bookingNights)
+        // نقوم بحذفها محلياً أولاً، ثم من Appwrite إذا كانت موجودة
+        final nights = await (db.select(db.bookingNights)
               ..where((n) => n.bookingLocalId.equals(bookingId)))
-            .go();
+            .get();
+        for (final night in nights) {
+          await (db.delete(db.bookingNights)
+                ..where((n) => n.id.equals(night.id)))
+              .go();
+          // تسجيل الحذف للمزامنة (Outbox)
+          await ref.read(databaseProvider).outboxDao.merge(
+                entity: 'booking_nights',
+                op: 'delete',
+                localUuid: night.localUuid,
+                serverId: night.serverId,
+                payload: {'id': night.id},
+                clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              );
+        }
 
         // 2. حذف الملاحظات المرتبطة بالحجز
         final notes = await notesRepo.dao.list(bookingId: bookingId);
@@ -670,6 +685,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         // 7. حذف الحجز نفسه
         await bookingsRepo.delete(bookingId);
       }
+
+      // تشغيل المزامنة فوراً لرفع التغييرات إلى Appwrite Cloud
+      ref.read(syncServiceProvider).runSync();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
