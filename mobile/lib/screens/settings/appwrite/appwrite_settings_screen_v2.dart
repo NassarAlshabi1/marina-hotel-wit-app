@@ -5,6 +5,7 @@ import 'tabs/connection_tab.dart';
 import 'tabs/sync_tab.dart';
 import 'tabs/devices_tab.dart';
 import 'tabs/tools_tab.dart';
+import 'tabs/collections_tab.dart';
 
 /// Appwrite Settings Screen v2 - إعدادات Appwrite المحسّنة
 ///
@@ -29,7 +30,7 @@ class _AppwriteSettingsScreenV2State
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -68,6 +69,7 @@ class _AppwriteSettingsScreenV2State
               tabs: const [
                 Tab(icon: Icon(Icons.cloud), text: 'الاتصال'),
                 Tab(icon: Icon(Icons.sync), text: 'المزامنة'),
+                Tab(icon: Icon(Icons.storage), text: 'الجداول'),
                 Tab(icon: Icon(Icons.devices), text: 'الأجهزة'),
                 Tab(icon: Icon(Icons.build), text: 'الأدوات'),
               ],
@@ -81,6 +83,7 @@ class _AppwriteSettingsScreenV2State
               children: const [
                 AppwriteConnectionTab(),
                 AppwriteSyncTab(),
+                AppwriteCollectionsTab(),
                 AppwriteDevicesTab(),
                 AppwriteToolsTab(),
               ],
@@ -125,6 +128,14 @@ class _AppwriteSettingsScreenV2State
               },
             ),
             ListTile(
+              leading: const Icon(Icons.storage),
+              title: const Text('إدارة الجداول'),
+              onTap: () {
+                Navigator.pop(context);
+                _tabController.animateTo(2);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات متقدمة'),
               onTap: () {
@@ -155,6 +166,7 @@ class _AppwriteSettingsScreenV2State
             'إدارة اتصال ومزامنة Appwrite:\n\n'
             '• الاتصال: التحقق من الاتصال وإعدادات المشروع\n'
             '• المزامنة: إدارة المزامنة والإحصائيات\n'
+            '• الجداول: عرض الجداول والحقول المزامنة\n'
             '• الأجهزة: الأجهزة المسجلة والمتصلة\n'
             '• الأدوات: أدوات الصيانة والاختبار',
           ),
