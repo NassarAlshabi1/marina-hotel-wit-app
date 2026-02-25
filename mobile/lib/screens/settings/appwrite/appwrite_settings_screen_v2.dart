@@ -127,14 +127,7 @@ class _AppwriteSettingsScreenV2State
                 // Navigate to stats
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.storage),
-              title: const Text('إدارة الجداول'),
-              onTap: () {
-                Navigator.pop(context);
-                _tabController.animateTo(2);
-              },
-            ),
+
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات متقدمة'),
