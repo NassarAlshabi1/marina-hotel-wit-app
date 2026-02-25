@@ -9,9 +9,9 @@ import 'appwrite_network_helper.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
+  static final AppwriteService _instance = AppwriteService._internal();
   factory AppwriteService() => _instance;
   AppwriteService._internal();
-  static final AppwriteService _instance = AppwriteService._internal();
 
   late final Client _client;
   late final Databases _databases;
@@ -100,7 +100,7 @@ class AppwriteService {
 
     final allDocuments = <models.Document>[];
     int pageOffset = 0;
-    const pageSize = AppwriteConfig.maxPageSize;
+    final pageSize = AppwriteConfig.maxPageSize;
 
     while (true) {
       final pagedQueries = _applyPagingQueries(
@@ -231,7 +231,7 @@ class AppwriteService {
     } on AppwriteException catch (e) {
       // 404 Not Found -> Create
       if (e.code == 404) {
-        return _networkHelper.withRetryAndTimeout(
+        return await _networkHelper.withRetryAndTimeout(
           operation: () => _databases.createDocument(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: collectionId,
@@ -740,7 +740,7 @@ class AppwriteService {
 
     _ensureInitialized();
 
-    const testCollection = AppwriteConfig.syncLogsCollectionId;
+    final testCollection = AppwriteConfig.syncLogsCollectionId;
     final testDocumentId = ID.unique();
     final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -815,7 +815,8 @@ class AppwriteService {
 
       // حساب الحالة النهائية
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] = tests['ping'] == true &&
+      results['overall_success'] =
+          tests['ping'] == true &&
           (tests['write'] == true || tests['write'] == null) &&
           (tests['read'] == true || tests['read'] == null) &&
           (tests['delete'] == true || tests['delete'] == null);
@@ -845,7 +846,7 @@ class AppwriteService {
           (results['tests'] as Map)['write'] == true &&
           (results['tests'] as Map)['delete'] != true) {
         try {
-          const testCollection = AppwriteConfig.syncLogsCollectionId;
+          final testCollection = AppwriteConfig.syncLogsCollectionId;
           await _databases.deleteDocument(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
@@ -870,7 +871,7 @@ class AppwriteService {
     required String documentId,
   }) async {
     _ensureInitialized();
-    return _networkHelper.withTimeout(
+    return await _networkHelper.withTimeout(
       operation: () => _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -887,7 +888,7 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     _ensureInitialized();
-    return _networkHelper.withTimeout(
+    return await _networkHelper.withTimeout(
       operation: () => _databases.createDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -905,7 +906,7 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     _ensureInitialized();
-    return _networkHelper.withTimeout(
+    return await _networkHelper.withTimeout(
       operation: () => _databases.updateDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -918,7 +919,7 @@ class AppwriteService {
 
   /// إنشاء سجل مزامنة
   Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
-    return createDocument(
+    return await createDocument(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       documentId: data['localUuid'] ?? 'ID.unique()',
       data: data,
@@ -930,7 +931,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listDocuments(
+    return await listDocuments(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       queries: queries,
       useCache: useCache,
@@ -939,7 +940,7 @@ class AppwriteService {
 
   /// إنشاء جهاز
   Future<models.Document> createDevice(Map<String, dynamic> data) async {
-    return createDocument(
+    return await createDocument(
       collectionId: AppwriteConfig.devicesCollectionId,
       documentId: data['localUuid'] ?? 'ID.unique()',
       data: data,
@@ -951,7 +952,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listDocuments(
+    return await listDocuments(
       collectionId: AppwriteConfig.devicesCollectionId,
       queries: queries,
       useCache: useCache,
