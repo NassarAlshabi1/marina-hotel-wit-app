@@ -246,7 +246,7 @@ class AppwriteService {
           operationName: 'createDocument($collectionId)',
         );
       }
-      await _errorHandler.handle(e);
+      _errorHandler.handleError(e, context: 'upsertDocument($collectionId)');
       rethrow;
     }
   }
@@ -268,7 +268,7 @@ class AppwriteService {
       );
     } on AppwriteException catch (e) {
       if (e.code == 404) return;
-      await _errorHandler.handle(e);
+      _errorHandler.handleError(e, context: 'deleteDocument($collectionId)');
       rethrow;
     }
   }
