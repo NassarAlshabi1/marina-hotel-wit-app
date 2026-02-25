@@ -771,7 +771,7 @@ class AppwriteService {
             queries: [Query.limit(1)], // نجلب مستنداً واحداً فقط
           ),
           operationName: 'quickConnectionTest',
-          timeout: const Duration(seconds: 3), // مهلة قصيرة جداً
+          timeout: const Duration(seconds: 5), // مهلة قصيرة جداً (تم زيادتها)
         );
 
         _logger.info('✅ Quick connection test passed', tag: 'CONNECTION');
@@ -800,7 +800,7 @@ class AppwriteService {
     };
 
     // استخدام مجموعة اختبار ثابتة (يجب أن تكون موجودة في قاعدة البيانات)
-    const testCollection = 'test_connection'; // يمكن جعلها قابلة للتكوين
+    final testCollection = AppwriteConfig.testConnectionCollectionId; // يمكن جعلها قابلة للتكوين
     final testDocumentId = ID.unique();
     final now = DateTime.now().toIso8601String();
 

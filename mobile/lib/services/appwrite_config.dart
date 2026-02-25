@@ -86,3 +86,5 @@ class AppwriteConfig {
     return true;
   }
 }
+
+  static const String testConnectionCollectionId = 'test_connection';
