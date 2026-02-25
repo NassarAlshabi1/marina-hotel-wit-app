@@ -121,9 +121,9 @@ class AppwriteRealtimeSync {
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     final eventTypes = message.events;
     final isDataChange = eventTypes.any((e) =>
-        e.contains('.create') ||
-        e.contains('.update') ||
-        e.contains('.delete'));
+        e.endsWith('.create') ||
+        e.endsWith('.update') ||
+        e.endsWith('.delete'));
 
     if (!isDataChange) {
       debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
