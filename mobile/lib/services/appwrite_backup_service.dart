@@ -48,8 +48,8 @@ class AppwriteBackupService {
     AppwriteConfig.syncLogsCollectionId,
   ];
 
-  Future<List<dynamic>> _listAllCollections() async {
-    final allCollections = <dynamic>[];
+  Future<List<models.Collection>> _listAllCollections() async {
+    final allCollections = <models.Collection>[];
     const limit = AppwriteConfig.maxPageSize;
     var offset = 0;
     var usedFallback = false;
@@ -57,11 +57,11 @@ class AppwriteBackupService {
     while (true) {
       try {
         final result =
-            await (_appwriteService.databases as dynamic).listCollections(
+            await _appwriteService.databases.listCollections(
           databaseId: AppwriteConfigManager.databaseId,
           queries: [Query.limit(limit), Query.offset(offset)],
         );
-        final batch = (result as dynamic).collections as List<dynamic>? ?? [];
+        final batch = result.collections;
         if (batch.isEmpty) {
           break;
         }
@@ -80,41 +80,20 @@ class AppwriteBackupService {
       for (final id in _defaultCollectionIds) {
         try {
           final collection =
-              await (_appwriteService.databases as dynamic).getCollection(
+              await _appwriteService.databases.getCollection(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: id,
           );
           allCollections.add(collection);
-        } catch (_) {
-          allCollections.add({r'$id': id});
-        }
+        } catch (_) { /* Log error or handle gracefully */ }
       }
     }
 
     return allCollections;
   }
 
-  Map<String, dynamic> _serializeCollection(dynamic collection) {
-    if (collection is Map) {
-      return Map<String, dynamic>.from(collection);
-    }
-    try {
-      final map = (collection as dynamic).toMap();
-      return Map<String, dynamic>.from(map as Map);
-    } catch (_) {
-      try {
-        final dynamic c = collection;
-        return {
-          r'$id': c.$id,
-          'name': c.name,
-          'enabled': c.enabled,
-          'documentSecurity': c.documentSecurity,
-          'permissions': c.permissions,
-        };
-      } catch (_) {
-        return {'raw': collection.toString()};
-      }
-    }
+  Map<String, dynamic> _serializeCollection(models.Collection collection) {
+    return collection.toMap();
   }
 
   Future<AppwriteBackupResult> exportBackup({
@@ -132,10 +111,8 @@ class AppwriteBackupService {
     if (includeSchema) {
       final cloudCollections = await _listAllCollections();
       for (final collection in cloudCollections) {
-        final id = (collection as dynamic).$id;
-        if (id is String) {
+          final id = collection.$id;
           collectionIds.add(id);
-        }
         schemaCollections.add(_serializeCollection(collection));
       }
     } else {
