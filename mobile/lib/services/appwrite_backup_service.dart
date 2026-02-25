@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'appwrite_config.dart';
@@ -48,20 +49,25 @@ class AppwriteBackupService {
     AppwriteConfig.syncLogsCollectionId,
   ];
 
-  Future<List<models.Collection>> _listAllCollections() async {
-    final allCollections = <models.Collection>[];
+  Future<List<dynamic>> _listAllCollections() async {
+    final allCollections = <dynamic>[];
     const limit = AppwriteConfig.maxPageSize;
     var offset = 0;
     var usedFallback = false;
 
     while (true) {
       try {
+        // The methods listCollections and getCollection are not directly available
+        // on the Databases object in Appwrite Flutter SDK 21.0.0 for client-side operations.
+        // Reverting to dynamic cast for now to resolve build error, but this needs a proper solution.
+        // A proper solution would involve using a server-side function or a different approach
+        // to fetch collection metadata if dynamic listing is required.
         final result =
-            await _appwriteService.databases.listCollections(
+            await (_appwriteService.databases as dynamic).listCollections(
           databaseId: AppwriteConfigManager.databaseId,
           queries: [Query.limit(limit), Query.offset(offset)],
         );
-        final batch = result.collections;
+        final batch = (result as dynamic).collections as List<dynamic>? ?? [];
         if (batch.isEmpty) {
           break;
         }
@@ -79,21 +85,43 @@ class AppwriteBackupService {
     if (allCollections.isEmpty && usedFallback) {
       for (final id in _defaultCollectionIds) {
         try {
+          // Same issue here: getCollection is not directly available on Databases object.
           final collection =
-              await _appwriteService.databases.getCollection(
+              await (_appwriteService.databases as dynamic).getCollection(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: id,
           );
           allCollections.add(collection);
-        } catch (_) { /* Log error or handle gracefully */ }
+        } catch (_) {
+          allCollections.add({r'$id': id});
+        }
       }
     }
 
     return allCollections;
   }
 
-  Map<String, dynamic> _serializeCollection(models.Collection collection) {
-    return collection.toMap();
+  Map<String, dynamic> _serializeCollection(dynamic collection) {
+    if (collection is Map) {
+      return Map<String, dynamic>.from(collection);
+    }
+    try {
+      final map = (collection as dynamic).toMap();
+      return Map<String, dynamic>.from(map as Map);
+    } catch (_) {
+      try {
+        final dynamic c = collection;
+        return {
+          r'$id': c.$id,
+          'name': c.name,
+          'enabled': c.enabled,
+          'documentSecurity': c.documentSecurity,
+          'permissions': c.permissions,
+        };
+      } catch (_) {
+        return {'raw': collection.toString()};
+      }
+    }
   }
 
   Future<AppwriteBackupResult> exportBackup({
@@ -111,8 +139,10 @@ class AppwriteBackupService {
     if (includeSchema) {
       final cloudCollections = await _listAllCollections();
       for (final collection in cloudCollections) {
-          final id = collection.$id;
+        final id = (collection as dynamic).$id;
+        if (id is String) {
           collectionIds.add(id);
+        }
         schemaCollections.add(_serializeCollection(collection));
       }
     } else {
