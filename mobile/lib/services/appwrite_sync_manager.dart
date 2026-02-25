@@ -98,6 +98,74 @@ class AppwriteSyncManager {
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
 
+  /// تحديث الـ Vector Clock المحلي
+  Map<String, int> _updateVectorClock(String? currentClockJson) {
+    Map<String, int> clock = {};
+    if (currentClockJson != null && currentClockJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(currentClockJson);
+        if (decoded is Map) {
+          clock = decoded.map((k, v) => MapEntry(k.toString(), v as int));
+        }
+      } catch (e) {
+        _logger.warning('Failed to decode vector clock: $e', tag: 'SYNC');
+      }
+    }
+
+    final deviceId = _currentDeviceId ?? 'unknown_device';
+    clock[deviceId] = (clock[deviceId] ?? 0) + 1;
+    return clock;
+  }
+
+  /// مقارنة اثنين من Vector Clocks
+  /// returns:
+  /// -1 if clock1 < clock2 (clock1 is older)
+  ///  1 if clock1 > clock2 (clock1 is newer)
+  ///  0 if clock1 == clock2
+  ///  null if clocks are concurrent (conflict)
+  int? _compareVectorClocks(Map<String, int> c1, Map<String, int> c2) {
+    bool c1HasGreater = false;
+    bool c2HasGreater = false;
+
+    final allKeys = {...c1.keys, ...c2.keys};
+    for (final key in allKeys) {
+      final v1 = c1[key] ?? 0;
+      final v2 = c2[key] ?? 0;
+      if (v1 > v2) c1HasGreater = true;
+      if (v2 > v1) c2HasGreater = true;
+    }
+
+    if (c1HasGreater && !c2HasGreater) return 1;
+    if (c2HasGreater && !c1HasGreater) return -1;
+    if (!c1HasGreater && !c2HasGreater) return 0;
+    return null; // Concurrent / Conflict
+  }
+
+  /// دمج اثنين من Vector Clocks
+  Map<String, int> _mergeVectorClocks(Map<String, int> c1, Map<String, int> c2) {
+    final merged = Map<String, int>.from(c1);
+    c2.forEach((key, value) {
+      merged[key] = (merged[key] ?? 0) > value ? merged[key]! : value;
+    });
+    return merged;
+  }
+
+  Map<String, int> _parseVectorClock(dynamic value) {
+    if (value is Map<String, int>) return value;
+    if (value is String && value.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) {
+          return decoded.map((k, v) => MapEntry(k.toString(), v as int));
+        }
+      } catch (_) {}
+    }
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), v as int));
+    }
+    return {};
+  }
+
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
@@ -868,6 +936,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        // ضمان وجود vectorClock
+        data['vectorClock'] ??= '{}';
         await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
@@ -889,6 +959,7 @@ class AppwriteSyncManager {
         data['discountStartDate'] = data.remove('discountStartDate');
       }
       
+      data['vectorClock'] ??= '{}';
       await _adapterRegistry.bookings.upsertFromJson(
         data,
         src: Source.appwrite,
@@ -926,6 +997,7 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        data['vectorClock'] ??= '{}';
         await _adapterRegistry.employees.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -1178,12 +1250,15 @@ class AppwriteSyncManager {
     }
   }
 
-  Map<String, dynamic> _addIdempotencyKey(
+  Map<String, dynamic> _prepareRemotePayload(
     Map<String, dynamic> payload,
     OutboxData entry,
+    String? currentVectorClock,
   ) {
+    final newClock = _updateVectorClock(currentVectorClock);
     return {
       ...payload,
+      'vectorClock': jsonEncode(newClock),
       'idempotencyKey':
           '${entry.entity}:${entry.op}:${entry.localUuid}:${entry.id}',
     };
@@ -1200,9 +1275,26 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
-    await appwriteService.upsertRoom(
-      room.localUuid,
-      _addIdempotencyKey(payload, entry),
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.roomsCollectionId,
+      documentId: room.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: room.vectorClock,
+      onConflict: (remoteData) async {
+        // في حالة التعارض، نقوم بدمج البيانات أو اتخاذ قرار
+        // هنا نستخدم دمج الـ Vector Clocks وتحديث النسخة المحلية
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(room.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+
+        // تحديث النسخة المحلية بالبيانات المدمجة (هنا نعتمد دمج الساعات)
+        // في تطبيق حقيقي، قد نحتاج لعرض التعارض على المستخدم
+        await _adapterRegistry.rooms.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
   }
@@ -1222,9 +1314,21 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _bookingToRemote(booking);
-    await appwriteService.upsertBooking(
-      booking.localUuid,
-      _addIdempotencyKey(payload, entry),
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.bookingsCollectionId,
+      documentId: booking.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: booking.vectorClock,
+      onConflict: (remoteData) async {
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(booking.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+        await _adapterRegistry.bookings.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
   }
@@ -1244,9 +1348,21 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _expenseToRemote(expense);
-    await appwriteService.upsertExpense(
-      expense.localUuid,
-      _addIdempotencyKey(payload, entry),
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.expensesCollectionId,
+      documentId: expense.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: expense.vectorClock,
+      onConflict: (remoteData) async {
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(expense.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+        await _adapterRegistry.expenses.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
   }
@@ -1266,9 +1382,21 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _paymentToRemote(payment);
-    await appwriteService.upsertPayment(
-      payment.localUuid,
-      _addIdempotencyKey(payload, entry),
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.paymentsCollectionId,
+      documentId: payment.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: payment.vectorClock,
+      onConflict: (remoteData) async {
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(payment.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+        await _adapterRegistry.payments.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
   }
@@ -1284,11 +1412,80 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
-    await appwriteService.upsertDebt(
-      debt.localUuid,
-      _addIdempotencyKey(payload, entry),
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.debtsCollectionId,
+      documentId: debt.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: debt.vectorClock,
+      onConflict: (remoteData) async {
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(debt.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+        await _adapterRegistry.debts.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
+  }
+
+  Future<void> _upsertWithConflictResolution({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> payload,
+    required OutboxData entry,
+    required String localVectorClock,
+    required Function(Map<String, dynamic> remoteData) onConflict,
+  }) async {
+    try {
+      // 1. محاولة الحصول على المستند الحالي من الخادم للتحقق من التعارض
+      models.Document? remoteDoc;
+      try {
+        remoteDoc = await appwriteService.getDocument(
+          collectionId: collectionId,
+          documentId: documentId,
+        );
+      } catch (e) {
+        // إذا لم يكن موجوداً، فلا يوجد تعارض (أول مرة)
+      }
+
+      if (remoteDoc != null) {
+        final remoteClock = _parseVectorClock(remoteDoc.data['vectorClock']);
+        final localClock = _parseVectorClock(localVectorClock);
+
+        final comparison = _compareVectorClocks(localClock, remoteClock);
+
+        if (comparison == -1) {
+          // النسخة المحلية قديمة، تحديث النسخة المحلية ببيانات الخادم
+          await onConflict(remoteDoc.data);
+          return;
+        } else if (comparison == null) {
+          // تعارض حقيقي (تعديلات متزامنة)
+          _logger.warning('Conflict detected for $documentId in $collectionId',
+              tag: 'SYNC');
+          await onConflict(remoteDoc.data);
+          // بعد المعالجة، سنحاول الرفع مرة أخرى في الدورة القادمة
+          throw Exception('Conflict detected and handled. Retry needed.');
+        }
+        // إذا كان comparison >= 0 (محلي أحدث أو مساوٍ)، نستمر في الرفع
+      }
+
+      // 2. الرفع مع الـ Vector Clock الجديد
+      final finalPayload =
+          _prepareRemotePayload(payload, entry, localVectorClock);
+      await appwriteService.upsertDocument(
+        collectionId: collectionId,
+        documentId: documentId,
+        data: finalPayload,
+      );
+    } catch (e) {
+      if (e.toString().contains('Conflict detected')) rethrow;
+      _logger.error('Error in upsertWithConflictResolution',
+          error: e, tag: 'SYNC');
+      rethrow;
+    }
   }
 
   Future<void> _deleteSilently(Future<void> Function() action) async {
@@ -1345,11 +1542,10 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
-  Map<String, dynamic> _roomToRemote(Room room) {
+    Map<String, dynamic> _roomToRemote(Room room) {
     final data = <String, dynamic>{
       'roomNumber': room.roomNumber,
       'type': room.type,
-      'roomType': room.type,
       'price': room.price,
       'status': room.status,
       'cleaningStatus': room.cleaningStatus,
@@ -1360,6 +1556,7 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
+      'vectorClock': room.vectorClock,
     };
     _putIfNotNull(data, 'serverId', room.serverId);
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
@@ -1370,38 +1567,37 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _bookingToRemote(Booking booking) {
-  final data = <String, dynamic>{
-    'roomNumber': booking.roomNumber,
-    'guestName': booking.guestName,
-    'guestPhone': booking.guestPhone,
-    'guestIdType': booking.guestIdType,
-    'guestIdNumber': booking.guestIdNumber,
-    'guestNationality': booking.guestNationality,
-    'checkinDate': booking.checkinDate,
-    'status': booking.status,
-    'expectedNights': booking.expectedNights,
-    'calculatedNights': booking.calculatedNights,
-    'discount': booking.discount,
-    'isOverdue': booking.isOverdue,
-    'isFullyPaid': booking.isFullyPaid,
-    'remainingBalanceCached': booking.remainingBalanceCached,
-    'totalDueCached': booking.totalDueCached,
-    'totalPaidCached': booking.totalPaidCached,
-    'totalNightsCached': booking.totalNightsCached,
-    'needsCheckoutReview': booking.needsCheckoutReview,
-    'localUuid': booking.localUuid,
-    'createdAt': booking.createdAt,
-    'updatedAt': booking.updatedAt,
-    'lastModified': booking.lastModified,
-    'version': booking.version,
-    'origin': booking.origin,
-  };
-  
-  _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
-  _putIfNotNull(data, 'serverId', booking.serverId);
-  _putIfNotNull(data, 'deletedAt', booking.deletedAt);
-  _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
-  _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
+    final data = <String, dynamic>{
+      'roomNumber': booking.roomNumber,
+      'guestName': booking.guestName,
+      'guestPhone': booking.guestPhone,
+      'guestNationality': booking.guestNationality,
+      'checkinDate': booking.checkinDate,
+      'status': booking.status,
+      'discount': booking.discount,
+      'discountType': booking.discountType,
+      'expectedNights': booking.expectedNights,
+      'calculatedNights': booking.calculatedNights,
+      'totalNightsCached': booking.totalNightsCached,
+      'isOverdue': booking.isOverdue,
+      'needsCheckoutReview': booking.needsCheckoutReview,
+      'totalDueCached': booking.totalDueCached,
+      'totalPaidCached': booking.totalPaidCached,
+      'remainingBalanceCached': booking.remainingBalanceCached,
+      'isFullyPaid': booking.isFullyPaid,
+      'localUuid': booking.localUuid,
+      'createdAt': booking.createdAt,
+      'updatedAt': booking.updatedAt,
+      'lastModified': booking.lastModified,
+      'version': booking.version,
+      'origin': booking.origin,
+      'vectorClock': booking.vectorClock,
+    };
+    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
+    _putIfNotNull(data, 'serverId', booking.serverId);
+    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    _putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
+    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
   _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
   _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
   _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
@@ -1436,6 +1632,7 @@ class AppwriteSyncManager {
       'lastModified': expense.lastModified,
       'version': expense.version,
       'origin': expense.origin,
+      'vectorClock': expense.vectorClock,
     };
     _putIfNotNull(data, 'relatedId', expense.relatedId);
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
@@ -1445,9 +1642,7 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
     _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
     return data;
-  }
-
-  Map<String, dynamic> _paymentToRemote(Payment payment) {
+  }  Map<String, dynamic> _paymentToRemote(Payment payment) {
     final data = <String, dynamic>{
       'amount': payment.amount,
       'paymentDate': payment.paymentDate,
@@ -1460,6 +1655,7 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'vectorClock': payment.vectorClock,
     };
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
@@ -1493,6 +1689,7 @@ class AppwriteSyncManager {
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
+      'vectorClock': debt.vectorClock,
       'guestName': debt.guestName,
       'checkinDate': debt.checkinDate,
       'checkoutDate': debt.checkoutDate,
@@ -2022,6 +2219,7 @@ class AppwriteSyncManager {
       'lastModified': employee.lastModified,
       'version': employee.version,
       'origin': employee.origin,
+      'vectorClock': employee.vectorClock,
     };
     _putIfNotNull(data, 'serverId', employee.serverId);
     _putIfNotNull(data, 'deletedAt', employee.deletedAt);
@@ -2040,6 +2238,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified,
       'version': note.version,
       'origin': note.origin,
+      'vectorClock': note.vectorClock,
     };
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
@@ -2065,6 +2264,7 @@ class AppwriteSyncManager {
       'lastModified': night.lastModified,
       'version': night.version,
       'origin': night.origin,
+      'vectorClock': night.vectorClock,
     };
     _putIfNotNull(data, 'serverId', night.serverId);
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
@@ -2084,6 +2284,7 @@ class AppwriteSyncManager {
       'lastModified': transaction.lastModified,
       'version': transaction.version,
       'origin': transaction.origin,
+      'vectorClock': transaction.vectorClock,
     };
     _putIfNotNull(data, 'registerId', transaction.registerId);
     _putIfNotNull(data, 'referenceId', transaction.referenceId);
@@ -2109,6 +2310,7 @@ class AppwriteSyncManager {
       'lastModified': cycle.lastModified,
       'version': cycle.version,
       'origin': cycle.origin,
+      'vectorClock': cycle.vectorClock,
     };
     _putIfNotNull(data, 'serverId', cycle.serverId);
     _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
@@ -2129,6 +2331,7 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'vectorClock': payment.vectorClock,
     };
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
@@ -2151,6 +2354,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified,
       'version': note.version,
       'origin': note.origin,
+      'vectorClock': note.vectorClock,
     };
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
@@ -2239,14 +2443,22 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.shiftNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
-
-    await appwriteService.upsertShiftNote(
-      item.localUuid,
-      _addIdempotencyKey(payload, entry),
+    final payload = _shiftNoteToRemote(item);
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.shiftNotesCollectionId,
+      documentId: item.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: item.vectorClock,
+      onConflict: (remoteData) async {
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(item.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+        await _adapterRegistry.shiftNotes.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
   }
@@ -2272,13 +2484,22 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.employees.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
-    await appwriteService.upsertEmployee(
-      item.localUuid,
-      _addIdempotencyKey(payload, entry),
+    final payload = _employeeToRemote(item);
+    await _upsertWithConflictResolution(
+      collectionId: AppwriteConfig.employeesCollectionId,
+      documentId: item.localUuid,
+      payload: payload,
+      entry: entry,
+      localVectorClock: item.vectorClock,
+      onConflict: (remoteData) async {
+        final remoteClock = _parseVectorClock(remoteData['vectorClock']);
+        final localClock = _parseVectorClock(item.vectorClock);
+        final mergedClock = _mergeVectorClocks(localClock, remoteClock);
+        await _adapterRegistry.employees.upsertFromJson({
+          ...remoteData,
+          'vectorClock': jsonEncode(mergedClock),
+        }, src: Source.appwrite);
+      },
     );
     return true;
   }
