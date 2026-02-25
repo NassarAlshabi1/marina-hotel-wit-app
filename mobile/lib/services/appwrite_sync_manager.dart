@@ -2647,6 +2647,14 @@ class AppwriteSyncManager {
         .getSingleOrNull();
   }
 
+  Map<String, dynamic> _addIdempotencyKey(Map<String, dynamic> payload, OutboxData entry) {
+    if (entry.idempotencyKey == null) return payload;
+    return {
+      ...payload,
+      'idempotencyKey': entry.idempotencyKey,
+    };
+  }
+
   /// تحميل جميع البيانات من الخادم مع تعطيل القيود الخارجية مؤقتاً
   Future<void> pullAllRemoteData() async {
     _logger.info('Pulling all remote data with FK disabled...', tag: 'SYNC');
