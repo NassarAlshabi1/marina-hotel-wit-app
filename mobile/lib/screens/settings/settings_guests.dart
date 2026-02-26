@@ -623,9 +623,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
       for (final b in guest.bookings) {
         final bookingId = b.id;
+        final bookingUuid = b.localUuid;
 
         // 1. حذف ليالي الحجز (BookingNights)
-        // نقوم بحذفها محلياً أولاً، ثم من Appwrite إذا كانت موجودة
         final nights = await (db.select(db.bookingNights)
               ..where((n) => n.bookingLocalId.equals(bookingId)))
             .get();
@@ -633,24 +633,58 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           await (db.delete(db.bookingNights)
                 ..where((n) => n.id.equals(night.id)))
               .go();
-          // تسجيل الحذف للمزامنة (Outbox)
-          await ref.read(databaseProvider).outboxDao.merge(
-                entity: 'booking_nights',
-                op: 'delete',
-                localUuid: night.localUuid,
-                serverId: night.serverId,
-                payload: {'id': night.id},
-                clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              );
+          await db.outboxDao.merge(
+            entity: 'booking_nights',
+            op: 'delete',
+            localUuid: night.localUuid,
+            serverId: night.serverId,
+            payload: {'id': night.id},
+            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          );
         }
 
-        // 2. حذف الملاحظات المرتبطة بالحجز
+        // 2. حذف تعديلات الأسعار (BookingPriceAdjustments)
+        final adjustments = await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalId.equals(bookingId)))
+            .get();
+        for (final adj in adjustments) {
+          await (db.delete(db.bookingPriceAdjustments)
+                ..where((a) => a.id.equals(adj.id)))
+              .go();
+          await db.outboxDao.merge(
+            entity: 'booking_price_adjustments',
+            op: 'delete',
+            localUuid: adj.localUuid,
+            serverId: adj.serverId,
+            payload: {'id': adj.id},
+            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          );
+        }
+
+        // 3. حذف إلغاءات المدفوعات (PaymentVoids)
+        final voids = await (db.select(db.paymentVoids)
+              ..where((v) => v.bookingUuid.equals(bookingUuid)))
+            .get();
+        for (final v in voids) {
+          await (db.delete(db.paymentVoids)..where((t) => t.id.equals(v.id)))
+              .go();
+          await db.outboxDao.merge(
+            entity: 'payment_voids',
+            op: 'delete',
+            localUuid: v.localUuid,
+            serverId: v.serverId,
+            payload: {'id': v.id},
+            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          );
+        }
+
+        // 4. حذف الملاحظات المرتبطة بالحجز
         final notes = await notesRepo.dao.list(bookingId: bookingId);
         for (final n in notes) {
           await notesRepo.delete(n.id);
         }
 
-        // 3. حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
+        // 5. حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
         final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
         for (final p in pays) {
           if (p.cashTransactionLocalId != null) {
@@ -659,7 +693,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           await paymentsRepo.delete(p.id);
         }
 
-        // 4. حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
+        // 6. حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
         final relatedCash = await cashRepo.listByReference(
           referenceType: 'booking',
           referenceId: bookingId,
@@ -668,13 +702,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           await cashRepo.delete(tx.id);
         }
 
-        // 5. حذف الديون المرتبطة بالحجز
+        // 7. حذف الديون المرتبطة بالحجز
         final debts = await debtsRepo.listByBookingLocalId(bookingId);
         for (final d in debts) {
           await debtsRepo.delete(d.id);
         }
 
-        // 6. تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
+        // 8. تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
         if (b.roomNumber.isNotEmpty) {
           final room = await roomsRepo.watchByNumber(b.roomNumber).first;
           if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
@@ -682,8 +716,24 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           }
         }
 
-        // 7. حذف الحجز نفسه
+        // 9. حذف الحجز نفسه
         await bookingsRepo.delete(bookingId);
+      }
+
+      // 10. حذف سجلات الضيف من جدول GuestInfos
+      final guestInfos = await (db.select(db.guestInfos)
+            ..where((g) => g.guestName.equals(guest.name)))
+          .get();
+      for (final gi in guestInfos) {
+        await (db.delete(db.guestInfos)..where((g) => g.id.equals(gi.id))).go();
+        await db.outboxDao.merge(
+          entity: 'guest_infos',
+          op: 'delete',
+          localUuid: gi.localUuid,
+          serverId: gi.serverId,
+          payload: {'id': gi.id},
+          clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        );
       }
 
       // تشغيل المزامنة فوراً لرفع التغييرات إلى Appwrite Cloud
