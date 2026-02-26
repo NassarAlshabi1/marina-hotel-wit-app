@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'capy/**'
+      - '**'
       - fix/conflict-resolution-vector-clocks
     paths:
       - 'mobile/**'
