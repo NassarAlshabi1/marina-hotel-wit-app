@@ -1561,6 +1561,36 @@ class AppwriteSyncManager {
     }
   }
 
+  /// سحب جميع البيانات من Appwrite مع تعطيل Foreign Key لجدول الديون مؤقتاً
+  Future<void> pullAllDataWithDisabledFK() async {
+    _logger.info('🚀 بدء سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً...', tag: 'SYNC');
+    try {
+      await database.transaction(() async {
+        // تعطيل Foreign Keys مؤقتاً
+        await database.customStatement('PRAGMA foreign_keys = OFF');
+        _logger.debug('🔓 تم تعطيل Foreign Keys', tag: 'SYNC');
+
+        try {
+          // سحب البيانات بنفس ترتيب pullRemoteChanges لضمان الاتساق
+          await pullRemoteChanges();
+          _logger.info('✅ اكتمل سحب جميع البيانات بنجاح', tag: 'SYNC');
+        } finally {
+          // إعادة تفعيل Foreign Keys دائماً
+          await database.customStatement('PRAGMA foreign_keys = ON');
+          _logger.debug('🔒 تم إعادة تفعيل Foreign Keys', tag: 'SYNC');
+        }
+      });
+    } catch (e, stackTrace) {
+      _logger.error(
+        '❌ فشل سحب البيانات مع تعطيل FK',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
+      rethrow;
+    }
+  }
+
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {

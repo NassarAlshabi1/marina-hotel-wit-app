@@ -127,7 +127,8 @@ class _GoogleDriveLoginScreenState
 
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
-      await manager.pullRemoteChanges();
+      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل سحب الديون
+      await manager.pullAllDataWithDisabledFK();
     } catch (e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
