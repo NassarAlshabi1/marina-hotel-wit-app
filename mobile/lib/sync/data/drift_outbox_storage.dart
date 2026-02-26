@@ -134,10 +134,11 @@ class DriftOutboxStorage implements OutboxStorage {
   @override
   Future<void> save(DeltaChange change) async {
     await _db.customStatement(
-      '''INSERT OR REPLACE INTO $_table
+      '''
+INSERT OR REPLACE INTO $_table
          (id, table_name, uuid, operation, payload, timestamp, vector_clock,
           checksum, device_id, retry_count, last_error, next_retry_at, synced_at, is_synced, is_failed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',},{all:false,find:
       [
         change.id,
         change.table,
@@ -177,12 +178,14 @@ class DriftOutboxStorage implements OutboxStorage {
     final beforeMs = before.millisecondsSinceEpoch;
     String sql;
     if (onlyRetryable) {
-      sql = '''SELECT * FROM $_table
+      sql = '''
+SELECT * FROM $_table
                WHERE is_synced = 0 AND is_failed = 0
                AND next_retry_at IS NOT NULL AND next_retry_at <= ?
                ORDER BY timestamp ASC LIMIT ?''';
     } else {
-      sql = '''SELECT * FROM $_table
+      sql = '''
+SELECT * FROM $_table
                WHERE is_synced = 0 AND is_failed = 0
                AND (next_retry_at IS NULL OR next_retry_at <= ?)
                ORDER BY timestamp ASC LIMIT ?''';
@@ -248,7 +251,8 @@ class DriftOutboxStorage implements OutboxStorage {
   Future<int> pendingCount() async {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final rows = await _db.customSelect(
-      '''SELECT COUNT(*) as cnt FROM $_table
+      '''
+SELECT COUNT(*) as cnt FROM $_table
          WHERE is_synced = 0 AND is_failed = 0
          AND (next_retry_at IS NULL OR next_retry_at <= ?)''',
       variables: [Variable.withInt(nowMs)],
@@ -262,7 +266,8 @@ class DriftOutboxStorage implements OutboxStorage {
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final syncingRows = await _db.customSelect(
-      '''SELECT COUNT(*) as cnt FROM $_table
+      '''
+SELECT COUNT(*) as cnt FROM $_table
          WHERE is_synced = 0 AND is_failed = 0
          AND next_retry_at IS NOT NULL AND next_retry_at > ?''',
       variables: [Variable.withInt(nowMs)],
@@ -284,7 +289,8 @@ class DriftOutboxStorage implements OutboxStorage {
     final failed = failedRows.first.read<int>('cnt');
 
     final oldestRows = await _db.customSelect(
-      '''SELECT timestamp FROM $_table
+      '''
+SELECT timestamp FROM $_table
          WHERE is_synced = 0
          ORDER BY timestamp ASC LIMIT 1''',
     ).get();

@@ -133,7 +133,7 @@ class RealtimeSyncService {
   Future<void> _disconnect() async {
     _pingTimer?.cancel();
     await _messageSubscription?.cancel();
-    _channel?.sink.close();
+    await _channel?.sink.close();
 
     _isConnected = false;
     _isConnecting = false;

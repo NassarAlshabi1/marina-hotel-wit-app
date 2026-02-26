@@ -53,7 +53,6 @@ class AppwriteAutoSyncTask {
     WidgetsFlutterBinding.ensureInitialized();
     await Workmanager().initialize(
       appwriteAutoSyncCallbackDispatcher,
-      isInDebugMode: debug,
     );
     _initialized = true;
   }

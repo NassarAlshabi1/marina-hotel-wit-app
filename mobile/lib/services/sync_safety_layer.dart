@@ -276,14 +276,14 @@ class SyncSafetyLayer {
     }
     await db.customStatement(
       'CREATE TABLE IF NOT EXISTS sync_audit ('
-      'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-      'sync_id TEXT,'
-      'direction TEXT,'
-      'checksum TEXT,'
-      'schema_version INTEGER,'
-      'device_id TEXT,'
-      'status TEXT,'
-      'created_at TEXT,'
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'sync_id TEXT, '
+      'direction TEXT, '
+      'checksum TEXT, '
+      'schema_version INTEGER, '
+      'device_id TEXT, '
+      'status TEXT, '
+      'created_at TEXT, '
       'metadata TEXT'
       ')',
     );

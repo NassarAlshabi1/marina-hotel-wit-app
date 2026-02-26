@@ -40,9 +40,8 @@ class BackgroundSyncService {
     _config = config;
 
     // تسجيل معالج المهام في WorkManager
-    Workmanager().initialize(
+    await Workmanager().initialize(
       _callbackDispatcher,
-      isInDebugMode: false,
     );
 
     _isInitialized = true;

@@ -416,7 +416,7 @@ class EnhancedPdfUtils {
           ...data.asMap().entries.map((entry) {
             final index = entry.key;
             final row = entry.value;
-            final isEven = index % 2 == 0;
+            final isEven = index.isEven;
 
             return pw.TableRow(
               decoration: pw.BoxDecoration(

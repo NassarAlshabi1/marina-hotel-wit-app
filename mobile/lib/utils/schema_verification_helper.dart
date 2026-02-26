@@ -143,8 +143,8 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: _result!.contains('✅')
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _result!.contains('✅') ? Colors.green : Colors.orange,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'dart:async' show unawaited;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_error_recovery.dart';
@@ -91,7 +92,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     if (_isSyncing || !_isOnline) return;
 
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       await SyncErrorRecovery.instance.createRollbackPoint(
@@ -327,9 +328,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: healthColor.withOpacity(0.1),
+        color: healthColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: healthColor.withOpacity(0.3)),
+        border: Border.all(color: healthColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,7 +372,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -394,7 +395,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Future<void> _pushOnly() async {
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -437,7 +438,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Future<void> _pullOnly() async {
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -479,7 +480,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   Future<void> _verifyIntegrity() async {
-    showDialog(
+    unawaited(showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -491,13 +492,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ],
         ),
       ),
-    );
+    ));
 
     try {
       final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
-      Navigator.pop(context);
+      if (!mounted) return;
+      if (Navigator.canPop(context)) Navigator.pop(context);
 
-      showDialog(
+      unawaited(showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -654,14 +656,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [buttonColor.withOpacity(0.8), buttonColor],
+                  colors: [buttonColor.withValues(alpha: 0.8), buttonColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: buttonColor.withOpacity(0.3),
+                    color: buttonColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),

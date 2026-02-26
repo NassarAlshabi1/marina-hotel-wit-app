@@ -175,15 +175,13 @@ class VectorClockManager {
 
   /// تسجيل حدث محلي جديد
   VectorClock recordLocalEvent() {
-    _currentClock = _currentClock.increment(_deviceId);
-    return _currentClock;
+    return _currentClock = _currentClock.increment(_deviceId);
   }
 
   /// تسجيل استلام حدث من جهاز آخر
   VectorClock recordRemoteEvent(VectorClock remoteClock) {
-    _currentClock = _currentClock.merge(remoteClock);
     // لا نزيد العداد هنا - ذلك يحدث فقط للأحداث المحلية
-    return _currentClock;
+    return _currentClock = _currentClock.merge(remoteClock);
   }
 
   /// مقارنة مع ساعة بعيدة
