@@ -161,8 +161,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         // استخراج قيمة الخصم مع الاحتفاظ بالأصلية إذا لم يتم التعديل
         final discountText = _discountControllers[booking.id]?.text.trim() ?? '';
         final discount = discountText.isNotEmpty
-            ? double.tryParse(discountText) ?? 0
-            : booking.discount; // الاحتفاظ بالقيمة الحالية
+            ? double.tryParse(discountText) ?? 0.0
+            : 0.0; // Set to 0 if field is cleared
 
         final discountType = _discountTypeSelections[booking.id] ?? booking.discountType;
 
