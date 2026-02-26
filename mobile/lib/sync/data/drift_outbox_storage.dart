@@ -41,10 +41,12 @@ class OutboxRecord {
       retryCount: row.read<int>('retry_count'),
       lastError: row.readNullable<String>('last_error'),
       nextRetryAt: row.readNullable<int>('next_retry_at') != null
-          ? DateTime.fromMillisecondsSinceEpoch(row.read<int>('next_retry_at'))
+          ? DateTime.fromMillisecondsSinceEpoch(
+              row.readNullable<int>('next_retry_at')!)
           : null,
       syncedAt: row.readNullable<int>('synced_at') != null
-          ? DateTime.fromMillisecondsSinceEpoch(row.read<int>('synced_at'))
+          ? DateTime.fromMillisecondsSinceEpoch(
+              row.readNullable<int>('synced_at')!)
           : null,
       isSynced: row.read<int>('is_synced') == 1,
       isFailed: row.read<int>('is_failed') == 1,
@@ -138,23 +140,23 @@ class DriftOutboxStorage implements OutboxStorage {
 INSERT OR REPLACE INTO $_table
          (id, table_name, uuid, operation, payload, timestamp, vector_clock,
           checksum, device_id, retry_count, last_error, next_retry_at, synced_at, is_synced, is_failed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',},{all:false,find:
-      [
-        change.id,
-        change.table,
-        change.uuid,
-        change.operation.name,
-        _encodePayload(change.payload),
-        change.timestamp.millisecondsSinceEpoch,
-        change.vectorClock,
-        change.checksum,
-        change.deviceId,
-        change.retryCount,
-        change.lastError,
-        change.nextRetryAt?.millisecondsSinceEpoch,
-        null,
-        0,
-        0,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+      variables: [
+        Variable.withString(change.id),
+        Variable.withString(change.table),
+        Variable.withString(change.uuid),
+        Variable.withString(change.operation.name),
+        Variable.withString(_encodePayload(change.payload)),
+        Variable.withInt(change.timestamp.millisecondsSinceEpoch),
+        Variable.withString(change.vectorClock),
+        Variable.withString(change.checksum ?? ''),
+        Variable.withString(change.deviceId ?? ''),
+        Variable.withInt(change.retryCount),
+        Variable.withString(change.lastError ?? ''),
+        Variable.withInt(change.nextRetryAt?.millisecondsSinceEpoch ?? 0),
+        Variable.withInt(0), // synced_at
+        Variable.withBool(false), // is_synced
+        Variable.withBool(false), // is_failed
       ],
     );
   }

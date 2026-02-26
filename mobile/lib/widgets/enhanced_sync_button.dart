@@ -536,7 +536,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             ),
           ],
         ),
-      );
+      ));
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
