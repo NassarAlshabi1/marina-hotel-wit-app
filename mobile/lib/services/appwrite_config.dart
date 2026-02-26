@@ -48,12 +48,14 @@ class AppwriteConfig {
 
   // إعدادات Timeout
   static const Duration defaultTimeout = Duration(seconds: 30);
-  static const Duration longTimeout = Duration(minutes: 2); // للعمليات الكبيرة
+  static const Duration defaultLongTimeout = Duration(minutes: 2); // للعمليات الكبيرة
 
   // إعدادات Pagination
   static const int defaultPageSize = 25; // عدد السجلات في كل صفحة
   static const int maxPageSize = 100; // الحد الأقصى للسجلات
   static const int batchSize = 50; // عدد السجلات في كل دفعة
+
+  static const String testConnectionCollectionId = 'test_connection';
 
   /// طباعة الإعدادات (للتشخيص)
   static void printConfig() {
@@ -72,7 +74,7 @@ class AppwriteConfig {
       debugPrint('Batch Size: $batchSize');
       debugPrint('Max Retries: $maxRetries');
       debugPrint('Default Timeout: ${defaultTimeout.inSeconds}s');
-      debugPrint('Long Timeout: ${longTimeout.inSeconds}s');
+      debugPrint('Long Timeout: ${defaultLongTimeout.inSeconds}s');
       debugPrint('═══════════════════════════════════════');
     }
   }
@@ -86,5 +88,3 @@ class AppwriteConfig {
     return true;
   }
 }
-
-  static const String testConnectionCollectionId = 'test_connection';
