@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - main
-      - 'A'
+      - '**'
+      - fix/conflict-resolution-vector-clocks
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-windows-release.yml'
   pull_request:
     branches:
       - main
+    - '**'
+      - fix/conflict-resolution-vector-clocks
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-windows-release.yml'
@@ -21,80 +24,50 @@ on:
         required: false
         default: 'http://127.0.0.1:8080/api/v1'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   build-windows-release:
     runs-on: windows-latest
-    permissions:
-      contents: read
-    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
-    env:
-      BASE_API_URL: ${{ github.event.inputs.base_api_url || 'http://127.0.0.1:8080/api/v1' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check Windows project
-        id: check_windows
-        run: |
-          if (Test-Path "mobile/windows") {
-            "has_windows=true" >> $env:GITHUB_OUTPUT
-          } else {
-            "has_windows=false" >> $env:GITHUB_OUTPUT
-          }
-
       - name: Set up Flutter
-        if: steps.check_windows.outputs.has_windows == 'true'
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.3'
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.38.3
 
       - name: Enable Windows desktop
-        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter config --enable-windows-desktop
 
-      - name: Flutter doctor
-        if: steps.check_windows.outputs.has_windows == 'true'
-        run: flutter doctor -v
-
-      - name: Clean build artifacts
-        if: steps.check_windows.outputs.has_windows == 'true'
-        run: flutter clean
+      - name: Initialize Windows project if missing
+        run: |
+          if (!(Test-Path "windows")) {
+            flutter create --platforms=windows .
+          }
 
       - name: Install dependencies
-        if: steps.check_windows.outputs.has_windows == 'true'
         run: flutter pub get
 
-      - name: Build runner - clean generated files
-        if: steps.check_windows.outputs.has_windows == 'true'
-        run: flutter pub run build_runner clean
-
       - name: Generate code
-        if: steps.check_windows.outputs.has_windows == 'true'
-        run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
+        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows release
-        if: steps.check_windows.outputs.has_windows == 'true'
-        run: flutter build windows --release --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}
+        run: flutter build windows --release --dart-define=BASE_API_URL=${{ github.event.inputs.base_api_url || 'http://127.0.0.1:8080/api/v1' }}
 
-      - name: Upload Windows artifact
-        if: steps.check_windows.outputs.has_windows == 'true'
+      - name: Archive Release
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ../marina-hotel-windows.zip
+
+      - name: Upload Windows EXE Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: marina-hotel-windows-${{ github.run_number }}
-          path: |
-            mobile/build/windows/x64/runner/Release/**
+          name: marina-hotel-windows-exe
+          path: marina-hotel-windows.zip
           if-no-files-found: error
-
-      - name: Skip Windows build (no project)
-        if: steps.check_windows.outputs.has_windows != 'true'
-        run: echo "Windows project not found. Skipping build."
+          
