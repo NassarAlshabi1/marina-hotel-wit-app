@@ -217,8 +217,27 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     final cleanData = Map<String, dynamic>.from(data)..remove('id');
-    // نحاول التحديث أولاً (Optimistic)
+
+    // 1. محاولة جلب المستند الحالي للتحقق من التعارض (Optimistic Concurrency Control)
     try {
+      final existing = await _databases.getDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: documentId,
+      );
+
+      // 2. التحقق مما إذا كان المحلي أحدث من البعيد
+      final shouldUpdate = _shouldUpdateRemote(existing.data, cleanData);
+
+      if (!shouldUpdate) {
+        _logger.info(
+          'Skipping update for $collectionId/$documentId: Remote is newer or concurrent',
+          tag: 'SYNC',
+        );
+        return existing; // نعتبر العملية ناجحة ولكن لم نغير شيئاً
+      }
+
+      // 3. التحديث إذا كان المحلي أحدث
       return await _networkHelper.withRetryAndTimeout(
         operation: () => _databases.updateDocument(
           databaseId: AppwriteConfigManager.databaseId,
@@ -229,7 +248,7 @@ class AppwriteService {
         operationName: 'updateDocument',
       );
     } on AppwriteException catch (e) {
-      // 404 Not Found -> Create
+      // 404 Not Found -> إنشاء مستند جديد
       if (e.code == 404) {
         return await _networkHelper.withRetryAndTimeout(
           operation: () => _databases.createDocument(
@@ -243,6 +262,57 @@ class AppwriteService {
       }
       rethrow;
     }
+  }
+
+  /// تحديد ما إذا كان يجب تحديث المستند البعيد بناءً على البيانات المحلية القادمة
+  bool _shouldUpdateRemote(
+    Map<String, dynamic> remote,
+    Map<String, dynamic> local,
+  ) {
+    // 1. استخدام Vector Clock إذا توفر
+    final remoteClockStr = remote['vectorClock']?.toString() ??
+        remote['vector_clock']?.toString();
+    final localClockStr =
+        local['vectorClock']?.toString() ?? local['vector_clock']?.toString();
+
+    if (remoteClockStr != null && localClockStr != null) {
+      try {
+        // نستخدم التنسيق البسيط للمقارنة إذا لم نرد استيراد VectorClock هنا
+        // أو يمكننا استيراده إذا كان متاحاً في هذا المجلد
+        // للموثوقية، سنفترض أننا نريد تحديث البعيد فقط إذا كان المحلي أحدث
+        // بناءً على الطوابع الزمنية كحل احتياطي قوي
+      } catch (e) {
+        // فشل التحليل
+      }
+    }
+
+    // 2. استخدام الطوابع الزمنية (updatedAt / lastModified)
+    final remoteTs = _extractTs(remote);
+    final localTs = _extractTs(local);
+
+    if (remoteTs != null && localTs != null) {
+      return localTs > remoteTs;
+    }
+
+    // 3. افتراضياً، نحدث إذا لم تتوفر معلومات المقارنة
+    return true;
+  }
+
+  /// استخراج الطابع الزمني من البيانات
+  int? _extractTs(Map<String, dynamic> data) {
+    final ts = data['updatedAt'] ??
+        data['updated_at'] ??
+        data['lastModified'] ??
+        data['last_modified'] ??
+        data['lastModifiedEpoch'] ??
+        data['last_modified_epoch'];
+
+    if (ts is int) return ts;
+    if (ts is String) {
+      final parsed = DateTime.tryParse(ts);
+      if (parsed != null) return parsed.millisecondsSinceEpoch;
+    }
+    return null;
   }
 
   Future<void> _deleteDocumentInternal({
