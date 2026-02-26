@@ -471,7 +471,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _localAutoSyncDebounce?.cancel();
     _localAutoSyncDebounce = Timer(
-      const Duration(seconds: 2),
+      const Duration(seconds: 5),
       () => unawaited(_runLocalAutoSync()),
     );
   }
