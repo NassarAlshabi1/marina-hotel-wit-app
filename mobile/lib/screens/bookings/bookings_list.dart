@@ -153,7 +153,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                             // Use cached total due if available, otherwise fallback to simple calculation
                             final totalAmount = booking.totalDueCached > 0
                                 ? booking.totalDueCached
-                                : (actualNights * price);
+                                : (actualNights * price).toDouble();
                             return _BookingRow(
                               index: index,
                               booking: booking,
