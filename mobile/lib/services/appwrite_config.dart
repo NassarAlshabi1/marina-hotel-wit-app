@@ -49,6 +49,7 @@ class AppwriteConfig {
   // إعدادات Timeout
   static const Duration defaultTimeout = Duration(seconds: 30);
   static const Duration defaultLongTimeout = Duration(minutes: 2); // للعمليات الكبيرة
+  static const Duration longTimeout = defaultLongTimeout;
 
   // إعدادات Pagination
   static const int defaultPageSize = 25; // عدد السجلات في كل صفحة

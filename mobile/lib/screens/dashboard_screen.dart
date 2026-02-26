@@ -13,7 +13,7 @@ import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
-import '../widgets/dashboard_sync_button.dart';
+import '../widgets/dashboard_sync_button.dart' hide databaseProvider;
 import '../utils/currency_formatter.dart';
 import '../providers/appwrite_providers.dart' as appwrite;
 import '../services/google_drive_unified_sync_coordinator.dart';
