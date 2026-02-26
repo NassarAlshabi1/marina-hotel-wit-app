@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - '**'
+      
       - fix/conflict-resolution-vector-clocks
     paths:
       - 'mobile/**'
