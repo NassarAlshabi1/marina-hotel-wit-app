@@ -140,6 +140,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
     final bookingsRepo = ref.read(bookingsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
+    final debtsRepo = ref.read(debtsRepoProvider);
     final roomsRepo = ref.read(roomsRepoProvider);
     final db = ref.read(databaseProvider);
 
@@ -199,11 +200,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           await _transferFinancialData(
             db: db,
             paymentsRepo: paymentsRepo,
+            debtsRepo: debtsRepo,
             bookingId: booking.id,
             newRoomNumber: newRoomNumber,
           );
 
           if (StatusUtils.isActiveBooking(booking.status)) {
+            // تحويل الغرفة السابقة إلى شاغرة والغرفة الجديدة إلى محجوزة
             await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
             await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
           }
@@ -255,9 +258,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   Future<void> _transferFinancialData({
     required AppDatabase db,
     required PaymentsRepository paymentsRepo,
+    required DebtsRepository debtsRepo,
     required int bookingId,
     required String newRoomNumber,
   }) async {
+    // 1. نقل المدفوعات
     final payments = await (db.select(db.payments)
           ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
           ..where((tbl) => tbl.deletedAt.isNull()))
@@ -266,6 +271,20 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     for (final payment in payments) {
       await paymentsRepo.update(payment.id, roomNumber: newRoomNumber);
     }
+
+    // 2. نقل الديون (إذا كانت مرتبطة برقم الغرفة في مكان ما، رغم أن جدول الديون يعتمد غالباً على bookingLocalId)
+    // ملاحظة: جدول الديون في local_db.dart لا يحتوي على حقل roomNumber مباشرة، 
+    // لكنه مرتبط بـ bookingLocalId الذي قمنا بتحديث رقم غرفته بالفعل في خطوة سابقة.
+    // إذا كان هناك أي بيانات أخرى متعلقة بالغرفة في جداول أخرى، يتم نقلها هنا.
+    
+    // 3. تحديث أي متعلقات أخرى مرتبطة برقم الغرفة لهذا الحجز
+    // مثل ملاحظات الحجز إذا كانت مرتبطة برقم الغرفة
+    final notes = await (db.select(db.bookingNotes)
+          ..where((tbl) => tbl.bookingId.equals(bookingId))
+          ..where((tbl) => tbl.deletedAt.isNull()))
+        .get();
+    
+    // ملاحظات الحجز مرتبطة بـ bookingId، لذا ستنتقل تلقائياً مع الحجز.
   }
 
   Future<bool?> _showRoomChangeConfirmation() {
