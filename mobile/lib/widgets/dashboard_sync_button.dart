@@ -773,10 +773,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
+  /// بناء زر السحب - مفعل دائماً (ما لم يكن قيد التشغيل أو Appwrite معطل)
   Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
-    // زر السحب متاح فقط إذا كان يوجد تغييرات جديدة في Appwrite
-    final bool pullEnabled = hasRemoteChanges && _appwriteEnabled && !_isPulling && !_isPushing;
+    // زر السحب متاح دائماً طالما أن Appwrite مفعل وليس هناك عملية جارية
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -786,20 +786,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonColor = Colors.blue;
       buttonIcon = Icons.cloud_download;
       buttonText = 'جاري السحب...';
-    } else if (hasRemoteChanges) {
+    } else {
       buttonColor = Colors.blue;
       buttonIcon = Icons.cloud_download;
-      buttonText = 'سحب التغييرات';
-    } else {
-      buttonColor = Colors.grey.shade400;
-      buttonIcon = Icons.cloud_download;
-      buttonText = 'لا توجد تحديثات';
+      buttonText = 'سحب التغييرات'; // نص ثابت
     }
 
     return Tooltip(
       message: hasRemoteChanges
           ? 'اضغط لسحب التغييرات الجديدة من السيرفر'
-          : 'لا توجد تغييرات جديدة في السحابة',
+          : 'لا توجد تغييرات جديدة، لكن يمكنك السحب للتأكد',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -824,9 +820,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: pullEnabled
-                    ? () => _pullChanges(context)
-                    : null,
+                onTap: pullEnabled ? () => _pullChanges(context) : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -861,7 +855,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ),
             ),
           ),
-          // ✅ تحسين: Badge يعرض عدد التغييرات المعلقة من السيرفر
+          // Badge يعرض عدد التغييرات المعلقة من السيرفر (يظهر فقط إذا كان هناك تغييرات)
           if (hasRemoteChanges && !_isPulling && pendingCount > 0)
             Positioned(
               top: -6,
@@ -951,9 +945,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: pushEnabled
-                    ? () => _pushChanges(context)
-                    : null,
+                onTap: pushEnabled ? () => _pushChanges(context) : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -1036,7 +1028,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       smartSyncGoogleDriveSignInStatusProvider,
     );
 
-    // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
     return ValueListenableBuilder<bool>(
       valueListenable: AppwriteRealtimeSync().hasRemoteChanges,
       builder: (context, hasRemoteChanges, child) {
@@ -1053,7 +1044,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات
+                    // زر السحب من السيرفر
                     _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount),
                     const SizedBox(width: 8),
                     // زر الدفع إلى السيرفر
@@ -1061,7 +1052,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   ],
                 ),
                 const SizedBox(height: 6),
-                // شريط الحالة
+                // شريط الحالة - يعرض آخر وقت مزامنة (تم الرفع أو السحب)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -1119,6 +1110,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          // عرض آخر وقت مزامنة (آخر عملية سحب أو رفع ناجحة)
                           if (!_isPulling && !_isPushing && _lastSyncTime != null)
                             Text(
                               _formatLastSyncTime(_lastSyncTime),
