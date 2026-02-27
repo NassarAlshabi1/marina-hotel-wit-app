@@ -7,6 +7,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart';
 import '../../services/repositories/payments_repository.dart';
+import '../../services/repositories/debts_repository.dart';
 import '../../utils/status_utils.dart';
 import 'guest_profile.dart';
 import '../../providers/appwrite_providers.dart';
