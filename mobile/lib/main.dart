@@ -50,7 +50,7 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
-import 'services/appwrite_delta_sync.dart'; // تأكد من وجود هذا الاستيراد
+import 'services/appwrite_delta_sync.dart';
 import 'services/sync_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
@@ -413,14 +413,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
 
-        // ✅ تهيئة AppwriteDeltaSync
+        // ✅ تهيئة AppwriteDeltaSync باستخدام AppwriteConfigManager
         try {
           final deltaSync = AppwriteDeltaSync.instance;
           if (!deltaSync.isInitialized) {
             final db = ref.read(databaseProvider);
-            final account = ref.read(appwrite.appwriteAccountProvider);
-            final realtime = ref.read(appwrite.appwriteRealtimeProvider);
-            final databases = ref.read(appwrite.appwriteDatabasesProvider);
+            // الحصول على خدمات Appwrite من Config Manager بعد تهيئته
+            final config = AppwriteConfigManager.instance;
+            // افترض أن config يوفر الخدمات التالية (قد تختلف التسمية)
+            final account = config.account; // أو config.getAccount()
+            final realtime = config.realtime; // أو config.getRealtime()
+            final databases = config.databases; // أو config.getDatabases()
             await deltaSync.initialize(
               localDatabase: db,
               account: account,
