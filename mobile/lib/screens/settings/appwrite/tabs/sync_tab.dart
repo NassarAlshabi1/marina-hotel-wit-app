@@ -74,6 +74,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         _buildCacheSettingsCard(cacheStats),
         const SizedBox(height: UIConstants.spacingLG),
         _buildSyncActionsCard(statsAsync.isLoading),
+          ListTile(
+            leading: const Icon(Icons.cloud_download, color: Colors.indigo),
+            title: const Text('سحب يدوي عالي الأولوية'),
+            subtitle: const Text('تحديث البيانات مع تعطيل قيود العلاقات مؤقتاً'),
+            onTap: _manualPull,
+          ),
       ],
     );
   }
@@ -1085,4 +1091,50 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       }
     }
   }
+
+  Future<void> _manualPull() async {
+    final db = ref.read(databaseProvider);
+    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('جاري سحب البيانات مع حماية التكامل...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Disable foreign keys for safe pull
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      
+      // Run Pull only sync
+      final result = await syncManager.sync(push: false, pull: true);
+      
+      if (mounted) Navigator.pop(context);
+
+      if (result.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم سحب البيانات بنجاح'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في السحب: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      // ALWAYS re-enable foreign keys
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      ref.invalidate(ap.syncStatsProvider);
+    }
+  }
+
 }

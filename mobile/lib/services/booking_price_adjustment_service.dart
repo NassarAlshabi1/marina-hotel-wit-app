@@ -321,6 +321,16 @@ class BookingPriceAdjustmentService {
         discount: Value(0.0),
         updatedAt: Value(now),
       ));
+    }
+
+    // Explicitly reset the discount field in the bookings table to 0 upon cancellation
+    if (adjustment.bookingLocalId != null) {
+      await (db.update(db.bookings)
+            ..where((t) => t.id.equals(adjustment.bookingLocalId!)))
+          .write(const BookingsCompanion(
+        discount: Value(0.0),
+        updatedAt: Value(now),
+      ));
 
       await _recalculateBookingNights(adjustment.bookingLocalId!);
     }
