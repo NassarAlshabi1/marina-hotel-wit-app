@@ -50,6 +50,7 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/appwrite_delta_sync.dart'; // تأكد من وجود هذا الاستيراد
 import 'services/sync_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
@@ -411,6 +412,26 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
+
+        // ✅ تهيئة AppwriteDeltaSync
+        try {
+          final deltaSync = AppwriteDeltaSync.instance;
+          if (!deltaSync.isInitialized) {
+            final db = ref.read(databaseProvider);
+            final account = ref.read(appwrite.appwriteAccountProvider);
+            final realtime = ref.read(appwrite.appwriteRealtimeProvider);
+            final databases = ref.read(appwrite.appwriteDatabasesProvider);
+            await deltaSync.initialize(
+              localDatabase: db,
+              account: account,
+              realtime: realtime,
+              databases: databases,
+            );
+            debugPrint('✅ AppwriteDeltaSync initialized');
+          }
+        } catch (e) {
+          debugPrint('❌ Failed to initialize AppwriteDeltaSync: $e');
+        }
 
         // تسجيل الجهاز تلقائياً
         try {
