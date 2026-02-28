@@ -18,9 +18,8 @@ class SyncError {
     required this.message,
     this.originalError,
     this.stackTrace,
-    Map<String, dynamic>? context,
-  })  : timestamp = DateTime.now(),
-        context = context;
+    this.context,
+  })  : timestamp = DateTime.now();
   final SyncErrorType type;
   final String message;
   final dynamic originalError;

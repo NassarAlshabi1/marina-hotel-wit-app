@@ -290,7 +290,7 @@ class SyncOrchestrator {
         ConnectivityService.instance.statusStream.listen((status) {
       if (status.isOnline && _state == OrchestratorState.paused) {
         _setState(OrchestratorState.idle);
-        _processTasks();
+        unawaited(_processTasks());
       } else if (!status.isOnline && _state == OrchestratorState.syncing) {
         _setState(OrchestratorState.paused);
       }
@@ -331,7 +331,7 @@ class SyncOrchestrator {
     );
 
     if (_state == OrchestratorState.idle) {
-      _processTasks();
+      unawaited(_processTasks());
     }
   }
 
@@ -578,14 +578,14 @@ class SyncOrchestrator {
   void resume() {
     if (_state == OrchestratorState.paused) {
       _setState(OrchestratorState.idle);
-      _processTasks();
+      unawaited(_processTasks());
     }
   }
 
   Future<void> forceSync() async {
     if (_state == OrchestratorState.syncing) return;
     _setState(OrchestratorState.idle);
-    await _processTasks();
+    await unawaited(_processTasks());
   }
 
   void dispose() {

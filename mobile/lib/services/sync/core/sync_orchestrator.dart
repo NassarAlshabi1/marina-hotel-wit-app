@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +36,7 @@ class SyncOrchestrator {
     }
 
     _isInitialized = true;
-    _emitState(SyncState.idle());
+    unawaited(_emitState(SyncState.idle());
   }
 
   /// مزامنة فورية مع جميع المحولات
@@ -49,7 +50,7 @@ class SyncOrchestrator {
     }
 
     _isSyncing = true;
-    _emitState(SyncState.syncing(progress: 0));
+    unawaited(_emitState(SyncState.syncing(progress: 0));
 
     final results = <String, SyncResult>{};
     int completed = 0;
@@ -58,7 +59,7 @@ class SyncOrchestrator {
       for (final adapter in _adapters) {
         if (!adapter.isEnabled) continue;
 
-        _emitState(SyncState.syncing(
+        unawaited(_emitState(SyncState.syncing(
           progress: (completed / _adapters.length * 100).toInt(),
           message: 'مزامنة ${adapter.name}...',
         ));
@@ -83,12 +84,12 @@ class SyncOrchestrator {
         adapters: results,
       );
 
-      _emitState(
+      unawaited(_emitState(
           allSuccess ? SyncState.idle() : SyncState.error(result.message));
       return result;
     } catch (e) {
       final errorResult = SyncResult.error('خطأ في المزامنة: $e');
-      _emitState(SyncState.error(errorResult.message));
+      unawaited(_emitState(SyncState.error(errorResult.message));
       return errorResult;
     } finally {
       _isSyncing = false;
@@ -140,7 +141,7 @@ class SyncOrchestrator {
     _stateController.stream.listen(listener);
   }
 
-  void _emitState(SyncState state) {
+  void unawaited(_emitState(SyncState state) {
     if (!_stateController.isClosed) {
       _stateController.add(state);
     }

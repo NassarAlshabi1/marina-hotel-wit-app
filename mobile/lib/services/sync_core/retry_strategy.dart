@@ -44,7 +44,7 @@ class RetryConfig {
 }
 
 class RetryStrategy {
-  RetryStrategy({RetryConfig? config}) : config = config ?? const RetryConfig();
+  RetryStrategy({this.config = const RetryConfig()});
   final RetryConfig config;
   final Random _random = Random();
 
