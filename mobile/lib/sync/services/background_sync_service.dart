@@ -90,7 +90,7 @@ class BackgroundSyncService {
       _cleanupTaskName,
       frequency: const Duration(days: 1),
       constraints: Constraints(
-        networkType: NetworkType.not_required,
+        networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
         requiresCharging: false,
         requiresDeviceIdle: true,
