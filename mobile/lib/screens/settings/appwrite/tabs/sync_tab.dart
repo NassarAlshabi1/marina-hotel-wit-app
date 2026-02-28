@@ -399,6 +399,21 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+              ),
+              child: const Icon(Icons.cloud_download, color: Colors.amber),
+            ),
+            title: const Text('نسخة احتياطية سحابية شاملة'),
+            subtitle: const Text('تصدير كافة بيانات Appwrite إلى ملف JSON'),
+            trailing: const Icon(Icons.share, size: 16),
+            onTap: _exportCloudBackup,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(UIConstants.spacingSM),
+              decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
@@ -1029,6 +1044,43 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportCloudBackup() async {
+    final backupService = ComprehensiveAppwriteBackupService();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('جاري إنشاء نسخة احتياطية شاملة من السحابة...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final file = await backupService.exportFullCloudBackup(
+        deviceId: ref.read(ap.connectionStatusProvider).errorMessage, // Dummy or real ID
+      );
+      Navigator.pop(context);
+
+      if (file != null && mounted) {
+        await Share.shareXFiles([XFile(file.path)], text: 'نسخة احتياطية شاملة - فندق مارينا');
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في التصدير: $e'), backgroundColor: Colors.red),
         );
       }
     }
