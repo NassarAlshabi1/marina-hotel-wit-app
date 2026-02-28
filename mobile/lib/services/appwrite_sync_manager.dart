@@ -491,6 +491,10 @@ class AppwriteSyncManager {
       }
 
       if (pull) {
+        // Disable foreign keys to allow complex updates (e.g. Debts/Bookings)
+        await database.customStatement('PRAGMA foreign_keys = OFF');
+        
+        try {
         recordsPulled += await _timePhase('syncRooms', () async {
           final rooms = await appwriteService.listRooms(useCache: false);
           final roomsSynced = await _syncRooms(rooms);
@@ -592,6 +596,10 @@ class AppwriteSyncManager {
       final endEpoch = Time.nowEpoch();
       syncLogVersion += 1;
 
+        } finally {
+          await database.customStatement('PRAGMA foreign_keys = ON');
+        }
+
       if (hasSyncLog) {
         await appwriteService.upsertDocument(
           collectionId: AppwriteConfig.syncLogsCollectionId,
@@ -622,6 +630,10 @@ class AppwriteSyncManager {
     } catch (e, stackTrace) {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
+
+        } finally {
+          await database.customStatement('PRAGMA foreign_keys = ON');
+        }
 
       if (hasSyncLog) {
         final failEpoch = Time.nowEpoch();

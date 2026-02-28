@@ -115,6 +115,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   /// سحب التغييرات من Appwrite (Pull فقط - بدون دفع)
   Future<void> _pullChanges(BuildContext context) async {
+    if (_isPulling || _isPushing) return;
+    
+    setState(() {
+      _isPulling = true;
+      _pullAnimationController.repeat();
+    });
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -776,7 +782,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
   Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
     // زر السحب متاح فقط إذا كان يوجد تغييرات جديدة في Appwrite
-    final bool pullEnabled = hasRemoteChanges && _appwriteEnabled && !_isPulling && !_isPushing;
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing; // Expert: Force enabled regardless of remote change detection
 
     Color buttonColor;
     IconData buttonIcon;

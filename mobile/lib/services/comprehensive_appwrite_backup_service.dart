@@ -196,6 +196,84 @@ class ComprehensiveAppwriteBackupService {
   }
 
   // استيراد ورفع النسخة الشاملة إلى Appwrite
+  
+  // fetch data from Appwrite and export to JSON
+  Future<File?> exportFullCloudBackup({
+    String? deviceId,
+    Function(String, double)? onProgress,
+  }) async {
+    try {
+      final timestamp = DateTime.now().toUtc();
+      final collectionsData = <String, List<Map<String, dynamic>>>{};
+      
+      await _appwriteService.initialize();
+      
+      final collectionsToFetch = [
+        {'id': AppwriteConfig.roomsCollectionId, 'name': 'الغرف'},
+        {'id': AppwriteConfig.bookingsCollectionId, 'name': 'الحجوزات'},
+        {'id': AppwriteConfig.paymentsCollectionId, 'name': 'المدفوعات'},
+        {'id': AppwriteConfig.expensesCollectionId, 'name': 'المصروفات'},
+        {'id': AppwriteConfig.employeesCollectionId, 'name': 'الموظفين'},
+        {'id': AppwriteConfig.debtsCollectionId, 'name': 'الديون'},
+        {'id': AppwriteConfig.bookingNotesCollectionId, 'name': 'ملاحظات الحجوزات'},
+        {'id': AppwriteConfig.cashTransactionsCollectionId, 'name': 'المعاملات النقدية'},
+        {'id': AppwriteConfig.shiftNotesCollectionId, 'name': 'ملاحظات النوبة'},
+        {'id': AppwriteConfig.bookingNightsCollectionId, 'name': 'ليالي الحجز'},
+        {'id': AppwriteConfig.salaryCyclesCollectionId, 'name': 'دورات الرواتب'},
+        {'id': AppwriteConfig.salaryPaymentsCollectionId, 'name': 'دفعات الرواتب'},
+        {'id': AppwriteConfig.hotelDayLedgerCollectionId, 'name': 'دفتر اليومية'},
+        {'id': AppwriteConfig.priceAdjustmentsCollectionId, 'name': 'تعديلات الأسعار'},
+        {'id': AppwriteConfig.bookingPriceAdjustmentsCollectionId, 'name': 'تعديلات أسعار الحجوزات'},
+        {'id': AppwriteConfig.auditLogsCollectionId, 'name': 'سجلات التدقيق'},
+        {'id': AppwriteConfig.paymentVoidsCollectionId, 'name': 'إلغاءات الدفع'},
+      ];
+
+      for (int i = 0; i < collectionsToFetch.length; i++) {
+        final coll = collectionsToFetch[i];
+        final progress = (i + 1) / collectionsToFetch.length;
+        
+        if (onProgress != null) onProgress('جلب ${coll['name']} من السحابة...', progress);
+        
+        final docs = await _appwriteService.databases.listDocuments(
+          databaseId: AppwriteConfig.databaseId,
+          collectionId: coll['id']!,
+          queries: [Query.limit(5000)],
+        );
+        
+        collectionsData[coll['id']!] = docs.documents.map((d) => d.data).toList();
+      }
+
+      final payload = {
+        'metadata': {
+          'version': '1.0_cloud_dump',
+          'timestamp': timestamp.toIso8601String(),
+          'projectId': AppwriteConfig.projectId,
+          'databaseId': AppwriteConfig.databaseId,
+          'deviceId': deviceId ?? 'unknown',
+          'source': 'appwrite_cloud_export',
+        },
+        'collections': collectionsData,
+      };
+
+      final dir = await getApplicationDocumentsDirectory();
+      final backupDir = Directory('${dir.path}/cloud_exports');
+      if (!await backupDir.exists()) {
+        await backupDir.create(recursive: true);
+      }
+
+      final fileName = 'marina_cloud_export_${DateFormat("yyyyMMdd_HHmmss").format(DateTime.now())}.json';
+      final file = File('${backupDir.path}/$fileName');
+
+      await file.writeAsString(jsonEncode(payload));
+      
+      if (onProgress != null) onProgress('تم تصدير كافة بيانات السحابة بنجاح', 1.0);
+      return file;
+    } catch (e, stack) {
+      _logger.error('Error exporting full cloud backup', error: e, stackTrace: stack);
+      rethrow;
+    }
+  }
+
   Future<void> restoreToAppwrite(
     File backupFile, {
     bool clearExisting = false,

@@ -124,9 +124,9 @@ class SettingsScreen extends ConsumerWidget {
           _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
           _buildSettingsGrid(context, [
             _SettingsItem(
-              title: 'Google Drive',
-              subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
-              icon: Icons.cloud,
+              title: 'إدارة السحابة (GD)',
+              subtitle: 'التحكم في مزامنة Google Drive',
+              icon: Icons.cloud_sync,
               color: Colors.blue,
               onTap: () => Navigator.push(
                 context,

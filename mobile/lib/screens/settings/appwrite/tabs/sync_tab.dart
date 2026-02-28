@@ -384,6 +384,21 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+              ),
+              child: const Icon(Icons.download, color: Colors.indigo),
+            ),
+            title: const Text('سحب يدوي (Pull)'),
+            subtitle: const Text('جلب التغييرات فقط من Appwrite'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _pullNow,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(UIConstants.spacingSM),
+              decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
@@ -972,6 +987,50 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       return DateTimeFormatter.getRelativeTime(next.toIso8601String());
     } catch (_) {
       return 'غير معروف';
+    }
+  }
+
+  Future<void> _pullNow() async {
+    final manager = ref.read(ap.appwriteSyncManagerProvider);
+    
+    // Show loading overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('جاري سحب البيانات من Appwrite...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await manager.sync(push: false, pull: true);
+      Navigator.pop(context);
+      ref.invalidate(ap.syncStatsProvider);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.isSuccess 
+              ? 'تم سحب البيانات بنجاح' 
+              : 'فشلت عمليأ السحآب'),
+            backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }
