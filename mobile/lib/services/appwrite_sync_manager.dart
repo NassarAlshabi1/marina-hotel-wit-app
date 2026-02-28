@@ -596,7 +596,7 @@ class AppwriteSyncManager {
       final endEpoch = Time.nowEpoch();
       syncLogVersion += 1;
 
-                } finally {
+                        } finally {
           await database.customStatement('PRAGMA foreign_keys = ON');
         }
 
@@ -631,7 +631,7 @@ class AppwriteSyncManager {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
 
-                } finally {
+                        } finally {
           await database.customStatement('PRAGMA foreign_keys = ON');
         }
 
@@ -867,7 +867,7 @@ class AppwriteSyncManager {
     final stopwatch = Stopwatch()..start();
     try {
       return await operation();
-            } finally {
+                    } finally {
       stopwatch.stop();
       phaseMs[name] = stopwatch.elapsedMilliseconds;
     }
@@ -1586,7 +1586,7 @@ class AppwriteSyncManager {
           // سحب البيانات بنفس ترتيب pullRemoteChanges لضمان الاتساق
           await pullRemoteChanges();
           _logger.info('✅ اكتمل سحب جميع البيانات بنجاح', tag: 'SYNC');
-                } finally {
+                        } finally {
           // إعادة تفعيل Foreign Keys دائماً
           await database.customStatement('PRAGMA foreign_keys = ON');
           _logger.debug('🔒 تم إعادة تفعيل Foreign Keys', tag: 'SYNC');
@@ -1717,7 +1717,7 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       return false;
-            } finally {
+                    } finally {
       _isPulling = false;
     }
   }
@@ -2492,7 +2492,7 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       rethrow;
-            } finally {
+                    } finally {
       _logger.info('Re-enabling FOREIGN KEY constraints', tag: 'SYNC');
       await database.customStatement('PRAGMA foreign_keys=ON');
     }
