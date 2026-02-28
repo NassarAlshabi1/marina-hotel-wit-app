@@ -86,9 +86,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final enabled = await _isAppwriteSyncEnabled();
       if (mounted) {
-        setState(() => _appwriteEnabled = enabled);
+        setState(() => _appwriteEnabled = true); // Force enabled by expert request
       } else {
-        _appwriteEnabled = enabled;
+        _appwriteEnabled = true; // Always true for expert functionality
       }
     } catch (e) {
       debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');

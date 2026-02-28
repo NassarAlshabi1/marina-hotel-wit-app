@@ -1,3 +1,4 @@
+// DEPRECATED: Use appwriteConfigProvider for unified state
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
@@ -169,4 +170,96 @@ final devicesListProvider = FutureProvider((ref) async {
 final logsProvider = Provider((ref) {
   final logger = ref.watch(appwriteLoggerProvider);
   return logger.getLogs();
+});
+
+
+/// State model for Appwrite configuration
+class AppwriteConfigState {
+  final bool isConnected;
+  final bool isChecking;
+  final String? errorMessage;
+  final Map<String, dynamic> syncStats;
+  final CacheStatistics? cacheStats;
+  final int outboxCount;
+
+  AppwriteConfigState({
+    this.isConnected = false,
+    this.isChecking = false,
+    this.errorMessage,
+    this.syncStats = const {},
+    this.cacheStats,
+    this.outboxCount = 0,
+  });
+
+  AppwriteConfigState copyWith({
+    bool? isConnected,
+    bool? isChecking,
+    String? errorMessage,
+    Map<String, dynamic>? syncStats,
+    CacheStatistics? cacheStats,
+    int? outboxCount,
+  }) {
+    return AppwriteConfigState(
+      isConnected: isConnected ?? this.isConnected,
+      isChecking: isChecking ?? this.isChecking,
+      errorMessage: errorMessage ?? this.errorMessage,
+      syncStats: syncStats ?? this.syncStats,
+      cacheStats: cacheStats ?? this.cacheStats,
+      outboxCount: outboxCount ?? this.outboxCount,
+    );
+  }
+}
+
+class AppwriteConfigNotifier extends StateNotifier<AppwriteConfigState> {
+  final Ref ref;
+
+  AppwriteConfigNotifier(this.ref) : super(AppwriteConfigState()) {
+    _initListeners();
+  }
+
+  void _initListeners() {
+    ref.listen(outboxCountProvider, (previous, next) {
+      next.whenData((count) {
+        state = state.copyWith(outboxCount: count);
+      });
+    });
+  }
+
+  Future<void> refreshAll() async {
+    await checkConnection();
+    await updateStats();
+  }
+
+  Future<void> checkConnection() async {
+    state = state.copyWith(isChecking: true, errorMessage: null);
+    try {
+      final service = ref.read(appwriteServiceProvider);
+      await service.initialize();
+      final result = await service.testConnection();
+      state = state.copyWith(
+        isConnected: result['overall_success'] == true,
+        isChecking: false,
+        errorMessage: result['overall_success'] == true ? null : result['error'],
+      );
+    } catch (e) {
+      state = state.copyWith(isConnected: false, isChecking: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<void> updateStats() async {
+    final syncManager = ref.read(appwriteSyncManagerProvider);
+    final stats = await syncManager.getSyncStatistics();
+    final cacheManager = ref.read(appwriteCacheManagerProvider);
+    final cStats = cacheManager.getStatistics();
+    
+    state = state.copyWith(
+      syncStats: stats,
+      cacheStats: cStats,
+    );
+  }
+}
+
+/// Unified provider for Appwrite configuration and stats
+final appwriteConfigProvider = StateNotifierProvider<AppwriteConfigNotifier, AppwriteConfigState>((ref) {
+  return AppwriteConfigNotifier(ref);
 });
