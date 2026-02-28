@@ -60,7 +60,7 @@ class _AppwriteSettingsScreenV2State
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
+              children: [
                 AppwriteSyncTab(),
                 AppwriteConnectionTab(),
                 AppwriteStatsLogsTab(),
