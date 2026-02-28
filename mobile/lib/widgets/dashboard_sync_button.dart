@@ -109,7 +109,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       debugPrint('✅ تم تنظيف outbox بنجاح');
     } catch (e) {
       debugPrint('⚠️ فشل تنظيف outbox: $e');
-      // لا نرمي الخطأ حتى لا يؤثر على تجربة المستخدم
     }
   }
 
@@ -124,9 +123,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
+
+    // تسجيل بداية العملية
     await syncLogDao.logSync(
       syncId: syncId,
       direction: 'pull',
@@ -134,6 +134,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite',
       status: 'in_progress',
     );
+
     if (_isPulling) return;
 
     _pullAnimationController.repeat();
@@ -198,88 +199,111 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final deltaSync = AppwriteDeltaSync.instance;
+
+      // 🔧 تهيئة deltaSync إذا لم تكن مهيأة
       if (!deltaSync.isInitialized) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('خدمة المزامنة غير مهيأة'),
-              backgroundColor: Colors.red,
-            ),
+        try {
+          final appwriteAccount = ref.read(appwriteAccountProvider);
+          final realtime = ref.read(appwriteRealtimeProvider);
+          final appwriteDatabases = ref.read(appwriteDatabasesProvider);
+
+          await deltaSync.initialize(
+            localDatabase: db,
+            account: appwriteAccount,
+            realtime: realtime,
+            databases: appwriteDatabases,
           );
+        } catch (e) {
+          debugPrint('❌ فشل تهيئة AppwriteDeltaSync: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('فشل تهيئة خدمة المزامنة: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
         }
-        return;
       }
 
-      // 1️⃣ سحب التغييرات من السيرفر
-      final pullResult = await deltaSync.pullDeltaChanges();
-      final pulledCount = pullResult.recordsPulled;
+      // 🔐 تعطيل المفاتيح الخارجية مؤقتاً لتجنب أخطاء التكامل أثناء التحديثات (خاصة جدول الديون)
+      await db.execute('PRAGMA foreign_keys = OFF');
 
-      // 2️⃣ حل التعارضات إن وجدت
-      int conflictsResolved = 0;
-      if (pullResult.hasConflicts) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚖️ جاري حل التعارضات...'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
-          );
+      try {
+        // 1️⃣ سحب التغييرات من السيرفر
+        final pullResult = await deltaSync.pullDeltaChanges();
+        final pulledCount = pullResult.recordsPulled;
+
+        // 2️⃣ حل التعارضات إن وجدت
+        int conflictsResolved = 0;
+        if (pullResult.hasConflicts) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚖️ جاري حل التعارضات...'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+          conflictsResolved = await _resolveConflicts();
         }
-        conflictsResolved = await _resolveConflicts();
-      }
 
-      // إعادة تعيين علامة "توجد تغييرات من السيرفر"
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
+        // إعادة تعيين علامة "توجد تغييرات من السيرفر"
+        AppwriteRealtimeSync().resetRemoteChangesFlag();
 
-      // ✅ تسجيل نجاح العملية
-      stopwatch.stop();
-      await syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: deviceId,
-        target: 'Appwrite',
-        status: 'success',
-        recordsPulled: pulledCount,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      if (mounted) {
-        setState(() {
-          _lastSyncTime = DateTime.now();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.cloud_done, color: Colors.white),
-                    const SizedBox(width: 8),
-                    const Text(
-                      '✅ تم سحب التغييرات بنجاح!',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '⬇️ استُلِم: $pulledCount ${conflictsResolved > 0 ? '  ⚖️ تعارضات محلولة: $conflictsResolved' : ''}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
+        // ✅ تسجيل نجاح العملية
+        stopwatch.stop();
+        await syncLogDao.logSync(
+          syncId: syncId,
+          direction: 'pull',
+          deviceId: deviceId,
+          target: 'Appwrite',
+          status: 'success',
+          recordsPulled: pulledCount,
+          durationMs: stopwatch.elapsedMilliseconds,
         );
+
+        if (mounted) {
+          setState(() {
+            _lastSyncTime = DateTime.now();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.cloud_done, color: Colors.white),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '✅ تم سحب التغييرات بنجاح!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '⬇️ استُلِم: $pulledCount ${conflictsResolved > 0 ? '  ⚖️ تعارضات محلولة: $conflictsResolved' : ''}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } finally {
+        // 🔓 إعادة تفعيل المفاتيح الخارجية بعد الانتهاء (سواء نجح أو فشل)
+        await db.execute('PRAGMA foreign_keys = ON');
       }
     } catch (e) {
       debugPrint('❌ خطأ في سحب التغييرات: $e');
 
-      // ✅ تسجيل فشل العملية
       stopwatch.stop();
       await syncLogDao.logSync(
         syncId: syncId,
@@ -328,9 +352,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
+
     await syncLogDao.logSync(
       syncId: syncId,
       direction: 'push',
@@ -338,6 +362,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite+GoogleDrive',
       status: 'in_progress',
     );
+
     if (_isPushing) return;
 
     if (_pendingChangesCount == 0) {
@@ -634,7 +659,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     } catch (e) {
       debugPrint('❌ فشل رفع التغييرات: $e');
 
-      // ✅ تسجيل فشل العملية
       stopwatch.stop();
       await syncLogDao.logSync(
         syncId: syncId,
