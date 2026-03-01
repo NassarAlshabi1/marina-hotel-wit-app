@@ -933,8 +933,26 @@ warning • Unused import: 'dart:convert' • lib/services/repositories/base_rep
   error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:47 • expected_token
   error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:47 • unexpected_token
   error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:48 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:48 • expected_token
   error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:48 • unexpected_token
-   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:39:49 • empty_statements
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:49 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:49 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:49 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:50 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:50 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:50 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:51 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:51 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:51 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:52 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:52 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:52 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:53 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:53 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:53 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:54 • missing_identifier
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:54 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:39:55 • empty_statements
   error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:53:15 • undefined_method
   error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:57 • expected_token
   error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:58 • missing_identifier
@@ -947,8 +965,26 @@ warning • Unused import: 'dart:convert' • lib/services/repositories/base_rep
   error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:60 • expected_token
   error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:60 • unexpected_token
   error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:61 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:61 • expected_token
   error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:61 • unexpected_token
-   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:53:62 • empty_statements
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:62 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:62 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:62 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:63 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:63 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:63 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:64 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:64 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:64 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:65 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:65 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:65 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:66 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:66 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:66 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:67 • missing_identifier
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:67 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:53:68 • empty_statements
   error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:62:19 • undefined_method
   error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:11 • expected_token
   error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:12 • missing_identifier
@@ -961,8 +997,26 @@ warning • Unused import: 'dart:convert' • lib/services/repositories/base_rep
   error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:14 • expected_token
   error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:14 • unexpected_token
   error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:15 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:15 • expected_token
   error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:15 • unexpected_token
-   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:65:16 • empty_statements
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:16 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:16 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:16 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:17 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:17 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:17 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:18 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:18 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:18 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:19 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:19 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:19 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:20 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:20 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:20 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:21 • missing_identifier
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:21 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:65:22 • empty_statements
 warning • The left operand can't be null, so the right operand is never executed • lib/services/sync/core/sync_orchestrator.dart:75:69 • dead_null_aware_expression
   error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:87:17 • undefined_method
   error • Expected to find ')' • lib/services/sync/core/sync_orchestrator.dart:88:75 • expected_token
@@ -978,8 +1032,26 @@ warning • The left operand can't be null, so the right operand is never execut
   error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:68 • expected_token
   error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:68 • unexpected_token
   error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:69 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:69 • expected_token
   error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:69 • unexpected_token
-   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:92:70 • empty_statements
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:70 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:70 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:70 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:71 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:71 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:71 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:72 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:72 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:72 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:73 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:73 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:73 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:74 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:74 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:74 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:75 • missing_identifier
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:75 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:92:76 • empty_statements
    info • The local variable '_emitState' starts with an underscore • lib/services/sync/core/sync_orchestrator.dart:144:18 • no_leading_underscores_for_local_identifiers
    info • Use the generic function type syntax to declare the parameter '_emitState' • lib/services/sync/core/sync_orchestrator.dart:144:18 • use_function_type_syntax_for_parameters
   error • Expected to find ')' • lib/services/sync/core/sync_orchestrator.dart:144:46 • expected_token
@@ -1111,4 +1183,4 @@ warning • The value of the local variable 'enabled' isn't used • lib/widgets
    info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/smart_sync_widgets.dart:34:31 • deprecated_member_use
    info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/smart_sync_widgets.dart:35:32 • deprecated_member_use
 
-1110 issues found. (ran in 49.4s)
+1182 issues found. (ran in 10.4s)
