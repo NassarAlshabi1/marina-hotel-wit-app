@@ -495,110 +495,109 @@ class AppwriteSyncManager {
         await database.customStatement('PRAGMA foreign_keys = OFF');
         
         try {
-        recordsPulled += await _timePhase('syncRooms', () async {
-          final rooms = await appwriteService.listRooms(useCache: false);
-          final roomsSynced = await _syncRooms(rooms);
-          _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
-          return roomsSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncRooms', () async {
+            final rooms = await appwriteService.listRooms(useCache: false);
+            final roomsSynced = await _syncRooms(rooms);
+            _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
+            return roomsSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncBookings', () async {
-          final bookings = await appwriteService.listBookings(useCache: false);
-          final bookingsSynced = await _syncBookings(bookings);
-          _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
-          return bookingsSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncBookings', () async {
+            final bookings = await appwriteService.listBookings(useCache: false);
+            final bookingsSynced = await _syncBookings(bookings);
+            _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+            return bookingsSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncEmployees', () async {
-          final employees = await appwriteService.listEmployees(
-            useCache: false,
-          );
-          final employeesSynced = await _syncEmployees(employees);
-          _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
-          return employeesSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncEmployees', () async {
+            final employees = await appwriteService.listEmployees(
+              useCache: false,
+            );
+            final employeesSynced = await _syncEmployees(employees);
+            _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
+            return employeesSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncExpenses', () async {
-          final expenses = await appwriteService.listExpenses(useCache: false);
-          final expensesSynced = await _syncExpenses(expenses);
-          _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
-          return expensesSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncExpenses', () async {
+            final expenses = await appwriteService.listExpenses(useCache: false);
+            final expensesSynced = await _syncExpenses(expenses);
+            _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+            return expensesSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncPayments', () async {
-          final payments = await appwriteService.listPayments(useCache: false);
-          final paymentsSynced = await _syncPayments(payments);
-          _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
-          return paymentsSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncPayments', () async {
+            final payments = await appwriteService.listPayments(useCache: false);
+            final paymentsSynced = await _syncPayments(payments);
+            _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+            return paymentsSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncDebts', () async {
-          final debts = await appwriteService.listDebts(useCache: false);
-          final debtsSynced = await _syncDebts(debts);
-          _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
-          return debtsSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncDebts', () async {
+            final debts = await appwriteService.listDebts(useCache: false);
+            final debtsSynced = await _syncDebts(debts);
+            _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
+            return debtsSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
-          final adjustments = await appwriteService.listDocuments(
-            collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-          );
-          final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
-          _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
-          return adjustmentsSynced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
+            final adjustments = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+            );
+            final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
+            _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
+            return adjustmentsSynced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncBookingNights', () async {
-          final bookingNights = await appwriteService.listBookingNights(useCache: false);
-          final synced = await _syncBookingNights(bookingNights);
-          _logger.debug('Synced $synced booking nights', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncBookingNights', () async {
+            final bookingNights = await appwriteService.listBookingNights(useCache: false);
+            final synced = await _syncBookingNights(bookingNights);
+            _logger.debug('Synced $synced booking nights', tag: 'SYNC');
+            return synced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncBookingNotes', () async {
-          final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
-          final synced = await _syncBookingNotes(bookingNotes);
-          _logger.debug('Synced $synced booking notes', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncBookingNotes', () async {
+            final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
+            final synced = await _syncBookingNotes(bookingNotes);
+            _logger.debug('Synced $synced booking notes', tag: 'SYNC');
+            return synced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncCashTransactions', () async {
-          final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
-          final synced = await _syncCashTransactions(cashTransactions);
-          _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncCashTransactions', () async {
+            final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
+            final synced = await _syncCashTransactions(cashTransactions);
+            _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
+            return synced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncShiftNotes', () async {
-          final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
-          final synced = await _syncShiftNotes(shiftNotes);
-          _logger.debug('Synced $synced shift notes', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncShiftNotes', () async {
+            final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
+            final synced = await _syncShiftNotes(shiftNotes);
+            _logger.debug('Synced $synced shift notes', tag: 'SYNC');
+            return synced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncSalaryCycles', () async {
-          final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
-          final synced = await _syncSalaryCycles(salaryCycles);
-          _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncSalaryCycles', () async {
+            final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
+            final synced = await _syncSalaryCycles(salaryCycles);
+            _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
+            return synced;
+          }, phaseMs);
 
-        recordsPulled += await _timePhase('syncSalaryPayments', () async {
-          final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
-          final synced = await _syncSalaryPayments(salaryPayments);
-          _logger.debug('Synced $synced salary payments', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+          recordsPulled += await _timePhase('syncSalaryPayments', () async {
+            final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
+            final synced = await _syncSalaryPayments(salaryPayments);
+            _logger.debug('Synced $synced salary payments', tag: 'SYNC');
+            return synced;
+          }, phaseMs);
+        } finally {
+          await database.customStatement('PRAGMA foreign_keys = ON');
+        }
       }
 
       // تحديث سجل المزامنة
       final endTime = DateTime.now();
       final endEpoch = Time.nowEpoch();
       syncLogVersion += 1;
-
-        } finally {
-          await database.customStatement('PRAGMA foreign_keys = ON');
-        }
 
       if (hasSyncLog) {
         await appwriteService.upsertDocument(
@@ -630,10 +629,6 @@ class AppwriteSyncManager {
     } catch (e, stackTrace) {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
-
-        } finally {
-          await database.customStatement('PRAGMA foreign_keys = ON');
-        }
 
       if (hasSyncLog) {
         final failEpoch = Time.nowEpoch();
@@ -679,11 +674,11 @@ class AppwriteSyncManager {
         stackTrace: stackTrace,
         tag: 'SYNC',
       );
+    } finally {
+      _currentStatus = finalStatus;
+      _syncController.add(_currentStatus);
+      _mutex.release();
     }
-
-    _currentStatus = finalStatus;
-    _syncController.add(_currentStatus);
-    _mutex.release();
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
