@@ -36,7 +36,7 @@ class SyncOrchestrator {
     }
 
     _isInitialized = true;
-    unawaited(_emitState(SyncState.idle())))))))))))));
+    unawaited(_emitState(SyncState.idle()));
   }
 
   /// مزامنة فورية مع جميع المحولات
