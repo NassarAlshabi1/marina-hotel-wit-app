@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:collection/collection.dart';
+import '../vector_clock.dart';
 
 /// استراتيجية حل التضارب
 enum ConflictStrategy { newerWins, devicePriority, manualResolve }
@@ -13,6 +14,8 @@ class DataConflict {
     required this.remoteData,
     required this.localTimestamp,
     required this.remoteTimestamp,
+    this.localVectorClock,
+    this.remoteVectorClock,
   });
   final String table;
   final String uuid;
@@ -20,6 +23,8 @@ class DataConflict {
   final Map<String, dynamic> remoteData;
   final DateTime localTimestamp;
   final DateTime remoteTimestamp;
+  final VectorClock? localVectorClock;
+  final VectorClock? remoteVectorClock;
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
 
@@ -109,7 +114,12 @@ class ConflictResolver {
     Map<String, dynamic> remote,
     DateTime localTs,
     DateTime remoteTs,
+    VectorClock localVc,
+    VectorClock remoteVc,
   ) {
+        if (localVc.isConcurrent(remoteVc)) {
+      return true; // True concurrent conflict detected by vector clocks
+    }
     return !const DeepCollectionEquality().equals(local, remote);
   }
 
@@ -138,6 +148,23 @@ class ConflictResolver {
 
   /// اختيار البيانات الفائزة حسب الاستراتيجية
   Map<String, dynamic> _selectWinner(DataConflict conflict) {
+    // Prioritize vector clock comparison for newerWins and devicePriority
+    if (conflict.localVectorClock != null && conflict.remoteVectorClock != null) {
+      final comparison = conflict.localVectorClock!.compare(conflict.remoteVectorClock!);
+      switch (comparison) {
+        case 'after':
+          return conflict.localData; // Local is causally newer
+        case 'before':
+          return conflict.remoteData; // Remote is causally newer
+        case 'concurrent':
+          debugPrint('⚠️ Concurrent update detected, falling back to strategy for ${conflict.table}/${conflict.uuid}');
+          // Fallback to strategy if concurrent, or introduce manual resolve
+          break; // Continue to switch (strategy)
+        case 'equal':
+          return conflict.localData; // They are the same, local wins by default
+      }
+    }
+
     switch (strategy) {
       case ConflictStrategy.newerWins:
         return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;

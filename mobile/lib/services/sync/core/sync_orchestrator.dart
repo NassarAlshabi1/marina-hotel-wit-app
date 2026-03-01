@@ -53,30 +53,28 @@ class SyncOrchestrator {
     unawaited(_emitState(SyncState.syncing(progress: 0)));
 
     final results = <String, SyncResult>{};
-    int completed = 0;
+    final resultsFutures = <Future<MapEntry<String, SyncResult>>>[];
 
     try {
       for (final adapter in _adapters) {
         if (!adapter.isEnabled) continue;
-
-        unawaited(_emitState(SyncState.syncing(
-          progress: (completed / _adapters.length * 100).toInt(),
-          message: 'مزامنة ${adapter.name}...',
-        )));
-
-        final result = await _syncWithRetry(adapter, push: push, pull: pull);
-        results[adapter.name] = result;
-
-        if (result.isSuccess) {
-          completed++;
-        }
+        resultsFutures.add(
+          _syncWithRetry(adapter, push: push, pull: pull)
+              .then((result) => MapEntry(adapter.name, result)),
+        );
       }
 
-      final allSuccess = results.values.every((r) => r.isSuccess ?? false);
-      final totalPushed =
-          results.values.fold<int>(0, (sum, r) => sum + (r.pushedCount));
-      final totalPulled =
-          results.values.fold<int>(0, (sum, r) => sum + (r.pulledCount));
+      final allResults = await Future.wait(resultsFutures);
+      for (final entry in allResults) {
+        results[entry.key] = entry.value;
+      }
+
+      final totalEnabledAdapters = _adapters.where((a) => a.isEnabled).length;
+      final successfulAdapters = results.values.where((r) => r.isSuccess).length;
+      final allSuccess = successfulAdapters == totalEnabledAdapters; // All enabled adapters succeeded
+
+      final totalPushed = results.values.fold<int>(0, (sum, r) => sum + (r.pushedCount));
+      final totalPulled = results.values.fold<int>(0, (sum, r) => sum + (r.pulledCount));
 
       final result = SyncResult.success(
         pushed: totalPushed,

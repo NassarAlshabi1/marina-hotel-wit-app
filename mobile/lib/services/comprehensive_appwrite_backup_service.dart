@@ -12,6 +12,7 @@ import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
 import 'appwrite_logger.dart';
+import '../utils/id.dart';
 
 /// خدمة النسخ الاحتياطي والاستعادة الشاملة لـ Appwrite
 /// تتيح هذه الخدمة تصدير جميع البيانات من قاعدة البيانات المحلية إلى ملف JSON
@@ -270,116 +271,141 @@ class ComprehensiveAppwriteBackupService {
       return file;
     } catch (e, stack) {
       _logger.error('Error exporting full cloud backup', error: e, stackTrace: stack);
-      rethrow;
-    }
-  }
-
-  Future<void> restoreToAppwrite(
+       Future<void> restoreToAppwrite(
     File backupFile, {
     bool clearExisting = false,
     Function(String, double)? onProgress,
   }) async {
     try {
-      // قراءة الملف
       if (onProgress != null) onProgress('قراءة ملف النسخة الاحتياطية...', 0.0);
       final content = await backupFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
 
+      final metadata = data['metadata'] as Map<String, dynamic>?;
       final collections = data['collections'] as Map<String, dynamic>;
 
-      // تهيئة الخدمة
+      if (metadata == null) {
+        _logger.error('Backup file missing metadata.', tag: 'RESTORE_APPWRITE');
+        throw Exception('Backup file missing metadata.');
+      }
+
       await _appwriteService.initialize();
 
-      int totalItems = 0;
+      int totalCollections = collections.keys.length;
+      int collectionsProcessed = 0;
+      int totalDocuments = 0;
       collections.forEach((key, value) {
-        if (value is List) totalItems += value.length;
+        if (value is List) totalDocuments += value.length;
       });
 
-      int processedItems = 0;
+      int documentsProcessed = 0;
 
-      // معالجة كل مجموعة
+      // Process each collection
       for (final collectionId in collections.keys) {
         final items = collections[collectionId] as List;
 
-        if (onProgress != null) {
-          onProgress(
-            'جاري رفع $collectionId (${items.length} عنصر)...',
-            processedItems / totalItems,
-          );
-        }
+        collectionsProcessed++;
+        double collectionOverallProgress = collectionsProcessed / totalCollections;
 
-        // إذا تم طلب مسح البيانات القديمة (حذر جداً!)
-        if (clearExisting) {
-          // TODO: Implement deletion logic if strictly needed
-          // هذه خطوة خطيرة، نفضل التحديث أو الإنشاء فقط
-        }
+        try {
+          if (onProgress != null) {
+            onProgress(
+              'جاري معالجة مجموعة $collectionId (${items.length} عنصر)...',
+              collectionOverallProgress * 0.5, // Half of progress for deletion/preparation
+            );
+          }
 
-        for (final item in items) {
-          try {
-            // تحضير البيانات
-            final docData = Map<String, dynamic>.from(item as Map);
+          // If clearExisting is true, first delete all documents in this collection
+          if (clearExisting) {
+            _logger.info('Clearing existing documents in collection $collectionId...', tag: 'RESTORE_APPWRITE');
+            // Assuming AppwriteService has a method to delete all documents in a collection
+            await _appwriteService.deleteAllDocumentsInCollection(
+                AppwriteConfig.databaseId, collectionId);
+            _logger.info('Finished clearing existing documents in collection $collectionId.', tag: 'RESTORE_APPWRITE');
+          }
 
-            // استخراج المعرفات
-            String? documentId;
-            if (docData.containsKey('localUuid')) {
-              documentId = docData['localUuid'];
-            } else if (docData.containsKey('\$id')) {
-              documentId = docData['\$id'];
-            } else {
-              documentId = ID.unique();
-            }
-
-            // تنظيف البيانات من الحقول الخاصة بـ Appwrite أو Drift التي لا يجب إرسالها
-            final cleanData = _cleanDataForAppwrite(docData);
-
-            // محاولة إنشاء أو تحديث المستند
+          int failedDocumentsInCollection = 0;
+          for (final item in items) {
             try {
-              await _appwriteService.databases.createDocument(
-                databaseId: AppwriteConfig.databaseId,
-                collectionId: collectionId,
-                documentId: documentId!,
-                data: cleanData,
-              );
-            } on AppwriteException catch (e) {
-              // إذا كان موجوداً بالفعل، نقوم بالتحديث
-              if (e.code == 409) {
-                await _appwriteService.databases.updateDocument(
+              final docData = Map<String, dynamic>.from(item as Map);
+
+              String? documentId;
+              if (docData.containsKey('localUuid')) {
+                documentId = docData['localUuid'];
+              } else if (docData.containsKey('\$id')) {
+                documentId = docData['\$id'];
+              } else {
+                documentId = ID.unique();
+              }
+
+              final cleanData = _cleanDataForAppwrite(docData);
+
+              // Attempt to create or update the document
+              try {
+                await _appwriteService.databases.createDocument(
                   databaseId: AppwriteConfig.databaseId,
                   collectionId: collectionId,
                   documentId: documentId!,
                   data: cleanData,
                 );
-              } else {
-                rethrow;
+              } on AppwriteException catch (e) {
+                if (e.code == 409) { // Document already exists, update it
+                  await _appwriteService.databases.updateDocument(
+                    databaseId: AppwriteConfig.databaseId,
+                    collectionId: collectionId,
+                    documentId: documentId!,
+                    data: cleanData,
+                  );
+                } else {
+                  rethrow; // Re-throw other AppwriteExceptions
+                }
               }
-            }
 
-            processedItems++;
-            if (onProgress != null && processedItems % 5 == 0) {
-              onProgress(
-                'جاري الرفع... ($processedItems / $totalItems)',
-                processedItems / totalItems,
-              );
+              documentsProcessed++;
+              if (onProgress != null && documentsProcessed % 10 == 0) {
+                onProgress(
+                  'جاري رفع $collectionId (${documentsProcessed} / $totalDocuments)...',
+                  collectionOverallProgress * 0.5 + (documentsProcessed / totalDocuments) * 0.5,
+                );
+              }
+            } catch (e, stack) {
+              failedDocumentsInCollection++;
+              _logger.warning('Failed to restore item in $collectionId: $e', error: e, stackTrace: stack, tag: 'RESTORE_APPWRITE');
             }
-          } catch (e) {
-            _logger.warning('Failed to restore item in $collectionId: $e');
-            // نستمر في العمل مع باقي العناصر
           }
+
+          if (failedDocumentsInCollection > 0) {
+            _logger.error('Failed to restore $failedDocumentsInCollection documents in collection $collectionId.', tag: 'RESTORE_APPWRITE');
+            throw Exception('Partial restoration in collection $collectionId.'); // Fail the collection if any doc failed
+          } else {
+            _logger.info('Successfully restored collection $collectionId.', tag: 'RESTORE_APPWRITE');
+          }
+
+        } catch (e, stack) {
+          _logger.error(
+            'Error processing collection $collectionId: $e',
+            error: e,
+            stackTrace: stack,
+            tag: 'RESTORE_APPWRITE',
+          );
+          rethrow; // Re-throw to fail the entire restore if one collection fails
         }
       }
 
       if (onProgress != null) onProgress('تمت عملية الرفع بنجاح', 1.0);
+      _logger.info('Appwrite backup restored successfully.', tag: 'RESTORE_APPWRITE');
     } catch (e, stack) {
       _logger.error(
         'Error restoring backup to Appwrite',
         error: e,
         stackTrace: stack,
+        tag: 'RESTORE_APPWRITE',
       );
       rethrow;
     }
   }
 
-  // تنظيف البيانات لتتوافق مع Appwrite
+
   Map<String, dynamic> _cleanDataForAppwrite(Map<String, dynamic> data) {
     final clean = Map<String, dynamic>.from(data);
 
