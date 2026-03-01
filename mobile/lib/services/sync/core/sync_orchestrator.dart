@@ -50,7 +50,7 @@ class SyncOrchestrator {
     }
 
     _isSyncing = true;
-    unawaited(_emitState(SyncState.syncing(progress: 0)))))))))))));
+    unawaited(_emitState(SyncState.syncing(progress: 0)));
 
     final results = <String, SyncResult>{};
     int completed = 0;
@@ -62,7 +62,7 @@ class SyncOrchestrator {
         unawaited(_emitState(SyncState.syncing(
           progress: (completed / _adapters.length * 100).toInt(),
           message: 'مزامنة ${adapter.name}...',
-        )))))))))))));
+        )));
 
         final result = await _syncWithRetry(adapter, push: push, pull: pull);
         results[adapter.name] = result;
@@ -85,11 +85,11 @@ class SyncOrchestrator {
       );
 
       unawaited(_emitState(
-          allSuccess ? SyncState.idle() : SyncState.error(result.message));
+          allSuccess ? SyncState.idle() : SyncState.error(result.message)));
       return result;
     } catch (e) {
       final errorResult = SyncResult.error('خطأ في المزامنة: $e');
-      unawaited(_emitState(SyncState.error(errorResult.message)))))))))))));
+      unawaited(_emitState(SyncState.error(errorResult.message)));
       return errorResult;
     } finally {
       _isSyncing = false;
@@ -141,7 +141,7 @@ class SyncOrchestrator {
     _stateController.stream.listen(listener);
   }
 
-  void unawaited(_emitState(SyncState state) {
+  void _emitState(SyncState state) {
     if (!_stateController.isClosed) {
       _stateController.add(state);
     }
