@@ -21145,4 +21145,4 @@ warning • The method doesn't override an inherited method • lib/widgets/sync
   error • The name 'Color' isn't a type, so it can't be used as a type argument • lib/widgets/sync/sync_indicator.dart:187:54 • non_type_as_type_argument
   error • The method 'Icon' isn't defined for the type '_SyncButtonContent' • lib/widgets/sync/sync_indicator.dart:190:15 • undefined_method
 
-21144 issues found. (ran in 6.6s)
+21144 issues found. (ran in 4.3s)
