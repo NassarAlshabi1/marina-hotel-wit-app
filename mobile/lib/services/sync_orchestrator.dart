@@ -585,7 +585,7 @@ class SyncOrchestrator {
   Future<void> forceSync() async {
     if (_state == OrchestratorState.syncing) return;
     _setState(OrchestratorState.idle);
-    await unawaited(_processTasks());
+    await _processTasks();
   }
 
   void dispose() {

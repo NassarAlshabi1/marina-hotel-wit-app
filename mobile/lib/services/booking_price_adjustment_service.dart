@@ -317,8 +317,8 @@ class BookingPriceAdjustmentService {
     if (adjustment.bookingLocalId != null) {
       await (db.update(db.bookings)
             ..where((t) => t.id.equals(adjustment.bookingLocalId!)))
-          .write(const BookingsCompanion(
-        discount: Value(0.0),
+          .write(BookingsCompanion(
+        discount: const Value(0.0),
         updatedAt: Value(now),
       ));
     }
@@ -327,8 +327,8 @@ class BookingPriceAdjustmentService {
     if (adjustment.bookingLocalId != null) {
       await (db.update(db.bookings)
             ..where((t) => t.id.equals(adjustment.bookingLocalId!)))
-          .write(const BookingsCompanion(
-        discount: Value(0.0),
+          .write(BookingsCompanion(
+        discount: const Value(0.0),
         updatedAt: Value(now),
       ));
 

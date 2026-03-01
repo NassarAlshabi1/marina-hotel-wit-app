@@ -7,6 +7,7 @@ import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/appwrite_config.dart';
 import '../../../../services/appwrite_cache_manager.dart';
+import '../../../../services/comprehensive_appwrite_backup_service.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
 class AppwriteSyncTab extends ConsumerStatefulWidget {
