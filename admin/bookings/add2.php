@@ -327,17 +327,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // التحقق من صحة التواريخ
-        document.addEventListener('DOMContentLoaded', function() {
-            const checkinDate = document.getElementById('checkin_date');
-            const checkoutDate = document.getElementById('checkout_date');
-
-            checkinDate.addEventListener('change', function() {
-                if (checkoutDate.value && new Date(checkoutDate.value) < new Date(this.value)) {
-                    alert('تاريخ المغادرة لا يمكن أن يكون قبل تاريخ الوصول');
-                    checkoutDate.value = '';
-                }
-            });
-
-            checkoutDate.addEventListener('change', function() {
-                if (checkinDate.value && new Date(this.value) < new Date(checkinDate.value)) {
-                    alert('تاريخ المغادرة لا يمكن أن يكون
+        document.addEventListener('DOMContentLoaded', function() { console.log('Loaded'); });
