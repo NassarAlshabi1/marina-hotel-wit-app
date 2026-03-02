@@ -1038,4 +1038,37 @@ class AppwriteService {
       'initialized': _initialized.toString(),
     };
   }
+
+  /// يحذف كافة المستندات في مجموعة محددة (مفيد قبل استعادة نسخة احتياطية)
+  Future<int> deleteAllDocumentsInCollection(String databaseId, String collectionId) async {
+    _ensureInitialized();
+    try {
+      final documents = await listAllDocuments(
+        collectionId: collectionId,
+        useCache: false,
+      );
+
+      _logger.info('Starting deletion of ${documents.length} documents from $collectionId', tag: 'RESTORE');
+
+      var deletedCount = 0;
+      for (final doc in documents) {
+        await _networkHelper.withRetryAndTimeout(
+          operation: () => _databases.deleteDocument(
+            databaseId: databaseId,
+            collectionId: collectionId,
+            documentId: doc.$id,
+          ),
+          operationName: 'deleteDocument($collectionId)',
+        );
+        deletedCount++;
+      }
+
+      _logger.info('Successfully cleared $deletedCount documents from $collectionId', tag: 'RESTORE');
+      return deletedCount;
+    } catch (e, stack) {
+      _logger.error('Failed to clear collection $collectionId', error: e, stackTrace: stack, tag: 'RESTORE');
+      rethrow;
+    }
+  }
+
 }

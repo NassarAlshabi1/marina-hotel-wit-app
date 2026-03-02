@@ -79,11 +79,16 @@ class ConflictResolver {
         final remoteUpdated = _parseTimestamp(remoteRecord['updated_at']);
 
         if (localUpdated != null && remoteUpdated != null) {
+          final localVc = VectorClock.fromJson(localRecord['vector_clock'] as String? ?? '{}');
+          final remoteVc = VectorClock.fromJson(remoteRecord['vector_clock'] as String? ?? '{}');
+
           if (_hasConflict(
             localRecord,
             remoteRecord,
             localUpdated,
             remoteUpdated,
+            localVc,
+            remoteVc,
           )) {
             conflicts.add(
               DataConflict(
@@ -159,7 +164,7 @@ class ConflictResolver {
         case 'concurrent':
           debugPrint('⚠️ Concurrent update detected, falling back to strategy for ${conflict.table}/${conflict.uuid}');
           // Fallback to strategy if concurrent, or introduce manual resolve
-          break; // Continue to switch (strategy)
+          // Fallthrough to strategy
         case 'equal':
           return conflict.localData; // They are the same, local wins by default
       }
