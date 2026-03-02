@@ -1,0 +1,8 @@
+fatal: detected dubious ownership in repository at '/content/marina-hotel-audit/mobile/flutter_sdk'
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory /content/marina-hotel-audit/mobile/flutter_sdk
+fatal: detected dubious ownership in repository at '/content/marina-hotel-audit/mobile/flutter_sdk'
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory /content/marina-hotel-audit/mobile/flutter_sdk
