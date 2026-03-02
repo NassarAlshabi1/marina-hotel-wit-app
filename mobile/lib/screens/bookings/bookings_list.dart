@@ -211,7 +211,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
 
                       final totalAmount = booking.totalDueCached > 0
                           ? booking.totalDueCached
-                          : (actualNights * price);
+                          : (actualNights * price).toDouble();
                       return _BookingRow(
                         index: index + 1,
                         booking: booking,
