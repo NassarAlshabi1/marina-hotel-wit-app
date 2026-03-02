@@ -3,9 +3,9 @@ enum SyncQueueStatus {
   synced('synced'),
   failed('failed');
 
-  const SyncQueueStatus(this.value);
-
   final String value;
+
+  const SyncQueueStatus(this.value);
 
   static SyncQueueStatus fromString(String value) {
     return SyncQueueStatus.values.firstWhere(
