@@ -200,7 +200,7 @@ class ComprehensiveAppwriteBackupService {
         for (final item in items) {
           try {
             final docData = Map<String, dynamic>.from(item as Map);
-            final String? documentId = (docData['localUuid'] ?? docData['$id'] ?? ID.unique()) as String?;
+            final String? documentId = (docData['localUuid'] ?? docData['\$id'] ?? ID.unique()) as String?;
             final cleanData = _cleanDataForAppwrite(docData);
 
             try {
@@ -240,12 +240,12 @@ class ComprehensiveAppwriteBackupService {
 
   Map<String, dynamic> _cleanDataForAppwrite(Map<String, dynamic> data) {
     final clean = Map<String, dynamic>.from(data);
-    clean.remove('$id');
-    clean.remove('$createdAt');
-    clean.remove('$updatedAt');
-    clean.remove('$permissions');
-    clean.remove('$collectionId');
-    clean.remove('$databaseId');
+    clean.remove('\$id');
+    clean.remove('\$createdAt');
+    clean.remove('\$updatedAt');
+    clean.remove('\$permissions');
+    clean.remove('\$collectionId');
+    clean.remove('\$databaseId');
     clean.remove('id');
     return clean;
   }
