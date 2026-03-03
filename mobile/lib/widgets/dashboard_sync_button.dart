@@ -10,6 +10,8 @@ import '../services/daos/sync_log_dao.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_core/conflict_resolver.dart';
+import '../services/unified_conflict_resolver.dart';
+import '../services/google_drive_unified_sync_coordinator.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -24,11 +26,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   bool _isPulling = false;
   bool _isPushing = false;
   bool _appwriteEnabled = true;
+  bool _googleDriveEnabled = false;
   Timer? _pendingChangesTimer;
   late AnimationController _pullAnimationController;
   late AnimationController _pushAnimationController;
   int _pendingChangesCount = 0;
+  int _pendingConflictsCount = 0;
   DateTime? _lastSyncTime;
+  StreamSubscription<UnifiedConflictRecord?>? _conflictSubscription;
 
   @override
   void initState() {
@@ -44,6 +49,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     _loadPendingChangesCount();
     _loadAppwriteEnabled();
+    _loadGoogleDriveEnabled();
+    _loadPendingConflicts();
+    _listenToConflicts();
 
     // مؤقت للتحديث الدوري
     _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -57,9 +65,43 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   @override
   void dispose() {
     _pendingChangesTimer?.cancel();
+    _conflictSubscription?.cancel();
     _pullAnimationController.dispose();
     _pushAnimationController.dispose();
     super.dispose();
+  }
+
+  /// الاستماع للتعارضات الجديدة
+  void _listenToConflicts() {
+    _conflictSubscription = UnifiedConflictResolver.instance.conflictsStream
+        .listen((conflicts) {
+      if (mounted) {
+        setState(() {
+          _pendingConflictsCount = conflicts.length;
+        });
+      }
+    });
+  }
+
+  /// تحميل عدد التعارضات المعلقة
+  Future<void> _loadPendingConflicts() async {
+    final count = UnifiedConflictResolver.instance.pendingCount;
+    if (mounted) {
+      setState(() => _pendingConflictsCount = count);
+    }
+  }
+
+  /// تحميل حالة Google Drive
+  Future<void> _loadGoogleDriveEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      if (mounted) {
+        setState(() => _googleDriveEnabled = enabled);
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في تحميل حالة Google Drive: $e');
+    }
   }
 
   Future<void> _loadPendingChangesCount() async {

@@ -11,6 +11,7 @@ import '../utils/id.dart';
 import 'sync_locks.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'unified_conflict_resolver.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -46,7 +47,12 @@ class GoogleDriveDeltaSync {
     _adapterRegistry = AdapterRegistry(db);
     _deltaSyncService = DeltaSyncService(db);
     await _initializeDeviceId();
-    debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
+
+    // تهيئة محلل التعارضات الموحد
+    UnifiedConflictResolver.instance.initialize(database: db);
+    await UnifiedConflictResolver.instance.loadPendingConflicts();
+
+    debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive مع حل التعارضات');
   }
 
   Future<void> _initializeDeviceId() async {
@@ -355,9 +361,114 @@ class GoogleDriveDeltaSync {
       return;
     }
 
-    final payload = Map<String, dynamic>.from(data);
-    payload.putIfAbsent('local_uuid', () => localUuid);
+    // التحقق من وجود سجل محلي
+    final existingLocal = await _getExistingLocalData(db, entity, localUuid);
 
+    if (existingLocal != null) {
+      // حل التعارض إذا كان السجل موجوداً محلياً
+      final resolution = await UnifiedConflictResolver.instance
+          .resolveGoogleDriveConflict(
+        table: entity,
+        uuid: localUuid,
+        localData: existingLocal,
+        remoteData: data,
+        deviceId: _deviceId,
+      );
+
+      if (!resolution.resolved) {
+        if (resolution.needsManualReview) {
+          debugPrint('⚠️ تعارض في $entity/$localUuid يتطلب مراجعة يدوية');
+          // السجل سيُحفظ في ConflictManager للمراجعة
+          return;
+        }
+        // في حالة فشل الحل، تخطي هذا السجل
+        debugPrint('❌ فشل حل التعارض في $entity/$localUuid');
+        return;
+      }
+
+      // استخدام البيانات المحلولة
+      final resolvedData = resolution.data;
+      if (resolvedData == null) {
+        debugPrint('❌ لا توجد بيانات محلولة لـ $entity/$localUuid');
+        return;
+      }
+
+      debugPrint(
+        '✅ تم حل التعارض في $entity/$localUuid باستخدام ${resolution.strategy.name}',
+      );
+
+      await _upsertEntity(registry, entity, resolvedData);
+    } else {
+      // لا يوجد تعارض - إدراج جديد مباشرة
+      final payload = Map<String, dynamic>.from(data);
+      payload.putIfAbsent('local_uuid', () => localUuid);
+      await _upsertEntity(registry, entity, payload);
+    }
+  }
+
+  /// الحصول على بيانات محلية موجودة
+  Future<Map<String, dynamic>?> _getExistingLocalData(
+    AppDatabase db,
+    String entity,
+    String localUuid,
+  ) async {
+    try {
+      switch (entity) {
+        case 'bookings':
+          final result = await (db.select(db.bookings)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'payments':
+          final result = await (db.select(db.payments)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'rooms':
+          final result = await (db.select(db.rooms)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'expenses':
+          final result = await (db.select(db.expenses)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'debts':
+          final result = await (db.select(db.debts)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'employees':
+          final result = await (db.select(db.employees)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'cash_transactions':
+          final result = await (db.select(db.cashTransactions)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        case 'booking_notes':
+          final result = await (db.select(db.bookingNotes)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          return result?.toJson();
+        default:
+          return null;
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في الحصول على بيانات محلية: $e');
+      return null;
+    }
+  }
+
+  /// إدراج أو تحديث كيان
+  Future<void> _upsertEntity(
+    AdapterRegistry registry,
+    String entity,
+    Map<String, dynamic> payload,
+  ) async {
     switch (entity) {
       case 'rooms':
         await registry.rooms.upsertFromJson(payload, src: Source.drive);

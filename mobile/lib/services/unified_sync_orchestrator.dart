@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
-import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
+import 'appwrite_sync_manager.dart';
+import 'appwrite_sync_manager_enhanced.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
@@ -66,7 +67,7 @@ class UnifiedSyncOrchestrator {
 
   static final UnifiedSyncOrchestrator instance = UnifiedSyncOrchestrator._();
 
-  AppwriteSyncManager? _appwrite;
+  dynamic _appwrite; // يقبل AppwriteSyncManager أو AppwriteSyncManagerEnhanced
   GoogleDriveUnifiedSyncCoordinator? _driveCoordinator;
   SmartSyncManager? _smart;
   AppDatabase? _database;
@@ -89,7 +90,7 @@ class UnifiedSyncOrchestrator {
   );
 
   Future<void> initialize({
-    AppwriteSyncManager? appwrite,
+    dynamic appwrite, // يقبل AppwriteSyncManager أو AppwriteSyncManagerEnhanced
     GoogleDriveUnifiedSyncCoordinator? driveCoordinator,
     SmartSyncManager? smart,
     AppDatabase? database,
@@ -120,9 +121,12 @@ class UnifiedSyncOrchestrator {
     await _driveSub?.cancel();
 
     if (_appwrite != null) {
-      _appwriteSub = _appwrite!.syncStatusStream.listen((status) async {
-        switch (status) {
-          case SyncStatus.syncing:
+      // استخدام dynamic للتعامل مع كلا النوعين
+      final syncStatusStream = (_appwrite as dynamic).syncStatusStream as Stream<dynamic>;
+      _appwriteSub = syncStatusStream.listen((status) async {
+        final statusString = status.toString().split('.').last;
+        switch (statusString) {
+          case 'syncing':
             _emit(
               _state.copyWith(
                 phase: 'pushing',
@@ -130,7 +134,8 @@ class UnifiedSyncOrchestrator {
                 timestamp: DateTime.now(),
               ),
             );
-          case SyncStatus.success:
+            break;
+          case 'success':
             _emit(
               _state.copyWith(
                 phase: 'pulling',
@@ -140,7 +145,8 @@ class UnifiedSyncOrchestrator {
               ),
             );
             await _snapshotIfNeeded();
-          case SyncStatus.failed:
+            break;
+          case 'failed':
             _emit(
               _state.copyWith(
                 phase: 'error',
@@ -149,8 +155,9 @@ class UnifiedSyncOrchestrator {
                 lastError: 'Appwrite sync failed',
               ),
             );
-          case SyncStatus.idle:
-          case SyncStatus.partial:
+            break;
+          case 'idle':
+          case 'partial':
             _emit(
               _state.copyWith(
                 phase: 'idle',
@@ -410,28 +417,28 @@ class UnifiedSyncOrchestrator {
     }
 
     if (push && pull) {
-      final result = await manager.sync(push: true, pull: true);
-      return result.isSuccess;
+      final result = await (manager as dynamic).sync(push: true, pull: true);
+      return result.isSuccess as bool;
     }
 
     var success = true;
     if (push) {
-      success = await manager.pushLocalChanges() && success;
+      success = await (manager as dynamic).pushLocalChanges() && success;
     }
     if (pull) {
-      success = await manager.pullRemoteChanges() && success;
+      success = await (manager as dynamic).pullRemoteChanges() && success;
     }
 
     return success;
   }
 
-  Future<AppwriteSyncManager?> _ensureAppwriteManager() async {
+  Future<dynamic> _ensureAppwriteManager() async {
     if (_appwrite != null) return _appwrite;
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
     final service = AppwriteService();
     final manager = AppwriteSyncManager(appwriteService: service, database: db);
-    await manager.initialize();
+    await (manager as dynamic).initialize();
     _appwrite = manager;
     return manager;
   }
