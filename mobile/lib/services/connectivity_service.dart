@@ -5,10 +5,6 @@ import 'package:flutter/foundation.dart';
 enum ConnectionType { none, wifi, mobile, ethernet, vpn, bluetooth, other }
 
 class ConnectionStatus {
-  final bool isOnline;
-  final ConnectionType type;
-  final DateTime timestamp;
-
   const ConnectionStatus({
     required this.isOnline,
     required this.type,
@@ -16,10 +12,10 @@ class ConnectionStatus {
   });
 
   factory ConnectionStatus.offline() => ConnectionStatus(
-    isOnline: false,
-    type: ConnectionType.none,
-    timestamp: DateTime.now(),
-  );
+        isOnline: false,
+        type: ConnectionType.none,
+        timestamp: DateTime.now(),
+      );
 
   factory ConnectionStatus.fromConnectivityResult(
     List<ConnectivityResult> results,
@@ -47,6 +43,9 @@ class ConnectionStatus {
       timestamp: DateTime.now(),
     );
   }
+  final bool isOnline;
+  final ConnectionType type;
+  final DateTime timestamp;
 
   bool get isWifi => type == ConnectionType.wifi;
   bool get isMobile => type == ConnectionType.mobile;
@@ -58,11 +57,10 @@ class ConnectionStatus {
 }
 
 class ConnectivityService {
+  ConnectivityService._();
   static ConnectivityService? _instance;
   static ConnectivityService get instance =>
       _instance ??= ConnectivityService._();
-
-  ConnectivityService._();
 
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -130,7 +128,7 @@ class ConnectivityService {
     bool waitForConnection = true,
   }) async {
     if (isOnline) {
-      return await operation();
+      return operation();
     }
 
     if (!waitForConnection) {

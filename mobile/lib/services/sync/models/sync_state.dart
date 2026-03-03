@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/foundation.dart';
 
 part 'sync_state.freezed.dart';
+part 'sync_state.g.dart';
 
 /// حالات المزامنة الممكنة
 enum SyncStatus {
@@ -35,23 +36,24 @@ class SyncState with _$SyncState {
   const SyncState._();
 
   factory SyncState.idle() => const SyncState(status: SyncStatus.idle);
-  
+
   factory SyncState.syncing({
     int progress = 0,
     String? message,
-  }) => SyncState(
-    status: SyncStatus.syncing,
-    progress: progress,
-    message: message,
-  );
-  
+  }) =>
+      SyncState(
+        status: SyncStatus.syncing,
+        progress: progress,
+        message: message,
+      );
+
   factory SyncState.error(String error) => SyncState(
-    status: SyncStatus.error,
-    error: error,
-  );
-  
+        status: SyncStatus.error,
+        error: error,
+      );
+
   factory SyncState.offline() => const SyncState(status: SyncStatus.offline);
-  
+
   factory SyncState.disabled() => const SyncState(status: SyncStatus.disabled);
 
   bool get isIdle => status == SyncStatus.idle;

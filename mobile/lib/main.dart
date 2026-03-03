@@ -22,6 +22,7 @@ import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/security/blacklist_screen.dart';
+import 'screens/information/information_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
@@ -79,7 +80,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) => DiagnosticsLogger.instance.recordError(
@@ -315,9 +316,8 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!
-          .difference(DateTime.now())
-          .inSeconds;
+      final secondsUntil =
+          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -420,9 +420,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
 
         // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
-        syncManager.startAutoSync(
-          interval: const Duration(minutes: 2),
-        );
+        syncManager.startAutoSync(interval: const Duration(minutes: 2));
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
@@ -435,9 +433,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(
-          deviceId: deviceId,
-        );
+        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
         await AppwriteRealtimeSync().start();
         debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
@@ -475,7 +471,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _localAutoSyncDebounce?.cancel();
     _localAutoSyncDebounce = Timer(
-      const Duration(seconds: 2),
+      const Duration(seconds: 5),
       () => unawaited(_runLocalAutoSync()),
     );
   }
@@ -542,26 +538,25 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       AppSessionManager.onAppOpen().catchError(
         (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
       );
-      ref
-          .read(backupStatusProvider.notifier)
-          .refreshSignInStatus()
-          .catchError(
+      ref.read(backupStatusProvider.notifier).refreshSignInStatus().catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
       unawaited(_autoPullAppwriteOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
-      );
+            (e, s) =>
+                debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+          );
       SyncGuardian.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
-      );
+            (e, s) =>
+                debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+          );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
-        () => AppSessionManager.onAppCloseOrBackground(),
+        AppSessionManager.onAppCloseOrBackground,
       ).catchError(
         (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );
@@ -644,6 +639,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/finance': const FinanceScreen(),
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
+    '/information': const InformationScreen(),
     '/blacklist': const BlacklistScreen(),
     '/settings': const SettingsScreen(),
   };

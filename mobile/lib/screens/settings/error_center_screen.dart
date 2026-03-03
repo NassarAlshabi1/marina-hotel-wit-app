@@ -92,8 +92,7 @@ class ErrorCenterScreen extends ConsumerWidget {
     return _ViewEntry(
       title: entry.message,
       subtitle:
-          '[${entry.tag}] ${entry.level.name.toUpperCase()}' +
-          (entry.error != null ? ' • ${entry.error}' : ''),
+          '[${entry.tag}] ${entry.level.name.toUpperCase()}${entry.error != null ? ' • ${entry.error}' : ''}',
       timestamp: entry.timestamp,
     );
   }
@@ -118,15 +117,14 @@ class ErrorCenterScreen extends ConsumerWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  final int appwriteCount;
-  final int driveCount;
-  final int debugCount;
-
   const _SummaryCard({
     required this.appwriteCount,
     required this.driveCount,
     required this.debugCount,
   });
+  final int appwriteCount;
+  final int driveCount;
+  final int debugCount;
 
   @override
   Widget build(BuildContext context) {
@@ -137,8 +135,8 @@ class _SummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.error_outline, color: Colors.red),
                 SizedBox(width: 8),
                 Text(
@@ -173,15 +171,14 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _ErrorSection extends StatelessWidget {
-  final String title;
-  final Color color;
-  final List<_ViewEntry> entries;
-
   const _ErrorSection({
     required this.title,
     required this.color,
     required this.entries,
   });
+  final String title;
+  final Color color;
+  final List<_ViewEntry> entries;
 
   @override
   Widget build(BuildContext context) {
@@ -241,13 +238,12 @@ class _ErrorSection extends StatelessWidget {
 }
 
 class _ViewEntry {
-  final String title;
-  final String subtitle;
-  final DateTime? timestamp;
-
   _ViewEntry({
     required this.title,
     required this.subtitle,
     required this.timestamp,
   });
+  final String title;
+  final String subtitle;
+  final DateTime? timestamp;
 }

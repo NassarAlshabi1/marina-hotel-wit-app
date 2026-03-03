@@ -5,10 +5,9 @@ import 'database_fixer.dart';
 
 /// نظام التشغيل التلقائي لفحص صحة قاعدة البيانات
 class DatabaseHealthTriggers {
+  DatabaseHealthTriggers(this.monitor, this.fixer);
   final DatabaseHealthMonitor monitor;
   final DatabaseFixer fixer;
-
-  DatabaseHealthTriggers(this.monitor, this.fixer);
 
   /// فحص عند إقلاع التطبيق
   Future<HealthReport?> onAppLaunch({bool quickScan = true}) async {
@@ -28,9 +27,8 @@ class DatabaseHealthTriggers {
         return null;
       }
 
-      final report = quickScan
-          ? await monitor.quickScan()
-          : await monitor.deepScan();
+      final report =
+          quickScan ? await monitor.quickScan() : await monitor.deepScan();
 
       await prefs.setInt('health_last_scan', now);
 
@@ -157,8 +155,7 @@ class DatabaseHealthTriggers {
 }
 
 class TimeOfDay {
+  const TimeOfDay({required this.hour, required this.minute});
   final int hour;
   final int minute;
-
-  const TimeOfDay({required this.hour, required this.minute});
 }

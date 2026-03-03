@@ -6,7 +6,7 @@ import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import 'guest_edit_screen.dart';
-import 'guest_info.dart';
+import 'guest_profile.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -80,7 +80,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     children: [
                       Icon(Icons.people_outline, size: 64, color: Colors.grey),
                       SizedBox(height: 16),
-                      Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
+                      Text('لا يوجد ضيوف مسجلين',
+                          style: TextStyle(fontSize: 18)),
                       SizedBox(height: 8),
                       Text(
                         'سيتم عرض الضيوف عند إضافة حجوزات',
@@ -115,8 +116,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  List<GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
-    final Map<String, GuestInfo> guestMap = {};
+  List<GuestProfile> _groupGuestsFromBookings(List<Booking> bookings) {
+    final Map<String, GuestProfile> guestMap = {};
 
     for (final booking in bookings) {
       if (!StatusUtils.isActiveBooking(booking.status)) continue;
@@ -131,7 +132,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
       final existing = guestMap[key];
       if (existing == null) {
-        guestMap[key] = GuestInfo(
+        guestMap[key] = GuestProfile(
           name: booking.guestName,
           phone: booking.guestPhone,
           email: email,
@@ -175,15 +176,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
 
     final sortedGuests =
-        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
-          (a, b) => b.bookings.first.checkinDate.compareTo(
-            a.bookings.first.checkinDate,
-          ),
-        );
+        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()
+          ..sort(
+            (a, b) => b.bookings.first.checkinDate.compareTo(
+              a.bookings.first.checkinDate,
+            ),
+          );
     return sortedGuests;
   }
 
-  List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
+  List<GuestProfile> _filterGuests(List<GuestProfile> guests) {
     if (_searchQuery.isEmpty) return guests;
 
     return guests.where((guest) {
@@ -220,16 +222,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Widget _buildGuestCard(
     BuildContext context,
-    GuestInfo guest,
+    GuestProfile guest,
     Map<String, double> roomPrices,
   ) {
     final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
-    final lastVisit = guest.bookings.isNotEmpty
-        ? guest.bookings.first.checkinDate
-        : '';
-    final latestBooking = guest.bookings.isNotEmpty ? guest.bookings.first : null;
+    final lastVisit =
+        guest.bookings.isNotEmpty ? guest.bookings.first.checkinDate : '';
+    final latestBooking =
+        guest.bookings.isNotEmpty ? guest.bookings.first : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -244,9 +246,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: activeBookings > 0
-                      ? Colors.green
-                      : Colors.blueGrey,
+                  backgroundColor:
+                      activeBookings > 0 ? Colors.green : Colors.blueGrey,
                   child: Text(
                     latestBooking != null ? latestBooking.roomNumber : '—',
                     style: const TextStyle(
@@ -289,9 +290,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(Icons.star, size: 12, color: Colors.blue),
                         SizedBox(width: 2),
                         Text(
@@ -373,7 +374,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     icon: const Icon(Icons.history, size: 14),
                     label: const Text('السجل', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -385,7 +387,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     icon: const Icon(Icons.edit, size: 14),
                     label: const Text('تعديل', style: TextStyle(fontSize: 11)),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -394,12 +397,14 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
+                    icon: const Icon(Icons.delete_outline,
+                        size: 14, color: Colors.red),
                     label: const Text('حذف', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -465,7 +470,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
   }
 
-  void _showGuestHistory(BuildContext context, GuestInfo guest) {
+  void _showGuestHistory(BuildContext context, GuestProfile guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -485,8 +490,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     leading: CircleAvatar(
                       backgroundColor:
                           StatusUtils.isActiveBooking(booking.status)
-                          ? Colors.green
-                          : Colors.blue,
+                              ? Colors.green
+                              : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),
@@ -515,7 +520,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  void _showGuestDetails(BuildContext context, GuestInfo guest) {
+  void _showGuestDetails(BuildContext context, GuestProfile guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -566,18 +571,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
+  Future<void> _editGuest(BuildContext context, GuestProfile guest) async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
     );
-    if (result == true && mounted) {
+    if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 
-  Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
+  Future<void> _deleteGuest(BuildContext context, GuestProfile guest) async {
     final active = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
@@ -614,15 +619,72 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final debtsRepo = ref.read(debtsRepoProvider);
       final cashRepo = ref.read(cashRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+      final db = ref.read(databaseProvider);
 
       for (final b in guest.bookings) {
         final bookingId = b.id;
-        // حذف الملاحظات المرتبطة بالحجز
+        final bookingUuid = b.localUuid;
+
+        // 1. حذف ليالي الحجز (BookingNights)
+        final nights = await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(bookingId)))
+            .get();
+        for (final night in nights) {
+          await (db.delete(db.bookingNights)
+                ..where((n) => n.id.equals(night.id)))
+              .go();
+          await db.outboxDao.merge(
+            entity: 'booking_nights',
+            op: 'delete',
+            localUuid: night.localUuid,
+            serverId: night.serverId,
+            payload: {'id': night.id},
+            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          );
+        }
+
+        // 2. حذف تعديلات الأسعار (BookingPriceAdjustments)
+        final adjustments = await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalId.equals(bookingId)))
+            .get();
+        for (final adj in adjustments) {
+          await (db.delete(db.bookingPriceAdjustments)
+                ..where((a) => a.id.equals(adj.id)))
+              .go();
+          await db.outboxDao.merge(
+            entity: 'booking_price_adjustments',
+            op: 'delete',
+            localUuid: adj.localUuid,
+            serverId: adj.serverId,
+            payload: {'id': adj.id},
+            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          );
+        }
+
+        // 3. حذف إلغاءات المدفوعات (PaymentVoids)
+        final voids = await (db.select(db.paymentVoids)
+              ..where((v) => v.bookingUuid.equals(bookingUuid)))
+            .get();
+        for (final v in voids) {
+          await (db.delete(db.paymentVoids)..where((t) => t.id.equals(v.id)))
+              .go();
+          await db.outboxDao.merge(
+            entity: 'payment_voids',
+            op: 'delete',
+            localUuid: v.localUuid,
+            serverId: v.serverId,
+            payload: {'id': v.id},
+            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          );
+        }
+
+        // 4. حذف الملاحظات المرتبطة بالحجز
         final notes = await notesRepo.dao.list(bookingId: bookingId);
         for (final n in notes) {
           await notesRepo.delete(n.id);
         }
-        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
+
+        // 5. حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
         final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
         for (final p in pays) {
           if (p.cashTransactionLocalId != null) {
@@ -630,7 +692,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           }
           await paymentsRepo.delete(p.id);
         }
-        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
+
+        // 6. حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
         final relatedCash = await cashRepo.listByReference(
           referenceType: 'booking',
           referenceId: bookingId,
@@ -638,21 +701,43 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         for (final tx in relatedCash) {
           await cashRepo.delete(tx.id);
         }
-        // حذف الديون المرتبطة بالحجز
+
+        // 7. حذف الديون المرتبطة بالحجز
         final debts = await debtsRepo.listByBookingLocalId(bookingId);
         for (final d in debts) {
           await debtsRepo.delete(d.id);
         }
-        // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
+
+        // 8. تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
         if (b.roomNumber.isNotEmpty) {
           final room = await roomsRepo.watchByNumber(b.roomNumber).first;
           if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
             await roomsRepo.update(room.id, status: 'شاغرة');
           }
         }
-        // حذف الحجز نفسه
+
+        // 9. حذف الحجز نفسه
         await bookingsRepo.delete(bookingId);
       }
+
+      // 10. حذف سجلات الضيف من جدول GuestInfos
+      final guestInfos = await (db.select(db.guestInfos)
+            ..where((g) => g.guestName.equals(guest.name)))
+          .get();
+      for (final gi in guestInfos) {
+        await (db.delete(db.guestInfos)..where((g) => g.id.equals(gi.id))).go();
+        await db.outboxDao.merge(
+          entity: 'guest_infos',
+          op: 'delete',
+          localUuid: gi.localUuid,
+          serverId: gi.serverId,
+          payload: {'id': gi.id},
+          clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        );
+      }
+
+      // تشغيل المزامنة فوراً لرفع التغييرات إلى Appwrite Cloud
+      ref.read(syncServiceProvider).runSync();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

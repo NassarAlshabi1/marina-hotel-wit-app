@@ -18,7 +18,8 @@ class MockOutboxDao {
   }
 
   Future<void> markAsFailed(String id, String error) async {
-    final item = _pending.firstWhere((item) => item['id'] == id, orElse: () => {});
+    final item =
+        _pending.firstWhere((item) => item['id'] == id, orElse: () => {});
     if (item.isNotEmpty) {
       item['status'] = 'failed';
       item['error'] = error;
@@ -26,7 +27,8 @@ class MockOutboxDao {
   }
 
   Future<void> incrementRetry(String id) async {
-    final item = _pending.firstWhere((item) => item['id'] == id, orElse: () => {});
+    final item =
+        _pending.firstWhere((item) => item['id'] == id, orElse: () => {});
     if (item.isNotEmpty) {
       item['retryCount'] = (item['retryCount'] ?? 0) + 1;
     }

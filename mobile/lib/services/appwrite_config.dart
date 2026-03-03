@@ -29,10 +29,11 @@ class AppwriteConfig {
   static const String salaryCyclesCollectionId = 'salary_cycles';
   static const String salaryPaymentsCollectionId = 'salary_payments';
   static const String shiftNotesCollectionId = 'shift_notes';
-  
+
   // جداول التدقيق المالي والتعديلات
   static const String priceAdjustmentsCollectionId = 'price_adjustments';
-  static const String bookingPriceAdjustmentsCollectionId = 'booking_price_adjustments';
+  static const String bookingPriceAdjustmentsCollectionId =
+      'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
 

@@ -9,14 +9,16 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
+import 'settings_id_types.dart';
 import 'google_drive_backup_screen.dart';
-import 'appwrite_settings_screen.dart';
+import 'appwrite/appwrite_settings_screen_v2.dart';
+
 import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
-import 'comprehensive_backup_screen.dart';
-import 'data_protection_screen.dart';
+
+
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -122,9 +124,9 @@ class SettingsScreen extends ConsumerWidget {
           _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
           _buildSettingsGrid(context, [
             _SettingsItem(
-              title: 'Google Drive',
-              subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
-              icon: Icons.cloud,
+              title: 'إدارة السحابة (GD)',
+              subtitle: 'التحكم في مزامنة Google Drive',
+              icon: Icons.cloud_sync,
               color: Colors.blue,
               onTap: () => Navigator.push(
                 context,
@@ -134,14 +136,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'Appwrite',
-              subtitle: 'المزامنة السحابية',
+              title: 'إعدادات Appwrite',
+              subtitle: 'المزامنة، النسخ الاحتياطي، والأدوات',
               icon: Icons.cloud_sync,
               color: Colors.pink,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AppwriteSettingsScreen(),
+                  builder: (context) => const AppwriteSettingsScreenV2(),
                 ),
               ),
             ),
@@ -157,30 +159,8 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            _SettingsItem(
-              title: 'نسخة شاملة',
-              subtitle: 'تصدير ورفع كل البيانات إلى Appwrite',
-              icon: Icons.backup,
-              color: Colors.deepOrange,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ComprehensiveBackupScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'حماية البيانات',
-              subtitle: 'إعدادات المزامنة (Push/Pull)',
-              icon: Icons.security,
-              color: Colors.teal,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DataProtectionScreen(),
-                ),
-              ),
-            ),
+
+
           ]),
 
           const SizedBox(height: 20),
@@ -216,6 +196,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DiagnosticsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'أنواع الهوية',
+              subtitle: 'تخصيص قائمة أنواع الهوية',
+              icon: Icons.badge_outlined,
+              color: Colors.blueGrey,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsIdTypesScreen(),
                 ),
               ),
             ),
@@ -296,7 +288,7 @@ class SettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'المستخدمين',
-                    (usersCountAsync.value?.toString()) ?? '---',
+                    usersCountAsync.value?.toString() ?? '---',
                     Icons.admin_panel_settings,
                     Colors.purple,
                   ),
@@ -357,11 +349,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    final crossAxisCount = 3;
+    const crossAxisCount = 3;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
@@ -449,11 +441,11 @@ class SettingsScreen extends ConsumerWidget {
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AboutDialog(
+      builder: (context) => const AboutDialog(
         applicationName: 'تطبيق إدارة الفندق',
         applicationVersion: '1.2',
         applicationLegalese: '© 2026 Marina Hotel',
-        children: const [
+        children: [
           Text('تطبيق شامل لإدارة العمليات الفندقية'),
           SizedBox(height: 6),
           Text('تصميم Eng: Nassar Alshabi'),
@@ -465,12 +457,6 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 class _SettingsItem {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
   const _SettingsItem({
     required this.title,
     required this.subtitle,
@@ -478,4 +464,9 @@ class _SettingsItem {
     required this.color,
     required this.onTap,
   });
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 }

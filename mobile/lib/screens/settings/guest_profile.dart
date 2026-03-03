@@ -1,7 +1,7 @@
 import '../../services/local_db.dart';
 
-class GuestInfo {
-  GuestInfo({
+class GuestProfile {
+  GuestProfile({
     required this.name,
     required this.phone,
     required this.email,

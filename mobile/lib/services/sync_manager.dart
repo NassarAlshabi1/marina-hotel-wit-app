@@ -40,6 +40,12 @@ class _SyncJob {
 
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
 class SyncManager {
+  SyncManager({
+    required this.db,
+    required this.driveService,
+    this.triggerDispatcher,
+  })  : _statusController = StreamController<SyncStatus>.broadcast(),
+        _auditDao = SyncAuditDao(db);
   static SyncManager? _instance;
 
   static SyncManager get instance {
@@ -53,13 +59,6 @@ class SyncManager {
   static void configureSingleton(SyncManager manager) {
     _instance ??= manager;
   }
-
-  SyncManager({
-    required this.db,
-    required this.driveService,
-    this.triggerDispatcher,
-  }) : _statusController = StreamController<SyncStatus>.broadcast(),
-       _auditDao = SyncAuditDao(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -141,9 +140,7 @@ class SyncManager {
     final deviceId = await _ensureDeviceId();
     final payload = jsonEncode(row);
 
-    await db
-        .into(db.syncQueue)
-        .insertOnConflictUpdate(
+    await db.into(db.syncQueue).insertOnConflictUpdate(
           SyncQueueCompanion(
             uuid: drift.Value(uuid),
             targetTable: drift.Value(table),
@@ -456,21 +453,18 @@ class SyncManager {
     int offset = 0;
     while (true) {
       try {
-        final batch = await db
-            .customSelect(
-              'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
-              variables: [
-                drift.Variable.withInt(batchSize),
-                drift.Variable.withInt(offset),
-              ],
-            )
-            .get();
+        final batch = await db.customSelect(
+          'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
+          variables: [
+            drift.Variable.withInt(batchSize),
+            drift.Variable.withInt(offset),
+          ],
+        ).get();
 
         if (batch.isEmpty) break;
 
-        final mappedBatch = batch
-            .map((row) => Map<String, dynamic>.from(row.data))
-            .toList();
+        final mappedBatch =
+            batch.map((row) => Map<String, dynamic>.from(row.data)).toList();
 
         yield mappedBatch;
         offset += batchSize;
@@ -524,13 +518,12 @@ class SyncManager {
       return;
     }
 
-    final pending =
-        await (db.select(db.syncQueue)
-              ..where((tbl) => tbl.status.equals('pending'))
-              ..orderBy([
-                (tbl) => drift.OrderingTerm(expression: tbl.createdAt),
-              ]))
-            .get();
+    final pending = await (db.select(db.syncQueue)
+          ..where((tbl) => tbl.status.equals('pending'))
+          ..orderBy([
+            (tbl) => drift.OrderingTerm(expression: tbl.createdAt),
+          ]))
+        .get();
 
     if (pending.isEmpty && !force) {
       return;
@@ -687,9 +680,8 @@ class SyncManager {
     final allTableNames = <String>{...remoteTables.keys, ...localTables.keys};
 
     for (final table in allTableNames) {
-      final remoteList = (remoteTables[table] ?? [])
-          .map((row) => Map<String, dynamic>.from(row))
-          .toList();
+      final remoteList =
+          (remoteTables[table] ?? []).map(Map<String, dynamic>.from).toList();
       final localList = (localTables[table] as List<dynamic>? ?? [])
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList();
@@ -749,11 +741,9 @@ class SyncManager {
         String operation;
 
         if (remoteDeleted != null || localDeleted != null) {
-          final remoteTs =
-              remoteDeleted ??
+          final remoteTs = remoteDeleted ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-          final localTs =
-              localDeleted ??
+          final localTs = localDeleted ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
           if (localTs.isAfter(remoteTs)) {
             winner = localRow;
@@ -763,11 +753,9 @@ class SyncManager {
             operation = 'delete';
           }
         } else {
-          final remoteUpdatedTs =
-              remoteUpdated ??
+          final remoteUpdatedTs = remoteUpdated ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-          final localUpdatedTs =
-              localUpdated ??
+          final localUpdatedTs = localUpdated ??
               DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
           if (localUpdatedTs.isAfter(remoteUpdatedTs)) {
             winner = localRow;
@@ -829,8 +817,7 @@ class SyncManager {
               final resolution = conflictResolver.resolve(context);
               winner = resolution.mergedData ?? resolution.winner;
 
-              final isLocalWinner =
-                  winner == localRow ||
+              final isLocalWinner = winner == localRow ||
                   (resolution.mergedData != null &&
                       resolution.strategy == ConflictStrategy.fieldLevel);
 

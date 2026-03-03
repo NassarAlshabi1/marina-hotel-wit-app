@@ -56,8 +56,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               child: Row(
                 children: [
                   Icon(Icons.delete_forever, size: 20, color: Colors.red),
-                  const SizedBox(width: 8),
-                  const Text(
+                  SizedBox(width: 8),
+                  Text(
                     'مسح السجلات',
                     style: TextStyle(color: Colors.red),
                   ),
@@ -69,7 +69,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               child: Row(
                 children: [
                   Icon(Icons.settings, size: 20),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text('إعدادات السجلات'),
                 ],
               ),
@@ -87,7 +87,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           _buildSearchBar(),
 
           // Tab Bar
-          Container(
+          ColoredBox(
             color: Colors.grey.shade100,
             child: TabBar(
               controller: _tabController,
@@ -279,9 +279,8 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
     var filteredLogs = logs;
 
     if (_selectedLevel != 'all') {
-      filteredLogs = logs
-          .where((log) => log['level'] == _selectedLevel)
-          .toList();
+      filteredLogs =
+          logs.where((log) => log['level'] == _selectedLevel).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
@@ -289,11 +288,11 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           .where(
             (log) =>
                 log['message']!.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ) ||
+                      _searchQuery.toLowerCase(),
+                    ) ||
                 log['source']!.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ),
+                      _searchQuery.toLowerCase(),
+                    ),
           )
           .toList();
     }
@@ -328,22 +327,19 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
       case 'success':
         levelColor = Colors.green;
         levelIcon = Icons.check_circle;
-        break;
       case 'warning':
         levelColor = Colors.orange;
         levelIcon = Icons.warning;
-        break;
       case 'error':
         levelColor = Colors.red;
         levelIcon = Icons.error;
-        break;
       default:
         levelColor = Colors.blue;
         levelIcon = Icons.info;
     }
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
@@ -489,7 +485,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               _buildDetailRow('الرسالة', log['message']!),
               _buildDetailRow(
                 'الوقت',
-                DateTimeFormatter.formatDateTime(log['timestamp']!),
+                DateTimeFormatter.formatDateTime(log['timestamp']),
               ),
             ],
           ),

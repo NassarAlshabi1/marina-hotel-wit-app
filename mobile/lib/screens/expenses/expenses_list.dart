@@ -143,16 +143,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   DateTime _parseExpenseDate(String value) {
-    final normalized = value.contains('T')
-        ? value
-        : value.replaceFirst(' ', 'T');
+    final normalized =
+        value.contains('T') ? value : value.replaceFirst(' ', 'T');
     return DateTime.tryParse(normalized) ?? DateTime.now();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom
-        ? (_fromDate ?? DateTime.now())
-        : (_toDate ?? DateTime.now());
+    final initial =
+        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -177,9 +175,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildFiltersCard() {
-    final fromLabel = _fromDate != null
-        ? _dateFormat.format(_fromDate!)
-        : 'غير محدد';
+    final fromLabel =
+        _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     return Card(
       child: Padding(
@@ -187,8 +184,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.date_range, color: Colors.blue),
                 SizedBox(width: 8),
                 Text(
@@ -385,7 +382,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: availableTypes
@@ -417,7 +414,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        value: selectedEmployeeId,
+                        initialValue: selectedEmployeeId,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
                         ),
@@ -434,7 +431,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: dialogSalaryAction,
+                        initialValue: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),
@@ -522,9 +519,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate = date.text.trim().isEmpty
-        ? Time.hotelDayKey()
-        : date.text.trim();
+    final trimmedDate =
+        date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)

@@ -7,11 +7,10 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// مدير استخدام البيانات - يتتبع استهلاك البيانات ويوفر إحصائيات مفصلة
 class DataUsageManager {
-  static final DataUsageManager _instance = DataUsageManager._internal();
-
   factory DataUsageManager() => _instance;
 
   DataUsageManager._internal();
+  static final DataUsageManager _instance = DataUsageManager._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static DataUsageManager get instance => _instance;

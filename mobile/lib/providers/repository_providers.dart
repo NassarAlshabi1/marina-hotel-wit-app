@@ -10,6 +10,7 @@ import '../services/repositories/debts_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/guest_info_repository.dart';
 import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/auth_local_store.dart';
@@ -51,6 +52,9 @@ final bookingsRepoProvider = Provider<BookingsRepository>(
 final employeesRepoProvider = Provider<EmployeesRepository>(
   (ref) => EmployeesRepository(ref.read(databaseProvider)),
 );
+final guestInfoRepoProvider = Provider<GuestInfoRepository>(
+  (ref) => GuestInfoRepository(ref.read(databaseProvider)),
+);
 final expensesRepoProvider = Provider<ExpensesRepository>(
   (ref) => ExpensesRepository(ref.read(databaseProvider)),
 );
@@ -90,10 +94,7 @@ final roomsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(roomsRepoProvider)
-      .watchAll()
-      .map(
+  (ref) => ref.watch(roomsRepoProvider).watchAll().map(
         (rooms) => rooms
             .where((room) => StatusUtils.isRoomAvailable(room.status))
             .toList(),
@@ -128,6 +129,10 @@ final employeesListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(employeesRepoProvider).watchAll(),
 );
 
+final guestInfoListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(guestInfoRepoProvider).watchAll(),
+);
+
 final expensesListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(expensesRepoProvider).watchAll(),
 );
@@ -156,20 +161,14 @@ final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
 final pendingDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
+  (ref) => ref.watch(debtsRepoProvider).watchAll().map(
         (debts) => debts
             .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
             .toList(),
       ),
 );
 final settledDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
+  (ref) => ref.watch(debtsRepoProvider).watchAll().map(
         (debts) => debts
             .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
             .toList(),

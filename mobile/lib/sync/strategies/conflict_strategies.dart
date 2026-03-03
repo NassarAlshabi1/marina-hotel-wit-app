@@ -1,5 +1,6 @@
 /// Conflict Resolution Strategies
 /// استراتيجيات حل التعارضات المختلفة
+library;
 
 import '../models/sync_models.dart';
 import '../vector_clock.dart';
@@ -7,10 +8,6 @@ import '../vector_clock.dart';
 /// محلل التعارضات الرئيسي
 /// يختار الاستراتيجية المناسبة ويطبقها
 class ConflictResolver {
-  final ConflictStrategy _defaultStrategy;
-  final Map<String, ConflictStrategy> _tableStrategies;
-  final SmartMergeResolver? _smartMergeResolver;
-
   ConflictResolver({
     ConflictStrategy defaultStrategy = ConflictStrategy.newerWins,
     Map<String, ConflictStrategy>? tableStrategies,
@@ -18,6 +15,9 @@ class ConflictResolver {
   })  : _defaultStrategy = defaultStrategy,
         _tableStrategies = tableStrategies ?? {},
         _smartMergeResolver = smartMergeResolver;
+  final ConflictStrategy _defaultStrategy;
+  final Map<String, ConflictStrategy> _tableStrategies;
+  final SmartMergeResolver? _smartMergeResolver;
 
   /// حل تعارض باستخدام الاستراتيجية المحددة
   ConflictResolutionResult resolve(SyncConflict conflict) {
@@ -250,7 +250,9 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
     // حلول خاصة حسب نوع الحقل
     if (local is num && remote is num) {
       // للأرقام: اختيار الأعلى (مفيد للعدادات)
-      if (key.contains('count') || key.contains('total') || key.contains('amount')) {
+      if (key.contains('count') ||
+          key.contains('total') ||
+          key.contains('amount')) {
         return local > remote ? local : remote;
       }
     }
@@ -268,7 +270,10 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
 
     if (local is Map && remote is Map) {
       // للخرائط: دمج متكرر
-      return {...local as Map<String, dynamic>, ...remote as Map<String, dynamic>};
+      return {
+        ...local as Map<String, dynamic>,
+        ...remote as Map<String, dynamic>
+      };
     }
 
     // لا يمكن الحل تلقائياً
@@ -279,10 +284,9 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
 /// مدير التعارضات
 /// يتتبع جميع التعارضات ويساعد في حلها
 class ConflictManager {
+  ConflictManager({int maxHistory = 100}) : _maxHistory = maxHistory;
   final List<SyncConflict> _conflicts = [];
   final int _maxHistory;
-
-  ConflictManager({int maxHistory = 100}) : _maxHistory = maxHistory;
 
   /// قائمة التعارضات
   List<SyncConflict> get conflicts => List.unmodifiable(_conflicts);
@@ -349,7 +353,8 @@ class ConflictManager {
 
   /// تنظيف التعارضات المحلولة القديمة
   void cleanup({Duration? olderThan}) {
-    final cutoff = DateTime.now().subtract(olderThan ?? const Duration(days: 7));
+    final cutoff =
+        DateTime.now().subtract(olderThan ?? const Duration(days: 7));
 
     _conflicts.removeWhere((c) =>
         c.resolution != null &&
@@ -360,12 +365,6 @@ class ConflictManager {
 
 /// إحصائيات التعارضات
 class ConflictStats {
-  final int total;
-  final int active;
-  final int resolved;
-  final Map<String, int> byTable;
-  final Map<ConflictResolution?, int> byResolution;
-
   ConflictStats({
     required this.total,
     required this.active,
@@ -373,6 +372,11 @@ class ConflictStats {
     required this.byTable,
     required this.byResolution,
   });
+  final int total;
+  final int active;
+  final int resolved;
+  final Map<String, int> byTable;
+  final Map<ConflictResolution?, int> byResolution;
 
   @override
   String toString() =>

@@ -61,7 +61,8 @@ class DeltaSyncService {
   Future<DeltaSyncComputation> compute({int? since}) async {
     final state = await (db.select(
       db.syncState,
-    )..where((t) => t.id.equals(1))).getSingleOrNull();
+    )..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
     final baseSince = since ?? state?.lastPushTs ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
     final previousMirror = await _loadMirror();
@@ -119,8 +120,7 @@ class DeltaSyncService {
           final createdAfterLastSync =
               createdAt != null && createdAt > normalizedSince;
 
-          final shouldInsert =
-              isFirstSyncForTable ||
+          final shouldInsert = isFirstSyncForTable ||
               (hasMirror && isNewRecordInMirror) ||
               createdAfterLastSync;
 
@@ -162,9 +162,8 @@ class DeltaSyncService {
         seen.add(localUuid);
       }
 
-      final missing = existingMirror.keys
-          .where((uuid) => !seen.contains(uuid))
-          .toList();
+      final missing =
+          existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
       for (final uuid in missing) {
         final previous = existingMirror[uuid];
         if (previous == null) {
@@ -458,7 +457,8 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
         localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
         createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
-        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
+        lastModified: (dynamic row) =>
+            (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
       ),
@@ -513,7 +513,8 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
         localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
         createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
-        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
+        lastModified: (dynamic row) =>
+            (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
       ),
@@ -534,6 +535,15 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as PaymentVoid).lastModified,
         deletedAt: (dynamic row) => (row as PaymentVoid).deletedAt,
         toJson: (dynamic row) => (row as PaymentVoid).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'guest_infos',
+        fetchAll: () => db.select(db.guestInfos).get(),
+        localUuid: (dynamic row) => (row as GuestInfo).localUuid,
+        createdAt: (dynamic row) => (row as GuestInfo).createdAt,
+        lastModified: (dynamic row) => (row as GuestInfo).lastModified,
+        deletedAt: (dynamic row) => (row as GuestInfo).deletedAt,
+        toJson: (dynamic row) => (row as GuestInfo).toJson(),
       ),
     ];
   }
@@ -632,7 +642,8 @@ Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
       normalized = value;
     }
     return MapEntry(entry.key, normalized);
-  }).toList()..sort((a, b) => a.key.compareTo(b.key));
+  }).toList()
+    ..sort((a, b) => a.key.compareTo(b.key));
   return Map<String, dynamic>.fromEntries(entries);
 }
 

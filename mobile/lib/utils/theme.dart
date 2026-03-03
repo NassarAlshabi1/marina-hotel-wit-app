@@ -50,12 +50,10 @@ ThemeData buildTheme() {
       primary: AppColors.primaryColor,
       secondary: AppColors.infoColor,
       surface: AppColors.surfaceColor,
-      background: AppColors.backgroundColor,
       error: AppColors.dangerColor,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: AppColors.textPrimary,
-      onBackground: AppColors.textPrimary,
       onError: Colors.white,
     ),
 
@@ -126,7 +124,7 @@ ThemeData buildTheme() {
 
     // Table theme
     dataTableTheme: const DataTableThemeData(
-      headingRowColor: MaterialStatePropertyAll(AppColors.darkGray),
+      headingRowColor: WidgetStatePropertyAll(AppColors.darkGray),
       headingTextStyle: TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.w600,
@@ -163,12 +161,10 @@ ThemeData buildDarkTheme() {
       primary: AppColors.primaryColor,
       secondary: AppColors.infoColor,
       surface: Color(0xFF1E1E1E),
-      background: Color(0xFF121212),
       error: AppColors.dangerColor,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: Colors.white,
-      onBackground: Colors.white,
       onError: Colors.white,
     ),
     appBarTheme: const AppBarTheme(
@@ -228,7 +224,7 @@ ThemeData buildDarkTheme() {
       hintStyle: TextStyle(color: Colors.white54),
     ),
     dataTableTheme: const DataTableThemeData(
-      headingRowColor: MaterialStatePropertyAll(Color(0xFF2C2C2C)),
+      headingRowColor: WidgetStatePropertyAll(Color(0xFF2C2C2C)),
       headingTextStyle: TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.w600,
@@ -258,7 +254,7 @@ MaterialColor _createMaterialColor(Color color) {
   for (int i = 1; i < 10; i++) {
     strengths.add(0.1 * i);
   }
-  for (var strength in strengths) {
+  for (final strength in strengths) {
     final double ds = 0.5 - strength;
     swatch[(strength * 1000).round()] = Color.fromRGBO(
       r + ((ds < 0 ? r : (255 - r)) * ds).round(),

@@ -20,9 +20,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final query = selectOnly(outbox)
       ..addColumns([countExp])
       ..where(outbox.processingStatus.isIn(['pending', 'failed']));
-    return query
-        .map((row) => row.read(countExp) ?? 0)
-        .watchSingle();
+    return query.map((row) => row.read(countExp) ?? 0).watchSingle();
   }
 
   Future<int> count() async {
@@ -35,9 +33,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> resetErrors() async {
-    await (update(outbox)
-          ..where(
-              (t) => t.processingStatus.equals('failed')))
+    await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
         .write(const OutboxCompanion(
       processingStatus: Value('pending'),
       attempts: Value(0),
@@ -71,7 +67,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         .getSingleOrNull();
 
     final payloadJson = jsonEncode(payload);
-    final idempKey = '${entity}:${op}:${localUuid}:$clientTs';
+    final idempKey = '$entity:$op:$localUuid:$clientTs';
 
     if (existing != null) {
       await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
@@ -132,15 +128,44 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<int> removeByEntityAndUuid(String entity, String localUuid) async {
     return (delete(outbox)
-          ..where((t) =>
-              t.entity.equals(entity) & t.localUuid.equals(localUuid)))
+          ..where(
+              (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid)))
         .go();
+  }
+
+  Future<OutboxData?> findPendingByEntityAndUuid(
+      String entity, String localUuid) async {
+    final results = await (select(outbox)
+          ..where((t) =>
+              t.entity.equals(entity) &
+              t.localUuid.equals(localUuid) &
+              t.processingStatus.isIn(['pending', 'processing'])))
+        .get();
+    return results.isEmpty ? null : results.first;
+  }
+
+  Future<void> markAsConflict(int id, String error,
+      {String? remotePayload}) async {
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        processingStatus: const Value('conflict'),
+        lastError: Value(error),
+        remotePayload: Value(remotePayload),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+      ),
+    );
   }
 
   Future<int> removeAllPending() async {
     return (delete(outbox)
           ..where((t) => t.processingStatus.isIn(['pending', 'failed'])))
         .go();
+  }
+
+  Future<void> removeByUuids(List<String> uuids) async {
+    if (uuids.isEmpty) return;
+    await (delete(outbox)..where((t) => t.localUuid.isIn(uuids))).go();
   }
 
   Future<void> setError(int id, String message, int attempts) async {
@@ -178,8 +203,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> retryFailed() async {
-    await (update(outbox)
-          ..where((t) => t.processingStatus.equals('failed')))
+    await (update(outbox)..where((t) => t.processingStatus.equals('failed')))
         .write(const OutboxCompanion(
       processingStatus: Value('pending'),
       processingStartedAt: Value(null),
@@ -226,21 +250,22 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
   Future<List<ConflictRecord>> getConflicts() async {
-    final failed = await (select(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('failed') &
-              t.lastError.isNotNull())
+    final conflicting = await (select(outbox)
+          ..where((t) => t.processingStatus.equals('conflict'))
           ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
         .get();
 
-    return failed.map((entry) {
-      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    return conflicting.map((entry) {
+      final localPayload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      final remotePayload = entry.remotePayload != null
+          ? jsonDecode(entry.remotePayload!) as Map<String, dynamic>
+          : localPayload;
       return ConflictRecord(
         id: entry.id,
         uuid: entry.localUuid,
         targetTable: entry.entity,
-        localPayload: payload,
-        remotePayload: payload, // TODO: Fetch actual remote data
+        localPayload: localPayload,
+        remotePayload: remotePayload,
         lastError: entry.lastError ?? 'Unknown conflict',
         timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
       );
@@ -257,7 +282,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
         processingStatus: const Value('completed'),
-        lastError: Value(null),
+        lastError: const Value(null),
         attempts: const Value(0),
         payload: Value(jsonEncode(resolvedData)),
       ),
@@ -267,14 +292,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
 /// سجل يمثل تعارض في البيانات
 class ConflictRecord {
-  final int id;
-  final String uuid;
-  final String targetTable;
-  final Map<String, dynamic> localPayload;
-  final Map<String, dynamic> remotePayload;
-  final String lastError;
-  final DateTime timestamp;
-
   ConflictRecord({
     required this.id,
     required this.uuid,
@@ -284,4 +301,11 @@ class ConflictRecord {
     required this.lastError,
     required this.timestamp,
   });
+  final int id;
+  final String uuid;
+  final String targetTable;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String lastError;
+  final DateTime timestamp;
 }

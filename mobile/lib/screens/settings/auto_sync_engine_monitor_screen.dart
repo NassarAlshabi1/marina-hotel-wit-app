@@ -256,8 +256,8 @@ class _AutoSyncEngineMonitorScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.error, color: Colors.red),
                 SizedBox(width: 8),
                 Text(
@@ -270,7 +270,7 @@ class _AutoSyncEngineMonitorScreenState
             LinearProgressIndicator(
               value: state.failedAttempts / 5,
               backgroundColor: Colors.red.shade100,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
             ),
             const SizedBox(height: 8),
             Text(
@@ -660,10 +660,10 @@ class _AutoSyncEngineMonitorScreenState
       if (mounted) {
         final message = result.success
             ? '✅ ${result.message}\n'
-                  '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
-                  '📥 مسحوب: ${result.pulledChanges ?? 0}'
+                '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
+                '📥 مسحوب: ${result.pulledChanges ?? 0}'
             : '❌ ${result.message}\n'
-                  '${result.error ?? ""}';
+                '${result.error ?? ""}';
 
         showDialog(
           context: context,

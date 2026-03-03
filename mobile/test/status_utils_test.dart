@@ -30,9 +30,7 @@ void main() {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(() => database.close());
 
-    await database
-        .into(database.rooms)
-        .insert(
+    await database.into(database.rooms).insert(
           RoomsCompanion.insert(
             localUuid: 'room-uuid',
             createdAt: 1,
@@ -45,9 +43,7 @@ void main() {
           ),
         );
 
-    final bookingId = await database
-        .into(database.bookings)
-        .insert(
+    final bookingId = await database.into(database.bookings).insert(
           BookingsCompanion.insert(
             localUuid: 'booking-uuid',
             createdAt: 1,
@@ -64,7 +60,8 @@ void main() {
 
     final booking = await (database.select(
       database.bookings,
-    )..where((tbl) => tbl.id.equals(bookingId))).getSingle();
+    )..where((tbl) => tbl.id.equals(bookingId)))
+        .getSingle();
 
     expect(StatusUtils.isBookingActive(booking), isTrue);
   });

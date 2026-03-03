@@ -101,11 +101,9 @@ class _GoogleDriveBackupContentState
       case BackupStatus.success:
         color = Colors.green;
         icon = Icons.check_circle;
-        break;
       case BackupStatus.error:
         color = Colors.red;
         icon = Icons.error;
-        break;
       default:
         color = Colors.blue;
         icon = Icons.info;
@@ -164,7 +162,8 @@ class _GoogleDriveBackupContentState
             if (state.isSignedIn) ...[
               Row(
                 children: [
-                  Icon(Icons.account_circle, color: Colors.green, size: 20),
+                  const Icon(Icons.account_circle,
+                      color: Colors.green, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -201,8 +200,8 @@ class _GoogleDriveBackupContentState
                   onPressed: state.isWorking
                       ? null
                       : () => ref
-                            .read(backupStatusProvider.notifier)
-                            .signInToDrive(),
+                          .read(backupStatusProvider.notifier)
+                          .signInToDrive(),
                   icon: state.status == BackupStatus.signIn
                       ? const SizedBox(
                           width: 16,
@@ -336,9 +335,8 @@ class _GoogleDriveBackupContentState
               child: ElevatedButton.icon(
                 onPressed: state.isWorking
                     ? null
-                    : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .createBackup(),
+                    : () =>
+                        ref.read(backupStatusProvider.notifier).createBackup(),
                 icon: state.status == BackupStatus.uploading
                     ? const SizedBox(
                         width: 16,
@@ -436,14 +434,12 @@ class _GoogleDriveBackupContentState
     final sizeInMB = backup.size != null
         ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
         : '---';
-    final recordsCount =
-        (backup.metadata?['total_records'] as int?) ??
+    final recordsCount = (backup.metadata?['total_records'] as int?) ??
         int.tryParse(backup.appProperties['records_count'] ?? '') ??
         0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite
-        ? 'SQLite'
-        : 'JSON';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.backup, color: Colors.blue),
@@ -465,16 +461,13 @@ class _GoogleDriveBackupContentState
 
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final recordsCount =
-        (backup.metadata?['total_records'] as int?) ??
+    final recordsCount = (backup.metadata?['total_records'] as int?) ??
         int.tryParse(backup.appProperties['records_count'] ?? '') ??
         0;
-    final recordsLabel = recordsCount > 0
-        ? recordsCount.toString()
-        : 'غير معروف';
-    final formatLabel = backup.format == BackupFormat.sqlite
-        ? 'SQLite'
-        : 'JSON';
+    final recordsLabel =
+        recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
+    final formatLabel =
+        backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     showDialog(
       context: context,
@@ -494,7 +487,7 @@ class _GoogleDriveBackupContentState
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
             Text('السجلات: $recordsLabel'),
-            Text('التنسيق: ${formatLabel}'),
+            Text('التنسيق: $formatLabel'),
             const SizedBox(height: 12),
             const Text(
               'هل أنت متأكد من المتابعة؟',
@@ -548,7 +541,7 @@ class _GoogleDriveBackupContentState
                 'إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة',
               ),
               value: state.autoSettings.isEnabled,
-              onChanged: (value) => _updateAutoBackupEnabled(value),
+              onChanged: _updateAutoBackupEnabled,
             ),
             if (state.autoSettings.isEnabled) ...[
               const Divider(),
@@ -630,9 +623,7 @@ class _GoogleDriveBackupContentState
       onChanged: (selectedValue) {
         if (selectedValue != null) {
           Navigator.of(context).pop();
-          ref
-              .read(backupStatusProvider.notifier)
-              .updateAutoBackupSettings(
+          ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
                 currentSettings.copyWith(frequency: selectedValue),
               );
         }
@@ -660,9 +651,7 @@ class _GoogleDriveBackupContentState
       if (selectedTime != null) {
         final timeString =
             '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-        ref
-            .read(backupStatusProvider.notifier)
-            .updateAutoBackupSettings(
+        ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(
               currentSettings.copyWith(time: timeString),
             );
       }

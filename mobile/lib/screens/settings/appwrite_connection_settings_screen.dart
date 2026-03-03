@@ -50,9 +50,9 @@ class _AppwriteConnectionSettingsScreenState
   void _onChanged() {
     final hasChanges =
         _endpointController.text != AppwriteConfigManager.endpoint ||
-        _projectIdController.text != AppwriteConfigManager.projectId ||
-        _databaseIdController.text != AppwriteConfigManager.databaseId ||
-        _apiKeyController.text != AppwriteConfigManager.apiKey;
+            _projectIdController.text != AppwriteConfigManager.projectId ||
+            _databaseIdController.text != AppwriteConfigManager.databaseId ||
+            _apiKeyController.text != AppwriteConfigManager.apiKey;
 
     if (hasChanges != _hasChanges) {
       setState(() => _hasChanges = hasChanges);

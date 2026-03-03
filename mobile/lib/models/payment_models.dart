@@ -35,20 +35,6 @@ enum PaymentStatus {
 
 /// نموذج بيانات الدفعة
 class Payment {
-  final String id;
-  final String bookingId;
-  final double amount;
-  final PaymentMethod method;
-  final PaymentStatus status;
-  final DateTime paymentDate;
-  final String? notes;
-  final String? referenceNumber;
-  final String? cardLastFourDigits;
-  final String? bankName;
-  final String receivedBy;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
   Payment({
     required this.id,
     required this.bookingId,
@@ -64,6 +50,37 @@ class Payment {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory Payment.fromJson(Map<String, dynamic> json) {
+    return Payment(
+      id: json['id'],
+      bookingId: json['bookingId'],
+      amount: json['amount'],
+      method: PaymentMethod.values.byName(json['method']),
+      status: PaymentStatus.values.byName(json['status']),
+      paymentDate: DateTime.parse(json['paymentDate']),
+      notes: json['notes'],
+      referenceNumber: json['referenceNumber'],
+      cardLastFourDigits: json['cardLastFourDigits'],
+      bankName: json['bankName'],
+      receivedBy: json['receivedBy'],
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
+  }
+  final String id;
+  final String bookingId;
+  final double amount;
+  final PaymentMethod method;
+  final PaymentStatus status;
+  final DateTime paymentDate;
+  final String? notes;
+  final String? referenceNumber;
+  final String? cardLastFourDigits;
+  final String? bankName;
+  final String receivedBy;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Payment copyWith({
     String? id,
@@ -114,35 +131,10 @@ class Payment {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
-
-  factory Payment.fromJson(Map<String, dynamic> json) {
-    return Payment(
-      id: json['id'],
-      bookingId: json['bookingId'],
-      amount: json['amount'],
-      method: PaymentMethod.values.byName(json['method']),
-      status: PaymentStatus.values.byName(json['status']),
-      paymentDate: DateTime.parse(json['paymentDate']),
-      notes: json['notes'],
-      referenceNumber: json['referenceNumber'],
-      cardLastFourDigits: json['cardLastFourDigits'],
-      bankName: json['bankName'],
-      receivedBy: json['receivedBy'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-    );
-  }
 }
 
 /// نموذج ملخص المدفوعات للحجز
 class BookingPaymentSummary {
-  final String bookingId;
-  final double totalAmount;
-  final double paidAmount;
-  final double remainingAmount;
-  final List<Payment> payments;
-  final PaymentStatus overallStatus;
-
   BookingPaymentSummary({
     required this.bookingId,
     required this.totalAmount,
@@ -151,6 +143,12 @@ class BookingPaymentSummary {
     required this.payments,
     required this.overallStatus,
   });
+  final String bookingId;
+  final double totalAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final List<Payment> payments;
+  final PaymentStatus overallStatus;
 
   bool get isFullyPaid => remainingAmount <= 0;
   double get paidPercentage =>
@@ -159,16 +157,6 @@ class BookingPaymentSummary {
 
 /// نموذج الإيصال
 class Receipt {
-  final String receiptNumber;
-  final Payment payment;
-  final String guestName;
-  final String guestPhone;
-  final String roomNumber;
-  final String hotelName;
-  final String hotelAddress;
-  final String hotelPhone;
-  final DateTime generatedAt;
-
   Receipt({
     required this.receiptNumber,
     required this.payment,
@@ -180,6 +168,15 @@ class Receipt {
     this.hotelPhone = '+967-2-324457',
     required this.generatedAt,
   });
+  final String receiptNumber;
+  final Payment payment;
+  final String guestName;
+  final String guestPhone;
+  final String roomNumber;
+  final String hotelName;
+  final String hotelAddress;
+  final String hotelPhone;
+  final DateTime generatedAt;
 
   /// إنشاء PDF للإيصال
   Future<void> generatePDF() async {
@@ -370,20 +367,6 @@ class Receipt {
 
 /// نموذج الفاتورة الشاملة
 class Invoice {
-  final String invoiceNumber;
-  final String bookingId;
-  final String guestName;
-  final String guestPhone;
-  final String roomNumber;
-  final DateTime checkinDate;
-  final DateTime checkoutDate;
-  final int nights;
-  final double roomRate;
-  final double totalAmount;
-  final List<Payment> payments;
-  final double remainingAmount;
-  final DateTime generatedAt;
-
   Invoice({
     required this.invoiceNumber,
     required this.bookingId,
@@ -399,6 +382,19 @@ class Invoice {
     required this.remainingAmount,
     required this.generatedAt,
   });
+  final String invoiceNumber;
+  final String bookingId;
+  final String guestName;
+  final String guestPhone;
+  final String roomNumber;
+  final DateTime checkinDate;
+  final DateTime checkoutDate;
+  final int nights;
+  final double roomRate;
+  final double totalAmount;
+  final List<Payment> payments;
+  final double remainingAmount;
+  final DateTime generatedAt;
 
   /// إنشاء PDF للفاتورة
   Future<void> generatePDF() async {
@@ -696,21 +692,21 @@ class Invoice {
                 children: [
                   pw.Text(
                     'إجمالي الفاتورة:',
-                    style: pw.TextStyle(fontSize: 14),
+                    style: const pw.TextStyle(fontSize: 14),
                   ),
                   pw.Text(
                     totalAmount.toStringAsFixed(0),
-                    style: pw.TextStyle(fontSize: 14),
+                    style: const pw.TextStyle(fontSize: 14),
                   ),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('المدفوع:', style: pw.TextStyle(fontSize: 14)),
+                  pw.Text('المدفوع:', style: const pw.TextStyle(fontSize: 14)),
                   pw.Text(
                     (totalAmount - remainingAmount).toStringAsFixed(0),
-                    style: pw.TextStyle(fontSize: 14),
+                    style: const pw.TextStyle(fontSize: 14),
                   ),
                 ],
               ),
@@ -730,9 +726,8 @@ class Invoice {
                     style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
-                      color: remainingAmount > 0
-                          ? PdfColors.red
-                          : PdfColors.green,
+                      color:
+                          remainingAmount > 0 ? PdfColors.red : PdfColors.green,
                     ),
                   ),
                 ],

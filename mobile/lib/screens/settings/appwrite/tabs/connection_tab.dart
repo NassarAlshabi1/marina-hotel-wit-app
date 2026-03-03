@@ -116,15 +116,15 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'معلومات المشروع',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -168,8 +168,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -177,8 +177,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'إعدادات الاتصال',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -199,7 +199,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           const Divider(height: 1),
           ListTile(
             title: const Text('عدد المحاولات'),
-            subtitle: Text('${AppwriteConfig.maxRetries} محاولات'),
+            subtitle: const Text('${AppwriteConfig.maxRetries} محاولات'),
             leading: const Icon(Icons.replay),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(

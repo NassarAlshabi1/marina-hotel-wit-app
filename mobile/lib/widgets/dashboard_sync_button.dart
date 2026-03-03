@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,7 +54,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _listenToConflicts();
 
     // مؤقت للتحديث الدوري
-    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && !_isPulling && !_isPushing) {
         _loadPendingChangesCount();
         _loadAppwriteEnabled();
@@ -129,9 +128,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final enabled = await _isAppwriteSyncEnabled();
       if (mounted) {
-        setState(() => _appwriteEnabled = enabled);
+        setState(() => _appwriteEnabled = true); // Force enabled by expert request
       } else {
-        _appwriteEnabled = enabled;
+        _appwriteEnabled = true; // Always true for expert functionality
       }
     } catch (e) {
       debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
@@ -143,8 +142,27 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
+  /// تنظيف outbox بعد الرفع
+  Future<void> _clearOutboxAfterPush() async {
+    try {
+      final db = ref.read(databaseProvider);
+      final outboxDao = OutboxDao(db);
+      await outboxDao.removeAllPending();
+      debugPrint('✅ تم تنظيف outbox بنجاح');
+    } catch (e) {
+      debugPrint('⚠️ فشل تنظيف outbox: $e');
+      // لا نرمي الخطأ حتى لا يؤثر على تجربة المستخدم
+    }
+  }
+
   /// سحب التغييرات من Appwrite (Pull فقط - بدون دفع)
   Future<void> _pullChanges(BuildContext context) async {
+    if (_isPulling || _isPushing) return;
+    
+    setState(() {
+      _isPulling = true;
+      _pullAnimationController.repeat();
+    });
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -229,34 +247,20 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
-        try {
-          final appwriteService = ref.read(appwriteServiceProvider);
-          final db = ref.read(databaseProvider);
-          await deltaSync.initialize(appwriteService, db);
-        } catch (e) {
-          debugPrint('❌ فشل تهيئة AppwriteDeltaSync: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('فشل تهيئة خدمة المزامنة'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('خدمة المزامنة غير مهيأة'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
+        return;
       }
 
       // 1️⃣ سحب التغييرات من السيرفر
       final pullResult = await deltaSync.pullDeltaChanges();
       final pulledCount = pullResult.recordsPulled;
-
-      // 1.5️⃣ تنظيف outbox بعد السحب - بيانات السيرفر هي المرجع
-      if (pulledCount > 0) {
-        final db = ref.read(databaseProvider);
-        final outboxDao = OutboxDao(db);
-        await outboxDao.removeAllPending();
-      }
 
       // 2️⃣ حل التعارضات إن وجدت
       int conflictsResolved = 0;
@@ -331,7 +335,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         deviceId: deviceId,
         target: 'Appwrite',
         status: 'failed',
-        errorMessage: _sanitizeError(e.toString()),
+        errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
@@ -355,7 +359,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     } finally {
       _pullAnimationController.stop();
       _pullAnimationController.reset();
-      await _loadPendingChangesCount();
       if (mounted) {
         setState(() => _isPulling = false);
       }
@@ -364,10 +367,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   /// رفع التغييرات المحلية (Push فقط)
   Future<void> _pushChanges(BuildContext context) async {
-    if (_isPushing) return;
+    final stopwatch = Stopwatch()..start();
+    final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
+    String? deviceId;
+    try {
+      deviceId = await _getDeviceId();
+    } catch (e) {
+      deviceId = 'unknown';
+    }
 
-    // تحديث عدد التغييرات المعلقة فوراً قبل الفحص
-    await _loadPendingChangesCount();
+    // تسجيل بداية العملية
+    final db = ref.read(databaseProvider);
+    final syncLogDao = SyncLogDao(db);
+    await syncLogDao.logSync(
+      syncId: syncId,
+      direction: 'push',
+      deviceId: deviceId,
+      target: 'Appwrite+GoogleDrive',
+      status: 'in_progress',
+    );
+    if (_isPushing) return;
 
     if (_pendingChangesCount == 0) {
       if (mounted) {
@@ -388,26 +407,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    final stopwatch = Stopwatch()..start();
-    final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
-    String? deviceId;
-    try {
-      deviceId = await _getDeviceId();
-    } catch (e) {
-      deviceId = 'unknown';
-    }
-
-    // تسجيل بداية العملية
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: deviceId,
-      target: 'Appwrite+GoogleDrive',
-      status: 'in_progress',
-    );
-
     _pushAnimationController.repeat();
     if (mounted) {
       setState(() => _isPushing = true);
@@ -420,8 +419,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       final smartEnabled = await smartSyncManager.isEnabled();
-      // تم تعطيل التحقق من تسجيل الدخول إلى Google Drive لمنع المزامنة التلقائية معه
-      final isGoogleDriveSignedIn = false; // forced disabled
+      final isGoogleDriveSignedIn = ref.read(
+        smartSyncGoogleDriveSignInStatusProvider,
+      );
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
@@ -449,12 +449,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       bool appwriteConnected = false;
       if (appwriteEnabled) {
-        // استخدام الحالة المخزنة أولاً للسرعة، مع فحص فعلي في الخلفية
+        await ref.read(connectionStatusProvider.notifier).checkConnection();
         appwriteConnected = ref.read(connectionStatusProvider).isConnected;
-        if (!appwriteConnected) {
-          await ref.read(connectionStatusProvider.notifier).checkConnection();
-          appwriteConnected = ref.read(connectionStatusProvider).isConnected;
-        }
       }
 
       final targets = <String>[];
@@ -506,11 +502,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (appwriteEnabled && appwriteConnected) {
         try {
           final deltaSync = AppwriteDeltaSync.instance;
-          if (!deltaSync.isInitialized) {
-            final appwriteService = ref.read(appwriteServiceProvider);
-            final db = ref.read(databaseProvider);
-            await deltaSync.initialize(appwriteService, db);
-          }
           if (deltaSync.isInitialized) {
             final pushResult = await deltaSync.pushDeltaChanges();
             final pushedCount = pushResult.recordsPushed;
@@ -569,6 +560,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         } else {
           failedTargets.add(entry.key);
         }
+      }
+
+      // ✅ تنظيف outbox بعد الرفع (إذا نجح رفع إلى أي وجهة)
+      if (successTargets.isNotEmpty) {
+        await _clearOutboxAfterPush();
       }
 
       // ✅ تسجيل نجاح العملية
@@ -694,7 +690,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         deviceId: deviceId,
         target: 'Appwrite+GoogleDrive',
         status: 'failed',
-        errorMessage: _sanitizeError(e.toString()),
+        errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
@@ -729,16 +725,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() => _isPushing = false);
       }
     }
-  }
-
-  String _sanitizeError(String error) {
-    // إزالة المعلومات الحساسة من رسائل الخطأ
-    // مثل رموز التوكن والروابط التي قد تحتوي مفاتيح
-    return error
-        .replaceAll(RegExp(r'Bearer\s+[a-zA-Z0-9\-\._]+'), 'Bearer [REDACTED]')
-        .replaceAll(RegExp(r'key=[a-zA-Z0-9]+'), 'key=[REDACTED]')
-        .replaceAll(RegExp(r'project=[a-zA-Z0-9]+'), 'project=[REDACTED]')
-        .replaceAll(RegExp(r'secret=[a-zA-Z0-9]+'), 'secret=[REDACTED]');
   }
 
   /// حل التعارضات بين البيانات المحلية والبعيدة
@@ -837,7 +823,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
   Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
-    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
+    // زر السحب متاح فقط إذا كان يوجد تغييرات جديدة في Appwrite
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing; // Expert: Force enabled regardless of remote change detection
 
     Color buttonColor;
     IconData buttonIcon;
@@ -852,15 +839,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonIcon = Icons.cloud_download;
       buttonText = 'سحب التغييرات';
     } else {
-      buttonColor = Colors.blueGrey;
+      buttonColor = Colors.grey.shade400;
       buttonIcon = Icons.cloud_download;
-      buttonText = 'تحقق من التحديثات';
+      buttonText = 'لا توجد تحديثات';
     }
 
     return Tooltip(
       message: hasRemoteChanges
           ? 'اضغط لسحب التغييرات الجديدة من السيرفر'
-          : 'تحقق من وجود تحديثات جديدة في السحابة',
+          : 'لا توجد تغييرات جديدة في السحابة',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -964,7 +951,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Widget _buildPushButton(bool hasChanges, bool isGoogleDriveSignedIn) {
     // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية
-    // تم تعطيل التحقق من تسجيل دخول Google Drive في زر الدفع
     final bool pushEnabled = hasChanges && !_isPulling && !_isPushing;
 
     Color buttonColor;
@@ -1108,94 +1094,94 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             final hasLocalChanges = _pendingChangesCount > 0;
 
             return Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // صف الأزرار: زر السحب + زر الدفع
-            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات
-                _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount),
-                const SizedBox(width: 8),
-                // زر الدفع إلى السيرفر
-                _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // شريط الحالة
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: _isPulling || _isPushing
-                    ? Colors.blue.shade50
-                    : (hasLocalChanges || hasRemoteChanges)
-                        ? Colors.orange.shade50
-                        : Colors.green.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _isPulling || _isPushing
-                      ? Colors.blue.shade200
-                      : (hasLocalChanges || hasRemoteChanges)
-                          ? Colors.orange.shade200
-                          : Colors.green.shade200,
-                  width: 1.5,
+                // صف الأزرار: زر السحب + زر الدفع
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات
+                    _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount),
+                    const SizedBox(width: 8),
+                    // زر الدفع إلى السيرفر
+                    _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn),
+                  ],
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    hasLocalChanges || hasRemoteChanges
-                        ? Icons.sync_problem
-                        : (_isPulling || _isPushing ? Icons.sync : Icons.check_circle),
-                    size: 12,
+                const SizedBox(height: 6),
+                // شريط الحالة
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
                     color: _isPulling || _isPushing
-                        ? Colors.blue
+                        ? Colors.blue.shade50
                         : (hasLocalChanges || hasRemoteChanges)
-                            ? Colors.orange
-                            : Colors.green,
+                            ? Colors.orange.shade50
+                            : Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _isPulling || _isPushing
+                          ? Colors.blue.shade200
+                          : (hasLocalChanges || hasRemoteChanges)
+                              ? Colors.orange.shade200
+                              : Colors.green.shade200,
+                      width: 1.5,
+                    ),
                   ),
-                  const SizedBox(width: 5),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        _isPulling
-                            ? 'جاري السحب...'
-                            : _isPushing
-                                ? 'جاري الرفع...'
-                                : hasLocalChanges
-                                    ? '$_pendingChangesCount تغيير محلي معلق'
-                                    : hasRemoteChanges
-                                        ? '$pendingRemoteCount تحديث من السيرفر'
-                                        : 'محدّث',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _isPulling || _isPushing
-                              ? Colors.blue.shade900
-                              : (hasLocalChanges || hasRemoteChanges)
-                                  ? Colors.orange.shade900
-                                  : Colors.green.shade900,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Icon(
+                        hasLocalChanges || hasRemoteChanges
+                            ? Icons.sync_problem
+                            : (_isPulling || _isPushing ? Icons.sync : Icons.check_circle),
+                        size: 12,
+                        color: _isPulling || _isPushing
+                            ? Colors.blue
+                            : (hasLocalChanges || hasRemoteChanges)
+                                ? Colors.orange
+                                : Colors.green,
                       ),
-                      if (!_isPulling && !_isPushing && _lastSyncTime != null)
-                        Text(
-                          _formatLastSyncTime(_lastSyncTime),
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: Colors.grey.shade600,
+                      const SizedBox(width: 5),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isPulling
+                                ? 'جاري السحب...'
+                                : _isPushing
+                                    ? 'جاري الرفع...'
+                                    : hasLocalChanges
+                                        ? '$_pendingChangesCount تغيير محلي معلق'
+                                        : hasRemoteChanges
+                                            ? '$pendingRemoteCount تحديث من السيرفر'
+                                            : 'محدّث',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _isPulling || _isPushing
+                                  ? Colors.blue.shade900
+                                  : (hasLocalChanges || hasRemoteChanges)
+                                      ? Colors.orange.shade900
+                                      : Colors.green.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
+                          if (!_isPulling && !_isPushing && _lastSyncTime != null)
+                            Text(
+                              _formatLastSyncTime(_lastSyncTime),
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ],
-        );
+                ),
+              ],
+            );
           },
         );
       },

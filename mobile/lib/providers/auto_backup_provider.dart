@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auto_backup_manager.dart' show AutoBackupManager;
-import 'backup_provider.dart';
 import 'appwrite_providers.dart';
 import 'repository_providers.dart';
 
@@ -12,9 +11,9 @@ final autoBackupManagerProvider = Provider<AutoBackupManager>((ref) {
 /// Provider لحالة النسخ التلقائي
 final autoBackupStatusProvider =
     FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-      final manager = ref.watch(autoBackupManagerProvider);
-      return await manager.getStatus();
-    });
+  final manager = ref.watch(autoBackupManagerProvider);
+  return manager.getStatus();
+});
 
 /// Provider لتهيئة النسخ التلقائي
 final autoBackupInitProvider = FutureProvider<void>((ref) async {

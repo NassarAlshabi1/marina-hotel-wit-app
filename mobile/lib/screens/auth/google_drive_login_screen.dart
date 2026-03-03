@@ -57,7 +57,7 @@ class _GoogleDriveLoginScreenState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'خطأ في تسجيل الدخول: ${e.toString()}';
+          _errorMessage = 'خطأ في تسجيل الدخول: $e';
           _isSigningIn = false;
         });
       }
@@ -106,7 +106,7 @@ class _GoogleDriveLoginScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(backupStatusProvider.notifier).setSkippedDriveLogin(true);
       unawaited(_pullAppwriteOnceAfterSkip());
       if (mounted) {
@@ -127,7 +127,8 @@ class _GoogleDriveLoginScreenState
 
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
-      await manager.pullRemoteChanges();
+      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل سحب الديون
+      await manager.pullAllDataWithDisabledFK();
     } catch (e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
@@ -181,9 +182,9 @@ class _GoogleDriveLoginScreenState
                           color: AppColors.infoColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Column(
+                        child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Row(
                               children: [
                                 Icon(

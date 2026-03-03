@@ -6,8 +6,8 @@ import '../auto_backup_manager.dart';
 
 class EmployeesRepository {
   EmployeesRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = EmployeesDao(db, OutboxDao(db));
+      : outbox = OutboxDao(db),
+        dao = EmployeesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final EmployeesDao dao;
@@ -86,19 +86,22 @@ class EmployeesRepository {
     String? phone,
     String? hireDate,
     String? status,
-  }) => dao.updateByLocalUuid(
-    localUuid,
-    EmployeesCompanion(
-      name: name != null ? d.Value(name) : const d.Value.absent(),
-      basicSalary: (salary ?? basicSalary) != null
-          ? d.Value((salary ?? basicSalary)!)
-          : const d.Value.absent(),
-      position: position != null ? d.Value(position) : const d.Value.absent(),
-      phone: phone != null ? d.Value(phone) : const d.Value.absent(),
-      hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-      status: status != null ? d.Value(status) : const d.Value.absent(),
-    ),
-  );
+  }) =>
+      dao.updateByLocalUuid(
+        localUuid,
+        EmployeesCompanion(
+          name: name != null ? d.Value(name) : const d.Value.absent(),
+          basicSalary: (salary ?? basicSalary) != null
+              ? d.Value((salary ?? basicSalary)!)
+              : const d.Value.absent(),
+          position:
+              position != null ? d.Value(position) : const d.Value.absent(),
+          phone: phone != null ? d.Value(phone) : const d.Value.absent(),
+          hireDate:
+              hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
+          status: status != null ? d.Value(status) : const d.Value.absent(),
+        ),
+      );
 
   Future<int> delete(int id) async {
     final result = await dao.softDelete(id);
@@ -139,6 +142,6 @@ class EmployeesRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 }

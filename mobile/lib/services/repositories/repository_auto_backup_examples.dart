@@ -22,9 +22,8 @@ mixin AutoBackupMixin {
 
 /// مثال على تحديث PaymentsRepository للدعم النسخ التلقائي
 class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
-  final AppDatabase db;
-
   PaymentsRepositoryWithAutoBackup(this.db);
+  final AppDatabase db;
 
   Future<int> addPayment({
     required int bookingId,
@@ -34,9 +33,7 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
     String? notes,
   }) async {
     // إضافة الدفعة بالطريقة العادية
-    final paymentId = await db
-        .into(db.payments)
-        .insert(
+    final paymentId = await db.into(db.payments).insert(
           PaymentsCompanion(
             bookingLocalId: d.Value(bookingId),
             amount: d.Value(amount),
@@ -72,17 +69,16 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
   }) async {
     final updatedRows =
         await (db.update(db.payments)..where((p) => p.id.equals(id))).write(
-          PaymentsCompanion(
-            amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-            paymentDate: paymentDate != null
-                ? d.Value(paymentDate)
-                : const d.Value.absent(),
-            paymentMethod: paymentMethod != null
-                ? d.Value(paymentMethod)
-                : const d.Value.absent(),
-            notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-          ),
-        );
+      PaymentsCompanion(
+        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+        paymentDate:
+            paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+        paymentMethod: paymentMethod != null
+            ? d.Value(paymentMethod)
+            : const d.Value.absent(),
+        notes: notes != null ? d.Value(notes) : const d.Value.absent(),
+      ),
+    );
 
     if (updatedRows > 0) {
       // تشغيل النسخ التلقائي
@@ -104,11 +100,13 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
     // الحصول على بيانات الدفعة قبل الحذف
     final payment = await (db.select(
       db.payments,
-    )..where((p) => p.id.equals(id))).getSingleOrNull();
+    )..where((p) => p.id.equals(id)))
+        .getSingleOrNull();
 
     final deletedRows = await (db.delete(
       db.payments,
-    )..where((p) => p.id.equals(id))).go();
+    )..where((p) => p.id.equals(id)))
+        .go();
 
     if (deletedRows > 0 && payment != null) {
       // تشغيل النسخ التلقائي
@@ -130,9 +128,8 @@ class PaymentsRepositoryWithAutoBackup with AutoBackupMixin {
 
 /// مثال آخر على RoomsRepository
 class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
-  final AppDatabase db;
-
   RoomsRepositoryWithAutoBackup(this.db);
+  final AppDatabase db;
 
   Future<int> addRoom({
     required String roomNumber,
@@ -141,9 +138,7 @@ class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
     required String status,
     String? imageUrl,
   }) async {
-    final roomId = await db
-        .into(db.rooms)
-        .insert(
+    final roomId = await db.into(db.rooms).insert(
           RoomsCompanion(
             roomNumber: d.Value(roomNumber),
             type: d.Value(type),
@@ -170,10 +165,9 @@ class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
   }
 
   Future<bool> updateRoomStatus(String roomNumber, String newStatus) async {
-    final updatedRows =
-        await (db.update(db.rooms)
-              ..where((r) => r.roomNumber.equals(roomNumber)))
-            .write(RoomsCompanion(status: d.Value(newStatus)));
+    final updatedRows = await (db.update(db.rooms)
+          ..where((r) => r.roomNumber.equals(roomNumber)))
+        .write(RoomsCompanion(status: d.Value(newStatus)));
 
     if (updatedRows > 0) {
       // تشغيل النسخ التلقائي
@@ -190,9 +184,8 @@ class RoomsRepositoryWithAutoBackup with AutoBackupMixin {
 
 /// مثال على ExpensesRepository
 class ExpensesRepositoryWithAutoBackup with AutoBackupMixin {
-  final AppDatabase db;
-
   ExpensesRepositoryWithAutoBackup(this.db);
+  final AppDatabase db;
 
   Future<int> addExpense({
     required String expenseType,
@@ -201,9 +194,7 @@ class ExpensesRepositoryWithAutoBackup with AutoBackupMixin {
     required String date,
     int? relatedId,
   }) async {
-    final expenseId = await db
-        .into(db.expenses)
-        .insert(
+    final expenseId = await db.into(db.expenses).insert(
           ExpensesCompanion(
             expenseType: d.Value(expenseType),
             description: d.Value(description),

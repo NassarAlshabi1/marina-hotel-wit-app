@@ -21,7 +21,7 @@ class SalaryWithdrawalsReportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ExpensesReportScreen(
+    return const ExpensesReportScreen(
       title: 'تقرير سحبيات الرواتب',
       typeLabel: 'نوع السحب',
       allowedTypes: _salaryTypes,

@@ -6,10 +6,10 @@ import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 
 class AppwriteRealtimeSync {
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -70,33 +70,55 @@ class AppwriteRealtimeSync {
         )
         .toList();
 
-    _subscription = _realtime!.subscribe(channels);
-    _isListening = true;
+    try {
+      debugPrint('📡 Realtime: subscribing to ${channels.length} channels...');
+      _subscription = _realtime!.subscribe(channels);
+      _isListening = true;
 
-    debugPrint('📡 Realtime: listening...');
+      debugPrint('📡 Realtime: connection established, listening for events...');
 
-    _subscription!.stream.listen(
-      _onEvent,
-      onError: (e) {
-        debugPrint('❌ Realtime error: $e');
-        _isListening = false;
-        _reconnect();
-      },
-      onDone: () {
-        _isListening = false;
-      },
-    );
+      _subscription!.stream.listen(
+        (message) {
+          try {
+            _onEvent(message);
+          } catch (e) {
+            debugPrint('⚠️ Realtime: error processing event: $e');
+          }
+        },
+        onError: (e) {
+          debugPrint('❌ Realtime stream error: $e');
+          _isListening = false;
+          _reconnect();
+        },
+        onDone: () {
+          debugPrint('📡 Realtime stream closed (onDone)');
+          _isListening = false;
+          // إعادة الاتصال التلقائي عند انقطاع الـ Stream
+          _reconnect();
+        },
+        cancelOnError: false,
+      );
+    } catch (e) {
+      debugPrint('❌ Realtime: subscription failed: $e');
+      _isListening = false;
+      _reconnect();
+    }
   }
 
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
-    final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
+    // استخراج معرف الجهاز المصدر مع دعم لعدة أسماء حقول محتملة
+    final sourceDevice = payload['device_id'] ?? 
+                         payload['lastModifiedBy'] ?? 
+                         payload['deviceId'];
 
-    // تجاهل التغييرات من نفس الجهاز (لأنها محلية بالفعل)
-    if (sourceDevice == _currentDeviceId) return;
+    // تجاهل التغييرات من نفس الجهاز فقط إذا كنا متأكدين من تطابق المعرف
+    if (sourceDevice != null && _currentDeviceId != null && sourceDevice == _currentDeviceId) {
+      debugPrint('📡 Realtime: skipping local change from this device ($sourceDevice)');
+      return;
+    }
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
-    // لا نهتم بـ permissions.update أو أحداث النظام
     final eventTypes = message.events;
     final isDataChange = eventTypes.any((e) =>
         e.endsWith('.create') ||
@@ -108,12 +130,15 @@ class AppwriteRealtimeSync {
       return;
     }
 
+    debugPrint('📡 Realtime: change detected in ${message.channels} - Source: ${sourceDevice ?? 'unknown'}');
+
     // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
     final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
     if (updatedAt != null) {
       try {
         final serverTime = DateTime.parse(updatedAt);
-        if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
+        if (_lastServerUpdate == null ||
+            serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
       } catch (e) {
@@ -133,7 +158,8 @@ class AppwriteRealtimeSync {
 
       // ✅ تحسين: زيادة عداد التغييرات
       pendingRemoteChangesCount.value++;
-      debugPrint('📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
+      debugPrint(
+          '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
     });
   }
 
@@ -158,8 +184,20 @@ class AppwriteRealtimeSync {
   }
 
   void _reconnect() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!_isListening) start();
+    if (_isListening) return;
+    
+    // استخدام تأخير متزايد أو ثابت لإعادة الاتصال
+    debugPrint('📡 Realtime: attempting to reconnect in 5 seconds...');
+    Future.delayed(const Duration(seconds: 5), () async {
+      if (!_isListening) {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('appwrite_sync_enabled') ?? false) {
+          debugPrint('📡 Realtime: reconnecting now...');
+          await start();
+        } else {
+          debugPrint('📡 Realtime: sync is disabled, skipping reconnect');
+        }
+      }
     });
   }
 

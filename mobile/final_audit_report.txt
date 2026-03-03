@@ -1,0 +1,1186 @@
+Analyzing lib...                                                
+
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_layout.dart:81:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_layout.dart:209:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_layout.dart:231:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_layout.dart:240:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_layout.dart:250:37 • deprecated_member_use
+   info • Use 'isOdd' rather than '% 2' • lib/components/admin_layout.dart:361:46 • use_is_even_rather_than_modulo
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_layout.dart:363:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:26:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:27:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:28:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:83:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:273:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:279:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/admin_sidebar.dart:284:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:33:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:38:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:84:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:96:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:141:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:189:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:194:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:238:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:261:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/neu_card.dart:268:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:133:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:135:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:149:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:190:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:367:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:402:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:504:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:506:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:542:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:545:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:582:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:584:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:600:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/payment_widgets.dart:651:64 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:39:27 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:40:27 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:76:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:88:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:129:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:136:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:216:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/components/widgets/room_widgets.dart:445:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/common_widgets.dart:130:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/common_widgets.dart:192:27 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/common_widgets.dart:194:46 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/main.dart:78:16 • unawaited_futures
+  error • The getter 'currentDeviceId' isn't defined for the type 'AppwriteSyncManager' • lib/main.dart:426:34 • undefined_getter
+  error • The method 'pullRemoteChanges' isn't defined for the type 'AppwriteSyncManager' • lib/main.dart:503:25 • undefined_method
+   info • 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope. This feature was deprecated after v3.12.0-1.0.pre • lib/mixins/sync_on_exit_mixin.dart:37:12 • deprecated_member_use
+   info • The constant name 'GENERAL_NOTES_BOOKING_ID' isn't a lowerCamelCase identifier • lib/models/shift_note_adapter.dart:6:20 • constant_identifier_names
+  error • The method 'getSyncStatistics' isn't defined for the type 'AppwriteSyncManager' • lib/providers/appwrite_providers.dart:134:22 • undefined_method
+  error • The method 'getRegisteredDevices' isn't defined for the type 'AppwriteSyncManager' • lib/providers/appwrite_providers.dart:164:37 • undefined_method
+   info • Constructor declarations should be before non-constructor declarations • lib/providers/appwrite_providers.dart:185:3 • sort_constructors_first
+   info • Constructor declarations should be before non-constructor declarations • lib/providers/appwrite_providers.dart:216:3 • sort_constructors_first
+  error • The method 'getSyncStatistics' isn't defined for the type 'AppwriteSyncManager' • lib/providers/appwrite_providers.dart:251:37 • undefined_method
+  error • The method 'pushAllLocalData' isn't defined for the type 'AppwriteSyncManager' • lib/providers/backup_provider.dart:836:42 • undefined_method
+  error • The method 'pullAllDataWithDisabledFK' isn't defined for the type 'AppwriteSyncManager' • lib/screens/auth/google_drive_login_screen.dart:131:21 • undefined_method
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/auth/google_drive_login_screen.dart:182:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/auth/google_drive_login_screen.dart:246:58 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/screens/bookings/booking_edit.dart:507:45 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/bookings/booking_edit.dart:509:45 • curly_braces_in_flow_control_structures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/bookings/booking_edit.dart:739:27 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/bookings/booking_edit.dart:834:50 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/bookings/booking_edit.dart:1010:7 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/bookings/bookings_list.dart:338:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/bookings/bookings_list.dart:410:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/bookings/bookings_list.dart:656:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/dashboard_screen.dart:319:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/dashboard_screen.dart:374:33 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/dashboard_screen.dart:628:31 • unawaited_futures
+warning • The declaration '_showCreateRoomDialog' isn't referenced • lib/screens/dashboard_screen.dart:643:16 • unused_element
+   info • Statements in an if should be enclosed in a block • lib/screens/dashboard_screen.dart:716:25 • curly_braces_in_flow_control_structures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/dashboard_screen.dart:794:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/dashboard_screen.dart:802:28 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/debts/debts_list.dart:208:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/debts/debts_list.dart:210:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/debts/debts_list.dart:225:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/debts/debts_list.dart:599:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/expenses/expenses_list.dart:260:34 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/expenses/expenses_list.dart:372:7 • use_build_context_synchronously
+warning • The left operand can't be null, so the right operand is never executed • lib/screens/information/information_screen.dart:135:50 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/screens/information/information_screen.dart:396:30 • dead_null_aware_expression
+   info • 'Table.fromTextArray' is deprecated and shouldn't be used. Use TableHelper.fromTextArray() instead • lib/screens/information/information_screen.dart:503:13 • deprecated_member_use
+   info • The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('NotePriority') • lib/screens/notes/notes_screen.dart:158:41 • unrelated_type_equality_checks
+   info • The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('NotePriority') • lib/screens/notes/notes_screen.dart:160:25 • unrelated_type_equality_checks
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_complex.dart:270:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_complex.dart:272:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_complex.dart:297:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_complex.dart:583:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_complex.dart:627:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_complex.dart:629:41 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/notes/notes_screen_complex.dart:716:15 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/notes/notes_screen_complex.dart:928:13 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/notes/notes_screen_complex.dart:951:13 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_old.dart:164:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_old.dart:166:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_old.dart:180:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_old.dart:356:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_old.dart:400:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/notes/notes_screen_old.dart:402:41 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/payments/booking_checkout_screen.dart:516:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/payments/booking_checkout_screen.dart:562:23 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/payments/booking_checkout_screen.dart:564:30 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:535:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:536:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:716:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:718:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:732:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:751:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:753:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:913:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/booking_payment_screen.dart:1070:40 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/payments/booking_payment_screen.dart:1512:19 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/payments/booking_payment_screen.dart:1697:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/payments/booking_payment_screen.dart:1738:21 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/payments/payment_history_screen.dart:214:29 • deprecated_member_use
+   info • Empty catch block • lib/screens/payments/payment_history_screen.dart:386:21 • empty_catches
+warning • The name PdfColor is shown, but isn't used • lib/screens/reports/debts_report_screen.dart:6:51 • unused_shown_name
+   info • The prefix 'coreProviders' isn't a lower_case_with_underscores identifier • lib/screens/reports/debts_report_screen.dart:13:49 • library_prefixes
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/reports/debts_report_screen.dart:78:7 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/debts_report_screen.dart:360:41 • deprecated_member_use
+warning • The name PdfColor is shown, but isn't used • lib/screens/reports/expenses_report_screen.dart:8:51 • unused_shown_name
+   info • The prefix 'coreProviders' isn't a lower_case_with_underscores identifier • lib/screens/reports/expenses_report_screen.dart:15:49 • library_prefixes
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/reports/expenses_report_screen.dart:134:7 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/expenses_report_screen.dart:453:39 • deprecated_member_use
+   info • The prefix 'coreProviders' isn't a lower_case_with_underscores identifier • lib/screens/reports/income_expense_report_screen.dart:15:49 • library_prefixes
+warning • The value of the field '_salaryTotal' isn't used • lib/screens/reports/income_expense_report_screen.dart:44:10 • unused_field
+warning • The value of the local variable 'diff' isn't used • lib/screens/reports/income_expense_report_screen.dart:68:19 • unused_local_variable
+   info • Statements in an if should be enclosed in a block • lib/screens/reports/income_expense_report_screen.dart:79:11 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/reports/income_expense_report_screen.dart:81:11 • curly_braces_in_flow_control_structures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/reports/income_expense_report_screen.dart:151:7 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/income_expense_report_screen.dart:441:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/income_expense_report_screen.dart:528:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/income_expense_report_screen.dart:649:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/income_expense_report_screen.dart:671:38 • deprecated_member_use
+warning • The name PdfColor is shown, but isn't used • lib/screens/reports/payments_report_screen.dart:8:51 • unused_shown_name
+   info • The prefix 'coreProviders' isn't a lower_case_with_underscores identifier • lib/screens/reports/payments_report_screen.dart:15:49 • library_prefixes
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/reports/payments_report_screen.dart:80:7 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/payments_report_screen.dart:387:39 • deprecated_member_use
+   info • The prefix 'coreProviders' isn't a lower_case_with_underscores identifier • lib/screens/reports/reports_screen.dart:5:49 • library_prefixes
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reports/reports_screen.dart:211:34 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/rooms/rooms_dashboard.dart:159:29 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:114:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:120:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:244:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:264:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:288:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:320:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:326:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:380:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:547:49 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/screens/rooms/rooms_list.dart:578:25 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/rooms/rooms_list.dart:607:25 • curly_braces_in_flow_control_structures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/rooms/rooms_list.dart:687:30 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:755:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:971:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:983:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1054:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1131:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1134:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1147:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1169:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1227:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1229:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1262:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1298:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/rooms/rooms_list.dart:1328:61 • deprecated_member_use
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/settings/appwrite/appwrite_settings_screen_v2.dart:63:25 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/settings/appwrite/appwrite_settings_screen_v2.dart:64:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/settings/appwrite/appwrite_settings_screen_v2.dart:65:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/settings/appwrite/appwrite_settings_screen_v2.dart:66:17 • prefer_const_constructors
+warning • The value of the field '_db' isn't used • lib/screens/settings/appwrite/tabs/collections_tab.dart:17:20 • unused_field
+warning • The value of the field '_collectionSyncStatus' isn't used • lib/screens/settings/appwrite/tabs/collections_tab.dart:18:27 • unused_field
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/collections_tab.dart:77:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/collections_tab.dart:299:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/collections_tab.dart:341:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/collections_tab.dart:423:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/collections_tab.dart:426:43 • deprecated_member_use
+   info • Constructor declarations should be before non-constructor declarations • lib/screens/settings/appwrite/tabs/collections_tab.dart:464:3 • sort_constructors_first
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/connection_tab.dart:54:66 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/connection_tab.dart:235:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/connection_tab.dart:250:35 • deprecated_member_use
+  error • The getter 'currentDeviceId' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite/tabs/devices_tab.dart:14:31 • undefined_getter
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/devices_tab.dart:58:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/devices_tab.dart:157:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/sync_tab.dart:378:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/sync_tab.dart:423:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/sync_tab.dart:438:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/sync_tab.dart:453:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/sync_tab.dart:468:35 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/appwrite/tabs/sync_tab.dart:515:15 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/appwrite/tabs/sync_tab.dart:516:15 • deprecated_member_use
+  error • The method 'resetSyncState' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite/tabs/sync_tab.dart:587:19 • undefined_method
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:638:5 • unawaited_futures
+  error • The method 'pushAllLocalDataToAppwrite' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite/tabs/sync_tab.dart:660:35 • undefined_method
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:683:7 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:803:5 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:884:7 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:940:7 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:1018:5 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/appwrite/tabs/sync_tab.dart:1035:21 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/appwrite/tabs/sync_tab.dart:1049:21 • use_build_context_synchronously
+  error • The method 'ComprehensiveAppwriteBackupService' isn't defined for the type '_AppwriteSyncTabState' • lib/screens/settings/appwrite/tabs/sync_tab.dart:1059:27 • undefined_method
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:1061:5 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/appwrite/tabs/sync_tab.dart:1080:21 • use_build_context_synchronously
+  error • Undefined name 'Share' • lib/screens/settings/appwrite/tabs/sync_tab.dart:1083:15 • undefined_identifier
+  error • The method 'XFile' isn't defined for the type '_AppwriteSyncTabState' • lib/screens/settings/appwrite/tabs/sync_tab.dart:1083:34 • undefined_method
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/appwrite/tabs/sync_tab.dart:1086:21 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/sync_tab.dart:1099:5 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/appwrite/tabs/sync_tab.dart:1124:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/appwrite/tabs/sync_tab.dart:1130:28 • use_build_context_synchronously
+   info • Missing a newline at the end of the file • lib/screens/settings/appwrite/tabs/sync_tab.dart:1140:2 • eol_at_end_of_file
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:49:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:64:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:79:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:106:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:121:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:136:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:163:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:178:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:193:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:208:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:235:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:250:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite/tabs/tools_tab.dart:265:38 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/tools_tab.dart:311:5 • unawaited_futures
+  error • The getter 'currentDeviceId' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite/tabs/tools_tab.dart:380:63 • undefined_getter
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/tools_tab.dart:391:5 • unawaited_futures
+  error • The method 'pullRemoteChanges' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite/tabs/tools_tab.dart:504:40 • undefined_method
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite/tabs/tools_tab.dart:509:7 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite_logs_screen.dart:43:17 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite_logs_screen.dart:45:17 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite_logs_screen.dart:47:17 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite_logs_screen.dart:207:28 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/appwrite_settings_screen.dart:291:40 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite_settings_screen.dart:977:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite_settings_screen.dart:979:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite_settings_screen.dart:1066:22 • deprecated_member_use
+  error • The getter 'currentDeviceId' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite_settings_screen.dart:1283:65 • undefined_getter
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite_settings_screen.dart:1298:7 • unawaited_futures
+  error • The method 'pushAllLocalData' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite_settings_screen.dart:1383:21 • undefined_method
+  error • The method 'pullAllRemoteData' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite_settings_screen.dart:1442:21 • undefined_method
+  error • The method 'resetSyncState' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/appwrite_settings_screen.dart:1488:54 • undefined_method
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/appwrite_settings_screen.dart:1511:5 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite_sync_stats_screen.dart:225:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/appwrite_sync_stats_screen.dart:227:41 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:74:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:81:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:101:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:112:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:130:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:137:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:510:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:513:67 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:540:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:543:77 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:553:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_backup_settings_screen.dart:565:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/auto_sync_engine_monitor_screen.dart:325:40 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/auto_sync_engine_monitor_screen.dart:641:5 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:658:33 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/auto_sync_engine_monitor_screen.dart:668:9 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:669:11 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:685:33 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:687:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:697:28 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/auto_sync_engine_monitor_screen.dart:868:7 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:869:9 • use_build_context_synchronously
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/auto_sync_engine_monitor_screen.dart:882:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/auto_sync_engine_monitor_screen.dart:883:19 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:888:46 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/auto_sync_engine_monitor_screen.dart:913:7 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:914:9 • use_build_context_synchronously
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/auto_sync_engine_monitor_screen.dart:927:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/auto_sync_engine_monitor_screen.dart:928:19 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:933:46 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/auto_sync_engine_monitor_screen.dart:957:7 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:958:9 • use_build_context_synchronously
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/auto_sync_engine_monitor_screen.dart:969:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/auto_sync_engine_monitor_screen.dart:970:19 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/auto_sync_engine_monitor_screen.dart:975:46 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/backup/tabs/backup_overview_tab.dart:169:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/backup/tabs/backup_overview_tab.dart:258:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/backup/tabs/file_management_tab.dart:188:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/backup/tabs/local_backups_tab.dart:154:33 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/backup/unified_backup_settings_screen.dart:343:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/backup/unified_backup_settings_screen.dart:344:17 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/backup/unified_backup_settings_screen.dart:352:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/backup/unified_backup_settings_screen.dart:353:17 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/backup/unified_backup_settings_screen.dart:361:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/backup/unified_backup_settings_screen.dart:362:17 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/comprehensive_backup_screen.dart:247:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/comprehensive_backup_screen.dart:250:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/comprehensive_backup_screen.dart:261:30 • deprecated_member_use
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:109:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:137:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:156:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:192:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:255:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:285:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:321:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:359:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:384:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:407:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:430:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:453:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:478:21 • control_flow_in_finally
+   info • Use of 'return' in a 'finally' clause • lib/screens/settings/data_protection_screen.dart:508:21 • control_flow_in_finally
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/google_drive_backup_screen.dart:113:20 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/google_drive_backup_screen.dart:622:7 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/google_drive_backup_screen.dart:623:7 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/google_drive_logs_screen.dart:45:17 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/google_drive_logs_screen.dart:47:17 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/google_drive_logs_screen.dart:198:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/google_drive_logs_screen.dart:255:36 • deprecated_member_use
+warning • The value of the local variable 'notes' isn't used • lib/screens/settings/guest_edit_screen.dart:283:11 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/logs/unified_logs_screen.dart:347:31 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:410:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:411:17 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:421:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:422:17 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:432:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:433:17 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:443:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:444:17 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:454:17 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/logs/unified_logs_screen.dart:455:17 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/restore_fix_screen.dart:434:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/restore_fix_screen.dart:444:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/restore_fix_screen.dart:453:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/restore_fix_screen.dart:485:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/restore_fix_screen.dart:492:28 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/schema_comparison_screen.dart:390:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/schema_comparison_screen.dart:392:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/schema_comparison_screen.dart:519:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_employees.dart:184:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_employees.dart:186:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_employees.dart:200:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_employees.dart:259:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_employees.dart:260:38 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_employees.dart:546:33 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_employees.dart:547:40 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_employees.dart:558:21 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/settings_employees.dart:573:5 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/settings_employees.dart:586:7 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_employees.dart:763:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_employees.dart:770:9 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_guests.dart:289:42 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/settings_guests.dart:580:9 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/settings_guests.dart:740:37 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/settings_guests.dart:743:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/settings_guests.dart:748:28 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_maintenance.dart:138:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_maintenance.dart:140:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_maintenance.dart:216:34 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:260:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:262:19 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:265:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:266:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:308:31 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/screens/settings/settings_maintenance.dart:309:17 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:310:19 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:344:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:345:38 • use_build_context_synchronously
+  error • The method 'resetSyncState' isn't defined for the type 'AppwriteSyncManager' • lib/screens/settings/settings_maintenance.dart:385:61 • undefined_method
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:392:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:393:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:399:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:400:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:445:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:447:19 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:450:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:451:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:496:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:498:19 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:501:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:502:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:544:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:545:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:549:31 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:550:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:639:21 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:640:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:644:21 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/settings_maintenance.dart:646:9 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/settings_users.dart:85:37 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/settings_users.dart:326:45 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/settings/settings_users.dart:327:52 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:36:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:47:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:67:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:74:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:94:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:101:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:121:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:128:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:145:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:152:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:168:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/smart_sync_settings_screen.dart:179:28 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/smart_sync_settings_screen.dart:632:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/smart_sync_settings_screen.dart:634:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/smart_sync_settings_screen.dart:638:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/smart_sync_settings_screen.dart:750:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/smart_sync_settings_screen.dart:752:56 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:374:40 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:374:56 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:379:41 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:379:57 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:384:41 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:384:57 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:389:41 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/sync/unified_sync_settings_screen.dart:389:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_health_dashboard_screen.dart:123:20 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_health_dashboard_screen.dart:747:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_health_dashboard_screen.dart:805:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_health_dashboard_screen.dart:833:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_health_dashboard_screen.dart:835:47 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/sync_performance_settings_screen.dart:38:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/settings/sync_performance_settings_screen.dart:47:28 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_performance_settings_screen.dart:120:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_performance_settings_screen.dart:122:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings/sync_performance_settings_screen.dart:162:41 • deprecated_member_use
+   info • Use 'forEach' and a tear-off rather than a 'for' loop to apply a function to every element • lib/services/appwrite_cache_manager.dart:159:5 • prefer_foreach
+   info • Use 'forEach' and a tear-off rather than a 'for' loop to apply a function to every element • lib/services/appwrite_cache_manager.dart:171:5 • prefer_foreach
+   info • Use 'late' for private members with a non-nullable type • lib/services/appwrite_delta_sync.dart:40:16 • use_late_for_private_fields_and_variables
+warning • The value of the field '_prefsLastDeltaPullKey' isn't used • lib/services/appwrite_delta_sync.dart:47:16 • unused_field
+warning • The value of the field '_prefsDeltaSyncEnabledKey' isn't used • lib/services/appwrite_delta_sync.dart:49:16 • unused_field
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/appwrite_realtime_service.dart:93:9 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/appwrite_realtime_service.dart:161:9 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/appwrite_realtime_sync.dart:205:5 • unawaited_futures
+   info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead • lib/services/appwrite_schema_verifier.dart:571:42 • deprecated_member_use
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_service.dart:13:11 • sort_constructors_first
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_service.dart:14:3 • sort_constructors_first
+   info • Use 'const' for final variables initialized to a constant value • lib/services/appwrite_service.dart:103:5 • prefer_const_declarations
+   info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead • lib/services/appwrite_service.dart:113:47 • deprecated_member_use
+   info • 'deleteDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.deleteRow` instead • lib/services/appwrite_service.dart:174:41 • deprecated_member_use
+   info • 'getDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.getRow` instead • lib/services/appwrite_service.dart:223:41 • deprecated_member_use
+   info • 'updateDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.updateRow` instead • lib/services/appwrite_service.dart:242:37 • deprecated_member_use
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:253:16 • unnecessary_await_in_return
+   info • 'createDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.createRow` instead • lib/services/appwrite_service.dart:254:39 • deprecated_member_use
+   info • 'deleteDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.deleteRow` instead • lib/services/appwrite_service.dart:324:37 • deprecated_member_use
+   info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead • lib/services/appwrite_service.dart:784:37 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • lib/services/appwrite_service.dart:813:5 • prefer_const_declarations
+   info • 'createDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.createRow` instead • lib/services/appwrite_service.dart:825:39 • deprecated_member_use
+   info • 'getDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.getRow` instead • lib/services/appwrite_service.dart:854:41 • deprecated_member_use
+   info • 'deleteDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.deleteRow` instead • lib/services/appwrite_service.dart:871:41 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • lib/services/appwrite_service.dart:919:11 • prefer_const_declarations
+   info • 'deleteDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.deleteRow` instead • lib/services/appwrite_service.dart:920:28 • deprecated_member_use
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:944:12 • unnecessary_await_in_return
+   info • 'getDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.getRow` instead • lib/services/appwrite_service.dart:945:35 • deprecated_member_use
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:961:12 • unnecessary_await_in_return
+   info • 'createDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.createRow` instead • lib/services/appwrite_service.dart:962:35 • deprecated_member_use
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:979:12 • unnecessary_await_in_return
+   info • 'updateDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.updateRow` instead • lib/services/appwrite_service.dart:980:35 • deprecated_member_use
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:992:12 • unnecessary_await_in_return
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:1004:12 • unnecessary_await_in_return
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:1013:12 • unnecessary_await_in_return
+   info • Unnecessary 'await' • lib/services/appwrite_service.dart:1025:12 • unnecessary_await_in_return
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_manager.dart:40:3 • sort_constructors_first
+warning • The declaration '<unnamed>' isn't referenced • lib/services/appwrite_sync_manager.dart:57:7 • unused_element
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_manager.dart:67:11 • sort_constructors_first
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_manager.dart:78:3 • sort_constructors_first
+   info • The private field _isPulling could be 'final' • lib/services/appwrite_sync_manager.dart:94:8 • prefer_final_fields
+   info • Unnecessary use of parentheses • lib/services/appwrite_sync_manager.dart:350:27 • unnecessary_parenthesis
+  error • The name 'SyncResult' isn't a type, so it can't be used as a type argument • lib/services/appwrite_sync_manager.dart:406:10 • non_type_as_type_argument
+   info • Use 'const' for final variables initialized to a constant value • lib/services/appwrite_sync_manager.dart:439:5 • prefer_const_declarations
+warning • The value of the local variable 'finalStatus' isn't used • lib/services/appwrite_sync_manager.dart:441:16 • unused_local_variable
+   info • The type of the right operand ('ConnectivityResult') isn't a subtype or a supertype of the left operand ('List<ConnectivityResult>') • lib/services/appwrite_sync_manager.dart:453:24 • unrelated_type_equality_checks
+  error • A try block must be followed by an 'on', 'catch', or 'finally' clause • lib/services/appwrite_sync_manager.dart:497:9 • missing_catch_or_finally
+warning • The value of the local variable 'endTime' isn't used • lib/services/appwrite_sync_manager.dart:595:13 • unused_local_variable
+warning • The value of the local variable 'endEpoch' isn't used • lib/services/appwrite_sync_manager.dart:596:13 • unused_local_variable
+   info • Unnecessary statement • lib/services/appwrite_sync_manager.dart:599:11 • unnecessary_statements
+  error • 'finally' can't be used as an identifier because it's a keyword • lib/services/appwrite_sync_manager.dart:599:11 • expected_identifier_but_got_keyword
+  error • Expected a statement • lib/services/appwrite_sync_manager.dart:599:11 • missing_statement
+  error • Expected to find ';' • lib/services/appwrite_sync_manager.dart:599:11 • expected_token
+  error • Undefined name 'finally' • lib/services/appwrite_sync_manager.dart:599:11 • undefined_identifier
+  error • Undefined name 'endEpoch' • lib/services/appwrite_sync_manager.dart:613:26 • undefined_identifier
+  error • Undefined name 'endEpoch' • lib/services/appwrite_sync_manager.dart:614:29 • undefined_identifier
+  error • Undefined name 'endEpoch' • lib/services/appwrite_sync_manager.dart:615:26 • undefined_identifier
+warning • The stack trace variable 'stackTrace' isn't used and can be removed • lib/services/appwrite_sync_manager.dart:630:17 • unused_catch_stack
+  error • Undefined name 'e' • lib/services/appwrite_sync_manager.dart:674:33 • undefined_identifier
+  error • Undefined name 'stackTrace' • lib/services/appwrite_sync_manager.dart:674:67 • undefined_identifier
+  error • Undefined name 'e' • lib/services/appwrite_sync_manager.dart:678:16 • undefined_identifier
+  error • Undefined name 'stackTrace' • lib/services/appwrite_sync_manager.dart:679:21 • undefined_identifier
+   info • The private field _currentStatus could be 'final' • lib/services/appwrite_sync_manager.dart:684:5 • prefer_final_fields
+   info • Use 'late' for private members with a non-nullable type • lib/services/appwrite_sync_manager.dart:684:5 • use_late_for_private_fields_and_variables
+  error • The name '_currentStatus' is already defined • lib/services/appwrite_sync_manager.dart:684:5 • duplicate_definition
+  error • Variables must be declared using the keywords 'const', 'final', 'var' or a type name • lib/services/appwrite_sync_manager.dart:684:5 • missing_const_final_var_or_type
+  error • Undefined name 'finalStatus' • lib/services/appwrite_sync_manager.dart:684:22 • undefined_identifier
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_manager.dart:685:5 • sort_constructors_first
+  error • All final variables must be initialized, but 'appwriteService', 'database', and 1 others aren't • lib/services/appwrite_sync_manager.dart:685:5 • final_not_initialized_constructor
+  error • The name of a constructor must match the name of the enclosing class • lib/services/appwrite_sync_manager.dart:685:5 • invalid_constructor_name
+   info • The local variable '_currentStatus' starts with an underscore • lib/services/appwrite_sync_manager.dart:685:25 • no_leading_underscores_for_local_identifiers
+   info • The parameter '_currentStatus' is not used in the constructor • lib/services/appwrite_sync_manager.dart:685:25 • avoid_unused_constructor_parameters
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_manager.dart:686:5 • sort_constructors_first
+  error • All final variables must be initialized, but 'appwriteService', 'database', and 1 others aren't • lib/services/appwrite_sync_manager.dart:686:5 • final_not_initialized_constructor
+  error • The name of a constructor must match the name of the enclosing class • lib/services/appwrite_sync_manager.dart:686:5 • invalid_constructor_name
+  error • The instance member 'endTime' can't be accessed in an initializer • lib/services/appwrite_sync_manager.dart:689:22 • implicit_this_reference_in_initializer
+  error • Undefined name 'startTime' • lib/services/appwrite_sync_manager.dart:689:41 • undefined_identifier
+  error • Expected a class member • lib/services/appwrite_sync_manager.dart:691:5 • expected_class_member
+  error • Expected an identifier • lib/services/appwrite_sync_manager.dart:691:8 • missing_identifier
+  error • Expected to find ')' • lib/services/appwrite_sync_manager.dart:691:21 • expected_token
+  error • Undefined name 'metrics' • lib/services/appwrite_sync_manager.dart:692:7 • undefined_identifier
+  error • Undefined name 'recordsPushed' • lib/services/appwrite_sync_manager.dart:693:24 • undefined_identifier
+  error • Undefined name 'recordsPulled' • lib/services/appwrite_sync_manager.dart:693:40 • undefined_identifier
+  error • Undefined name 'conflicts' • lib/services/appwrite_sync_manager.dart:694:28 • undefined_identifier
+  error • Expected a class member • lib/services/appwrite_sync_manager.dart:696:7 • expected_class_member
+  error • Expected an identifier • lib/services/appwrite_sync_manager.dart:696:12 • missing_identifier
+  error • Methods must have an explicit list of parameters • lib/services/appwrite_sync_manager.dart:696:12 • missing_method_parameters
+  error • Undefined name 'metrics' • lib/services/appwrite_sync_manager.dart:697:7 • undefined_identifier
+  error • Undefined name 'errorMessage' • lib/services/appwrite_sync_manager.dart:697:29 • undefined_identifier
+  error • Expected a class member • lib/services/appwrite_sync_manager.dart:700:5 • expected_class_member
+  error • Expected an identifier • lib/services/appwrite_sync_manager.dart:700:9 • missing_identifier
+  error • Methods must have an explicit list of parameters • lib/services/appwrite_sync_manager.dart:700:9 • missing_method_parameters
+  error • Undefined name 'recordsPushed' • lib/services/appwrite_sync_manager.dart:703:26 • undefined_identifier
+  error • Undefined name 'recordsPulled' • lib/services/appwrite_sync_manager.dart:704:26 • undefined_identifier
+  error • Undefined name 'conflicts' • lib/services/appwrite_sync_manager.dart:705:22 • undefined_identifier
+  error • Undefined name 'finalStatus' • lib/services/appwrite_sync_manager.dart:706:19 • undefined_identifier
+  error • Undefined name 'phaseMs' • lib/services/appwrite_sync_manager.dart:707:21 • undefined_identifier
+   info • Use 'const' for final variables initialized to a constant value • lib/services/appwrite_sync_manager.dart:713:9 • prefer_const_declarations
+  error • Expected a class member • lib/services/appwrite_sync_manager.dart:722:7 • expected_class_member
+  error • Expected an identifier • lib/services/appwrite_sync_manager.dart:722:13 • missing_identifier
+  error • Expected a class member • lib/services/appwrite_sync_manager.dart:731:5 • expected_class_member
+   info • Missing type annotation on a public API • lib/services/appwrite_sync_manager.dart:731:12 • type_annotate_public_apis
+   info • The variable name 'SyncResult' isn't a lowerCamelCase identifier • lib/services/appwrite_sync_manager.dart:731:12 • non_constant_identifier_names
+  error • 'SyncResult' must have a method body because 'AppwriteSyncManager' isn't abstract • lib/services/appwrite_sync_manager.dart:731:12 • concrete_class_with_abstract_member
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:732:13 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:732:13 • obsolete_colon_for_default_value
+  error • Undefined name 'finalStatus' • lib/services/appwrite_sync_manager.dart:732:15 • undefined_identifier
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:733:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:733:20 • obsolete_colon_for_default_value
+  error • Undefined name 'recordsPushed' • lib/services/appwrite_sync_manager.dart:733:22 • undefined_identifier
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:734:20 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:734:20 • obsolete_colon_for_default_value
+  error • Undefined name 'recordsPulled' • lib/services/appwrite_sync_manager.dart:734:22 • undefined_identifier
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:735:16 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:735:16 • obsolete_colon_for_default_value
+  error • Undefined name 'conflicts' • lib/services/appwrite_sync_manager.dart:735:18 • undefined_identifier
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:736:19 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:736:19 • obsolete_colon_for_default_value
+  error • Undefined name 'errorMessage' • lib/services/appwrite_sync_manager.dart:736:21 • undefined_identifier
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:737:16 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:737:16 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/services/appwrite_sync_manager.dart:737:18 • non_constant_default_value
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/services/appwrite_sync_manager.dart:738:15 • named_parameter_outside_group
+  error • Using a colon as the separator before a default value is no longer supported • lib/services/appwrite_sync_manager.dart:738:15 • obsolete_colon_for_default_value
+  error • The default value of an optional parameter must be constant • lib/services/appwrite_sync_manager.dart:738:17 • non_constant_default_value
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:745:33 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:746:30 • undefined_identifier
+  error • Undefined name '_lastSyncTime' • lib/services/appwrite_sync_manager.dart:831:25 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:844:7 • undefined_identifier
+  error • Undefined name '_lastSyncTime' • lib/services/appwrite_sync_manager.dart:853:25 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:883:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:886:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:904:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:914:32 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:914:48 • undefined_identifier
+  error • Undefined name '_bookingsRepository' • lib/services/appwrite_sync_manager.dart:923:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:928:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:941:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:947:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:960:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:966:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:983:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:992:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:998:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1005:7 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:1014:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1020:11 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:1041:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1047:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1053:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1060:7 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:1069:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1075:11 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:1119:29 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:1128:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1135:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1175:11 • undefined_identifier
+  error • Undefined name '_errorHandler' • lib/services/appwrite_sync_manager.dart:1182:22 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:1187:13 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:1188:13 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1206:35 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1211:35 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1215:11 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1225:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1232:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1237:11 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1247:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1254:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1259:11 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1269:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1276:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1281:11 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1290:35 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1295:35 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1299:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1311:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1323:9 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1331:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1332:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1337:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1338:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1343:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1344:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1349:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1350:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1355:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1356:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1552:29 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1555:7 • undefined_identifier
+  error • The function 'sync' isn't defined • lib/services/appwrite_sync_manager.dart:1563:28 • undefined_function
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1566:7 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1578:5 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1580:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1582:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1583:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1588:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1591:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1592:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1596:7 • undefined_identifier
+  error • Undefined name '_currentStatus' • lib/services/appwrite_sync_manager.dart:1609:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1610:7 • undefined_identifier
+  error • Undefined name '_isPulling' • lib/services/appwrite_sync_manager.dart:1614:5 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1616:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1621:27 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1626:30 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1631:31 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1636:30 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1641:30 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1646:27 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1651:32 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1655:34 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1661:35 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1667:38 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1673:34 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1679:36 • undefined_identifier
+  error • Undefined name '_lastSyncTime' • lib/services/appwrite_sync_manager.dart:1684:7 • undefined_identifier
+  error • The function '_saveSettings' isn't defined • lib/services/appwrite_sync_manager.dart:1685:13 • undefined_function
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1689:31 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:1694:29 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1696:9 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1700:16 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1700:32 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1706:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1709:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1713:7 • undefined_identifier
+  error • Undefined name '_isPulling' • lib/services/appwrite_sync_manager.dart:1721:7 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1727:5 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1735:5 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1759:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1760:13 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1763:12 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1764:9 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1768:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1770:27 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1770:43 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1771:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1779:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1782:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1789:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1795:31 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1795:47 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1796:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1804:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1807:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1811:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1817:30 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1817:46 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1818:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1826:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1829:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1836:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1842:30 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1842:46 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1847:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1850:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1854:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1857:30 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1857:46 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1858:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1866:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1869:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1873:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1879:27 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1879:43 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1884:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1887:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1891:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1894:34 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1894:50 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1899:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1902:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1906:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1912:35 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1912:51 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1917:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1920:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1924:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1927:38 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1928:19 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1934:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1940:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1944:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1950:34 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1950:50 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1955:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1958:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1962:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1965:36 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1966:19 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1972:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1975:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1979:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1985:32 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:1985:48 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:1990:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1993:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:1997:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2000:33 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2000:49 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2004:27 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2008:17 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2015:11 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2019:7 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2036:7 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2043:7 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2206:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2213:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2217:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2221:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2229:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2229:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2238:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2245:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2250:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2255:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2263:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2263:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2272:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2279:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2284:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2289:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2297:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2297:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2306:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2313:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2317:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2321:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2329:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2329:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2338:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2345:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2349:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2354:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2362:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2362:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2371:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2378:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2382:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2386:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2394:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2394:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2403:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2410:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2414:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2418:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2426:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2426:29 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2435:15 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2445:15 • undefined_identifier
+  error • Undefined name 'outboxDao' • lib/services/appwrite_sync_manager.dart:2452:21 • undefined_identifier
+  error • Undefined name 'appwriteService' • lib/services/appwrite_sync_manager.dart:2456:11 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2465:13 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2465:29 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2473:5 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2480:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2481:13 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2486:7 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2488:7 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2496:7 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2497:13 • undefined_identifier
+  error • Undefined name '_lastSyncTime' • lib/services/appwrite_sync_manager.dart:2505:5 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2506:5 • undefined_identifier
+  error • Undefined name '_currentStatus' • lib/services/appwrite_sync_manager.dart:2510:35 • undefined_identifier
+  error • Undefined name '_lastSyncTime' • lib/services/appwrite_sync_manager.dart:2511:33 • undefined_identifier
+  error • Undefined name '_currentDeviceId' • lib/services/appwrite_sync_manager.dart:2512:34 • undefined_identifier
+  error • Undefined name '_currentStatus' • lib/services/appwrite_sync_manager.dart:2513:25 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2526:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2532:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2548:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2554:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2570:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2576:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2592:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2598:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2614:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2620:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2636:15 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2642:9 • undefined_identifier
+  error • Undefined name '_adapterRegistry' • lib/services/appwrite_sync_manager.dart:2660:30 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2667:31 • undefined_identifier
+  error • Undefined name 'database' • lib/services/appwrite_sync_manager.dart:2667:47 • undefined_identifier
+  error • Undefined name '_bookingsRepository' • lib/services/appwrite_sync_manager.dart:2672:21 • undefined_identifier
+  error • Undefined name '_logger' • lib/services/appwrite_sync_manager.dart:2678:9 • undefined_identifier
+  error • Expected a method, getter, setter or operator declaration • lib/services/appwrite_sync_manager.dart:2707:1 • expected_executable
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_status_manager.dart:15:11 • sort_constructors_first
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_status_manager.dart:17:3 • sort_constructors_first
+   info • Constructor declarations should be before non-constructor declarations • lib/services/appwrite_sync_status_manager.dart:239:3 • sort_constructors_first
+   info • Static method should be a constructor • lib/services/auto_backup_manager.dart:36:32 • prefer_constructors_over_static_methods
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/auto_backup_manager.dart:245:7 • unawaited_futures
+   info • 'isInDebugMode' is deprecated and shouldn't be used. Use WorkmanagerDebug handlers instead. This parameter has no effect • lib/services/auto_backup_task.dart:17:9 • deprecated_member_use
+   info • 'isInDebugMode' is deprecated and shouldn't be used. Use WorkmanagerDebug handlers instead. This parameter has no effect • lib/services/background_sync_service.dart:43:9 • deprecated_member_use
+   info • The type of the right operand ('ConnectivityResult') isn't a subtype or a supertype of the left operand ('List<ConnectivityResult>') • lib/services/battery_optimizer.dart:306:26 • unrelated_type_equality_checks
+  error • Arguments of a constant creation must be constant expressions • lib/services/booking_price_adjustment_service.dart:322:26 • const_with_non_constant_argument
+  error • Arguments of a constant creation must be constant expressions • lib/services/booking_price_adjustment_service.dart:332:26 • const_with_non_constant_argument
+   info • Statements in an if should be enclosed in a block • lib/services/comprehensive_appwrite_backup_service.dart:147:9 • curly_braces_in_flow_control_structures
+   info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead • lib/services/comprehensive_appwrite_backup_service.dart:237:55 • deprecated_member_use
+   info • 'createDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.createRow` instead • lib/services/comprehensive_appwrite_backup_service.dart:337:48 • deprecated_member_use
+   info • 'updateDocument' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.updateRow` instead • lib/services/comprehensive_appwrite_backup_service.dart:346:50 • deprecated_member_use
+   info • Static method should be a constructor • lib/services/connectivity_service.dart:62:34 • prefer_constructors_over_static_methods
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/booking_notes_dao.dart:65:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/booking_notes_dao.dart:98:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/booking_notes_dao.dart:127:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/bookings_dao.dart:103:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/bookings_dao.dart:134:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/bookings_dao.dart:161:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/cash_transactions_dao.dart:112:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/cash_transactions_dao.dart:146:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/cash_transactions_dao.dart:180:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/cash_transactions_dao.dart:219:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/cash_transactions_dao.dart:252:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/debts_dao.dart:87:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/debts_dao.dart:122:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/debts_dao.dart:150:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/employees_dao.dart:81:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/employees_dao.dart:113:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/employees_dao.dart:145:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/employees_dao.dart:172:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/employees_dao.dart:209:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/expenses_dao.dart:137:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/expenses_dao.dart:169:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/expenses_dao.dart:201:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/expenses_dao.dart:238:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/expenses_dao.dart:269:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/payments_dao.dart:154:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/payments_dao.dart:185:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/payments_dao.dart:212:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/rooms_dao.dart:81:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/rooms_dao.dart:114:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/rooms_dao.dart:147:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/rooms_dao.dart:181:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/shift_notes_dao.dart:75:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/shift_notes_dao.dart:132:16 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/shift_notes_dao.dart:168:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/shift_notes_dao.dart:203:14 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/daos/shift_notes_dao.dart:245:14 • unawaited_futures
+   info • The referenced name isn't visible in scope • lib/services/daos/sync_log_dao.dart:64:8 • comment_references
+warning • The value of the local variable 'count' isn't used • lib/services/daos/sync_log_dao.dart:116:13 • unused_local_variable
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/database_auto_backup_hooks.dart:32:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/database_auto_backup_hooks.dart:57:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/database_auto_backup_hooks.dart:83:34 • unawaited_futures
+warning • The value of the local variable 'nowHotelDay' isn't used • lib/services/enhanced_booking_calculation_service.dart:450:13 • unused_local_variable
+warning • The value of the local variable 'checkinHotelDay' isn't used • lib/services/enhanced_booking_calculation_service.dart:451:13 • unused_local_variable
+   info • Use 'late' for private members with a non-nullable type • lib/services/google_drive_auto_sync_engine.dart:89:28 • use_late_for_private_fields_and_variables
+   info • Use 'late' for private members with a non-nullable type • lib/services/google_drive_auto_sync_engine.dart:93:16 • use_late_for_private_fields_and_variables
+   info • Use 'forEach' and a tear-off rather than a 'for' loop to apply a function to every element • lib/services/google_drive_backup_service.dart:687:7 • prefer_foreach
+  error • The method 'pushAllLocalDataToAppwrite' isn't defined for the type 'AppwriteSyncManager' • lib/services/google_drive_backup_service.dart:1106:45 • undefined_method
+   info • Use 'forEach' and a tear-off rather than a 'for' loop to apply a function to every element • lib/services/google_drive_sync_service.dart:615:5 • prefer_foreach
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/google_drive_unified_sync_coordinator.dart:270:26 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/google_drive_unified_sync_coordinator.dart:291:5 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/google_drive_unified_sync_coordinator.dart:385:9 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/google_drive_unified_sync_coordinator.dart:767:28 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/google_drive_unified_sync_coordinator.dart:774:30 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/google_drive_unified_sync_coordinator.dart:827:7 • unawaited_futures
+   info • Static method should be a constructor • lib/services/local_db.dart:641:22 • prefer_constructors_over_static_methods
+   info • Missing whitespace between adjacent strings • lib/services/local_db.dart:1039:17 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/local_db.dart:1043:17 • missing_whitespace_between_adjacent_strings
+   info • Constructor declarations should be before non-constructor declarations • lib/services/logging/log_models.dart:11:9 • sort_constructors_first
+   info • Static method should be a constructor • lib/services/monitoring/sync_monitoring_system.dart:165:35 • prefer_constructors_over_static_methods
+   info • Static method should be a constructor • lib/services/realtime_sync_notifier.dart:10:35 • prefer_constructors_over_static_methods
+warning • Unused import: 'dart:convert' • lib/services/repositories/base_repository.dart:1:8 • unused_import
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository.dart:76:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository.dart:163:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository.dart:175:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_unified_example.dart:67:38 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_unified_example.dart:142:38 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_unified_example.dart:153:38 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_unified_example.dart:172:40 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_unified_example.dart:194:40 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_unified_example.dart:216:40 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_with_auto_backup.dart:67:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_with_auto_backup.dart:150:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/bookings_repository_with_auto_backup.dart:176:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/debts_repository.dart:62:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/debts_repository.dart:129:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/debts_repository.dart:141:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/employees_repository.dart:39:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/employees_repository.dart:71:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/employees_repository.dart:109:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/expenses_repository.dart:46:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/expenses_repository.dart:81:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/expenses_repository.dart:93:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/payments_repository.dart:85:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/payments_repository.dart:148:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/payments_repository.dart:169:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/rooms_repository.dart:38:32 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/rooms_repository.dart:63:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/rooms_repository.dart:89:34 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/repositories/rooms_repository.dart:101:34 • unawaited_futures
+   info • Static method should be a constructor • lib/services/smart_sync_manager.dart:31:31 • prefer_constructors_over_static_methods
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/smart_sync_manager.dart:147:7 • unawaited_futures
+   info • Static method should be a constructor • lib/services/sync/core/sync_orchestrator.dart:15:31 • prefer_constructors_over_static_methods
+  error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:39:15 • undefined_method
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:43 • expected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:44 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:44 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:44 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:45 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:45 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:45 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:46 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:46 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:46 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:47 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:47 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:47 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:48 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:48 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:48 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:49 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:49 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:49 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:50 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:50 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:50 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:51 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:51 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:51 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:52 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:52 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:52 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:53 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:39:53 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:53 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:39:54 • missing_identifier
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:39:54 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:39:55 • empty_statements
+  error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:53:15 • undefined_method
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:57 • expected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:58 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:58 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:58 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:59 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:59 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:59 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:60 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:60 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:60 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:61 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:61 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:61 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:62 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:62 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:62 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:63 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:63 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:63 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:64 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:64 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:64 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:65 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:65 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:65 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:66 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:53:66 • expected_token
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:66 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:53:67 • missing_identifier
+  error • Unexpected text ';' • lib/services/sync/core/sync_orchestrator.dart:53:67 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:53:68 • empty_statements
+  error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:62:19 • undefined_method
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:11 • expected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:12 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:12 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:12 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:13 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:13 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:13 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:14 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:14 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:14 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:15 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:15 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:15 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:16 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:16 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:16 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:17 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:17 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:17 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:18 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:18 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:18 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:19 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:19 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:19 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:20 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:65:20 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:20 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:65:21 • missing_identifier
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:65:21 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:65:22 • empty_statements
+warning • The left operand can't be null, so the right operand is never executed • lib/services/sync/core/sync_orchestrator.dart:75:69 • dead_null_aware_expression
+  error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:87:17 • undefined_method
+  error • Expected to find ')' • lib/services/sync/core/sync_orchestrator.dart:88:75 • expected_token
+  error • The method '_emitState' isn't defined for the type 'SyncOrchestrator' • lib/services/sync/core/sync_orchestrator.dart:92:17 • undefined_method
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:65 • expected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:66 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:66 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:66 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:67 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:67 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:67 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:68 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:68 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:68 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:69 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:69 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:69 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:70 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:70 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:70 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:71 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:71 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:71 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:72 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:72 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:72 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:73 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:73 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:73 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:74 • missing_identifier
+  error • Expected to find ';' • lib/services/sync/core/sync_orchestrator.dart:92:74 • expected_token
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:74 • unexpected_token
+  error • Expected an identifier • lib/services/sync/core/sync_orchestrator.dart:92:75 • missing_identifier
+  error • Unexpected text ')' • lib/services/sync/core/sync_orchestrator.dart:92:75 • unexpected_token
+   info • Unnecessary empty statement • lib/services/sync/core/sync_orchestrator.dart:92:76 • empty_statements
+   info • The local variable '_emitState' starts with an underscore • lib/services/sync/core/sync_orchestrator.dart:144:18 • no_leading_underscores_for_local_identifiers
+   info • Use the generic function type syntax to declare the parameter '_emitState' • lib/services/sync/core/sync_orchestrator.dart:144:18 • use_function_type_syntax_for_parameters
+  error • Expected to find ')' • lib/services/sync/core/sync_orchestrator.dart:144:46 • expected_token
+  error • Undefined name 'state' • lib/services/sync/core/sync_orchestrator.dart:146:28 • undefined_identifier
+   info • Use 'late' for private members with a non-nullable type • lib/services/sync/strategies/retry_strategy.dart:68:13 • use_late_for_private_fields_and_variables
+   info • 'isInDebugMode' is deprecated and shouldn't be used. Use WorkmanagerDebug handlers instead. This parameter has no effect • lib/services/sync/workers/sync_worker.dart:22:7 • deprecated_member_use
+   info • Static method should be a constructor • lib/services/sync_core/sync_error_handler.dart:58:31 • prefer_constructors_over_static_methods
+   info • Static method should be a constructor • lib/services/sync_core/sync_metrics.dart:99:26 • prefer_constructors_over_static_methods
+   info • Static method should be a constructor • lib/services/sync_core/sync_validator.dart:22:28 • prefer_constructors_over_static_methods
+   info • Invalid use of a private type in a public API • lib/services/sync_core/unified_lock_manager.dart:338:8 • library_private_types_in_public_api
+   info • Static method should be a constructor • lib/services/sync_error_recovery.dart:75:32 • prefer_constructors_over_static_methods
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/services/sync_guardian.dart:241:23 • unawaited_futures
+   info • Static method should be a constructor • lib/services/sync_health_monitor.dart:33:32 • prefer_constructors_over_static_methods
+   info • Static method should be a constructor • lib/services/sync_notification_manager.dart:11:38 • prefer_constructors_over_static_methods
+   info • Static method should be a constructor • lib/services/sync_orchestrator.dart:230:31 • prefer_constructors_over_static_methods
+   info • Uses 'await' on an instance of 'void', which is not a subtype of 'Future' • lib/services/sync_orchestrator.dart:588:5 • await_only_futures
+  error • This expression has a type of 'void' so its value can't be used • lib/services/sync_orchestrator.dart:588:11 • use_of_void_result
+   info • Static method should be a constructor • lib/services/sync_queue_service.dart:9:31 • prefer_constructors_over_static_methods
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:278:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:279:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:280:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:281:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:282:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:283:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:284:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:285:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:286:7 • missing_whitespace_between_adjacent_strings
+   info • Missing whitespace between adjacent strings • lib/services/sync_safety_layer.dart:287:7 • missing_whitespace_between_adjacent_strings
+  error • The method 'pushLocalChanges' isn't defined for the type 'AppwriteSyncManager' • lib/services/unified_sync_orchestrator.dart:419:31 • undefined_method
+  error • The method 'pullRemoteChanges' isn't defined for the type 'AppwriteSyncManager' • lib/services/unified_sync_orchestrator.dart:422:31 • undefined_method
+   info • Missing a newline at the beginning of a multiline string • lib/sync/data/drift_outbox_storage.dart:137:7 • leading_newlines_in_multiline_strings
+   info • Missing a newline at the beginning of a multiline string • lib/sync/data/drift_outbox_storage.dart:180:13 • leading_newlines_in_multiline_strings
+   info • Missing a newline at the beginning of a multiline string • lib/sync/data/drift_outbox_storage.dart:185:13 • leading_newlines_in_multiline_strings
+   info • Missing a newline at the beginning of a multiline string • lib/sync/data/drift_outbox_storage.dart:251:7 • leading_newlines_in_multiline_strings
+   info • Missing a newline at the beginning of a multiline string • lib/sync/data/drift_outbox_storage.dart:265:7 • leading_newlines_in_multiline_strings
+   info • Missing a newline at the beginning of a multiline string • lib/sync/data/drift_outbox_storage.dart:287:7 • leading_newlines_in_multiline_strings
+   info • Use 'forEach' and a tear-off rather than a 'for' loop to apply a function to every element • lib/sync/orchestrator/sync_orchestrator.dart:146:7 • prefer_foreach
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/sync/services/background_sync_service.dart:43:19 • unawaited_futures
+   info • 'isInDebugMode' is deprecated and shouldn't be used. Use WorkmanagerDebug handlers instead. This parameter has no effect • lib/sync/services/background_sync_service.dart:45:7 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/sync/services/realtime_sync_service.dart:136:20 • unawaited_futures
+   info • Assignment could be inlined in 'return' statement • lib/sync/vector_clock.dart:178:5 • join_return_with_assignment
+   info • Assignment could be inlined in 'return' statement • lib/sync/vector_clock.dart:184:5 • join_return_with_assignment
+   info • 'isInDebugMode' is deprecated and shouldn't be used. Use WorkmanagerDebug handlers instead. This parameter has no effect • lib/tasks/appwrite_auto_sync_task.dart:56:7 • deprecated_member_use
+   info • 'isInDebugMode' is deprecated and shouldn't be used. Use WorkmanagerDebug handlers instead. This parameter has no effect • lib/tasks/auto_sync_task.dart:95:7 • deprecated_member_use
+   info • Use 'isEven' rather than '% 2' • lib/utils/enhanced_pdf_utils.dart:419:28 • use_is_even_rather_than_modulo
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/utils/schema_verification_helper.dart:146:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/utils/schema_verification_helper.dart:147:35 • deprecated_member_use
+   info • 'red' is deprecated and shouldn't be used. Use (*.r * 255.0).round().clamp(0, 255) • lib/utils/theme.dart:252:23 • deprecated_member_use
+   info • 'green' is deprecated and shouldn't be used. Use (*.g * 255.0).round().clamp(0, 255) • lib/utils/theme.dart:252:38 • deprecated_member_use
+   info • 'blue' is deprecated and shouldn't be used. Use (*.b * 255.0).round().clamp(0, 255) • lib/utils/theme.dart:252:55 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion • lib/utils/theme.dart:266:30 • deprecated_member_use
+warning • The value of the local variable 'enabled' isn't used • lib/widgets/dashboard_sync_button.dart:87:13 • unused_local_variable
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/dashboard_sync_button.dart:145:30 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:156:32 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:171:32 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:182:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:209:32 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:227:32 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:257:30 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:263:17 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/dashboard_sync_button.dart:264:29 • prefer_const_literals_to_create_immutables
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:301:30 • use_build_context_synchronously
+   info • The expression has no effect and can be removed • lib/widgets/dashboard_sync_button.dart:308:56 • noop_primitive_operations
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:351:30 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/dashboard_sync_button.dart:368:30 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:387:32 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:420:32 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:431:30 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:435:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:438:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:440:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:443:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:452:23 • prefer_const_constructors
+  error • The method 'pushLocalChanges' isn't defined for the type 'AppwriteSyncManager' • lib/widgets/dashboard_sync_button.dart:472:54 • undefined_method
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:546:32 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:552:19 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/dashboard_sync_button.dart:553:31 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:554:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:555:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:556:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:557:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:559:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:564:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:567:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:571:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:576:25 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:580:32 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:582:24 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/dashboard_sync_button.dart:583:27 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:584:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:585:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:586:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:587:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:594:25 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:603:32 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:609:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:616:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:619:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:623:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:628:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:633:25 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/widgets/dashboard_sync_button.dart:656:30 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:658:22 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/dashboard_sync_button.dart:659:25 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:660:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:661:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:662:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:663:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/dashboard_sync_button.dart:670:23 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/dashboard_sync_button.dart:816:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/dashboard_sync_button.dart:823:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/dashboard_sync_button.dart:883:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/dashboard_sync_button.dart:943:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/dashboard_sync_button.dart:950:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/dashboard_sync_button.dart:1010:41 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/enhanced_sync_button.dart:94:26 • unawaited_futures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/enhanced_sync_button.dart:330:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/enhanced_sync_button.dart:332:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/enhanced_sync_button.dart:374:22 • deprecated_member_use
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/enhanced_sync_button.dart:397:26 • unawaited_futures
+  error • The method 'pushLocalChanges' isn't defined for the type 'AppwriteSyncManager' • lib/widgets/enhanced_sync_button.dart:404:33 • undefined_method
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/enhanced_sync_button.dart:440:26 • unawaited_futures
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/enhanced_sync_button.dart:482:5 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/enhanced_sync_button.dart:498:21 • use_build_context_synchronously
+   info • Missing an 'await' for the 'Future' computed by this expression • lib/widgets/enhanced_sync_button.dart:500:7 • unawaited_futures
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/enhanced_sync_button.dart:501:9 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/enhanced_sync_button.dart:657:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/enhanced_sync_button.dart:664:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/smart_sync_widgets.dart:34:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/smart_sync_widgets.dart:35:32 • deprecated_member_use
+
+1182 issues found. (ran in 10.4s)

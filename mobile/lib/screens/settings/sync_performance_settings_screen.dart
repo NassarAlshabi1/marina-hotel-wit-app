@@ -193,8 +193,8 @@ class _SyncPerformanceSettingsScreenState
           ],
         ),
         trailing: isSelected
-            ? Icon(Icons.check_circle, color: Colors.blue)
-            : Icon(Icons.radio_button_unchecked, color: Colors.grey),
+            ? const Icon(Icons.check_circle, color: Colors.blue)
+            : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
         onTap: _isLoading ? null : () => _applyProfile(key),
       ),
     );
@@ -421,8 +421,8 @@ class _SyncPerformanceSettingsScreenState
   }
 
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
-    final performanceStats = SyncPerformanceOptimizer.instance
-        .getPerformanceStatus();
+    final performanceStats =
+        SyncPerformanceOptimizer.instance.getPerformanceStatus();
     final usageStats = await DataUsageManager.instance.getUsageStats();
 
     return {...performanceStats, ...usageStats};

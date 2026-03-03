@@ -17,7 +17,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // File Types
-        SectionHeader(
+        const SectionHeader(
           title: 'أنواع الملفات المدعومة',
           icon: Icons.file_present,
         ),
@@ -26,7 +26,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Recent Operations
-        SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
+        const SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
         _buildRecentOperationsList(),
       ],
     );
@@ -101,8 +101,8 @@ class FileManagementTab extends ConsumerWidget {
     final crossAxisCount = width < 360
         ? 1
         : width < 600
-        ? 2
-        : 3;
+            ? 2
+            : 3;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -171,7 +171,7 @@ class FileManagementTab extends ConsumerWidget {
     }
 
     return Column(
-      children: operations.map((op) => _buildOperationItem(op)).toList(),
+      children: operations.map(_buildOperationItem).toList(),
     );
   }
 
@@ -180,7 +180,7 @@ class FileManagementTab extends ConsumerWidget {
     final isSuccess = operation['status'] == 'success';
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),

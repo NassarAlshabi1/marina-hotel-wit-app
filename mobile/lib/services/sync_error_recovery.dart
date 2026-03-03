@@ -7,17 +7,6 @@ enum RecoveryAction { retry, skip, rollback, escalate, pause }
 enum ErrorSeverity { low, medium, high, critical }
 
 class SyncError {
-  final String id;
-  final String operation;
-  final String table;
-  final String? recordId;
-  final String message;
-  final String? stackTrace;
-  final ErrorSeverity severity;
-  final bool isRetriable;
-  final DateTime timestamp;
-  int retryCount;
-
   SyncError({
     required this.id,
     required this.operation,
@@ -30,53 +19,60 @@ class SyncError {
     DateTime? timestamp,
     this.retryCount = 0,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String id;
+  final String operation;
+  final String table;
+  final String? recordId;
+  final String message;
+  final String? stackTrace;
+  final ErrorSeverity severity;
+  final bool isRetriable;
+  final DateTime timestamp;
+  int retryCount;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'operation': operation,
-    'table': table,
-    'recordId': recordId,
-    'message': message,
-    'severity': severity.name,
-    'isRetriable': isRetriable,
-    'timestamp': timestamp.toIso8601String(),
-    'retryCount': retryCount,
-  };
+        'id': id,
+        'operation': operation,
+        'table': table,
+        'recordId': recordId,
+        'message': message,
+        'severity': severity.name,
+        'isRetriable': isRetriable,
+        'timestamp': timestamp.toIso8601String(),
+        'retryCount': retryCount,
+      };
 }
 
 class RecoveryResult {
-  final bool success;
-  final RecoveryAction actionTaken;
-  final String? message;
-  final Duration duration;
-
   const RecoveryResult({
     required this.success,
     required this.actionTaken,
     this.message,
     required this.duration,
   });
+  final bool success;
+  final RecoveryAction actionTaken;
+  final String? message;
+  final Duration duration;
 }
 
 class RollbackPoint {
-  final String id;
-  final String description;
-  final DateTime timestamp;
-  final Map<String, List<Map<String, dynamic>>> snapshot;
-
   const RollbackPoint({
     required this.id,
     required this.description,
     required this.timestamp,
     required this.snapshot,
   });
+  final String id;
+  final String description;
+  final DateTime timestamp;
+  final Map<String, List<Map<String, dynamic>>> snapshot;
 }
 
 class SyncErrorRecovery {
+  SyncErrorRecovery._();
   static SyncErrorRecovery? _instance;
   static SyncErrorRecovery get instance => _instance ??= SyncErrorRecovery._();
-
-  SyncErrorRecovery._();
 
   final List<SyncError> _errorLog = [];
   final List<RollbackPoint> _rollbackPoints = [];
@@ -207,7 +203,6 @@ class SyncErrorRecovery {
               duration: DateTime.now().difference(startTime),
             );
           }
-          break;
 
         case RecoveryAction.rollback:
           if (rollbackOperation != null) {
@@ -226,7 +221,6 @@ class SyncErrorRecovery {
               duration: DateTime.now().difference(startTime),
             );
           }
-          break;
 
         case RecoveryAction.skip:
           return RecoveryResult(

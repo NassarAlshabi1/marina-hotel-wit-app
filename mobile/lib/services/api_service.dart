@@ -59,6 +59,7 @@ class ApiService {
   void _onConfigChanged() {
     _initializeDio();
   }
+
   static final ApiService I = ApiService._internal();
 
   late final Dio _dio;

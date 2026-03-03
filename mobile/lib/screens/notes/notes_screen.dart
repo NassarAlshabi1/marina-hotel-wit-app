@@ -98,7 +98,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -111,7 +111,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -124,7 +124,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -158,8 +158,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     final priorityColor = note.priority == 'high'
         ? Colors.red
         : note.priority == 'medium'
-        ? Colors.orange
-        : Colors.green;
+            ? Colors.orange
+            : Colors.green;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -220,13 +220,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       case 'read':
         await repo.markAsRead(note.id);
         _refreshData();
-        break;
       case 'edit':
         _editNote(note);
-        break;
       case 'delete':
         _deleteNote(note);
-        break;
     }
   }
 
@@ -258,7 +255,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
       _refreshData();
     }
@@ -299,7 +296,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: priority,
+                initialValue: priority,
                 decoration: const InputDecoration(
                   labelText: 'الأولوية',
                   border: OutlineInputBorder(),

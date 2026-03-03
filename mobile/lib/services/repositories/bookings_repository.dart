@@ -9,9 +9,9 @@ import '../../utils/time.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = BookingsDao(db, OutboxDao(db)),
-      derivedFields = BookingDerivedFieldsService(db);
+      : outbox = OutboxDao(db),
+        dao = BookingsDao(db, OutboxDao(db)),
+        derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
@@ -71,7 +71,7 @@ class BookingsRepository {
         discountStartDate: d.Value(discountStartDate),
       ),
     );
-    await syncLegacyDiscountToAdjustments(result);
+
     await derivedFields.refreshForBookingId(result);
     AutoBackupManager.instance.onDataChange(
       'bookings',
@@ -107,18 +107,14 @@ class BookingsRepository {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
-        roomNumber: roomNumber != null
-            ? d.Value(roomNumber)
-            : const d.Value.absent(),
-        guestName: guestName != null
-            ? d.Value(guestName)
-            : const d.Value.absent(),
-        guestPhone: guestPhone != null
-            ? d.Value(guestPhone)
-            : const d.Value.absent(),
-        guestIdType: guestIdType != null
-            ? d.Value(guestIdType)
-            : const d.Value.absent(),
+        roomNumber:
+            roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+        guestName:
+            guestName != null ? d.Value(guestName) : const d.Value.absent(),
+        guestPhone:
+            guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
+        guestIdType:
+            guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
         guestIdNumber: guestIdNumber != null
             ? d.Value(guestIdNumber)
             : const d.Value.absent(),
@@ -131,15 +127,13 @@ class BookingsRepository {
         guestNationality: guestNationality != null
             ? d.Value(guestNationality)
             : const d.Value.absent(),
-        guestEmail: guestEmail != null
-            ? d.Value(guestEmail)
-            : const d.Value.absent(),
+        guestEmail:
+            guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
         guestAddress: guestAddress != null
             ? d.Value(guestAddress)
             : const d.Value.absent(),
-        checkinDate: checkinDate != null
-            ? d.Value(checkinDate)
-            : const d.Value.absent(),
+        checkinDate:
+            checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
         checkoutDate: checkoutDate != null
             ? d.Value(checkoutDate)
             : const d.Value.absent(),
@@ -164,7 +158,7 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
-      await syncLegacyDiscountToAdjustments(id);
+
       await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange(
         'bookings',
@@ -214,7 +208,7 @@ class BookingsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
@@ -239,7 +233,8 @@ class BookingsRepository {
         .get();
 
     final hasMatch = existing.any(
-      (a) => a.adjustmentType == 0 &&
+      (a) =>
+          a.adjustmentType == 0 &&
           a.amount == discount &&
           a.effectiveHotelDay == effectiveHotelDay,
     );
@@ -255,7 +250,7 @@ class BookingsRepository {
             bookingLocalUuid: d.Value(booking.localUuid),
             bookingLocalId: d.Value(booking.id),
             adjustmentType: const d.Value(0),
-            amount: d.Value(discount.toDouble()),
+            amount: d.Value(discount),
             effectiveHotelDay: d.Value(effectiveHotelDay),
             isActive: const d.Value(true),
             reason: const d.Value('legacy_discount'),
@@ -272,7 +267,7 @@ class BookingsRepository {
 
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    return await (db.select(db.bookings)
+    return (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.status.equals('محجوزة'))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])

@@ -145,9 +145,8 @@ class ReportsScreen extends ConsumerWidget {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy = rooms
-          .where((r) => StatusUtils.isRoomOccupied(r.status))
-          .length;
+      final busy =
+          rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
       final occ = (busy * 100 / total).round();
       return BarChartGroupData(
         x: i,

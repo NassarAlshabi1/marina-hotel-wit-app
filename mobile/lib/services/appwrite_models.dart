@@ -2,19 +2,6 @@
 
 /// نموذج الجهاز المسجل
 class AppwriteDevice {
-  final String id;
-  final String deviceName;
-  final String deviceModel;
-  final String osVersion;
-  final DateTime lastSeen;
-  final DateTime? lastActive;
-  final String status; // 'active', 'inactive', 'suspended'
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final int version;
-  final String? origin;
-  final String? localUuid;
-
   AppwriteDevice({
     required this.id,
     required this.deviceName,
@@ -62,9 +49,8 @@ class AppwriteDevice {
       deviceModel: json['deviceModel'] ?? '',
       osVersion: json['osVersion'] ?? '',
       lastSeen: parseDate(json['lastSeen'], fallback: DateTime.now()),
-      lastActive: json.containsKey('lastActive')
-          ? parseDate(json['lastActive'])
-          : null,
+      lastActive:
+          json.containsKey('lastActive') ? parseDate(json['lastActive']) : null,
       status: json['status'] ?? 'active',
       createdAt: parseDate(json['createdAt'], fallback: DateTime.now()),
       updatedAt: parseDate(json['updatedAt'], fallback: DateTime.now()),
@@ -75,6 +61,18 @@ class AppwriteDevice {
       localUuid: json['localUuid']?.toString(),
     );
   }
+  final String id;
+  final String deviceName;
+  final String deviceModel;
+  final String osVersion;
+  final DateTime lastSeen;
+  final DateTime? lastActive;
+  final String status; // 'active', 'inactive', 'suspended'
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int version;
+  final String? origin;
+  final String? localUuid;
 
   Map<String, dynamic> toJson() {
     int toEpoch(DateTime value) => value.toUtc().millisecondsSinceEpoch ~/ 1000;
@@ -97,18 +95,6 @@ class AppwriteDevice {
 
 /// نموذج سجل المزامنة
 class AppwriteSyncLog {
-  final String id;
-  final String deviceId;
-  final String syncType; // 'push', 'pull', 'full'
-  final DateTime startTime;
-  final DateTime? endTime;
-  final String status; // 'in_progress', 'completed', 'failed', 'partial'
-  final int recordsPushed;
-  final int recordsPulled;
-  final int conflicts;
-  final String? errorMessage;
-  final Map<String, dynamic>? details;
-
   AppwriteSyncLog({
     required this.id,
     required this.deviceId,
@@ -140,6 +126,17 @@ class AppwriteSyncLog {
       details: json['details'],
     );
   }
+  final String id;
+  final String deviceId;
+  final String syncType; // 'push', 'pull', 'full'
+  final DateTime startTime;
+  final DateTime? endTime;
+  final String status; // 'in_progress', 'completed', 'failed', 'partial'
+  final int recordsPushed;
+  final int recordsPulled;
+  final int conflicts;
+  final String? errorMessage;
+  final Map<String, dynamic>? details;
 
   Map<String, dynamic> toJson() {
     return {
@@ -161,15 +158,6 @@ class AppwriteSyncLog {
 
 /// نموذج الغرفة (مبسط)
 class AppwriteRoom {
-  final String id;
-  final String roomNumber;
-  final String type;
-  final String status;
-  final double price;
-  final int floor;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
-
   AppwriteRoom({
     required this.id,
     required this.roomNumber,
@@ -195,6 +183,14 @@ class AppwriteRoom {
       lastModifiedBy: json['lastModifiedBy'],
     );
   }
+  final String id;
+  final String roomNumber;
+  final String type;
+  final String status;
+  final double price;
+  final int floor;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -211,18 +207,6 @@ class AppwriteRoom {
 
 /// نموذج الحجز (مبسط)
 class AppwriteBooking {
-  final String id;
-  final String roomId;
-  final String guestName;
-  final String guestPhone;
-  final DateTime checkIn;
-  final DateTime checkOut;
-  final String status;
-  final double totalAmount;
-  final double paidAmount;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
-
   AppwriteBooking({
     required this.id,
     required this.roomId,
@@ -258,6 +242,17 @@ class AppwriteBooking {
       lastModifiedBy: json['lastModifiedBy'],
     );
   }
+  final String id;
+  final String roomId;
+  final String guestName;
+  final String guestPhone;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final String status;
+  final double totalAmount;
+  final double paidAmount;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -277,15 +272,6 @@ class AppwriteBooking {
 
 /// نموذج الدفع (مبسط)
 class AppwritePayment {
-  final String id;
-  final String bookingId;
-  final double amount;
-  final String paymentMethod;
-  final DateTime paymentDate;
-  final String? notes;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
-
   AppwritePayment({
     required this.id,
     required this.bookingId,
@@ -313,6 +299,14 @@ class AppwritePayment {
       lastModifiedBy: json['lastModifiedBy'],
     );
   }
+  final String id;
+  final String bookingId;
+  final double amount;
+  final String paymentMethod;
+  final DateTime paymentDate;
+  final String? notes;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -329,15 +323,6 @@ class AppwritePayment {
 
 /// نموذج المصروف (مبسط)
 class AppwriteExpense {
-  final String id;
-  final String category;
-  final double amount;
-  final String description;
-  final DateTime expenseDate;
-  final String? employeeId;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
-
   AppwriteExpense({
     required this.id,
     required this.category,
@@ -365,6 +350,14 @@ class AppwriteExpense {
       lastModifiedBy: json['lastModifiedBy'],
     );
   }
+  final String id;
+  final String category;
+  final double amount;
+  final String description;
+  final DateTime expenseDate;
+  final String? employeeId;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -381,15 +374,6 @@ class AppwriteExpense {
 
 /// نموذج الموظف (مبسط)
 class AppwriteEmployee {
-  final String id;
-  final String name;
-  final String phone;
-  final String position;
-  final double salary;
-  final String status;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
-
   AppwriteEmployee({
     required this.id,
     required this.name,
@@ -415,6 +399,14 @@ class AppwriteEmployee {
       lastModifiedBy: json['lastModifiedBy'],
     );
   }
+  final String id;
+  final String name;
+  final String phone;
+  final String position;
+  final double salary;
+  final String status;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -431,15 +423,6 @@ class AppwriteEmployee {
 
 /// نموذج الدين (مبسط)
 class AppwriteDebt {
-  final String id;
-  final String bookingId;
-  final String guestName;
-  final double amount;
-  final String status;
-  final DateTime dueDate;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
-
   AppwriteDebt({
     required this.id,
     required this.bookingId,
@@ -467,6 +450,14 @@ class AppwriteDebt {
       lastModifiedBy: json['lastModifiedBy'],
     );
   }
+  final String id;
+  final String bookingId;
+  final String guestName;
+  final double amount;
+  final String status;
+  final DateTime dueDate;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {

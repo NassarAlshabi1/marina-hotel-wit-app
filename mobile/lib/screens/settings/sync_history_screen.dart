@@ -4,11 +4,12 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/sync_log_dao.dart';
 
 /// Provider لسجل المزامنة
-final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter>(
+final syncHistoryProvider =
+    FutureProvider.family<List<SyncLogEntry>, SyncFilter>(
   (ref, filter) async {
     final db = ref.read(databaseProvider);
     final dao = SyncLogDao(db);
-    return await dao.getSyncHistory(
+    return dao.getSyncHistory(
       limit: filter.limit,
       offset: filter.offset,
       direction: filter.direction,
@@ -18,17 +19,16 @@ final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter
 );
 
 class SyncFilter {
-  final int limit;
-  final int offset;
-  final String? direction;
-  final String? status;
-
   const SyncFilter({
     this.limit = 100,
     this.offset = 0,
     this.direction,
     this.status,
   });
+  final int limit;
+  final int offset;
+  final String? direction;
+  final String? status;
 }
 
 class SyncHistoryScreen extends ConsumerStatefulWidget {
@@ -129,7 +129,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -138,7 +138,8 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           ),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Container(
             width: 48,
             height: 48,
@@ -191,7 +192,8 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+                  Icon(Icons.access_time,
+                      size: 14, color: Colors.grey.shade600),
                   const SizedBox(width: 4),
                   Text(
                     _formatDateTime(log.createdAt),
@@ -212,7 +214,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                       '${log.recordsCount} سجل',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isPull ? Colors.blue.shade700 : Colors.purple.shade700,
+                        color: isPull
+                            ? Colors.blue.shade700
+                            : Colors.purple.shade700,
                       ),
                     ),
                   ],
@@ -240,7 +244,8 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 16),
+                      Icon(Icons.error_outline,
+                          color: Colors.red.shade700, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -292,7 +297,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                     child: Center(
                       child: Icon(
                         log.direction == 'pull' ? Icons.download : Icons.upload,
-                        color: log.direction == 'pull' ? Colors.blue : Colors.purple,
+                        color: log.direction == 'pull'
+                            ? Colors.blue
+                            : Colors.purple,
                         size: 24,
                       ),
                     ),
@@ -303,7 +310,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          log.direction == 'pull' ? 'سحب من السيرفر' : 'رفع إلى السيرفر',
+                          log.direction == 'pull'
+                              ? 'سحب من السيرفر'
+                              : 'رفع إلى السيرفر',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -322,12 +331,19 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                 ],
               ),
               const Divider(height: 32),
-              _buildDetailRow('الحالة', log.status == 'success' ? 'نجح' : log.status == 'partial' ? 'نجح جزئياً' : 'فشل'),
+              _buildDetailRow(
+                  'الحالة',
+                  log.status == 'success'
+                      ? 'نجح'
+                      : log.status == 'partial'
+                          ? 'نجح جزئياً'
+                          : 'فشل'),
               _buildDetailRow('الجهاز', log.deviceId),
               _buildDetailRow('الوجهة', log.target ?? 'غير معروف'),
               _buildDetailRow('وقت البدء', _formatFullDateTime(log.createdAt)),
               if (log.completedAt != null)
-                _buildDetailRow('وقت الانتهاء', _formatFullDateTime(log.completedAt!)),
+                _buildDetailRow(
+                    'وقت الانتهاء', _formatFullDateTime(log.completedAt!)),
               if (log.durationMs != null)
                 _buildDetailRow('المدة', '${log.durationMs} مللي ثانية'),
               if (log.recordsCount != null)
@@ -439,18 +455,19 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String?>(
-                value: _selectedDirection,
+                initialValue: _selectedDirection,
                 decoration: const InputDecoration(labelText: 'النوع'),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('الكل')),
                   DropdownMenuItem(value: 'pull', child: Text('سحب')),
                   DropdownMenuItem(value: 'push', child: Text('رفع')),
                 ],
-                onChanged: (value) => setState(() => _selectedDirection = value),
+                onChanged: (value) =>
+                    setState(() => _selectedDirection = value),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String?>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 decoration: const InputDecoration(labelText: 'الحالة'),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('الكل')),

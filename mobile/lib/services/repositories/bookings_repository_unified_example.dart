@@ -6,8 +6,8 @@ import '../unified_sync_orchestrator.dart';
 
 class BookingsRepositoryUnified {
   BookingsRepositoryUnified(this.db)
-    : outbox = OutboxDao(db),
-      dao = BookingsDao(db, OutboxDao(db));
+      : outbox = OutboxDao(db),
+        dao = BookingsDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final OutboxDao outbox;
@@ -67,7 +67,6 @@ class BookingsRepositoryUnified {
     UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'INSERT',
-      count: 1,
     );
 
     return result;
@@ -96,18 +95,14 @@ class BookingsRepositoryUnified {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
-        roomNumber: roomNumber != null
-            ? d.Value(roomNumber)
-            : const d.Value.absent(),
-        guestName: guestName != null
-            ? d.Value(guestName)
-            : const d.Value.absent(),
-        guestPhone: guestPhone != null
-            ? d.Value(guestPhone)
-            : const d.Value.absent(),
-        guestIdType: guestIdType != null
-            ? d.Value(guestIdType)
-            : const d.Value.absent(),
+        roomNumber:
+            roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+        guestName:
+            guestName != null ? d.Value(guestName) : const d.Value.absent(),
+        guestPhone:
+            guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
+        guestIdType:
+            guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
         guestIdNumber: guestIdNumber != null
             ? d.Value(guestIdNumber)
             : const d.Value.absent(),
@@ -120,15 +115,13 @@ class BookingsRepositoryUnified {
         guestNationality: guestNationality != null
             ? d.Value(guestNationality)
             : const d.Value.absent(),
-        guestEmail: guestEmail != null
-            ? d.Value(guestEmail)
-            : const d.Value.absent(),
+        guestEmail:
+            guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
         guestAddress: guestAddress != null
             ? d.Value(guestAddress)
             : const d.Value.absent(),
-        checkinDate: checkinDate != null
-            ? d.Value(checkinDate)
-            : const d.Value.absent(),
+        checkinDate:
+            checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
         checkoutDate: checkoutDate != null
             ? d.Value(checkoutDate)
             : const d.Value.absent(),
@@ -149,7 +142,6 @@ class BookingsRepositoryUnified {
     UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'UPDATE',
-      count: 1,
     );
 
     return result;
@@ -161,7 +153,6 @@ class BookingsRepositoryUnified {
     UnifiedSyncOrchestrator.instance.notifyLocalChange(
       table: 'bookings',
       operation: 'DELETE',
-      count: 1,
     );
   }
 
@@ -181,7 +172,6 @@ class BookingsRepositoryUnified {
       UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_INSERT',
-        count: insertedCount,
       );
     }
 
@@ -204,7 +194,6 @@ class BookingsRepositoryUnified {
       UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_UPDATE',
-        count: updatedCount,
       );
     }
 
@@ -227,7 +216,6 @@ class BookingsRepositoryUnified {
       UnifiedSyncOrchestrator.instance.notifyLocalChange(
         table: 'bookings',
         operation: 'BATCH_DELETE',
-        count: deletedCount,
       );
     }
 

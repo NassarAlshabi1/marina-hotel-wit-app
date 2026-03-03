@@ -48,26 +48,35 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
             _asString(json, 'local_uuid', src) ??
             IdGen.uuid(),
       ),
-      operationType: _vStr(json, 'operationType', src, altKey: 'operation_type', fallback: ''),
-      entityType: _vStr(json, 'entityType', src, altKey: 'entity_type', fallback: ''),
-      entityUuid: _vStr(json, 'entityUuid', src, altKey: 'entity_uuid', fallback: ''),
+      operationType: _vStr(json, 'operationType', src,
+          altKey: 'operation_type', fallback: ''),
+      entityType:
+          _vStr(json, 'entityType', src, altKey: 'entity_type', fallback: ''),
+      entityUuid:
+          _vStr(json, 'entityUuid', src, altKey: 'entity_uuid', fallback: ''),
       entityId: _vInt(json, 'entityId', src, altKey: 'entity_id'),
-      previousState: _vStr(json, 'previousState', src, altKey: 'previous_state'),
+      previousState:
+          _vStr(json, 'previousState', src, altKey: 'previous_state'),
       newState: _vStr(json, 'newState', src, altKey: 'new_state'),
-      changedFields: _vStr(json, 'changedFields', src, altKey: 'changed_fields'),
-      performedBy: _vStr(json, 'performedBy', src, altKey: 'performed_by', fallback: ''),
+      changedFields:
+          _vStr(json, 'changedFields', src, altKey: 'changed_fields'),
+      performedBy:
+          _vStr(json, 'performedBy', src, altKey: 'performed_by', fallback: ''),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
       ipAddress: _vStr(json, 'ipAddress', src, altKey: 'ip_address'),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src,
+          altKey: 'hotel_day_key', fallback: ''),
       timestamp: d.Value(timestamp),
       timestampIso: _vStr(
         json,
         'timestampIso',
         src,
         altKey: 'timestamp_iso',
-        fallback: DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toIso8601String(),
+        fallback: DateTime.fromMillisecondsSinceEpoch(timestamp * 1000)
+            .toIso8601String(),
       ),
-      isFinancial: _vBool(json, 'isFinancial', src, altKey: 'is_financial', fallback: false),
+      isFinancial: _vBool(json, 'isFinancial', src,
+          altKey: 'is_financial', fallback: false),
       amountImpact: _vInt(json, 'amountImpact', src, altKey: 'amount_impact'),
       createdAt: d.Value(createdAt),
     );
@@ -105,8 +114,7 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v =
-      _asInt(json, key, src) ??
+  final v = _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -119,8 +127,7 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v =
-      _asString(json, key, src) ??
+  final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -133,8 +140,7 @@ d.Value<bool> _vBool(
   String? altKey,
   bool? fallback,
 }) {
-  final v =
-      _asBool(json, key, src) ??
+  final v = _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);

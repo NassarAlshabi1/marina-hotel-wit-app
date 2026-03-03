@@ -10,18 +10,18 @@ import '../core/sync_orchestrator.dart';
 class SyncWorker {
   static const String taskName = 'com.marina.sync.background';
   static const String periodicTaskName = 'com.marina.sync.periodic';
-  
+
   static bool _isInitialized = false;
 
   /// تهيئة WorkManager
   static Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     await Workmanager().initialize(
       callbackDispatcher,
       isInDebugMode: kDebugMode,
     );
-    
+
     _isInitialized = true;
   }
 
@@ -30,7 +30,7 @@ class SyncWorker {
     Duration frequency = const Duration(hours: 1),
   }) async {
     if (!_isInitialized) await initialize();
-    
+
     await Workmanager().registerPeriodicTask(
       periodicTaskName,
       taskName,
@@ -39,10 +39,11 @@ class SyncWorker {
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
-    
-    developer.log('✅ تم جدولة المزامنة الدورية كل ${frequency.inMinutes} دقيقة');
+
+    developer
+        .log('✅ تم جدولة المزامنة الدورية كل ${frequency.inMinutes} دقيقة');
   }
 
   /// إلغاء المزامنة الدورية
@@ -54,7 +55,7 @@ class SyncWorker {
   /// تنفيذ مزامنة فورية في الخلفية
   static Future<void> syncNowInBackground() async {
     if (!_isInitialized) await initialize();
-    
+
     await Workmanager().registerOneOffTask(
       'sync-${DateTime.now().millisecondsSinceEpoch}',
       taskName,
@@ -71,11 +72,11 @@ class SyncWorker {
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     developer.log('🔄 تنفيذ مهمة مزامنة في الخلفية: $task');
-    
+
     try {
       final orchestrator = SyncOrchestrator.instance;
       final result = await orchestrator.syncNow();
-      
+
       if (result.isSuccess) {
         developer.log('✅ تمت المزامنة في الخلفية بنجاح');
         return Future.value(true);

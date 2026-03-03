@@ -16,16 +16,6 @@ import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
-  final String phase;
-  final String message;
-  final DateTime timestamp;
-  final String? checksum;
-  final int outboxCount;
-  final String? lastError;
-  final DateTime? lastPushAt;
-  final DateTime? lastPullAt;
-  final DateTime? lastSnapshotAt;
-
   const UnifiedSyncState({
     required this.phase,
     required this.message,
@@ -37,6 +27,15 @@ class UnifiedSyncState {
     this.lastPullAt,
     this.lastSnapshotAt,
   });
+  final String phase;
+  final String message;
+  final DateTime timestamp;
+  final String? checksum;
+  final int outboxCount;
+  final String? lastError;
+  final DateTime? lastPushAt;
+  final DateTime? lastPullAt;
+  final DateTime? lastSnapshotAt;
 
   UnifiedSyncState copyWith({
     String? phase,
@@ -166,7 +165,6 @@ class UnifiedSyncOrchestrator {
                 timestamp: DateTime.now(),
               ),
             );
-            break;
         }
       });
     }
@@ -181,12 +179,12 @@ class UnifiedSyncOrchestrator {
               timestamp: DateTime.now(),
               lastPushAt:
                   result.pushedChanges != null && result.pushedChanges! > 0
-                  ? DateTime.now()
-                  : _state.lastPushAt,
+                      ? DateTime.now()
+                      : _state.lastPushAt,
               lastPullAt:
                   result.pulledChanges != null && result.pulledChanges! > 0
-                  ? DateTime.now()
-                  : _state.lastPullAt,
+                      ? DateTime.now()
+                      : _state.lastPullAt,
             ),
           );
         } else {
@@ -291,7 +289,7 @@ class UnifiedSyncOrchestrator {
       if (googleDriveEnabled) {
         success =
             await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
-            success;
+                success;
       }
 
       if (forceSnapshot) {
@@ -383,17 +381,17 @@ class UnifiedSyncOrchestrator {
   Future<String> _computeUnifiedChecksum() async {
     final db = _database!;
     final results = await Future.wait([
-      (db.select(db.rooms)).get(),
-      (db.select(db.bookings)).get(),
-      (db.select(db.bookingNotes)).get(),
-      (db.select(db.employees)).get(),
-      (db.select(db.expenses)).get(),
-      (db.select(db.cashTransactions)).get(),
-      (db.select(db.payments)).get(),
-      (db.select(db.debts)).get(),
-      (db.select(db.bookingNights)).get(),
-      (db.select(db.hotelDayLedger)).get(),
-      (db.select(db.shiftNotes)).get(),
+      db.select(db.rooms).get(),
+      db.select(db.bookings).get(),
+      db.select(db.bookingNotes).get(),
+      db.select(db.employees).get(),
+      db.select(db.expenses).get(),
+      db.select(db.cashTransactions).get(),
+      db.select(db.payments).get(),
+      db.select(db.debts).get(),
+      db.select(db.bookingNights).get(),
+      db.select(db.hotelDayLedger).get(),
+      db.select(db.shiftNotes).get(),
     ]);
 
     final snapshot = {

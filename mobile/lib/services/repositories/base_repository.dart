@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:drift/drift.dart';
@@ -5,6 +6,8 @@ import 'package:drift/drift.dart';
 import '../local_db.dart';
 import '../adapters/entity_adapter.dart';
 import '../adapters/source.dart';
+import '../../sync/vector_clock.dart';
+import '../../sync/models/sync_models.dart';
 
 class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   BaseRepository({
@@ -25,6 +28,23 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   }) async {
     final refs = await adapter.resolveRefs(db, json, src: src);
     final comp = adapter.fromJson(json, src: src, refs: refs);
+
+    // التحقق من التعارض قبل الإدراج/التحديث
+    final localUuid = _extractUuid(json);
+    if (localUuid != null) {
+      final existing = await _getLocalRecordByUuid(localUuid);
+      if (existing != null) {
+        final shouldUpdate = _shouldUpdateLocal(existing, json);
+        if (!shouldUpdate) {
+          developer.log(
+            'Skipping upsert for ${table.actualTableName}/$localUuid: Local record is newer or concurrent',
+            name: 'BaseRepository',
+          );
+          return 0; // تخطي التحديث لأن المحلي أحدث أو متعارض
+        }
+      }
+    }
+
     final targets = await _resolveConflictTargets();
     Object? lastError;
     StackTrace? lastStack;
@@ -69,6 +89,91 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     return db.into(table).insertOnConflictUpdate(comp);
   }
 
+  /// استخراج UUID من البيانات
+  String? _extractUuid(Map<String, dynamic> json) {
+    return json['local_uuid']?.toString() ??
+        json['localUuid']?.toString() ??
+        json['booking_uuid']?.toString() ??
+        json['uuid']?.toString();
+  }
+
+  /// جلب السجل المحلي باستخدام UUID
+  Future<Map<String, dynamic>?> _getLocalRecordByUuid(String uuid) async {
+    try {
+      final query = db.select(table)
+        ..where((t) {
+          final columns = table.$columns;
+          final uuidColumn = columns.firstWhere(
+            (c) => c.$name == 'local_uuid' || c.$name == 'localUuid',
+            orElse: () => throw Exception('No UUID column found'),
+          );
+          return (uuidColumn as TextColumn).equals(uuid);
+        });
+
+      final result = await query.getSingleOrNull();
+      if (result == null) return null;
+
+      // تحويل الكائن إلى Map
+      return (result as dynamic).toJson();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// تحديد ما إذا كان يجب تحديث السجل المحلي بناءً على البيانات القادمة
+  bool _shouldUpdateLocal(
+    Map<String, dynamic> local,
+    Map<String, dynamic> remote,
+  ) {
+    // 1. محاولة استخدام Vector Clock
+    final remoteClockStr = remote['vector_clock']?.toString() ??
+        remote['vectorClock']?.toString();
+    final localClockStr =
+        local['vector_clock']?.toString() ?? local['vectorClock']?.toString();
+
+    if (remoteClockStr != null && localClockStr != null) {
+      try {
+        final remoteClock = VectorClock.fromJson(remoteClockStr);
+        final localClock = VectorClock.fromJson(localClockStr);
+        final comparison = remoteClock.compare(localClock);
+
+        if (comparison == VectorClockComparison.remoteNewer) return true;
+        if (comparison == VectorClockComparison.localNewer) return false;
+        // في حالة التساوي أو التعارض (concurrent)، ننتقل للمقارنة بالوقت
+      } catch (e) {
+        // فشل تحليل الساعة، ننتقل للوقت
+      }
+    }
+
+    // 2. محاولة استخدام updatedAt أو lastModified
+    final remoteTs = _extractTimestamp(remote);
+    final localTs = _extractTimestamp(local);
+
+    if (remoteTs != null && localTs != null) {
+      return remoteTs > localTs;
+    }
+
+    // 3. افتراضياً، التحديث القادم من السيرفر يفوز إذا لم تتوفر معلومات
+    return true;
+  }
+
+  /// استخراج الطابع الزمني من البيانات
+  int? _extractTimestamp(Map<String, dynamic> data) {
+    final ts = data['updated_at'] ??
+        data['updatedAt'] ??
+        data['last_modified'] ??
+        data['lastModified'] ??
+        data['last_modified_epoch'] ??
+        data['lastModifiedEpoch'];
+
+    if (ts is int) return ts;
+    if (ts is String) {
+      final parsed = DateTime.tryParse(ts);
+      if (parsed != null) return parsed.millisecondsSinceEpoch;
+    }
+    return null;
+  }
+
   Map<String, dynamic> toJsonForSource(D row, {required Source src}) {
     return adapter.toJson(row, src: src);
   }
@@ -86,9 +191,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final targets = <List<Column>>[];
     final sanitizedName = tableName.replaceAll("'", "''");
 
-    final indexRows = await db
-        .customSelect("PRAGMA index_list('$sanitizedName')")
-        .get();
+    final indexRows =
+        await db.customSelect("PRAGMA index_list('$sanitizedName')").get();
     for (final row in indexRows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
       if (!isUnique) {
@@ -99,9 +203,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         continue;
       }
       final sanitizedIndex = indexName.replaceAll("'", "''");
-      final infoRows = await db
-          .customSelect("PRAGMA index_info('$sanitizedIndex')")
-          .get();
+      final infoRows =
+          await db.customSelect("PRAGMA index_info('$sanitizedIndex')").get();
       final cols = <Column>[];
       for (final info in infoRows) {
         final name = info.data['name']?.toString();

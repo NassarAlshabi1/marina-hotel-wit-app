@@ -4,16 +4,15 @@ import '../../utils/currency_formatter.dart';
 
 /// Widget لعرض بطاقة ملخص المدفوعات للحجز
 class PaymentSummaryWidget extends StatelessWidget {
-  final BookingPaymentSummary summary;
-  final VoidCallback? onTap;
-  final bool compact;
-
   const PaymentSummaryWidget({
     super.key,
     required this.summary,
     this.onTap,
     this.compact = false,
   });
+  final BookingPaymentSummary summary;
+  final VoidCallback? onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +75,7 @@ class PaymentSummaryWidget extends StatelessWidget {
               ),
 
               if (!compact) ...[
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
 
                 // شريط التقدم
                 ClipRRect(
@@ -158,11 +157,6 @@ class PaymentSummaryWidget extends StatelessWidget {
 
 /// Widget لعرض بطاقة دفعة واحدة
 class PaymentCard extends StatelessWidget {
-  final Payment payment;
-  final VoidCallback? onTap;
-  final List<Widget>? actions;
-  final bool showBookingId;
-
   const PaymentCard({
     super.key,
     required this.payment,
@@ -170,6 +164,10 @@ class PaymentCard extends StatelessWidget {
     this.actions,
     this.showBookingId = true,
   });
+  final Payment payment;
+  final VoidCallback? onTap;
+  final List<Widget>? actions;
+  final bool showBookingId;
 
   @override
   Widget build(BuildContext context) {
@@ -357,10 +355,9 @@ class PaymentCard extends StatelessWidget {
 
 /// Widget لعرض شارة حالة الدفعة
 class PaymentStatusBadge extends StatelessWidget {
+  const PaymentStatusBadge({super.key, required this.status, this.fontSize});
   final PaymentStatus status;
   final double? fontSize;
-
-  const PaymentStatusBadge({super.key, required this.status, this.fontSize});
 
   @override
   Widget build(BuildContext context) {
@@ -385,16 +382,15 @@ class PaymentStatusBadge extends StatelessWidget {
 
 /// Widget لعرض طريقة الدفع
 class PaymentMethodChip extends StatelessWidget {
-  final PaymentMethod method;
-  final bool isSelected;
-  final VoidCallback? onTap;
-
   const PaymentMethodChip({
     super.key,
     required this.method,
     this.isSelected = false,
     this.onTap,
   });
+  final PaymentMethod method;
+  final bool isSelected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -433,24 +429,21 @@ class PaymentMethodChip extends StatelessWidget {
 
 /// Widget لعرض إحصائيات المدفوعات
 class PaymentStatsWidget extends StatelessWidget {
-  final List<Payment> payments;
-  final String title;
-
   const PaymentStatsWidget({
     super.key,
     required this.payments,
     required this.title,
   });
+  final List<Payment> payments;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
-    final completedPayments = payments
-        .where((p) => p.status == PaymentStatus.completed)
-        .length;
-    final pendingPayments = payments
-        .where((p) => p.status == PaymentStatus.pending)
-        .length;
+    final completedPayments =
+        payments.where((p) => p.status == PaymentStatus.completed).length;
+    final pendingPayments =
+        payments.where((p) => p.status == PaymentStatus.pending).length;
 
     final methodStats = <PaymentMethod, int>{};
     for (final payment in payments) {
@@ -615,16 +608,15 @@ class PaymentStatsWidget extends StatelessWidget {
 
 /// Widget لاختيار طريقة الدفع
 class PaymentMethodSelector extends StatelessWidget {
-  final PaymentMethod? selectedMethod;
-  final Function(PaymentMethod) onMethodSelected;
-  final List<PaymentMethod> availableMethods;
-
   const PaymentMethodSelector({
     super.key,
     this.selectedMethod,
     required this.onMethodSelected,
     this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
   });
+  final PaymentMethod? selectedMethod;
+  final Function(PaymentMethod) onMethodSelected;
+  final List<PaymentMethod> availableMethods;
 
   @override
   Widget build(BuildContext context) {
@@ -655,9 +647,8 @@ class PaymentMethodSelector extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? method.color
-                      : method.color.withOpacity(0.1),
+                  color:
+                      isSelected ? method.color : method.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: method.color,
@@ -697,12 +688,6 @@ class PaymentMethodSelector extends StatelessWidget {
 
 /// Widget لعرض ملخص الفاتورة
 class InvoiceSummaryWidget extends StatelessWidget {
-  final double totalAmount;
-  final double paidAmount;
-  final double remainingAmount;
-  final int nights;
-  final double roomRate;
-
   const InvoiceSummaryWidget({
     super.key,
     required this.totalAmount,
@@ -711,6 +696,11 @@ class InvoiceSummaryWidget extends StatelessWidget {
     required this.nights,
     required this.roomRate,
   });
+  final double totalAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final int nights;
+  final double roomRate;
 
   @override
   Widget build(BuildContext context) {
@@ -790,12 +780,6 @@ class InvoiceSummaryWidget extends StatelessWidget {
 
 /// Widget لزر العمليات السريعة
 class QuickPaymentButton extends StatelessWidget {
-  final String label;
-  final double amount;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onPressed;
-
   const QuickPaymentButton({
     super.key,
     required this.label,
@@ -804,6 +788,11 @@ class QuickPaymentButton extends StatelessWidget {
     required this.color,
     required this.onPressed,
   });
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {

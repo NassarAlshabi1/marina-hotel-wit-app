@@ -19,7 +19,8 @@ class RecalculateBookingNightsMigration {
     // الحصول على جميع الحجوزات النشطة (غير المحذوفة)
     final bookings = await (db.select(
       db.bookings,
-    )..where((b) => b.deletedAt.isNull())).get();
+    )..where((b) => b.deletedAt.isNull()))
+        .get();
 
     if (bookings.isEmpty) {
       debugPrint('✅ No bookings found');
@@ -66,7 +67,8 @@ class RecalculateBookingNightsMigration {
 
       final bookings = await (db.select(
         db.bookings,
-      )..where((b) => b.deletedAt.isNull())).get();
+      )..where((b) => b.deletedAt.isNull()))
+          .get();
 
       report.totalBookingsFound = bookings.length;
 
@@ -92,7 +94,8 @@ class RecalculateBookingNightsMigration {
           // الحصول على القيم الجديدة
           final updatedBooking = await (db.select(
             db.bookings,
-          )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+          )..where((b) => b.id.equals(booking.id)))
+              .getSingleOrNull();
 
           if (updatedBooking != null) {
             report.recalculatedBookings.add(
@@ -108,8 +111,7 @@ class RecalculateBookingNightsMigration {
                 newCalculatedNights: updatedBooking.calculatedNights,
                 oldTotalDue: oldTotalDue,
                 newTotalDue: updatedBooking.totalDueCached,
-                changed:
-                    oldExpectedNights != updatedBooking.expectedNights ||
+                changed: oldExpectedNights != updatedBooking.expectedNights ||
                     oldCalculatedNights != updatedBooking.calculatedNights ||
                     (oldTotalDue - updatedBooking.totalDueCached).abs() > 0.01,
               ),
@@ -166,9 +168,8 @@ class RecalculationReport {
       'changedBookings': changedBookingsCount,
       'errors': errors,
       'duration': duration?.inMilliseconds,
-      'recalculatedBookings': recalculatedBookings
-          .map((b) => b.toJson())
-          .toList(),
+      'recalculatedBookings':
+          recalculatedBookings.map((b) => b.toJson()).toList(),
     };
   }
 
@@ -189,17 +190,16 @@ class RecalculationReport {
 
     if (errors.isNotEmpty) {
       buffer.writeln('\n❌ Errors (${errors.length}):');
-      for (var error in errors) {
+      for (final error in errors) {
         buffer.writeln('  • $error');
       }
     }
 
-    final changedBookings = recalculatedBookings
-        .where((b) => b.changed)
-        .toList();
+    final changedBookings =
+        recalculatedBookings.where((b) => b.changed).toList();
     if (changedBookings.isNotEmpty) {
       buffer.writeln('\n🔄 Changed Bookings (${changedBookings.length}):');
-      for (var booking in changedBookings) {
+      for (final booking in changedBookings) {
         buffer.writeln(
           '  • ${booking.guestName} (Room ${booking.roomNumber}):',
         );
@@ -234,19 +234,6 @@ class RecalculationReport {
 }
 
 class BookingRecalculationDetails {
-  final int bookingId;
-  final String guestName;
-  final String roomNumber;
-  final String checkinDate;
-  final String? checkoutDate;
-  final int oldExpectedNights;
-  final int newExpectedNights;
-  final int oldCalculatedNights;
-  final int newCalculatedNights;
-  final double oldTotalDue;
-  final double newTotalDue;
-  final bool changed;
-
   BookingRecalculationDetails({
     required this.bookingId,
     required this.guestName,
@@ -261,6 +248,18 @@ class BookingRecalculationDetails {
     required this.newTotalDue,
     required this.changed,
   });
+  final int bookingId;
+  final String guestName;
+  final String roomNumber;
+  final String checkinDate;
+  final String? checkoutDate;
+  final int oldExpectedNights;
+  final int newExpectedNights;
+  final int oldCalculatedNights;
+  final int newCalculatedNights;
+  final double oldTotalDue;
+  final double newTotalDue;
+  final bool changed;
 
   Map<String, dynamic> toJson() {
     return {

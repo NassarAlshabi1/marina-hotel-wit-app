@@ -7,8 +7,8 @@ import '../auto_backup_manager.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = RoomsDao(db, OutboxDao(db));
+      : outbox = OutboxDao(db),
+        dao = RoomsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final RoomsDao dao;
@@ -138,13 +138,14 @@ class RoomsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {
     final bookings = await (db.select(
       db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    )..where((tbl) => tbl.deletedAt.isNull()))
+        .get();
     final occupiedRooms = <String>{};
 
     for (final booking in bookings) {
@@ -155,7 +156,8 @@ class RoomsRepository {
 
     final rooms = await (db.select(
       db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    )..where((tbl) => tbl.deletedAt.isNull()))
+        .get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);

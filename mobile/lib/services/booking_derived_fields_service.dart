@@ -17,11 +17,10 @@ class BookingDerivedFieldsService {
     DateTime? now,
     bool forceRebuild = false,
   }) async {
-    final booking =
-        await (db.select(db.bookings)
-              ..where((b) => b.id.equals(bookingId))
-              ..where((b) => b.deletedAt.isNull()))
-            .getSingleOrNull();
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId))
+          ..where((b) => b.deletedAt.isNull()))
+        .getSingleOrNull();
     if (booking == null) {
       return;
     }
@@ -50,11 +49,10 @@ class BookingDerivedFieldsService {
     final actualCheckout = _parseDateTime(booking.actualCheckout);
     final expectedNightsValue =
         plannedCheckout != null && actualCheckout == null
-        ? calculation.financialSummary.totalNights
-        : booking.expectedNights;
+            ? calculation.financialSummary.totalNights
+            : booking.expectedNights;
 
-    final isOverdue =
-        calculation.bookingActive &&
+    final isOverdue = calculation.bookingActive &&
         plannedCheckout != null &&
         moment.isAfter(plannedCheckout);
     final needsReview =
@@ -67,7 +65,8 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       await (db.update(
         db.bookings,
-      )..where((b) => b.id.equals(booking.id))).write(
+      )..where((b) => b.id.equals(booking.id)))
+          .write(
         BookingsCompanion(
           expectedNights: d.Value(expectedNightsValue),
           calculatedNights: d.Value(calculation.financialSummary.totalNights),
@@ -100,13 +99,12 @@ class BookingDerivedFieldsService {
   Future<int> refreshAllActiveBookings({DateTime? now}) async {
     final moment = now ?? DateTime.now();
     final activeBookings = await (db.select(db.bookings)
-          ..where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
+          ..where(
+              (b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
           ..where((b) => b.deletedAt.isNull()))
         .get();
 
-    final active = activeBookings
-        .where((b) => StatusUtils.isBookingActive(b))
-        .toList();
+    final active = activeBookings.where(StatusUtils.isBookingActive).toList();
 
     int refreshed = 0;
     int promoted = 0;
@@ -147,18 +145,17 @@ class BookingDerivedFieldsService {
     required String discountType,
     required DateTime? discountStartDate,
   }) async {
-    final lastNight =
-        await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id))
-              ..where((n) => n.deletedAt.isNull())
-              ..orderBy([
-                (n) => d.OrderingTerm(
+    final lastNight = await (db.select(db.bookingNights)
+          ..where((n) => n.bookingLocalId.equals(booking.id))
+          ..where((n) => n.deletedAt.isNull())
+          ..orderBy([
+            (n) => d.OrderingTerm(
                   expression: n.nightEnd,
                   mode: d.OrderingMode.desc,
                 ),
-              ])
-              ..limit(1))
-            .getSingleOrNull();
+          ])
+          ..limit(1))
+        .getSingleOrNull();
 
     DateTime start = checkin;
     if (lastNight != null) {
@@ -241,7 +238,8 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       await (db.delete(
         db.bookingNights,
-      )..where((t) => t.bookingLocalId.equals(booking.id))).go();
+      )..where((t) => t.bookingLocalId.equals(booking.id)))
+          .go();
 
       await db.batch((batch) {
         int sequence = 0;
@@ -281,6 +279,7 @@ class BookingDerivedFieldsService {
     });
   }
 
+  /// ✅ تم إصلاح هذه الدالة لدعم أنواع التخفيض المختلفة بشكل صحيح
   double _calculateNightlyRate(
     DateTime segmentStart,
     double baseRate,
@@ -290,21 +289,58 @@ class BookingDerivedFieldsService {
   ) {
     if (baseRate < 0) baseRate = 0;
     var rate = baseRate;
-    if (discount > 0 && discountType != 'total') {
-      final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
-      if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0.0, baseRate);
-      } else {
+
+    if (discount > 0) {
+      // التحقق من تاريخ بدء التخفيض
+      final segDay =
+          DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
+
+      bool shouldApplyDiscount = true;
+      if (discountStartDate != null) {
         final discountDay = DateTime(
           discountStartDate.year,
           discountStartDate.month,
           discountStartDate.day,
         );
-        if (!segDay.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0.0, baseRate);
+        shouldApplyDiscount = !segDay.isBefore(discountDay);
+      }
+
+      if (shouldApplyDiscount) {
+        // تحويل نوع التخفيض إلى lowercase للمقارنة الآمنة
+        final normalizedType = discountType.toLowerCase().trim();
+
+        switch (normalizedType) {
+          case 'percentage':
+          case 'percent':
+          case '%':
+          case 'نسبة':
+          case 'نسبة مئوية':
+            // ✅ خصم نسبي: مثلاً 20% من 15,000 = 3,000
+            final discountAmount = baseRate * (discount / 100);
+            rate = (baseRate - discountAmount).clamp(0.0, baseRate);
+
+          case 'fixed':
+          case 'amount':
+          case 'value':
+          case 'ثابت':
+          case 'مبلغ':
+          case 'مبلغ ثابت':
+            // ✅ خصم ثابت: مثلاً 3,000 من 15,000 = 12,000
+            rate = (baseRate - discount.toDouble()).clamp(0.0, baseRate);
+
+          case 'total':
+          case 'المجموع':
+          case 'اجمالي':
+            // خصم من المجموع الكلي (يتم حسابه في مكان آخر، لا نطبق هنا)
+            break;
+
+          default:
+            // ✅ افتراضياً: خصم ثابت للتوافق مع البيانات القديمة
+            rate = (baseRate - discount.toDouble()).clamp(0.0, baseRate);
         }
       }
     }
+
     return rate;
   }
 
@@ -331,9 +367,7 @@ class BookingDerivedFieldsService {
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
-        : normalized;
+    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -358,7 +392,9 @@ class BookingDerivedFieldsService {
 
     if (checkout.hour > cutoffHour ||
         (checkout.hour == cutoffHour && checkout.minute > 0) ||
-        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
+        (checkout.hour == cutoffHour &&
+            checkout.minute == 0 &&
+            checkout.second > 0)) {
       days += 1;
     }
 
@@ -368,7 +404,9 @@ class BookingDerivedFieldsService {
       final segStart = i == 0 ? checkin : dayDate;
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1
-          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          ? (checkout.isAfter(segStart)
+              ? checkout
+              : segStart.add(const Duration(minutes: 1)))
           : nextDay;
 
       segments.add(

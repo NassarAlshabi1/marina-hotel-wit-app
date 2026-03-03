@@ -1,3 +1,4 @@
+// DEPRECATED: Use appwriteConfigProvider for unified state
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
@@ -28,9 +29,7 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
     database: database,
   );
 
-  ref.onDispose(() {
-    manager.dispose();
-  });
+  ref.onDispose(manager.dispose);
 
   return manager;
 });
@@ -71,7 +70,7 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
 
 final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
-  ref.onDispose(() => orch.dispose());
+  ref.onDispose(orch.dispose);
   return orch.stateStream;
 });
 
@@ -95,19 +94,18 @@ final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
 /// مزود حالة الاتصال
 final connectionStatusProvider =
     StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
-      return ConnectionStatusNotifier(ref);
-    });
+  return ConnectionStatusNotifier(ref);
+});
 
 class ConnectionState {
-  final bool isConnected;
-  final bool isChecking;
-  final String? errorMessage;
-
   ConnectionState({
     required this.isConnected,
     this.isChecking = false,
     this.errorMessage,
   });
+  final bool isConnected;
+  final bool isChecking;
+  final String? errorMessage;
 
   ConnectionState copyWith({
     bool? isConnected,
@@ -123,10 +121,9 @@ class ConnectionState {
 }
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  final Ref ref;
-
   ConnectionStatusNotifier(this.ref)
-    : super(ConnectionState(isConnected: false));
+      : super(ConnectionState(isConnected: false));
+  final Ref ref;
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true, errorMessage: null);
@@ -149,7 +146,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
       state = ConnectionState(
         isConnected: false,
         isChecking: false,
-        errorMessage: 'خطأ في الاتصال: ${e.toString()}',
+        errorMessage: 'خطأ في الاتصال: $e',
       );
     }
   }

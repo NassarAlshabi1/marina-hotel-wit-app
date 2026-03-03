@@ -24,56 +24,66 @@ void main() {
   });
 
   group('السيناريو 1: تخفيض مؤقت بأثر رجعي', () {
-    test('نزيل دخل 12-01 بسعر 15000 ر.ي، خصم 1000 من 13-01 إلى 16-01 يطبق في 17-01', () async {
+    test(
+        'نزيل دخل 12-01 بسعر 15000 ر.ي، خصم 1000 من 13-01 إلى 16-01 يطبق في 17-01',
+        () async {
       final roomUuid = IdGen.uuid();
       final bookingUuid = IdGen.uuid();
       final now = Time.nowEpoch();
 
       await db.into(db.rooms).insert(RoomsCompanion(
-        localUuid: Value(roomUuid),
-        roomNumber: const Value('101'),
-        type: const Value('standard'),
-        price: const Value(15000),
-        status: const Value('occupied'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(roomUuid),
+            roomNumber: const Value('101'),
+            type: const Value('standard'),
+            price: const Value(15000),
+            status: const Value('occupied'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       await db.into(db.bookings).insert(BookingsCompanion(
-        localUuid: Value(bookingUuid),
-        roomNumber: const Value('101'),
-        guestName: const Value('أحمد محمد'),
-        checkinDate: const Value('2025-01-12T10:00:00'),
-        status: const Value('checked_in'),
-        discount: const Value(0),
-        discountType: const Value('nightly'),
-        calculatedNights: const Value(7),
-        expectedNights: const Value(7),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(bookingUuid),
+            roomNumber: const Value('101'),
+            guestName: const Value('أحمد محمد'),
+            checkinDate: const Value('2025-01-12T10:00:00'),
+            status: const Value('checked_in'),
+            discount: const Value(0),
+            discountType: const Value('nightly'),
+            calculatedNights: const Value(7),
+            expectedNights: const Value(7),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       final booking = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(bookingUuid)))
           .getSingle();
 
-      final hotelDays = ['2025-01-11', '2025-01-12', '2025-01-13', '2025-01-14', '2025-01-15', '2025-01-16', '2025-01-17'];
+      final hotelDays = [
+        '2025-01-11',
+        '2025-01-12',
+        '2025-01-13',
+        '2025-01-14',
+        '2025-01-15',
+        '2025-01-16',
+        '2025-01-17'
+      ];
       for (var i = 0; i < hotelDays.length; i++) {
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          bookingLocalId: Value(booking.id),
-          hotelDayKey: Value(hotelDays[i]),
-          nightlyRate: const Value(15000),
-          baseRate: const Value(15000),
-          adjustment: const Value(0),
-          finalRate: const Value(15000),
-          sequence: Value(i + 1),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ));
+              localUuid: Value(IdGen.uuid()),
+              bookingLocalId: Value(booking.id),
+              hotelDayKey: Value(hotelDays[i]),
+              nightlyRate: const Value(15000),
+              baseRate: const Value(15000),
+              adjustment: const Value(0),
+              finalRate: const Value(15000),
+              sequence: Value(i + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ));
       }
 
       final preview = await adjustmentService.previewAdjustment(
@@ -127,30 +137,30 @@ void main() {
       final now = Time.nowEpoch();
 
       await db.into(db.rooms).insert(RoomsCompanion(
-        localUuid: Value(roomUuid),
-        roomNumber: const Value('102'),
-        type: const Value('standard'),
-        price: const Value(15000),
-        status: const Value('occupied'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(roomUuid),
+            roomNumber: const Value('102'),
+            type: const Value('standard'),
+            price: const Value(15000),
+            status: const Value('occupied'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       await db.into(db.bookings).insert(BookingsCompanion(
-        localUuid: Value(bookingUuid),
-        roomNumber: const Value('102'),
-        guestName: const Value('سالم أحمد'),
-        checkinDate: const Value('2025-01-15T06:00:00'),
-        status: const Value('checked_in'),
-        discount: const Value(0),
-        discountType: const Value('nightly'),
-        calculatedNights: const Value(40),
-        expectedNights: const Value(40),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(bookingUuid),
+            roomNumber: const Value('102'),
+            guestName: const Value('سالم أحمد'),
+            checkinDate: const Value('2025-01-15T06:00:00'),
+            status: const Value('checked_in'),
+            discount: const Value(0),
+            discountType: const Value('nightly'),
+            calculatedNights: const Value(40),
+            expectedNights: const Value(40),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       final booking = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(bookingUuid)))
@@ -159,20 +169,21 @@ void main() {
       final startDate = DateTime(2025, 1, 14);
       for (var i = 0; i < 40; i++) {
         final hotelDay = startDate.add(Duration(days: i));
-        final hotelDayKey = '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
+        final hotelDayKey =
+            '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          bookingLocalId: Value(booking.id),
-          hotelDayKey: Value(hotelDayKey),
-          nightlyRate: const Value(15000),
-          baseRate: const Value(15000),
-          adjustment: const Value(0),
-          finalRate: const Value(15000),
-          sequence: Value(i + 1),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ));
+              localUuid: Value(IdGen.uuid()),
+              bookingLocalId: Value(booking.id),
+              hotelDayKey: Value(hotelDayKey),
+              nightlyRate: const Value(15000),
+              baseRate: const Value(15000),
+              adjustment: const Value(0),
+              finalRate: const Value(15000),
+              sequence: Value(i + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ));
       }
 
       await adjustmentService.applyTemporaryAdjustment(
@@ -203,30 +214,30 @@ void main() {
       final now = Time.nowEpoch();
 
       await db.into(db.rooms).insert(RoomsCompanion(
-        localUuid: Value(roomUuid),
-        roomNumber: const Value('103'),
-        type: const Value('standard'),
-        price: const Value(15000),
-        status: const Value('occupied'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(roomUuid),
+            roomNumber: const Value('103'),
+            type: const Value('standard'),
+            price: const Value(15000),
+            status: const Value('occupied'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       await db.into(db.bookings).insert(BookingsCompanion(
-        localUuid: Value(bookingUuid),
-        roomNumber: const Value('103'),
-        guestName: const Value('محمد علي'),
-        checkinDate: const Value('2025-02-01T10:00:00'),
-        status: const Value('checked_in'),
-        discount: const Value(0),
-        discountType: const Value('nightly'),
-        calculatedNights: const Value(15),
-        expectedNights: const Value(15),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(bookingUuid),
+            roomNumber: const Value('103'),
+            guestName: const Value('محمد علي'),
+            checkinDate: const Value('2025-02-01T10:00:00'),
+            status: const Value('checked_in'),
+            discount: const Value(0),
+            discountType: const Value('nightly'),
+            calculatedNights: const Value(15),
+            expectedNights: const Value(15),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       final booking = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(bookingUuid)))
@@ -234,20 +245,21 @@ void main() {
 
       for (var i = 0; i < 15; i++) {
         final hotelDay = DateTime(2025, 2, 1).add(Duration(days: i));
-        final hotelDayKey = '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
+        final hotelDayKey =
+            '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          bookingLocalId: Value(booking.id),
-          hotelDayKey: Value(hotelDayKey),
-          nightlyRate: const Value(15000),
-          baseRate: const Value(15000),
-          adjustment: const Value(0),
-          finalRate: const Value(15000),
-          sequence: Value(i + 1),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ));
+              localUuid: Value(IdGen.uuid()),
+              bookingLocalId: Value(booking.id),
+              hotelDayKey: Value(hotelDayKey),
+              nightlyRate: const Value(15000),
+              baseRate: const Value(15000),
+              adjustment: const Value(0),
+              finalRate: const Value(15000),
+              sequence: Value(i + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ));
       }
 
       final adjustment = await adjustmentService.applyTemporaryAdjustment(
@@ -276,7 +288,8 @@ void main() {
 
       expect(updatedBooking.totalDueCached, equals(15 * 15000));
 
-      final activeAdjustments = await adjustmentService.getActiveAdjustments(bookingUuid);
+      final activeAdjustments =
+          await adjustmentService.getActiveAdjustments(bookingUuid);
       expect(activeAdjustments.isEmpty, isTrue);
     });
   });
@@ -288,68 +301,71 @@ void main() {
       final now = Time.nowEpoch();
 
       await db.into(db.rooms).insert(RoomsCompanion(
-        localUuid: Value(roomUuid),
-        roomNumber: const Value('104'),
-        type: const Value('standard'),
-        price: const Value(15000),
-        status: const Value('occupied'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(roomUuid),
+            roomNumber: const Value('104'),
+            type: const Value('standard'),
+            price: const Value(15000),
+            status: const Value('occupied'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       await db.into(db.bookings).insert(BookingsCompanion(
-        localUuid: Value(bookingUuid),
-        roomNumber: const Value('104'),
-        guestName: const Value('خالد سعيد'),
-        checkinDate: const Value('2025-01-15T06:00:00'),
-        status: const Value('checked_in'),
-        discount: const Value(0),
-        discountType: const Value('nightly'),
-        calculatedNights: const Value(16),
-        expectedNights: const Value(16),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(bookingUuid),
+            roomNumber: const Value('104'),
+            guestName: const Value('خالد سعيد'),
+            checkinDate: const Value('2025-01-15T06:00:00'),
+            status: const Value('checked_in'),
+            discount: const Value(0),
+            discountType: const Value('nightly'),
+            calculatedNights: const Value(16),
+            expectedNights: const Value(16),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       final booking = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(bookingUuid)))
           .getSingle();
 
       final adjustmentUuid = IdGen.uuid();
-      await db.into(db.bookingPriceAdjustments).insert(BookingPriceAdjustmentsCompanion(
-        localUuid: Value(adjustmentUuid),
-        bookingLocalUuid: Value(bookingUuid),
-        bookingLocalId: Value(booking.id),
-        adjustmentType: Value(AdjustmentType.discount.value),
-        amount: const Value(2000),
-        effectiveHotelDay: const Value('2025-01-20'),
-        endHotelDay: const Value('2025-01-25'),
-        isActive: const Value(true),
-        reason: const Value('خصم أسبوعي'),
-        appliedBy: const Value('المدير'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+      await db
+          .into(db.bookingPriceAdjustments)
+          .insert(BookingPriceAdjustmentsCompanion(
+            localUuid: Value(adjustmentUuid),
+            bookingLocalUuid: Value(bookingUuid),
+            bookingLocalId: Value(booking.id),
+            adjustmentType: Value(AdjustmentType.discount.value),
+            amount: const Value(2000),
+            effectiveHotelDay: const Value('2025-01-20'),
+            endHotelDay: const Value('2025-01-25'),
+            isActive: const Value(true),
+            reason: const Value('خصم أسبوعي'),
+            appliedBy: const Value('المدير'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       for (var i = 0; i < 16; i++) {
         final hotelDay = DateTime(2025, 1, 14).add(Duration(days: i));
-        final hotelDayKey = '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
+        final hotelDayKey =
+            '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          bookingLocalId: Value(booking.id),
-          hotelDayKey: Value(hotelDayKey),
-          nightlyRate: const Value(15000),
-          baseRate: const Value(15000),
-          adjustment: const Value(0),
-          finalRate: const Value(15000),
-          sequence: Value(i + 1),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ));
+              localUuid: Value(IdGen.uuid()),
+              bookingLocalId: Value(booking.id),
+              hotelDayKey: Value(hotelDayKey),
+              nightlyRate: const Value(15000),
+              baseRate: const Value(15000),
+              adjustment: const Value(0),
+              finalRate: const Value(15000),
+              sequence: Value(i + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ));
       }
 
       await adjustmentService.recalculateAfterSync(booking.id);
@@ -377,32 +393,32 @@ void main() {
       final now = Time.nowEpoch();
 
       await db.into(db.rooms).insert(RoomsCompanion(
-        localUuid: Value(roomUuid),
-        roomNumber: const Value('105'),
-        price: const Value(15000),
-        status: const Value('occupied'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(roomUuid),
+            roomNumber: const Value('105'),
+            price: const Value(15000),
+            status: const Value('occupied'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       await db.into(db.bookings).insert(BookingsCompanion(
-        localUuid: Value(bookingUuid),
-        roomNumber: const Value('105'),
-        guestName: const Value('عمر أحمد'),
-        checkinDate: const Value('2025-01-20T10:00:00'),
-        status: const Value('checked_in'),
-        discount: const Value(0),
-        discountType: const Value('nightly'),
-        calculatedNights: const Value(5),
-        expectedNights: const Value(5),
-        totalDueCached: const Value(75000),
-        totalPaidCached: const Value(50000),
-        remainingBalanceCached: const Value(25000),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(bookingUuid),
+            roomNumber: const Value('105'),
+            guestName: const Value('عمر أحمد'),
+            checkinDate: const Value('2025-01-20T10:00:00'),
+            status: const Value('checked_in'),
+            discount: const Value(0),
+            discountType: const Value('nightly'),
+            calculatedNights: const Value(5),
+            expectedNights: const Value(5),
+            totalDueCached: const Value(75000),
+            totalPaidCached: const Value(50000),
+            remainingBalanceCached: const Value(25000),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       final booking = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(bookingUuid)))
@@ -429,29 +445,29 @@ void main() {
       final now = Time.nowEpoch();
 
       await db.into(db.rooms).insert(RoomsCompanion(
-        localUuid: Value(roomUuid),
-        roomNumber: const Value('106'),
-        price: const Value(20000),
-        status: const Value('occupied'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(roomUuid),
+            roomNumber: const Value('106'),
+            price: const Value(20000),
+            status: const Value('occupied'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       await db.into(db.bookings).insert(BookingsCompanion(
-        localUuid: Value(bookingUuid),
-        roomNumber: const Value('106'),
-        guestName: const Value('فاطمة علي'),
-        checkinDate: const Value('2025-01-01T10:00:00'),
-        status: const Value('checked_in'),
-        discount: const Value(0),
-        discountType: const Value('nightly'),
-        calculatedNights: const Value(10),
-        expectedNights: const Value(10),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-      ));
+            localUuid: Value(bookingUuid),
+            roomNumber: const Value('106'),
+            guestName: const Value('فاطمة علي'),
+            checkinDate: const Value('2025-01-01T10:00:00'),
+            status: const Value('checked_in'),
+            discount: const Value(0),
+            discountType: const Value('nightly'),
+            calculatedNights: const Value(10),
+            expectedNights: const Value(10),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ));
 
       final booking = await (db.select(db.bookings)
             ..where((b) => b.localUuid.equals(bookingUuid)))
@@ -459,20 +475,21 @@ void main() {
 
       for (var i = 0; i < 10; i++) {
         final hotelDay = DateTime(2025, 1, 1).add(Duration(days: i));
-        final hotelDayKey = '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
+        final hotelDayKey =
+            '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          bookingLocalId: Value(booking.id),
-          hotelDayKey: Value(hotelDayKey),
-          nightlyRate: const Value(20000),
-          baseRate: const Value(20000),
-          adjustment: const Value(0),
-          finalRate: const Value(20000),
-          sequence: Value(i + 1),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ));
+              localUuid: Value(IdGen.uuid()),
+              bookingLocalId: Value(booking.id),
+              hotelDayKey: Value(hotelDayKey),
+              nightlyRate: const Value(20000),
+              baseRate: const Value(20000),
+              adjustment: const Value(0),
+              finalRate: const Value(20000),
+              sequence: Value(i + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ));
       }
 
       await adjustmentService.applyTemporaryAdjustment(
