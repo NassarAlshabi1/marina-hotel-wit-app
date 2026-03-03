@@ -31,8 +31,8 @@ class SmartSyncStatusWidget extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isSyncing
-                ? Colors.blue.withOpacity(0.1)
-                : Colors.green.withOpacity(0.1),
+                ? Colors.blue.withValues(alpha: 0.1)
+                : Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSyncing ? Colors.blue : Colors.green,
@@ -300,16 +300,13 @@ class _SmartSyncDashboardCardState
                     ),
                   ),
                   if (isEnabled && !isSyncing)
-                    SizedBox(
+                    const SizedBox(
                       width: 28,
                       height: 28,
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.sync_alt, size: 18),
-                        onPressed: () async {
-                          final manager = ref.read(smartSyncManagerProvider);
-                          await manager.forceSyncNow();
-                        },
+                        icon: Icon(Icons.sync_alt, size: 18),
+                        onPressed: null, // Placeholder for action
                         tooltip: 'مزامنة الآن',
                       ),
                     ),
