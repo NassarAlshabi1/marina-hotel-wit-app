@@ -281,6 +281,7 @@ class BookingDerivedFieldsService {
     });
   }
 
+  /// ✅ تم إصلاح هذه الدالة لدعم أنواع التخفيض المختلفة بشكل صحيح
   double _calculateNightlyRate(
     DateTime segmentStart,
     double baseRate,
@@ -290,21 +291,59 @@ class BookingDerivedFieldsService {
   ) {
     if (baseRate < 0) baseRate = 0;
     var rate = baseRate;
-    if (discount > 0 && discountType != 'total') {
+
+    if (discount > 0) {
+      // التحقق من تاريخ بدء التخفيض
       final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
-      if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0.0, baseRate);
-      } else {
+      
+      bool shouldApplyDiscount = true;
+      if (discountStartDate != null) {
         final discountDay = DateTime(
           discountStartDate.year,
           discountStartDate.month,
           discountStartDate.day,
         );
-        if (!segDay.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0.0, baseRate);
+        shouldApplyDiscount = !segDay.isBefore(discountDay);
+      }
+
+      if (shouldApplyDiscount) {
+        // تحويل نوع التخفيض إلى lowercase للمقارنة الآمنة
+        final normalizedType = discountType.toLowerCase().trim();
+        
+        switch (normalizedType) {
+          case 'percentage':
+          case 'percent':
+          case '%':
+          case 'نسبة':
+          case 'نسبة مئوية':
+            // ✅ خصم نسبي: مثلاً 20% من 15,000 = 3,000
+            final discountAmount = baseRate * (discount / 100);
+            rate = (baseRate - discountAmount).clamp(0.0, baseRate);
+            break;
+            
+          case 'fixed':
+          case 'amount':
+          case 'value':
+          case 'ثابت':
+          case 'مبلغ':
+          case 'مبلغ ثابت':
+            // ✅ خصم ثابت: مثلاً 3,000 من 15,000 = 12,000
+            rate = (baseRate - discount.toDouble()).clamp(0.0, baseRate);
+            break;
+            
+          case 'total':
+          case 'المجموع':
+          case 'اجمالي':
+            // خصم من المجموع الكلي (يتم حسابه في مكان آخر، لا نطبق هنا)
+            break;
+            
+          default:
+            // ✅ افتراضياً: خصم ثابت للتوافق مع البيانات القديمة
+            rate = (baseRate - discount.toDouble()).clamp(0.0, baseRate);
         }
       }
     }
+    
     return rate;
   }
 

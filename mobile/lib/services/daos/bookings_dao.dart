@@ -4,6 +4,7 @@ import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import '../sync_guardian.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 
@@ -98,6 +99,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'create');
       }
       return id;
     });
@@ -126,6 +128,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'update');
       }
       return rows;
     });
@@ -151,6 +154,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
+        SyncGuardian.instance.notifyLocalChange(table: 'bookings', operation: 'delete');
       }
       return rows;
     });

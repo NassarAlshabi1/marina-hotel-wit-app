@@ -60,7 +60,7 @@ class SyncStats {
 class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   SyncLogDao(AppDatabase db) : super(db);
 
-  /// تسجيل عملية مزامنة جديدة
+  /// تسجيل عملية مزامنة جديدة أو تحديث حالة عملية موجودة
   /// [operations] can be null if no operations list is available
   Future<int> logSync({
     required String syncId,
@@ -75,26 +75,65 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     Map<String, dynamic>? metadata,
   }) async {
     final now = DateTime.now();
-    
-    final entry = SyncLogCompanion(
-      syncId: Value(syncId),
-      direction: Value(direction),
-      deviceId: Value(deviceId),
-      status: Value(status),
-      createdAt: Value(now.toIso8601String()),
-      completedAt: status != 'in_progress' ? Value(now.toIso8601String()) : const Value.absent(),
-      metadata: Value(jsonEncode({
-        'target': target,
-        'recordsPulled': recordsPulled,
-        'recordsPushed': recordsPushed,
-        'durationMs': durationMs,
-        'errorMessage': errorMessage,
-        ...?metadata,
-      })),
-      operations: const Value.absent(),
-    );
 
-    return await into(syncLog).insert(entry);
+    // التحقق مما إذا كان السجل موجودًا مسبقًا
+    final existingEntry = await (select(syncLog)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    // دمج البيانات الوصفية الجديدة مع القديمة إذا وجدت
+    Map<String, dynamic> mergedMetadata = {};
+    if (existingEntry != null) {
+      try {
+        mergedMetadata = jsonDecode(existingEntry.metadata) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+
+    mergedMetadata.addAll({
+      'target': target,
+      if (recordsPulled != null) 'recordsPulled': recordsPulled,
+      if (recordsPushed != null) 'recordsPushed': recordsPushed,
+      if (durationMs != null) 'durationMs': durationMs,
+      // إذا كان هناك خطأ جديد نستخدمه، وإلا نحتفظ بالقديم إذا وجد
+      if (errorMessage != null) 'errorMessage': errorMessage,
+      ...?metadata,
+    });
+
+    final metaJson = jsonEncode(mergedMetadata);
+
+    if (existingEntry != null) {
+      // تحديث السجل الموجود
+      final updateEntry = SyncLogCompanion(
+        status: Value(status),
+        // تحديث وقت الانتهاء فقط عند الانتهاء الفعلي
+        completedAt: status != 'in_progress'
+            ? Value(now.toIso8601String())
+            : const Value.absent(),
+        metadata: Value(metaJson),
+      );
+
+      final count = await (update(syncLog)
+            ..where((t) => t.syncId.equals(syncId)))
+          .write(updateEntry);
+          
+      return existingEntry.id;
+    } else {
+      // إدراج سجل جديد
+      final entry = SyncLogCompanion(
+        syncId: Value(syncId),
+        direction: Value(direction),
+        deviceId: Value(deviceId),
+        status: Value(status),
+        createdAt: Value(now.toIso8601String()),
+        completedAt: status != 'in_progress'
+            ? Value(now.toIso8601String())
+            : const Value.absent(),
+        metadata: Value(metaJson),
+        operations: const Value.absent(),
+      );
+
+      return await into(syncLog).insert(entry);
+    }
   }
 
   /// الحصول على سجل المزامنة (مع pagination)
@@ -120,7 +159,10 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final results = await query.get();
 
     return results.map((row) {
-      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+      Map<String, dynamic> metadata = {};
+      try {
+        metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+      } catch (_) {}
       
       return SyncLogEntry(
         id: row.id,
@@ -147,7 +189,10 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final result = await query.getSingleOrNull();
     if (result == null) return null;
 
-    final metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
+    Map<String, dynamic> metadata = {};
+    try {
+      metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
+    } catch (_) {}
     
     return SyncLogEntry(
       id: result.id,
@@ -186,15 +231,21 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       );
     }
 
+    // استخدام stream لتجميع الإحصائيات لتقليل استهلاك الذاكرة في حالة وجود عدد كبير من السجلات
     int successful = 0;
     int failed = 0;
     int totalPulled = 0;
     int totalPushed = 0;
     int totalDuration = 0;
     DateTime? lastSync;
+    int count = 0;
 
     for (final row in results) {
-      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+      count++;
+      Map<String, dynamic> metadata = {};
+      try {
+        metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+      } catch (_) {}
       
       if (row.status == 'success') {
         successful++;
@@ -212,15 +263,28 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       }
     }
 
+    // إذا لم تكن هناك سجلات، نعيد القيم الصفرية (تمت معالجتها بالفعل في الأعلى، لكن للأمان)
+    if (count == 0) {
+       return SyncStats(
+        totalSyncs: 0,
+        successfulSyncs: 0,
+        failedSyncs: 0,
+        successRate: 0,
+        totalRecordsPulled: 0,
+        totalRecordsPushed: 0,
+        averageDurationMs: 0,
+      );
+    }
+
     return SyncStats(
-      totalSyncs: results.length,
+      totalSyncs: count,
       successfulSyncs: successful,
       failedSyncs: failed,
-      successRate: (successful / results.length) * 100,
+      successRate: (successful / count) * 100,
       totalRecordsPulled: totalPulled,
       totalRecordsPushed: totalPushed,
       lastSync: lastSync,
-      averageDurationMs: totalDuration ~/ results.length,
+      averageDurationMs: count > 0 ? totalDuration ~/ count : 0,
     );
   }
 
@@ -249,7 +313,10 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       ..limit(limit);
 
     return query.watch().map((rows) => rows.map((row) {
-      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+      Map<String, dynamic> metadata = {};
+      try {
+        metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+      } catch (_) {}
       
       return SyncLogEntry(
         id: row.id,

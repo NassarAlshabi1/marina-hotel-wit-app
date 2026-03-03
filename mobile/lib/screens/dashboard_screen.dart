@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
@@ -12,6 +14,11 @@ import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
+import '../utils/currency_formatter.dart';
+import '../providers/appwrite_providers.dart' as appwrite;
+import '../services/google_drive_unified_sync_coordinator.dart';
+import '../services/appwrite_realtime_sync.dart';
+import '../services/appwrite_delta_sync.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -83,6 +90,55 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  Timer? _autoPullTimer;
+  bool _isAutoPulling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoPullListener();
+  }
+
+  @override
+  void dispose() {
+    _autoPullTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoPullListener() {
+    _autoPullTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || _isAutoPulling) return;
+      final realtime = AppwriteRealtimeSync();
+      if (realtime.hasRemoteChanges.value) {
+        _autoPullRemoteChanges();
+      }
+    });
+  }
+
+  Future<void> _autoPullRemoteChanges() async {
+    if (_isAutoPulling) return;
+    _isAutoPulling = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      if (!appwriteEnabled) return;
+
+      final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        final appwriteService = ref.read(appwrite.appwriteServiceProvider);
+        final db = ref.read(databaseProvider);
+        await deltaSync.initialize(appwriteService, db);
+      }
+
+      await deltaSync.pullDeltaChanges();
+      AppwriteRealtimeSync().resetRemoteChangesFlag();
+    } catch (e) {
+      debugPrint('⚠️ Auto-pull failed: $e');
+    } finally {
+      _isAutoPulling = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -388,21 +444,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bool isAvailable =
         room != null && StatusUtils.isRoomAvailable(room.status);
     final bool isMaintenance = room != null && room.status == 'صيانة';
-    final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
-
     final Color bgColor = isOccupied
         ? Colors.red.shade600
         : (isAvailable
               ? Colors.green.shade600
               : (isMaintenance
                     ? Colors.orange.shade600
-                    : (isNewRoom
-                          ? Colors.blue.shade400
-                          : Colors.grey.shade400)));
+                    : Colors.grey.shade400));
 
     final String tooltipText = room != null
         ? room.status
-        : (isNewRoom ? 'غرفة جديدة' : 'غير مسجلة');
+        : 'غير مسجلة';
 
     return Tooltip(
       message: tooltipText,
@@ -526,9 +578,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     String roomNumber,
     Room? room,
   ) async {
-    if (roomNumber == '503' || roomNumber == '504') {
-      _showNewRoomDialog(context, roomNumber);
-    } else if (room != null) {
+    if (room != null) {
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
 
@@ -539,14 +589,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       } else {
         _showRoomDetailsDialog(context, room);
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
@@ -595,27 +646,170 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  void _showNewRoomDialog(BuildContext context, String roomNumber) {
-    showDialog(
+  Future<void> _showCreateRoomDialog(
+    BuildContext context,
+    String roomNumber,
+  ) async {
+    final typeCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    String status = 'شاغرة';
+    final formKey = GlobalKey<FormState>();
+
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.blue),
-            const SizedBox(width: 8),
-            Text('غرفة $roomNumber'),
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.add, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text('إضافة غرفة $roomNumber'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    initialValue: roomNumber,
+                    decoration: InputDecoration(
+                      labelText: 'رقم الغرفة',
+                      prefixIcon: const Icon(Icons.meeting_room),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    readOnly: true,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: typeCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'نوع الغرفة',
+                      prefixIcon: const Icon(Icons.category),
+                      hintText: 'مثال: فردية، مزدوجة، جناح',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'أدخل نوع الغرفة';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: priceCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'السعر لليلة',
+                      prefixIcon: const Icon(Icons.attach_money),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'أدخل السعر';
+                      final price = CurrencyFormatter.parseAmount(v);
+                      if (price == null || price <= 0) return 'أدخل سعراً صحيحاً';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  StatefulBuilder(
+                    builder: (context, setLocalState) =>
+                        DropdownButtonFormField<String>(
+                          value: status,
+                          decoration: InputDecoration(
+                            labelText: 'الحالة',
+                            prefixIcon: const Icon(Icons.toggle_on),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'شاغرة',
+                              child: Text('شاغرة'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'محجوزة',
+                              child: Text('محجوزة'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'صيانة',
+                              child: Text('صيانة'),
+                            ),
+                          ],
+                          onChanged: (v) =>
+                              setLocalState(() => status = v ?? status),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() != true) return;
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('إنشاء'),
+            ),
           ],
         ),
-        content: const Text('هذه الغرفة جديدة وقيد التجهيز.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
       ),
     );
+
+    if (ok != true) return;
+
+    try {
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final price = CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0;
+      await roomsRepo.create(
+        roomNumber: roomNumber,
+        type: typeCtrl.text.trim(),
+        price: price,
+        status: status,
+      );
+
+      final appwriteSync = ref.read(appwrite.appwriteSyncManagerProvider);
+      await appwriteSync.sync(push: true, pull: false);
+
+      try {
+        await GoogleDriveUnifiedSyncCoordinator.instance.performSync(
+          trigger: SyncTrigger.localChange,
+          mode: SyncMode.smart,
+        );
+      } catch (_) {}
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم إنشاء الغرفة $roomNumber ومزامنتها'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في إنشاء الغرفة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showRoomDetailsDialog(BuildContext context, Room room) {

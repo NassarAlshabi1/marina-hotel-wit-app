@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auto_backup_manager.dart' show AutoBackupManager;
-import 'backup_provider.dart'; // استيراد Provider الموجود
+import 'backup_provider.dart';
+import 'appwrite_providers.dart';
+import 'repository_providers.dart';
 
 /// Provider لمدير النسخ التلقائي
 final autoBackupManagerProvider = Provider<AutoBackupManager>((ref) {
@@ -21,5 +23,12 @@ final autoBackupInitProvider = FutureProvider<void>((ref) async {
     googleDriveBackupServiceProvider,
   ); // استخدام المرجع الموجود
 
-  await manager.initialize(backupService);
+  final appwriteService = ref.watch(appwriteServiceProvider);
+  final database = ref.watch(databaseProvider);
+
+  await manager.initialize(
+    backupService,
+    appwriteService: appwriteService,
+    database: database,
+  );
 });

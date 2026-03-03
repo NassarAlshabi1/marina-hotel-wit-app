@@ -23,19 +23,42 @@ void autoSyncCallbackDispatcher() {
       final prefs = await SharedPreferences.getInstance();
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;
+      final appwriteEnabled =
+          prefs.getBool('appwrite_sync_enabled') ?? false;
 
-      if (!googleDriveEnabled) {
+      // لا توجد خدمة مزامنة مفعلة - اعتبار المهمة ناجحة
+      if (!googleDriveEnabled && !appwriteEnabled) {
+        await prefs.setBool(_kPendingFlagKey, false);
         return true;
       }
 
-      final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        push: true,
-        pull: true,
-        reason: 'google_drive_background_task',
-      );
+      // مزامنة مع الخدمات المفعلة
+      bool success = true;
 
+      if (googleDriveEnabled) {
+        success = await UnifiedSyncOrchestrator.instance.syncNow(
+          push: true,
+          pull: prefs.getBool('google_drive_pull_enabled') ?? false,
+          reason: 'google_drive_background_task',
+        );
+      }
+
+      // Appwrite sync يُدار منفصلاً عبر AppwriteAutoSyncTask
+      // نتحقق فقط من حالة المزامنة الأخيرة
+      if (appwriteEnabled) {
+        final lastSyncFailed = prefs.getBool('appwrite_last_sync_failed') ?? false;
+        if (lastSyncFailed) {
+          success = false;
+        }
+      }
+
+      // إعادة تعيين علامات المزامنة المعلقة
       if (success) {
         await prefs.setBool(_kPendingFlagKey, false);
+        // إعادة تعيين علامة Appwrite أيضاً إذا كانت مفعلة
+        if (appwriteEnabled) {
+          await prefs.setBool('appwrite_auto_sync_pending', false);
+        }
       } else {
         await prefs.setBool(_kPendingFlagKey, true);
       }
