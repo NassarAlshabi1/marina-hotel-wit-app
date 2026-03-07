@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص Service Worker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 تشخيص Service Worker</h1>
+        
+        <div id="status" class="status info">جاري الفحص...</div>
+        
+        <button class="btn" onclick="testServiceWorker()">اختبار Service Worker</button>
+        <button class="btn" onclick="clearCache()">مسح Cache</button>
+        <button class="btn" onclick="reloadPage()" style="background: #28a745;">إعادة تحميل</button>
+        
+        <div id="logs" class="log"></div>
+        
+        <h3>📋 معلومات المتصفح:</h3>
+        <div id="browserInfo"></div>
+    </div>
+
+    <script>
+        let logDiv = document.getElementById('logs');
+        let statusDiv = document.getElementById('status');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function testServiceWorker() {
+            log('🔍 بدء اختبار Service Worker...');
+            
+            // فحص الدعم
+            if (!('serviceWorker' in navigator)) {
+                updateStatus('❌ المتصفح لا يدعم Service Worker', 'error');
+                log('❌ Service Worker غير مدعوم في هذا المتصفح');
+                return;
+            }
+            
+            log('✅ Service Worker مدعوم');
+            
+            // محاولة تسجيل SW
+            navigator.serviceWorker.register('./sw.js')
+                .then(function(registration) {
+                    log('✅ تم تسجيل Service Worker بنجاح!');
+                    log(`📍 Scope: ${registration.scope}`);
+                    log(`📍 State: ${registration.active ? registration.active.state : 'لا يوجد'}`);
+                    
+                    updateStatus('✅ Service Worker مسجل بنجاح!', 'success');
+                    
+                    // فحص الحالة
+                    if (registration.installing) {
+                        log('⏳ Service Worker قيد التثبيت...');
+                        registration.installing.addEventListener('statechange', function() {
+                            log(`🔄 حالة جديدة: ${this.state}`);
+                        });
+                    }
+                    
+                    if (registration.waiting) {
+                        log('⏸️ Service Worker في انتظار التفعيل');
+                    }
+                    
+                    if (registration.active) {
+                        log('✅ Service Worker نشط ويعمل');
+                    }
+                    
+                    // اختبار الرسائل
+                    testSWCommunication(registration);
+                })
+                .catch(function(error) {
+                    log(`❌ فشل في تسجيل Service Worker: ${error.message}`);
+                    log(`📍 تفاصيل الخطأ: ${error.toString()}`);
+                    updateStatus('❌ فشل تسجيل Service Worker', 'error');
+                    
+                    // محاولة تشخيص السبب
+                    diagnoseSWError(error);
+                });
+        }
+        
+        function testSWCommunication(registration) {
+            if (registration.active) {
+                log('📤 اختبار التواصل مع Service Worker...');
+                
+                navigator.serviceWorker.addEventListener('message', function(event) {
+                    log(`📥 رسالة من SW: ${JSON.stringify(event.data)}`);
+                });
+                
+                // إرسال رسالة اختبار
+                registration.active.postMessage({
+                    type: 'GET_VERSION'
+                });
+            }
+        }
+        
+        function diagnoseSWError(error) {
+            log('🔍 تشخيص سبب الخطأ...');
+            
+            // فحص وجود الملف
+            fetch('./sw.js')
+                .then(response => {
+                    if (response.ok) {
+                        log(`✅ ملف sw.js موجود (${response.status})`);
+                        log(`📍 Content-Type: ${response.headers.get('content-type')}`);
+                        
+                        return response.text();
+                    } else {
+                        log(`❌ ملف sw.js غير موجود (${response.status})`);
+                    }
+                })
+                .then(content => {
+                    if (content) {
+                        log(`📄 حجم الملف: ${content.length} حرف`);
+                        
+                        // فحص بسيط للمحتوى
+                        if (content.includes('addEventListener')) {
+                            log('✅ الملف يحتوي على event listeners');
+                        } else {
+                            log('⚠️ الملف قد يكون تالف');
+                        }
+                    }
+                })
+                .catch(fetchError => {
+                    log(`❌ خطأ في تحميل sw.js: ${fetchError.message}`);
+                });
+        }
+        
+        function clearCache() {
+            log('🧹 مسح جميع الـ caches...');
+            
+            if ('caches' in window) {
+                caches.keys().then(function(cacheNames) {
+                    return Promise.all(
+                        cacheNames.map(function(cacheName) {
+                            log(`🗑️ مسح cache: ${cacheName}`);
+                            return caches.delete(cacheName);
+                        })
+                    );
+                }).then(function() {
+                    log('✅ تم مسح جميع الـ caches');
+                    updateStatus('✅ تم مسح Cache', 'success');
+                });
+            } else {
+                log('❌ Cache API غير مدعوم');
+            }
+        }
+        
+        function reloadPage() {
+            location.reload();
+        }
+        
+        // معلومات المتصفح
+        function showBrowserInfo() {
+            const browserInfo = document.getElementById('browserInfo');
+            browserInfo.innerHTML = `
+                <p><strong>المتصفح:</strong> ${navigator.userAgent}</p>
+                <p><strong>البروتوكول:</strong> ${location.protocol}</p>
+                <p><strong>المضيف:</strong> ${location.host}</p>
+                <p><strong>المسار:</strong> ${location.pathname}</p>
+                <p><strong>Service Worker مدعوم:</strong> ${'serviceWorker' in navigator ? '✅ نعم' : '❌ لا'}</p>
+                <p><strong>Cache API:</strong> ${'caches' in window ? '✅ نعم' : '❌ لا'}</p>
+                <p><strong>Push API:</strong> ${'PushManager' in window ? '✅ نعم' : '❌ لا'}</p>
+            `;
+        }
+        
+        // تشغيل تلقائي
+        window.addEventListener('load', function() {
+            showBrowserInfo();
+            log('🚀 جاهز للاختبار');
+            
+            // اختبار تلقائي
+            setTimeout(() => {
+                testServiceWorker();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

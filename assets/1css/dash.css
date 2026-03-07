@@ -1,0 +1,512 @@
+/* أنماط لوحة التحكم المحسنة - فندق مارينا بلازا */
+:root {
+  --available: #28a745; /* أخضر للغرف الشاغرة */
+  --occupied: #dc3545; /* أحمر للغرف المحجوزة */
+  --primary: #3498db; /* أزرق للعناصر الأساسية */
+  --dark: #2c3e50; /* لون داكن للنص والخلفيات */
+  --light-gray: #f8f9fa;
+  --border-radius: 12px;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--light-gray);
+  font-family: "Tajawal", sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+}
+
+/* تحسين أزرار الغرف للشاشات المختلفة */
+.room-btn {
+  width: 100px;
+  height: 100px;
+  margin: 8px;
+  border-radius: var(--border-radius);
+  border: none;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  box-shadow: var(--box-shadow);
+  cursor: pointer;
+  padding: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.room-btn:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.room-btn:active {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.available-btn {
+  background: linear-gradient(135deg, var(--available), #34ce57);
+}
+
+.occupied-btn {
+  background: linear-gradient(135deg, var(--occupied), #e74c3c);
+}
+
+.room-btn i {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+/* تحسين حاوية لوحة التحكم */
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+/* تحسين حاوية الطوابق */
+.floor-container {
+  margin-bottom: 25px;
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 20px;
+  box-shadow: var(--box-shadow);
+  transition: var(--transition);
+}
+
+.floor-container:hover {
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.floor-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: var(--dark);
+  text-align: center;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--primary), #5dade2);
+  color: white;
+  border-radius: var(--border-radius);
+  margin: -20px -20px 20px -20px;
+}
+
+/* تحسين تخطيط الغرف */
+.floor-rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 15px;
+  justify-items: center;
+  padding: 10px;
+}
+
+/* تحسين أزرار التنقل */
+.nav-btn {
+  margin: 8px;
+  padding: 12px 24px;
+  border-radius: 25px;
+  background: linear-gradient(135deg, var(--primary), #5dade2);
+  color: white;
+  text-decoration: none;
+  transition: var(--transition);
+  font-size: 16px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--box-shadow);
+}
+
+.nav-btn:hover {
+  background: linear-gradient(135deg, var(--dark), #34495e);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  color: white;
+  text-decoration: none;
+}
+
+.nav-btn i {
+  font-size: 18px;
+}
+
+/* تحسين رأس لوحة التحكم */
+.dashboard-header {
+  background: linear-gradient(135deg, var(--dark) 0%, var(--primary) 100%);
+  color: white;
+  padding: 25px 0;
+  margin-bottom: 25px;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* تحسين التنبيهات */
+.alert {
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  border: none;
+  margin-bottom: 20px;
+}
+
+/* تحسين شريط الرأس العلوي */
+.header-top-bar {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 0;
+  margin-bottom: 15px;
+  border-radius: 0 0 15px 15px;
+}
+
+/* تحسين عرض الساعة */
+.clock-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px;
+}
+
+.clock-date-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 20px;
+}
+
+.digital-clock {
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-align: right;
+  margin: 0;
+  font-family: "Tajawal", sans-serif;
+  line-height: 1.2;
+}
+
+.date-display {
+  font-size: 0.9rem;
+  text-align: right;
+  font-family: "Tajawal", sans-serif;
+  opacity: 0.9;
+}
+
+.time-separator {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.ampm {
+  font-size: 0.8rem;
+  font-weight: normal;
+  vertical-align: text-top;
+  margin-right: 3px;
+}
+
+/* شاشات الكمبيوتر المكتبي الكبيرة (1920px وأكبر) */
+@media (min-width: 1920px) {
+  .dashboard-container {
+    max-width: 1600px;
+    padding: 30px;
+  }
+
+  .room-btn {
+    width: 120px;
+    height: 120px;
+    font-size: 18px;
+    margin: 12px;
+  }
+
+  .room-btn i {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .floor-rooms {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+  }
+
+  .floor-title {
+    font-size: 24px;
+    padding: 15px 30px;
+  }
+
+  .digital-clock {
+    font-size: 2.2rem;
+  }
+
+  .date-display {
+    font-size: 1.1rem;
+  }
+}
+
+/* شاشات الكمبيوتر المكتبي المتوسطة (1366px - 1919px) */
+@media (min-width: 1366px) and (max-width: 1919px) {
+  .dashboard-container {
+    max-width: 1300px;
+    padding: 25px;
+  }
+
+  .room-btn {
+    width: 110px;
+    height: 110px;
+    font-size: 17px;
+    margin: 10px;
+  }
+
+  .room-btn i {
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+
+  .floor-rooms {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 18px;
+  }
+
+  .floor-title {
+    font-size: 22px;
+  }
+
+  .digital-clock {
+    font-size: 2rem;
+  }
+
+  .date-display {
+    font-size: 1rem;
+  }
+}
+
+/* شاشات اللابتوب الكبيرة (1200px - 1365px) */
+@media (min-width: 1200px) and (max-width: 1365px) {
+  .dashboard-container {
+    max-width: 1150px;
+    padding: 20px;
+  }
+
+  .room-btn {
+    width: 100px;
+    height: 100px;
+    font-size: 16px;
+    margin: 8px;
+  }
+
+  .room-btn i {
+    font-size: 24px;
+    margin-bottom: 5px;
+  }
+
+  .floor-rooms {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+  }
+
+  .digital-clock {
+    font-size: 1.8rem;
+  }
+}
+
+/* شاشات اللابتوب المتوسطة (992px - 1199px) */
+@media (min-width: 992px) and (max-width: 1199px) {
+  .dashboard-container {
+    padding: 18px;
+  }
+
+  .room-btn {
+    width: 90px;
+    height: 90px;
+    font-size: 15px;
+    margin: 7px;
+  }
+
+  .room-btn i {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+
+  .floor-rooms {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 12px;
+  }
+
+  .floor-title {
+    font-size: 18px;
+  }
+
+  .nav-btn {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+
+  .digital-clock {
+    font-size: 1.6rem;
+  }
+
+  .date-display {
+    font-size: 0.85rem;
+  }
+}
+
+/* شاشات التابلت (768px - 991px) */
+@media (min-width: 768px) and (max-width: 991px) {
+  .dashboard-container {
+    padding: 15px;
+  }
+
+  .room-btn {
+    width: 80px;
+    height: 80px;
+    font-size: 14px;
+    margin: 6px;
+  }
+
+  .room-btn i {
+    font-size: 20px;
+    margin-bottom: 3px;
+  }
+
+  .floor-rooms {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+  }
+
+  .floor-title {
+    font-size: 16px;
+    padding: 8px 15px;
+  }
+
+  .nav-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    margin: 6px;
+  }
+
+  .clock-container {
+    justify-content: center;
+  }
+
+  .clock-date-wrapper {
+    align-items: center;
+    margin-left: 0;
+  }
+
+  .digital-clock {
+    font-size: 1.4rem;
+    text-align: center;
+  }
+
+  .date-display {
+    font-size: 0.8rem;
+    text-align: center;
+  }
+}
+
+/* شاشات الموبايل (أقل من 768px) */
+@media (max-width: 767px) {
+  .dashboard-container {
+    padding: 10px;
+  }
+
+  .room-btn {
+    width: 70px;
+    height: 70px;
+    font-size: 12px;
+    margin: 4px;
+  }
+
+  .room-btn i {
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+
+  .floor-rooms {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+  }
+
+  .floor-container {
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .floor-title {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+
+  .nav-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin: 4px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 22px;
+  }
+
+  .digital-clock {
+    font-size: 1.2rem;
+  }
+
+  .date-display {
+    font-size: 0.7rem;
+  }
+
+  .ampm {
+    font-size: 0.6rem;
+  }
+}
+
+/* تحسينات إضافية للأداء */
+.room-btn,
+.nav-btn,
+.floor-container {
+  will-change: transform, box-shadow;
+}
+
+/* تحسين التمرير */
+.dashboard-container {
+  scroll-behavior: smooth;
+}
+
+/* تحسين الطباعة */
+@media print {
+  .nav-btn,
+  .clock-container {
+    display: none !important;
+  }
+
+  .floor-container {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  .room-btn {
+    box-shadow: none;
+    border: 1px solid #333;
+  }
+}

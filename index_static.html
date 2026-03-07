@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة فندق مارينا بلازا</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .logo {
+            margin-bottom: 2rem;
+        }
+
+        .logo i {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .status {
+            background: #e8f5e8;
+            color: #27ae60;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            border: 2px solid #27ae60;
+        }
+
+        .status i {
+            margin-left: 0.5rem;
+        }
+
+        .features {
+            text-align: right;
+            margin: 2rem 0;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+        }
+
+        .feature i {
+            color: #667eea;
+            margin-left: 0.5rem;
+            width: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn i {
+            margin-left: 0.5rem;
+        }
+
+        .info {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 2rem;
+            text-align: right;
+        }
+
+        .info h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .info p {
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .logo i {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <i class="fas fa-hotel"></i>
+            <h1>نظام إدارة فندق مارينا بلازا</h1>
+            <p class="subtitle">منصة الإدارة المتكاملة لخدمات الفندق</p>
+        </div>
+
+        <div class="status">
+            <i class="fas fa-check-circle"></i>
+            تم نشر التطبيق بنجاح!
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <span>إدارة الحجوزات والنزلاء</span>
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="feature">
+                <span>إدارة الغرف والطوابق</span>
+                <i class="fas fa-door-open"></i>
+            </div>
+            <div class="feature">
+                <span>التقارير المالية</span>
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div class="feature">
+                <span>إدارة المستخدمين</span>
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="feature">
+                <span>نظام الأمان المتقدم</span>
+                <i class="fas fa-shield-alt"></i>
+            </div>
+        </div>
+
+        <a href="login.php" class="btn">
+            <i class="fas fa-sign-in-alt"></i>
+            تسجيل الدخول للنظام
+        </a>
+
+        <div class="info">
+            <h3>معلومات النشر</h3>
+            <p>
+                تم نشر نظام إدارة فندق مارينا بلازا بنجاح. النظام يحتوي على جميع الميزات المطلوبة لإدارة الفندق بكفاءة عالية.
+                <br><br>
+                للوصول للنظام، يرجى النقر على زر "تسجيل الدخول للنظام" أعلاه.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // إضافة تأثيرات بصرية
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.container');
+            container.style.opacity = '0';
+            container.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                container.style.transition = 'all 0.6s ease';
+                container.style.opacity = '1';
+                container.style.transform = 'translateY(0)';
+            }, 100);
+        });
+    </script>
+</body>
+</html>

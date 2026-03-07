@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- مجلد التطبيق الداخلي -->
+    <files-path name="internal_files" path="." />
+    
+    <!-- مجلد Cache للتطبيق -->
+    <cache-path name="cache_files" path="." />
+    
+    <!-- مجلد Documents الخارجي -->
+    <external-files-path name="external_files" path="." />
+    
+    <!-- مجلد Downloads -->
+    <external-path name="external_downloads" path="Download" />
+    
+    <!-- مجلد النسخ الاحتياطي -->
+    <external-files-path name="backup_files" path="MarinaHotelBackups" />
+    
+    <!-- مسار عام للملفات الخارجية -->
+    <external-path name="external_storage_root" path="." />
+</paths>
