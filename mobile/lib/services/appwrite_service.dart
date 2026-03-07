@@ -218,6 +218,26 @@ class AppwriteService {
   }) async {
     final cleanData = Map<String, dynamic>.from(data)..remove('id');
 
+    // ⭐ إضافة الحقول المطلوبة دائماً (للتوافق مع المستندات القديمة)
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final requiredFields = {
+      'created_at': now,
+      'updated_at': now,
+      'last_modified': now,
+      'version': 1,
+      'origin': 'local',
+      'vector_clock': '{}',
+    };
+
+    // دمج الحقول المطلوبة (فقط إذا غير موجودة)
+    for (final field in requiredFields.entries) {
+      cleanData.putIfAbsent(field.key, () => field.value);
+      // أيضاً التأكد من أن الحقل ليس null
+      if (cleanData[field.key] == null) {
+        cleanData[field.key] = field.value;
+      }
+    }
+
     // 1. محاولة جلب المستند الحالي للتحقق من التعارض (Optimistic Concurrency Control)
     try {
       final existing = await _databases.getDocument(

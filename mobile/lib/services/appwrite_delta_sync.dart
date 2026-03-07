@@ -824,6 +824,11 @@ class AppwriteDeltaSync {
       'created_at': nowEpoch,
       'updated_at': nowEpoch,
       'last_modified': nowEpoch,
+      'version': 1,
+      'origin': 'local',
+      'vector_clock': '{}',
+      'device_id': _deviceId ?? 'unknown',
+      'sync_timestamp': nowEpoch,
     };
 
     // نسخ جميع الحقول ما عدا المستثناة
@@ -842,9 +847,14 @@ class AppwriteDeltaSync {
       }
     }
 
-    // ⭐ التأكد من وجود الحقول المطلوبة
+    // ⭐ التأكد من وجود الحقول المطلوبة (فقط إذا لم تكن موجودة أو null)
     for (final req in requiredDefaults.entries) {
-      if (!sanitized.containsKey(req.key) || sanitized[req.key] == null) {
+      final currentValue = sanitized[req.key];
+      if (currentValue == null || (currentValue is String && currentValue.isEmpty && req.key == 'vector_clock')) {
+        sanitized[req.key] = req.value;
+      }
+      // إذا الحقل غير موجود نهائياً
+      if (!sanitized.containsKey(req.key)) {
         sanitized[req.key] = req.value;
       }
     }
