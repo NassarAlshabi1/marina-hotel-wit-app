@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/sync_log_dao.dart';
+import '../../services/reports/sync_report_generator.dart';
 
 /// Provider لسجل المزامنة
 final syncHistoryProvider =
@@ -55,6 +56,11 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       appBar: AppBar(
         title: const Text('سجل المزامنة'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _exportToPdf,
+            tooltip: 'تصدير PDF',
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterDialog,
@@ -495,5 +501,54 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
         );
       },
     );
+  }
+
+  Future<void> _exportToPdf() async {
+    // إظهار مؤشر التحميل
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final db = ref.read(databaseProvider);
+      final dao = SyncLogDao(db);
+
+      // جمع بيانات التقرير
+      final report = await SyncReportDataProvider.gatherReportData(
+        syncLogDao: dao,
+        maxLogs: 100,
+      );
+
+      // إغلاق مؤشر التحميل
+      if (mounted) Navigator.pop(context);
+
+      // تصدير التقرير
+      await SyncReportGenerator.shareReport(report: report);
+
+      // إظهار رسالة نجاح
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إنشاء تقرير المزامنة بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // إغلاق مؤشر التحميل
+      if (mounted) Navigator.pop(context);
+
+      // إظهار رسالة خطأ
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إنشاء التقرير: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

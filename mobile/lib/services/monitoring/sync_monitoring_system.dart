@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import '../daos/sync_log_dao.dart';
+
 /// نوع الحدث
 enum SyncEventType {
   started,
@@ -548,5 +550,202 @@ ${stats.recentErrors.isEmpty ? '  لا توجد أخطاء' : stats.recentErrors
     _healthCheckTimer?.cancel();
     _statsController.close();
     _alertController.close();
+  }
+
+  /// جمع بيانات شاملة من جميع المصادر
+  Future<ComprehensiveSyncReport> gatherComprehensiveReport({
+    SyncLogDao? syncLogDao,
+    int? pendingOutboxCount,
+    int? pendingChangesCount,
+    Map<String, int>? entityCounts,
+  }) async {
+    final now = DateTime.now();
+    final stats = _calculateStats();
+
+    // جمع بيانات من قاعدة البيانات إن وجدت
+    List<SyncLogEntry> dbLogs = [];
+    SyncStats? dbStats;
+    if (syncLogDao != null) {
+      dbLogs = await syncLogDao.getSyncHistory(limit: 100);
+      dbStats = await syncLogDao.getSyncStats(
+        since: now.subtract(const Duration(days: 7)),
+      );
+    }
+
+    // جمع الأخطاء من الأحداث الحالية
+    final errorEvents =
+        _events.where((e) => e.type == SyncEventType.failed).toList();
+    final conflictEvents =
+        _events.where((e) => e.type == SyncEventType.conflict).toList();
+
+    // تحليل الأخطاء المتكررة
+    final errorPatterns = <String, int>{};
+    for (final event in errorEvents) {
+      final msg = event.message ?? 'خطأ غير معروف';
+      errorPatterns[msg] = (errorPatterns[msg] ?? 0) + 1;
+    }
+
+    // حساب معدل النجاح من جميع المصادر
+    final combinedStats = _combineStats(
+      memoryStats: stats,
+      dbStats: dbStats,
+    );
+
+    return ComprehensiveSyncReport(
+      generatedAt: now,
+      memoryStats: stats,
+      dbStats: dbStats,
+      combinedStats: combinedStats,
+      recentEvents: _events.take(50).toList(),
+      dbLogs: dbLogs,
+      errorPatterns: errorPatterns,
+      pendingOutboxCount: pendingOutboxCount ?? 0,
+      pendingChangesCount: pendingChangesCount ?? 0,
+      entityCounts: entityCounts ?? {},
+      conflictCount: conflictEvents.length,
+      deviceId: await _getDeviceId(),
+    );
+  }
+
+  /// دمج الإحصائيات من الذاكرة وقاعدة البيانات
+  SyncPerformanceStats _combineStats({
+    required SyncPerformanceStats memoryStats,
+    SyncStats? dbStats,
+  }) {
+    if (dbStats == null) return memoryStats;
+
+    final totalAttempts = memoryStats.totalAttempts + dbStats.totalSyncs;
+    final successfulSyncs = memoryStats.successfulSyncs + dbStats.successfulSyncs;
+    final failedSyncs = memoryStats.failedSyncs + dbStats.failedSyncs;
+
+    final successRate =
+        totalAttempts > 0 ? successfulSyncs / totalAttempts : 0.0;
+
+    final avgDuration = totalAttempts > 0
+        ? Duration(
+            milliseconds:
+                (memoryStats.averageTime.inMilliseconds * memoryStats.totalAttempts +
+                        dbStats.averageDurationMs * dbStats.totalSyncs) ~/
+                    totalAttempts,
+          )
+        : Duration.zero;
+
+    return SyncPerformanceStats(
+      totalAttempts: totalAttempts,
+      successfulSyncs: successfulSyncs,
+      failedSyncs: failedSyncs,
+      conflictsDetected: memoryStats.conflictsDetected,
+      conflictsResolved: memoryStats.conflictsResolved,
+      successRate: successRate,
+      averageTime: avgDuration,
+      lastSyncDuration: memoryStats.lastSyncDuration,
+      lastSuccessfulSync: memoryStats.lastSuccessfulSync,
+      lastFailedSync: memoryStats.lastFailedSync,
+      recentErrors: memoryStats.recentErrors,
+    );
+  }
+
+  /// الحصول على معرف الجهاز
+  Future<String> _getDeviceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('device_id') ?? 'unknown';
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
+  /// تسجيل حدث من مصدر خارجي (مثل Appwrite أو Google Drive)
+  void recordExternalEvent({
+    required String source,
+    required SyncEventType type,
+    String? message,
+    Map<String, dynamic>? metadata,
+  }) {
+    final event = SyncEvent(
+      type: type,
+      message: '[$source] ${message ?? ''}',
+      metadata: {'source': source, ...?metadata},
+    );
+    _addEvent(event);
+    _updateStats();
+  }
+}
+
+/// تقرير مزامنة شامل يجمع البيانات من جميع المصادر
+class ComprehensiveSyncReport {
+  ComprehensiveSyncReport({
+    required this.generatedAt,
+    required this.memoryStats,
+    this.dbStats,
+    required this.combinedStats,
+    required this.recentEvents,
+    required this.dbLogs,
+    required this.errorPatterns,
+    required this.pendingOutboxCount,
+    required this.pendingChangesCount,
+    required this.entityCounts,
+    required this.conflictCount,
+    required this.deviceId,
+  });
+
+  final DateTime generatedAt;
+  final SyncPerformanceStats memoryStats;
+  final SyncStats? dbStats;
+  final SyncPerformanceStats combinedStats;
+  final List<SyncEvent> recentEvents;
+  final List<SyncLogEntry> dbLogs;
+  final Map<String, int> errorPatterns;
+  final int pendingOutboxCount;
+  final int pendingChangesCount;
+  final Map<String, int> entityCounts;
+  final int conflictCount;
+  final String deviceId;
+
+  /// هل النظام صحي؟
+  bool get isHealthy =>
+      combinedStats.successRate > 0.8 &&
+      pendingChangesCount < 50 &&
+      errorPatterns.length < 5;
+
+  /// مستوى الصحة
+  String get healthLevel {
+    if (combinedStats.successRate > 0.95 && pendingChangesCount < 10) {
+      return 'ممتاز';
+    } else if (combinedStats.successRate > 0.8 && pendingChangesCount < 30) {
+      return 'جيد';
+    } else if (combinedStats.successRate > 0.5) {
+      return 'متوسط';
+    }
+    return 'سيء';
+  }
+
+  /// تنسيق التقرير كنص
+  String toFormattedText() {
+    final buffer = StringBuffer();
+    buffer.writeln('📊 تقرير المزامنة الشامل');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('');
+    buffer.writeln('📅 تاريخ التقرير: $generatedAt');
+    buffer.writeln('📱 الجهاز: $deviceId');
+    buffer.writeln('');
+    buffer.writeln('📈 الإحصائيات:');
+    buffer.writeln('  • إجمالي المحاولات: ${combinedStats.totalAttempts}');
+    buffer.writeln('  • معدل النجاح: ${(combinedStats.successRate * 100).toStringAsFixed(1)}%');
+    buffer.writeln('  • الحالة الصحية: $healthLevel');
+    buffer.writeln('');
+    buffer.writeln('⏳ البيانات المعلقة:');
+    buffer.writeln('  • تغييرات معلقة: $pendingChangesCount');
+    buffer.writeln('  • عناصر Outbox: $pendingOutboxCount');
+    buffer.writeln('');
+    if (errorPatterns.isNotEmpty) {
+      buffer.writeln('❌ أنماط الأخطاء:');
+      for (final entry in errorPatterns.entries) {
+        buffer.writeln('  • ${entry.key}: ${entry.value} مرة');
+      }
+    }
+    buffer.writeln('');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    return buffer.toString();
   }
 }

@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as core_providers;
+import '../../providers/repository_providers.dart';
+import '../../services/daos/sync_log_dao.dart';
+import '../../services/reports/sync_report_generator.dart';
 import '../../utils/status_utils.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 import 'income_expense_report_screen.dart';
+import '../settings/sync_history_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -102,6 +106,28 @@ class ReportsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               const Text(
+                'تقارير النظام',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              _ReportShortcut(
+                icon: Icons.sync,
+                label: 'تقرير أداء المزامنة',
+                color: Colors.indigo,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SyncHistoryScreen()),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _ReportShortcut(
+                icon: Icons.cloud_upload,
+                label: 'تصدير تقرير المزامنة PDF',
+                color: Colors.teal,
+                onTap: () => _exportSyncReport(context, ref),
+              ),
+              const SizedBox(height: 24),
+              const Text(
                 'مؤشرات سريعة',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
@@ -185,6 +211,55 @@ class ReportsScreen extends ConsumerWidget {
     }
 
     return {'dailyOcc': daily, 'revExp': revExp, 'topRooms': topBars};
+  }
+
+  Future<void> _exportSyncReport(BuildContext context, WidgetRef ref) async {
+    // إظهار مؤشر التحميل
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final db = ref.read(databaseProvider);
+      final dao = SyncLogDao(db);
+
+      // جمع بيانات التقرير
+      final report = await SyncReportDataProvider.gatherReportData(
+        syncLogDao: dao,
+        maxLogs: 100,
+      );
+
+      // إغلاق مؤشر التحميل
+      if (context.mounted) Navigator.pop(context);
+
+      // تصدير التقرير
+      await SyncReportGenerator.shareReport(report: report);
+
+      // إظهار رسالة نجاح
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إنشاء تقرير المزامنة بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // إغلاق مؤشر التحميل
+      if (context.mounted) Navigator.pop(context);
+
+      // إظهار رسالة خطأ
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إنشاء التقرير: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

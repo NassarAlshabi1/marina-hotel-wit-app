@@ -290,8 +290,9 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
 
 class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pullAnimationController;
-  late AnimationController _pushAnimationController;
+  AnimationController? _pullAnimationController;
+  AnimationController? _pushAnimationController;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -308,9 +309,41 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   void dispose() {
-    _pullAnimationController.dispose();
-    _pushAnimationController.dispose();
+    _isDisposed = true;
+    _pullAnimationController?.dispose();
+    _pushAnimationController?.dispose();
+    _pullAnimationController = null;
+    _pushAnimationController = null;
     super.dispose();
+  }
+
+  /// Helper method for safe animation control
+  void _safeStopAnimation(AnimationController? controller) {
+    if (_isDisposed || controller == null) return;
+    try {
+      // تحقق إضافي من أن الـ controller لم يتم التخلص منه
+      if (!mounted) return;
+      if (controller.isAnimating) {
+        controller.stop();
+      }
+      controller.reset();
+    } catch (e) {
+      // Controller already disposed, ignore
+      debugPrint('⚠️ AnimationController error (ignored): $e');
+    }
+  }
+
+  /// Helper method for safe animation repeat
+  void _safeRepeatAnimation(AnimationController? controller) {
+    if (_isDisposed || controller == null) return;
+    try {
+      // تحقق إضافي من أن الـ controller لم يتم التخلص منه
+      if (!mounted) return;
+      controller.repeat();
+    } catch (e) {
+      // Controller already disposed, ignore
+      debugPrint('⚠️ AnimationController error (ignored): $e');
+    }
   }
 
   Future<bool> _isAppwriteSyncEnabled() async {
@@ -386,7 +419,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     final syncNotifier = ref.read(syncStateProvider.notifier);
     syncNotifier.setPulling(true);
-    _pullAnimationController.repeat();
+    _safeRepeatAnimation(_pullAnimationController);
 
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
@@ -526,9 +559,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pullAnimationController.stop();
-      _pullAnimationController.reset();
-      ref.read(syncStateProvider.notifier).setPulling(false);
+      _safeStopAnimation(_pullAnimationController);
+      if (!_isDisposed) {
+        ref.read(syncStateProvider.notifier).setPulling(false);
+      }
     }
   }
 
@@ -546,7 +580,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     final syncNotifier = ref.read(syncStateProvider.notifier);
     syncNotifier.setPushing(true);
-    _pushAnimationController.repeat();
+    _safeRepeatAnimation(_pushAnimationController);
 
     final stopwatch = Stopwatch()..start();
     final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
@@ -788,9 +822,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pushAnimationController.stop();
-      _pushAnimationController.reset();
-      ref.read(syncStateProvider.notifier).setPushing(false);
+      _safeStopAnimation(_pushAnimationController);
+      if (!_isDisposed) {
+        ref.read(syncStateProvider.notifier).setPushing(false);
+      }
     }
   }
 
@@ -989,9 +1024,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isPulling)
+                      if (isPulling && _pullAnimationController != null)
                         RotationTransition(
-                          turns: _pullAnimationController,
+                          turns: _pullAnimationController!,
                           child: Icon(buttonIcon, size: 14, color: Colors.white),
                         )
                       else
@@ -1105,9 +1140,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isPushing)
+                      if (isPushing && _pushAnimationController != null)
                         RotationTransition(
-                          turns: _pushAnimationController,
+                          turns: _pushAnimationController!,
                           child: Icon(buttonIcon, size: 14, color: Colors.white),
                         )
                       else
