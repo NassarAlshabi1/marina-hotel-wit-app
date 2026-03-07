@@ -218,15 +218,15 @@ class AppwriteService {
   }) async {
     final cleanData = Map<String, dynamic>.from(data)..remove('id');
 
-    // ⭐ إضافة الحقول المطلوبة دائماً (للتوافق مع المستندات القديمة)
+    // ⭐ إضافة الحقول المطلوبة دائماً - camelCase للتوافق مع Appwrite schema
     final now = DateTime.now().millisecondsSinceEpoch;
     final requiredFields = {
-      'created_at': now,
-      'updated_at': now,
-      'last_modified': now,
+      'createdAt': now,
+      'updatedAt': now,
+      'lastModified': now,
       'version': 1,
       'origin': 'local',
-      'vector_clock': '{}',
+      'vectorClock': '{}',
     };
 
     // دمج الحقول المطلوبة (فقط إذا غير موجودة)
