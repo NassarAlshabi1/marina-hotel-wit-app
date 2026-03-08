@@ -958,7 +958,7 @@ class AppwriteDeltaSync {
       'Uuid',      // localUuid, debtUuid, etc.
       'Type',      // expenseType, paymentType, etc.
       'Method',    // paymentMethod
-      'Date',      // checkinDate, paymentDate, etc.
+      'Date',      // checkinDate, paymentDate, hireDate, etc.
       'Key',       // hotelDayKey, cycleKey, etc.
       'Amount',    // totalAmount, paidAmount, etc.
       'Rate',      // nightlyRate, baseRate, etc.
@@ -968,6 +968,15 @@ class AppwriteDeltaSync {
       'Epoch',     // lastNightEpoch, etc.
       'Cached',    // totalDueCached, etc.
       'Json',      // appliedAdjustmentsJson
+      'Salary',    // basicSalary
+      'Number',    // roomNumber, idNumber, guestPhone, etc.
+      'Name',      // guestName, etc.
+      'Time',      // transactionTime
+      'Place',     // issuePlace
+      'Reason',    // voidReason, debtReason
+      'Text',      // noteText
+      'Info',      // metadata info
+      'Day',       // hotelDayCheckin, etc. (بعض الحقول)
     ];
     
     // ⭐⭐ بادئات الحقول التي يجب أن تبقى camelCase
