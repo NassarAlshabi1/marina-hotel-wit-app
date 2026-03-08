@@ -23,6 +23,10 @@ class AuthLocalStore {
     'notes',
     'information',
     'settings',
+    // ⭐ صلاحيات التعديل
+    'edit_expenses',
+    'edit_payments',
+    'edit_salaries',
   ];
 
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {

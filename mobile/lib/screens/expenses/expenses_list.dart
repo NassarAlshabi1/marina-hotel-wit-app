@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
@@ -287,49 +288,65 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     List<Employee> employees,
   ) {
     final date = _parseExpenseDate(expense.date);
+    // ⭐ التحقق من صلاحية التعديل
+    final auth = ref.watch(authProvider);
+    final canEdit = auth.currentUser?.isAdmin == true ||
+        auth.currentUser?.permissions.contains('edit_expenses') == true ||
+        auth.currentUser?.permissions.contains('all') == true;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: () => _edit(existing: expense, employees: employees),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      expense.description.isNotEmpty
-                          ? expense.description
-                          : 'مصروف بدون وصف',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    expense.description.isNotEmpty
+                        ? expense.description
+                        : 'مصروف بدون وصف',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    CurrencyFormatter.formatAmount(expense.amount),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
+                ),
+                Text(
+                  CurrencyFormatter.formatAmount(expense.amount),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
                   ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  _buildMetaChip(Icons.category, expense.expenseType),
-                  _buildMetaChip(
-                    Icons.calendar_today,
-                    _dateFormat.format(date),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      _buildMetaChip(Icons.category, expense.expenseType),
+                      _buildMetaChip(
+                        Icons.calendar_today,
+                        _dateFormat.format(date),
+                      ),
+                      _buildMetaChip(Icons.person, employeeName ?? 'بدون موظف'),
+                    ],
                   ),
-                  _buildMetaChip(Icons.person, employeeName ?? 'بدون موظف'),
-                ],
-              ),
-            ],
-          ),
+                ),
+                // ⭐ زر التعديل مع التحكم في الصلاحية
+                if (canEdit)
+                  IconButton(
+                    onPressed: () => _edit(existing: expense, employees: employees),
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    tooltip: 'تعديل',
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

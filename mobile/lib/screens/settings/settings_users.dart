@@ -531,6 +531,8 @@ String _permLabel(String key) {
       return 'الحجوزات';
     case 'payments':
       return 'المدفوعات';
+    case 'debts':
+      return 'الديون';
     case 'employees':
       return 'الموظفون';
     case 'expenses':
@@ -541,8 +543,17 @@ String _permLabel(String key) {
       return 'التقارير';
     case 'notes':
       return 'الملاحظات';
+    case 'information':
+      return 'المعلومات';
     case 'settings':
       return 'الإعدادات';
+    // ⭐ صلاحيات التعديل
+    case 'edit_expenses':
+      return 'تعديل المصروفات';
+    case 'edit_payments':
+      return 'تعديل المدفوعات';
+    case 'edit_salaries':
+      return 'تعديل الرواتب';
     default:
       return key;
   }

@@ -1,6 +1,8 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
@@ -44,6 +46,13 @@ class _SalaryEntitlementsScreenState
     }
   }
 
+  bool _canEdit() {
+    final auth = ref.watch(authProvider);
+    return auth.currentUser?.isAdmin == true ||
+        auth.currentUser?.permissions.contains('edit_salaries') == true ||
+        auth.currentUser?.permissions.contains('all') == true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -75,7 +84,7 @@ class _SalaryEntitlementsScreenState
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ..._entitlements.map(_buildEmployeeCard),
+        ..._entitlements.map((e) => _buildEmployeeCard(e)),
       ],
     );
   }
@@ -146,6 +155,8 @@ class _SalaryEntitlementsScreenState
 
   Widget _buildEmployeeCard(SalaryEntitlement ent) {
     final isPositive = ent.netEntitlement >= 0;
+    final canEdit = _canEdit();
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ExpansionTile(
@@ -162,6 +173,13 @@ class _SalaryEntitlementsScreenState
             color: isPositive ? Colors.green : Colors.red,
           ),
         ),
+        trailing: canEdit
+            ? IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                onPressed: () => _showEditDialog(ent),
+                tooltip: 'تعديل',
+              )
+            : null,
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -205,39 +223,7 @@ class _SalaryEntitlementsScreenState
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
-                  ...ent.transactions.take(5).map(
-                        (tx) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            children: [
-                              Text(
-                                tx.type,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: tx.type == 'سحب'
-                                      ? Colors.orange
-                                      : Colors.red,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                CurrencyFormatter.formatAmount(tx.amount),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                tx.date.length > 10
-                                    ? tx.date.substring(0, 10)
-                                    : tx.date,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                  ...ent.transactions.take(5).map(_buildTransactionRow),
                 ],
               ],
             ),
@@ -245,6 +231,108 @@ class _SalaryEntitlementsScreenState
         ],
       ),
     );
+  }
+
+  Widget _buildTransactionRow(SalaryTransaction tx) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              tx.type,
+              style: TextStyle(
+                fontSize: 12,
+                color: tx.type == 'سحب' ? Colors.orange : Colors.red,
+              ),
+            ),
+          ),
+          Text(
+            CurrencyFormatter.formatAmount(tx.amount),
+            style: const TextStyle(fontSize: 12),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEditDialog(SalaryEntitlement ent) async {
+    final salaryCtrl = TextEditingController(
+      text: ent.basicSalary.toString(),
+    );
+    final nameCtrl = TextEditingController(text: ent.employee.name);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('تعديل بيانات ${ent.employee.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'اسم الموظف',
+                prefixIcon: Icon(Icons.person),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: salaryCtrl,
+              decoration: const InputDecoration(
+                labelText: 'الراتب الشهري',
+                prefixIcon: Icon(Icons.attach_money),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    final newSalary = double.tryParse(salaryCtrl.text) ?? 0;
+    if (newSalary <= 0) return;
+
+    // تحديث الراتب في قاعدة البيانات
+    final db = DatabaseManager.instance;
+    await (db.update(db.employees)..where((t) => t.id.equals(ent.employee.id)))
+        .write(
+      EmployeesCompanion(
+        basicSalary: Value(newSalary),
+        name: Value(nameCtrl.text.trim()),
+      ),
+    );
+
+    await _loadData();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تحديث بيانات الموظف'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   String _formatDate(DateTime d) =>
