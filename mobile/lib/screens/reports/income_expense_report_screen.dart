@@ -94,32 +94,61 @@ class _IncomeExpenseReportScreenState
 
   bool _isToday() {
     final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == now.month &&
-        _fromDate.day == now.day &&
-        _toDate.year == now.year &&
-        _toDate.month == now.month &&
-        _toDate.day == now.day;
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    return _fromDate.year == todayStart.year &&
+        _fromDate.month == todayStart.month &&
+        _fromDate.day == todayStart.day &&
+        _toDate.year == todayEnd.year &&
+        _toDate.month == todayEnd.month &&
+        _toDate.day == todayEnd.day;
   }
 
   bool _isThisMonth() {
     final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == now.month &&
-        _fromDate.day == 1;
+    final monthStart = DateTime(now.year, now.month, 1);
+    final lastDay = DateTime(now.year, now.month + 1, 0);
+    final monthEnd = DateTime(lastDay.year, lastDay.month, lastDay.day, 23, 59, 59);
+    return _fromDate.year == monthStart.year &&
+        _fromDate.month == monthStart.month &&
+        _fromDate.day == monthStart.day &&
+        _toDate.year == monthEnd.year &&
+        _toDate.month == monthEnd.month &&
+        _toDate.day == monthEnd.day;
   }
 
   bool _isThisWeek() {
     final now = DateTime.now();
-    final diff = now.difference(_fromDate).inDays;
-    return diff < 7 && diff >= 0 && _toDate.day == now.day;
+    // حساب بداية الأسبوع (السبت في التقويم العربي)
+    final today = DateTime(now.year, now.month, now.day);
+    int daysToSubtract;
+    if (now.weekday == DateTime.saturday) {
+      daysToSubtract = 0;
+    } else if (now.weekday == DateTime.sunday) {
+      daysToSubtract = 1;
+    } else {
+      daysToSubtract = now.weekday + 1;
+    }
+    final weekStart = today.subtract(Duration(days: daysToSubtract));
+    final weekEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    return _fromDate.year == weekStart.year &&
+        _fromDate.month == weekStart.month &&
+        _fromDate.day == weekStart.day &&
+        _toDate.year == weekEnd.year &&
+        _toDate.month == weekEnd.month &&
+        _toDate.day == weekEnd.day;
   }
 
   bool _isThisYear() {
     final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == 1 &&
-        _fromDate.day == 1;
+    final yearStart = DateTime(now.year, 1, 1);
+    final yearEnd = DateTime(now.year, 12, 31, 23, 59, 59);
+    return _fromDate.year == yearStart.year &&
+        _fromDate.month == yearStart.month &&
+        _fromDate.day == yearStart.day &&
+        _toDate.year == yearEnd.year &&
+        _toDate.month == yearEnd.month &&
+        _toDate.day == yearEnd.day;
   }
 
   Future<void> _pickDate({required bool isFrom}) async {

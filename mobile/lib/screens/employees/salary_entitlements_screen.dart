@@ -1,11 +1,20 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' show PdfColors;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 
 /// شاشة التقرير التفصيلي للموظف
 class EmployeeDetailReportScreen extends StatelessWidget {
@@ -270,6 +279,12 @@ class _SalaryEntitlementsScreenState
       title: 'استحقاقات الرواتب',
       actions: [
         IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh)),
+        if (_entitlements.isNotEmpty)
+          IconButton(
+            onPressed: _exportPdf,
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'تصدير PDF',
+          ),
       ],
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
