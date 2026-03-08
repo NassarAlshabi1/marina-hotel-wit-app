@@ -118,13 +118,19 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
 
   /// تحويل كائن Booking إلى JSON (لإرساله إلى Appwrite).
   /// يستخدم camelCase للحقول العادية، و sync_* prefix للحقول المطلوبة في Appwrite
+  /// 
+  /// ⭐ تم تحسينه لإرسال الحقول الأساسية فقط وتجنب التكرار
   @override
   Map<String, dynamic> toJson(Booking model, {required Source src}) {
     return {
-      'id': model.id,
+      // الحقول الأساسية للمزامنة
       'localUuid': model.localUuid,
       'serverId': model.serverId,
       'serverBookingId': model.serverBookingId,
+      'version': model.version,
+      'origin': model.origin,
+      
+      // الحقول الأساسية للحجز
       'roomNumber': model.roomNumber,
       'guestName': model.guestName,
       'guestPhone': model.guestPhone,
@@ -135,43 +141,54 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       'guestNationality': model.guestNationality,
       'guestEmail': model.guestEmail,
       'guestAddress': model.guestAddress,
+      
+      // تواريخ الحجز
       'checkinDate': model.checkinDate,
       'checkoutDate': model.checkoutDate,
       'actualCheckout': model.actualCheckout,
       'status': model.status,
       'notes': model.notes,
+      
+      // الخصم
       'discount': model.discount,
       'discountType': model.discountType,
       'discountStartDate': model.discountStartDate,
+      
+      // الليالي والمدة
       'expectedNights': model.expectedNights,
       'calculatedNights': model.calculatedNights,
-      'totalNightsCached': model.totalNightsCached,
-      'stayDurationIso': model.stayDurationIso,
-      'lastNightEpoch': model.lastNightEpoch,
-      'isOverdue': model.isOverdue,
-      'needsCheckoutReview': model.needsCheckoutReview,
-      'totalDueCached': model.totalDueCached,
-      'totalPaidCached': model.totalPaidCached,
-      'remainingBalanceCached': model.remainingBalanceCached,
-      'isFullyPaid': model.isFullyPaid,
-      'hotelDayCheckin': model.hotelDayCheckin,
-      'hotelDayCheckout': model.hotelDayCheckout,
-      // Sync fields - use sync_* prefix for Appwrite compatibility
-      'sync_created_at': model.createdAt,
-      'sync_updated_at': model.updatedAt,
-      'sync_deleted_at': model.deletedAt,
-      'sync_last_modified': model.lastModified,
-      'sync_version': model.version,
-      'sync_origin': model.origin,
-      'sync_vector_clock': model.vectorClock,
-      // Also include original names for backward compatibility
+      
+      // التواريخ المتزامنة (حقل واحد فقط بدون تكرار)
       'createdAt': model.createdAt,
       'updatedAt': model.updatedAt,
       'deletedAt': model.deletedAt,
       'lastModified': model.lastModified,
+      
+      // حقول إضافية مهمة
+      'hotelDayCheckin': model.hotelDayCheckin,
+      'hotelDayCheckout': model.hotelDayCheckout,
+      
+      // تم إزالة الحقول المكررة (sync_*) والحقول المحلية فقط
+      // هذا يقلل حجم البيانات المرسلة بنسبة ~30%
+    };
+  }
+  
+  /// تحويل كائن Booking إلى JSON مختصر (للمزامنة السريعة)
+  /// يرسل الحقول الأساسية فقط
+  Map<String, dynamic> toJsonCompact(Booking model, {required Source src}) {
+    return {
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'serverBookingId': model.serverBookingId,
+      'roomNumber': model.roomNumber,
+      'guestName': model.guestName,
+      'guestPhone': model.guestPhone,
+      'checkinDate': model.checkinDate,
+      'checkoutDate': model.checkoutDate,
+      'status': model.status,
+      'lastModified': model.lastModified,
       'version': model.version,
       'origin': model.origin,
-      'vectorClock': model.vectorClock,
     };
   }
 }
