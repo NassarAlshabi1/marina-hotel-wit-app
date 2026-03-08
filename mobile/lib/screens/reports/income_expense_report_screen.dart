@@ -43,6 +43,7 @@ class _IncomeExpenseReportScreenState
   List<_ExpenseEntry> _expenseEntries = [];
   double _incomeTotal = 0;
   double _expenseTotal = 0;
+  // ignore: unused_field
   double _salaryTotal = 0;
   double _net = 0;
 
@@ -193,7 +194,7 @@ class _IncomeExpenseReportScreenState
           _ReportResult>(
         ReportCacheKeys.incomeExpense,
         _getCacheParams(),
-        (json) => _ReportResult.fromJson(json),
+        _ReportResult.fromJson,
       );
 
       if (cachedResult != null) {
@@ -855,6 +856,11 @@ class _IncomeExpenseReportScreenState
 class _IncomeEntry {
   _IncomeEntry(
       {required this.date, required this.description, required this.amount});
+  factory _IncomeEntry.fromJson(Map<String, dynamic> json) => _IncomeEntry(
+    date: DateTime.parse(json['date'] as String),
+    description: json['description'] as String,
+    amount: (json['amount'] as num).toDouble(),
+  );
   final DateTime date;
   final String description;
   final double amount;
@@ -864,12 +870,6 @@ class _IncomeEntry {
     'description': description,
     'amount': amount,
   };
-
-  factory _IncomeEntry.fromJson(Map<String, dynamic> json) => _IncomeEntry(
-    date: DateTime.parse(json['date'] as String),
-    description: json['description'] as String,
-    amount: (json['amount'] as num).toDouble(),
-  );
 }
 
 class _ExpenseEntry {
@@ -879,6 +879,13 @@ class _ExpenseEntry {
       required this.description,
       required this.amount,
       required this.isSalary});
+  factory _ExpenseEntry.fromJson(Map<String, dynamic> json) => _ExpenseEntry(
+    date: DateTime.parse(json['date'] as String),
+    type: json['type'] as String,
+    description: json['description'] as String,
+    amount: (json['amount'] as num).toDouble(),
+    isSalary: json['isSalary'] as bool,
+  );
   final DateTime date;
   final String type;
   final String description;
@@ -892,14 +899,6 @@ class _ExpenseEntry {
     'amount': amount,
     'isSalary': isSalary,
   };
-
-  factory _ExpenseEntry.fromJson(Map<String, dynamic> json) => _ExpenseEntry(
-    date: DateTime.parse(json['date'] as String),
-    type: json['type'] as String,
-    description: json['description'] as String,
-    amount: (json['amount'] as num).toDouble(),
-    isSalary: json['isSalary'] as bool,
-  );
 }
 
 class _CombinedEntry {
@@ -939,6 +938,19 @@ class _ReportResult {
       required this.salaryTotal,
       required this.net});
 
+  factory _ReportResult.fromJson(Map<String, dynamic> json) => _ReportResult(
+    incomeEntries: (json['incomeEntries'] as List)
+        .map((e) => _IncomeEntry.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    expenseEntries: (json['expenseEntries'] as List)
+        .map((e) => _ExpenseEntry.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    incomeTotal: (json['incomeTotal'] as num).toDouble(),
+    expenseTotal: (json['expenseTotal'] as num).toDouble(),
+    salaryTotal: (json['salaryTotal'] as num).toDouble(),
+    net: (json['net'] as num).toDouble(),
+  );
+
   final List<_IncomeEntry> incomeEntries;
   final List<_ExpenseEntry> expenseEntries;
   final double incomeTotal;
@@ -954,19 +966,6 @@ class _ReportResult {
     'salaryTotal': salaryTotal,
     'net': net,
   };
-
-  factory _ReportResult.fromJson(Map<String, dynamic> json) => _ReportResult(
-    incomeEntries: (json['incomeEntries'] as List)
-        .map((e) => _IncomeEntry.fromJson(e as Map<String, dynamic>))
-        .toList(),
-    expenseEntries: (json['expenseEntries'] as List)
-        .map((e) => _ExpenseEntry.fromJson(e as Map<String, dynamic>))
-        .toList(),
-    incomeTotal: (json['incomeTotal'] as num).toDouble(),
-    expenseTotal: (json['expenseTotal'] as num).toDouble(),
-    salaryTotal: (json['salaryTotal'] as num).toDouble(),
-    net: (json['net'] as num).toDouble(),
-  );
 }
 
 _ReportResult _processReportData(_ReportParams params) {

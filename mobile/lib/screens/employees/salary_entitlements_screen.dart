@@ -4,7 +4,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColors;
+import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +14,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/enhanced_pdf_utils.dart' show EnhancedPdfUtils, PdfColors;
 
 /// شاشة التقرير التفصيلي للموظف
 class EmployeeDetailReportScreen extends StatelessWidget {
@@ -72,7 +72,7 @@ class EmployeeDetailReportScreen extends StatelessWidget {
               child: Center(child: Text('لا توجد معاملات', style: TextStyle(fontSize: 12))),
             )
           else
-            ...entitlement.transactions.map((tx) => _buildTransactionRow(tx)),
+            ...entitlement.transactions.map(_buildTransactionRow),
           
           const Divider(),
           
@@ -163,20 +163,16 @@ class EmployeeDetailReportScreen extends StatelessWidget {
       case 'رواتب':
         txColor = Colors.orange;
         txType = 'سحب';
-        break;
       case 'سلفة':
         txColor = Colors.orange.shade700;
         txType = 'سلفة';
-        break;
       case 'خصم راتب':
       case 'خصم':
         txColor = Colors.red;
         txType = 'خصم';
-        break;
       case 'غياب':
         txColor = Colors.red.shade700;
         txType = 'غياب';
-        break;
       default:
         txColor = Colors.grey;
         txType = tx.type;
@@ -197,7 +193,7 @@ class EmployeeDetailReportScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
-                color: txColor.withOpacity(0.1),
+                color: txColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(txType, style: TextStyle(fontSize: 10, color: txColor), textAlign: TextAlign.center),
@@ -259,9 +255,9 @@ class _SalaryEntitlementsScreenState
 
   bool _canEdit() {
     final auth = ref.watch(authProvider);
-    return auth.currentUser?.isAdmin == true ||
-        auth.currentUser?.permissions.contains('edit_salaries') == true ||
-        auth.currentUser?.permissions.contains('all') == true;
+    return (auth.currentUser?.isAdmin ?? false) ||
+        (auth.currentUser?.permissions.contains('edit_salaries') ?? false) ||
+        (auth.currentUser?.permissions.contains('all') ?? false);
   }
 
   void _openDetailReport(SalaryEntitlement ent) {
@@ -417,7 +413,7 @@ class _SalaryEntitlementsScreenState
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-        pageFormat: pw.PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.center,
@@ -534,15 +530,15 @@ class _SalaryEntitlementsScreenState
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ..._entitlements.map((e) => _buildEmployeeCard(e)),
+        ..._entitlements.map(_buildEmployeeCard),
       ],
     );
   }
 
   Widget _buildSummaryCard() {
     // الحساب المبسط: سحب + خصم = المتبقي
-    final totalWithdrawals = (_summary['totalWithdrawals'] ?? 0.0);
-    final totalDeductions = (_summary['totalDeductions'] ?? 0.0);
+    final totalWithdrawals = _summary['totalWithdrawals'] ?? 0.0;
+    final totalDeductions = _summary['totalDeductions'] ?? 0.0;
     
     return Card(
       color: Colors.blue.shade50,
@@ -732,20 +728,16 @@ class _SalaryEntitlementsScreenState
       case 'رواتب':
         txColor = Colors.orange;
         txIcon = Icons.money_off;
-        break;
       case 'سلفة':
         txColor = Colors.orange.shade700;
         txIcon = Icons.account_balance_wallet;
-        break;
       case 'خصم راتب':
       case 'خصم':
         txColor = Colors.red;
         txIcon = Icons.remove_circle;
-        break;
       case 'غياب':
         txColor = Colors.red.shade700;
         txIcon = Icons.event_busy;
-        break;
       default:
         txColor = Colors.grey;
         txIcon = Icons.swap_horiz;
