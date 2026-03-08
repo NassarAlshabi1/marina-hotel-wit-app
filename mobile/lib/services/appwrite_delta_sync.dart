@@ -404,7 +404,7 @@ class AppwriteDeltaSync {
 
     final payload = Map<String, dynamic>.from(change.data);
 
-    // ⭐ إضافة الحقول المطلوبة لـ Appwrite (camelCase)
+    // ⭐ إضافة الحقول المطلوبة لـ Appwrite (سيتم تحويلها إلى snake_case لاحقاً)
     payload['deviceId'] = _deviceId;
     payload['syncTimestamp'] = Time.nowEpoch();
 
@@ -413,15 +413,16 @@ class AppwriteDeltaSync {
       payload['localUuid'] = change.localUuid;
     }
 
-    // ⭐ تحويل البيانات (يتولى إضافة الحقول المطلوبة وتحويل snake_case إلى camelCase)
+    // ⭐ تحويل البيانات (يتولى إضافة الحقول المطلوبة وتحويل إلى snake_case للتوافق مع Appwrite)
     final sanitizedData = _sanitizePayload(payload, collectionEntity: change.entity);
 
     // ⭐ تشخيص: طباعة البيانات قبل الإرسال (للتطوير فقط)
     if (kDebugMode) {
       debugPrint('📤 Pushing ${change.entity}/${change.localUuid}');
       debugPrint('   Operation: ${change.operation}');
-      debugPrint('   Has localUuid: ${sanitizedData.containsKey('localUuid')}');
-      debugPrint('   Has createdAt: ${sanitizedData.containsKey('createdAt')}');
+      debugPrint('   Has local_uuid: ${sanitizedData.containsKey('local_uuid')}');
+      debugPrint('   Has created_at: ${sanitizedData.containsKey('created_at')}');
+      debugPrint('   Has updated_at: ${sanitizedData.containsKey('updated_at')}');
       debugPrint('   Has id: ${sanitizedData.containsKey('id')}');
     }
 
@@ -804,8 +805,8 @@ class AppwriteDeltaSync {
     }
   }
 
-  /// ⭐ إصلاح: Appwrite schema يستخدم camelCase للحقول
-  /// يجب إرسال الحقول بصيغة camelCase NOT snake_case
+  /// ⭐ إصلاح: Appwrite schema يستخدم snake_case للحقول المطلوبة
+  /// يجب إرسال الحقول بصيغة snake_case (created_at, updated_at, etc.)
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload,
       {required String collectionEntity}) {
     final sanitized = <String, dynamic>{};
@@ -819,20 +820,20 @@ class AppwriteDeltaSync {
       'sync_id',       // معرف داخلي
     };
 
-    // ⭐ الحقول المطلوبة إضافياً (Appwrite required fields) - camelCase
+    // ⭐ الحقول المطلوبة إضافياً (Appwrite required fields) - snake_case
     final nowEpoch = Time.nowEpoch();
     final requiredDefaults = {
-      'createdAt': nowEpoch,
-      'updatedAt': nowEpoch,
-      'lastModified': nowEpoch,
+      'created_at': nowEpoch,      // ⭐ Appwrite يتطلب snake_case
+      'updated_at': nowEpoch,
+      'last_modified': nowEpoch,
       'version': 1,
       'origin': 'local',
-      'vectorClock': '{}',
-      'deviceId': _deviceId ?? 'unknown',
-      'syncTimestamp': nowEpoch,
+      'vector_clock': '{}',
+      'device_id': _deviceId ?? 'unknown',
+      'sync_timestamp': nowEpoch,
     };
 
-    // نسخ جميع الحقول ما عدا المستثناة مع تحويل snake_case إلى camelCase تلقائياً
+    // نسخ جميع الحقول ما عدا المستثناة مع تحويل camelCase إلى snake_case
     for (final entry in payload.entries) {
       final key = entry.key;
       final value = entry.value;
@@ -840,8 +841,8 @@ class AppwriteDeltaSync {
       // تخطي الحقول الداخلية
       if (excludedFields.contains(key)) continue;
 
-      // تحويل snake_case إلى camelCase تلقائياً
-      final outputKey = _snakeToCamelCase(key);
+      // ⭐ تحويل إلى snake_case للتوافق مع Appwrite schema
+      final outputKey = _toSnakeCase(key);
 
       // معالجة القيم المتداخلة
       if (value is Map<String, dynamic>) {
@@ -854,7 +855,7 @@ class AppwriteDeltaSync {
     // ⭐ التأكد من وجود الحقول المطلوبة (فقط إذا لم تكن موجودة أو null)
     for (final req in requiredDefaults.entries) {
       final currentValue = sanitized[req.key];
-      if (currentValue == null || (currentValue is String && currentValue.isEmpty && req.key == 'vectorClock')) {
+      if (currentValue == null || (currentValue is String && currentValue.isEmpty)) {
         sanitized[req.key] = req.value;
       }
       // إذا الحقل غير موجود نهائياً
@@ -863,12 +864,12 @@ class AppwriteDeltaSync {
       }
     }
 
-    // ⭐ التأكد من وجود localUuid (مطلوب في معظم collections)
-    if (!sanitized.containsKey('localUuid')) {
+    // ⭐ التأكد من وجود local_uuid (مطلوب في معظم collections)
+    if (!sanitized.containsKey('local_uuid')) {
       // استخدام الـ UUID من change أو توليد واحد جديد
-      sanitized['localUuid'] = payload['localUuid'] ?? 
-                               payload['local_uuid'] ?? 
-                               IdGen.uuid();
+      sanitized['local_uuid'] = payload['localUuid'] ?? 
+                                payload['local_uuid'] ?? 
+                                IdGen.uuid();
     }
 
     // ⭐ معالجة خاصة للجداول التي تتطلب حقل id صريح (integer)
@@ -884,6 +885,22 @@ class AppwriteDeltaSync {
     }
 
     return sanitized;
+  }
+  
+  /// ⭐ تحويل camelCase إلى snake_case
+  String _toSnakeCase(String input) {
+    // إذا كان snake_case بالفعل، أعده كما هو
+    if (input.contains('_')) return input;
+    
+    final result = StringBuffer();
+    for (int i = 0; i < input.length; i++) {
+      final char = input[i];
+      if (char.toUpperCase() == char && char.toLowerCase() != char && i > 0) {
+        result.write('_');
+      }
+      result.write(char.toLowerCase());
+    }
+    return result.toString();
   }
 
   /// ⭐ تحويل snake_case إلى camelCase تلقائياً
