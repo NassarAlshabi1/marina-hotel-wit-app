@@ -850,8 +850,22 @@ class AppwriteDeltaSync {
       // تخطي الحقول الداخلية
       if (excludedFields.contains(key)) continue;
 
-      // ⭐ تحويل إلى snake_case للتوافق مع Appwrite schema
-      final outputKey = _toSnakeCase(key);
+      // ⭐ الحقول التي يجب أن تبقى camelCase (كما هو متوقع في Appwrite schema)
+      final keepCamelCase = {
+        'expenseType',      // للمصروفات
+        'paymentMethod',    // للمدفوعات
+        'revenueType',      // للمدفوعات
+        'bookingType',      // للحجوزات
+        'roomType',         // للغرف
+        'guestName',        // للضيوف
+        'guestPhone',       // للضيوف
+        'guestEmail',       // للضيوف
+        'transactionType',  // للمعاملات
+        'action',           // للسحوبات
+      };
+
+      // ⭐ تحويل إلى snake_case للتوافق مع Appwrite schema (إلا الحقول المستثناة)
+      final outputKey = keepCamelCase.contains(key) ? key : _toSnakeCase(key);
 
       // معالجة القيم المتداخلة
       if (value is Map<String, dynamic>) {
@@ -890,6 +904,21 @@ class AppwriteDeltaSync {
       if (!sanitized.containsKey('id') || sanitized['id'] == null) {
         // استخدام timestamp كـ id فريد (integer)
         sanitized['id'] = nowEpoch + (DateTime.now().microsecond % 1000);
+      }
+    }
+
+    // ⭐ معالجة خاصة للمصروفات - التأكد من وجود expenseType
+    if (collectionEntity == 'expenses') {
+      // التحقق من وجود expenseType بصيغة camelCase أو snake_case
+      final hasExpenseType = sanitized.containsKey('expenseType') || 
+                             sanitized.containsKey('expense_type');
+      
+      if (!hasExpenseType) {
+        // استخدام القيمة من payload أو قيمة افتراضية
+        sanitized['expenseType'] = payload['expenseType'] ?? 
+                                   payload['expense_type'] ?? 
+                                   payload['expenseType'] ?? 
+                                   'اخرى';
       }
     }
 
