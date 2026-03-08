@@ -129,24 +129,44 @@ class SalaryCyclesAdapter
   @override
   Map<String, dynamic> toJson(SalaryCycle model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'employeeId', 'employee_id'): model.employeeId,
-      _k(src, 'cycleKey', 'cycle_key'): model.cycleKey,
-      _k(src, 'hotelDayStart', 'hotel_day_start'): model.hotelDayStart,
-      _k(src, 'hotelDayEnd', 'hotel_day_end'): model.hotelDayEnd,
-      _k(src, 'expectedAmount', 'expected_amount'): model.expectedAmount,
-      _k(src, 'actualPaid', 'actual_paid'): model.actualPaid,
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount,
-      _k(src, 'status', 'status'): model.status,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      // الحقول الأساسية للمزامنة
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'version': model.version,
+      'origin': model.origin,
+      
+      // الحقول الأساسية للدورة
+      'employeeId': model.employeeId,
+      'cycleKey': model.cycleKey,
+      'hotelDayStart': model.hotelDayStart,
+      'hotelDayEnd': model.hotelDayEnd,
+      'expectedAmount': model.expectedAmount,
+      'actualPaid': model.actualPaid,
+      'remainingAmount': model.remainingAmount,
+      'status': model.status,
+      
+      // التواريخ المتزامنة
+      'createdAt': model.createdAt,
+      'updatedAt': model.updatedAt,
+      'deletedAt': model.deletedAt,
+      'lastModified': model.lastModified,
+    };
+  }
+  
+  /// تحويل مختصر للمزامنة السريعة
+  Map<String, dynamic> toJsonCompact(SalaryCycle model, {required Source src}) {
+    return {
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'employeeId': model.employeeId,
+      'cycleKey': model.cycleKey,
+      'expectedAmount': model.expectedAmount,
+      'actualPaid': model.actualPaid,
+      'remainingAmount': model.remainingAmount,
+      'status': model.status,
+      'lastModified': model.lastModified,
+      'version': model.version,
+      'origin': model.origin,
     };
   }
 }

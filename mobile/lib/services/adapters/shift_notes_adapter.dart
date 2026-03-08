@@ -101,41 +101,43 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
 
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
-    if (src == Source.appwrite) {
-      final createdAtIso = model.createdAtIso ??
-          DateTime.fromMillisecondsSinceEpoch(
-            model.createdAt * 1000,
-          ).toIso8601String();
-      return {
-        'localUuid': model.localUuid,
-        'title': model.title,
-        'content': model.content,
-        'priority': model.priority,
-        'shiftType': model.shiftType,
-        'isRead': model.isRead,
-        'createdAt': createdAtIso,
-        'createdBy': model.createdBy,
-        if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
-          'expiresAt': model.expiresAt,
-      };
-    }
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'title', 'title'): model.title,
-      _k(src, 'content', 'content'): model.content,
-      _k(src, 'priority', 'priority'): model.priority,
-      _k(src, 'shiftType', 'shift_type'): model.shiftType,
-      _k(src, 'isRead', 'is_read'): model.isRead,
-      _k(src, 'createdBy', 'created_by'): model.createdBy,
-      _k(src, 'expiresAt', 'expires_at'): model.expiresAt,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
+      // الحقول الأساسية للمزامنة
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'version': model.version,
+      'origin': model.origin,
+      
+      // الحقول الأساسية للملاحظة
+      'title': model.title,
+      'content': model.content,
+      'priority': model.priority,
+      'shiftType': model.shiftType,
+      'isRead': model.isRead,
+      'createdBy': model.createdBy,
+      'expiresAt': model.expiresAt,
+      
+      // التواريخ المتزامنة
+      'createdAt': model.createdAt,
+      'updatedAt': model.updatedAt,
+      'deletedAt': model.deletedAt,
+      'lastModified': model.lastModified,
+    };
+  }
+  
+  /// تحويل مختصر للمزامنة السريعة
+  Map<String, dynamic> toJsonCompact(ShiftNote model, {required Source src}) {
+    return {
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'title': model.title,
+      'content': model.content,
+      'priority': model.priority,
+      'shiftType': model.shiftType,
+      'isRead': model.isRead,
+      'lastModified': model.lastModified,
+      'version': model.version,
+      'origin': model.origin,
     };
   }
 }

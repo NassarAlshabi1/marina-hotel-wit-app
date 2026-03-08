@@ -113,21 +113,39 @@ class BookingNotesAdapter
   @override
   Map<String, dynamic> toJson(BookingNote model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'bookingId', 'booking_id'): model.bookingId,
-      _k(src, 'noteText', 'note_text'): model.noteText,
-      _k(src, 'alertType', 'alert_type'): model.alertType,
-      _k(src, 'alertUntil', 'alert_until'): model.alertUntil,
-      _k(src, 'isActive', 'is_active'): model.isActive,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      // الحقول الأساسية للمزامنة
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'version': model.version,
+      'origin': model.origin,
+      
+      // الحقول الأساسية للملاحظة
+      'bookingId': model.bookingId,
+      'noteText': model.noteText,
+      'alertType': model.alertType,
+      'alertUntil': model.alertUntil,
+      'isActive': model.isActive,
+      
+      // التواريخ المتزامنة
+      'createdAt': model.createdAt,
+      'updatedAt': model.updatedAt,
+      'deletedAt': model.deletedAt,
+      'lastModified': model.lastModified,
+    };
+  }
+  
+  /// تحويل مختصر للمزامنة السريعة
+  Map<String, dynamic> toJsonCompact(BookingNote model, {required Source src}) {
+    return {
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'bookingId': model.bookingId,
+      'noteText': model.noteText,
+      'alertType': model.alertType,
+      'isActive': model.isActive,
+      'lastModified': model.lastModified,
+      'version': model.version,
+      'origin': model.origin,
     };
   }
 }

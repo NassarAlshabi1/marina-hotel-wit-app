@@ -88,22 +88,40 @@ class SalaryWithdrawalsAdapter
   @override
   Map<String, dynamic> toJson(SalaryWithdrawal model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'expenseId', 'expense_id'): model.expenseId,
-      _k(src, 'employeeId', 'employee_id'): model.employeeId,
-      _k(src, 'action', 'action'): model.action,
-      _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'note', 'note'): model.note,
-      _k(src, 'date', 'date'): model.date,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      // الحقول الأساسية للمزامنة
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'version': model.version,
+      'origin': model.origin,
+      
+      // الحقول الأساسية للسحب
+      'expenseId': model.expenseId,
+      'employeeId': model.employeeId,
+      'action': model.action,
+      'amount': model.amount,
+      'note': model.note,
+      'date': model.date,
+      
+      // التواريخ المتزامنة
+      'createdAt': model.createdAt,
+      'updatedAt': model.updatedAt,
+      'deletedAt': model.deletedAt,
+      'lastModified': model.lastModified,
+    };
+  }
+  
+  /// تحويل مختصر للمزامنة السريعة
+  Map<String, dynamic> toJsonCompact(SalaryWithdrawal model, {required Source src}) {
+    return {
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'employeeId': model.employeeId,
+      'action': model.action,
+      'amount': model.amount,
+      'date': model.date,
+      'lastModified': model.lastModified,
+      'version': model.version,
+      'origin': model.origin,
     };
   }
 }

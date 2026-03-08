@@ -104,23 +104,42 @@ class CashTransactionsAdapter
   @override
   Map<String, dynamic> toJson(CashTransaction model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'registerId', 'register_id'): model.registerId,
-      _k(src, 'transactionType', 'transaction_type'): model.transactionType,
-      _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'referenceType', 'reference_type'): model.referenceType,
-      _k(src, 'referenceId', 'reference_id'): model.referenceId,
-      _k(src, 'description', 'description'): model.description,
-      _k(src, 'transactionTime', 'transaction_time'): model.transactionTime,
-      _k(src, 'createdBy', 'created_by'): model.createdBy,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
+      // الحقول الأساسية للمزامنة
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'version': model.version,
+      'origin': model.origin,
+      
+      // الحقول الأساسية للمعاملة
+      'registerId': model.registerId,
+      'transactionType': model.transactionType,
+      'amount': model.amount,
+      'referenceType': model.referenceType,
+      'referenceId': model.referenceId,
+      'description': model.description,
+      'transactionTime': model.transactionTime,
+      'createdBy': model.createdBy,
+      
+      // التواريخ المتزامنة
+      'createdAt': model.createdAt,
+      'updatedAt': model.updatedAt,
+      'deletedAt': model.deletedAt,
+      'lastModified': model.lastModified,
+    };
+  }
+  
+  /// تحويل مختصر للمزامنة السريعة
+  Map<String, dynamic> toJsonCompact(CashTransaction model, {required Source src}) {
+    return {
+      'localUuid': model.localUuid,
+      'serverId': model.serverId,
+      'transactionType': model.transactionType,
+      'amount': model.amount,
+      'description': model.description,
+      'transactionTime': model.transactionTime,
+      'lastModified': model.lastModified,
+      'version': model.version,
+      'origin': model.origin,
     };
   }
 }
