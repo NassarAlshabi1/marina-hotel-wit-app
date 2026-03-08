@@ -822,8 +822,14 @@ class AppwriteDeltaSync {
 
     // ⭐ الحقول المطلوبة إضافياً (Appwrite required fields) - snake_case
     final nowEpoch = Time.nowEpoch();
+
+    // ⭐ استخدام created_at الأصلي إذا كان موجوداً، وإلا الوقت الحالي
+    final createdAt = payload['createdAt'] ??
+                      payload['created_at'] ??
+                      nowEpoch;
+
     final requiredDefaults = {
-      'created_at': nowEpoch,      // ⭐ Appwrite يتطلب snake_case
+      'created_at': createdAt,         // ⭐ تاريخ الإنشاء الأصلي
       'updated_at': nowEpoch,
       'last_modified': nowEpoch,
       'version': 1,
@@ -831,6 +837,9 @@ class AppwriteDeltaSync {
       'vector_clock': '{}',
       'device_id': _deviceId ?? 'unknown',
       'sync_timestamp': nowEpoch,
+      // ⭐ حقول جديدة مطلوبة في Appwrite schema
+      'sync_created_at': createdAt,    // تاريخ إنشاء المزامنة (نفس تاريخ الإنشاء)
+      'sync_updated_at': nowEpoch,     // تاريخ آخر تحديث للمزامنة
     };
 
     // نسخ جميع الحقول ما عدا المستثناة مع تحويل camelCase إلى snake_case
