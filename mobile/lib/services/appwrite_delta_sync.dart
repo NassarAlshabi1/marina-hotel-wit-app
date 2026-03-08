@@ -850,16 +850,160 @@ class AppwriteDeltaSync {
     // ⭐⭐ قائمة الحقول المعروفة أن Appwrite يتوقعها camelCase
     // هذه تُكتشف من Appwrite Schema مباشرة
     final knownCamelCaseFields = {
+      // ═══════════════════════════════════════════════════════════
       // حقول تنتهي بـ Type
-      'expenseType', 'paymentType', 'revenueType', 'bookingType', 
-      'roomType', 'transactionType', 'guestIdType',
-      // حقول تنتهي بـ Method  
+      // ═══════════════════════════════════════════════════════════
+      'expenseType', 'paymentType', 'revenueType', 'bookingType',
+      'roomType', 'transactionType', 'guestIdType', 'discountType',
+      'alertType', 'targetType', 'adjustmentType', 'adjustmentMode',
+      'operationType', 'entityType', 'referenceType', 'violationType',
+      'pledgeType', 'shiftType',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول تنتهي بـ Method
+      // ═══════════════════════════════════════════════════════════
       'paymentMethod',
-      // حقول الضيوف
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول الضيوف (Guest)
+      // ═══════════════════════════════════════════════════════════
       'guestName', 'guestPhone', 'guestEmail', 'guestAddress',
-      // حقول أخرى
-      'action', 'status', 'notes',
+      'guestNationality', 'guestIdNumber', 'guestIdIssueDate', 'guestIdIssuePlace',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول التواريخ (Date)
+      // ═══════════════════════════════════════════════════════════
+      'checkinDate', 'checkoutDate', 'paymentDate', 'hireDate',
+      'discountStartDate', 'effectiveDate', 'issueDate', 'dateRecorded',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول المفاتيح (Key)
+      // ═══════════════════════════════════════════════════════════
+      'hotelDayKey', 'cycleKey', 'categoryUuid', 'cashFlowUuid',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول المبالغ (Amount/Rate)
+      // ═══════════════════════════════════════════════════════════
+      'totalAmount', 'paidAmount', 'remainingAmount', 'expectedAmount',
+      'actualPaid', 'nightlyRate', 'baseRate', 'finalRate', 'adjustment',
+      'voidedAmount', 'basicSalary', 'totalIncome', 'totalExpenses',
+      'pendingBalances', 'amountImpact', 'previousValue', 'newValue',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول UUID
+      // ═══════════════════════════════════════════════════════════
+      'localUuid', 'debtUuid', 'bookingUuid', 'targetUuid', 'entityUuid',
+      'bookingLocalUuid', 'appliedAdjustmentUuid', 'reversalPaymentUuid',
+      'originalPaymentUuid', 'linkedDebtUuid', 'bookingUuidCache',
+      'runUuid', 'sessionUuid', 'fixId',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول ID
+      // ═══════════════════════════════════════════════════════════
+      'bookingId', 'employeeId', 'expenseId', 'cycleId', 'registerId',
+      'referenceId', 'bookingLocalId', 'serverBookingId', 'serverPaymentId',
+      'cashTransactionLocalId', 'cashTransactionServerId', 'originalPaymentId',
+      'entityId', 'runId',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول الوقت والتاريخ (Iso/Epoch/At)
+      // ═══════════════════════════════════════════════════════════
+      'stayDurationIso', 'financialHash', 'financialFrozenAt',
+      'lastNightEpoch', 'actualCheckout', 'voidedAt', 'voidedAtIso',
+      'reversedAt', 'cancelledAt', 'paymentDateIso', 'startedAtIso',
+      'completedAtIso', 'startedAtEpoch', 'completedAtEpoch',
+      'timestampIso', 'expiresAt', 'sessionStartIso', 'sessionEndIso',
+      'createdAtIso', 'updatedAtIso', 'deletedAtIso',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول المستخدمين (By)
+      // ═══════════════════════════════════════════════════════════
+      'appliedBy', 'cancelledBy', 'voidedBy', 'reversedBy', 'approvedBy',
+      'createdBy', 'performedBy',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول الأرقام التسلسلية والمعالجة
+      // ═══════════════════════════════════════════════════════════
+      'expectedNights', 'calculatedNights', 'totalNightsCached',
+      'totalDueCached', 'totalPaidCached', 'remainingBalanceCached',
+      'occupancyRate', 'bookingsProcessed', 'paymentsProcessed',
+      'debtsProcessed', 'expensesProcessed', 'durationSeconds',
+      'fixesApplied', 'sequence',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول متنوعة
+      // ═══════════════════════════════════════════════════════════
+      'roomNumber', 'imageUrl', 'cleaningStatus', 'lastCleanedHotelDay',
+      'lastOccupiedHotelDay', 'requiresMaintenance', 'hotelDayCheckin',
+      'hotelDayCheckout', 'hotelDayStart', 'hotelDayEnd',
+      'effectiveHotelDay', 'endHotelDay', 'nightStart', 'nightEnd',
+      'noteText', 'referenceNumber', 'voidReason', 'reversalPaymentUuid',
+      'debtReason', 'pledge', 'note', 'action', 'status', 'notes',
+      'previousState', 'newState', 'changedFields', 'ipAddress',
+      'transactionTime', 'metadata', 'lastKnownVersion', 'errorMessage',
+      'details', 'affectedTableName', 'recordUuid', 'targetTable',
+      'operation', 'payload', 'idNumber', 'issuePlace', 'governorate',
+      'nationality', 'idType', 'title', 'content', 'priority',
+      'nationality', 'position', 'phone', 'name',
+      
+      // ═══════════════════════════════════════════════════════════
+      // حقول JSON المتداخلة
+      // ═══════════════════════════════════════════════════════════
+      'appliedAdjustmentsJson',
     };
+    
+    // ⭐⭐ أنماط الحقول التي يجب أن تبقى camelCase (كشف تلقائي)
+    final camelCaseSuffixes = [
+      'Id',        // bookingId, employeeId, etc.
+      'Uuid',      // localUuid, debtUuid, etc.
+      'Type',      // expenseType, paymentType, etc.
+      'Method',    // paymentMethod
+      'Date',      // checkinDate, paymentDate, etc.
+      'Key',       // hotelDayKey, cycleKey, etc.
+      'Amount',    // totalAmount, paidAmount, etc.
+      'Rate',      // nightlyRate, baseRate, etc.
+      'At',        // voidedAt, reversedAt, etc.
+      'By',        // appliedBy, createdBy, etc.
+      'Iso',       // paymentDateIso, etc.
+      'Epoch',     // lastNightEpoch, etc.
+      'Cached',    // totalDueCached, etc.
+      'Json',      // appliedAdjustmentsJson
+    ];
+    
+    // ⭐⭐ بادئات الحقول التي يجب أن تبقى camelCase
+    final camelCasePrefixes = [
+      'is',        // isSettled, isFullyPaid, etc.
+      'has',       // hasChildren, etc.
+      'needs',     // needsCheckoutReview
+    ];
+    
+    // ⭐⭐ دالة للتحقق مما إذا كان الحقل يجب أن يبقى camelCase
+    bool shouldKeepCamelCase(String field) {
+      // تحقق من القائمة المعروفة
+      if (knownCamelCaseFields.contains(field)) return true;
+      
+      // تحقق من اللواحق
+      for (final suffix in camelCaseSuffixes) {
+        if (field.endsWith(suffix) && field.length > suffix.length) {
+          return true;
+        }
+      }
+      
+      // تحقق من البادئات
+      for (final prefix in camelCasePrefixes) {
+        if (field.startsWith(prefix) && field.length > prefix.length) {
+          // تأكد من أن الحرف التالي للبادئة كبير (camelCase pattern)
+          final nextCharIndex = prefix.length;
+          if (nextCharIndex < field.length &&
+              field[nextCharIndex].toUpperCase() == field[nextCharIndex] &&
+              field[nextCharIndex].toLowerCase() != field[nextCharIndex]) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    }
 
     // نسخ جميع الحقول ما عدا المستثناة
     for (final entry in payload.entries) {
@@ -872,8 +1016,8 @@ class AppwriteDeltaSync {
       // ⭐⭐ قرار تلقائي: camelCase أم snake_case؟
       final String outputKey;
       
-      if (knownCamelCaseFields.contains(key)) {
-        // حقل معروف - ابقه camelCase
+      if (shouldKeepCamelCase(key)) {
+        // حقل يجب أن يبقى camelCase (معروف أو يطابق نمط)
         outputKey = key;
       } else if (_isSnakeCase(key)) {
         // بالفعل snake_case - ابقه كما هو
