@@ -7,6 +7,208 @@ import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 
+/// شاشة التقرير التفصيلي للموظف
+class EmployeeDetailReportScreen extends StatelessWidget {
+  const EmployeeDetailReportScreen({
+    super.key,
+    required this.entitlement,
+  });
+
+  final SalaryEntitlement entitlement;
+
+  @override
+  Widget build(BuildContext context) {
+    // حساب السحب والخصم
+    final totalWithdrawals = entitlement.totalSalaryWithdrawals + entitlement.totalAdvances;
+    final totalDeductions = entitlement.totalSalaryDeductions + entitlement.totalAbsences;
+    final totalDeductionsAll = totalWithdrawals + totalDeductions;
+
+    return AppScaffold(
+      title: 'تقرير ${entitlement.employee.name}',
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          // معلومات الموظف
+          _buildInfoCard(totalWithdrawals, totalDeductions),
+          const SizedBox(height: 12),
+          
+          // جدول المعاملات
+          const Text(
+            'سجل المعاملات:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          
+          // عنوان الجدول
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Row(
+              children: [
+                Expanded(flex: 2, child: Text('التاريخ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                Expanded(flex: 2, child: Text('النوع', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                Expanded(flex: 2, child: Text('المبلغ', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text('ملاحظات', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+              ],
+            ),
+          ),
+          
+          // صفوف المعاملات
+          if (entitlement.transactions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: Text('لا توجد معاملات', style: TextStyle(fontSize: 12))),
+            )
+          else
+            ...entitlement.transactions.map((tx) => _buildTransactionRow(tx)),
+          
+          const Divider(),
+          
+          // الإجمالي
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                _summaryRow('إجمالي الاستحقاق', CurrencyFormatter.formatAmount(entitlement.totalEntitlement), Colors.green),
+                _summaryRow('إجمالي السحب والخصم', '- ${CurrencyFormatter.formatAmount(totalDeductionsAll)}', Colors.red),
+                const Divider(),
+                _summaryRow(
+                  'المتبقي',
+                  CurrencyFormatter.formatAmount(entitlement.netEntitlement),
+                  entitlement.netEntitlement >= 0 ? Colors.green : Colors.red,
+                  bold: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(double totalWithdrawals, double totalDeductions) {
+    return Card(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'الموظف: ${entitlement.employee.name}',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _infoRow('المنصب', entitlement.employee.position),
+            _infoRow('تاريخ التعيين', entitlement.employee.hireDate),
+            _infoRow('الراتب الشهري', CurrencyFormatter.formatAmount(entitlement.basicSalary)),
+            _infoRow('مدة العمل', '${entitlement.totalMonthsWorked} شهر'),
+            const Divider(),
+            _infoRow('سحب من راتب', CurrencyFormatter.formatAmount(totalWithdrawals), Colors.orange),
+            _infoRow('خصم من راتب', CurrencyFormatter.formatAmount(totalDeductions), Colors.red),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value, [Color? color]) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(value, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, String value, Color color, {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(value, style: TextStyle(fontSize: 12, color: color, fontWeight: bold ? FontWeight.bold : FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionRow(SalaryTransaction tx) {
+    Color txColor;
+    String txType;
+    
+    switch (tx.type) {
+      case 'سحب راتب':
+      case 'رواتب':
+        txColor = Colors.orange;
+        txType = 'سحب';
+        break;
+      case 'سلفة':
+        txColor = Colors.orange.shade700;
+        txType = 'سلفة';
+        break;
+      case 'خصم راتب':
+      case 'خصم':
+        txColor = Colors.red;
+        txType = 'خصم';
+        break;
+      case 'غياب':
+        txColor = Colors.red.shade700;
+        txType = 'غياب';
+        break;
+      default:
+        txColor = Colors.grey;
+        txType = tx.type;
+    }
+    
+    final dateStr = tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: Row(
+        children: [
+          Expanded(flex: 2, child: Text(dateStr, style: const TextStyle(fontSize: 11))),
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: txColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(txType, style: TextStyle(fontSize: 10, color: txColor), textAlign: TextAlign.center),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              CurrencyFormatter.formatAmount(tx.amount),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: txColor),
+            ),
+          ),
+          Expanded(flex: 3, child: Text(tx.note ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
+  }
+}
+
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
 
@@ -51,6 +253,15 @@ class _SalaryEntitlementsScreenState
     return auth.currentUser?.isAdmin == true ||
         auth.currentUser?.permissions.contains('edit_salaries') == true ||
         auth.currentUser?.permissions.contains('all') == true;
+  }
+
+  void _openDetailReport(SalaryEntitlement ent) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EmployeeDetailReportScreen(entitlement: ent),
+      ),
+    );
   }
 
   @override
@@ -186,13 +397,24 @@ class _SalaryEntitlementsScreenState
             color: isPositive ? Colors.green : Colors.red,
           ),
         ),
-        trailing: canEdit
-            ? IconButton(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // زر التقرير التفصيلي
+            IconButton(
+              icon: const Icon(Icons.receipt_long, color: Colors.green, size: 20),
+              onPressed: () => _openDetailReport(ent),
+              tooltip: 'تقرير تفصيلي',
+            ),
+            // زر التعديل
+            if (canEdit)
+              IconButton(
                 icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
                 onPressed: () => _showEditDialog(ent),
                 tooltip: 'تعديل',
-              )
-            : null,
+              ),
+          ],
+        ),
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
