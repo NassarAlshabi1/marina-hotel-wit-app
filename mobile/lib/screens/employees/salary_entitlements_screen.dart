@@ -273,6 +273,230 @@ class _SalaryEntitlementsScreenState
     );
   }
 
+  /// تصدير تقرير استحقاقات الرواتب إلى PDF
+  Future<void> _exportPdf() async {
+    if (_entitlements.isEmpty) return;
+
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final doc = pw.Document();
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+
+    final prefs = await SharedPreferences.getInstance();
+    final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
+    final hotelPhone = prefs.getString('hotel_phone') ?? '';
+    final hotelAddress = prefs.getString('hotel_address') ?? '';
+    final hotelLogoPath = prefs.getString('hotel_logo');
+
+    pw.ImageProvider? logoImage;
+    if (hotelLogoPath != null && File(hotelLogoPath).existsSync()) {
+      final logoBytes = File(hotelLogoPath).readAsBytesSync();
+      logoImage = pw.MemoryImage(logoBytes);
+    }
+
+    final now = DateTime.now();
+    final dateStr = DateFormat('yyyy/MM/dd').format(now);
+
+    // رأس التقرير
+    pw.Widget buildReportHeader() {
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        decoration: const pw.BoxDecoration(
+          color: PdfColors.white,
+          border: pw.Border(
+              bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(hotelName,
+                    style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 18,
+                        color: PdfColors.blue900)),
+                if (hotelPhone.isNotEmpty)
+                  pw.Text('هاتف: $hotelPhone',
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                if (hotelAddress.isNotEmpty)
+                  pw.Text('عنوان: $hotelAddress',
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+              ],
+            ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text('تقرير استحقاقات الرواتب',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                pw.SizedBox(height: 4),
+                pw.Text('تاريخ التقرير: $dateStr',
+                    style: pw.TextStyle(
+                        font: fonts.regular,
+                        fontSize: 10,
+                        color: PdfColors.grey700)),
+              ],
+            ),
+            if (logoImage != null)
+              pw.Container(height: 50, width: 50, child: pw.Image(logoImage))
+            else
+              pw.SizedBox(width: 50),
+          ],
+        ),
+      );
+    }
+
+    // بطاقة الملخص
+    final summaryCard = pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: pw.BorderRadius.circular(8),
+        color: PdfColors.blue50,
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text('ملخص الاستحقاقات',
+              style: pw.TextStyle(
+                  font: fonts.bold, fontSize: 14, color: PdfColors.blue800)),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              _buildPdfSummaryItem('عدد الموظفين',
+                  '${_summary['count'] ?? 0}', PdfColors.grey800, fonts.bold),
+              _buildPdfSummaryItem(
+                  'إجمالي الاستحقاقات',
+                  currencyFmt.format(_summary['totalEntitlements'] ?? 0),
+                  PdfColors.green700,
+                  fonts.bold),
+              _buildPdfSummaryItem(
+                  'إجمالي السحبيات',
+                  currencyFmt.format(_summary['totalWithdrawals'] ?? 0),
+                  PdfColors.orange700,
+                  fonts.bold),
+              _buildPdfSummaryItem(
+                  'صافي المستحقات',
+                  currencyFmt.format(_summary['totalNet'] ?? 0),
+                  PdfColors.blue700,
+                  fonts.bold),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    // جدول تفاصيل الموظفين
+    final headers = ['الموظف', 'المنصب', 'الراتب', 'الاستحقاق', 'السحبيات', 'المتبقي'];
+    final dataRows = <List<String>>[];
+
+    for (final ent in _entitlements) {
+      dataRows.add([
+        ent.employee.name,
+        ent.employee.position,
+        currencyFmt.format(ent.basicSalary),
+        currencyFmt.format(ent.totalEntitlement),
+        currencyFmt.format(ent.totalWithdrawals),
+        currencyFmt.format(ent.netEntitlement),
+      ]);
+    }
+
+    // صف الإجمالي
+    dataRows.add([
+      'الإجمالي',
+      '',
+      currencyFmt.format(_entitlements.fold<double>(0, (s, e) => s + e.basicSalary)),
+      currencyFmt.format(_summary['totalEntitlements'] ?? 0),
+      currencyFmt.format(_summary['totalWithdrawals'] ?? 0),
+      currencyFmt.format(_summary['totalNet'] ?? 0),
+    ]);
+
+    doc.addPage(
+      pw.MultiPage(
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        pageFormat: pw.PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.center,
+          child: pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount} - ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
+            style: pw.TextStyle(
+                font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
+          ),
+        ),
+        build: (context) => [
+          buildReportHeader(),
+          pw.SizedBox(height: 12),
+          summaryCard,
+          pw.SizedBox(height: 16),
+          pw.Text('تفاصيل الموظفين',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
+          pw.SizedBox(height: 8),
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: headers,
+            data: dataRows,
+            fonts: fonts,
+            headerColor: PdfColors.blue800,
+            alternateRowColor: PdfColors.grey100,
+          ),
+        ],
+      ),
+    );
+
+    String generateFileName() {
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      return 'استحقاقات_الرواتب-$timestamp.pdf';
+    }
+
+    final pdfBytes = await doc.save();
+    final fileName = generateFileName();
+
+    try {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (await downloadDir.exists()) {
+        final file = File('${downloadDir.path}/$fileName');
+        await file.writeAsBytes(pdfBytes);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم حفظ التقرير في: ${file.path}'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'فتح',
+                textColor: Colors.white,
+                onPressed: () =>
+                    Printing.sharePdf(bytes: pdfBytes, filename: fileName),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('تعذر الحفظ المباشر: $e');
+    }
+
+    await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+  }
+
+  pw.Widget _buildPdfSummaryItem(
+      String label, String value, PdfColor color, pw.Font font) {
+    return pw.Column(
+      children: [
+        pw.Text(label,
+            style: pw.TextStyle(
+                font: font, fontSize: 9, color: PdfColors.grey700)),
+        pw.SizedBox(height: 2),
+        pw.Text(value,
+            style: pw.TextStyle(
+                font: font, fontSize: 11, color: color, fontWeight: pw.FontWeight.bold)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
