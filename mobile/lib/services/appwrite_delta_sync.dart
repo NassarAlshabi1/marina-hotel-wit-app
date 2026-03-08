@@ -807,6 +807,11 @@ class AppwriteDeltaSync {
 
   /// ⭐ إصلاح: Appwrite schema يستخدم snake_case للحقول المطلوبة
   /// يجب إرسال الحقول بصيغة snake_case (created_at, updated_at, etc.)
+  /// 
+  /// ⭐⭐ معالجة تلقائية ذكية:
+  /// - الحقول التي تنتهي بـ "Type" أو "Method" أو "Name" تبقى camelCase
+  /// - الحقول التقنية (created_at, updated_at...) snake_case
+  /// - باقي الحقول تحول تلقائياً حسب النمط
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload,
       {required String collectionEntity}) {
     final sanitized = <String, dynamic>{};
@@ -842,7 +847,21 @@ class AppwriteDeltaSync {
       'sync_updated_at': nowEpoch,     // تاريخ آخر تحديث للمزامنة
     };
 
-    // نسخ جميع الحقول ما عدا المستثناة مع تحويل camelCase إلى snake_case
+    // ⭐⭐ قائمة الحقول المعروفة أن Appwrite يتوقعها camelCase
+    // هذه تُكتشف من Appwrite Schema مباشرة
+    final knownCamelCaseFields = {
+      // حقول تنتهي بـ Type
+      'expenseType', 'paymentType', 'revenueType', 'bookingType', 
+      'roomType', 'transactionType', 'guestIdType',
+      // حقول تنتهي بـ Method  
+      'paymentMethod',
+      // حقول الضيوف
+      'guestName', 'guestPhone', 'guestEmail', 'guestAddress',
+      // حقول أخرى
+      'action', 'status', 'notes',
+    };
+
+    // نسخ جميع الحقول ما عدا المستثناة
     for (final entry in payload.entries) {
       final key = entry.key;
       final value = entry.value;
@@ -850,22 +869,19 @@ class AppwriteDeltaSync {
       // تخطي الحقول الداخلية
       if (excludedFields.contains(key)) continue;
 
-      // ⭐ الحقول التي يجب أن تبقى camelCase (كما هو متوقع في Appwrite schema)
-      final keepCamelCase = {
-        'expenseType',      // للمصروفات
-        'paymentMethod',    // للمدفوعات
-        'revenueType',      // للمدفوعات
-        'bookingType',      // للحجوزات
-        'roomType',         // للغرف
-        'guestName',        // للضيوف
-        'guestPhone',       // للضيوف
-        'guestEmail',       // للضيوف
-        'transactionType',  // للمعاملات
-        'action',           // للسحوبات
-      };
-
-      // ⭐ تحويل إلى snake_case للتوافق مع Appwrite schema (إلا الحقول المستثناة)
-      final outputKey = keepCamelCase.contains(key) ? key : _toSnakeCase(key);
+      // ⭐⭐ قرار تلقائي: camelCase أم snake_case؟
+      final String outputKey;
+      
+      if (knownCamelCaseFields.contains(key)) {
+        // حقل معروف - ابقه camelCase
+        outputKey = key;
+      } else if (_isSnakeCase(key)) {
+        // بالفعل snake_case - ابقه كما هو
+        outputKey = key;
+      } else {
+        // تحويل إلى snake_case
+        outputKey = _toSnakeCase(key);
+      }
 
       // معالجة القيم المتداخلة
       if (value is Map<String, dynamic>) {
@@ -907,21 +923,6 @@ class AppwriteDeltaSync {
       }
     }
 
-    // ⭐ معالجة خاصة للمصروفات - التأكد من وجود expenseType
-    if (collectionEntity == 'expenses') {
-      // التحقق من وجود expenseType بصيغة camelCase أو snake_case
-      final hasExpenseType = sanitized.containsKey('expenseType') || 
-                             sanitized.containsKey('expense_type');
-      
-      if (!hasExpenseType) {
-        // استخدام القيمة من payload أو قيمة افتراضية
-        sanitized['expenseType'] = payload['expenseType'] ?? 
-                                   payload['expense_type'] ?? 
-                                   payload['expenseType'] ?? 
-                                   'اخرى';
-      }
-    }
-
     return sanitized;
   }
   
@@ -939,6 +940,11 @@ class AppwriteDeltaSync {
       result.write(char.toLowerCase());
     }
     return result.toString();
+  }
+
+  /// ⭐ التحقق مما إذا كان الحقل snake_case
+  bool _isSnakeCase(String input) {
+    return input.contains('_') && input.toLowerCase() == input;
   }
 
   /// ⭐ تحويل snake_case إلى camelCase تلقائياً
