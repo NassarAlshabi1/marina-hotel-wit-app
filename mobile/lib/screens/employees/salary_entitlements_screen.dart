@@ -28,8 +28,8 @@ class EmployeeDetailReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // حساب السحب والخصم
-    final totalWithdrawals = entitlement.totalSalaryWithdrawals + entitlement.totalAdvances;
-    final totalDeductions = entitlement.totalSalaryDeductions + entitlement.totalAbsences;
+    final totalWithdrawals = entitlement.totalWithdrawals;
+    final totalDeductions = entitlement.totalDeductions;
     final totalDeductionsAll = totalWithdrawals + totalDeductions;
 
     return AppScaffold(
@@ -317,10 +317,8 @@ class _SalaryEntitlementsScreenState
 
   Widget _buildSummaryCard() {
     // الحساب المبسط: سحب + خصم = المتبقي
-    final totalWithdrawals = (_summary['totalSalaryWithdrawals'] ?? 0.0) + 
-                             (_summary['totalAdvances'] ?? 0.0);
-    final totalDeductions = (_summary['totalSalaryDeductions'] ?? 0.0) + 
-                            (_summary['totalAbsences'] ?? 0.0);
+    final totalWithdrawals = (_summary['totalWithdrawals'] ?? 0.0);
+    final totalDeductions = (_summary['totalDeductions'] ?? 0.0);
     
     return Card(
       color: Colors.blue.shade50,
@@ -393,8 +391,8 @@ class _SalaryEntitlementsScreenState
     final canEdit = _canEdit();
     
     // الحساب المبسط: سحب + خصم
-    final totalWithdrawals = ent.totalSalaryWithdrawals + ent.totalAdvances;
-    final totalDeductions = ent.totalSalaryDeductions + ent.totalAbsences;
+    final totalWithdrawals = ent.totalWithdrawals;
+    final totalDeductions = ent.totalDeductions;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
