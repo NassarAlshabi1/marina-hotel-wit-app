@@ -90,6 +90,12 @@ class _SalaryEntitlementsScreenState
   }
 
   Widget _buildSummaryCard() {
+    // الحساب المبسط: سحب + خصم = المتبقي
+    final totalWithdrawals = (_summary['totalSalaryWithdrawals'] ?? 0.0) + 
+                             (_summary['totalAdvances'] ?? 0.0);
+    final totalDeductions = (_summary['totalSalaryDeductions'] ?? 0.0) + 
+                            (_summary['totalAbsences'] ?? 0.0);
+    
     return Card(
       color: Colors.blue.shade50,
       child: Padding(
@@ -110,19 +116,22 @@ class _SalaryEntitlementsScreenState
               ),
               Colors.green,
             ),
+            const Divider(height: 16),
+            // سحب من راتب (سحب + رواتب + سلفة)
             _row(
-              'إجمالي السحبيات',
-              CurrencyFormatter.formatAmount(_summary['totalWithdrawals'] ?? 0),
+              'سحب من راتب',
+              '- ${CurrencyFormatter.formatAmount(totalWithdrawals)}',
               Colors.orange,
             ),
+            // خصم من راتب (خصم + غياب)
             _row(
-              'إجمالي الخصومات',
-              CurrencyFormatter.formatAmount(_summary['totalDeductions'] ?? 0),
+              'خصم من راتب',
+              '- ${CurrencyFormatter.formatAmount(totalDeductions)}',
               Colors.red,
             ),
             const Divider(),
             _row(
-              'صافي المستحقات',
+              'المتبقي',
               CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0),
               Colors.blue.shade700,
               true,
@@ -156,6 +165,10 @@ class _SalaryEntitlementsScreenState
   Widget _buildEmployeeCard(SalaryEntitlement ent) {
     final isPositive = ent.netEntitlement >= 0;
     final canEdit = _canEdit();
+    
+    // الحساب المبسط: سحب + خصم
+    final totalWithdrawals = ent.totalSalaryWithdrawals + ent.totalAdvances;
+    final totalDeductions = ent.totalSalaryDeductions + ent.totalAbsences;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -197,15 +210,33 @@ class _SalaryEntitlementsScreenState
                   CurrencyFormatter.formatAmount(ent.totalEntitlement),
                   Colors.green,
                 ),
-                _row(
-                  'السحبيات',
-                  '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
-                  Colors.orange,
+                const SizedBox(height: 4),
+                // سحب من راتب
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _row(
+                    'سحب من راتب',
+                    '- ${CurrencyFormatter.formatAmount(totalWithdrawals)}',
+                    Colors.orange,
+                  ),
                 ),
-                _row(
-                  'الخصومات',
-                  '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
-                  Colors.red,
+                const SizedBox(height: 4),
+                // خصم من راتب
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _row(
+                    'خصم من راتب',
+                    '- ${CurrencyFormatter.formatAmount(totalDeductions)}',
+                    Colors.red,
+                  ),
                 ),
                 const Divider(),
                 _row(
@@ -234,22 +265,48 @@ class _SalaryEntitlementsScreenState
   }
 
   Widget _buildTransactionRow(SalaryTransaction tx) {
+    Color txColor;
+    IconData txIcon;
+    
+    switch (tx.type) {
+      case 'سحب راتب':
+      case 'رواتب':
+        txColor = Colors.orange;
+        txIcon = Icons.money_off;
+        break;
+      case 'سلفة':
+        txColor = Colors.orange.shade700;
+        txIcon = Icons.account_balance_wallet;
+        break;
+      case 'خصم راتب':
+      case 'خصم':
+        txColor = Colors.red;
+        txIcon = Icons.remove_circle;
+        break;
+      case 'غياب':
+        txColor = Colors.red.shade700;
+        txIcon = Icons.event_busy;
+        break;
+      default:
+        txColor = Colors.grey;
+        txIcon = Icons.swap_horiz;
+    }
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
+          Icon(txIcon, size: 14, color: txColor),
+          const SizedBox(width: 4),
           Expanded(
             child: Text(
               tx.type,
-              style: TextStyle(
-                fontSize: 12,
-                color: tx.type == 'سحب' ? Colors.orange : Colors.red,
-              ),
+              style: TextStyle(fontSize: 11, color: txColor),
             ),
           ),
           Text(
-            CurrencyFormatter.formatAmount(tx.amount),
-            style: const TextStyle(fontSize: 12),
+            '- ${CurrencyFormatter.formatAmount(tx.amount)}',
+            style: const TextStyle(fontSize: 11),
           ),
           const SizedBox(width: 8),
           Text(
