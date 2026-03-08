@@ -64,6 +64,7 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.9.0
   mockito: ^5.4.4
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
@@ -71,3 +72,10 @@ flutter:
     - assets/fonts/Tajawal-Regular.ttf
     - assets/fonts/Tajawal-Bold.ttf
     - assets/images/hotel_logo.jpg
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "../download/app_icon.png"
+  adaptive_icon_background: "#0D47A1"
+  adaptive_icon_foreground: "../download/app_icon.png"
