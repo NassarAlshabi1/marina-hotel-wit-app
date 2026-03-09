@@ -112,7 +112,7 @@ class SalaryEntitlementService {
       employee: employee,
       hireDate: hireDate,
       totalMonthsWorked: totalMonthsWorked,
-      basicSalary: employee.basicSalary,
+      basicSalary: employee.basicSalary.toDouble(),  // ⭐ int to double
       totalEntitlement: totalEntitlement,
       totalWithdrawals: totalWithdrawals,
       totalDeductions: totalDeductions,
