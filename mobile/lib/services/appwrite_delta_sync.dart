@@ -859,27 +859,43 @@ class AppwriteDeltaSync {
       'operationType', 'entityType', 'referenceType', 'violationType',
       'pledgeType', 'shiftType',
       
+      // ⭐⭐ snake_case equivalents (للتوافق مع delta_sync_service)
+      'expense_type', 'payment_type', 'revenue_type', 'booking_type',
+      'room_type', 'transaction_type', 'guest_id_type', 'discount_type',
+      'alert_type', 'target_type', 'adjustment_type', 'adjustment_mode',
+      'operation_type', 'entity_type', 'reference_type', 'violation_type',
+      'pledge_type', 'shift_type',
+      
       // ═══════════════════════════════════════════════════════════
       // حقول تنتهي بـ Method
       // ═══════════════════════════════════════════════════════════
       'paymentMethod',
+      'payment_method', // snake_case equivalent
       
       // ═══════════════════════════════════════════════════════════
       // حقول الضيوف (Guest)
       // ═══════════════════════════════════════════════════════════
       'guestName', 'guestPhone', 'guestEmail', 'guestAddress',
       'guestNationality', 'guestIdNumber', 'guestIdIssueDate', 'guestIdIssuePlace',
+      // snake_case equivalents
+      'guest_name', 'guest_phone', 'guest_email', 'guest_address',
+      'guest_nationality', 'guest_id_number', 'guest_id_issue_date', 'guest_id_issue_place',
       
       // ═══════════════════════════════════════════════════════════
       // حقول التواريخ (Date)
       // ═══════════════════════════════════════════════════════════
       'checkinDate', 'checkoutDate', 'paymentDate', 'hireDate',
       'discountStartDate', 'effectiveDate', 'issueDate', 'dateRecorded',
+      // snake_case equivalents
+      'checkin_date', 'checkout_date', 'payment_date', 'hire_date',
+      'discount_start_date', 'effective_date', 'issue_date', 'date_recorded',
       
       // ═══════════════════════════════════════════════════════════
       // حقول المفاتيح (Key)
       // ═══════════════════════════════════════════════════════════
       'hotelDayKey', 'cycleKey', 'categoryUuid', 'cashFlowUuid',
+      // snake_case equivalents
+      'hotel_day_key', 'cycle_key', 'category_uuid', 'cash_flow_uuid',
       
       // ═══════════════════════════════════════════════════════════
       // حقول المبالغ (Amount/Rate)
@@ -888,6 +904,11 @@ class AppwriteDeltaSync {
       'actualPaid', 'nightlyRate', 'baseRate', 'finalRate', 'adjustment',
       'voidedAmount', 'basicSalary', 'totalIncome', 'totalExpenses',
       'pendingBalances', 'amountImpact', 'previousValue', 'newValue',
+      // snake_case equivalents
+      'total_amount', 'paid_amount', 'remaining_amount', 'expected_amount',
+      'actual_paid', 'nightly_rate', 'base_rate', 'final_rate',
+      'voided_amount', 'basic_salary', 'total_income', 'total_expenses',
+      'pending_balances', 'amount_impact', 'previous_value', 'new_value',
       
       // ═══════════════════════════════════════════════════════════
       // حقول UUID
@@ -1026,8 +1047,12 @@ class AppwriteDeltaSync {
       final String outputKey;
       
       if (shouldKeepCamelCase(key)) {
-        // حقل يجب أن يبقى camelCase (معروف أو يطابق نمط)
-        outputKey = key;
+        // ⭐ حقل معروف - تحويل إلى camelCase إذا كان snake_case
+        if (_isSnakeCase(key)) {
+          outputKey = _snakeToCamelCase(key);
+        } else {
+          outputKey = key;
+        }
       } else if (_isSnakeCase(key)) {
         // بالفعل snake_case - ابقه كما هو
         outputKey = key;
@@ -1072,6 +1097,35 @@ class AppwriteDeltaSync {
     if (requiresExplicitId.contains(collectionEntity)) {
       if (!sanitized.containsKey('id') || sanitized['id'] == null) {
         // استخدام timestamp كـ id فريد (integer)
+        sanitized['id'] = nowEpoch + (DateTime.now().microsecond % 1000);
+      }
+    }
+    
+    // ⭐⭐ معالجة خاصة للحقول المطلوبة في Appwrite
+    // بعض الحقول مطلوبة ولا يمكن أن تكون فارغة
+    
+    // معالجة expenseType للمصروفات
+    if (collectionEntity == 'expenses') {
+      // التحقق من وجود expenseType بصيغتيه
+      final hasExpenseType = sanitized.containsKey('expenseType') || 
+                             sanitized.containsKey('expense_type');
+      
+      if (!hasExpenseType || 
+          (sanitized['expenseType']?.toString().isEmpty ?? true)) {
+        // استخدام قيمة افتراضية
+        sanitized['expenseType'] = 'general';
+      }
+      
+      // إزالة النسخة snake_case إذا كانت موجودة
+      sanitized.remove('expense_type');
+    }
+    
+    // معالجة id لـ salary_withdrawals
+    if (collectionEntity == 'salary_withdrawals') {
+      // التحقق من وجود id
+      if (!sanitized.containsKey('id') || 
+          sanitized['id'] == null ||
+          (sanitized['id'] is int && sanitized['id'] == 0)) {
         sanitized['id'] = nowEpoch + (DateTime.now().microsecond % 1000);
       }
     }

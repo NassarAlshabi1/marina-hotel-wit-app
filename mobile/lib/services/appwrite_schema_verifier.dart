@@ -515,6 +515,26 @@ class AppwriteSchemaVerifier {
         {'key': 'cancelledBy', 'type': 'string', 'size': 100},
       ],
     },
+    'salary_withdrawals': {
+      'name': 'Salary Withdrawals',
+      'includeSyncFields': true,
+      'attributes': [
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true
+        },
+        {'key': 'id', 'type': 'integer', 'required': true},
+        {'key': 'expenseId', 'type': 'integer'},
+        {'key': 'employeeId', 'type': 'integer', 'required': true},
+        {'key': 'action', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'amount', 'type': 'integer', 'default': 0},
+        {'key': 'note', 'type': 'string', 'size': 500},
+        {'key': 'date', 'type': 'string', 'size': 50, 'required': true},
+      ],
+    },
   };
 
   static final _syncFields = [

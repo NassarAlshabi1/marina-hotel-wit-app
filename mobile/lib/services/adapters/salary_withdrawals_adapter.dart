@@ -88,6 +88,9 @@ class SalaryWithdrawalsAdapter
   @override
   Map<String, dynamic> toJson(SalaryWithdrawal model, {required Source src}) {
     return {
+      // ⭐ الحقل الأساسي المطلوب في Appwrite
+      'id': model.id,
+      
       // الحقول الأساسية للمزامنة
       'localUuid': model.localUuid,
       'serverId': model.serverId,
