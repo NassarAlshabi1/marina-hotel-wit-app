@@ -479,7 +479,7 @@ class BookingPriceAdjustmentService {
         adjustmentSummaries.add(AdjustmentSummary(
           uuid: adj.localUuid,
           type: type,
-          amount: adj.amount,
+          amount: adj.amount.toDouble(),  // ⭐ int to double
           effectiveHotelDay: adj.effectiveHotelDay,
           endHotelDay: adj.endHotelDay,
           nightsAffected: nightsAffected,
