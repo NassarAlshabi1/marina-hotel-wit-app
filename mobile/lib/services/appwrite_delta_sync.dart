@@ -424,6 +424,11 @@ class AppwriteDeltaSync {
       debugPrint('   Has created_at: ${sanitizedData.containsKey('created_at')}');
       debugPrint('   Has updated_at: ${sanitizedData.containsKey('updated_at')}');
       debugPrint('   Has id: ${sanitizedData.containsKey('id')}');
+      // ⭐ تشخيص خاص لـ expenses
+      if (change.entity == 'expenses') {
+        debugPrint('   Has expenseType: ${sanitizedData.containsKey('expenseType')}');
+        debugPrint('   expenseType value: ${sanitizedData['expenseType']}');
+      }
     }
 
     switch (change.operation) {
