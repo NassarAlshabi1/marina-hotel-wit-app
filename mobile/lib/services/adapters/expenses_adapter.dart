@@ -58,7 +58,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
       relatedId: _vInt(json, 'relatedId', src),
       description: _vStr(json, 'description', src, fallback: ''),
-      amount: _vDouble(json, 'amount', src, fallback: 0),
+      amount: _vInt(json, 'amount', src, fallback: 0),
       date: _vStr(json, 'date', src, fallback: ''),
       cashTransactionId: _vInt(json, 'cashTransactionId', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),

@@ -91,7 +91,7 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
         altKey: 'adjustment_mode',
         fallback: 'per_night',
       ),
-      amount: _vDouble(json, 'amount', src, fallback: 0),
+      amount: _vInt(json, 'amount', src, fallback: 0),
       effectiveHotelDay: _vStr(
         json,
         'effectiveHotelDay',

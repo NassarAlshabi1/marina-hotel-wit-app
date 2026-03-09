@@ -78,7 +78,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
           : _vIntMulti(json, ['bookingLocalId', 'booking_local_id'], src),
       serverBookingId: _vIntMulti(json, ['serverBookingId', 'booking_id'], src),
       roomNumber: _vStrMulti(json, ['roomNumber', 'room_number'], src),
-      amount: _vDouble(json, 'amount', src, fallback: 0),
+      amount: _vInt(json, 'amount', src, fallback: 0),
       paymentDate: _vStrMulti(json, ['paymentDate', 'payment_date'], src, fallback: ''),
       notes: _vStr(json, 'notes', src),
       paymentMethod: _vStrMulti(json, ['paymentMethod', 'payment_method'], src, fallback: ''),
