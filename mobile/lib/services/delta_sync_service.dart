@@ -600,13 +600,40 @@ int _normalizeTimestamp(int value) {
   return value < 1000000000000 ? value * 1000 : value;
 }
 
+/// ⭐⭐⭐ تم التعديل: إبقاء الحقول camelCase لـ Appwrite
+/// Appwrite يستخدم camelCase لجميع الحقول
 Map<String, dynamic> _preparePayload(Map<String, dynamic> source) {
   final result = <String, dynamic>{};
   source.forEach((key, value) {
-    final newKey = _toSnakeCase(key);
+    // ⭐ تحويل snake_case إلى camelCase إذا لزم الأمر
+    final newKey = _isSnakeCase(key) ? _toCamelCase(key) : key;
     result[newKey] = _normalizeValue(value);
   });
   return result;
+}
+
+/// التحقق مما إذا كان الحقل snake_case
+bool _isSnakeCase(String input) {
+  return input.contains('_') && input.toLowerCase() == input;
+}
+
+/// تحويل snake_case إلى camelCase
+String _toCamelCase(String input) {
+  if (!input.contains('_')) return input;
+  
+  final parts = input.split('_');
+  final result = StringBuffer(parts.first);
+  
+  for (int i = 1; i < parts.length; i++) {
+    if (parts[i].isNotEmpty) {
+      result.write(parts[i][0].toUpperCase());
+      if (parts[i].length > 1) {
+        result.write(parts[i].substring(1));
+      }
+    }
+  }
+  
+  return result.toString();
 }
 
 dynamic _normalizeValue(dynamic value) {
