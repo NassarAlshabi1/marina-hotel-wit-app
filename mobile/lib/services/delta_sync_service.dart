@@ -91,18 +91,18 @@ class DeltaSyncService {
           continue;
         }
         final sanitized = _preparePayload(config.toJson(row));
-        sanitized['local_uuid'] = localUuid;
+        sanitized['localUuid'] = localUuid;  // ⭐ camelCase
         final rowHash = _hashPayload(sanitized);
         final payload = Map<String, dynamic>.from(sanitized);
-        payload['row_hash'] = rowHash;
-        final createdAt = _asInt(sanitized['created_at']);
-        final lastModified = _asInt(sanitized['last_modified']);
-        final deletedAt = _asInt(sanitized['deleted_at']);
+        payload['rowHash'] = rowHash;  // ⭐ camelCase
+        final createdAt = _asInt(sanitized['createdAt']);  // ⭐ camelCase
+        final lastModified = _asInt(sanitized['lastModified']);  // ⭐ camelCase
+        final deletedAt = _asInt(sanitized['deletedAt']);  // ⭐ camelCase
         final previous = existingMirror[localUuid];
         final clientTs = nowTs;
 
         if (deletedAt != null && deletedAt > normalizedSince) {
-          payload['deleted_at'] = deletedAt;
+          payload['deletedAt'] = deletedAt;  // ⭐ camelCase
           changes.add(
             DeltaSyncChange(
               entity: config.entity,
@@ -170,10 +170,10 @@ class DeltaSyncService {
           continue;
         }
         final payload = Map<String, dynamic>.from(previous.payload);
-        final previousDeletedAt = _asInt(payload['deleted_at']);
+        final previousDeletedAt = _asInt(payload['deletedAt']);  // ⭐ camelCase
         final deleteStamp = previousDeletedAt ?? nowTs;
-        payload['deleted_at'] = deleteStamp;
-        payload['row_hash'] = previous.rowHash;
+        payload['deletedAt'] = deleteStamp;  // ⭐ camelCase
+        payload['rowHash'] = previous.rowHash;  // ⭐ camelCase
         changes.add(
           DeltaSyncChange(
             entity: config.entity,
@@ -317,7 +317,7 @@ class DeltaSyncService {
           }
 
           final sanitized = _preparePayload(config.toJson(row));
-          sanitized['local_uuid'] = uuid;
+          sanitized['localUuid'] = uuid;  // ⭐ camelCase
           final currentHash = _hashPayload(sanitized);
 
           if (currentHash != mirrorRow.rowHash) {
@@ -362,7 +362,7 @@ class DeltaSyncService {
           if (uuid.isEmpty) continue;
 
           final sanitized = _preparePayload(config.toJson(row));
-          sanitized['local_uuid'] = uuid;
+          sanitized['localUuid'] = uuid;  // ⭐ camelCase
           final rowHash = _hashPayload(sanitized);
 
           await db.customStatement(

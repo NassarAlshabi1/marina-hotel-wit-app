@@ -5374,9 +5374,11 @@ class $EmployeesTable extends Employees
   static const VerificationMeta _basicSalaryMeta =
       const VerificationMeta('basicSalary');
   @override
-  late final GeneratedColumn<double> basicSalary = GeneratedColumn<double>(
+  late final GeneratedColumn<int> basicSalary = GeneratedColumn<int>(
       'basic_salary', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _positionMeta =
       const VerificationMeta('position');
   @override
@@ -5531,8 +5533,6 @@ class $EmployeesTable extends Employees
           _basicSalaryMeta,
           basicSalary.isAcceptableOrUnknown(
               data['basic_salary']!, _basicSalaryMeta));
-    } else if (isInserting) {
-      context.missing(_basicSalaryMeta);
     }
     if (data.containsKey('position')) {
       context.handle(_positionMeta,
@@ -5594,7 +5594,7 @@ class $EmployeesTable extends Employees
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       basicSalary: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}basic_salary'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}basic_salary'])!,
       position: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}position'])!,
       phone: attachedDatabase.typeMapping
@@ -5629,7 +5629,7 @@ class Employee extends DataClass implements Insertable<Employee> {
   final String vectorClock;
   final int id;
   final String name;
-  final double basicSalary;
+  final int basicSalary;
   final String position;
   final String phone;
   final String hireDate;
@@ -5685,7 +5685,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     map['vector_clock'] = Variable<String>(vectorClock);
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
-    map['basic_salary'] = Variable<double>(basicSalary);
+    map['basic_salary'] = Variable<int>(basicSalary);
     map['position'] = Variable<String>(position);
     map['phone'] = Variable<String>(phone);
     map['hire_date'] = Variable<String>(hireDate);
@@ -5749,7 +5749,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      basicSalary: serializer.fromJson<double>(json['basicSalary']),
+      basicSalary: serializer.fromJson<int>(json['basicSalary']),
       position: serializer.fromJson<String>(json['position']),
       phone: serializer.fromJson<String>(json['phone']),
       hireDate: serializer.fromJson<String>(json['hireDate']),
@@ -5776,7 +5776,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       'vectorClock': serializer.toJson<String>(vectorClock),
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
-      'basicSalary': serializer.toJson<double>(basicSalary),
+      'basicSalary': serializer.toJson<int>(basicSalary),
       'position': serializer.toJson<String>(position),
       'phone': serializer.toJson<String>(phone),
       'hireDate': serializer.toJson<String>(hireDate),
@@ -5801,7 +5801,7 @@ class Employee extends DataClass implements Insertable<Employee> {
           String? vectorClock,
           int? id,
           String? name,
-          double? basicSalary,
+          int? basicSalary,
           String? position,
           String? phone,
           String? hireDate,
@@ -5968,7 +5968,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
   final Value<String> vectorClock;
   final Value<int> id;
   final Value<String> name;
-  final Value<double> basicSalary;
+  final Value<int> basicSalary;
   final Value<String> position;
   final Value<String> phone;
   final Value<String> hireDate;
@@ -6013,7 +6013,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.vectorClock = const Value.absent(),
     this.id = const Value.absent(),
     required String name,
-    required double basicSalary,
+    this.basicSalary = const Value.absent(),
     this.position = const Value.absent(),
     this.phone = const Value.absent(),
     this.hireDate = const Value.absent(),
@@ -6023,7 +6023,6 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
         updatedAt = Value(updatedAt),
         lastModified = Value(lastModified),
         name = Value(name),
-        basicSalary = Value(basicSalary),
         status = Value(status);
   static Insertable<Employee> custom({
     Expression<String>? localUuid,
@@ -6042,7 +6041,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Expression<String>? vectorClock,
     Expression<int>? id,
     Expression<String>? name,
-    Expression<double>? basicSalary,
+    Expression<int>? basicSalary,
     Expression<String>? position,
     Expression<String>? phone,
     Expression<String>? hireDate,
@@ -6090,7 +6089,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       Value<String>? vectorClock,
       Value<int>? id,
       Value<String>? name,
-      Value<double>? basicSalary,
+      Value<int>? basicSalary,
       Value<String>? position,
       Value<String>? phone,
       Value<String>? hireDate,
@@ -6172,7 +6171,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       map['name'] = Variable<String>(name.value);
     }
     if (basicSalary.present) {
-      map['basic_salary'] = Variable<double>(basicSalary.value);
+      map['basic_salary'] = Variable<int>(basicSalary.value);
     }
     if (position.present) {
       map['position'] = Variable<String>(position.value);
@@ -7403,9 +7402,11 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
-  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
       'amount', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<String> date = GeneratedColumn<String>(
@@ -7587,8 +7588,6 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     if (data.containsKey('amount')) {
       context.handle(_amountMeta,
           amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
-    } else if (isInserting) {
-      context.missing(_amountMeta);
     }
     if (data.containsKey('date')) {
       context.handle(
@@ -7672,7 +7671,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       description: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
       amount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
       date: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}date'])!,
       cashTransactionId: attachedDatabase.typeMapping.read(
@@ -7713,7 +7712,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String expenseType;
   final int? relatedId;
   final String description;
-  final double amount;
+  final int amount;
   final String date;
   final int? cashTransactionId;
   final String? hotelDayKey;
@@ -7779,7 +7778,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       map['related_id'] = Variable<int>(relatedId);
     }
     map['description'] = Variable<String>(description);
-    map['amount'] = Variable<double>(amount);
+    map['amount'] = Variable<int>(amount);
     map['date'] = Variable<String>(date);
     if (!nullToAbsent || cashTransactionId != null) {
       map['cash_transaction_id'] = Variable<int>(cashTransactionId);
@@ -7869,7 +7868,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       expenseType: serializer.fromJson<String>(json['expenseType']),
       relatedId: serializer.fromJson<int?>(json['relatedId']),
       description: serializer.fromJson<String>(json['description']),
-      amount: serializer.fromJson<double>(json['amount']),
+      amount: serializer.fromJson<int>(json['amount']),
       date: serializer.fromJson<String>(json['date']),
       cashTransactionId: serializer.fromJson<int?>(json['cashTransactionId']),
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
@@ -7900,7 +7899,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'expenseType': serializer.toJson<String>(expenseType),
       'relatedId': serializer.toJson<int?>(relatedId),
       'description': serializer.toJson<String>(description),
-      'amount': serializer.toJson<double>(amount),
+      'amount': serializer.toJson<int>(amount),
       'date': serializer.toJson<String>(date),
       'cashTransactionId': serializer.toJson<int?>(cashTransactionId),
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
@@ -7929,7 +7928,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           String? expenseType,
           Value<int?> relatedId = const Value.absent(),
           String? description,
-          double? amount,
+          int? amount,
           String? date,
           Value<int?> cashTransactionId = const Value.absent(),
           Value<String?> hotelDayKey = const Value.absent(),
@@ -8134,7 +8133,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> expenseType;
   final Value<int?> relatedId;
   final Value<String> description;
-  final Value<double> amount;
+  final Value<int> amount;
   final Value<String> date;
   final Value<int?> cashTransactionId;
   final Value<String?> hotelDayKey;
@@ -8187,7 +8186,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required String expenseType,
     this.relatedId = const Value.absent(),
     required String description,
-    required double amount,
+    this.amount = const Value.absent(),
     required String date,
     this.cashTransactionId = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
@@ -8200,7 +8199,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
         lastModified = Value(lastModified),
         expenseType = Value(expenseType),
         description = Value(description),
-        amount = Value(amount),
         date = Value(date);
   static Insertable<Expense> custom({
     Expression<String>? localUuid,
@@ -8221,7 +8219,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? expenseType,
     Expression<int>? relatedId,
     Expression<String>? description,
-    Expression<double>? amount,
+    Expression<int>? amount,
     Expression<String>? date,
     Expression<int>? cashTransactionId,
     Expression<String>? hotelDayKey,
@@ -8277,7 +8275,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       Value<String>? expenseType,
       Value<int?>? relatedId,
       Value<String>? description,
-      Value<double>? amount,
+      Value<int>? amount,
       Value<String>? date,
       Value<int?>? cashTransactionId,
       Value<String?>? hotelDayKey,
@@ -8371,7 +8369,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       map['description'] = Variable<String>(description.value);
     }
     if (amount.present) {
-      map['amount'] = Variable<double>(amount.value);
+      map['amount'] = Variable<int>(amount.value);
     }
     if (date.present) {
       map['date'] = Variable<String>(date.value);
@@ -8551,9 +8549,11 @@ class $CashTransactionsTable extends CashTransactions
       type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
-  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
       'amount', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _referenceTypeMeta =
       const VerificationMeta('referenceType');
   @override
@@ -8718,8 +8718,6 @@ class $CashTransactionsTable extends CashTransactions
     if (data.containsKey('amount')) {
       context.handle(_amountMeta,
           amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
-    } else if (isInserting) {
-      context.missing(_amountMeta);
     }
     if (data.containsKey('reference_type')) {
       context.handle(
@@ -8795,7 +8793,7 @@ class $CashTransactionsTable extends CashTransactions
       transactionType: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}transaction_type'])!,
       amount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
       referenceType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}reference_type']),
       referenceId: attachedDatabase.typeMapping
@@ -8833,7 +8831,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
   final int id;
   final int? registerId;
   final String transactionType;
-  final double amount;
+  final int amount;
   final String? referenceType;
   final int? referenceId;
   final String? description;
@@ -8895,7 +8893,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       map['register_id'] = Variable<int>(registerId);
     }
     map['transaction_type'] = Variable<String>(transactionType);
-    map['amount'] = Variable<double>(amount);
+    map['amount'] = Variable<int>(amount);
     if (!nullToAbsent || referenceType != null) {
       map['reference_type'] = Variable<String>(referenceType);
     }
@@ -8981,7 +8979,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       id: serializer.fromJson<int>(json['id']),
       registerId: serializer.fromJson<int?>(json['registerId']),
       transactionType: serializer.fromJson<String>(json['transactionType']),
-      amount: serializer.fromJson<double>(json['amount']),
+      amount: serializer.fromJson<int>(json['amount']),
       referenceType: serializer.fromJson<String?>(json['referenceType']),
       referenceId: serializer.fromJson<int?>(json['referenceId']),
       description: serializer.fromJson<String?>(json['description']),
@@ -9010,7 +9008,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       'id': serializer.toJson<int>(id),
       'registerId': serializer.toJson<int?>(registerId),
       'transactionType': serializer.toJson<String>(transactionType),
-      'amount': serializer.toJson<double>(amount),
+      'amount': serializer.toJson<int>(amount),
       'referenceType': serializer.toJson<String?>(referenceType),
       'referenceId': serializer.toJson<int?>(referenceId),
       'description': serializer.toJson<String?>(description),
@@ -9037,7 +9035,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
           int? id,
           Value<int?> registerId = const Value.absent(),
           String? transactionType,
-          double? amount,
+          int? amount,
           Value<String?> referenceType = const Value.absent(),
           Value<int?> referenceId = const Value.absent(),
           Value<String?> description = const Value.absent(),
@@ -9225,7 +9223,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
   final Value<int> id;
   final Value<int?> registerId;
   final Value<String> transactionType;
-  final Value<double> amount;
+  final Value<int> amount;
   final Value<String?> referenceType;
   final Value<int?> referenceId;
   final Value<String?> description;
@@ -9274,7 +9272,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     this.id = const Value.absent(),
     this.registerId = const Value.absent(),
     required String transactionType,
-    required double amount,
+    this.amount = const Value.absent(),
     this.referenceType = const Value.absent(),
     this.referenceId = const Value.absent(),
     this.description = const Value.absent(),
@@ -9285,7 +9283,6 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
         updatedAt = Value(updatedAt),
         lastModified = Value(lastModified),
         transactionType = Value(transactionType),
-        amount = Value(amount),
         transactionTime = Value(transactionTime);
   static Insertable<CashTransaction> custom({
     Expression<String>? localUuid,
@@ -9305,7 +9302,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     Expression<int>? id,
     Expression<int>? registerId,
     Expression<String>? transactionType,
-    Expression<double>? amount,
+    Expression<int>? amount,
     Expression<String>? referenceType,
     Expression<int>? referenceId,
     Expression<String>? description,
@@ -9357,7 +9354,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
       Value<int>? id,
       Value<int?>? registerId,
       Value<String>? transactionType,
-      Value<double>? amount,
+      Value<int>? amount,
       Value<String?>? referenceType,
       Value<int?>? referenceId,
       Value<String?>? description,
@@ -9445,7 +9442,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
       map['transaction_type'] = Variable<String>(transactionType.value);
     }
     if (amount.present) {
-      map['amount'] = Variable<double>(amount.value);
+      map['amount'] = Variable<int>(amount.value);
     }
     if (referenceType.present) {
       map['reference_type'] = Variable<String>(referenceType.value);
@@ -9634,9 +9631,11 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
       type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
-  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
       'amount', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _paymentDateMeta =
       const VerificationMeta('paymentDate');
   @override
@@ -9861,8 +9860,6 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     if (data.containsKey('amount')) {
       context.handle(_amountMeta,
           amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
-    } else if (isInserting) {
-      context.missing(_amountMeta);
     }
     if (data.containsKey('payment_date')) {
       context.handle(
@@ -9983,7 +9980,7 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
       roomNumber: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}room_number']),
       amount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
       paymentDate: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}payment_date'])!,
       notes: attachedDatabase.typeMapping
@@ -10037,7 +10034,7 @@ class Payment extends DataClass implements Insertable<Payment> {
   final int? bookingLocalId;
   final int? serverBookingId;
   final String? roomNumber;
-  final double amount;
+  final int amount;
   final String paymentDate;
   final String? notes;
   final String paymentMethod;
@@ -10121,7 +10118,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || roomNumber != null) {
       map['room_number'] = Variable<String>(roomNumber);
     }
-    map['amount'] = Variable<double>(amount);
+    map['amount'] = Variable<int>(amount);
     map['payment_date'] = Variable<String>(paymentDate);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -10241,7 +10238,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
       serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
       roomNumber: serializer.fromJson<String?>(json['roomNumber']),
-      amount: serializer.fromJson<double>(json['amount']),
+      amount: serializer.fromJson<int>(json['amount']),
       paymentDate: serializer.fromJson<String>(json['paymentDate']),
       notes: serializer.fromJson<String?>(json['notes']),
       paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
@@ -10280,7 +10277,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
       'serverBookingId': serializer.toJson<int?>(serverBookingId),
       'roomNumber': serializer.toJson<String?>(roomNumber),
-      'amount': serializer.toJson<double>(amount),
+      'amount': serializer.toJson<int>(amount),
       'paymentDate': serializer.toJson<String>(paymentDate),
       'notes': serializer.toJson<String?>(notes),
       'paymentMethod': serializer.toJson<String>(paymentMethod),
@@ -10316,7 +10313,7 @@ class Payment extends DataClass implements Insertable<Payment> {
           Value<int?> bookingLocalId = const Value.absent(),
           Value<int?> serverBookingId = const Value.absent(),
           Value<String?> roomNumber = const Value.absent(),
-          double? amount,
+          int? amount,
           String? paymentDate,
           Value<String?> notes = const Value.absent(),
           String? paymentMethod,
@@ -10580,7 +10577,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<int?> bookingLocalId;
   final Value<int?> serverBookingId;
   final Value<String?> roomNumber;
-  final Value<double> amount;
+  final Value<int> amount;
   final Value<String> paymentDate;
   final Value<String?> notes;
   final Value<String> paymentMethod;
@@ -10645,7 +10642,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.bookingLocalId = const Value.absent(),
     this.serverBookingId = const Value.absent(),
     this.roomNumber = const Value.absent(),
-    required double amount,
+    this.amount = const Value.absent(),
     required String paymentDate,
     this.notes = const Value.absent(),
     required String paymentMethod,
@@ -10661,7 +10658,6 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
         lastModified = Value(lastModified),
-        amount = Value(amount),
         paymentDate = Value(paymentDate),
         paymentMethod = Value(paymentMethod),
         revenueType = Value(revenueType);
@@ -10685,7 +10681,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<int>? bookingLocalId,
     Expression<int>? serverBookingId,
     Expression<String>? roomNumber,
-    Expression<double>? amount,
+    Expression<int>? amount,
     Expression<String>? paymentDate,
     Expression<String>? notes,
     Expression<String>? paymentMethod,
@@ -10755,7 +10751,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       Value<int?>? bookingLocalId,
       Value<int?>? serverBookingId,
       Value<String?>? roomNumber,
-      Value<double>? amount,
+      Value<int>? amount,
       Value<String>? paymentDate,
       Value<String?>? notes,
       Value<String>? paymentMethod,
@@ -10865,7 +10861,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       map['room_number'] = Variable<String>(roomNumber.value);
     }
     if (amount.present) {
-      map['amount'] = Variable<double>(amount.value);
+      map['amount'] = Variable<int>(amount.value);
     }
     if (paymentDate.present) {
       map['payment_date'] = Variable<String>(paymentDate.value);
@@ -11099,21 +11095,27 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   static const VerificationMeta _totalAmountMeta =
       const VerificationMeta('totalAmount');
   @override
-  late final GeneratedColumn<double> totalAmount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> totalAmount = GeneratedColumn<int>(
       'total_amount', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _paidAmountMeta =
       const VerificationMeta('paidAmount');
   @override
-  late final GeneratedColumn<double> paidAmount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> paidAmount = GeneratedColumn<int>(
       'paid_amount', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _remainingAmountMeta =
       const VerificationMeta('remainingAmount');
   @override
-  late final GeneratedColumn<double> remainingAmount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> remainingAmount = GeneratedColumn<int>(
       'remaining_amount', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _paymentDateMeta =
       const VerificationMeta('paymentDate');
   @override
@@ -11355,24 +11357,18 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
           _totalAmountMeta,
           totalAmount.isAcceptableOrUnknown(
               data['total_amount']!, _totalAmountMeta));
-    } else if (isInserting) {
-      context.missing(_totalAmountMeta);
     }
     if (data.containsKey('paid_amount')) {
       context.handle(
           _paidAmountMeta,
           paidAmount.isAcceptableOrUnknown(
               data['paid_amount']!, _paidAmountMeta));
-    } else if (isInserting) {
-      context.missing(_paidAmountMeta);
     }
     if (data.containsKey('remaining_amount')) {
       context.handle(
           _remainingAmountMeta,
           remainingAmount.isAcceptableOrUnknown(
               data['remaining_amount']!, _remainingAmountMeta));
-    } else if (isInserting) {
-      context.missing(_remainingAmountMeta);
     }
     if (data.containsKey('payment_date')) {
       context.handle(
@@ -11480,11 +11476,11 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       debtReason: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}debt_reason'])!,
       totalAmount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}total_amount'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}total_amount'])!,
       paidAmount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}paid_amount'])!,
-      remainingAmount: attachedDatabase.typeMapping.read(
-          DriftSqlType.double, data['${effectivePrefix}remaining_amount'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}paid_amount'])!,
+      remainingAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}remaining_amount'])!,
       paymentDate: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}payment_date'])!,
       isSettled: attachedDatabase.typeMapping
@@ -11536,9 +11532,9 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String checkoutDate;
   final String dateRecorded;
   final String debtReason;
-  final double totalAmount;
-  final double paidAmount;
-  final double remainingAmount;
+  final int totalAmount;
+  final int paidAmount;
+  final int remainingAmount;
   final String paymentDate;
   final int isSettled;
   final String? pledge;
@@ -11620,9 +11616,9 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['checkout_date'] = Variable<String>(checkoutDate);
     map['date_recorded'] = Variable<String>(dateRecorded);
     map['debt_reason'] = Variable<String>(debtReason);
-    map['total_amount'] = Variable<double>(totalAmount);
-    map['paid_amount'] = Variable<double>(paidAmount);
-    map['remaining_amount'] = Variable<double>(remainingAmount);
+    map['total_amount'] = Variable<int>(totalAmount);
+    map['paid_amount'] = Variable<int>(paidAmount);
+    map['remaining_amount'] = Variable<int>(remainingAmount);
     map['payment_date'] = Variable<String>(paymentDate);
     map['is_settled'] = Variable<int>(isSettled);
     if (!nullToAbsent || pledge != null) {
@@ -11733,9 +11729,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       checkoutDate: serializer.fromJson<String>(json['checkoutDate']),
       dateRecorded: serializer.fromJson<String>(json['dateRecorded']),
       debtReason: serializer.fromJson<String>(json['debtReason']),
-      totalAmount: serializer.fromJson<double>(json['totalAmount']),
-      paidAmount: serializer.fromJson<double>(json['paidAmount']),
-      remainingAmount: serializer.fromJson<double>(json['remainingAmount']),
+      totalAmount: serializer.fromJson<int>(json['totalAmount']),
+      paidAmount: serializer.fromJson<int>(json['paidAmount']),
+      remainingAmount: serializer.fromJson<int>(json['remainingAmount']),
       paymentDate: serializer.fromJson<String>(json['paymentDate']),
       isSettled: serializer.fromJson<int>(json['isSettled']),
       pledge: serializer.fromJson<String?>(json['pledge']),
@@ -11774,9 +11770,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       'checkoutDate': serializer.toJson<String>(checkoutDate),
       'dateRecorded': serializer.toJson<String>(dateRecorded),
       'debtReason': serializer.toJson<String>(debtReason),
-      'totalAmount': serializer.toJson<double>(totalAmount),
-      'paidAmount': serializer.toJson<double>(paidAmount),
-      'remainingAmount': serializer.toJson<double>(remainingAmount),
+      'totalAmount': serializer.toJson<int>(totalAmount),
+      'paidAmount': serializer.toJson<int>(paidAmount),
+      'remainingAmount': serializer.toJson<int>(remainingAmount),
       'paymentDate': serializer.toJson<String>(paymentDate),
       'isSettled': serializer.toJson<int>(isSettled),
       'pledge': serializer.toJson<String?>(pledge),
@@ -11812,9 +11808,9 @@ class Debt extends DataClass implements Insertable<Debt> {
           String? checkoutDate,
           String? dateRecorded,
           String? debtReason,
-          double? totalAmount,
-          double? paidAmount,
-          double? remainingAmount,
+          int? totalAmount,
+          int? paidAmount,
+          int? remainingAmount,
           String? paymentDate,
           int? isSettled,
           Value<String?> pledge = const Value.absent(),
@@ -12081,9 +12077,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String> checkoutDate;
   final Value<String> dateRecorded;
   final Value<String> debtReason;
-  final Value<double> totalAmount;
-  final Value<double> paidAmount;
-  final Value<double> remainingAmount;
+  final Value<int> totalAmount;
+  final Value<int> paidAmount;
+  final Value<int> remainingAmount;
   final Value<String> paymentDate;
   final Value<int> isSettled;
   final Value<String?> pledge;
@@ -12152,9 +12148,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     required String checkoutDate,
     this.dateRecorded = const Value.absent(),
     this.debtReason = const Value.absent(),
-    required double totalAmount,
-    required double paidAmount,
-    required double remainingAmount,
+    this.totalAmount = const Value.absent(),
+    this.paidAmount = const Value.absent(),
+    this.remainingAmount = const Value.absent(),
     required String paymentDate,
     this.isSettled = const Value.absent(),
     this.pledge = const Value.absent(),
@@ -12172,9 +12168,6 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
         guestName = Value(guestName),
         checkinDate = Value(checkinDate),
         checkoutDate = Value(checkoutDate),
-        totalAmount = Value(totalAmount),
-        paidAmount = Value(paidAmount),
-        remainingAmount = Value(remainingAmount),
         paymentDate = Value(paymentDate);
   static Insertable<Debt> custom({
     Expression<String>? localUuid,
@@ -12198,9 +12191,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? checkoutDate,
     Expression<String>? dateRecorded,
     Expression<String>? debtReason,
-    Expression<double>? totalAmount,
-    Expression<double>? paidAmount,
-    Expression<double>? remainingAmount,
+    Expression<int>? totalAmount,
+    Expression<int>? paidAmount,
+    Expression<int>? remainingAmount,
     Expression<String>? paymentDate,
     Expression<int>? isSettled,
     Expression<String>? pledge,
@@ -12273,9 +12266,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       Value<String>? checkoutDate,
       Value<String>? dateRecorded,
       Value<String>? debtReason,
-      Value<double>? totalAmount,
-      Value<double>? paidAmount,
-      Value<double>? remainingAmount,
+      Value<int>? totalAmount,
+      Value<int>? paidAmount,
+      Value<int>? remainingAmount,
       Value<String>? paymentDate,
       Value<int>? isSettled,
       Value<String?>? pledge,
@@ -12391,13 +12384,13 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       map['debt_reason'] = Variable<String>(debtReason.value);
     }
     if (totalAmount.present) {
-      map['total_amount'] = Variable<double>(totalAmount.value);
+      map['total_amount'] = Variable<int>(totalAmount.value);
     }
     if (paidAmount.present) {
-      map['paid_amount'] = Variable<double>(paidAmount.value);
+      map['paid_amount'] = Variable<int>(paidAmount.value);
     }
     if (remainingAmount.present) {
-      map['remaining_amount'] = Variable<double>(remainingAmount.value);
+      map['remaining_amount'] = Variable<int>(remainingAmount.value);
     }
     if (paymentDate.present) {
       map['payment_date'] = Variable<String>(paymentDate.value);
@@ -13845,27 +13838,27 @@ class $HotelDayLedgerTable extends HotelDayLedger
   static const VerificationMeta _totalIncomeMeta =
       const VerificationMeta('totalIncome');
   @override
-  late final GeneratedColumn<double> totalIncome = GeneratedColumn<double>(
+  late final GeneratedColumn<int> totalIncome = GeneratedColumn<int>(
       'total_income', aliasedName, false,
-      type: DriftSqlType.double,
+      type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(0.0));
+      defaultValue: const Constant(0));
   static const VerificationMeta _totalExpensesMeta =
       const VerificationMeta('totalExpenses');
   @override
-  late final GeneratedColumn<double> totalExpenses = GeneratedColumn<double>(
+  late final GeneratedColumn<int> totalExpenses = GeneratedColumn<int>(
       'total_expenses', aliasedName, false,
-      type: DriftSqlType.double,
+      type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(0.0));
+      defaultValue: const Constant(0));
   static const VerificationMeta _pendingBalancesMeta =
       const VerificationMeta('pendingBalances');
   @override
-  late final GeneratedColumn<double> pendingBalances = GeneratedColumn<double>(
+  late final GeneratedColumn<int> pendingBalances = GeneratedColumn<int>(
       'pending_balances', aliasedName, false,
-      type: DriftSqlType.double,
+      type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(0.0));
+      defaultValue: const Constant(0));
   static const VerificationMeta _occupancyRateMeta =
       const VerificationMeta('occupancyRate');
   @override
@@ -14139,11 +14132,11 @@ class $HotelDayLedgerTable extends HotelDayLedger
       hotelDayKey: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}hotel_day_key'])!,
       totalIncome: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}total_income'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}total_income'])!,
       totalExpenses: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}total_expenses'])!,
-      pendingBalances: attachedDatabase.typeMapping.read(
-          DriftSqlType.double, data['${effectivePrefix}pending_balances'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}total_expenses'])!,
+      pendingBalances: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}pending_balances'])!,
       occupancyRate: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}occupancy_rate'])!,
       bookingsProcessed: attachedDatabase.typeMapping.read(
@@ -14183,9 +14176,9 @@ class HotelDayLedgerEntry extends DataClass
   final String vectorClock;
   final int id;
   final String hotelDayKey;
-  final double totalIncome;
-  final double totalExpenses;
-  final double pendingBalances;
+  final int totalIncome;
+  final int totalExpenses;
+  final int pendingBalances;
   final double occupancyRate;
   final int bookingsProcessed;
   final int paymentsProcessed;
@@ -14247,9 +14240,9 @@ class HotelDayLedgerEntry extends DataClass
     map['vector_clock'] = Variable<String>(vectorClock);
     map['id'] = Variable<int>(id);
     map['hotel_day_key'] = Variable<String>(hotelDayKey);
-    map['total_income'] = Variable<double>(totalIncome);
-    map['total_expenses'] = Variable<double>(totalExpenses);
-    map['pending_balances'] = Variable<double>(pendingBalances);
+    map['total_income'] = Variable<int>(totalIncome);
+    map['total_expenses'] = Variable<int>(totalExpenses);
+    map['pending_balances'] = Variable<int>(pendingBalances);
     map['occupancy_rate'] = Variable<double>(occupancyRate);
     map['bookings_processed'] = Variable<int>(bookingsProcessed);
     map['payments_processed'] = Variable<int>(paymentsProcessed);
@@ -14319,9 +14312,9 @@ class HotelDayLedgerEntry extends DataClass
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       id: serializer.fromJson<int>(json['id']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
-      totalIncome: serializer.fromJson<double>(json['totalIncome']),
-      totalExpenses: serializer.fromJson<double>(json['totalExpenses']),
-      pendingBalances: serializer.fromJson<double>(json['pendingBalances']),
+      totalIncome: serializer.fromJson<int>(json['totalIncome']),
+      totalExpenses: serializer.fromJson<int>(json['totalExpenses']),
+      pendingBalances: serializer.fromJson<int>(json['pendingBalances']),
       occupancyRate: serializer.fromJson<double>(json['occupancyRate']),
       bookingsProcessed: serializer.fromJson<int>(json['bookingsProcessed']),
       paymentsProcessed: serializer.fromJson<int>(json['paymentsProcessed']),
@@ -14350,9 +14343,9 @@ class HotelDayLedgerEntry extends DataClass
       'vectorClock': serializer.toJson<String>(vectorClock),
       'id': serializer.toJson<int>(id),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
-      'totalIncome': serializer.toJson<double>(totalIncome),
-      'totalExpenses': serializer.toJson<double>(totalExpenses),
-      'pendingBalances': serializer.toJson<double>(pendingBalances),
+      'totalIncome': serializer.toJson<int>(totalIncome),
+      'totalExpenses': serializer.toJson<int>(totalExpenses),
+      'pendingBalances': serializer.toJson<int>(pendingBalances),
       'occupancyRate': serializer.toJson<double>(occupancyRate),
       'bookingsProcessed': serializer.toJson<int>(bookingsProcessed),
       'paymentsProcessed': serializer.toJson<int>(paymentsProcessed),
@@ -14379,9 +14372,9 @@ class HotelDayLedgerEntry extends DataClass
           String? vectorClock,
           int? id,
           String? hotelDayKey,
-          double? totalIncome,
-          double? totalExpenses,
-          double? pendingBalances,
+          int? totalIncome,
+          int? totalExpenses,
+          int? pendingBalances,
           double? occupancyRate,
           int? bookingsProcessed,
           int? paymentsProcessed,
@@ -14585,9 +14578,9 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
   final Value<String> vectorClock;
   final Value<int> id;
   final Value<String> hotelDayKey;
-  final Value<double> totalIncome;
-  final Value<double> totalExpenses;
-  final Value<double> pendingBalances;
+  final Value<int> totalIncome;
+  final Value<int> totalExpenses;
+  final Value<int> pendingBalances;
   final Value<double> occupancyRate;
   final Value<int> bookingsProcessed;
   final Value<int> paymentsProcessed;
@@ -14669,9 +14662,9 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     Expression<String>? vectorClock,
     Expression<int>? id,
     Expression<String>? hotelDayKey,
-    Expression<double>? totalIncome,
-    Expression<double>? totalExpenses,
-    Expression<double>? pendingBalances,
+    Expression<int>? totalIncome,
+    Expression<int>? totalExpenses,
+    Expression<int>? pendingBalances,
     Expression<double>? occupancyRate,
     Expression<int>? bookingsProcessed,
     Expression<int>? paymentsProcessed,
@@ -14725,9 +14718,9 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
       Value<String>? vectorClock,
       Value<int>? id,
       Value<String>? hotelDayKey,
-      Value<double>? totalIncome,
-      Value<double>? totalExpenses,
-      Value<double>? pendingBalances,
+      Value<int>? totalIncome,
+      Value<int>? totalExpenses,
+      Value<int>? pendingBalances,
       Value<double>? occupancyRate,
       Value<int>? bookingsProcessed,
       Value<int>? paymentsProcessed,
@@ -14815,13 +14808,13 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
       map['hotel_day_key'] = Variable<String>(hotelDayKey.value);
     }
     if (totalIncome.present) {
-      map['total_income'] = Variable<double>(totalIncome.value);
+      map['total_income'] = Variable<int>(totalIncome.value);
     }
     if (totalExpenses.present) {
-      map['total_expenses'] = Variable<double>(totalExpenses.value);
+      map['total_expenses'] = Variable<int>(totalExpenses.value);
     }
     if (pendingBalances.present) {
-      map['pending_balances'] = Variable<double>(pendingBalances.value);
+      map['pending_balances'] = Variable<int>(pendingBalances.value);
     }
     if (occupancyRate.present) {
       map['occupancy_rate'] = Variable<double>(occupancyRate.value);
@@ -18421,6 +18414,973 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
           ..write('paymentDateIso: $paymentDateIso, ')
           ..write('method: $method, ')
           ..write('isAutoGenerated: $isAutoGenerated')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SalaryWithdrawalsTable extends SalaryWithdrawals
+    with TableInfo<$SalaryWithdrawalsTable, SalaryWithdrawal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SalaryWithdrawalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta =
+      const VerificationMeta('localUuid');
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+      'local_uuid', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtIsoMeta =
+      const VerificationMeta('createdAtIso');
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+      'created_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtIsoMeta =
+      const VerificationMeta('updatedAtIso');
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+      'updated_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtIsoMeta =
+      const VerificationMeta('deletedAtIso');
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+      'deleted_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtEpochMeta =
+      const VerificationMeta('createdAtEpoch');
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+      'created_at_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastModifiedEpochMeta =
+      const VerificationMeta('lastModifiedEpoch');
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+      'last_modified_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
+  static const VerificationMeta _vectorClockMeta =
+      const VerificationMeta('vectorClock');
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+      'vector_clock', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _expenseIdMeta =
+      const VerificationMeta('expenseId');
+  @override
+  late final GeneratedColumn<int> expenseId = GeneratedColumn<int>(
+      'expense_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _employeeIdMeta =
+      const VerificationMeta('employeeId');
+  @override
+  late final GeneratedColumn<int> employeeId = GeneratedColumn<int>(
+      'employee_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES employees (id)'));
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+      'action', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+      'date', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        expenseId,
+        employeeId,
+        action,
+        amount,
+        note,
+        date
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'salary_withdrawals';
+  @override
+  VerificationContext validateIntegrity(Insertable<SalaryWithdrawal> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(_localUuidMeta,
+          localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta));
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+          _createdAtIsoMeta,
+          createdAtIso.isAcceptableOrUnknown(
+              data['created_at_iso']!, _createdAtIsoMeta));
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+          _updatedAtIsoMeta,
+          updatedAtIso.isAcceptableOrUnknown(
+              data['updated_at_iso']!, _updatedAtIsoMeta));
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+          _deletedAtIsoMeta,
+          deletedAtIso.isAcceptableOrUnknown(
+              data['deleted_at_iso']!, _deletedAtIsoMeta));
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+          _createdAtEpochMeta,
+          createdAtEpoch.isAcceptableOrUnknown(
+              data['created_at_epoch']!, _createdAtEpochMeta));
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+          _lastModifiedEpochMeta,
+          lastModifiedEpoch.isAcceptableOrUnknown(
+              data['last_modified_epoch']!, _lastModifiedEpochMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+          _vectorClockMeta,
+          vectorClock.isAcceptableOrUnknown(
+              data['vector_clock']!, _vectorClockMeta));
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('expense_id')) {
+      context.handle(_expenseIdMeta,
+          expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta));
+    }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+          _employeeIdMeta,
+          employeeId.isAcceptableOrUnknown(
+              data['employee_id']!, _employeeIdMeta));
+    } else if (isInserting) {
+      context.missing(_employeeIdMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(_actionMeta,
+          action.isAcceptableOrUnknown(data['action']!, _actionMeta));
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SalaryWithdrawal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SalaryWithdrawal(
+      localUuid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uuid'])!,
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}server_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deleted_at']),
+      lastModified: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_modified'])!,
+      createdAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at_iso']),
+      updatedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at_iso']),
+      deletedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at_iso']),
+      createdAtEpoch: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_epoch'])!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}last_modified_epoch'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      vectorClock: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}vector_clock'])!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      expenseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}expense_id']),
+      employeeId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}employee_id'])!,
+      action: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}action'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}date'])!,
+    );
+  }
+
+  @override
+  $SalaryWithdrawalsTable createAlias(String alias) {
+    return $SalaryWithdrawalsTable(attachedDatabase, alias);
+  }
+}
+
+class SalaryWithdrawal extends DataClass
+    implements Insertable<SalaryWithdrawal> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final int id;
+  final int? expenseId;
+  final int employeeId;
+  final String action;
+  final int amount;
+  final String? note;
+  final String date;
+  const SalaryWithdrawal(
+      {required this.localUuid,
+      this.serverId,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt,
+      required this.lastModified,
+      this.createdAtIso,
+      this.updatedAtIso,
+      this.deletedAtIso,
+      required this.createdAtEpoch,
+      required this.lastModifiedEpoch,
+      required this.version,
+      required this.origin,
+      required this.vectorClock,
+      required this.id,
+      this.expenseId,
+      required this.employeeId,
+      required this.action,
+      required this.amount,
+      this.note,
+      required this.date});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || expenseId != null) {
+      map['expense_id'] = Variable<int>(expenseId);
+    }
+    map['employee_id'] = Variable<int>(employeeId);
+    map['action'] = Variable<String>(action);
+    map['amount'] = Variable<int>(amount);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['date'] = Variable<String>(date);
+    return map;
+  }
+
+  SalaryWithdrawalsCompanion toCompanion(bool nullToAbsent) {
+    return SalaryWithdrawalsCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      id: Value(id),
+      expenseId: expenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseId),
+      employeeId: Value(employeeId),
+      action: Value(action),
+      amount: Value(amount),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      date: Value(date),
+    );
+  }
+
+  factory SalaryWithdrawal.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SalaryWithdrawal(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      id: serializer.fromJson<int>(json['id']),
+      expenseId: serializer.fromJson<int?>(json['expenseId']),
+      employeeId: serializer.fromJson<int>(json['employeeId']),
+      action: serializer.fromJson<String>(json['action']),
+      amount: serializer.fromJson<int>(json['amount']),
+      note: serializer.fromJson<String?>(json['note']),
+      date: serializer.fromJson<String>(json['date']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'id': serializer.toJson<int>(id),
+      'expenseId': serializer.toJson<int?>(expenseId),
+      'employeeId': serializer.toJson<int>(employeeId),
+      'action': serializer.toJson<String>(action),
+      'amount': serializer.toJson<int>(amount),
+      'note': serializer.toJson<String?>(note),
+      'date': serializer.toJson<String>(date),
+    };
+  }
+
+  SalaryWithdrawal copyWith(
+          {String? localUuid,
+          Value<int?> serverId = const Value.absent(),
+          int? createdAt,
+          int? updatedAt,
+          Value<int?> deletedAt = const Value.absent(),
+          int? lastModified,
+          Value<String?> createdAtIso = const Value.absent(),
+          Value<String?> updatedAtIso = const Value.absent(),
+          Value<String?> deletedAtIso = const Value.absent(),
+          int? createdAtEpoch,
+          int? lastModifiedEpoch,
+          int? version,
+          String? origin,
+          String? vectorClock,
+          int? id,
+          Value<int?> expenseId = const Value.absent(),
+          int? employeeId,
+          String? action,
+          int? amount,
+          Value<String?> note = const Value.absent(),
+          String? date}) =>
+      SalaryWithdrawal(
+        localUuid: localUuid ?? this.localUuid,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        lastModified: lastModified ?? this.lastModified,
+        createdAtIso:
+            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+        updatedAtIso:
+            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+        deletedAtIso:
+            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+        version: version ?? this.version,
+        origin: origin ?? this.origin,
+        vectorClock: vectorClock ?? this.vectorClock,
+        id: id ?? this.id,
+        expenseId: expenseId.present ? expenseId.value : this.expenseId,
+        employeeId: employeeId ?? this.employeeId,
+        action: action ?? this.action,
+        amount: amount ?? this.amount,
+        note: note.present ? note.value : this.note,
+        date: date ?? this.date,
+      );
+  SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
+    return SalaryWithdrawal(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock:
+          data.vectorClock.present ? data.vectorClock.value : this.vectorClock,
+      id: data.id.present ? data.id.value : this.id,
+      expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
+      employeeId:
+          data.employeeId.present ? data.employeeId.value : this.employeeId,
+      action: data.action.present ? data.action.value : this.action,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      note: data.note.present ? data.note.value : this.note,
+      date: data.date.present ? data.date.value : this.date,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalaryWithdrawal(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('action: $action, ')
+          ..write('amount: $amount, ')
+          ..write('note: $note, ')
+          ..write('date: $date')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        expenseId,
+        employeeId,
+        action,
+        amount,
+        note,
+        date
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SalaryWithdrawal &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.id == this.id &&
+          other.expenseId == this.expenseId &&
+          other.employeeId == this.employeeId &&
+          other.action == this.action &&
+          other.amount == this.amount &&
+          other.note == this.note &&
+          other.date == this.date);
+}
+
+class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<int> id;
+  final Value<int?> expenseId;
+  final Value<int> employeeId;
+  final Value<String> action;
+  final Value<int> amount;
+  final Value<String?> note;
+  final Value<String> date;
+  const SalaryWithdrawalsCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    this.expenseId = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.action = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.note = const Value.absent(),
+    this.date = const Value.absent(),
+  });
+  SalaryWithdrawalsCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    this.expenseId = const Value.absent(),
+    required int employeeId,
+    required String action,
+    this.amount = const Value.absent(),
+    this.note = const Value.absent(),
+    required String date,
+  })  : localUuid = Value(localUuid),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt),
+        lastModified = Value(lastModified),
+        employeeId = Value(employeeId),
+        action = Value(action),
+        date = Value(date);
+  static Insertable<SalaryWithdrawal> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<int>? id,
+    Expression<int>? expenseId,
+    Expression<int>? employeeId,
+    Expression<String>? action,
+    Expression<int>? amount,
+    Expression<String>? note,
+    Expression<String>? date,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (id != null) 'id': id,
+      if (expenseId != null) 'expense_id': expenseId,
+      if (employeeId != null) 'employee_id': employeeId,
+      if (action != null) 'action': action,
+      if (amount != null) 'amount': amount,
+      if (note != null) 'note': note,
+      if (date != null) 'date': date,
+    });
+  }
+
+  SalaryWithdrawalsCompanion copyWith(
+      {Value<String>? localUuid,
+      Value<int?>? serverId,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int?>? deletedAt,
+      Value<int>? lastModified,
+      Value<String?>? createdAtIso,
+      Value<String?>? updatedAtIso,
+      Value<String?>? deletedAtIso,
+      Value<int>? createdAtEpoch,
+      Value<int>? lastModifiedEpoch,
+      Value<int>? version,
+      Value<String>? origin,
+      Value<String>? vectorClock,
+      Value<int>? id,
+      Value<int?>? expenseId,
+      Value<int>? employeeId,
+      Value<String>? action,
+      Value<int>? amount,
+      Value<String?>? note,
+      Value<String>? date}) {
+    return SalaryWithdrawalsCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      id: id ?? this.id,
+      expenseId: expenseId ?? this.expenseId,
+      employeeId: employeeId ?? this.employeeId,
+      action: action ?? this.action,
+      amount: amount ?? this.amount,
+      note: note ?? this.note,
+      date: date ?? this.date,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (expenseId.present) {
+      map['expense_id'] = Variable<int>(expenseId.value);
+    }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<int>(employeeId.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalaryWithdrawalsCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('action: $action, ')
+          ..write('amount: $amount, ')
+          ..write('note: $note, ')
+          ..write('date: $date')
           ..write(')'))
         .toString();
   }
@@ -22732,11 +23692,11 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
       defaultValue: const Constant('per_night'));
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
-  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
       'amount', aliasedName, false,
-      type: DriftSqlType.double,
+      type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(0.0));
+      defaultValue: const Constant(0));
   static const VerificationMeta _effectiveHotelDayMeta =
       const VerificationMeta('effectiveHotelDay');
   @override
@@ -23020,7 +23980,7 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
       adjustmentMode: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}adjustment_mode'])!,
       amount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
       effectiveHotelDay: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}effective_hotel_day'])!,
       endHotelDay: attachedDatabase.typeMapping
@@ -23065,7 +24025,7 @@ class BookingPriceAdjustment extends DataClass
   final int? bookingLocalId;
   final int adjustmentType;
   final String adjustmentMode;
-  final double amount;
+  final int amount;
   final String effectiveHotelDay;
   final String? endHotelDay;
   final bool isActive;
@@ -23135,7 +24095,7 @@ class BookingPriceAdjustment extends DataClass
     }
     map['adjustment_type'] = Variable<int>(adjustmentType);
     map['adjustment_mode'] = Variable<String>(adjustmentMode);
-    map['amount'] = Variable<double>(amount);
+    map['amount'] = Variable<int>(amount);
     map['effective_hotel_day'] = Variable<String>(effectiveHotelDay);
     if (!nullToAbsent || endHotelDay != null) {
       map['end_hotel_day'] = Variable<String>(endHotelDay);
@@ -23232,7 +24192,7 @@ class BookingPriceAdjustment extends DataClass
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
       adjustmentType: serializer.fromJson<int>(json['adjustmentType']),
       adjustmentMode: serializer.fromJson<String>(json['adjustmentMode']),
-      amount: serializer.fromJson<double>(json['amount']),
+      amount: serializer.fromJson<int>(json['amount']),
       effectiveHotelDay: serializer.fromJson<String>(json['effectiveHotelDay']),
       endHotelDay: serializer.fromJson<String?>(json['endHotelDay']),
       isActive: serializer.fromJson<bool>(json['isActive']),
@@ -23265,7 +24225,7 @@ class BookingPriceAdjustment extends DataClass
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
       'adjustmentType': serializer.toJson<int>(adjustmentType),
       'adjustmentMode': serializer.toJson<String>(adjustmentMode),
-      'amount': serializer.toJson<double>(amount),
+      'amount': serializer.toJson<int>(amount),
       'effectiveHotelDay': serializer.toJson<String>(effectiveHotelDay),
       'endHotelDay': serializer.toJson<String?>(endHotelDay),
       'isActive': serializer.toJson<bool>(isActive),
@@ -23296,7 +24256,7 @@ class BookingPriceAdjustment extends DataClass
           Value<int?> bookingLocalId = const Value.absent(),
           int? adjustmentType,
           String? adjustmentMode,
-          double? amount,
+          int? amount,
           String? effectiveHotelDay,
           Value<String?> endHotelDay = const Value.absent(),
           bool? isActive,
@@ -23514,7 +24474,7 @@ class BookingPriceAdjustmentsCompanion
   final Value<int?> bookingLocalId;
   final Value<int> adjustmentType;
   final Value<String> adjustmentMode;
-  final Value<double> amount;
+  final Value<int> amount;
   final Value<String> effectiveHotelDay;
   final Value<String?> endHotelDay;
   final Value<bool> isActive;
@@ -23605,7 +24565,7 @@ class BookingPriceAdjustmentsCompanion
     Expression<int>? bookingLocalId,
     Expression<int>? adjustmentType,
     Expression<String>? adjustmentMode,
-    Expression<double>? amount,
+    Expression<int>? amount,
     Expression<String>? effectiveHotelDay,
     Expression<String>? endHotelDay,
     Expression<bool>? isActive,
@@ -23665,7 +24625,7 @@ class BookingPriceAdjustmentsCompanion
       Value<int?>? bookingLocalId,
       Value<int>? adjustmentType,
       Value<String>? adjustmentMode,
-      Value<double>? amount,
+      Value<int>? amount,
       Value<String>? effectiveHotelDay,
       Value<String?>? endHotelDay,
       Value<bool>? isActive,
@@ -23765,7 +24725,7 @@ class BookingPriceAdjustmentsCompanion
       map['adjustment_mode'] = Variable<String>(adjustmentMode.value);
     }
     if (amount.present) {
-      map['amount'] = Variable<double>(amount.value);
+      map['amount'] = Variable<int>(amount.value);
     }
     if (effectiveHotelDay.present) {
       map['effective_hotel_day'] = Variable<String>(effectiveHotelDay.value);
@@ -25915,6 +26875,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSessionsTable appSessions = $AppSessionsTable(this);
   late final $SalaryCyclesTable salaryCycles = $SalaryCyclesTable(this);
   late final $SalaryPaymentsTable salaryPayments = $SalaryPaymentsTable(this);
+  late final $SalaryWithdrawalsTable salaryWithdrawals =
+      $SalaryWithdrawalsTable(this);
   late final $OutboxTable outbox = $OutboxTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
   late final $RestoreFixLogTable restoreFixLog = $RestoreFixLogTable(this);
@@ -25949,6 +26911,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         appSessions,
         salaryCycles,
         salaryPayments,
+        salaryWithdrawals,
         outbox,
         syncState,
         restoreFixLog,
@@ -28801,7 +29764,7 @@ typedef $$EmployeesTableCreateCompanionBuilder = EmployeesCompanion Function({
   Value<String> vectorClock,
   Value<int> id,
   required String name,
-  required double basicSalary,
+  Value<int> basicSalary,
   Value<String> position,
   Value<String> phone,
   Value<String> hireDate,
@@ -28824,7 +29787,7 @@ typedef $$EmployeesTableUpdateCompanionBuilder = EmployeesCompanion Function({
   Value<String> vectorClock,
   Value<int> id,
   Value<String> name,
-  Value<double> basicSalary,
+  Value<int> basicSalary,
   Value<String> position,
   Value<String> phone,
   Value<String> hireDate,
@@ -28846,6 +29809,23 @@ final class $$EmployeesTableReferences
         .filter((f) => f.employeeId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_salaryCyclesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$SalaryWithdrawalsTable, List<SalaryWithdrawal>>
+      _salaryWithdrawalsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.salaryWithdrawals,
+              aliasName: $_aliasNameGenerator(
+                  db.employees.id, db.salaryWithdrawals.employeeId));
+
+  $$SalaryWithdrawalsTableProcessedTableManager get salaryWithdrawalsRefs {
+    final manager =
+        $$SalaryWithdrawalsTableTableManager($_db, $_db.salaryWithdrawals)
+            .filter((f) => f.employeeId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache =
+        $_typedResult.readTableOrNull(_salaryWithdrawalsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -28910,7 +29890,7 @@ class $$EmployeesTableFilterComposer
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get basicSalary => $composableBuilder(
+  ColumnFilters<int> get basicSalary => $composableBuilder(
       column: $table.basicSalary, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get position => $composableBuilder(
@@ -28938,6 +29918,27 @@ class $$EmployeesTableFilterComposer
             $$SalaryCyclesTableFilterComposer(
               $db: $db,
               $table: $db.salaryCycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> salaryWithdrawalsRefs(
+      Expression<bool> Function($$SalaryWithdrawalsTableFilterComposer f) f) {
+    final $$SalaryWithdrawalsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.salaryWithdrawals,
+        getReferencedColumn: (t) => t.employeeId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SalaryWithdrawalsTableFilterComposer(
+              $db: $db,
+              $table: $db.salaryWithdrawals,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -29010,7 +30011,7 @@ class $$EmployeesTableOrderingComposer
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get basicSalary => $composableBuilder(
+  ColumnOrderings<int> get basicSalary => $composableBuilder(
       column: $table.basicSalary, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get position => $composableBuilder(
@@ -29083,7 +30084,7 @@ class $$EmployeesTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<double> get basicSalary => $composableBuilder(
+  GeneratedColumn<int> get basicSalary => $composableBuilder(
       column: $table.basicSalary, builder: (column) => column);
 
   GeneratedColumn<String> get position =>
@@ -29118,6 +30119,28 @@ class $$EmployeesTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> salaryWithdrawalsRefs<T extends Object>(
+      Expression<T> Function($$SalaryWithdrawalsTableAnnotationComposer a) f) {
+    final $$SalaryWithdrawalsTableAnnotationComposer composer =
+        $composerBuilder(
+            composer: this,
+            getCurrentColumn: (t) => t.id,
+            referencedTable: $db.salaryWithdrawals,
+            getReferencedColumn: (t) => t.employeeId,
+            builder: (joinBuilder,
+                    {$addJoinBuilderToRootComposer,
+                    $removeJoinBuilderFromRootComposer}) =>
+                $$SalaryWithdrawalsTableAnnotationComposer(
+                  $db: $db,
+                  $table: $db.salaryWithdrawals,
+                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                  joinBuilder: joinBuilder,
+                  $removeJoinBuilderFromRootComposer:
+                      $removeJoinBuilderFromRootComposer,
+                ));
+    return f(composer);
+  }
 }
 
 class $$EmployeesTableTableManager extends RootTableManager<
@@ -29131,7 +30154,8 @@ class $$EmployeesTableTableManager extends RootTableManager<
     $$EmployeesTableUpdateCompanionBuilder,
     (Employee, $$EmployeesTableReferences),
     Employee,
-    PrefetchHooks Function({bool salaryCyclesRefs})> {
+    PrefetchHooks Function(
+        {bool salaryCyclesRefs, bool salaryWithdrawalsRefs})> {
   $$EmployeesTableTableManager(_$AppDatabase db, $EmployeesTable table)
       : super(TableManagerState(
           db: db,
@@ -29159,7 +30183,7 @@ class $$EmployeesTableTableManager extends RootTableManager<
             Value<String> vectorClock = const Value.absent(),
             Value<int> id = const Value.absent(),
             Value<String> name = const Value.absent(),
-            Value<double> basicSalary = const Value.absent(),
+            Value<int> basicSalary = const Value.absent(),
             Value<String> position = const Value.absent(),
             Value<String> phone = const Value.absent(),
             Value<String> hireDate = const Value.absent(),
@@ -29205,7 +30229,7 @@ class $$EmployeesTableTableManager extends RootTableManager<
             Value<String> vectorClock = const Value.absent(),
             Value<int> id = const Value.absent(),
             required String name,
-            required double basicSalary,
+            Value<int> basicSalary = const Value.absent(),
             Value<String> position = const Value.absent(),
             Value<String> phone = const Value.absent(),
             Value<String> hireDate = const Value.absent(),
@@ -29240,10 +30264,14 @@ class $$EmployeesTableTableManager extends RootTableManager<
                     $$EmployeesTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({salaryCyclesRefs = false}) {
+          prefetchHooksCallback: (
+              {salaryCyclesRefs = false, salaryWithdrawalsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (salaryCyclesRefs) db.salaryCycles],
+              explicitlyWatchedTables: [
+                if (salaryCyclesRefs) db.salaryCycles,
+                if (salaryWithdrawalsRefs) db.salaryWithdrawals
+              ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
@@ -29256,6 +30284,19 @@ class $$EmployeesTableTableManager extends RootTableManager<
                         managerFromTypedResult: (p0) =>
                             $$EmployeesTableReferences(db, table, p0)
                                 .salaryCyclesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.employeeId == item.id),
+                        typedResults: items),
+                  if (salaryWithdrawalsRefs)
+                    await $_getPrefetchedData<Employee, $EmployeesTable,
+                            SalaryWithdrawal>(
+                        currentTable: table,
+                        referencedTable: $$EmployeesTableReferences
+                            ._salaryWithdrawalsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$EmployeesTableReferences(db, table, p0)
+                                .salaryWithdrawalsRefs,
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.employeeId == item.id),
@@ -29278,7 +30319,8 @@ typedef $$EmployeesTableProcessedTableManager = ProcessedTableManager<
     $$EmployeesTableUpdateCompanionBuilder,
     (Employee, $$EmployeesTableReferences),
     Employee,
-    PrefetchHooks Function({bool salaryCyclesRefs})>;
+    PrefetchHooks Function(
+        {bool salaryCyclesRefs, bool salaryWithdrawalsRefs})>;
 typedef $$GuestInfosTableCreateCompanionBuilder = GuestInfosCompanion Function({
   required String localUuid,
   Value<int?> serverId,
@@ -29735,7 +30777,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String expenseType,
   Value<int?> relatedId,
   required String description,
-  required double amount,
+  Value<int> amount,
   required String date,
   Value<int?> cashTransactionId,
   Value<String?> hotelDayKey,
@@ -29762,7 +30804,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<String> expenseType,
   Value<int?> relatedId,
   Value<String> description,
-  Value<double> amount,
+  Value<int> amount,
   Value<String> date,
   Value<int?> cashTransactionId,
   Value<String?> hotelDayKey,
@@ -29836,7 +30878,7 @@ class $$ExpensesTableFilterComposer
   ColumnFilters<String> get description => $composableBuilder(
       column: $table.description, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get amount => $composableBuilder(
+  ColumnFilters<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get date => $composableBuilder(
@@ -29929,7 +30971,7 @@ class $$ExpensesTableOrderingComposer
   ColumnOrderings<String> get description => $composableBuilder(
       column: $table.description, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get amount => $composableBuilder(
+  ColumnOrderings<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get date => $composableBuilder(
@@ -30018,7 +31060,7 @@ class $$ExpensesTableAnnotationComposer
   GeneratedColumn<String> get description => $composableBuilder(
       column: $table.description, builder: (column) => column);
 
-  GeneratedColumn<double> get amount =>
+  GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get date =>
@@ -30081,7 +31123,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             Value<String> expenseType = const Value.absent(),
             Value<int?> relatedId = const Value.absent(),
             Value<String> description = const Value.absent(),
-            Value<double> amount = const Value.absent(),
+            Value<int> amount = const Value.absent(),
             Value<String> date = const Value.absent(),
             Value<int?> cashTransactionId = const Value.absent(),
             Value<String?> hotelDayKey = const Value.absent(),
@@ -30135,7 +31177,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             required String expenseType,
             Value<int?> relatedId = const Value.absent(),
             required String description,
-            required double amount,
+            Value<int> amount = const Value.absent(),
             required String date,
             Value<int?> cashTransactionId = const Value.absent(),
             Value<String?> hotelDayKey = const Value.absent(),
@@ -30208,7 +31250,7 @@ typedef $$CashTransactionsTableCreateCompanionBuilder
   Value<int> id,
   Value<int?> registerId,
   required String transactionType,
-  required double amount,
+  Value<int> amount,
   Value<String?> referenceType,
   Value<int?> referenceId,
   Value<String?> description,
@@ -30234,7 +31276,7 @@ typedef $$CashTransactionsTableUpdateCompanionBuilder
   Value<int> id,
   Value<int?> registerId,
   Value<String> transactionType,
-  Value<double> amount,
+  Value<int> amount,
   Value<String?> referenceType,
   Value<int?> referenceId,
   Value<String?> description,
@@ -30326,7 +31368,7 @@ class $$CashTransactionsTableFilterComposer
       column: $table.transactionType,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get amount => $composableBuilder(
+  ColumnFilters<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get referenceType => $composableBuilder(
@@ -30434,7 +31476,7 @@ class $$CashTransactionsTableOrderingComposer
       column: $table.transactionType,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get amount => $composableBuilder(
+  ColumnOrderings<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get referenceType => $composableBuilder(
@@ -30515,7 +31557,7 @@ class $$CashTransactionsTableAnnotationComposer
   GeneratedColumn<String> get transactionType => $composableBuilder(
       column: $table.transactionType, builder: (column) => column);
 
-  GeneratedColumn<double> get amount =>
+  GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get referenceType => $composableBuilder(
@@ -30596,7 +31638,7 @@ class $$CashTransactionsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<int?> registerId = const Value.absent(),
             Value<String> transactionType = const Value.absent(),
-            Value<double> amount = const Value.absent(),
+            Value<int> amount = const Value.absent(),
             Value<String?> referenceType = const Value.absent(),
             Value<int?> referenceId = const Value.absent(),
             Value<String?> description = const Value.absent(),
@@ -30646,7 +31688,7 @@ class $$CashTransactionsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<int?> registerId = const Value.absent(),
             required String transactionType,
-            required double amount,
+            Value<int> amount = const Value.absent(),
             Value<String?> referenceType = const Value.absent(),
             Value<int?> referenceId = const Value.absent(),
             Value<String?> description = const Value.absent(),
@@ -30743,7 +31785,7 @@ typedef $$PaymentsTableCreateCompanionBuilder = PaymentsCompanion Function({
   Value<int?> bookingLocalId,
   Value<int?> serverBookingId,
   Value<String?> roomNumber,
-  required double amount,
+  Value<int> amount,
   required String paymentDate,
   Value<String?> notes,
   required String paymentMethod,
@@ -30776,7 +31818,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder = PaymentsCompanion Function({
   Value<int?> bookingLocalId,
   Value<int?> serverBookingId,
   Value<String?> roomNumber,
-  Value<double> amount,
+  Value<int> amount,
   Value<String> paymentDate,
   Value<String?> notes,
   Value<String> paymentMethod,
@@ -30895,7 +31937,7 @@ class $$PaymentsTableFilterComposer
   ColumnFilters<String> get roomNumber => $composableBuilder(
       column: $table.roomNumber, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get amount => $composableBuilder(
+  ColumnFilters<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get paymentDate => $composableBuilder(
@@ -31045,7 +32087,7 @@ class $$PaymentsTableOrderingComposer
   ColumnOrderings<String> get roomNumber => $composableBuilder(
       column: $table.roomNumber, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get amount => $composableBuilder(
+  ColumnOrderings<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get paymentDate => $composableBuilder(
@@ -31188,7 +32230,7 @@ class $$PaymentsTableAnnotationComposer
   GeneratedColumn<String> get roomNumber => $composableBuilder(
       column: $table.roomNumber, builder: (column) => column);
 
-  GeneratedColumn<double> get amount =>
+  GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get paymentDate => $composableBuilder(
@@ -31305,7 +32347,7 @@ class $$PaymentsTableTableManager extends RootTableManager<
             Value<int?> bookingLocalId = const Value.absent(),
             Value<int?> serverBookingId = const Value.absent(),
             Value<String?> roomNumber = const Value.absent(),
-            Value<double> amount = const Value.absent(),
+            Value<int> amount = const Value.absent(),
             Value<String> paymentDate = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<String> paymentMethod = const Value.absent(),
@@ -31371,7 +32413,7 @@ class $$PaymentsTableTableManager extends RootTableManager<
             Value<int?> bookingLocalId = const Value.absent(),
             Value<int?> serverBookingId = const Value.absent(),
             Value<String?> roomNumber = const Value.absent(),
-            required double amount,
+            Value<int> amount = const Value.absent(),
             required String paymentDate,
             Value<String?> notes = const Value.absent(),
             required String paymentMethod,
@@ -31505,9 +32547,9 @@ typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
   required String checkoutDate,
   Value<String> dateRecorded,
   Value<String> debtReason,
-  required double totalAmount,
-  required double paidAmount,
-  required double remainingAmount,
+  Value<int> totalAmount,
+  Value<int> paidAmount,
+  Value<int> remainingAmount,
   required String paymentDate,
   Value<int> isSettled,
   Value<String?> pledge,
@@ -31541,9 +32583,9 @@ typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
   Value<String> checkoutDate,
   Value<String> dateRecorded,
   Value<String> debtReason,
-  Value<double> totalAmount,
-  Value<double> paidAmount,
-  Value<double> remainingAmount,
+  Value<int> totalAmount,
+  Value<int> paidAmount,
+  Value<int> remainingAmount,
   Value<String> paymentDate,
   Value<int> isSettled,
   Value<String?> pledge,
@@ -31646,13 +32688,13 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
   ColumnFilters<String> get debtReason => $composableBuilder(
       column: $table.debtReason, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get totalAmount => $composableBuilder(
+  ColumnFilters<int> get totalAmount => $composableBuilder(
       column: $table.totalAmount, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get paidAmount => $composableBuilder(
+  ColumnFilters<int> get paidAmount => $composableBuilder(
       column: $table.paidAmount, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get remainingAmount => $composableBuilder(
+  ColumnFilters<int> get remainingAmount => $composableBuilder(
       column: $table.remainingAmount,
       builder: (column) => ColumnFilters(column));
 
@@ -31787,13 +32829,13 @@ class $$DebtsTableOrderingComposer
   ColumnOrderings<String> get debtReason => $composableBuilder(
       column: $table.debtReason, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get totalAmount => $composableBuilder(
+  ColumnOrderings<int> get totalAmount => $composableBuilder(
       column: $table.totalAmount, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get paidAmount => $composableBuilder(
+  ColumnOrderings<int> get paidAmount => $composableBuilder(
       column: $table.paidAmount, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get remainingAmount => $composableBuilder(
+  ColumnOrderings<int> get remainingAmount => $composableBuilder(
       column: $table.remainingAmount,
       builder: (column) => ColumnOrderings(column));
 
@@ -31921,13 +32963,13 @@ class $$DebtsTableAnnotationComposer
   GeneratedColumn<String> get debtReason => $composableBuilder(
       column: $table.debtReason, builder: (column) => column);
 
-  GeneratedColumn<double> get totalAmount => $composableBuilder(
+  GeneratedColumn<int> get totalAmount => $composableBuilder(
       column: $table.totalAmount, builder: (column) => column);
 
-  GeneratedColumn<double> get paidAmount => $composableBuilder(
+  GeneratedColumn<int> get paidAmount => $composableBuilder(
       column: $table.paidAmount, builder: (column) => column);
 
-  GeneratedColumn<double> get remainingAmount => $composableBuilder(
+  GeneratedColumn<int> get remainingAmount => $composableBuilder(
       column: $table.remainingAmount, builder: (column) => column);
 
   GeneratedColumn<String> get paymentDate => $composableBuilder(
@@ -32025,9 +33067,9 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<String> checkoutDate = const Value.absent(),
             Value<String> dateRecorded = const Value.absent(),
             Value<String> debtReason = const Value.absent(),
-            Value<double> totalAmount = const Value.absent(),
-            Value<double> paidAmount = const Value.absent(),
-            Value<double> remainingAmount = const Value.absent(),
+            Value<int> totalAmount = const Value.absent(),
+            Value<int> paidAmount = const Value.absent(),
+            Value<int> remainingAmount = const Value.absent(),
             Value<String> paymentDate = const Value.absent(),
             Value<int> isSettled = const Value.absent(),
             Value<String?> pledge = const Value.absent(),
@@ -32097,9 +33139,9 @@ class $$DebtsTableTableManager extends RootTableManager<
             required String checkoutDate,
             Value<String> dateRecorded = const Value.absent(),
             Value<String> debtReason = const Value.absent(),
-            required double totalAmount,
-            required double paidAmount,
-            required double remainingAmount,
+            Value<int> totalAmount = const Value.absent(),
+            Value<int> paidAmount = const Value.absent(),
+            Value<int> remainingAmount = const Value.absent(),
             required String paymentDate,
             Value<int> isSettled = const Value.absent(),
             Value<String?> pledge = const Value.absent(),
@@ -32834,9 +33876,9 @@ typedef $$HotelDayLedgerTableCreateCompanionBuilder = HotelDayLedgerCompanion
   Value<String> vectorClock,
   Value<int> id,
   required String hotelDayKey,
-  Value<double> totalIncome,
-  Value<double> totalExpenses,
-  Value<double> pendingBalances,
+  Value<int> totalIncome,
+  Value<int> totalExpenses,
+  Value<int> pendingBalances,
   Value<double> occupancyRate,
   Value<int> bookingsProcessed,
   Value<int> paymentsProcessed,
@@ -32862,9 +33904,9 @@ typedef $$HotelDayLedgerTableUpdateCompanionBuilder = HotelDayLedgerCompanion
   Value<String> vectorClock,
   Value<int> id,
   Value<String> hotelDayKey,
-  Value<double> totalIncome,
-  Value<double> totalExpenses,
-  Value<double> pendingBalances,
+  Value<int> totalIncome,
+  Value<int> totalExpenses,
+  Value<int> pendingBalances,
   Value<double> occupancyRate,
   Value<int> bookingsProcessed,
   Value<int> paymentsProcessed,
@@ -32932,13 +33974,13 @@ class $$HotelDayLedgerTableFilterComposer
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
       column: $table.hotelDayKey, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get totalIncome => $composableBuilder(
+  ColumnFilters<int> get totalIncome => $composableBuilder(
       column: $table.totalIncome, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get totalExpenses => $composableBuilder(
+  ColumnFilters<int> get totalExpenses => $composableBuilder(
       column: $table.totalExpenses, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get pendingBalances => $composableBuilder(
+  ColumnFilters<int> get pendingBalances => $composableBuilder(
       column: $table.pendingBalances,
       builder: (column) => ColumnFilters(column));
 
@@ -33028,14 +34070,14 @@ class $$HotelDayLedgerTableOrderingComposer
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
       column: $table.hotelDayKey, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get totalIncome => $composableBuilder(
+  ColumnOrderings<int> get totalIncome => $composableBuilder(
       column: $table.totalIncome, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get totalExpenses => $composableBuilder(
+  ColumnOrderings<int> get totalExpenses => $composableBuilder(
       column: $table.totalExpenses,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get pendingBalances => $composableBuilder(
+  ColumnOrderings<int> get pendingBalances => $composableBuilder(
       column: $table.pendingBalances,
       builder: (column) => ColumnOrderings(column));
 
@@ -33120,13 +34162,13 @@ class $$HotelDayLedgerTableAnnotationComposer
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
       column: $table.hotelDayKey, builder: (column) => column);
 
-  GeneratedColumn<double> get totalIncome => $composableBuilder(
+  GeneratedColumn<int> get totalIncome => $composableBuilder(
       column: $table.totalIncome, builder: (column) => column);
 
-  GeneratedColumn<double> get totalExpenses => $composableBuilder(
+  GeneratedColumn<int> get totalExpenses => $composableBuilder(
       column: $table.totalExpenses, builder: (column) => column);
 
-  GeneratedColumn<double> get pendingBalances => $composableBuilder(
+  GeneratedColumn<int> get pendingBalances => $composableBuilder(
       column: $table.pendingBalances, builder: (column) => column);
 
   GeneratedColumn<double> get occupancyRate => $composableBuilder(
@@ -33191,9 +34233,9 @@ class $$HotelDayLedgerTableTableManager extends RootTableManager<
             Value<String> vectorClock = const Value.absent(),
             Value<int> id = const Value.absent(),
             Value<String> hotelDayKey = const Value.absent(),
-            Value<double> totalIncome = const Value.absent(),
-            Value<double> totalExpenses = const Value.absent(),
-            Value<double> pendingBalances = const Value.absent(),
+            Value<int> totalIncome = const Value.absent(),
+            Value<int> totalExpenses = const Value.absent(),
+            Value<int> pendingBalances = const Value.absent(),
             Value<double> occupancyRate = const Value.absent(),
             Value<int> bookingsProcessed = const Value.absent(),
             Value<int> paymentsProcessed = const Value.absent(),
@@ -33245,9 +34287,9 @@ class $$HotelDayLedgerTableTableManager extends RootTableManager<
             Value<String> vectorClock = const Value.absent(),
             Value<int> id = const Value.absent(),
             required String hotelDayKey,
-            Value<double> totalIncome = const Value.absent(),
-            Value<double> totalExpenses = const Value.absent(),
-            Value<double> pendingBalances = const Value.absent(),
+            Value<int> totalIncome = const Value.absent(),
+            Value<int> totalExpenses = const Value.absent(),
+            Value<int> pendingBalances = const Value.absent(),
             Value<double> occupancyRate = const Value.absent(),
             Value<int> bookingsProcessed = const Value.absent(),
             Value<int> paymentsProcessed = const Value.absent(),
@@ -35359,6 +36401,527 @@ typedef $$SalaryPaymentsTableProcessedTableManager = ProcessedTableManager<
     (SalaryPayment, $$SalaryPaymentsTableReferences),
     SalaryPayment,
     PrefetchHooks Function({bool cycleId})>;
+typedef $$SalaryWithdrawalsTableCreateCompanionBuilder
+    = SalaryWithdrawalsCompanion Function({
+  required String localUuid,
+  Value<int?> serverId,
+  required int createdAt,
+  required int updatedAt,
+  Value<int?> deletedAt,
+  required int lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  Value<int?> expenseId,
+  required int employeeId,
+  required String action,
+  Value<int> amount,
+  Value<String?> note,
+  required String date,
+});
+typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder
+    = SalaryWithdrawalsCompanion Function({
+  Value<String> localUuid,
+  Value<int?> serverId,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int?> deletedAt,
+  Value<int> lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  Value<int?> expenseId,
+  Value<int> employeeId,
+  Value<String> action,
+  Value<int> amount,
+  Value<String?> note,
+  Value<String> date,
+});
+
+final class $$SalaryWithdrawalsTableReferences extends BaseReferences<
+    _$AppDatabase, $SalaryWithdrawalsTable, SalaryWithdrawal> {
+  $$SalaryWithdrawalsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $EmployeesTable _employeeIdTable(_$AppDatabase db) =>
+      db.employees.createAlias($_aliasNameGenerator(
+          db.salaryWithdrawals.employeeId, db.employees.id));
+
+  $$EmployeesTableProcessedTableManager get employeeId {
+    final $_column = $_itemColumn<int>('employee_id')!;
+
+    final manager = $$EmployeesTableTableManager($_db, $_db.employees)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$SalaryWithdrawalsTableFilterComposer
+    extends Composer<_$AppDatabase, $SalaryWithdrawalsTable> {
+  $$SalaryWithdrawalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get expenseId => $composableBuilder(
+      column: $table.expenseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get action => $composableBuilder(
+      column: $table.action, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  $$EmployeesTableFilterComposer get employeeId {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.employeeId,
+        referencedTable: $db.employees,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$EmployeesTableFilterComposer(
+              $db: $db,
+              $table: $db.employees,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SalaryWithdrawalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SalaryWithdrawalsTable> {
+  $$SalaryWithdrawalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+      column: $table.lastModified,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get expenseId => $composableBuilder(
+      column: $table.expenseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get action => $composableBuilder(
+      column: $table.action, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  $$EmployeesTableOrderingComposer get employeeId {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.employeeId,
+        referencedTable: $db.employees,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$EmployeesTableOrderingComposer(
+              $db: $db,
+              $table: $db.employees,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SalaryWithdrawalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SalaryWithdrawalsTable> {
+  $$SalaryWithdrawalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => column);
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get expenseId =>
+      $composableBuilder(column: $table.expenseId, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  $$EmployeesTableAnnotationComposer get employeeId {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.employeeId,
+        referencedTable: $db.employees,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$EmployeesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.employees,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SalaryWithdrawalsTable,
+    SalaryWithdrawal,
+    $$SalaryWithdrawalsTableFilterComposer,
+    $$SalaryWithdrawalsTableOrderingComposer,
+    $$SalaryWithdrawalsTableAnnotationComposer,
+    $$SalaryWithdrawalsTableCreateCompanionBuilder,
+    $$SalaryWithdrawalsTableUpdateCompanionBuilder,
+    (SalaryWithdrawal, $$SalaryWithdrawalsTableReferences),
+    SalaryWithdrawal,
+    PrefetchHooks Function({bool employeeId})> {
+  $$SalaryWithdrawalsTableTableManager(
+      _$AppDatabase db, $SalaryWithdrawalsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalaryWithdrawalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalaryWithdrawalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SalaryWithdrawalsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> localUuid = const Value.absent(),
+            Value<int?> serverId = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int?> deletedAt = const Value.absent(),
+            Value<int> lastModified = const Value.absent(),
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            Value<int?> expenseId = const Value.absent(),
+            Value<int> employeeId = const Value.absent(),
+            Value<String> action = const Value.absent(),
+            Value<int> amount = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> date = const Value.absent(),
+          }) =>
+              SalaryWithdrawalsCompanion(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            expenseId: expenseId,
+            employeeId: employeeId,
+            action: action,
+            amount: amount,
+            note: note,
+            date: date,
+          ),
+          createCompanionCallback: ({
+            required String localUuid,
+            Value<int?> serverId = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int?> deletedAt = const Value.absent(),
+            required int lastModified,
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            Value<int?> expenseId = const Value.absent(),
+            required int employeeId,
+            required String action,
+            Value<int> amount = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            required String date,
+          }) =>
+              SalaryWithdrawalsCompanion.insert(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            expenseId: expenseId,
+            employeeId: employeeId,
+            action: action,
+            amount: amount,
+            note: note,
+            date: date,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$SalaryWithdrawalsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({employeeId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (employeeId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.employeeId,
+                    referencedTable:
+                        $$SalaryWithdrawalsTableReferences._employeeIdTable(db),
+                    referencedColumn: $$SalaryWithdrawalsTableReferences
+                        ._employeeIdTable(db)
+                        .id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$SalaryWithdrawalsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SalaryWithdrawalsTable,
+    SalaryWithdrawal,
+    $$SalaryWithdrawalsTableFilterComposer,
+    $$SalaryWithdrawalsTableOrderingComposer,
+    $$SalaryWithdrawalsTableAnnotationComposer,
+    $$SalaryWithdrawalsTableCreateCompanionBuilder,
+    $$SalaryWithdrawalsTableUpdateCompanionBuilder,
+    (SalaryWithdrawal, $$SalaryWithdrawalsTableReferences),
+    SalaryWithdrawal,
+    PrefetchHooks Function({bool employeeId})>;
 typedef $$OutboxTableCreateCompanionBuilder = OutboxCompanion Function({
   Value<int> id,
   required String entity,
@@ -37483,7 +39046,7 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder
   Value<int?> bookingLocalId,
   Value<int> adjustmentType,
   Value<String> adjustmentMode,
-  Value<double> amount,
+  Value<int> amount,
   required String effectiveHotelDay,
   Value<String?> endHotelDay,
   Value<bool> isActive,
@@ -37513,7 +39076,7 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder
   Value<int?> bookingLocalId,
   Value<int> adjustmentType,
   Value<String> adjustmentMode,
-  Value<double> amount,
+  Value<int> amount,
   Value<String> effectiveHotelDay,
   Value<String?> endHotelDay,
   Value<bool> isActive,
@@ -37612,7 +39175,7 @@ class $$BookingPriceAdjustmentsTableFilterComposer
       column: $table.adjustmentMode,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get amount => $composableBuilder(
+  ColumnFilters<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get effectiveHotelDay => $composableBuilder(
@@ -37730,7 +39293,7 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
       column: $table.adjustmentMode,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get amount => $composableBuilder(
+  ColumnOrderings<int> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get effectiveHotelDay => $composableBuilder(
@@ -37839,7 +39402,7 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
   GeneratedColumn<String> get adjustmentMode => $composableBuilder(
       column: $table.adjustmentMode, builder: (column) => column);
 
-  GeneratedColumn<double> get amount =>
+  GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
   GeneratedColumn<String> get effectiveHotelDay => $composableBuilder(
@@ -37930,7 +39493,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             Value<int?> bookingLocalId = const Value.absent(),
             Value<int> adjustmentType = const Value.absent(),
             Value<String> adjustmentMode = const Value.absent(),
-            Value<double> amount = const Value.absent(),
+            Value<int> amount = const Value.absent(),
             Value<String> effectiveHotelDay = const Value.absent(),
             Value<String?> endHotelDay = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
@@ -37988,7 +39551,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             Value<int?> bookingLocalId = const Value.absent(),
             Value<int> adjustmentType = const Value.absent(),
             Value<String> adjustmentMode = const Value.absent(),
-            Value<double> amount = const Value.absent(),
+            Value<int> amount = const Value.absent(),
             required String effectiveHotelDay,
             Value<String?> endHotelDay = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
@@ -38978,6 +40541,8 @@ class $AppDatabaseManager {
       $$SalaryCyclesTableTableManager(_db, _db.salaryCycles);
   $$SalaryPaymentsTableTableManager get salaryPayments =>
       $$SalaryPaymentsTableTableManager(_db, _db.salaryPayments);
+  $$SalaryWithdrawalsTableTableManager get salaryWithdrawals =>
+      $$SalaryWithdrawalsTableTableManager(_db, _db.salaryWithdrawals);
   $$OutboxTableTableManager get outbox =>
       $$OutboxTableTableManager(_db, _db.outbox);
   $$SyncStateTableTableManager get syncState =>
