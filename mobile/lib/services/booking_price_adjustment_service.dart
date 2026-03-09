@@ -257,7 +257,7 @@ class BookingPriceAdjustmentService {
       bookingLocalId: Value(booking.id),
       adjustmentType: Value(type.value),
       adjustmentMode: Value(mode.value),
-      amount: Value(amount.toDouble()),
+      amount: Value(amount),  // ⭐ int (already int)
       effectiveHotelDay: Value(effectiveHotelDay),
       endHotelDay: Value(endHotelDay),
       isActive: const Value(true),
