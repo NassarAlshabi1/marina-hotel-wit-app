@@ -537,13 +537,15 @@ class RestoreFixService {
           .get();
       if (debts.isNotEmpty && expectedTotal != null) {
         final remaining =
-            (expectedTotal - totalPaid).clamp(0, expectedTotal).toDouble();
+            (expectedTotal - totalPaid).clamp(0.0, expectedTotal).toInt();  // ⭐ int
         final isSettled = remaining <= 0 ? 1 : 0;
+        final expectedTotalInt = expectedTotal.toInt();
+        final totalPaidInt = totalPaid.toInt();
         for (final debt in debts) {
           final shouldUpdate =
-              (debt.totalAmount - expectedTotal).abs() > 0.001 ||
-                  (debt.paidAmount - totalPaid).abs() > 0.001 ||
-                  (debt.remainingAmount - remaining).abs() > 0.001 ||
+              (debt.totalAmount - expectedTotalInt).abs() > 0 ||
+                  (debt.paidAmount - totalPaidInt).abs() > 0 ||
+                  (debt.remainingAmount - remaining).abs() > 0 ||
                   debt.isSettled != isSettled;
           if (shouldUpdate) {
             await _logConflict(
@@ -558,8 +560,8 @@ class RestoreFixService {
                 'is_settled': debt.isSettled,
               },
               newData: {
-                'total_amount': expectedTotal,
-                'paid_amount': totalPaid,
+                'total_amount': expectedTotalInt,
+                'paid_amount': totalPaidInt,
                 'remaining_amount': remaining,
                 'is_settled': isSettled,
               },
@@ -569,8 +571,8 @@ class RestoreFixService {
             )..where((t) => t.id.equals(debt.id)))
                 .write(
               DebtsCompanion(
-                totalAmount: Value(expectedTotal),
-                paidAmount: Value(totalPaid),
+                totalAmount: Value(expectedTotalInt),
+                paidAmount: Value(totalPaidInt),
                 remainingAmount: Value(remaining),
                 isSettled: Value(isSettled),
                 updatedAt: Value(Time.nowEpoch()),
@@ -974,9 +976,9 @@ class RestoreFixService {
           version: const Value(1),
           origin: const Value('auto_fix'),
           hotelDayKey: Value(key),
-          totalIncome: Value(accumulator.totalIncome),
-          totalExpenses: Value(accumulator.totalExpenses),
-          pendingBalances: Value(accumulator.pendingBalance),
+          totalIncome: Value(accumulator.totalIncome.toInt()),  // ⭐ int
+          totalExpenses: Value(accumulator.totalExpenses.toInt()),  // ⭐ int
+          pendingBalances: Value(accumulator.pendingBalance.toInt()),  // ⭐ int
           occupancyRate: Value(
             double.parse(occupancy.clamp(0, 1).toStringAsFixed(4)),
           ),

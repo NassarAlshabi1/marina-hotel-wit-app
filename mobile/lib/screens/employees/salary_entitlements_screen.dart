@@ -826,7 +826,7 @@ class _SalaryEntitlementsScreenState
     await (db.update(db.employees)..where((t) => t.id.equals(ent.employee.id)))
         .write(
       EmployeesCompanion(
-        basicSalary: Value(newSalary),
+        basicSalary: Value(newSalary.toInt()),  // ⭐ int
         name: Value(nameCtrl.text.trim()),
       ),
     );

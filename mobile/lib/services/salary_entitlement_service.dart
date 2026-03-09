@@ -68,7 +68,7 @@ class SalaryEntitlementService {
     }
 
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
-    final totalEntitlement = totalMonthsWorked * employee.basicSalary;
+    final totalEntitlement = totalMonthsWorked * employee.basicSalary.toDouble();  // ⭐ to double
 
     final expenses = await (_db.select(
       _db.expenses,
@@ -82,21 +82,21 @@ class SalaryEntitlementService {
     for (final expense in expenses) {
       final type = expense.expenseType.trim();
       if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب') {
-        totalWithdrawals += expense.amount;
+        totalWithdrawals += expense.amount.toDouble();  // ⭐ int to double
         transactions.add(
           SalaryTransaction(
             type: 'سحب',
-            amount: expense.amount,
+            amount: expense.amount.toDouble(),  // ⭐ int to double
             date: expense.date,
             note: expense.description,
           ),
         );
       } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
-        totalDeductions += expense.amount;
+        totalDeductions += expense.amount.toDouble();  // ⭐ int to double
         transactions.add(
           SalaryTransaction(
             type: 'خصم',
-            amount: expense.amount,
+            amount: expense.amount.toDouble(),  // ⭐ int to double
             date: expense.date,
             note: expense.description,
           ),

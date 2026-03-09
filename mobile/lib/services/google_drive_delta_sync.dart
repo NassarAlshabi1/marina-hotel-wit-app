@@ -552,7 +552,7 @@ class GoogleDriveDeltaSync {
         _asInt(data['register_id']) ?? _asInt(data['registerId']),
       ),
       transactionType: d.Value(transactionType),
-      amount: d.Value(_asDouble(data['amount'])),
+      amount: d.Value(_asInt(data['amount']) ?? 0),  // ⭐ int
       referenceType: _nullableValue<String>(
         _asString(data['reference_type']) ?? _asString(data['referenceType']),
       ),
