@@ -74,7 +74,6 @@ class AppwriteService {
     AppwriteConfig.roomsCollectionId: {
       'roomNumber',
       'type',
-      'roomType',
       'price',
       'status',
       'imageUrl',

@@ -1317,7 +1317,6 @@ class AppwriteSyncManager {
     final data = <String, dynamic>{
       'roomNumber': room.roomNumber,
       'type': room.type,
-      'roomType': room.type, // نفس القيمة لـ type - للحصول على التوافق مع Appwrite
       'price': room.price,
       'status': room.status,
       'localUuid': room.localUuid,
