@@ -689,8 +689,8 @@ class SyncManager {
               VectorClock? localVectorClock;
               VectorClock? remoteVectorClock;
               try {
-                final localVc = localRow['vector_clock'] as String?;
-                final remoteVc = remoteRow['vector_clock'] as String?;
+                final localVc = (localRow['vectorClock'] ?? localRow['vector_clock']) as String?;
+                final remoteVc = (remoteRow['vectorClock'] ?? remoteRow['vector_clock']) as String?;
                 if (localVc != null && localVc.isNotEmpty) {
                   localVectorClock = VectorClock.fromJson(localVc);
                 }

@@ -319,10 +319,10 @@ class GoogleDriveConflictResolver {
         final tableName = _findTableName(entry.selectedRecord!, remoteData);
         if (tableName != null) {
           final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
-          final uuid = entry.selectedRecord!['local_uuid'];
+          final uuid = (entry.selectedRecord!['localUuid'] ?? entry.selectedRecord!['local_uuid']);
           
           final existingIndex = recordsList.indexWhere(
-            (r) => r is Map && r['local_uuid'] == uuid,
+            (r) => r is Map && (r['localUuid'] ?? r['local_uuid']) == uuid,
           );
           
           if (existingIndex >= 0) {
@@ -345,7 +345,7 @@ class GoogleDriveConflictResolver {
     final map = <String, Map<String, dynamic>>{};
     for (final record in tableData) {
       if (record is Map<String, dynamic>) {
-        final uuid = record['local_uuid'] ?? record['localUuid'];
+        final uuid = record['localUuid'] ?? record['local_uuid'];
         if (uuid != null && uuid is String) {
           map[uuid] = record;
         }
@@ -355,7 +355,7 @@ class GoogleDriveConflictResolver {
   }
 
   DateTime? _extractTimestamp(Map<String, dynamic> record) {
-    final lastModified = record['last_modified'] ?? record['lastModified'];
+    final lastModified = record['lastModified'] ?? record['last_modified'];
     
     if (lastModified is int) {
       try {
@@ -365,7 +365,7 @@ class GoogleDriveConflictResolver {
       }
     }
     
-    final updatedAt = record['updated_at'] ?? record['updatedAt'];
+    final updatedAt = record['updatedAt'] ?? record['updated_at'];
     if (updatedAt is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000);
@@ -385,7 +385,7 @@ class GoogleDriveConflictResolver {
   }
 
   String? _extractDeviceId(Map<String, dynamic> record) {
-    return record['device_id'] ?? record['deviceId'];
+    return record['deviceId'] ?? record['device_id'];
   }
 
   String? _findTableName(Map<String, dynamic> record, Map<String, dynamic> data) {
@@ -393,7 +393,7 @@ class GoogleDriveConflictResolver {
       if (entry.value is List) {
         final list = entry.value as List;
         for (final item in list) {
-          if (item is Map && item['local_uuid'] == record['local_uuid']) {
+          if (item is Map && (item['localUuid'] ?? item['local_uuid']) == (record['localUuid'] ?? record['local_uuid'])) {
             return entry.key;
           }
         }

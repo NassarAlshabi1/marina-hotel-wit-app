@@ -171,8 +171,11 @@ class EnhancedConflictResolver {
     final merged = Map<String, dynamic>.from(context.localData);
     
     final criticalFields = _getCriticalFields(context.table);
-    final systemFields = {'local_uuid', 'server_id', 'created_at', 'created_at_iso', 
-                         'created_at_epoch', 'version', 'origin', 'vector_clock'};
+    // حقول النظام - دعم كلاً من camelCase و snake_case للتوافق
+    final systemFields = {'localUuid', 'local_uuid', 'serverId', 'server_id', 
+                         'createdAt', 'created_at', 'createdAtIso', 'created_at_iso', 
+                         'createdAtEpoch', 'created_at_epoch', 'version', 'origin', 
+                         'vectorClock', 'vector_clock'};
 
     for (final key in context.remoteData.keys) {
       if (systemFields.contains(key)) continue;
@@ -194,9 +197,14 @@ class EnhancedConflictResolver {
       }
     }
 
-    merged['last_modified'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    merged['updated_at'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    merged['updated_at_iso'] = DateTime.now().toUtc().toIso8601String();
+    // تحديث timestamps (دعم camelCase و snake_case)
+    final now = DateTime.now();
+    merged['lastModified'] = now.millisecondsSinceEpoch ~/ 1000;
+    merged['last_modified'] = merged['lastModified'];
+    merged['updatedAt'] = now.millisecondsSinceEpoch ~/ 1000;
+    merged['updated_at'] = merged['updatedAt'];
+    merged['updatedAtIso'] = now.toUtc().toIso8601String();
+    merged['updated_at_iso'] = merged['updatedAtIso'];
 
     return ConflictResolution(
       winner: merged,

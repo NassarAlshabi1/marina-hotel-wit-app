@@ -367,14 +367,20 @@ class SmartSyncManager {
       final remoteMap = <String, dynamic>{};
       
       for (final record in localRecords) {
-        if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          localMap[record['local_uuid']] = record;
+        if (record is Map<String, dynamic>) {
+          final uuid = record['localUuid'] ?? record['local_uuid'];
+          if (uuid != null) {
+            localMap[uuid] = record;
+          }
         }
       }
       
       for (final record in remoteRecords) {
-        if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          remoteMap[record['local_uuid']] = record;
+        if (record is Map<String, dynamic>) {
+          final uuid = record['localUuid'] ?? record['local_uuid'];
+          if (uuid != null) {
+            remoteMap[uuid] = record;
+          }
         }
       }
       
@@ -384,9 +390,9 @@ class SmartSyncManager {
           final localRecord = localMap[uuid];
           final remoteRecord = remoteMap[uuid];
           
-          // مقارنة timestamps
-          final localTimestamp = localRecord['last_modified'] as int?;
-          final remoteTimestamp = remoteRecord['last_modified'] as int?;
+          // مقارنة timestamps (دعم camelCase و snake_case)
+          final localTimestamp = (localRecord['lastModified'] ?? localRecord['last_modified']) as int?;
+          final remoteTimestamp = (remoteRecord['lastModified'] ?? remoteRecord['last_modified']) as int?;
           
           if (localTimestamp != null && remoteTimestamp != null) {
             final localTime = DateTime.fromMillisecondsSinceEpoch(localTimestamp);
@@ -448,8 +454,8 @@ class SmartSyncManager {
 
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
-            // التحقق من تاريخ الملاحظة
-            String? createdAtStr = noteData['created_at'];
+            // التحقق من تاريخ الملاحظة (دعم camelCase و snake_case)
+            String? createdAtStr = noteData['createdAt'] ?? noteData['created_at'];
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
                try {
@@ -460,7 +466,7 @@ class SmartSyncManager {
                  if (createdAt.isAfter(lastSync)) {
                    newNotesCount++;
                    lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
-                   noteCreator = noteData['created_by'] ?? 'مسؤول';
+                   noteCreator = noteData['createdBy'] ?? noteData['created_by'] ?? 'مسؤول';
                  }
                } catch (e) {
                  _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
@@ -502,7 +508,7 @@ class SmartSyncManager {
     if (backupData.containsKey(tableName)) {
       final records = backupData[tableName] as List<dynamic>;
       records.removeWhere((record) => 
-        record is Map<String, dynamic> && record['local_uuid'] == recordId);
+        record is Map<String, dynamic> && (record['localUuid'] ?? record['local_uuid']) == recordId);
     }
   }
 
