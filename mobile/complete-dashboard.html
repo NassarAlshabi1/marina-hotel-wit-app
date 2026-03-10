@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم الرئيسية</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --available: #28a745; /* Green for available rooms */
+            --occupied: #dc3545;  /* Red for occupied rooms */
+            --primary: #3498db;   /* Blue for primary elements */
+            --dark: #2c3e50;      /* Dark color for text and backgrounds */
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Tajawal', sans-serif;
+        }
+        
+        .room-btn {
+            width: 120px;
+            height: 120px;
+            margin: 10px;
+            border-radius: 15px;
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+        
+        .room-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .available-btn {
+            background-color: var(--available);
+        }
+        
+        .occupied-btn {
+            background-color: var(--occupied);
+        }
+        
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            padding: 20px 0;
+        }
+        
+        .status-filter {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        
+        .status-filter .btn {
+            font-size: 16px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-filter .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .nav-btn {
+            margin: 5px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+        
+        .nav-btn:hover {
+            background-color: var(--dark);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--primary) 100%);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 20px;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .alert {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Clock Styles */
+        .clock-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px auto;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+            max-width: 400px;
+        }
+        
+        .digital-clock {
+            font-size: 3.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            font-family: 'Tajawal', sans-serif;
+        }
+        
+        .date-display {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 10px;
+            font-family: 'Tajawal', sans-serif;
+        }
+        
+        .time-separator {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        @media (max-width: 768px) {
+            .digital-clock {
+                font-size: 2.5rem;
+            }
+            
+            .date-display {
+                font-size: 1rem;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- رأس الصفحة مع أزرار التنقل -->
+    <header class="dashboard-header">
+        <div class="container">
+            <h1 class="text-center mb-4">
+                <i class="fas fa-hotel me-2"></i> نظام إدارة الفندق
+            </h1>
+            <nav class="d-flex justify-content-center flex-wrap">
+                <a href="dashboard.php" class="nav-btn">
+                    <i class="fas fa-tachometer-alt me-1"></i> لوحة التحكم
+                </a>
+                <a href=" rooms/list.php" class="nav-btn">
+                    <i class="fas fa-door-open me-1"></i> الغرف
+                </a>
+                <a href=" expenses/expenses.php" class="nav-btn">
+                    <i class="fas fa-calendar-alt me-1"></i> المصروفات
+                </a>
+                <a href="bookings/list.php" class="nav-btn">
+                    <i class="fas fa-users me-1"></i> الضيوف
+                </a>
+                <a href=",report/revenue.php" class="nav-btn">
+                    <i class="fas fa-chart-bar me-1"></i> التقارير
+                </a>
+                <a href="settings.php" class="nav-btn">
+                    <i class="fas fa-cog me-1"></i> الإعدادات
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- إضافة الساعة الكبيرة هنا -->
+    <div class="clock-container">
+        <div class="date-display" id="date-display"></div>
+        <div class="digital-clock" id="digital-clock">00:00:00</div>
+    </div>
+
+    <main class="dashboard-container">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-door-open me-2"></i> حالة الغرف
+        </h2>
+        
+        <!-- فلتر الحالات -->
+        <div class="status-filter">
+            <button class="btn btn-success" onclick="filterRooms('available')">
+                <i class="fas fa-check-circle"></i> شاغرة
+            </button>
+            <button class="btn btn-danger" onclick="filterRooms('occupied')">
+                <i class="fas fa-times-circle"></i> محجوزة
+            </button>
+            <button class="btn btn-secondary" onclick="filterRooms('all')">
+                <i class="fas fa-list"></i> الكل
+            </button>
+        </div>
+        
+        <!-- شبكة الغرف -->
+        <div class="rooms-grid">
+            <?php if (!empty($rooms)): ?>
+                <?php foreach ($rooms as $room): ?>
+                    <button class="room-btn <?= $room['status'] === 'شاغرة' ? 'available-btn' : 'occupied-btn' ?>"
+                            data-status="<?= $room['status'] ?>"
+                            data-room-number="<?= $room['room_number'] ?>"
+                            onclick="handleRoomClick('<?= $room['room_number'] ?>', '<?= $room['status'] ?>')">
+                        غرفة <?= $room['room_number'] ?>
+                    </button>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="alert alert-warning text-center w-100">
+                    لا توجد غرف متاحة
+                </div>
+            <?php endif; ?>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // فلتر الغرف حسب الحالة
+        function filterRooms(status) {
+            const rooms = document.querySelectorAll('.room-btn');
+            
+            rooms.forEach(room => {
+                if (status === 'all' || room.dataset.status === status) {
+                    room.style.display = 'flex';
+                } else {
+                    room.style.display = 'none';
+                }
+            });
+        }
+
+        // معالجة النقر على الغرفة
+        function handleRoomClick(roomNumber, status) {
+            if (status === 'شاغرة') {
+                // توجيه المستخدم إلى صفحة تسجيل الحجز
+                window.location.href = `bookings/add.php?room_number=${roomNumber}`;
+            } else {
+                alert("هذه الغرفة محجوزة ولا يمكن حجزها.");
+            }
+        }
+        
+        // تهيئة العرض الأولي
+        document.addEventListener('DOMContentLoaded', () => {
+            filterRooms('all');
+        });
+        
+        // تحديث الساعة
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            document.getElementById('digital-clock').innerHTML = 
+                hours + '<span class="time-separator">:</span>' + 
+                minutes + '<span class="time-separator">:</span>' + 
+                seconds;
+                
+            // تنسيق التاريخ بالعربية
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            document.getElementById('date-display').textContent = now.toLocaleDateString('ar-SA', options);
+        }
+        
+        // تحديث الساعة كل ثانية
+        setInterval(updateClock, 1000);
+        
+        // تحديث الساعة عند تحميل الصفحة
+        updateClock();
+    </script>
+</body>
+</html>

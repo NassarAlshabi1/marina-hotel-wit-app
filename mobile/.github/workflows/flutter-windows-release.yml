@@ -1,0 +1,71 @@
+name: Build Flutter Windows Release
+
+on:
+  push:
+    branches:
+      - main
+      - '**'
+      - fix/conflict-resolution-vector-clocks
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-windows-release.yml'
+  pull_request:
+    branches:
+      - main
+      - fix/conflict-resolution-vector-clocks
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-windows-release.yml'
+  workflow_dispatch:
+    inputs:
+      base_api_url:
+        description: 'BASE_API_URL for desktop build'
+        required: false
+        default: 'http://127.0.0.1:8080/api/v1'
+
+jobs:
+  build-windows-release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.3'
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Initialize Windows project if missing
+        run: |
+          if (!(Test-Path "windows")) {
+            flutter create --platforms=windows .
+          }
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows release
+        run: flutter build windows --release --dart-define=BASE_API_URL=${{ github.event.inputs.base_api_url || 'http://127.0.0.1:8080/api/v1' }}
+
+      - name: Archive Release
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ../marina-hotel-windows.zip
+
+      - name: Upload Windows EXE Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-windows-exe
+          path: marina-hotel-windows.zip
+          if-no-files-found: error

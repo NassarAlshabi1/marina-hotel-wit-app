@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فندق مارينا - تثبيت مباشر</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2196f3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="فندق مارينا">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            min-width: 200px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        
+        .steps {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        
+        .steps ol {
+            margin: 0;
+            padding-right: 20px;
+        }
+        
+        .steps li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏨</div>
+        <h1>فندق مارينا</h1>
+        <p>تطبيق إدارة الفندق</p>
+        
+        <div id="installStatus" class="status info">
+            ✅ PWA جاهز للتثبيت!
+        </div>
+        
+        <!-- زر التثبيت -->
+        <button id="installBtn" class="btn pulse" style="display: none;">
+            📱 تثبيت التطبيق الآن
+        </button>
+        
+        <!-- أزرار إضافية -->
+        <a href="admin/dashboard.php" class="btn btn-primary">
+            🚀 دخول النظام
+        </a>
+        
+        <button id="shareBtn" class="btn btn-secondary">
+            📤 مشاركة التطبيق
+        </button>
+        
+        <!-- تعليمات التثبيت -->
+        <div class="steps">
+            <h3>📋 طريقة التثبيت:</h3>
+            <ol>
+                <li><strong>Chrome/Edge:</strong> اضغط زر "تثبيت التطبيق" أعلاه</li>
+                <li><strong>أو من القائمة:</strong> ☰ ← "تثبيت التطبيق"</li>
+                <li><strong>Safari:</strong> 📤 ← "إضافة إلى الشاشة الرئيسية"</li>
+                <li><strong>Firefox:</strong> ☰ ← "تثبيت"</li>
+            </ol>
+        </div>
+        
+        <div class="steps">
+            <h3>✨ مميزات التطبيق:</h3>
+            <ul style="text-align: right; list-style: none; padding: 0;">
+                <li>📱 يعمل كتطبيق حقيقي</li>
+                <li>⚡ تحميل سريع</li>
+                <li>🔄 تحديثات تلقائية</li>
+                <li>📲 تثبيت بنقرة واحدة</li>
+            </ul>
+        </div>
+        
+        <p style="font-size: 12px; color: #6c757d; margin-top: 30px;">
+            💡 نصيحة: بعد التثبيت، ستجد التطبيق في قائمة التطبيقات مثل أي تطبيق آخر!
+        </p>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        const installStatus = document.getElementById('installStatus');
+        const shareBtn = document.getElementById('shareBtn');
+        
+        // الانتظار لإمكانية التثبيت
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('📱 PWA install prompt ready');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // إظهار زر التثبيت
+            installBtn.style.display = 'inline-block';
+            installStatus.innerHTML = '🎉 يمكن تثبيت التطبيق الآن!';
+            installStatus.className = 'status success';
+        });
+        
+        // زر التثبيت
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                // إرشادات يدوية
+                alert(`📱 للتثبيت اليدوي:
+                
+Chrome/Edge:
+• اضغط ☰ (القائمة)
+• اختر "تثبيت التطبيق"
+• اضغط "تثبيت"
+
+Safari:
+• اضغط 📤 (مشاركة)
+• اختر "إضافة إلى الشاشة الرئيسية"
+
+Firefox:
+• اضغط ☰ (القائمة)
+• اختر "تثبيت"
+
+سيظهر التطبيق في قائمة التطبيقات! 🎉`);
+                return;
+            }
+            
+            // تثبيت PWA
+            installBtn.disabled = true;
+            installBtn.textContent = '⏳ جاري التثبيت...';
+            
+            const result = await deferredPrompt.prompt();
+            console.log('Install result:', result);
+            
+            if (result.outcome === 'accepted') {
+                installStatus.innerHTML = '🎉 تم تثبيت التطبيق بنجاح!';
+                installStatus.className = 'status success';
+                
+                // إخفاء زر التثبيت
+                setTimeout(() => {
+                    installBtn.style.display = 'none';
+                }, 2000);
+                
+                // انتقال تلقائي للنظام
+                setTimeout(() => {
+                    window.location.href = 'admin/dashboard.php';
+                }, 3000);
+            } else {
+                installBtn.disabled = false;
+                installBtn.textContent = '📱 تثبيت التطبيق';
+                installStatus.innerHTML = '❌ تم إلغاء التثبيت';
+            }
+            
+            deferredPrompt = null;
+        });
+        
+        // بعد التثبيت الناجح
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA installed successfully');
+            installBtn.style.display = 'none';
+            installStatus.innerHTML = '✅ التطبيق مثبت بنجاح!';
+            installStatus.className = 'status success';
+        });
+        
+        // زر المشاركة
+        shareBtn.addEventListener('click', async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'فندق مارينا - تطبيق إدارة الفندق',
+                        text: 'تطبيق متطور لإدارة الفنادق',
+                        url: window.location.href
+                    });
+                } catch (err) {
+                    console.log('Error sharing:', err);
+                }
+            } else {
+                // نسخ الرابط
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    alert('✅ تم نسخ الرابط!');
+                });
+            }
+        });
+        
+        // التحقق إذا كان مثبت بالفعل
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            installStatus.innerHTML = '✅ التطبيق مثبت ويعمل في وضع standalone!';
+            installStatus.className = 'status success';
+            installBtn.style.display = 'none';
+        }
+        
+        // تأثيرات إضافية
+        window.addEventListener('load', () => {
+            console.log('🚀 PWA Direct loaded');
+            
+            // إظهار زر التثبيت بعد 3 ثوان إذا لم يظهر
+            setTimeout(() => {
+                if (installBtn.style.display === 'none' || !installBtn.style.display) {
+                    installBtn.style.display = 'inline-block';
+                    installBtn.textContent = '📱 محاولة التثبيت';
+                    installBtn.classList.remove('pulse');
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فندق مارينا - تثبيت مباشر</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2196f3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="فندق مارينا">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            min-width: 200px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        
+        .steps {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        
+        .steps ol {
+            margin: 0;
+            padding-right: 20px;
+        }
+        
+        .steps li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏨</div>
+        <h1>فندق مارينا</h1>
+        <p>تطبيق إدارة الفندق</p>
+        
+        <div id="installStatus" class="status info">
+            ✅ PWA جاهز للتثبيت!
+        </div>
+        
+        <!-- زر التثبيت -->
+        <button id="installBtn" class="btn pulse" style="display: none;">
+            📱 تثبيت التطبيق الآن
+        </button>
+        
+        <!-- أزرار إضافية -->
+        <a href="admin/dashboard.php" class="btn btn-primary">
+            🚀 دخول النظام
+        </a>
+        
+        <button id="shareBtn" class="btn btn-secondary">
+            📤 مشاركة التطبيق
+        </button>
+        
+        <!-- تعليمات التثبيت -->
+        <div class="steps">
+            <h3>📋 طريقة التثبيت:</h3>
+            <ol>
+                <li><strong>Chrome/Edge:</strong> اضغط زر "تثبيت التطبيق" أعلاه</li>
+                <li><strong>أو من القائمة:</strong> ☰ ← "تثبيت التطبيق"</li>
+                <li><strong>Safari:</strong> 📤 ← "إضافة إلى الشاشة الرئيسية"</li>
+                <li><strong>Firefox:</strong> ☰ ← "تثبيت"</li>
+            </ol>
+        </div>
+        
+        <div class="steps">
+            <h3>✨ مميزات التطبيق:</h3>
+            <ul style="text-align: right; list-style: none; padding: 0;">
+                <li>📱 يعمل كتطبيق حقيقي</li>
+                <li>⚡ تحميل سريع</li>
+                <li>🔄 تحديثات تلقائية</li>
+                <li>📲 تثبيت بنقرة واحدة</li>
+            </ul>
+        </div>
+        
+        <p style="font-size: 12px; color: #6c757d; margin-top: 30px;">
+            💡 نصيحة: بعد التثبيت، ستجد التطبيق في قائمة التطبيقات مثل أي تطبيق آخر!
+        </p>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        const installStatus = document.getElementById('installStatus');
+        const shareBtn = document.getElementById('shareBtn');
+        
+        // الانتظار لإمكانية التثبيت
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('📱 PWA install prompt ready');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // إظهار زر التثبيت
+            installBtn.style.display = 'inline-block';
+            installStatus.innerHTML = '🎉 يمكن تثبيت التطبيق الآن!';
+            installStatus.className = 'status success';
+        });
+        
+        // زر التثبيت
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                // إرشادات يدوية
+                alert(`📱 للتثبيت اليدوي:
+                
+Chrome/Edge:
+• اضغط ☰ (القائمة)
+• اختر "تثبيت التطبيق"
+• اضغط "تثبيت"
+
+Safari:
+• اضغط 📤 (مشاركة)
+• اختر "إضافة إلى الشاشة الرئيسية"
+
+Firefox:
+• اضغط ☰ (القائمة)
+• اختر "تثبيت"
+
+سيظهر التطبيق في قائمة التطبيقات! 🎉`);
+                return;
+            }
+            
+            // تثبيت PWA
+            installBtn.disabled = true;
+            installBtn.textContent = '⏳ جاري التثبيت...';
+            
+            const result = await deferredPrompt.prompt();
+            console.log('Install result:', result);
+            
+            if (result.outcome === 'accepted') {
+                installStatus.innerHTML = '🎉 تم تثبيت التطبيق بنجاح!';
+                installStatus.className = 'status success';
+                
+                // إخفاء زر التثبيت
+                setTimeout(() => {
+                    installBtn.style.display = 'none';
+                }, 2000);
+                
+                // انتقال تلقائي للنظام
+                setTimeout(() => {
+                    window.location.href = 'admin/dashboard.php';
+                }, 3000);
+            } else {
+                installBtn.disabled = false;
+                installBtn.textContent = '📱 تثبيت التطبيق';
+                installStatus.innerHTML = '❌ تم إلغاء التثبيت';
+            }
+            
+            deferredPrompt = null;
+        });
+        
+        // بعد التثبيت الناجح
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA installed successfully');
+            installBtn.style.display = 'none';
+            installStatus.innerHTML = '✅ التطبيق مثبت بنجاح!';
+            installStatus.className = 'status success';
+        });
+        
+        // زر المشاركة
+        shareBtn.addEventListener('click', async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'فندق مارينا - تطبيق إدارة الفندق',
+                        text: 'تطبيق متطور لإدارة الفنادق',
+                        url: window.location.href
+                    });
+                } catch (err) {
+                    console.log('Error sharing:', err);
+                }
+            } else {
+                // نسخ الرابط
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    alert('✅ تم نسخ الرابط!');
+                });
+            }
+        });
+        
+        // التحقق إذا كان مثبت بالفعل
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            installStatus.innerHTML = '✅ التطبيق مثبت ويعمل في وضع standalone!';
+            installStatus.className = 'status success';
+            installBtn.style.display = 'none';
+        }
+        
+        // تأثيرات إضافية
+        window.addEventListener('load', () => {
+            console.log('🚀 PWA Direct loaded');
+            
+            // إظهار زر التثبيت بعد 3 ثوان إذا لم يظهر
+            setTimeout(() => {
+                if (installBtn.style.display === 'none' || !installBtn.style.display) {
+                    installBtn.style.display = 'inline-block';
+                    installBtn.textContent = '📱 محاولة التثبيت';
+                    installBtn.classList.remove('pulse');
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فندق مارينا - تثبيت مباشر</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2196f3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="فندق مارينا">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            min-width: 200px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        
+        .steps {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        
+        .steps ol {
+            margin: 0;
+            padding-right: 20px;
+        }
+        
+        .steps li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏨</div>
+        <h1>فندق مارينا</h1>
+        <p>تطبيق إدارة الفندق</p>
+        
+        <div id="installStatus" class="status info">
+            ✅ PWA جاهز للتثبيت!
+        </div>
+        
+        <!-- زر التثبيت -->
+        <button id="installBtn" class="btn pulse" style="display: none;">
+            📱 تثبيت التطبيق الآن
+        </button>
+        
+        <!-- أزرار إضافية -->
+        <a href="admin/dashboard.php" class="btn btn-primary">
+            🚀 دخول النظام
+        </a>
+        
+        <button id="shareBtn" class="btn btn-secondary">
+            📤 مشاركة التطبيق
+        </button>
+        
+        <!-- تعليمات التثبيت -->
+        <div class="steps">
+            <h3>📋 طريقة التثبيت:</h3>
+            <ol>
+                <li><strong>Chrome/Edge:</strong> اضغط زر "تثبيت التطبيق" أعلاه</li>
+                <li><strong>أو من القائمة:</strong> ☰ ← "تثبيت التطبيق"</li>
+                <li><strong>Safari:</strong> 📤 ← "إضافة إلى الشاشة الرئيسية"</li>
+                <li><strong>Firefox:</strong> ☰ ← "تثبيت"</li>
+            </ol>
+        </div>
+        
+        <div class="steps">
+            <h3>✨ مميزات التطبيق:</h3>
+            <ul style="text-align: right; list-style: none; padding: 0;">
+                <li>📱 يعمل كتطبيق حقيقي</li>
+                <li>⚡ تحميل سريع</li>
+                <li>🔄 تحديثات تلقائية</li>
+                <li>📲 تثبيت بنقرة واحدة</li>
+            </ul>
+        </div>
+        
+        <p style="font-size: 12px; color: #6c757d; margin-top: 30px;">
+            💡 نصيحة: بعد التثبيت، ستجد التطبيق في قائمة التطبيقات مثل أي تطبيق آخر!
+        </p>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        const installStatus = document.getElementById('installStatus');
+        const shareBtn = document.getElementById('shareBtn');
+        
+        // الانتظار لإمكانية التثبيت
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('📱 PWA install prompt ready');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // إظهار زر التثبيت
+            installBtn.style.display = 'inline-block';
+            installStatus.innerHTML = '🎉 يمكن تثبيت التطبيق الآن!';
+            installStatus.className = 'status success';
+        });
+        
+        // زر التثبيت
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                // إرشادات يدوية
+                alert(`📱 للتثبيت اليدوي:
+                
+Chrome/Edge:
+• اضغط ☰ (القائمة)
+• اختر "تثبيت التطبيق"
+• اضغط "تثبيت"
+
+Safari:
+• اضغط 📤 (مشاركة)
+• اختر "إضافة إلى الشاشة الرئيسية"
+
+Firefox:
+• اضغط ☰ (القائمة)
+• اختر "تثبيت"
+
+سيظهر التطبيق في قائمة التطبيقات! 🎉`);
+                return;
+            }
+            
+            // تثبيت PWA
+            installBtn.disabled = true;
+            installBtn.textContent = '⏳ جاري التثبيت...';
+            
+            const result = await deferredPrompt.prompt();
+            console.log('Install result:', result);
+            
+            if (result.outcome === 'accepted') {
+                installStatus.innerHTML = '🎉 تم تثبيت التطبيق بنجاح!';
+                installStatus.className = 'status success';
+                
+                // إخفاء زر التثبيت
+                setTimeout(() => {
+                    installBtn.style.display = 'none';
+                }, 2000);
+                
+                // انتقال تلقائي للنظام
+                setTimeout(() => {
+                    window.location.href = 'admin/dashboard.php';
+                }, 3000);
+            } else {
+                installBtn.disabled = false;
+                installBtn.textContent = '📱 تثبيت التطبيق';
+                installStatus.innerHTML = '❌ تم إلغاء التثبيت';
+            }
+            
+            deferredPrompt = null;
+        });
+        
+        // بعد التثبيت الناجح
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA installed successfully');
+            installBtn.style.display = 'none';
+            installStatus.innerHTML = '✅ التطبيق مثبت بنجاح!';
+            installStatus.className = 'status success';
+        });
+        
+        // زر المشاركة
+        shareBtn.addEventListener('click', async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'فندق مارينا - تطبيق إدارة الفندق',
+                        text: 'تطبيق متطور لإدارة الفنادق',
+                        url: window.location.href
+                    });
+                } catch (err) {
+                    console.log('Error sharing:', err);
+                }
+            } else {
+                // نسخ الرابط
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    alert('✅ تم نسخ الرابط!');
+                });
+            }
+        });
+        
+        // التحقق إذا كان مثبت بالفعل
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            installStatus.innerHTML = '✅ التطبيق مثبت ويعمل في وضع standalone!';
+            installStatus.className = 'status success';
+            installBtn.style.display = 'none';
+        }
+        
+        // تأثيرات إضافية
+        window.addEventListener('load', () => {
+            console.log('🚀 PWA Direct loaded');
+            
+            // إظهار زر التثبيت بعد 3 ثوان إذا لم يظهر
+            setTimeout(() => {
+                if (installBtn.style.display === 'none' || !installBtn.style.display) {
+                    installBtn.style.display = 'inline-block';
+                    installBtn.textContent = '📱 محاولة التثبيت';
+                    installBtn.classList.remove('pulse');
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

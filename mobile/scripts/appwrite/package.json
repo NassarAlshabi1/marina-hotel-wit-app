@@ -1,0 +1,19 @@
+{
+  "name": "appwrite",
+  "version": "1.0.0",
+  "description": "",
+  "main": "create_appwrite_collections.js",
+  "scripts": {
+    "process:outbox": "node process_outbox_stdin.js",
+    "create:collections": "node create_appwrite_collections.js",
+    "create:indexes": "node create_mobile_indexes.js",
+    "list:collections": "node list_appwrite_collections.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-appwrite": "^20.3.0"
+  }
+}

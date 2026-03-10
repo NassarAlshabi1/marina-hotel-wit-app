@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>إنشاء أيقونة فورية</title>
+</head>
+<body>
+    <canvas id="canvas" width="192" height="192" style="border: 1px solid #ddd;"></canvas>
+    <br><br>
+    <button onclick="downloadIcon()">تحميل الأيقونة</button>
+    
+    <script>
+        // إنشاء أيقونة فورية
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // خلفية زرقاء
+        const gradient = ctx.createLinearGradient(0, 0, 192, 192);
+        gradient.addColorStop(0, '#667eea');
+        gradient.addColorStop(1, '#764ba2');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 192, 192);
+        
+        // رسم أيقونة فندق
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 96px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🏨', 96, 96);
+        
+        function downloadIcon() {
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'icon-192x192.png';
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                // إنشاء باقي الأحجام
+                createAllSizes();
+            });
+        }
+        
+        function createAllSizes() {
+            const sizes = [72, 96, 128, 144, 152, 384, 512];
+            
+            sizes.forEach((size, index) => {
+                setTimeout(() => {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = size;
+                    tempCanvas.height = size;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    // رسم نفس التصميم بحجم مختلف
+                    const tempGradient = tempCtx.createLinearGradient(0, 0, size, size);
+                    tempGradient.addColorStop(0, '#667eea');
+                    tempGradient.addColorStop(1, '#764ba2');
+                    tempCtx.fillStyle = tempGradient;
+                    tempCtx.fillRect(0, 0, size, size);
+                    
+                    tempCtx.fillStyle = 'white';
+                    tempCtx.font = `bold ${size * 0.5}px Arial`;
+                    tempCtx.textAlign = 'center';
+                    tempCtx.textBaseline = 'middle';
+                    tempCtx.fillText('🏨', size / 2, size / 2);
+                    
+                    tempCanvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `icon-${size}x${size}.png`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                    });
+                }, index * 200);
+            });
+            
+            alert('سيتم تحميل جميع الأيقونات تدريجياً!\nضع الملفات في مجلد: assets/icons/');
+        }
+        
+        // تحميل تلقائي عند فتح الصفحة
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (confirm('هل تريد تحميل الأيقونات الآن؟')) {
+                    downloadIcon();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

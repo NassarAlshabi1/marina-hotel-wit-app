@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ساعة بسيطة</title>
+</head>
+<body>
+    <div id="clock"></div>
+    <script>
+        function updateTime() {
+            var now = new Date();
+            var time = now.toLocaleTimeString('ar-SA');
+            document.getElementById('clock').innerHTML = time;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>
