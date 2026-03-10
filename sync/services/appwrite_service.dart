@@ -74,6 +74,7 @@ class AppwriteService {
     AppwriteConfig.roomsCollectionId: {
       'roomNumber',
       'type',
+      'roomType',
       'price',
       'status',
       'imageUrl',
@@ -781,7 +782,7 @@ class AppwriteService {
           _logger.debug('Testing CREATE operation...', tag: 'CONNECTION_TEST');
           final testData = {
             'test_field': 'test_value_${DateTime.now().millisecondsSinceEpoch}',
-            'created_at': DateTime.now().toIso8601String(),
+            'createdAt': DateTime.now().toIso8601String(),
           };
           
           final createdDoc = await _networkHelper.withTimeout(
