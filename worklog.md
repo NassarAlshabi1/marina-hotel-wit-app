@@ -1,6 +1,62 @@
 # Worklog
 
 ---
+Task ID: 7
+Agent: Main Agent
+Task: إصلاح camelCase في الحقول المسموحة لـ Appwrite
+
+Work Log:
+- فحص الأخطاء المبلغ عنها:
+  - خطأ: Missing required attribute "roomType" (للغرف)
+  - خطأ: created_at بدلاً من createdAt في testConnection
+
+- التحديثات المُجراة:
+  - sync/services/appwrite_service.dart:
+    - إضافة 'roomType' لقائمة الحقول المسموحة في roomsCollectionId
+    - تغيير 'created_at' إلى 'createdAt' في دالة testConnection
+
+- التغييرات الرئيسية:
+  - الآن roomType يمكن إرساله إلى Appwrite بدون تصفية
+  - testConnection يستخدم camelCase متوافق مع Appwrite
+
+Stage Summary:
+- ✅ تم إصلاح خطأ roomType للغرف
+- ✅ تم إصلاح created_at في testConnection
+- ✅ تم دفع الإصلاحات إلى الفرع feature/sync-improvements-and-tests
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: إصلاح أخطاء snake_case في الإرسال إلى Appwrite Cloud
+
+Work Log:
+- فحص سجلات الأخطاء:
+  - خطأ 1: Missing required attribute "roomType"
+  - خطأ 2: Missing required attribute "created_at"
+
+- إصلاحات ملفات Dart في sync/:
+  - sync/services/appwrite_sync_manager.dart: إضافة roomType لـ _roomToRemote
+  - sync/services/smart_sync_manager.dart: تحديث extraction لـ camelCase و snake_case
+  - sync/services/conflict_resolver.dart: إضافة camelCase لـ systemFields
+  - sync/services/google_drive_conflict_resolver.dart: تحديث استخراج UUID و timestamps
+  - sync/services/sync_manager.dart: تحديث vector_clock extraction
+
+- إصلاحات ملفات Flutter mobile:
+  - mobile/lib/repositories/room_repository.dart:
+    - تحديث fromAppwriteDocument لدعم كلاً من camelCase و snake_case
+    - تحديث toJson لإرسال camelCase مع roomType
+
+- التغييرات الرئيسية:
+  - إرسال type كلاً من 'type' و 'roomType' للتوافق مع Appwrite
+  - دعم camelCase و snake_case في reading للتوافق العكسي
+
+Stage Summary:
+- ✅ تم إصلاح جميع الأخطاء المتعلقة بـ snake_case
+- ✅ البيانات الآن ترسل بصيغة camelCase
+- ✅ التوافق العكسي مع البيانات القديمة مضمون
+- ✅ تم دفع الإصلاحات إلى الفرع feature/sync-improvements-and-tests
+
+---
 Task ID: 5
 Agent: Main Agent
 Task: فحص وتحديث ملفات المزامنة لاستخدام camelCase
