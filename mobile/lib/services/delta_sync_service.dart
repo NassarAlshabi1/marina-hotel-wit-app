@@ -29,9 +29,9 @@ class DeltaSyncChange {
       'entity': entity,
       'op': operation,
       'data': data,
-      'row_hash': rowHash,
-      'local_uuid': localUuid,
-      'client_ts': clientTimestamp,
+      'rowHash': rowHash,
+      'localUuid': localUuid,
+      'clientTs': clientTimestamp,
     };
   }
 }
@@ -91,18 +91,18 @@ class DeltaSyncService {
           continue;
         }
         final sanitized = _preparePayload(config.toJson(row));
-        sanitized['local_uuid'] = localUuid;
+        sanitized['localUuid'] = localUuid;
         final rowHash = _hashPayload(sanitized);
         final payload = Map<String, dynamic>.from(sanitized);
-        payload['row_hash'] = rowHash;
-        final createdAt = _asInt(sanitized['created_at']);
-        final lastModified = _asInt(sanitized['last_modified']);
-        final deletedAt = _asInt(sanitized['deleted_at']);
+        payload['rowHash'] = rowHash;
+        final createdAt = _asInt(sanitized['createdAt']);
+        final lastModified = _asInt(sanitized['lastModified']);
+        final deletedAt = _asInt(sanitized['deletedAt']);
         final previous = existingMirror[localUuid];
         final clientTs = nowTs;
 
         if (deletedAt != null && deletedAt > normalizedSince) {
-          payload['deleted_at'] = deletedAt;
+          payload['deletedAt'] = deletedAt;
           changes.add(
             DeltaSyncChange(
               entity: config.entity,
@@ -170,10 +170,10 @@ class DeltaSyncService {
           continue;
         }
         final payload = Map<String, dynamic>.from(previous.payload);
-        final previousDeletedAt = _asInt(payload['deleted_at']);
+        final previousDeletedAt = _asInt(payload['deletedAt']);
         final deleteStamp = previousDeletedAt ?? nowTs;
-        payload['deleted_at'] = deleteStamp;
-        payload['row_hash'] = previous.rowHash;
+        payload['deletedAt'] = deleteStamp;
+        payload['rowHash'] = previous.rowHash;
         changes.add(
           DeltaSyncChange(
             entity: config.entity,
@@ -305,7 +305,7 @@ class DeltaSyncService {
           }
 
           final sanitized = _preparePayload(config.toJson(row));
-          sanitized['local_uuid'] = uuid;
+          sanitized['localUuid'] = uuid;
           final currentHash = _hashPayload(sanitized);
 
           if (currentHash != mirrorRow.rowHash) {
@@ -350,7 +350,7 @@ class DeltaSyncService {
           if (uuid.isEmpty) continue;
 
           final sanitized = _preparePayload(config.toJson(row));
-          sanitized['local_uuid'] = uuid;
+          sanitized['localUuid'] = uuid;
           final rowHash = _hashPayload(sanitized);
 
           await db.customStatement(
@@ -590,11 +590,13 @@ int _normalizeTimestamp(int value) {
   return value < 1000000000000 ? value * 1000 : value;
 }
 
+/// تحويل البيانات مع الإبقاء على camelCase للمفاتيح
+/// تم توحيده ليتوافق مع Appwrite Cloud
 Map<String, dynamic> _preparePayload(Map<String, dynamic> source) {
   final result = <String, dynamic>{};
   source.forEach((key, value) {
-    final newKey = _toSnakeCase(key);
-    result[newKey] = _normalizeValue(value);
+    // نحتفظ بالمفتاح كما هو (camelCase) - لا تحويل لـ snake_case
+    result[key] = _normalizeValue(value);
   });
   return result;
 }
@@ -645,14 +647,6 @@ Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
   }).toList()
     ..sort((a, b) => a.key.compareTo(b.key));
   return Map<String, dynamic>.fromEntries(entries);
-}
-
-String _toSnakeCase(String input) {
-  final snake = input.replaceAllMapped(
-    RegExp('([a-z0-9])([A-Z])'),
-    (match) => '${match.group(1)}_${match.group(2)}',
-  );
-  return snake.replaceAll('-', '_').toLowerCase();
 }
 
 int? _asInt(dynamic value) {

@@ -15,7 +15,60 @@
 /// ═══════════════════════════════════════════════════════════════════════════════
 
 import 'package:flutter/foundation.dart';
-import 'adapters/key_converter.dart';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// دوال تحويل المفاتيح - موحدة لـ camelCase فقط
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// تحويل camelCase إلى snake_case (للتوافق مع البيانات القديمة فقط)
+String camelToSnakeCase(String input) {
+  final result = StringBuffer();
+  for (var i = 0; i < input.length; i++) {
+    final c = input[i];
+    if (c.toUpperCase() == c && c.toLowerCase() != c && i > 0) {
+      result.write('_');
+    }
+    result.write(c.toLowerCase());
+  }
+  return result.toString();
+}
+
+/// تحويل snake_case إلى camelCase
+String snakeToCamelCase(String input) {
+  final parts = input.split('_');
+  if (parts.length == 1) return input;
+  
+  final result = StringBuffer(parts[0]);
+  for (var i = 1; i < parts.length; i++) {
+    if (parts[i].isNotEmpty) {
+      result.write(parts[i][0].toUpperCase());
+      result.write(parts[i].substring(1));
+    }
+  }
+  return result.toString();
+}
+
+/// تحويل جميع مفاتيح Map إلى camelCase
+Map<String, dynamic> convertKeysToCamelCase(Map<String, dynamic> input) {
+  final result = <String, dynamic>{};
+  input.forEach((key, value) {
+    final newKey = key.contains('_') && key.toLowerCase() == key 
+        ? snakeToCamelCase(key) : key;
+    if (value is Map<String, dynamic>) {
+      result[newKey] = convertKeysToCamelCase(value);
+    } else if (value is List) {
+      result[newKey] = value.map((item) {
+        if (item is Map<String, dynamic>) {
+          return convertKeysToCamelCase(item);
+        }
+        return item;
+      }).toList();
+    } else {
+      result[newKey] = value;
+    }
+  });
+  return result;
+}
 
 /// نتيجة التحقق من الـ payload
 class VerificationResult {
