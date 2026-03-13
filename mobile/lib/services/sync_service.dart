@@ -407,6 +407,16 @@ class SyncService {
     int serverTs,
     Map<String, dynamic> data,
   ) async {
+    // ⭐ حماية من حلقات المزامنة: تجاهل التغييرات القادمة من نفس الجهاز
+    final origin = data['origin'] as String?;
+    if (origin == 'server') {
+      debugPrint('⏭️ تخطي معالجة $entity/${data['localUuid']} - origin=server');
+      return;
+    }
+    
+    // ⭐ تسجيل العملية للتتبع
+    debugPrint('[SYNC] Pull: $entity/$op serverId=$serverId ts=$serverTs');
+    
     switch (entity) {
       case 'rooms':
         final rn = _asString(data['room_number']);

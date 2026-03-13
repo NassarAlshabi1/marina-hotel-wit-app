@@ -194,14 +194,22 @@ class EnhancedConflictResolver {
     final merged = Map<String, dynamic>.from(context.localData);
 
     final criticalFields = _getCriticalFields(context.table);
+    // ⭐ تم تحويل الحقول إلى camelCase للتوافق مع Appwrite
     final systemFields = {
+      'localUuid',
+      'serverId',
+      'createdAt',
+      'createdAtIso',
+      'createdAtEpoch',
+      'version',
+      'origin',
+      'vectorClock',
+      // دعم snake_case للتوافق مع البيانات القديمة
       'local_uuid',
       'server_id',
       'created_at',
       'created_at_iso',
       'created_at_epoch',
-      'version',
-      'origin',
       'vector_clock',
     };
 
@@ -226,9 +234,14 @@ class EnhancedConflictResolver {
       }
     }
 
-    merged['last_modified'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    merged['updated_at'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    merged['updated_at_iso'] = DateTime.now().toUtc().toIso8601String();
+    // ⭐ استخدام camelCase للتوافق مع Appwrite
+    merged['lastModified'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    merged['updatedAt'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    merged['updatedAtIso'] = DateTime.now().toUtc().toIso8601String();
+    // دعم snake_case للتوافق مع البيانات القديمة
+    merged['last_modified'] = merged['lastModified'];
+    merged['updated_at'] = merged['updatedAt'];
+    merged['updated_at_iso'] = merged['updatedAtIso'];
 
     return ConflictResolution(
       winner: merged,
@@ -273,34 +286,35 @@ class EnhancedConflictResolver {
       return override;
     }
 
+    // ⭐ تم تحويل جميع الحقول إلى camelCase للتوافق مع Appwrite
     const fieldsByTable = <String, Set<String>>{
       'bookings': {
         'status',
-        'checkout_date',
-        'actual_checkout',
-        'room_number',
-        'total_due_cached',
-        'total_paid_cached',
-        'remaining_balance_cached',
-        'guest_name',
-        'is_fully_paid',
+        'checkoutDate', 'checkout_date',
+        'actualCheckout', 'actual_checkout',
+        'roomNumber', 'room_number',
+        'totalDueCached', 'total_due_cached',
+        'totalPaidCached', 'total_paid_cached',
+        'remainingBalanceCached', 'remaining_balance_cached',
+        'guestName', 'guest_name',
+        'isFullyPaid', 'is_fully_paid',
       },
       'payments': {
         'amount',
-        'payment_date',
-        'payment_method',
-        'booking_uuid',
+        'paymentDate', 'payment_date',
+        'paymentMethod', 'payment_method',
+        'bookingUuid', 'booking_uuid',
         'status',
-        'revenue_type',
+        'revenueType', 'revenue_type',
       },
       'rooms': {
         'status',
         'price',
-        'room_number',
+        'roomNumber', 'room_number',
         'floor',
         'type',
-        'is_active',
-        'cleaning_status',
+        'isActive', 'is_active',
+        'cleaningStatus', 'cleaning_status',
       },
       'expenses': {
         'amount',
@@ -308,16 +322,16 @@ class EnhancedConflictResolver {
         'category',
         'description',
         'status',
-        'expense_type',
+        'expenseType', 'expense_type',
       },
       'debts': {
         'amount',
         'status',
-        'due_date',
-        'paid_amount',
-        'guest_name',
-        'remaining_amount',
-        'is_settled',
+        'dueDate', 'due_date',
+        'paidAmount', 'paid_amount',
+        'guestName', 'guest_name',
+        'remainingAmount', 'remaining_amount',
+        'isSettled', 'is_settled',
       },
       'employees': {
         'name',
@@ -325,24 +339,24 @@ class EnhancedConflictResolver {
         'salary',
         'role',
         'status',
-        'is_active',
-        'basic_salary',
+        'isActive', 'is_active',
+        'basicSalary', 'basic_salary',
       },
-      'guests': {'name', 'phone', 'id_number', 'nationality', 'is_blacklisted'},
+      'guests': {'name', 'phone', 'idNumber', 'id_number', 'nationality', 'isBlacklisted', 'is_blacklisted'},
       'cash_transactions': {
         'amount',
         'type',
         'date',
         'status',
-        'transaction_type',
+        'transactionType', 'transaction_type',
       },
-      'shift_notes': {'content', 'is_read', 'priority', 'status'},
+      'shift_notes': {'content', 'isRead', 'is_read', 'priority', 'status'},
       'booking_notes': {
         'note',
-        'is_alert',
-        'alert_date',
+        'isAlert', 'is_alert',
+        'alertDate', 'alert_date',
         'status',
-        'note_text',
+        'noteText', 'note_text',
       },
     };
 
