@@ -402,8 +402,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedRevenueType,
+                  
+                          DropdownButtonFormField<String>(
+                    value: _selectedRevenueType,
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
                       border: OutlineInputBorder(),
@@ -424,8 +425,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         setDialogState(() => _selectedRevenueType = value),
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentMethod,
+                  
+                          DropdownButtonFormField<String>(
+                    value: _selectedPaymentMethod,
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',
                       border: OutlineInputBorder(),

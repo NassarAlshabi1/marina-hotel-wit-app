@@ -16,23 +16,9 @@ import '../services/google_drive_unified_sync_coordinator.dart';
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
 
-// ═══════════════════════════════════════════════════════════════
-// 2. DATABASE TABLES
-// ═══════════════════════════════════════════════════════════════
-
-@DataClassName('OutboxRecord')
-class OutboxTable extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get recordId => text()();
-  TextColumn get tableName => text()();
-  TextColumn get operation => text()(); // create, update, delete
-  TextColumn get payload => text()();
-  BoolColumn get synced => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
-  DateTimeColumn get retryAt => dateTime().nullable()();
-  
   @override
-  Set<Column> get primaryKey => {id};
+  ConsumerState<DashboardSyncButton> createState() =>
+      _DashboardSyncButtonState();
 }
 
 class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
@@ -50,8 +36,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   StreamSubscription<UnifiedConflictRecord?>? _conflictSubscription;
 
   @override
-  Set<Column> get primaryKey => {id};
-}
+  void initState() {
+    super.initState();
+    _pullAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _pushAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
 
     _loadPendingChangesCount();
     _loadAppwriteEnabled();
@@ -67,7 +61,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
     });
   }
-}
 
   @override
   void dispose() {
@@ -125,52 +118,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
-  
-  Future<int> clearSyncedRecords(List<String> syncedRecordIds) async {
-    if (syncedRecordIds.isEmpty) return 0;
-    
-    await customStatement('''
-      DELETE FROM outbox_table 
-      WHERE record_id IN (${syncedRecordIds.map((_) => '?').join(',')})
-      AND synced = 0
-    ''', syncedRecordIds);
-    
-    return syncedRecordIds.length;
-  }
-  
-  Future<void> markAsSynced(List<String> recordIds) async {
-    await (update(outboxTable)..where((tbl) => outboxTable.recordId.isInValues(recordIds)))
-        .write(const OutboxTableCompanion(synced: Value(true)));
-  }
-}
 
-@DriftAccessor(tables: [SyncLogTable])
-class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
-  SyncLogDao(AppDatabase db) : super(db);
-  
-  Future<void> logSync({
-    required String syncId,
-    required String direction,
-    required String deviceId,
-    required String target,
-    required String status,
-    int? recordsPushed,
-    int? recordsCleaned,
-    int? durationMs,
-  }) async {
-    await into(syncLogTable).insertOnConflictUpdate(SyncLogTableCompanion.insert(
-      syncId: syncId,
-      direction: direction,
-      deviceId: deviceId,
-      target: target,
-      status: status,
-      recordsPushed: Value(recordsPushed),
-      recordsCleaned: Value(recordsCleaned),
-      durationMs: Value(durationMs),
-      createdAt: DateTime.now(),
-    ));
+  Future<bool> _isAppwriteSyncEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('appwrite_sync_enabled') ?? false;
   }
-}
 
   Future<void> _loadAppwriteEnabled() async {
     try {
@@ -188,11 +140,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
         _appwriteEnabled = true;
       }
     }
-    
-    debugPrint('✅ Synced record ${record.recordId} to Appwrite');
-    return true;
   }
-}
 
   /// تنظيف outbox بعد الرفع
   Future<void> _clearOutboxAfterPush() async {
@@ -216,23 +164,12 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       _pullAnimationController.repeat();
     });
     final stopwatch = Stopwatch()..start();
-    final outboxDao = OutboxDao(_database!);
-    final syncLogDao = SyncLogDao(_database!);
-    
-    final pendingRecords = await outboxDao.getPendingRecords();
-    List<String> syncedIds = [];
-
-    for (final record in pendingRecords) {
-      try {
-        final success = await _appwriteService!.sendRecord(record);
-        if (success) {
-          syncedIds.add(record.recordId);
-        }
-      } catch (e) {
-        debugPrint('❌ Failed to sync ${record.recordId}: $e');
-        // Keep failed records for retry
-        continue;
-      }
+    final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
+    String? deviceId;
+    try {
+      deviceId = await _getDeviceId();
+    } catch (e) {
+      deviceId = 'unknown';
     }
 
     // تسجيل بداية العملية
@@ -240,54 +177,73 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final syncLogDao = SyncLogDao(db);
     await syncLogDao.logSync(
       syncId: syncId,
-      direction: 'push',
+      direction: 'pull',
       deviceId: deviceId,
       target: 'Appwrite',
-      status: 'success',
-      recordsPushed: syncedIds.length,
-      recordsCleaned: recordsCleaned,
-      durationMs: stopwatch.elapsedMilliseconds,
+      status: 'in_progress',
     );
     if (_isPulling) return;
 
-    return SyncResult(
-      recordsPushed: syncedIds.length,
-      recordsCleaned: recordsCleaned,
-      syncedIds: syncedIds,
-    );
-  }
-}
+    _pullAnimationController.repeat();
+    if (mounted) {
+      setState(() => _isPulling = true);
+    } else {
+      _isPulling = true;
+    }
 
-// ═══════════════════════════════════════════════════════════════
-// 7. RIVERPOD PROVIDERS
-// ═══════════════════════════════════════════════════════════════
+    try {
+      final appwriteEnabled = await _isAppwriteSyncEnabled();
+      if (!appwriteEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
 
-final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
-final appwriteServiceProvider = Provider<AppwriteService>((ref) => AppwriteService());
-final deltaSyncProvider = Provider<AppwriteDeltaSync>((ref) {
-  final deltaSync = AppwriteDeltaSync();
-  // Initialize on provider creation
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    deltaSync.initialize(
-      appwriteService: ref.read(appwriteServiceProvider),
-      database: ref.read(databaseProvider),
-    );
-  });
-  return deltaSync;
-});
+      await ref.read(connectionStatusProvider.notifier).checkConnection();
+      final appwriteConnected = ref.read(connectionStatusProvider).isConnected;
 
-final pendingChangesCountProvider = FutureProvider<int>((ref) async {
-  final db = ref.watch(databaseProvider);
-  final outboxDao = OutboxDao(db);
-  return outboxDao.getPendingCount();
-});
+      if (!appwriteConnected) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('لا يوجد اتصال بـ Appwrite'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
-// ═══════════════════════════════════════════════════════════════
-// 8. MAIN WIDGET - DashboardSyncButton
-// ═══════════════════════════════════════════════════════════════
-
-class DashboardSyncButton extends ConsumerStatefulWidget {
-  const DashboardSyncButton({super.key});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('⬇️ جاري سحب التغييرات من السيرفر...'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
 
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
@@ -302,14 +258,9 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
         return;
       }
 
-class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
-  
-  SyncStatus _syncStatus = SyncStatus.idle;
-  DateTime? _lastSyncTime;
-  late AnimationController _animationController;
-  late Animation<double> _rotationAnimation;
-  Timer? _retryTimer;
+      // 1️⃣ سحب التغييرات من السيرفر
+      final pullResult = await deltaSync.pullDeltaChanges();
+      final pulledCount = pullResult.recordsPulled;
 
       // 2️⃣ حل التعارضات إن وجدت
       int conflictsResolved = 0;
@@ -325,28 +276,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
         conflictsResolved = await _resolveConflicts();
       }
-    }
-  }
 
-  Future<void> _handlePush() async {
-    final pendingCountAsync = ref.read(pendingChangesCountProvider);
-    final pendingCount = pendingCountAsync.value ?? 0;
-    
-    if (pendingCount == 0 || _syncStatus != SyncStatus.idle) return;
+      // إعادة تعيين علامة "توجد تغييرات من السيرفر"
+      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
-    setState(() {
-      _syncStatus = SyncStatus.pushing;
-      _animationController.repeat();
-    });
-
-    try {
-      final deltaSync = ref.read(deltaSyncProvider);
-      final result = await deltaSync.pushDeltaChanges();
+      // ✅ تسجيل نجاح العملية
+      stopwatch.stop();
+      await syncLogDao.logSync(
+        syncId: syncId,
+        direction: 'pull',
+        deviceId: deviceId,
+        target: 'Appwrite',
+        status: 'success',
+        recordsPulled: pulledCount,
+        durationMs: stopwatch.elapsedMilliseconds,
+      );
 
       if (mounted) {
         setState(() {
           _lastSyncTime = DateTime.now();
-          _syncStatus = SyncStatus.idle;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -391,20 +339,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
-        if (mounted) {
-          _showSuccessSnackBar(result);
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('تعذر سحب التغييرات: ${e.toString()}'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } finally {
       _pullAnimationController.stop();
       _pullAnimationController.reset();
       if (mounted) {
-        _showErrorSnackBar(e.toString());
+        setState(() => _isPulling = false);
       }
-      setState(() => _syncStatus = SyncStatus.idle);
-    } finally {
-      _animationController.stop();
-      _animationController.reset();
     }
   }
 
@@ -437,12 +394,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           const SnackBar(
             content: Row(
               children: [
-                Icon(Icons.cloud_done, color: Colors.white, size: 20),
+                Icon(Icons.check_circle_outline, color: Colors.white),
                 SizedBox(width: 8),
-                Text(
-                  '✅ تم المزامنة بنجاح!',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+                Text('✅ لا توجد تغييرات جديدة للرفع'),
               ],
             ),
             backgroundColor: Colors.green,
@@ -470,46 +424,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
-  @override
-  Widget build(BuildContext context) {
-    final pendingCountAsync = ref.watch(pendingChangesCountProvider);
-
-    return Container(
-      padding: EdgeInsets.all(16),
-      margin: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 📊 Pending Count Badge
-          pendingCountAsync.when(
-            data: (count) => AnimatedContainer(
-              duration: Duration(milliseconds: 400),
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: count > 0 
-                    ? Color.lerp(Colors.orange.shade100, Colors.red.shade100, count / 50)
-                    : Colors.green.shade100,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: count > 0 ? Colors.orange.shade400 : Colors.green.shade400,
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (count > 0 ? Colors.orange : Colors.green).withOpacity(0.3),
-                    blurRadius: 8,
-                    spreadRadius: 1,
+      if (!smartEnabled && !appwriteEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات',
+                    ),
                   ),
                 ],
               ),
@@ -663,77 +589,86 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             SnackBar(
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    count > 0 ? Icons.pending_outlined : Icons.verified,
-                    color: count > 0 ? Colors.orange.shade700 : Colors.green.shade700,
-                    size: 20,
+                  Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.white),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '✅ تم رفع التغييرات بنجاح!',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(height: 4),
                   Text(
-                    count > 0 ? '$count قيد الانتظار' : '✅ محدّث',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: count > 0 ? Colors.orange.shade800 : Colors.green.shade800,
-                    ),
+                    '⬆️ أُرسل: $totalPushed',
+                    style: TextStyle(fontSize: 12),
                   ),
-                  if (count > 0)
-                    Container(
-                      margin: EdgeInsets.only(left: 8),
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade200,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${(count / 1000).toStringAsFixed(1)}KB',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            loading: () => Container(
-              height: 40,
-              width: 140,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey),
-                  ),
-                  SizedBox(width: 12),
-                  SizedBox(
-                    width: 80,
-                    height: 16,
-                    child: LinearProgressIndicator(
-                      backgroundColor: Colors.grey.shade300,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
-                    ),
+                  Text(
+                    '☁️ عبر: ${successTargets.join(' + ')}',
+                    style: TextStyle(fontSize: 11),
                   ),
                 ],
               ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
             ),
-            error: (error, stack) => Container(
-              height: 40,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.red.shade100,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.red.shade400, width: 2),
-              ),
-              child: Row(
+          );
+        } else if (successTargets.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                  Icon(Icons.error_outline, color: Colors.white),
                   SizedBox(width: 8),
-                  Text('خطأ في العداد', style: TextStyle(color: Colors.red.shade700)),
+                  Expanded(
+                    child: Text(
+                      '❌ فشل رفع التغييرات',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'إعادة',
+                textColor: Colors.white,
+                onPressed: () => _pushChanges(context),
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.warning, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('⚠️ نجح جزئياً'),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '✅ نجح: ${successTargets.join(', ')}',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    '❌ فشل: ${failedTargets.join(', ')}',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  if (totalPushed > 0)
+                    Text(
+                      '⬆️ أُرسل: $totalPushed',
+                      style: TextStyle(fontSize: 11),
+                    ),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -858,10 +793,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<String> _getDeviceId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      var deviceId = prefs.getString('deviceId');
+      var deviceId = prefs.getString('device_id');
       if (deviceId == null) {
         deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
-        await prefs.setString('deviceId', deviceId);
+        await prefs.setString('device_id', deviceId);
       }
       return deviceId;
     } catch (e) {
@@ -945,83 +880,69 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     horizontal: 10,
                     vertical: 6,
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Pulsing ring for pending items
-                      if (pendingCountAsyncValue > 0)
-                        AnimatedContainer(
-                          duration: Duration(milliseconds: 1500),
-                          width: _syncStatus == SyncStatus.pushing ? 0 : 76,
-                          height: _syncStatus == SyncStatus.pushing ? 0 : 76,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.orange.withOpacity(0.6),
-                              width: 3,
-                            ),
+                      if (_isPulling)
+                        RotationTransition(
+                          turns: _pullAnimationController,
+                          child: Icon(
+                            buttonIcon,
+                            size: 14,
+                            color: Colors.white,
                           ),
-                        ),
-                      
-                      // Main icon
-                      Transform.rotate(
-                        angle: _syncStatus == SyncStatus.pushing 
-                            ? _rotationAnimation.value * 2 * pi 
-                            : 0,
-                        child: Icon(
-                          _syncStatus == SyncStatus.pushing 
-                              ? Icons.sync 
-                              : Icons.cloud_upload,
-                          size: 32,
+                        )
+                      else
+                        Icon(buttonIcon, size: 14, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        buttonText,
+                        style: const TextStyle(
                           color: Colors.white,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black26,
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      
-                      // Success dot
-                      if (_syncStatus == SyncStatus.pushing)
-                        Positioned(
-                          bottom: 6,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.white.withOpacity(0.5),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ),
-          
-          SizedBox(height: 12),
-          
-          // ⏰ Last Sync Time
-          if (_lastSyncTime != null) ...[
-            Text(
-              'آخر تحديث: ${_formatRelativeTime(_lastSyncTime!)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+          // ✅ تحسين: Badge يعرض عدد التغييرات المعلقة من السيرفر
+          if (hasRemoteChanges && !_isPulling && pendingCount > 0)
+            Positioned(
+              top: -6,
+              right: -6,
+              child: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.5),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 24,
+                  minHeight: 24,
+                ),
+                child: Center(
+                  child: Text(
+                    pendingCount > 99 ? '99+' : '$pendingCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
         ],
       ),
@@ -1078,78 +999,99 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                _formatExactTime(_lastSyncTime!),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.green.shade800,
-                  fontWeight: FontWeight.bold,
+                onTap: pushEnabled
+                    ? () => _pushChanges(context)
+                    : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isPushing)
+                        RotationTransition(
+                          turns: _pushAnimationController,
+                          child: Icon(
+                            buttonIcon,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        )
+                      else
+                        Icon(buttonIcon, size: 14, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        buttonText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ],
-          
-          SizedBox(height: 8),
-          
-          // 📱 Auto-sync indicator
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.autorenew, size: 14, color: Colors.grey.shade500),
-              SizedBox(width: 4),
-              Text(
-                'مزامنة تلقائية كل 5د',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
-            ],
           ),
+          // Badge يظهر عدد التغييرات المعلقة
+          if (hasChanges && !_isPushing)
+            Positioned(
+              top: -6,
+              right: -6,
+              child: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.5),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 22,
+                  minHeight: 22,
+                ),
+                child: Center(
+                  child: Text(
+                    _pendingChangesCount > 99
+                        ? '99+'
+                        : '$_pendingChangesCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  LinearGradient _getButtonGradient(int pendingCount) {
-    if (_syncStatus == SyncStatus.pushing) {
-      return LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.blue.shade400,
-          Colors.blue.shade600,
-          Colors.indigo.shade700,
-        ],
-      );
-    }
-    
-    if (pendingCount > 0) {
-      return LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.orange.shade400,
-          Colors.orange.shade500,
-          Colors.deepOrange.shade600,
-        ],
-      );
-    }
-    
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Colors.green.shade400,
-        Colors.green.shade500,
-        Colors.teal.shade600,
-      ],
+  @override
+  Widget build(BuildContext context) {
+    final isGoogleDriveSignedIn = ref.watch(
+      smartSyncGoogleDriveSignInStatusProvider,
     );
-  }
 
-  Color _getButtonColor(int pendingCount) {
-    if (_syncStatus == SyncStatus.pushing) return Colors.blue.shade500;
-    if (pendingCount > 0) return Colors.orange.shade500;
-    return Colors.green.shade500;
-  }
+    // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppwriteRealtimeSync().hasRemoteChanges,
+      builder: (context, hasRemoteChanges, child) {
+        return ValueListenableBuilder<int>(
+          valueListenable: AppwriteRealtimeSync().pendingRemoteChangesCount,
+          builder: (context, pendingRemoteCount, child) {
+            final hasLocalChanges = _pendingChangesCount > 0;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.end,

@@ -456,8 +456,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: _selectedTable,
+          
+                          DropdownButtonFormField<String>(
+            value: _selectedTable,
             decoration: const InputDecoration(
               labelText: 'عرض البيانات',
               border: OutlineInputBorder(),

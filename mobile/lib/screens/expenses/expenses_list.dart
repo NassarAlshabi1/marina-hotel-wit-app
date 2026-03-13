@@ -381,8 +381,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
+                  
+                          DropdownButtonFormField<String>(
+                    value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: availableTypes
@@ -413,8 +414,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     if (availableEmployees.isEmpty)
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
-                      DropdownButtonFormField<int>(
-                        initialValue: selectedEmployeeId,
+                      
+                          DropdownButtonFormField<int>(
+                        value: selectedEmployeeId,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
                         ),
@@ -430,8 +432,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             setState(() => selectedEmployeeId = value),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: dialogSalaryAction,
+                      
+                          DropdownButtonFormField<String>(
+                        value: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),

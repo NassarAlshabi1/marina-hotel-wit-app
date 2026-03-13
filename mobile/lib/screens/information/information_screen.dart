@@ -226,8 +226,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                           const InputDecoration(labelText: 'رقم الهوية'),
                       validator: _requiredValidator,
                     ),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedIdType,
+                    
+                          DropdownButtonFormField<String>(
+                      value: selectedIdType,
                       decoration:
                           const InputDecoration(labelText: 'نوع الهوية'),
                       items: _idTypes

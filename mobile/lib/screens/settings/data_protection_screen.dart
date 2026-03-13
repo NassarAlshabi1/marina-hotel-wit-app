@@ -1020,8 +1020,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         if (isEnabled) ...[
           const SizedBox(height: 12),
           _buildCard(
-            DropdownButtonFormField<int>(
-              initialValue: _intervalOptions.contains(syncInterval)
+            
+                          DropdownButtonFormField<int>(
+              value: _intervalOptions.contains(syncInterval)
                   ? syncInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -1047,8 +1048,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           _buildCard(
             Column(
               children: [
-                DropdownButtonFormField<ConflictResolution>(
-                  initialValue: resolution,
+                
+                          DropdownButtonFormField<ConflictResolution>(
+                  value: resolution,
                   decoration: const InputDecoration(
                     labelText: 'استراتيجية حل التضارب',
                     prefixIcon: Icon(Icons.merge_type),

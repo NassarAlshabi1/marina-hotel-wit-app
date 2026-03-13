@@ -464,8 +464,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                     labelText: 'المبلغ', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedMethod,
+              
+                          DropdownButtonFormField<String>(
+                value: selectedMethod,
                 items: const [
                   DropdownMenuItem(value: 'نقدي', child: Text('نقدي')),
                   DropdownMenuItem(value: 'تحويل', child: Text('تحويل بنكي')),

@@ -489,8 +489,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   readOnly: true,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
+                
+                          DropdownButtonFormField<String>(
+                  value: status,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
                     border: OutlineInputBorder(),

@@ -454,8 +454,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<String?>(
-                initialValue: _selectedDirection,
+              
+                          DropdownButtonFormField<String?>(
+                value: _selectedDirection,
                 decoration: const InputDecoration(labelText: 'النوع'),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('الكل')),
@@ -466,8 +467,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                     setState(() => _selectedDirection = value),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String?>(
-                initialValue: _selectedStatus,
+              
+                          DropdownButtonFormField<String?>(
+                value: _selectedStatus,
                 decoration: const InputDecoration(labelText: 'الحالة'),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('الكل')),

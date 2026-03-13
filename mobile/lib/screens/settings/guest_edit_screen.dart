@@ -433,8 +433,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: _idType,
+                      
+                          DropdownButtonFormField<String>(
+                        value: _idType,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -641,8 +642,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
                 return Column(
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: currentValue,
+                    
+                          DropdownButtonFormField<String>(
+                      value: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
@@ -872,8 +874,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
+                          
                           DropdownButtonFormField<AdjustmentType>(
-                            initialValue: _adjustmentTypeSelections[booking.id],
+                            value: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -897,8 +900,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             },
                           ),
                           const SizedBox(height: 12),
+                          
                           DropdownButtonFormField<AdjustmentMode>(
-                            initialValue: _adjustmentModeSelections[booking.id],
+                            value: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),

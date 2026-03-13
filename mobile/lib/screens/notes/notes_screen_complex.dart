@@ -772,8 +772,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                       maxLines: 3,
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<NotePriority>(
-                      initialValue: priority,
+                    
+                          DropdownButtonFormField<NotePriority>(
+                      value: priority,
                       decoration: const InputDecoration(
                         labelText: 'الأولوية',
                         border: OutlineInputBorder(),
@@ -796,8 +797,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                           setState(() => priority = value ?? priority),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<ShiftType>(
-                      initialValue: shiftType,
+                    
+                          DropdownButtonFormField<ShiftType>(
+                      value: shiftType,
                       decoration: const InputDecoration(
                         labelText: 'النوبة',
                         border: OutlineInputBorder(),

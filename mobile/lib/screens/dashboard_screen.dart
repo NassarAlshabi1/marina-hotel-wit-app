@@ -720,8 +720,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
-                        DropdownButtonFormField<String>(
-                      initialValue: status,
+                        
+                          DropdownButtonFormField<String>(
+                      value: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),

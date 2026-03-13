@@ -93,8 +93,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 decoration: const InputDecoration(labelText: 'الراتب'),
                 keyboardType: TextInputType.number,
               ),
-              DropdownButtonFormField<String>(
-                initialValue: status,
+              
+                          DropdownButtonFormField<String>(
+                value: status,
                 items: const [
                   DropdownMenuItem(value: 'active', child: Text('نشط')),
                   DropdownMenuItem(value: 'inactive', child: Text('غير نشط')),

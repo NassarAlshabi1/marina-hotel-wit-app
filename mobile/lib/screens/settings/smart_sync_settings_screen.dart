@@ -529,8 +529,9 @@ class _SmartSyncSettingsScreenState
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              initialValue: _intervalOptions.contains(currentInterval)
+            
+                          DropdownButtonFormField<int>(
+              value: _intervalOptions.contains(currentInterval)
                   ? currentInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -579,8 +580,9 @@ class _SmartSyncSettingsScreenState
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<ConflictResolution>(
-              initialValue: currentEnum,
+            
+                          DropdownButtonFormField<ConflictResolution>(
+              value: currentEnum,
               decoration: const InputDecoration(
                 labelText: 'استراتيجية حل التضارب',
                 prefixIcon: Icon(Icons.merge_type),

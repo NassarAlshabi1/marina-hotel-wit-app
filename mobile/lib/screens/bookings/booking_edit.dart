@@ -300,8 +300,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           keyboardType: TextInputType.phone,
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          initialValue: _idType,
+                        
+                          DropdownButtonFormField<String>(
+                          value: _idType,
                           items: _idTypes
                               .map(
                                 (t) =>
@@ -429,8 +430,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           onTap: () => _pickDate(_checkout),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          initialValue: _status,
+                        
+                          DropdownButtonFormField<String>(
+                          value: _status,
                           items: _statusOptions
                               .map(
                                 (s) =>
@@ -446,7 +448,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         if (widget.existing?.actualCheckout != null) ...[
                           const SizedBox(height: 6),
                           TextFormField(
-                            initialValue: widget.existing?.actualCheckout,
+                            value: widget.existing?.actualCheckout,
                             readOnly: true,
                             decoration: const InputDecoration(
                               labelText: 'تاريخ المغادرة الفعلي',
@@ -514,8 +516,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: DropdownButtonFormField<bool>(
-                                  initialValue: _isDiscount,
+                                child: 
+                          DropdownButtonFormField<bool>(
+                                  value: _isDiscount,
                                   items: const [
                                     DropdownMenuItem(
                                         value: true, child: Text('تخفيض')),
@@ -534,8 +537,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           Row(
                             children: [
                               Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _adjustmentType,
+                                child: 
+                          DropdownButtonFormField<String>(
+                                  value: _adjustmentType,
                                   items: const [
                                     DropdownMenuItem(
                                         value: 'per_night',
@@ -624,8 +628,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 : null,
                           ),
                           const SizedBox(height: 4),
+                          
                           DropdownButtonFormField<String>(
-                            initialValue: _paymentMethod,
+                            value: _paymentMethod,
                             items: _paymentMethods
                                 .map(
                                   (method) => DropdownMenuItem(
@@ -1114,8 +1119,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           );
         }
 
-        return DropdownButtonFormField<String>(
-          initialValue: currentValue.isNotEmpty ? currentValue : null,
+        return 
+                          DropdownButtonFormField<String>(
+          value: currentValue.isNotEmpty ? currentValue : null,
           items: items,
           style: roomTextStyle,
           onChanged: (value) {

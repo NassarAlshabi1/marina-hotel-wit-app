@@ -108,8 +108,9 @@ class _CreateDebtFromBookingScreenState
               children: [
                 const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<Booking>(
-                  initialValue: _selectedBooking,
+                
+                          DropdownButtonFormField<Booking>(
+                  value: _selectedBooking,
                   isExpanded: true,
                   style: _fieldStyle,
                   decoration: const InputDecoration(

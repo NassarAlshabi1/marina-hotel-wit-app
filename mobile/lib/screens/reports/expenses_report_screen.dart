@@ -520,8 +520,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       Expanded(
                         child: SizedBox(
                           height: inputsHeight,
-                          child: DropdownButtonFormField<String?>(
-                            initialValue: _selectedType,
+                          child: 
+                          DropdownButtonFormField<String?>(
+                            value: _selectedType,
                             style: const TextStyle(
                                 fontSize: 12, color: Colors.black),
                             decoration: InputDecoration(

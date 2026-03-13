@@ -222,8 +222,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             : null,
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: userType,
+                      
+                          DropdownButtonFormField<String>(
+                        value: userType,
                         decoration: const InputDecoration(
                           labelText: 'نوع المستخدم',
                         ),

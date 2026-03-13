@@ -1,8 +1,8 @@
 // DEPRECATED: Use appwriteConfigProvider for unified state
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/appwrite_service.dart';
-import '../services/appwrite_sync_manager.dart';
-import '../services/appwrite_sync_manager_enhanced.dart';
+import '../services/appwrite_sync_manager.dart' hide SyncResult;
+import '../services/appwrite_sync_manager_enhanced.dart' hide SyncResult;
 import '../services/appwrite_cache_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
 import '../services/smart_sync_manager.dart';
