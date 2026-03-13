@@ -116,7 +116,7 @@ class AutoBackupManager {
   /// تهيئة معرف الجهاز للتمييز بين الأجهزة
   Future<void> _initializeDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    _deviceId = prefs.getString('device_id');
+    _deviceId = prefs.getString('deviceId');
 
     if (_deviceId == null) {
       final deviceInfo = DeviceInfoPlugin();
@@ -135,7 +135,7 @@ class AutoBackupManager {
 
       _deviceId =
           'marina_${deviceName}_${deviceModel}_${DateTime.now().millisecondsSinceEpoch}';
-      await prefs.setString('device_id', _deviceId!);
+      await prefs.setString('deviceId', _deviceId!);
       debugPrint('🆔 تم إنشاء معرف الجهاز: $_deviceId');
     }
   }
@@ -227,7 +227,7 @@ class AutoBackupManager {
       metadata['trigger_reason'] = reason;
       metadata['changes_count'] = changesCount;
       metadata['device_info'] = '${Platform.operatingSystem} (تلقائي)';
-      metadata['device_id'] = _deviceId;
+      metadata['deviceId'] = _deviceId;
       metadata['created_by_device'] = _deviceId;
 
       // رفع النسخة الاحتياطية كملف تلقائي

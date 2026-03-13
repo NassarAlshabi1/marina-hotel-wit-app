@@ -205,12 +205,12 @@ class EnhancedConflictResolver {
       'origin',
       'vectorClock',
       // دعم snake_case للتوافق مع البيانات القديمة
-      'local_uuid',
-      'server_id',
-      'created_at',
-      'created_at_iso',
-      'created_at_epoch',
-      'vector_clock',
+      'localUuid',
+      'serverId',
+      'createdAt',
+      'createdAtIso',
+      'createdAtEpoch',
+      'vectorClock',
     };
 
     for (final key in context.remoteData.keys) {
@@ -239,9 +239,9 @@ class EnhancedConflictResolver {
     merged['updatedAt'] = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     merged['updatedAtIso'] = DateTime.now().toUtc().toIso8601String();
     // دعم snake_case للتوافق مع البيانات القديمة
-    merged['last_modified'] = merged['lastModified'];
-    merged['updated_at'] = merged['updatedAt'];
-    merged['updated_at_iso'] = merged['updatedAtIso'];
+    merged['lastModified'] = merged['lastModified'];
+    merged['updatedAt'] = merged['updatedAt'];
+    merged['updatedAtIso'] = merged['updatedAtIso'];
 
     return ConflictResolution(
       winner: merged,

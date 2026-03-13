@@ -432,7 +432,7 @@ class PhpApiService {
           'entity': entity,
           'action': change['action'],
           'data': FieldMapper.toPhpMap(entity, data),
-          'local_uuid': change['local_uuid'],
+          'localUuid': change['localUuid'],
         };
       }).toList();
 

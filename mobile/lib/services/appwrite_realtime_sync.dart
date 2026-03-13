@@ -108,7 +108,7 @@ class AppwriteRealtimeSync {
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
     // استخراج معرف الجهاز المصدر مع دعم لعدة أسماء حقول محتملة
-    final sourceDevice = payload['device_id'] ?? 
+    final sourceDevice = payload['deviceId'] ?? 
                          payload['lastModifiedBy'] ?? 
                          payload['deviceId'];
 

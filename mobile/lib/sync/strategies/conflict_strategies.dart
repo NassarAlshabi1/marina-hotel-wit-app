@@ -40,7 +40,7 @@ class ConflictResolver {
   /// استراتيجية: الأحدث يفوز (بناءً على Vector Clock)
   ConflictResolutionResult _newerWinsStrategy(SyncConflict conflict) {
     final localClock = VectorClock.fromJson(
-      conflict.localRecord['vector_clock'] as String? ?? '{}',
+      conflict.localRecord['vectorClock'] as String? ?? '{}',
     );
     final remoteClock = conflict.remoteChange.vectorClockObject;
 
@@ -74,7 +74,7 @@ class ConflictResolver {
   /// استراتيجية: أولوية الجهاز
   /// الجهاز ذو الأولوية الأعلى يفوز
   ConflictResolutionResult _devicePriorityStrategy(SyncConflict conflict) {
-    final localDeviceId = conflict.localRecord['device_id'] as String?;
+    final localDeviceId = conflict.localRecord['deviceId'] as String?;
     final remoteDeviceId = conflict.remoteChange.deviceId;
 
     // إذا لم يكن لدينا أجهزة محددة، نستخدم الوقت
@@ -160,7 +160,7 @@ class ConflictResolver {
 
   /// استخراج الطابع الزمني من السجل
   DateTime _extractTimestamp(Map<String, dynamic> record) {
-    final updatedAt = record['updated_at'];
+    final updatedAt = record['updatedAt'];
     if (updatedAt is String) {
       return DateTime.tryParse(updatedAt) ?? DateTime.now();
     }

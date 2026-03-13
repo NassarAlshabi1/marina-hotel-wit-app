@@ -45,7 +45,7 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
         _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
+            _asString(json, 'localUuid', src) ??
             IdGen.uuid(),
       ),
       operationType: _vStr(json, 'operationType', src,
@@ -62,7 +62,7 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
           _vStr(json, 'changedFields', src, altKey: 'changed_fields'),
       performedBy:
           _vStr(json, 'performedBy', src, altKey: 'performed_by', fallback: ''),
-      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'deviceId', fallback: ''),
       ipAddress: _vStr(json, 'ipAddress', src, altKey: 'ip_address'),
       hotelDayKey: _vStr(json, 'hotelDayKey', src,
           altKey: 'hotel_day_key', fallback: ''),

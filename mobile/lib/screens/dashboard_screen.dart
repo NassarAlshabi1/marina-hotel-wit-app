@@ -52,7 +52,7 @@ final todayPaymentsProvider = StreamProvider<double>((ref) {
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        'WHERE hotel_day_key = ? AND deletedAt IS NULL',
         variables: [Variable.withString(todayKey)],
         readsFrom: {db.payments},
       )
@@ -70,7 +70,7 @@ final todayExpensesProvider = StreamProvider<double>((ref) {
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        'WHERE hotel_day_key = ? AND deletedAt IS NULL',
         variables: [Variable.withString(todayKey)],
         readsFrom: {db.expenses},
       )

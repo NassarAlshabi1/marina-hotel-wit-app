@@ -304,7 +304,7 @@ void main() {
       );
       final change = computation.changes.first;
       expect(change.clientTimestamp, greaterThan(1000000000000));
-      expect((change.data['created_at'] as int), greaterThan(1000000000000));
+      expect((change.data['createdAt'] as int), greaterThan(1000000000000));
     });
 
     test('detects updates after mirror persistence', () async {

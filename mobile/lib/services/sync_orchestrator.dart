@@ -501,7 +501,7 @@ class SyncOrchestrator {
       try {
         final result = await _database
             .customSelect(
-              'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
+              'SELECT COUNT(*) as count FROM $table WHERE deletedAt IS NULL',
             )
             .getSingle();
 
@@ -509,7 +509,7 @@ class SyncOrchestrator {
 
         final dataResult = await _database
             .customSelect(
-              'SELECT * FROM $table WHERE deleted_at IS NULL ORDER BY local_uuid LIMIT 1000',
+              'SELECT * FROM $table WHERE deletedAt IS NULL ORDER BY localUuid LIMIT 1000',
             )
             .get();
 

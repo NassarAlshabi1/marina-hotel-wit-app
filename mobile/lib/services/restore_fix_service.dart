@@ -1165,7 +1165,7 @@ class RestoreFixService {
       return;
     }
     await db.customStatement(
-      'CREATE TABLE IF NOT EXISTS restore_conflict_log (id INTEGER PRIMARY KEY AUTOINCREMENT, fix_id TEXT, fix_type TEXT, table_name TEXT, local_uuid TEXT, old_data TEXT, new_data TEXT, occurred_at INTEGER)',
+      'CREATE TABLE IF NOT EXISTS restore_conflict_log (id INTEGER PRIMARY KEY AUTOINCREMENT, fix_id TEXT, fix_type TEXT, table_name TEXT, localUuid TEXT, old_data TEXT, new_data TEXT, occurred_at INTEGER)',
     );
     _conflictTableReady = true;
   }
@@ -1182,7 +1182,7 @@ class RestoreFixService {
     final epoch = Time.nowEpoch();
     final normalized = epoch < 1000000000000 ? epoch * 1000 : epoch;
     await db.customStatement(
-      'INSERT INTO restore_conflict_log (fix_id, fix_type, table_name, local_uuid, old_data, new_data, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO restore_conflict_log (fix_id, fix_type, table_name, localUuid, old_data, new_data, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
         fixId,
         fixType,

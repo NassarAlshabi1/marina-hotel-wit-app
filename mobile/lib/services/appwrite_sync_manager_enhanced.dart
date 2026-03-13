@@ -956,8 +956,8 @@ class AppwriteSyncManagerEnhanced {
     Map<String, dynamic> remote,
   ) {
     // مقارنة الطوابع الزمنية
-    final localUpdatedAt = _extractTimestamp(local['updated_at']);
-    final remoteUpdatedAt = _extractTimestamp(remote['updated_at']);
+    final localUpdatedAt = _extractTimestamp(local['updatedAt']);
+    final remoteUpdatedAt = _extractTimestamp(remote['updatedAt']);
 
     if (localUpdatedAt == null || remoteUpdatedAt == null) {
       return true; // افتراض وجود تعارض إذا لم تتوفر الطوابع
@@ -999,17 +999,17 @@ class AppwriteSyncManagerEnhanced {
     Map<String, dynamic> localData,
     Map<String, dynamic> remoteData,
   ) {
-    final localUpdatedAt = _extractTimestamp(localData['updated_at']);
-    final remoteUpdatedAt = _extractTimestamp(remoteData['updated_at']);
+    final localUpdatedAt = _extractTimestamp(localData['updatedAt']);
+    final remoteUpdatedAt = _extractTimestamp(remoteData['updatedAt']);
 
     // إنشاء Vector Clocks
-    final localVectorClock = localData['vector_clock'] != null
-        ? VectorClock.fromJson(localData['vector_clock'] as String)
+    final localVectorClock = localData['vectorClock'] != null
+        ? VectorClock.fromJson(localData['vectorClock'] as String)
         : VectorClock.forDevice(_deviceId ?? 'unknown');
 
-    final remoteVectorClock = remoteData['vector_clock'] != null
-        ? VectorClock.fromJson(remoteData['vector_clock'] as String)
-        : VectorClock.forDevice(remoteData['device_id'] as String? ?? 'unknown');
+    final remoteVectorClock = remoteData['vectorClock'] != null
+        ? VectorClock.fromJson(remoteData['vectorClock'] as String)
+        : VectorClock.forDevice(remoteData['deviceId'] as String? ?? 'unknown');
 
     return ConflictContext(
       table: table,
@@ -1021,7 +1021,7 @@ class AppwriteSyncManagerEnhanced {
       localTimestamp: localUpdatedAt ?? DateTime.now(),
       remoteTimestamp: remoteUpdatedAt ?? DateTime.now(),
       localDeviceId: _deviceId ?? 'unknown',
-      remoteDeviceId: remoteData['device_id'] as String? ?? 'unknown',
+      remoteDeviceId: remoteData['deviceId'] as String? ?? 'unknown',
       localDevicePriority: 100,
       remoteDevicePriority: remoteData['device_priority'] as int? ?? 100,
     );

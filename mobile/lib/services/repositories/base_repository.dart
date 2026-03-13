@@ -91,7 +91,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
   /// استخراج UUID من البيانات
   String? _extractUuid(Map<String, dynamic> json) {
-    return json['local_uuid']?.toString() ??
+    return json['localUuid']?.toString() ??
         json['localUuid']?.toString() ??
         json['booking_uuid']?.toString() ??
         json['uuid']?.toString();
@@ -104,7 +104,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         ..where((t) {
           final columns = table.$columns;
           final uuidColumn = columns.firstWhere(
-            (c) => c.$name == 'local_uuid' || c.$name == 'localUuid',
+            (c) => c.$name == 'localUuid' || c.$name == 'localUuid',
             orElse: () => throw Exception('No UUID column found'),
           );
           return (uuidColumn as TextColumn).equals(uuid);
@@ -126,10 +126,10 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     Map<String, dynamic> remote,
   ) {
     // 1. محاولة استخدام Vector Clock
-    final remoteClockStr = remote['vector_clock']?.toString() ??
+    final remoteClockStr = remote['vectorClock']?.toString() ??
         remote['vectorClock']?.toString();
     final localClockStr =
-        local['vector_clock']?.toString() ?? local['vectorClock']?.toString();
+        local['vectorClock']?.toString() ?? local['vectorClock']?.toString();
 
     if (remoteClockStr != null && localClockStr != null) {
       try {
@@ -159,11 +159,11 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
   /// استخراج الطابع الزمني من البيانات
   int? _extractTimestamp(Map<String, dynamic> data) {
-    final ts = data['updated_at'] ??
+    final ts = data['updatedAt'] ??
         data['updatedAt'] ??
-        data['last_modified'] ??
         data['lastModified'] ??
-        data['last_modified_epoch'] ??
+        data['lastModified'] ??
+        data['lastModifiedEpoch'] ??
         data['lastModifiedEpoch'];
 
     if (ts is int) return ts;

@@ -189,7 +189,7 @@ class UnifiedConflictRecord {
   }
 
   static DateTime? _extractTimestamp(Map<String, dynamic> data) {
-    final lastModified = data['last_modified'] ?? data['lastModified'];
+    final lastModified = data['lastModified'] ?? data['lastModified'];
     if (lastModified is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(lastModified * 1000);
@@ -197,7 +197,7 @@ class UnifiedConflictRecord {
         return null;
       }
     }
-    final updatedAt = data['updated_at'] ?? data['updatedAt'];
+    final updatedAt = data['updatedAt'] ?? data['updatedAt'];
     if (updatedAt is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000);
@@ -393,9 +393,9 @@ class UnifiedConflictResolver {
         localTimestamp: localTs,
         remoteTimestamp: remoteTs,
         localDeviceId: deviceId ?? 'local',
-        remoteDeviceId: remoteData['device_id'] ?? remoteData['deviceId'] ?? 'remote',
+        remoteDeviceId: remoteData['deviceId'] ?? remoteData['deviceId'] ?? 'remote',
         localVectorClock: _vectorClockManager?.getClock(uuid),
-        remoteVectorClock: _parseVectorClock(remoteData['vector_clock']),
+        remoteVectorClock: _parseVectorClock(remoteData['vectorClock']),
       );
 
       final result = resolver.resolve(context);
@@ -678,7 +678,7 @@ class UnifiedConflictResolver {
   }
 
   DateTime? _extractTimestamp(Map<String, dynamic> data) {
-    final lastModified = data['last_modified'] ?? data['lastModified'];
+    final lastModified = data['lastModified'] ?? data['lastModified'];
     if (lastModified is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(lastModified * 1000);
@@ -686,7 +686,7 @@ class UnifiedConflictResolver {
         return null;
       }
     }
-    final updatedAt = data['updated_at'] ?? data['updatedAt'];
+    final updatedAt = data['updatedAt'] ?? data['updatedAt'];
     if (updatedAt is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000);

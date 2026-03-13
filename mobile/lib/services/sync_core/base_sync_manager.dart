@@ -244,7 +244,7 @@ abstract class BaseSyncManager {
     await SyncNotificationManager.instance.showSystemNotification(
       title: '✅ تمت المزامنة بنجاح',
       body:
-          'تم مزامنة البيانات من ${latestBackup.appProperties['device_id'] ?? 'جهاز آخر'}',
+          'تم مزامنة البيانات من ${latestBackup.appProperties['deviceId'] ?? 'جهاز آخر'}',
     );
 
     _metrics.recordSuccess(

@@ -22,15 +22,15 @@ void main() {
 
   test('payments adapter round-trip (drive)', () async {
     final json = {
-      'local_uuid': 'p-1',
+      'localUuid': 'p-1',
       'booking_uuid_cache': 'b-1',
       'server_payment_id': 7,
       'amount': 120.5,
       'payment_date': '2025-01-02T00:00:00Z',
       'payment_method': 'cash',
       'revenue_type': 'room',
-      'last_modified': 111,
-      'created_at': 100,
+      'lastModified': 111,
+      'createdAt': 100,
     };
 
     final refs = await adapters.payments.adapter.resolveRefs(
@@ -48,7 +48,7 @@ void main() {
     final row = await db.select(db.payments).getSingle();
     final out = adapters.payments.toJsonForSource(row, src: Source.drive);
 
-    expect(out['local_uuid'], 'p-1');
+    expect(out['localUuid'], 'p-1');
     expect(out['booking_uuid_cache'], 'b-1');
     expect(out['payment_method'], 'cash');
     expect(out['amount'], 120.5);

@@ -140,7 +140,7 @@ class SyncService {
             await _applyServerId(
               change.entity,
               change.localUuid,
-              result['server_id'],
+              result['serverId'],
             );
           } else {
             allSucceeded = false;
@@ -229,7 +229,7 @@ class SyncService {
       for (final it in data) {
         final entity = it['entity'] as String;
         final op = it['op'] as String;
-        final serverId = it['server_id'];
+        final serverId = it['serverId'];
         final serverTs = (it['server_ts'] as num).toInt();
         final rawData = it['data'];
         final item = rawData is Map<String, dynamic>
@@ -242,7 +242,7 @@ class SyncService {
           await _applyIncoming(entity, op, serverId, serverTs, item);
         } catch (e) {
           debugPrint(
-            '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
+            '❌ Failed to apply incoming change for $entity with serverId $serverId: $e. Skipping item.',
           );
         }
       }
@@ -461,7 +461,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           await roomsDao.softDelete(rn, originIsServer: true);
         }
       case 'bookings':
@@ -523,7 +523,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           final target = local ??
               await (db.select(db.bookings)
                     ..where((t) => t.serverBookingId.equals(sbid ?? -1)))
@@ -570,7 +570,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           final target = ln ??
               await (db.select(
                 db.bookingNotes,
@@ -618,7 +618,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           final target = le ??
               await (db.select(
                 db.employees,
@@ -670,7 +670,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           final target = lx ??
               await (db.select(
                 db.expenses,
@@ -729,7 +729,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           final target = lc ??
               await (db.select(
                 db.cashTransactions,
@@ -792,7 +792,7 @@ class SyncService {
             originIsServer: true,
           );
         }
-        if (op == 'delete' || data['deleted_at'] != null) {
+        if (op == 'delete' || data['deletedAt'] != null) {
           final target = lp ??
               await (db.select(db.payments)
                     ..where((t) => t.serverPaymentId.equals(pid ?? -1)))
@@ -813,7 +813,7 @@ class SyncService {
     int serverTs,
     Map<String, dynamic> data,
   ) async {
-    final localUuid = _asString(data['local_uuid']);
+    final localUuid = _asString(data['localUuid']);
     if (localUuid == null || localUuid.isEmpty) {
       return;
     }
@@ -823,42 +823,42 @@ class SyncService {
     )..where((t) => t.localUuid.equals(localUuid)))
         .getSingleOrNull();
     final bool isDelete = op == 'delete' ||
-        (data.containsKey('deleted_at') && data['deleted_at'] != null);
+        (data.containsKey('deletedAt') && data['deletedAt'] != null);
     final int normalizedServerTs = _normalizeTimestampField(
       serverTs,
       fallback: Time.nowEpoch(),
     );
     final int createdAt = _normalizeTimestampField(
-      data['created_at'],
+      data['createdAt'],
       fallback: normalizedServerTs,
     );
     final int updatedAt = _normalizeTimestampField(
-      data['updated_at'],
+      data['updatedAt'],
       fallback: normalizedServerTs,
     );
     final int lastModified = _normalizeTimestampField(
-      data['last_modified'],
+      data['lastModified'],
       fallback: updatedAt,
     );
     final int createdEpoch = _normalizeTimestampField(
-      data['created_at_epoch'],
+      data['createdAtEpoch'],
       fallback: createdAt,
     );
     final int lastModifiedEpoch = _normalizeTimestampField(
-      data['last_modified_epoch'],
+      data['lastModifiedEpoch'],
       fallback: lastModified,
     );
     final int? deletedAt =
-        data.containsKey('deleted_at') && data['deleted_at'] != null
+        data.containsKey('deletedAt') && data['deletedAt'] != null
             ? _normalizeTimestampField(
-                data['deleted_at'],
+                data['deletedAt'],
                 fallback: normalizedServerTs,
               )
             : null;
-    final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
-    final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
+    final String createdIso = _isoFromData(data['createdAtIso'], createdAt);
+    final String updatedIso = _isoFromData(data['updatedAtIso'], updatedAt);
     final String? deletedIso = _maybeIsoFromData(
-      data['deleted_at_iso'],
+      data['deletedAtIso'],
       deletedAt,
     );
 
@@ -937,7 +937,7 @@ class SyncService {
     int serverTs,
     Map<String, dynamic> data,
   ) async {
-    final localUuid = _asString(data['local_uuid']);
+    final localUuid = _asString(data['localUuid']);
     if (localUuid == null || localUuid.isEmpty) {
       return;
     }
@@ -946,42 +946,42 @@ class SyncService {
       db.hotelDayLedger,
     )..where((t) => t.localUuid.equals(localUuid)))
         .getSingleOrNull();
-    final bool isDelete = op == 'delete' || data['deleted_at'] != null;
+    final bool isDelete = op == 'delete' || data['deletedAt'] != null;
     final int normalizedServerTs = _normalizeTimestampField(
       serverTs,
       fallback: Time.nowEpoch(),
     );
     final int createdAt = _normalizeTimestampField(
-      data['created_at'],
+      data['createdAt'],
       fallback: normalizedServerTs,
     );
     final int updatedAt = _normalizeTimestampField(
-      data['updated_at'],
+      data['updatedAt'],
       fallback: normalizedServerTs,
     );
     final int lastModified = _normalizeTimestampField(
-      data['last_modified'],
+      data['lastModified'],
       fallback: updatedAt,
     );
     final int createdEpoch = _normalizeTimestampField(
-      data['created_at_epoch'],
+      data['createdAtEpoch'],
       fallback: createdAt,
     );
     final int lastModifiedEpoch = _normalizeTimestampField(
-      data['last_modified_epoch'],
+      data['lastModifiedEpoch'],
       fallback: lastModified,
     );
     final int? deletedAt =
-        data.containsKey('deleted_at') && data['deleted_at'] != null
+        data.containsKey('deletedAt') && data['deletedAt'] != null
             ? _normalizeTimestampField(
-                data['deleted_at'],
+                data['deletedAt'],
                 fallback: normalizedServerTs,
               )
             : null;
-    final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
-    final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
+    final String createdIso = _isoFromData(data['createdAtIso'], createdAt);
+    final String updatedIso = _isoFromData(data['updatedAtIso'], updatedAt);
     final String? deletedIso = _maybeIsoFromData(
-      data['deleted_at_iso'],
+      data['deletedAtIso'],
       deletedAt,
     );
 

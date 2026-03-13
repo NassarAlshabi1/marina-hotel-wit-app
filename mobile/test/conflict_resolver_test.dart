@@ -167,8 +167,8 @@ void main() {
       expect(merged['status'], 'remote');
       expect(merged['notes'], 'Remote note');
       expect(merged['guestName'], 'Remote Name');
-      expect(merged['updated_at'], isA<int>());
-      expect(merged['updated_at_iso'], isA<String>());
+      expect(merged['updatedAt'], isA<int>());
+      expect(merged['updatedAtIso'], isA<String>());
     },
   );
 }

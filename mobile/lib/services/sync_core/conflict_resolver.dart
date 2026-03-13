@@ -70,8 +70,8 @@ class ConflictResolver {
         final localRecord = localRecords[uuid] as Map<String, dynamic>;
         final remoteRecord = remoteRecords[uuid] as Map<String, dynamic>;
 
-        final localUpdated = _parseTimestamp(localRecord['updated_at']);
-        final remoteUpdated = _parseTimestamp(remoteRecord['updated_at']);
+        final localUpdated = _parseTimestamp(localRecord['updatedAt']);
+        final remoteUpdated = _parseTimestamp(remoteRecord['updatedAt']);
 
         if (localUpdated != null && remoteUpdated != null) {
           if (_hasConflict(
@@ -144,7 +144,7 @@ class ConflictResolver {
 
       case ConflictStrategy.devicePriority:
         // ignore: unused_local_variable
-        final remoteDevice = conflict.remoteData['device_id'] as String?;
+        final remoteDevice = conflict.remoteData['deviceId'] as String?;
         final remotePriority =
             conflict.remoteData['device_priority'] as int? ?? 100;
 

@@ -108,12 +108,12 @@ class SyncIntegrityChecker {
     final issues = <IntegrityIssue>[];
 
     final orphaned = await db.customSelect('''
-      SELECT p.local_uuid, p.booking_local_id 
+      SELECT p.localUuid, p.booking_local_id 
       FROM payments p
       LEFT JOIN bookings b ON p.booking_local_id = b.id
       WHERE p.booking_local_id IS NOT NULL 
         AND b.id IS NULL 
-        AND p.deleted_at IS NULL
+        AND p.deletedAt IS NULL
     ''').get();
 
     for (final row in orphaned) {
@@ -121,7 +121,7 @@ class SyncIntegrityChecker {
         IntegrityIssue(
           type: IssueType.orphanedRecord,
           table: 'payments',
-          uuid: row.read<String>('local_uuid'),
+          uuid: row.read<String>('localUuid'),
           description:
               'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
@@ -136,12 +136,12 @@ class SyncIntegrityChecker {
     final issues = <IntegrityIssue>[];
 
     final orphaned = await db.customSelect('''
-      SELECT d.local_uuid, d.booking_local_id
+      SELECT d.localUuid, d.booking_local_id
       FROM debts d
       LEFT JOIN bookings b ON d.booking_local_id = b.id
       WHERE d.booking_local_id IS NOT NULL
         AND b.id IS NULL
-        AND d.deleted_at IS NULL
+        AND d.deletedAt IS NULL
     ''').get();
 
     for (final row in orphaned) {
@@ -149,7 +149,7 @@ class SyncIntegrityChecker {
         IntegrityIssue(
           type: IssueType.orphanedRecord,
           table: 'debts',
-          uuid: row.read<String>('local_uuid'),
+          uuid: row.read<String>('localUuid'),
           description:
               'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
@@ -175,15 +175,15 @@ class SyncIntegrityChecker {
 
     for (final table in tables) {
       final duplicates = await db.customSelect('''
-        SELECT local_uuid, COUNT(*) as count
+        SELECT localUuid, COUNT(*) as count
         FROM $table
-        WHERE deleted_at IS NULL
-        GROUP BY local_uuid
+        WHERE deletedAt IS NULL
+        GROUP BY localUuid
         HAVING COUNT(*) > 1
       ''').get();
 
       for (final row in duplicates) {
-        final uuid = row.read<String>('local_uuid');
+        final uuid = row.read<String>('localUuid');
         final count = row.read<int>('count');
 
         issues.add(
@@ -215,7 +215,7 @@ class SyncIntegrityChecker {
 
     for (final table in tables) {
       final invalidVersions = await db.customSelect('''
-        SELECT local_uuid, version
+        SELECT localUuid, version
         FROM $table
         WHERE version < 1 OR version IS NULL
       ''').get();
@@ -225,7 +225,7 @@ class SyncIntegrityChecker {
           IntegrityIssue(
             type: IssueType.versionInconsistency,
             table: table,
-            uuid: row.read<String>('local_uuid'),
+            uuid: row.read<String>('localUuid'),
             description: 'Invalid version: ${row.read<int?>('version')}',
             isCritical: false,
           ),
@@ -241,20 +241,20 @@ class SyncIntegrityChecker {
 
     final mismatches = await db.customSelect('''
       SELECT 
-        b.local_uuid,
+        b.localUuid,
         b.total_due_cached,
         b.total_paid_cached,
         b.remaining_balance_cached,
         COALESCE(SUM(p.amount), 0) as actual_paid
       FROM bookings b
-      LEFT JOIN payments p ON p.booking_local_id = b.id AND p.deleted_at IS NULL
-      WHERE b.deleted_at IS NULL
-      GROUP BY b.id, b.local_uuid, b.total_due_cached, b.total_paid_cached, b.remaining_balance_cached
+      LEFT JOIN payments p ON p.booking_local_id = b.id AND p.deletedAt IS NULL
+      WHERE b.deletedAt IS NULL
+      GROUP BY b.id, b.localUuid, b.total_due_cached, b.total_paid_cached, b.remaining_balance_cached
       HAVING ABS(b.total_paid_cached - actual_paid) > 0.01
     ''').get();
 
     for (final row in mismatches) {
-      final uuid = row.read<String>('local_uuid');
+      final uuid = row.read<String>('localUuid');
       final cachedPaid = row.read<double?>('total_paid_cached') ?? 0.0;
       final actualPaid = row.read<double>('actual_paid');
 
@@ -284,14 +284,14 @@ class SyncIntegrityChecker {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
-      SELECT p.local_uuid, p.booking_local_id
+      SELECT p.localUuid, p.booking_local_id
       FROM payments p
       WHERE p.booking_local_id IS NOT NULL
-        AND p.deleted_at IS NULL
+        AND p.deletedAt IS NULL
         AND NOT EXISTS (
           SELECT 1 FROM bookings b 
           WHERE b.id = p.booking_local_id 
-          AND b.deleted_at IS NULL
+          AND b.deletedAt IS NULL
         )
     ''').get();
 
@@ -300,7 +300,7 @@ class SyncIntegrityChecker {
         IntegrityIssue(
           type: IssueType.missingReference,
           table: 'payments',
-          uuid: row.read<String>('local_uuid'),
+          uuid: row.read<String>('localUuid'),
           description:
               'Payment references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
@@ -317,14 +317,14 @@ class SyncIntegrityChecker {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
-      SELECT d.local_uuid, d.booking_local_id
+      SELECT d.localUuid, d.booking_local_id
       FROM debts d
       WHERE d.booking_local_id IS NOT NULL
-        AND d.deleted_at IS NULL
+        AND d.deletedAt IS NULL
         AND NOT EXISTS (
           SELECT 1 FROM bookings b 
           WHERE b.id = d.booking_local_id 
-          AND b.deleted_at IS NULL
+          AND b.deletedAt IS NULL
         )
     ''').get();
 
@@ -333,7 +333,7 @@ class SyncIntegrityChecker {
         IntegrityIssue(
           type: IssueType.missingReference,
           table: 'debts',
-          uuid: row.read<String>('local_uuid'),
+          uuid: row.read<String>('localUuid'),
           description:
               'Debt references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
@@ -361,8 +361,8 @@ class SyncIntegrityChecker {
     await db.customStatement(
       '''
       UPDATE ${issue.table}
-      SET deleted_at = ?
-      WHERE local_uuid = ?
+      SET deletedAt = ?
+      WHERE localUuid = ?
     ''',
       [DateTime.now().millisecondsSinceEpoch ~/ 1000, issue.uuid],
     );
@@ -376,7 +376,7 @@ class SyncIntegrityChecker {
       '''
       UPDATE ${issue.table}
       SET version = 1
-      WHERE local_uuid = ? AND (version IS NULL OR version < 1)
+      WHERE localUuid = ? AND (version IS NULL OR version < 1)
     ''',
       [issue.uuid],
     );

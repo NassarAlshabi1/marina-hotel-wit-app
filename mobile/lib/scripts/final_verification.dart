@@ -56,14 +56,14 @@ const collectionSpecificFields = {
 
 /// حقول snake_case التي يجب أن تكون محذوفة من البيانات المرسلة
 const snakeCaseFieldsToRemove = [
-  'local_uuid',
-  'created_at',
-  'updated_at',
-  'deleted_at',
-  'last_modified',
-  'vector_clock',
-  'device_id',
-  'sync_timestamp',
+  'localUuid',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+  'lastModified',
+  'vectorClock',
+  'deviceId',
+  'syncTimestamp',
   'room_number',
   'guest_name',
   'guest_phone',
@@ -256,8 +256,8 @@ void verifyConflictResolver() {
   final content = file.readAsStringSync();
   
   // التحقق من دعم كلا الصيغتين في استخراج timestamp
-  if (content.contains("['updated_at'] ??") && content.contains("['updatedAt']") ||
-      content.contains("['updatedAt'] ??") && content.contains("['updated_at']")) {
+  if (content.contains("['updatedAt'] ??") && content.contains("['updatedAt']") ||
+      content.contains("['updatedAt'] ??") && content.contains("['updatedAt']")) {
     print('✅ conflict_resolver يدعم كلا الصيغتين (camelCase + snake_case)');
   } else {
     print('⚠️ conflict_resolver قد يدعم صيغة واحدة فقط');

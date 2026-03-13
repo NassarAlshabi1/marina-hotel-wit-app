@@ -242,7 +242,7 @@ class _SmartSyncSettingsScreenState
     final isSyncing = status['is_syncing'] as bool;
     final syncInterval = status['sync_interval_minutes'] as int;
     final lastSync = status['last_sync_check'] as String?;
-    final deviceId = status['device_id'] as String?;
+    final deviceId = status['deviceId'] as String?;
     final conflictResolution = status['conflict_resolution'] as String;
     final isSignedIn = status['signed_in'] as bool;
     final monitoringActive = status['monitoring_active'] as bool;

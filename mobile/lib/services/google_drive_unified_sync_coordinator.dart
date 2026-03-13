@@ -758,7 +758,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         ...baseMetadata,
         'backup_type': 'full',
         'sync_type': 'scheduled',
-        'device_id': _deltaSync!.deviceId,
+        'deviceId': _deltaSync!.deviceId,
       };
 
       await _backupService!.uploadBackup(backupData, isSync: false);
@@ -859,7 +859,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       'last_push': _lastPushTime?.toIso8601String(),
       'last_pull': _lastPullTime?.toIso8601String(),
       'last_full_backup': _lastFullBackupTime?.toIso8601String(),
-      'device_id': _deltaSync?.deviceId,
+      'deviceId': _deltaSync?.deviceId,
     };
   }
 

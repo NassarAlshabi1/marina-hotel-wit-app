@@ -256,11 +256,11 @@ class SyncVerification {
       // إضافة الحقول المفقودة
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       
-      fixedPayload['localUuid'] ??= payload['local_uuid'] ?? payload['localUuid'];
-      fixedPayload['createdAt'] ??= payload['created_at'] ?? payload['createdAtEpoch'] ?? now;
+      fixedPayload['localUuid'] ??= payload['localUuid'] ?? payload['localUuid'];
+      fixedPayload['createdAt'] ??= payload['createdAt'] ?? payload['createdAtEpoch'] ?? now;
       fixedPayload['updatedAt'] ??= now;
-      fixedPayload['lastModified'] ??= payload['last_modified'] ?? now;
-      fixedPayload['vectorClock'] ??= payload['vector_clock'] ?? '{}';
+      fixedPayload['lastModified'] ??= payload['lastModified'] ?? now;
+      fixedPayload['vectorClock'] ??= payload['vectorClock'] ?? '{}';
       fixedPayload['deviceId'] ??= deviceId ?? 'unknown';
       fixedPayload['syncTimestamp'] ??= syncTimestamp ?? now;
       fixedPayload['version'] ??= payload['version'] ?? 1;

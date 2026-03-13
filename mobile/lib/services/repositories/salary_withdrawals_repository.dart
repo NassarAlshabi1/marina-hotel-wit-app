@@ -17,7 +17,7 @@ class SalaryWithdrawalsRepository {
         amount REAL,
         note TEXT,
         date TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
       );
     ''');
     _tableEnsured = true;
@@ -34,7 +34,7 @@ class SalaryWithdrawalsRepository {
     await _ensureTable();
     await _db.customStatement(
       '''
-      INSERT INTO salary_withdrawals (expense_id, employee_id, action, amount, note, date, created_at)
+      INSERT INTO salary_withdrawals (expense_id, employee_id, action, amount, note, date, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(expense_id) DO UPDATE SET
         employee_id = excluded.employee_id,
@@ -59,7 +59,7 @@ class SalaryWithdrawalsRepository {
     await _ensureTable();
     final rows = await _db
         .customSelect(
-          'SELECT * FROM salary_withdrawals ORDER BY created_at DESC',
+          'SELECT * FROM salary_withdrawals ORDER BY createdAt DESC',
         )
         .get();
     return rows.map((row) => row.data).toList();

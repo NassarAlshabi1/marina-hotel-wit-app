@@ -28,11 +28,11 @@ class CashTransactionsAdapter
     required Source src,
   }) async {
     final uuid = _asString(json, 'localUuid', src) ??
-        _asString(json, 'local_uuid', src) ??
+        _asString(json, 'localUuid', src) ??
         IdGen.uuid();
     // ignore: unused_local_variable
     final serverId =
-        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
+        _asInt(json, 'serverId', src) ?? _asInt(json, 'serverId', src);
     // ignore: unused_local_variable
     final localId = _asInt(json, 'id', src);
 

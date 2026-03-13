@@ -166,7 +166,7 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildStatusRow('معرف الجهاز', status['device_id'] ?? '---'),
+                  _buildStatusRow('معرف الجهاز', status['deviceId'] ?? '---'),
                   _buildStatusRow(
                     'تفعيل المزامنة',
                     (status['enabled'] ?? false) ? 'مفعل' : 'معطل',

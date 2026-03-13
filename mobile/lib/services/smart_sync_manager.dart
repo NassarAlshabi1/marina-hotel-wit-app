@@ -243,7 +243,7 @@ class SmartSyncManager {
       if (lastRemoteTimestamp == null ||
           latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
         // التحقق من أن النسخة ليست من نفس الجهاز
-        final backupDeviceId = latestBackup.appProperties['device_id'];
+        final backupDeviceId = latestBackup.appProperties['deviceId'];
         if (backupDeviceId != _deviceId) {
           _log('🆕 تم العثور على نسخة احتياطية جديدة من جهاز آخر');
           await _handleNewBackupFound(latestBackup);
@@ -368,14 +368,14 @@ class SmartSyncManager {
       final remoteMap = <String, dynamic>{};
 
       for (final record in localRecords) {
-        if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          localMap[record['local_uuid']] = record;
+        if (record is Map<String, dynamic> && record['localUuid'] != null) {
+          localMap[record['localUuid']] = record;
         }
       }
 
       for (final record in remoteRecords) {
-        if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          remoteMap[record['local_uuid']] = record;
+        if (record is Map<String, dynamic> && record['localUuid'] != null) {
+          remoteMap[record['localUuid']] = record;
         }
       }
 
@@ -386,8 +386,8 @@ class SmartSyncManager {
           final remoteRecord = remoteMap[uuid];
 
           // مقارنة timestamps
-          final localTimestamp = localRecord['last_modified'] as int?;
-          final remoteTimestamp = remoteRecord['last_modified'] as int?;
+          final localTimestamp = localRecord['lastModified'] as int?;
+          final remoteTimestamp = remoteRecord['lastModified'] as int?;
 
           if (localTimestamp != null && remoteTimestamp != null) {
             final localTime = DateTime.fromMillisecondsSinceEpoch(
@@ -466,7 +466,7 @@ class SmartSyncManager {
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
             // التحقق من تاريخ الملاحظة
-            final String? createdAtStr = noteData['created_at'];
+            final String? createdAtStr = noteData['createdAt'];
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
               try {
@@ -522,7 +522,7 @@ class SmartSyncManager {
       final records = backupData[tableName] as List<dynamic>;
       records.removeWhere(
         (record) =>
-            record is Map<String, dynamic> && record['local_uuid'] == recordId,
+            record is Map<String, dynamic> && record['localUuid'] == recordId,
       );
     }
   }
@@ -535,7 +535,7 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    final deviceId = backup.appProperties['deviceId'] ?? 'جهاز آخر';
     _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
 
@@ -717,7 +717,7 @@ class SmartSyncManager {
       'is_syncing': _isSyncing,
       'sync_interval_minutes': syncInterval,
       'last_sync_check': lastSync?.toIso8601String(),
-      'device_id': _deviceId,
+      'deviceId': _deviceId,
       'conflict_resolution': conflictResolution.name,
       'signed_in': _backupService?.isSignedIn ?? false,
       'monitoring_active': _syncCheckTimer?.isActive ?? false,
@@ -895,7 +895,7 @@ class SmartSyncManager {
       if (lastRemoteTimestamp == null ||
           latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
         // التحقق من أن النسخة ليست من نفس الجهاز
-        final backupDeviceId = latestBackup.appProperties['device_id'];
+        final backupDeviceId = latestBackup.appProperties['deviceId'];
         if (backupDeviceId == _deviceId) {
           _log('📱 النسخة الأحدث من نفس هذا الجهاز');
           return false;

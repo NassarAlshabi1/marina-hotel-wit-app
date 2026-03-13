@@ -349,7 +349,7 @@ class SmartGoogleDriveSync {
       'signed_in': _driveService?.isSignedIn ?? false,
       'pending_changes': _hasPendingChanges,
       'pending_count': _pendingChangesCount,
-      'device_id': _deltaSync?.deviceId,
+      'deviceId': _deltaSync?.deviceId,
     };
   }
 

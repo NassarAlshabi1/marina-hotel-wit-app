@@ -35,9 +35,9 @@ class OutboxRecord {
       payload: row.read<String>('payload'),
       timestamp:
           DateTime.fromMillisecondsSinceEpoch(row.read<int>('timestamp')),
-      vectorClock: row.read<String>('vector_clock'),
+      vectorClock: row.read<String>('vectorClock'),
       checksum: row.readNullable<String>('checksum'),
-      deviceId: row.readNullable<String>('device_id'),
+      deviceId: row.readNullable<String>('deviceId'),
       retryCount: row.read<int>('retry_count'),
       lastError: row.readNullable<String>('last_error'),
       nextRetryAt: row.readNullable<int>('next_retry_at') != null
@@ -81,9 +81,9 @@ class DriftOutboxStorage implements OutboxStorage {
         operation TEXT NOT NULL,
         payload TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
-        vector_clock TEXT NOT NULL,
+        vectorClock TEXT NOT NULL,
         checksum TEXT,
-        device_id TEXT,
+        deviceId TEXT,
         retry_count INTEGER NOT NULL DEFAULT 0,
         last_error TEXT,
         next_retry_at INTEGER,
@@ -135,8 +135,8 @@ class DriftOutboxStorage implements OutboxStorage {
   Future<void> save(DeltaChange change) async {
     await _db.customStatement(
       '''INSERT OR REPLACE INTO $_table
-         (id, table_name, uuid, operation, payload, timestamp, vector_clock,
-          checksum, device_id, retry_count, last_error, next_retry_at, synced_at, is_synced, is_failed)
+         (id, table_name, uuid, operation, payload, timestamp, vectorClock,
+          checksum, deviceId, retry_count, last_error, next_retry_at, synced_at, is_synced, is_failed)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         change.id,

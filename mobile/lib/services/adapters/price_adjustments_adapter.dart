@@ -52,7 +52,7 @@ class PriceAdjustmentsAdapter
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
         _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
+            _asString(json, 'localUuid', src) ??
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
@@ -86,7 +86,7 @@ class PriceAdjustmentsAdapter
         json,
         'vectorClock',
         src,
-        altKey: 'vector_clock',
+        altKey: 'vectorClock',
         fallback: '{}',
       ),
     );

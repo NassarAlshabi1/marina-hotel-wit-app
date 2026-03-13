@@ -247,7 +247,7 @@ extension DeltaChangeVectorClock on DeltaChange {
 
   /// مقارنة مع سجل محلي
   VectorClockComparison compareWithLocal(Map<String, dynamic> localRecord) {
-    final localClockStr = localRecord['vector_clock'] as String?;
+    final localClockStr = localRecord['vectorClock'] as String?;
     if (localClockStr == null) {
       return VectorClockComparison.remoteNewer;
     }

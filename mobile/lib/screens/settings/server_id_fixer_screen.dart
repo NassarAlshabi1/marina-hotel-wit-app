@@ -73,7 +73,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
 
       // التحقق من وجود عمود serverId
       try {
-        await db.customStatement('SELECT server_id FROM rooms LIMIT 1');
+        await db.customStatement('SELECT serverId FROM rooms LIMIT 1');
         _addLog('✅ عمود serverId موجود في الجدول');
       } catch (e) {
         _addLog('❌ عمود serverId غير موجود!');
@@ -101,7 +101,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
 
         try {
           await db.customStatement(
-            'UPDATE rooms SET server_id = ? WHERE local_uuid = ?',
+            'UPDATE rooms SET serverId = ? WHERE localUuid = ?',
             [serverId, localUuid],
           );
 

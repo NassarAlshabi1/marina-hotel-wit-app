@@ -255,8 +255,8 @@ class SchemaComparisonScreen extends StatelessWidget {
 
   Widget _buildNamingConventions() {
     final examples = [
-      _NamingExample('server_id', 'serverId', '⚠️ سبب الخطأ الرئيسي'),
-      _NamingExample('local_uuid', 'localUuid', '✅ مفتاح رئيسي'),
+      _NamingExample('serverId', 'serverId', '⚠️ سبب الخطأ الرئيسي'),
+      _NamingExample('localUuid', 'localUuid', '✅ مفتاح رئيسي'),
       _NamingExample('room_number', 'roomNumber', '✅ يعمل'),
       _NamingExample('booking_local_id', 'bookingLocalId', '✅ يعمل'),
     ];
@@ -353,7 +353,7 @@ class SchemaComparisonScreen extends StatelessWidget {
             _buildFlowStep(
               '1',
               'Local DB (SQLite)',
-              'server_id, room_number',
+              'serverId, room_number',
               Colors.blue,
             ),
             _buildFlowArrow(),
@@ -455,7 +455,7 @@ class SchemaComparisonScreen extends StatelessWidget {
       ),
       _FixSummary(
         'SQL column names mismatch',
-        'استخدام server_id بدلاً من serverId',
+        'استخدام serverId بدلاً من serverId',
         1,
         Icons.text_fields,
         Colors.blue,

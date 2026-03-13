@@ -899,7 +899,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final isSyncing = status['is_syncing'] as bool;
     final isSignedIn = status['signed_in'] as bool;
     final lastSync = status['last_sync_check'] as String?;
-    final deviceId = status['device_id'] as String?;
+    final deviceId = status['deviceId'] as String?;
     final syncInterval = status['sync_interval_minutes'] as int;
     final conflictKey = status['conflict_resolution'] as String;
     final resolution = ConflictResolution.values.firstWhere(

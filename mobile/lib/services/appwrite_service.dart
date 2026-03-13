@@ -271,9 +271,9 @@ class AppwriteService {
   ) {
     // 1. استخدام Vector Clock إذا توفر
     final remoteClockStr = remote['vectorClock']?.toString() ??
-        remote['vector_clock']?.toString();
+        remote['vectorClock']?.toString();
     final localClockStr =
-        local['vectorClock']?.toString() ?? local['vector_clock']?.toString();
+        local['vectorClock']?.toString() ?? local['vectorClock']?.toString();
 
     if (remoteClockStr != null && localClockStr != null) {
       try {
@@ -301,11 +301,11 @@ class AppwriteService {
   /// استخراج الطابع الزمني من البيانات
   int? _extractTs(Map<String, dynamic> data) {
     final ts = data['updatedAt'] ??
-        data['updated_at'] ??
+        data['updatedAt'] ??
         data['lastModified'] ??
-        data['last_modified'] ??
+        data['lastModified'] ??
         data['lastModifiedEpoch'] ??
-        data['last_modified_epoch'];
+        data['lastModifiedEpoch'];
 
     if (ts is int) return ts;
     if (ts is String) {

@@ -193,7 +193,7 @@ class GoogleDriveDeltaSync {
         final fileTsSec = file.createdTime.millisecondsSinceEpoch ~/ 1000;
         if (fileTsSec <= lastPullTsSec) continue;
 
-        final sourceDeviceId = file.appProperties['device_id'];
+        final sourceDeviceId = file.appProperties['deviceId'];
         if (sourceDeviceId == _deviceId) {
           if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
           continue;
@@ -238,7 +238,7 @@ class GoogleDriveDeltaSync {
   Map<String, dynamic> _buildDeltaPayload(DeltaSyncComputation computation) {
     return {
       'type': 'delta_sync',
-      'device_id': _deviceId,
+      'deviceId': _deviceId,
       'timestamp': DateTime.now().toIso8601String(),
       'epoch': Time.nowEpoch(),
       'changes_count': computation.changes.length,
@@ -268,7 +268,7 @@ class GoogleDriveDeltaSync {
       bytes,
       appProperties: {
         'type': 'delta_sync',
-        'device_id': _deviceId ?? '',
+        'deviceId': _deviceId ?? '',
         'changes_count': payload['changes_count'].toString(),
       },
     );
@@ -351,7 +351,7 @@ class GoogleDriveDeltaSync {
     final db = _database!;
     final registry = _adapterRegistry!;
     final localUuid =
-        _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
+        _asString(data['localUuid']) ?? _asString(data['localUuid']) ?? '';
     if (localUuid.isEmpty) return;
 
     debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
@@ -401,7 +401,7 @@ class GoogleDriveDeltaSync {
     } else {
       // لا يوجد تعارض - إدراج جديد مباشرة
       final payload = Map<String, dynamic>.from(data);
-      payload.putIfAbsent('local_uuid', () => localUuid);
+      payload.putIfAbsent('localUuid', () => localUuid);
       await _upsertEntity(registry, entity, payload);
     }
   }
@@ -629,23 +629,23 @@ class GoogleDriveDeltaSync {
     final companion = CashTransactionsCompanion(
       localUuid: d.Value(localUuid),
       serverId: _nullableValue<int>(
-        _asInt(data['server_id']) ?? _asInt(data['serverId']),
+        _asInt(data['serverId']) ?? _asInt(data['serverId']),
       ),
       createdAt: d.Value(
-        _asInt(data['created_at']) ??
+        _asInt(data['createdAt']) ??
             _asInt(data['createdAt']) ??
             Time.nowEpoch(),
       ),
       updatedAt: d.Value(
-        _asInt(data['updated_at']) ??
+        _asInt(data['updatedAt']) ??
             _asInt(data['updatedAt']) ??
             Time.nowEpoch(),
       ),
       deletedAt: _nullableValue<int>(
-        _asInt(data['deleted_at']) ?? _asInt(data['deletedAt']),
+        _asInt(data['deletedAt']) ?? _asInt(data['deletedAt']),
       ),
       lastModified: d.Value(
-        _asInt(data['last_modified']) ??
+        _asInt(data['lastModified']) ??
             _asInt(data['lastModified']) ??
             Time.nowEpoch(),
       ),
@@ -763,7 +763,7 @@ class GoogleDriveDeltaSync {
     return {
       'initialized': isInitialized,
       'is_syncing': _isSyncing,
-      'device_id': _deviceId,
+      'deviceId': _deviceId,
       'last_push_epoch': lastPush,
       'last_pull_epoch': lastPull,
       'last_push_time': lastPush > 0

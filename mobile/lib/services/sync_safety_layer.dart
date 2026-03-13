@@ -111,7 +111,7 @@ class SyncSafetyLayer {
     final createdAt = DateTime.now().toUtc();
 
     await db.customStatement(
-      'INSERT INTO sync_audit (sync_id, direction, checksum, schema_version, device_id, status, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO sync_audit (sync_id, direction, checksum, schema_version, deviceId, status, createdAt, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       <Object?>[
         snapshot.syncId,
         direction,
@@ -281,9 +281,9 @@ class SyncSafetyLayer {
       'direction TEXT,'
       'checksum TEXT,'
       'schema_version INTEGER,'
-      'device_id TEXT,'
+      'deviceId TEXT,'
       'status TEXT,'
-      'created_at TEXT,'
+      'createdAt TEXT,'
       'metadata TEXT'
       ')',
     );

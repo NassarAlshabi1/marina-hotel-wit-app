@@ -858,10 +858,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<String> _getDeviceId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      var deviceId = prefs.getString('device_id');
+      var deviceId = prefs.getString('deviceId');
       if (deviceId == null) {
         deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
-        await prefs.setString('device_id', deviceId);
+        await prefs.setString('deviceId', deviceId);
       }
       return deviceId;
     } catch (e) {

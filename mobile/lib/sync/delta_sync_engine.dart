@@ -165,7 +165,7 @@ class DeltaSyncEngine {
 
     // مقارنة Vector Clocks
     final remoteClock = VectorClock.fromJson(change.vectorClock);
-    final localClockStr = localRecord['vector_clock'] as String?;
+    final localClockStr = localRecord['vectorClock'] as String?;
 
     if (localClockStr == null) {
       // السجل المحلي بدون Vector Clock - السجل البعيد أحدث

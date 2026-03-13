@@ -454,7 +454,7 @@ class SyncManager {
     while (true) {
       try {
         final batch = await db.customSelect(
-          'SELECT * FROM $table ORDER BY local_uuid LIMIT ? OFFSET ?',
+          'SELECT * FROM $table ORDER BY localUuid LIMIT ? OFFSET ?',
           variables: [
             drift.Variable.withInt(batchSize),
             drift.Variable.withInt(offset),
@@ -789,8 +789,8 @@ class SyncManager {
               VectorClock? localVectorClock;
               VectorClock? remoteVectorClock;
               try {
-                final localVc = localRow['vector_clock'] as String?;
-                final remoteVc = remoteRow['vector_clock'] as String?;
+                final localVc = localRow['vectorClock'] as String?;
+                final remoteVc = remoteRow['vectorClock'] as String?;
                 if (localVc != null && localVc.isNotEmpty) {
                   localVectorClock = VectorClock.fromJson(localVc);
                 }
@@ -971,15 +971,15 @@ class SyncManager {
   }
 
   String? _extractUuid(Map<String, dynamic> row) {
-    return (row['uuid'] ?? row['local_uuid'] ?? row['localUuid']) as String?;
+    return (row['uuid'] ?? row['localUuid'] ?? row['localUuid']) as String?;
   }
 
   String? _extractUpdatedAt(Map<String, dynamic> row) {
-    return (row['updatedAt'] ?? row['updated_at']) as String?;
+    return (row['updatedAt'] ?? row['updatedAt']) as String?;
   }
 
   String? _extractDeletedAt(Map<String, dynamic> row) {
-    return (row['deletedAt'] ?? row['deleted_at']) as String?;
+    return (row['deletedAt'] ?? row['deletedAt']) as String?;
   }
 
   DateTime? _parseDateTime(String? value) {
