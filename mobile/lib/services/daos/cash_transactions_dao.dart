@@ -262,15 +262,15 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     final m = <String, dynamic>{};
 
     if (comp.registerId.present) {
-      m['register_id'] = comp.registerId.value;
+      m['registerId'] = comp.registerId.value;
     } else if (base != null) {
-      m['register_id'] = base.registerId;
+      m['registerId'] = base.registerId;
     }
 
     if (comp.transactionType.present) {
-      m['transaction_type'] = comp.transactionType.value;
+      m['transactionType'] = comp.transactionType.value;
     } else if (base != null) {
-      m['transaction_type'] = base.transactionType;
+      m['transactionType'] = base.transactionType;
     }
 
     if (comp.amount.present) {
@@ -280,15 +280,15 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     }
 
     if (comp.referenceType.present) {
-      m['reference_type'] = comp.referenceType.value;
+      m['referenceType'] = comp.referenceType.value;
     } else if (base != null) {
-      m['reference_type'] = base.referenceType;
+      m['referenceType'] = base.referenceType;
     }
 
     if (comp.referenceId.present) {
-      m['reference_id'] = comp.referenceId.value;
+      m['referenceId'] = comp.referenceId.value;
     } else if (base != null) {
-      m['reference_id'] = base.referenceId;
+      m['referenceId'] = base.referenceId;
     }
 
     if (comp.description.present) {
@@ -298,20 +298,20 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     }
 
     if (comp.transactionTime.present) {
-      m['transaction_time'] = comp.transactionTime.value;
+      m['transactionTime'] = comp.transactionTime.value;
     } else if (base != null) {
-      m['transaction_time'] = base.transactionTime;
+      m['transactionTime'] = base.transactionTime;
     }
 
     if (comp.createdBy.present) {
-      m['created_by'] = comp.createdBy.value;
+      m['createdBy'] = comp.createdBy.value;
     } else if (base != null) {
-      m['created_by'] = base.createdBy;
+      m['createdBy'] = base.createdBy;
     }
 
     if (base != null) {
-      m['local_uuid'] = base.localUuid;
-      m['server_id'] = base.serverId;
+      m['localUuid'] = base.localUuid;
+      m['serverId'] = base.serverId;
       m['version'] = base.version + 1;
     }
 

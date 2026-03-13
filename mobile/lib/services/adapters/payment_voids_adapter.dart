@@ -120,30 +120,30 @@ class PaymentVoidsAdapter
   @override
   Map<String, dynamic> toJson(PaymentVoid model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'originalPaymentUuid', 'original_payment_uuid'):
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'originalPaymentUuid'):
           model.originalPaymentUuid,
-      _k(src, 'originalPaymentId', 'original_payment_id'):
+      _k(src, 'originalPaymentId'):
           model.originalPaymentId,
-      _k(src, 'bookingUuid', 'booking_uuid'): model.bookingUuid,
-      _k(src, 'voidedAmount', 'voided_amount'): model.voidedAmount,
-      _k(src, 'voidReason', 'void_reason'): model.voidReason,
-      _k(src, 'voidedBy', 'voided_by'): model.voidedBy,
-      _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
-      _k(src, 'voidedAtIso', 'voided_at_iso'): model.voidedAtIso,
-      _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'):
+      _k(src, 'bookingUuid'): model.bookingUuid,
+      _k(src, 'voidedAmount'): model.voidedAmount,
+      _k(src, 'voidReason'): model.voidReason,
+      _k(src, 'voidedBy'): model.voidedBy,
+      _k(src, 'voidedAt'): model.voidedAt,
+      _k(src, 'voidedAtIso'): model.voidedAtIso,
+      _k(src, 'hotelDayKey'): model.hotelDayKey,
+      _k(src, 'reversalPaymentUuid'):
           model.reversalPaymentUuid,
-      _k(src, 'approvedBy', 'approved_by'): model.approvedBy,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'approvedBy'): model.approvedBy,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -207,8 +207,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

@@ -95,28 +95,28 @@ class PriceAdjustmentsAdapter
   @override
   Map<String, dynamic> toJson(PriceAdjustment model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'targetType', 'target_type'): model.targetType,
-      _k(src, 'targetUuid', 'target_uuid'): model.targetUuid,
-      _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
-      _k(src, 'previousValue', 'previous_value'): model.previousValue,
-      _k(src, 'newValue', 'new_value'): model.newValue,
-      _k(src, 'reason', 'reason'): model.reason,
-      _k(src, 'effectiveDate', 'effective_date'): model.effectiveDate,
-      _k(src, 'appliedBy', 'applied_by'): model.appliedBy,
-      _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'isReversed', 'is_reversed'): model.isReversed,
-      _k(src, 'reversedAt', 'reversed_at'): model.reversedAt,
-      _k(src, 'reversedBy', 'reversed_by'): model.reversedBy,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'targetType'): model.targetType,
+      _k(src, 'targetUuid'): model.targetUuid,
+      _k(src, 'adjustmentType'): model.adjustmentType,
+      _k(src, 'previousValue'): model.previousValue,
+      _k(src, 'newValue'): model.newValue,
+      _k(src, 'reason'): model.reason,
+      _k(src, 'effectiveDate'): model.effectiveDate,
+      _k(src, 'appliedBy'): model.appliedBy,
+      _k(src, 'hotelDayKey'): model.hotelDayKey,
+      _k(src, 'isReversed'): model.isReversed,
+      _k(src, 'reversedAt'): model.reversedAt,
+      _k(src, 'reversedBy'): model.reversedBy,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -205,8 +205,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

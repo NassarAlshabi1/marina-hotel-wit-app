@@ -182,36 +182,36 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   @override
   Map<String, dynamic> toJson(Debt model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
-      _k(src, 'guestName', 'guest_name'): model.guestName,
-      _k(src, 'checkinDate', 'checkin_date'): model.checkinDate,
-      _k(src, 'checkoutDate', 'checkout_date'): model.checkoutDate,
-      _k(src, 'dateRecorded', 'date_recorded'): model.dateRecorded,
-      _k(src, 'debtReason', 'debt_reason'): model.debtReason,
-      _k(src, 'totalAmount', 'total_amount'): model.totalAmount,
-      _k(src, 'paidAmount', 'paid_amount'): model.paidAmount,
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount,
-      _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
-      _k(src, 'isSettled', 'is_settled'): model.isSettled,
-      _k(src, 'pledge', 'pledge'): model.pledge,
-      _k(src, 'pledgeType', 'pledge_type'): model.pledgeType,
-      _k(src, 'note', 'note'): model.note,
-      _k(src, 'debtUuid', 'debt_uuid'): model.debtUuid,
-      _k(src, 'hotelDayOpened', 'hotel_day_opened'): model.hotelDayOpened,
-      _k(src, 'hotelDayClosed', 'hotel_day_closed'): model.hotelDayClosed,
-      _k(src, 'isFromAutoFix', 'is_from_auto_fix'): model.isFromAutoFix,
-      _k(src, 'settlementConfirmed', 'settlement_confirmed'):
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'bookingLocalId'): model.bookingLocalId,
+      _k(src, 'guestName'): model.guestName,
+      _k(src, 'checkinDate'): model.checkinDate,
+      _k(src, 'checkoutDate'): model.checkoutDate,
+      _k(src, 'dateRecorded'): model.dateRecorded,
+      _k(src, 'debtReason'): model.debtReason,
+      _k(src, 'totalAmount'): model.totalAmount,
+      _k(src, 'paidAmount'): model.paidAmount,
+      _k(src, 'remainingAmount'): model.remainingAmount,
+      _k(src, 'paymentDate'): model.paymentDate,
+      _k(src, 'isSettled'): model.isSettled,
+      _k(src, 'pledge'): model.pledge,
+      _k(src, 'pledgeType'): model.pledgeType,
+      _k(src, 'note'): model.note,
+      _k(src, 'debtUuid'): model.debtUuid,
+      _k(src, 'hotelDayOpened'): model.hotelDayOpened,
+      _k(src, 'hotelDayClosed'): model.hotelDayClosed,
+      _k(src, 'isFromAutoFix'): model.isFromAutoFix,
+      _k(src, 'settlementConfirmed'):
           model.settlementConfirmed,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -323,8 +323,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

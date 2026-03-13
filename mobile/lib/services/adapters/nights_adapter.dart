@@ -158,29 +158,29 @@ class NightsAdapter
   @override
   Map<String, dynamic> toJson(BookingNight model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
-      _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'nightStart', 'night_start'): model.nightStart,
-      _k(src, 'nightEnd', 'night_end'): model.nightEnd,
-      _k(src, 'nightlyRate', 'nightly_rate'): model.nightlyRate,
-      _k(src, 'sequence', 'sequence'): model.sequence,
-      _k(src, 'isProcessedByAutoFix', 'is_processed_by_auto_fix'):
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'bookingLocalId'): model.bookingLocalId,
+      _k(src, 'hotelDayKey'): model.hotelDayKey,
+      _k(src, 'nightStart'): model.nightStart,
+      _k(src, 'nightEnd'): model.nightEnd,
+      _k(src, 'nightlyRate'): model.nightlyRate,
+      _k(src, 'sequence'): model.sequence,
+      _k(src, 'isProcessedByAutoFix'):
           model.isProcessedByAutoFix,
-      _k(src, 'baseRate', 'base_rate'): model.baseRate,
-      _k(src, 'adjustment', 'adjustment'): model.adjustment,
-      _k(src, 'finalRate', 'final_rate'): model.finalRate,
-      _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'):
+      _k(src, 'baseRate'): model.baseRate,
+      _k(src, 'adjustment'): model.adjustment,
+      _k(src, 'finalRate'): model.finalRate,
+      _k(src, 'appliedAdjustmentUuid'):
           model.appliedAdjustmentUuid,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -291,8 +291,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

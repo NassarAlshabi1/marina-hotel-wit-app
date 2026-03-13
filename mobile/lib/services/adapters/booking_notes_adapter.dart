@@ -113,21 +113,21 @@ class BookingNotesAdapter
   @override
   Map<String, dynamic> toJson(BookingNote model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'bookingId', 'booking_id'): model.bookingId,
-      _k(src, 'noteText', 'note_text'): model.noteText,
-      _k(src, 'alertType', 'alert_type'): model.alertType,
-      _k(src, 'alertUntil', 'alert_until'): model.alertUntil,
-      _k(src, 'isActive', 'is_active'): model.isActive,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'bookingId'): model.bookingId,
+      _k(src, 'noteText'): model.noteText,
+      _k(src, 'alertType'): model.alertType,
+      _k(src, 'alertUntil'): model.alertUntil,
+      _k(src, 'isActive'): model.isActive,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -191,8 +191,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

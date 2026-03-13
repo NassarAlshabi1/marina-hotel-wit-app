@@ -167,22 +167,22 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
   Map<String, dynamic> _payloadFrom(DebtsCompanion comp, {Debt? base}) {
     final m = <String, dynamic>{};
     if (comp.bookingLocalId.present) {
-      m['booking_local_id'] = comp.bookingLocalId.value;
+      m['bookingLocalId'] = comp.bookingLocalId.value;
     }
-    if (comp.guestName.present) m['guest_name'] = comp.guestName.value;
-    if (comp.checkinDate.present) m['checkin_date'] = comp.checkinDate.value;
-    if (comp.checkoutDate.present) m['checkout_date'] = comp.checkoutDate.value;
-    if (comp.dateRecorded.present) m['date_recorded'] = comp.dateRecorded.value;
-    if (comp.debtReason.present) m['debt_reason'] = comp.debtReason.value;
-    if (comp.totalAmount.present) m['total_amount'] = comp.totalAmount.value;
-    if (comp.paidAmount.present) m['paid_amount'] = comp.paidAmount.value;
+    if (comp.guestName.present) m['guestName'] = comp.guestName.value;
+    if (comp.checkinDate.present) m['checkinDate'] = comp.checkinDate.value;
+    if (comp.checkoutDate.present) m['checkoutDate'] = comp.checkoutDate.value;
+    if (comp.dateRecorded.present) m['dateRecorded'] = comp.dateRecorded.value;
+    if (comp.debtReason.present) m['debtReason'] = comp.debtReason.value;
+    if (comp.totalAmount.present) m['totalAmount'] = comp.totalAmount.value;
+    if (comp.paidAmount.present) m['paidAmount'] = comp.paidAmount.value;
     if (comp.remainingAmount.present) {
-      m['remaining_amount'] = comp.remainingAmount.value;
+      m['remainingAmount'] = comp.remainingAmount.value;
     }
-    if (comp.paymentDate.present) m['payment_date'] = comp.paymentDate.value;
-    if (comp.isSettled.present) m['is_settled'] = comp.isSettled.value;
+    if (comp.paymentDate.present) m['paymentDate'] = comp.paymentDate.value;
+    if (comp.isSettled.present) m['isSettled'] = comp.isSettled.value;
     if (comp.pledge.present) m['pledge'] = comp.pledge.value;
-    if (comp.pledgeType.present) m['pledge_type'] = comp.pledgeType.value;
+    if (comp.pledgeType.present) m['pledgeType'] = comp.pledgeType.value;
     if (comp.note.present) m['note'] = comp.note.value;
     return m;
   }

@@ -85,24 +85,24 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
   @override
   Map<String, dynamic> toJson(AuditLog model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'operationType', 'operation_type'): model.operationType,
-      _k(src, 'entityType', 'entity_type'): model.entityType,
-      _k(src, 'entityUuid', 'entity_uuid'): model.entityUuid,
-      _k(src, 'entityId', 'entity_id'): model.entityId,
-      _k(src, 'previousState', 'previous_state'): model.previousState,
-      _k(src, 'newState', 'new_state'): model.newState,
-      _k(src, 'changedFields', 'changed_fields'): model.changedFields,
-      _k(src, 'performedBy', 'performed_by'): model.performedBy,
-      _k(src, 'deviceId', 'device_id'): model.deviceId,
-      _k(src, 'ipAddress', 'ip_address'): model.ipAddress,
-      _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'timestamp', 'timestamp'): model.timestamp,
-      _k(src, 'timestampIso', 'timestamp_iso'): model.timestampIso,
-      _k(src, 'isFinancial', 'is_financial'): model.isFinancial,
-      _k(src, 'amountImpact', 'amount_impact'): model.amountImpact,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'operationType'): model.operationType,
+      _k(src, 'entityType'): model.entityType,
+      _k(src, 'entityUuid'): model.entityUuid,
+      _k(src, 'entityId'): model.entityId,
+      _k(src, 'previousState'): model.previousState,
+      _k(src, 'newState'): model.newState,
+      _k(src, 'changedFields'): model.changedFields,
+      _k(src, 'performedBy'): model.performedBy,
+      _k(src, 'deviceId'): model.deviceId,
+      _k(src, 'ipAddress'): model.ipAddress,
+      _k(src, 'hotelDayKey'): model.hotelDayKey,
+      _k(src, 'timestamp'): model.timestamp,
+      _k(src, 'timestampIso'): model.timestampIso,
+      _k(src, 'isFinancial'): model.isFinancial,
+      _k(src, 'amountImpact'): model.amountImpact,
+      _k(src, 'createdAt'): model.createdAt,
     };
   }
 }
@@ -191,8 +191,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

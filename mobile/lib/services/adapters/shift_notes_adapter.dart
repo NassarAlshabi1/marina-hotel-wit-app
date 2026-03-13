@@ -120,22 +120,22 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       };
     }
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'title', 'title'): model.title,
-      _k(src, 'content', 'content'): model.content,
-      _k(src, 'priority', 'priority'): model.priority,
-      _k(src, 'shiftType', 'shift_type'): model.shiftType,
-      _k(src, 'isRead', 'is_read'): model.isRead,
-      _k(src, 'createdBy', 'created_by'): model.createdBy,
-      _k(src, 'expiresAt', 'expires_at'): model.expiresAt,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'title'): model.title,
+      _k(src, 'content'): model.content,
+      _k(src, 'priority'): model.priority,
+      _k(src, 'shiftType'): model.shiftType,
+      _k(src, 'isRead'): model.isRead,
+      _k(src, 'createdBy'): model.createdBy,
+      _k(src, 'expiresAt'): model.expiresAt,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
     };
   }
 }
@@ -207,8 +207,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

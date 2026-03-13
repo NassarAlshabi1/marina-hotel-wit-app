@@ -129,24 +129,24 @@ class SalaryCyclesAdapter
   @override
   Map<String, dynamic> toJson(SalaryCycle model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'employeeId', 'employee_id'): model.employeeId,
-      _k(src, 'cycleKey', 'cycle_key'): model.cycleKey,
-      _k(src, 'hotelDayStart', 'hotel_day_start'): model.hotelDayStart,
-      _k(src, 'hotelDayEnd', 'hotel_day_end'): model.hotelDayEnd,
-      _k(src, 'expectedAmount', 'expected_amount'): model.expectedAmount,
-      _k(src, 'actualPaid', 'actual_paid'): model.actualPaid,
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount,
-      _k(src, 'status', 'status'): model.status,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'employeeId'): model.employeeId,
+      _k(src, 'cycleKey'): model.cycleKey,
+      _k(src, 'hotelDayStart'): model.hotelDayStart,
+      _k(src, 'hotelDayEnd'): model.hotelDayEnd,
+      _k(src, 'expectedAmount'): model.expectedAmount,
+      _k(src, 'actualPaid'): model.actualPaid,
+      _k(src, 'remainingAmount'): model.remainingAmount,
+      _k(src, 'status'): model.status,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -210,8 +210,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

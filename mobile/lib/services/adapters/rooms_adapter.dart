@@ -121,28 +121,28 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
   @override
   Map<String, dynamic> toJson(Room model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'roomNumber', 'room_number'): model.roomNumber,
-      _k(src, 'type', 'type'): model.type,
-      _k(src, 'price', 'price'): model.price,
-      _k(src, 'status', 'status'): model.status,
-      _k(src, 'imageUrl', 'image_url'): model.imageUrl,
-      _k(src, 'cleaningStatus', 'cleaning_status'): model.cleaningStatus,
-      _k(src, 'lastCleanedHotelDay', 'last_cleaned_hotel_day'):
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'roomNumber'): model.roomNumber,
+      _k(src, 'type'): model.type,
+      _k(src, 'price'): model.price,
+      _k(src, 'status'): model.status,
+      _k(src, 'imageUrl'): model.imageUrl,
+      _k(src, 'cleaningStatus'): model.cleaningStatus,
+      _k(src, 'lastCleanedHotelDay'):
           model.lastCleanedHotelDay,
-      _k(src, 'lastOccupiedHotelDay', 'last_occupied_hotel_day'):
+      _k(src, 'lastOccupiedHotelDay'):
           model.lastOccupiedHotelDay,
-      _k(src, 'requiresMaintenance', 'requires_maintenance'):
+      _k(src, 'requiresMaintenance'):
           model.requiresMaintenance,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -254,8 +254,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

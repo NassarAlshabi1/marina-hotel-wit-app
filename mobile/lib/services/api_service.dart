@@ -178,7 +178,7 @@ class ApiService {
 
   Future<String?> uploadRoomImage(String roomNumber, String filePath) async {
     final form = FormData.fromMap({
-      'room_number': roomNumber,
+      'roomNumber': roomNumber,
       'image': await MultipartFile.fromFile(filePath),
     });
     final res = await _dio.post('/uploads/rooms.php', data: form);

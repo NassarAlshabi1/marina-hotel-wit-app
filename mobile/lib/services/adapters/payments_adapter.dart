@@ -160,34 +160,34 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   @override
   Map<String, dynamic> toJson(Payment model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'serverPaymentId', 'payment_id'): model.serverPaymentId,
-      _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
-      _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
-      _k(src, 'serverBookingId', 'booking_id'): model.serverBookingId,
-      _k(src, 'roomNumber', 'room_number'): model.roomNumber,
-      _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
-      _k(src, 'notes', 'notes'): model.notes,
-      _k(src, 'paymentMethod', 'payment_method'): model.paymentMethod,
-      _k(src, 'revenueType', 'revenue_type'): model.revenueType,
-      _k(src, 'cashTransactionLocalId', 'cash_transaction_local_id'):
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'serverPaymentId'): model.serverPaymentId,
+      _k(src, 'bookingLocalId'): model.bookingLocalId,
+      _k(src, 'bookingUuidCache'): model.bookingUuidCache,
+      _k(src, 'serverBookingId'): model.serverBookingId,
+      _k(src, 'roomNumber'): model.roomNumber,
+      _k(src, 'amount'): model.amount,
+      _k(src, 'paymentDate'): model.paymentDate,
+      _k(src, 'notes'): model.notes,
+      _k(src, 'paymentMethod'): model.paymentMethod,
+      _k(src, 'revenueType'): model.revenueType,
+      _k(src, 'cashTransactionLocalId'):
           model.cashTransactionLocalId,
-      _k(src, 'cashTransactionServerId', 'cash_transaction_id'):
+      _k(src, 'cashTransactionServerId'):
           model.cashTransactionServerId,
-      _k(src, 'referenceNumber', 'reference_number'): model.referenceNumber,
-      _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'isPendingBalance', 'is_pending_balance'): model.isPendingBalance,
-      _k(src, 'linkedDebtUuid', 'linked_debt_uuid'): model.linkedDebtUuid,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'referenceNumber'): model.referenceNumber,
+      _k(src, 'hotelDayKey'): model.hotelDayKey,
+      _k(src, 'isPendingBalance'): model.isPendingBalance,
+      _k(src, 'linkedDebtUuid'): model.linkedDebtUuid,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -300,8 +300,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

@@ -174,7 +174,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           op: 'delete',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'room_number': roomNumber},
+          payload: {'roomNumber': roomNumber},
           clientTs: now,
         );
         SyncGuardian.instance
@@ -186,11 +186,11 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
 
   Map<String, dynamic> _payloadFromRoom(RoomsCompanion comp, {Room? base}) {
     final map = <String, dynamic>{};
-    if (comp.roomNumber.present) map['room_number'] = comp.roomNumber.value;
+    if (comp.roomNumber.present) map['roomNumber'] = comp.roomNumber.value;
     if (comp.type.present) map['type'] = comp.type.value;
     if (comp.price.present) map['price'] = comp.price.value;
     if (comp.status.present) map['status'] = comp.status.value;
-    if (comp.imageUrl.present) map['image_url'] = comp.imageUrl.value;
+    if (comp.imageUrl.present) map['imageUrl'] = comp.imageUrl.value;
     return map;
   }
 

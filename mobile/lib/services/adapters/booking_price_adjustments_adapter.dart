@@ -141,29 +141,29 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
   Map<String, dynamic> toJson(BookingPriceAdjustment model,
       {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'bookingLocalUuid', 'booking_local_uuid'): model.bookingLocalUuid,
-      _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
-      _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
-      _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
-      _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'effectiveHotelDay', 'effective_hotel_day'):
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'bookingLocalUuid'): model.bookingLocalUuid,
+      _k(src, 'bookingLocalId'): model.bookingLocalId,
+      _k(src, 'adjustmentType'): model.adjustmentType,
+      _k(src, 'adjustmentMode'): model.adjustmentMode,
+      _k(src, 'amount'): model.amount,
+      _k(src, 'effectiveHotelDay'):
           model.effectiveHotelDay,
-      _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
-      _k(src, 'isActive', 'is_active'): model.isActive,
-      _k(src, 'reason', 'reason'): model.reason,
-      _k(src, 'appliedBy', 'applied_by'): model.appliedBy,
-      _k(src, 'cancelledAt', 'cancelled_at'): model.cancelledAt,
-      _k(src, 'cancelledBy', 'cancelled_by'): model.cancelledBy,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'endHotelDay'): model.endHotelDay,
+      _k(src, 'isActive'): model.isActive,
+      _k(src, 'reason'): model.reason,
+      _k(src, 'appliedBy'): model.appliedBy,
+      _k(src, 'cancelledAt'): model.cancelledAt,
+      _k(src, 'cancelledBy'): model.cancelledBy,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
+      _k(src, 'vectorClock'): model.vectorClock,
     };
   }
 }
@@ -274,8 +274,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

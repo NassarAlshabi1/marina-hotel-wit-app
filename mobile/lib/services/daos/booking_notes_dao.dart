@@ -135,11 +135,11 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     BookingNote? base,
   }) {
     final m = <String, dynamic>{};
-    if (comp.bookingId.present) m['booking_id'] = comp.bookingId.value;
-    if (comp.noteText.present) m['note_text'] = comp.noteText.value;
-    if (comp.alertType.present) m['alert_type'] = comp.alertType.value;
-    if (comp.alertUntil.present) m['alert_until'] = comp.alertUntil.value;
-    if (comp.isActive.present) m['is_active'] = comp.isActive.value;
+    if (comp.bookingId.present) m['bookingId'] = comp.bookingId.value;
+    if (comp.noteText.present) m['noteText'] = comp.noteText.value;
+    if (comp.alertType.present) m['alertType'] = comp.alertType.value;
+    if (comp.alertUntil.present) m['alertUntil'] = comp.alertUntil.value;
+    if (comp.isActive.present) m['isActive'] = comp.isActive.value;
     return m;
   }
 

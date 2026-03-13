@@ -104,23 +104,23 @@ class CashTransactionsAdapter
   @override
   Map<String, dynamic> toJson(CashTransaction model, {required Source src}) {
     return {
-      _k(src, 'id', 'id'): model.id,
-      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
-      _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'registerId', 'register_id'): model.registerId,
-      _k(src, 'transactionType', 'transaction_type'): model.transactionType,
-      _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'referenceType', 'reference_type'): model.referenceType,
-      _k(src, 'referenceId', 'reference_id'): model.referenceId,
-      _k(src, 'description', 'description'): model.description,
-      _k(src, 'transactionTime', 'transaction_time'): model.transactionTime,
-      _k(src, 'createdBy', 'created_by'): model.createdBy,
-      _k(src, 'createdAt', 'created_at'): model.createdAt,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
-      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
-      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'id'): model.id,
+      _k(src, 'localUuid'): model.localUuid,
+      _k(src, 'serverId'): model.serverId,
+      _k(src, 'registerId'): model.registerId,
+      _k(src, 'transactionType'): model.transactionType,
+      _k(src, 'amount'): model.amount,
+      _k(src, 'referenceType'): model.referenceType,
+      _k(src, 'referenceId'): model.referenceId,
+      _k(src, 'description'): model.description,
+      _k(src, 'transactionTime'): model.transactionTime,
+      _k(src, 'createdBy'): model.createdBy,
+      _k(src, 'createdAt'): model.createdAt,
+      _k(src, 'updatedAt'): model.updatedAt,
+      _k(src, 'deletedAt'): model.deletedAt,
+      _k(src, 'lastModified'): model.lastModified,
+      _k(src, 'version'): model.version,
+      _k(src, 'origin'): model.origin,
     };
   }
 }
@@ -210,8 +210,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel) => camel; // camelCase only
+// removed:
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;
