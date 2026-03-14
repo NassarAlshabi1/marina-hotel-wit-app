@@ -610,7 +610,7 @@ class UnifiedConflictResolver {
         );
       } else {
         final latestLog = await (_database!.select(_database!.syncLog)
-              ..orderBy([(t) => d.OrderingTerm.desc(t.id)])
+              ..orderBy([(t) => OrderingTerm.desc(t.id)])
               ..limit(1))
             .getSingleOrNull();
 
@@ -647,7 +647,7 @@ class UnifiedConflictResolver {
     try {
       final conflicts = await (_database!.select(_database!.syncConflicts)
             ..where((t) => t.resolution.equals(''))
-            ..orderBy([(t) => d.OrderingTerm.desc(t.id)]))
+            ..orderBy([(t) => OrderingTerm.desc(t.id)]))
           .get();
 
       _pendingConflicts.clear();
@@ -699,12 +699,16 @@ class UnifiedConflictResolver {
 
   VectorClock? _parseVectorClock(dynamic data) {
     if (data == null) return null;
-    if (data is Map<String, dynamic>) {
-      return VectorClock.fromJson(data);
-    }
     if (data is String) {
       try {
-        return VectorClock.fromJson(jsonDecode(data));
+        return VectorClock.fromJson(data);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (data is Map<String, dynamic>) {
+      try {
+        return VectorClock.fromJson(jsonEncode(data));
       } catch (_) {
         return null;
       }

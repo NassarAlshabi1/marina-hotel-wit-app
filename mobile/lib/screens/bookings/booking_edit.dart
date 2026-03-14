@@ -448,7 +448,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         if (widget.existing?.actualCheckout != null) ...[
                           const SizedBox(height: 6),
                           TextFormField(
-                            value: widget.existing?.actualCheckout,
+                            initialValue: widget.existing?.actualCheckout,
                             readOnly: true,
                             decoration: const InputDecoration(
                               labelText: 'تاريخ المغادرة الفعلي',

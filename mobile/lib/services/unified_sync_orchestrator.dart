@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
-import 'appwrite_sync_manager.dart';
-import 'appwrite_sync_manager_enhanced.dart';
+import 'appwrite_sync_manager.dart' hide SyncResult;
+import 'appwrite_sync_manager_enhanced.dart' hide SyncResult;
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';

@@ -33,7 +33,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   int _pendingChangesCount = 0;
   int _pendingConflictsCount = 0;
   DateTime? _lastSyncTime;
-  StreamSubscription<UnifiedConflictRecord?>? _conflictSubscription;
+  StreamSubscription<List<UnifiedConflictRecord>>? _conflictSubscription;
 
   @override
   void initState() {

@@ -10,6 +10,7 @@ import '../appwrite_sync_manager.dart' show AppwriteSyncManager, SyncResult;
 import '../google_drive_unified_sync_coordinator.dart';
 import '../google_drive_backup_service.dart';
 import '../google_drive_logger.dart';
+import '../logging/log_models.dart';
 import '../sync_integrity_checker.dart';
 import '../local_db.dart';
 import '../sync_enums.dart';
@@ -78,7 +79,7 @@ class MarinaSyncManager {
 
   // Auto-sync
   Timer? _autoSyncTimer;
-  StreamSubscription<ConnectivityResult>? _connectivitySub;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   // ==========================================================================
   // Public API - Initialization
@@ -100,7 +101,7 @@ class MarinaSyncManager {
     _config = config ?? const SyncConfig();
 
     // Initialize Appwrite delta sync (lightweight, primary)
-    _deltaSync = AppwriteDeltaSync(database);
+    _deltaSync = AppwriteDeltaSync.instance;
 
     // Initialize Google Drive coordinator
     _driveCoordinator = GoogleDriveUnifiedSyncCoordinator.instance;
@@ -109,7 +110,11 @@ class MarinaSyncManager {
     // Setup connectivity monitoring
     _connectivitySub = Connectivity()
         .onConnectivityChanged
-        .listen(_onConnectivityChanged);
+        .listen((results) {
+          if (results.isNotEmpty) {
+            _onConnectivityChanged(results.first);
+          }
+        });
 
     // Setup auto-sync if enabled
     if (enableAutoSync && _config.autoSyncEnabled) {
@@ -160,7 +165,7 @@ class MarinaSyncManager {
       // Step 2: Sync with Google Drive (if enabled)
       if (driveEnabled) {
         _emitProgress('مزامنة مع Google Drive...', 0.6);
-        final driveResult = await _syncGoogleDrive(push: true, pull: true);
+        final driveResult = await _syncGoogleDrive(push: true, pull: true, reason: 'manual');
         results.add(ProviderResult('google_drive', driveResult));
       }
 
@@ -439,14 +444,25 @@ class MarinaSyncManager {
     }
 
     try {
-      final result = await deltaSync.sync(push: push, pull: pull);
-
-      return SyncResult(
-        isSuccess: result.success,
-        recordsPushed: result.pushedCount,
-        recordsPulled: result.pulledCount,
-        message: result.message,
-      );
+      // Use pushDeltaChanges for push operations
+      if (push) {
+        final pushResult = await deltaSync.pushDeltaChanges();
+        return SyncResult(
+          isSuccess: pushResult.success,
+          recordsPushed: pushResult.pushedCount,
+          message: pushResult.message,
+        );
+      }
+      // Use pullDeltaChanges for pull operations
+      if (pull) {
+        final pullResult = await deltaSync.pullDeltaChanges();
+        return SyncResult(
+          isSuccess: pullResult.success,
+          recordsPulled: pullResult.pulledCount,
+          message: pullResult.message,
+        );
+      }
+      return SyncResult.success(message: 'No sync performed');
     } catch (e) {
       return SyncResult.failure('Appwrite sync error: $e');
     }

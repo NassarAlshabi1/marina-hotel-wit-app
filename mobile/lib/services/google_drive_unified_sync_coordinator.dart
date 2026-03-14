@@ -19,7 +19,7 @@ import 'unified_conflict_resolver.dart';
 
 enum SyncTrigger { manual, appForeground, localChange, periodic, scheduled }
 
-enum SyncMode { deltaOnly, fullBackup, smart }
+enum SyncMode { deltaOnly, fullBackup, smart, pushOnly }
 
 enum SyncPhase {
   idle,
@@ -165,6 +165,10 @@ class GoogleDriveUnifiedSyncCoordinator {
     DebugLogs.add('UnifiedSyncCoordinator', message);
     debugPrint('[UnifiedSyncCoordinator] $message');
     _logger?.log(message, level: level, tag: 'SYNC_COORD');
+  }
+
+  void _setPhase(SyncPhase phase) {
+    _currentPhase = phase;
   }
 
   Future<void> initialize({

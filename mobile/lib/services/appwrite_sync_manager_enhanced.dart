@@ -58,7 +58,7 @@ class SyncResult {
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
-  bool get hasUnresolvedConflicts => conflictDetails.any((c) => c.resolution == null);
+  bool get hasUnresolvedConflicts => conflictDetails.any((c) => c.lastError.isNotEmpty);
 }
 
 /// مدير المزامنة الثنائية المحسن مع نظام التعارضات المتقدم
@@ -304,7 +304,7 @@ class AppwriteSyncManagerEnhanced {
     final metrics = SyncMetrics.instance;
     metrics.startSync();
 
-    if (!_mutex.acquire()) {
+    if (!await _mutex.acquire()) {
       _logger.info('Sync already in progress', tag: 'SYNC');
       return SyncResult(
         status: SyncStatus.idle,
@@ -1364,8 +1364,8 @@ class AppwriteSyncManagerEnhanced {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     return {
-      'amount': debt.amount,
-      'status': debt.status,
+      'totalAmount': debt.totalAmount,
+      'isSettled': debt.isSettled,
       'guestName': debt.guestName,
       'localUuid': debt.localUuid,
       'createdAt': debt.createdAt,
@@ -1397,25 +1397,28 @@ class AppwriteSyncManagerEnhanced {
     int failed = 0;
 
     // دفع جميع الكيانات
-    final entities = [
-      ('rooms', database.select(database.rooms).get()),
-      ('bookings', database.select(database.bookings).get()),
-      ('employees', database.select(database.employees).get()),
-      ('expenses', database.select(database.expenses).get()),
-      ('payments', database.select(database.payments).get()),
-      ('debts', database.select(database.debts).get()),
-    ];
+    final entities = <String, Future<List<dynamic>>>{
+      'rooms': database.select(database.rooms).get(),
+      'bookings': database.select(database.bookings).get(),
+      'employees': database.select(database.employees).get(),
+      'expenses': database.select(database.expenses).get(),
+      'payments': database.select(database.payments).get(),
+      'debts': database.select(database.debts).get(),
+    };
 
-    for (final (entityName, future) in entities) {
+    for (final entry in entities.entries) {
+      final entityName = entry.key;
       try {
-        final items = await future;
+        final items = await entry.value;
         for (final item in items) {
           try {
+            final localUuid = (item as dynamic).localUuid as String;
+            final payload = (item as dynamic).toJson() as Map<String, dynamic>;
             await outboxDao.merge(
               entity: entityName,
               op: 'create',
-              localUuid: item.localUuid,
-              payload: item.toJson(),
+              localUuid: localUuid,
+              payload: payload,
               clientTs: Time.nowEpoch(),
             );
             pushed++;

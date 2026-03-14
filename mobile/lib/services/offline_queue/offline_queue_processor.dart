@@ -89,7 +89,7 @@ class OfflineQueueProcessor {
       );
 
       if (result.success) {
-        return OfflineQueueResult.success(result.data);
+        return OfflineQueueResult.success();
       } else {
         return OfflineQueueResult.failure(
           result.errorMessage ?? 'فشل في إنشاء السجل',
@@ -127,7 +127,7 @@ class OfflineQueueProcessor {
       );
 
       if (result.success) {
-        return OfflineQueueResult.success(result.data);
+        return OfflineQueueResult.success();
       } else {
         return OfflineQueueResult.failure(
           result.errorMessage ?? 'فشل في تحديث السجل',
@@ -165,7 +165,7 @@ class OfflineQueueProcessor {
       );
 
       if (result.success) {
-        return OfflineQueueResult.success(result.data);
+        return OfflineQueueResult.success();
       } else {
         return OfflineQueueResult.failure(
           result.errorMessage ?? 'فشل في حذف السجل',
@@ -200,18 +200,18 @@ class OfflineQueueProcessor {
         case 'push':
           final result = await _syncService!.pushPending();
           return result.success
-              ? OfflineQueueResult.success(result)
+              ? OfflineQueueResult.success()
               : OfflineQueueResult.failure(result.errorMessage ?? 'فشل في الدفع');
         case 'pull':
           final result = await _syncService!.pull();
           return result.success
-              ? OfflineQueueResult.success(result)
+              ? OfflineQueueResult.success()
               : OfflineQueueResult.failure(result.errorMessage ?? 'فشل في السحب');
         case 'full':
         default:
           final result = await _syncService!.sync();
           return result.success
-              ? OfflineQueueResult.success(result)
+              ? OfflineQueueResult.success()
               : OfflineQueueResult.failure(result.errorMessage ?? 'فشل في المزامنة');
       }
     } catch (e) {
@@ -252,7 +252,7 @@ class OfflineQueueProcessor {
       );
 
       return result.success
-          ? OfflineQueueResult.success(result.data)
+          ? OfflineQueueResult.success()
           : OfflineQueueResult.failure(
               result.errorMessage ?? 'فشل في رفع الملف',
               shouldRetry: result.hasPartialFailure,
@@ -295,7 +295,7 @@ class OfflineQueueProcessor {
       );
 
       return result.success
-          ? OfflineQueueResult.success(result.data)
+          ? OfflineQueueResult.success()
           : OfflineQueueResult.failure(
               result.errorMessage ?? 'فشل في تحميل الملف',
               shouldRetry: result.hasPartialFailure,
@@ -343,13 +343,40 @@ extension SyncServiceFileExtension on SyncService {
     required String operation,
   }) async {
     try {
-      final syncResult = await sync();
-      return syncResult;
+      await runSync();
+      return SyncResult(success: true);
     } catch (e) {
       return SyncResult(
         success: false,
         errorMessage: 'فشل في العملية: $e',
       );
+    }
+  }
+
+  Future<SyncResult> pushPending() async {
+    try {
+      await runSync();
+      return SyncResult(success: true);
+    } catch (e) {
+      return SyncResult(success: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<SyncResult> pull() async {
+    try {
+      await runSync();
+      return SyncResult(success: true);
+    } catch (e) {
+      return SyncResult(success: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<SyncResult> sync() async {
+    try {
+      await runSync();
+      return SyncResult(success: true);
+    } catch (e) {
+      return SyncResult(success: false, errorMessage: e.toString());
     }
   }
 

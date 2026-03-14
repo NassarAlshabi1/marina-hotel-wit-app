@@ -6,6 +6,9 @@ class VectorClock {
 
   factory VectorClock.empty() => VectorClock({});
 
+  /// Create a VectorClock for a specific device
+  factory VectorClock.forDevice(String deviceId) => VectorClock({deviceId: 1});
+
   factory VectorClock.fromJson(String json) {
     if (json.isEmpty) return VectorClock.empty();
     try {
@@ -101,5 +104,43 @@ class MapEquality<K, V> {
       hash ^= entry.value.hashCode;
     }
     return hash;
+  }
+}
+
+/// Manager for VectorClock operations across multiple records
+class VectorClockManager {
+  final String deviceId;
+  final Map<String, VectorClock> _clocks = {};
+
+  VectorClockManager({required this.deviceId});
+
+  /// Get or create a VectorClock for a specific record
+  VectorClock getClock(String recordId) {
+    return _clocks[recordId] ??= VectorClock.forDevice(deviceId);
+  }
+
+  /// Increment the clock for a record
+  VectorClock increment(String recordId) {
+    final clock = getClock(recordId).increment(deviceId);
+    _clocks[recordId] = clock;
+    return clock;
+  }
+
+  /// Merge a remote clock with local clock
+  VectorClock merge(String recordId, VectorClock remoteClock) {
+    final localClock = getClock(recordId);
+    final merged = localClock.merge(remoteClock);
+    _clocks[recordId] = merged;
+    return merged;
+  }
+
+  /// Update clock from remote data
+  void updateFromRemote(String recordId, VectorClock remoteClock) {
+    _clocks[recordId] = remoteClock;
+  }
+
+  /// Clear all clocks
+  void clear() {
+    _clocks.clear();
   }
 }
