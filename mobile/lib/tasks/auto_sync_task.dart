@@ -130,7 +130,7 @@ class AutoSyncTask {
       _kPeriodicWorkName,
       frequency: frequency,
       initialDelay: frequency,
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      existingWorkPolicy: ExistingWorkPolicy.keep,
       constraints: Constraints(networkType: NetworkType.connected),
       inputData: const <String, dynamic>{},
     );

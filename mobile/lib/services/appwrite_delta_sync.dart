@@ -249,33 +249,6 @@ class AppwriteDeltaSync {
     }
   }
 
-  void _updateSyncErrors(List<SyncErrorRecord> newErrors) {
-    for (final error in newErrors) {
-      final index = _syncErrors.indexWhere((e) => e.localUuid == error.localUuid);
-      if (index != -1) {
-        _syncErrors[index] = error;
-      } else {
-        _syncErrors.add(error);
-      }
-    }
-  }
-
-  Future<void> _loadSyncErrors() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('appwrite_sync_errors');
-    if (data != null) {
-      final List decoded = jsonDecode(data);
-      _syncErrors.clear();
-      _syncErrors.addAll(decoded.map((m) => SyncErrorRecord.fromMap(m)));
-    }
-  }
-
-  Future<void> _saveSyncErrors() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = jsonEncode(_syncErrors.map((e) => e.toMap()).toList());
-    await prefs.setString('appwrite_sync_errors', data);
-  }
-
   Future<int> _getLastDeltaPushTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_prefsLastDeltaPushKey) ?? 0;

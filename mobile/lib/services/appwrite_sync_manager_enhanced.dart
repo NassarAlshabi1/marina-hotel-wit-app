@@ -26,6 +26,7 @@ import 'repositories/rooms_repository.dart';
 import 'conflict_resolver.dart';
 import 'conflict_manager.dart';
 import 'vector_clock.dart';
+import '../sync/vector_clock.dart' as sync_vector;
 import 'unified_conflict_resolver.dart';
 
 /// حالة المزامنة
@@ -94,7 +95,7 @@ class AppwriteSyncManagerEnhanced {
   }
 
   late EnhancedConflictResolver _conflictResolver;
-  late VectorClockManager _vectorClockManager;
+  late sync_vector.VectorClockManager _vectorClockManager;
   String? _deviceId;
 
   final _logger = AppwriteLogger();
@@ -177,7 +178,7 @@ class AppwriteSyncManagerEnhanced {
       await _initializeDevice();
 
       // تهيئة Vector Clock Manager
-      _vectorClockManager = VectorClockManager(deviceId: _deviceId ?? 'unknown');
+      _vectorClockManager = sync_vector.VectorClockManager(deviceId: _deviceId ?? 'unknown');
 
       // Fix potential stuck states
       try {

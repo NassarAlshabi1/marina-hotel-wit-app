@@ -1204,7 +1204,7 @@ class GoogleDriveBackupService {
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+        existingWorkPolicy: ExistingWorkPolicy.replace,
         inputData: const <String, dynamic>{},
       );
 

@@ -92,7 +92,7 @@ class BackgroundSyncService {
           requiresBatteryNotLow: requiresBatteryNotLow,
           requiresStorageNotLow: _requiresStorageNotLow,
         ),
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
 
       developer.log(
@@ -167,7 +167,7 @@ class BackgroundSyncService {
           requiresCharging: !settings.syncOnBattery,
           requiresBatteryNotLow: settings.minBatteryPercentage > 20,
         ),
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+        existingWorkPolicy: ExistingWorkPolicy.replace,
       );
 
       developer.log(
