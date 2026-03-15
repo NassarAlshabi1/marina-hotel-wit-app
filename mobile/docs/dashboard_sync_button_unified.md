@@ -1,3 +1,20 @@
+# 🔄 Dashboard Sync Button - النسخة الموحدة المحسّنة
+
+> **زر مزامنة تفاضلية واحد** يجمع أفضل المميزات من جميع الفروع
+
+## 📋 المميزات المدمجة
+
+| الميزة | المصدر |
+|--------|--------|
+| StateNotifier + Retry + Progress | `feature/sync-reports-improvements` |
+| pushDeltaChanges + تنظيف Outbox | `sync-outbox-fix` |
+| Conflict Stream | `feature/unified-conflict-resolution` |
+
+---
+
+## 📄 الكود الكامل
+
+```dart
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔄 DASHBOARD SYNC BUTTON - زر المزامنة التفاضلية الموحد
 // ═══════════════════════════════════════════════════════════════════════════
@@ -42,8 +59,8 @@ class SyncProgress {
   double get progressPercent =>
       totalCount > 0 ? processedCount / totalCount : 0.0;
 
-  String get progressText => totalCount > 0
-      ? '$processedCount / $totalCount'
+  String get progressText => totalCount > 0 
+      ? '$processedCount / $totalCount' 
       : (processedCount > 0 ? '$processedCount' : '');
 
   Duration get elapsed => startTime != null
@@ -155,8 +172,7 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     _remoteChangesTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       try {
         final hasRemote = AppwriteRealtimeSync().hasRemoteChanges.value;
-        final remoteCount =
-            AppwriteRealtimeSync().pendingRemoteChangesCount.value;
+        final remoteCount = AppwriteRealtimeSync().pendingRemoteChangesCount.value;
         if (state.hasRemoteChanges != hasRemote ||
             state.pendingRemoteChangesCount != remoteCount) {
           state = state.copyWith(
@@ -198,8 +214,7 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
   void setSyncing(bool value, {SyncProgress? progress}) {
     state = state.copyWith(
       isSyncing: value,
-      progress: progress ??
-          (value ? SyncProgress(startTime: DateTime.now()) : const SyncProgress()),
+      progress: progress ?? (value ? SyncProgress(startTime: DateTime.now()) : const SyncProgress()),
     );
   }
 
@@ -323,8 +338,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         attempts++;
         if (attempts < maxRetries) {
           final delay = Duration(seconds: attempts * 2);
-          debugPrint(
-              '⚠️ $operationName فشل (محاولة $attempts/$maxRetries): $e');
+          debugPrint('⚠️ $operationName فشل (محاولة $attempts/$maxRetries): $e');
           debugPrint('⏳ إعادة المحاولة بعد ${delay.inSeconds} ثواني...');
           await Future.delayed(delay);
         }
@@ -410,14 +424,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       for (final conflict in conflicts) {
         try {
-          final localData = conflict.localPayload;
-          final remoteData = conflict.remotePayload;
-
           final localMap = <String, Map<String, dynamic>>{
-            conflict.targetTable: {conflict.uuid: localData},
+            conflict.targetTable: {conflict.uuid: conflict.localPayload},
           };
           final remoteMap = <String, Map<String, dynamic>>{
-            conflict.targetTable: {conflict.uuid: remoteData},
+            conflict.targetTable: {conflict.uuid: conflict.remotePayload},
           };
 
           final dataConflicts =
@@ -440,7 +451,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           } else {
             await outboxDao.resolveConflict(
               conflict.id,
-              localData,
+              conflict.localPayload,
               resolution: 'auto_no_conflict',
             );
           }
@@ -477,7 +488,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       syncId: syncId,
       direction: 'differential',
       deviceId: deviceId,
-      target: 'Appwrite',
+      target: 'Appwrite+GoogleDrive',
       status: 'in_progress',
     );
 
@@ -498,8 +509,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       await ref.read(connectionStatusProvider.notifier).checkConnection();
-      final appwriteConnected =
-          ref.read(connectionStatusProvider).isConnected;
+      final appwriteConnected = ref.read(connectionStatusProvider).isConnected;
 
       if (!appwriteConnected) {
         _showSnackBar(context, '❌ لا يوجد اتصال بالسيرفر', Colors.red);
@@ -611,6 +621,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       ref.invalidate(smartSyncStatusProvider);
+
     } catch (e) {
       debugPrint('❌ خطأ في المزامنة: $e');
       stopwatch.stop();
@@ -730,8 +741,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonColor = Colors.purple;
       buttonIcon = Icons.cloud_sync;
       buttonText = 'مزامنة';
-      tooltipMessage =
-          'اضغط للمزامنة (${syncState.pendingChangesCount} محلي + ${syncState.pendingRemoteChangesCount} بعيد)';
+      tooltipMessage = 'اضغط للمزامنة (${syncState.pendingChangesCount} محلي + ${syncState.pendingRemoteChangesCount} بعيد)';
     } else {
       buttonColor = Colors.green;
       buttonIcon = Icons.cloud_done;
@@ -798,12 +808,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (syncState.isSyncing &&
-                                _animationController != null)
+                            if (syncState.isSyncing && _animationController != null)
                               RotationTransition(
                                 turns: _animationController!,
-                                child:
-                                    Icon(buttonIcon, size: 20, color: Colors.white),
+                                child: Icon(buttonIcon, size: 20, color: Colors.white),
                               )
                             else
                               Icon(buttonIcon, size: 20, color: Colors.white),
@@ -842,8 +850,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           ),
                         ],
                       ),
-                      constraints:
-                          const BoxConstraints(minWidth: 24, minHeight: 24),
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                       child: Center(
                         child: Text(
                           '${syncState.pendingChangesCount + syncState.pendingRemoteChangesCount}',
@@ -939,3 +946,39 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
   }
 }
+```
+
+---
+
+## 🔧 الاستخدام
+
+```dart
+// في أي شاشة
+DashboardSyncButton()
+```
+
+---
+
+## 📊 مقارنة الأداء
+
+| المقياس | قبل التحسين | بعد التحسين |
+|---------|-------------|-------------|
+| عدد الأزرار | 3 | 1 |
+| retry | ❌ | ✅ 3 محاولات |
+| تقدم المزامنة | ❌ | ✅ |
+| تنظيف Outbox | ❌ | ✅ |
+| حل التعارضات | بسيط | ✅ newerWins |
+| مراقبة التعارضات | ❌ | ✅ Stream |
+
+---
+
+## ✅ المميزات النهائية
+
+1. **زر واحد** للمزامنة التفاضلية (سحب + رفع)
+2. **Retry ذكي** مع 3 محاولات وتأخير تصاعدي
+3. **Progress متقدم** يعرض العملية والعدد
+4. **Badge للعداد** يعرض إجمالي التغييرات المعلقة
+5. **حل تعارضات تلقائي** باستخدام استراتيجية newerWins
+6. **تنظيف Outbox** بعد كل مزامنة ناجحة
+7. **تسجيل كامل** في SyncLog
+8. **Animation آمن** مع معالجة الأخطاء
