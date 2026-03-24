@@ -568,12 +568,15 @@ class AppwriteDeltaSync {
     'cash_transactions': ['transactionType', 'transactionTime'],
     'booking_price_adjustments': ['bookingUuid', 'bookingLocalUuid', 'effectiveHotelDay'],
     'payments': ['amount', 'paymentDate', 'paymentMethod', 'revenueType', 'sync_version', 'sync_vector_clock'],
+    'debts': ['guestName', 'checkinDate', 'totalAmount', 'paidAmount', 'localUuid', 'createdAt', 'updatedAt', 'lastModified'],
+    'expenses': ['expenseType', 'description', 'amount', 'date', 'localUuid', 'createdAt', 'updatedAt', 'lastModified'],
+    'rooms': ['roomNumber', 'type', 'status', 'price', 'localUuid', 'createdAt', 'updatedAt', 'lastModified'],
   };
 
   /// حقول sync مطلوبة فقط لمجموعات محددة (ليست كل المجموعات)
+  /// ملاحظة: debts لا تحتوي على حقول sync في Appwrite - تمت الإزالة
   static const _syncFieldsPerEntity = {
     'payments': ['sync_version', 'sync_vector_clock'],
-    'debts': ['vector_clock', 'sync_version', 'sync_origin', 'sync_vector_clock'],
   };
 
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload,
@@ -656,6 +659,57 @@ class AppwriteDeltaSync {
                 );
                 return {}; // إرجاع قائمة فارغة لتخطي هذا السجل
               }
+              break;
+            case 'guestName':
+              // اسم الضيف مطلوب للديون
+              sanitized['guestName'] = sanitized['guestName'] ?? 'Unknown Guest';
+              break;
+            case 'checkinDate':
+              // تاريخ تسجيل الدخول مطلوب للديون
+              sanitized['checkinDate'] = sanitized['checkinDate'] ?? 
+                  sanitized['createdAtIso'] ?? DateTime.now().toIso8601String();
+              break;
+            case 'totalAmount':
+              // المبلغ الإجمالي مطلوب - افتراضي 0
+              sanitized['totalAmount'] = sanitized['totalAmount'] ?? 0.0;
+              break;
+            case 'paidAmount':
+              // المبلغ المدفوع مطلوب - افتراضي 0
+              sanitized['paidAmount'] = sanitized['paidAmount'] ?? 0.0;
+              break;
+            case 'localUuid':
+              // المعرف المحلي مطلوب
+              if (sanitized['localUuid'] == null) {
+                _logger.warning(
+                  '⚠️ $collectionEntity: localUuid مفقود، سيتم تخطي هذا السجل',
+                  tag: 'DELTA_SYNC',
+                );
+                return {};
+              }
+              break;
+            case 'expenseType':
+              // نوع المصروف مطلوب
+              sanitized['expenseType'] = sanitized['expenseType'] ?? 'general';
+              break;
+            case 'description':
+              // الوصف مطلوب للمصروفات
+              sanitized['description'] = sanitized['description'] ?? 'No description';
+              break;
+            case 'roomNumber':
+              // رقم الغرفة مطلوب
+              sanitized['roomNumber'] = sanitized['roomNumber'] ?? 'Unknown';
+              break;
+            case 'type':
+              // نوع الغرفة مطلوب
+              sanitized['type'] = sanitized['type'] ?? sanitized['roomType'] ?? 'standard';
+              break;
+            case 'status':
+              // حالة الغرفة مطلوبة
+              sanitized['status'] = sanitized['status'] ?? 'available';
+              break;
+            case 'price':
+              // سعر الغرفة مطلوب - double
+              sanitized['price'] = (sanitized['price'] ?? sanitized['basePrice'] ?? 0.0).toDouble();
               break;
             case 'shiftDate':
               // استخدام createdAtIso كـ shiftDate
