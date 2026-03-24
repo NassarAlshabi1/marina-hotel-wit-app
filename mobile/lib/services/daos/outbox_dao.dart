@@ -218,7 +218,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return (delete(outbox)
           ..where((t) =>
               t.processingStatus.equals('pending') &
-              t.clientTs.isSmallerThan(cutoffEpoch)))
+              t.clientTs.isSmallerThanValue(cutoffEpoch)))
         .go();
   }
 
