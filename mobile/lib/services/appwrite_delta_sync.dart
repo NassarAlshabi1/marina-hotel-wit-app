@@ -567,7 +567,7 @@ class AppwriteDeltaSync {
     'salary_cycles': ['employeeId', 'cycleKey', 'startDate', 'endDate'],
     'cash_transactions': ['transactionType', 'transactionTime'],
     'booking_price_adjustments': ['bookingUuid', 'bookingLocalUuid', 'effectiveHotelDay'],
-    'payments': ['sync_version', 'sync_vector_clock'],
+    'payments': ['amount', 'paymentDate', 'paymentMethod', 'revenueType', 'sync_version', 'sync_vector_clock'],
   };
 
   /// حقول sync مطلوبة فقط لمجموعات محددة (ليست كل المجموعات)
@@ -730,6 +730,33 @@ class AppwriteDeltaSync {
             case 'action':
               // action مطلوب لـ salary_withdrawals - قيمة افتراضية
               sanitized['action'] = sanitized['action'] ?? 'سحب راتب';
+              break;
+            case 'amount':
+              // amount مطلوب - استخدام 0 كقيمة افتراضية
+              sanitized['amount'] = sanitized['amount'] ?? 0;
+              break;
+            case 'paymentMethod':
+              // paymentMethod مطلوب لـ payments
+              sanitized['paymentMethod'] = sanitized['paymentMethod'] ?? 'نقدي';
+              break;
+            case 'revenueType':
+              // revenueType مطلوب لـ payments
+              sanitized['revenueType'] = sanitized['revenueType'] ?? 'room';
+              break;
+            case 'paymentDate':
+              // paymentDate مطلوب لـ payments
+              sanitized['paymentDate'] = sanitized['paymentDate'] ?? 
+                  DateTime.now().toIso8601String();
+              break;
+            case 'sync_version':
+              // sync_version لـ payments/debts
+              sanitized['sync_version'] = sanitized['version'] ?? 
+                  sanitized['sync_version'] ?? 1;
+              break;
+            case 'sync_vector_clock':
+              // sync_vector_clock لـ payments/debts
+              final vc = sanitized['vectorClock'] ?? sanitized['sync_vector_clock'] ?? '{}';
+              sanitized['sync_vector_clock'] = vc is String ? vc : jsonEncode(vc);
               break;
             default:
               // للحقول الأخرى، نستخدم قيمة افتراضية
