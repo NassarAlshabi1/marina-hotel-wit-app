@@ -6,6 +6,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../services/providers.dart';
 import '../../services/daos/outbox_dao.dart';
+import 'sync_error_log_screen.dart';
 
 class AppwriteSyncStatsScreen extends ConsumerWidget {
   const AppwriteSyncStatsScreen({super.key});
@@ -16,6 +17,21 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: 'إحصائيات المزامنة',
+      actions: [
+        // زر سجل الأخطاء
+        IconButton(
+          icon: const Icon(Icons.error_outline),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SyncErrorLogScreen(),
+              ),
+            );
+          },
+          tooltip: 'سجل الأخطاء',
+        ),
+      ],
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(syncStatsProvider);
@@ -79,62 +95,140 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     Map<String, dynamic> stats,
   ) {
     final outboxCount = stats['outboxCount'] ?? 0;
+    final failedCount = stats['failedCount'] ?? 0;
+    final conflictCount = stats['conflictCount'] ?? 0;
+    final hasErrors = failedCount > 0 || conflictCount > 0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Outbox',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$outboxCount عنصر قيد الإرسال',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final manager = ref.read(appwriteSyncManagerProvider);
-                await manager.sync();
-                ref.invalidate(syncStatsProvider);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تمت إعادة المحاولة')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('إعادة محاولة'),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final db = ref.read(databaseProvider);
-                final dao = OutboxDao(db);
-                await dao.resetErrors();
-                await dao.clearStale(attemptsThreshold: 3);
-                ref.invalidate(syncStatsProvider);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Outbox',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$outboxCount عنصر قيد الإرسال',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      if (hasErrors) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (failedCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$failedCount فشل',
+                                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                                ),
+                              ),
+                            if (failedCount > 0 && conflictCount > 0)
+                              const SizedBox(width: 8),
+                            if (conflictCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$conflictCount تعارض',
+                                  style: const TextStyle(fontSize: 12, color: Colors.orange),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // زر عرض الأخطاء (يظهر فقط عند وجود أخطاء)
+                if (hasErrors) ...[
+                  IconButton(
+                    icon: Badge(
+                      label: Text('${failedCount + conflictCount}'),
+                      child: const Icon(Icons.error_outline, color: Colors.red),
                     ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.cleaning_services),
-              label: const Text('تفريغ ذكي'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SyncErrorLogScreen(),
+                        ),
+                      );
+                    },
+                    tooltip: 'عرض الأخطاء',
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final manager = ref.read(appwriteSyncManagerProvider);
+                    await manager.sync();
+                    ref.invalidate(syncStatsProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تمت إعادة المحاولة')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.sync),
+                  label: const Text('مزامنة الآن'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final db = ref.read(databaseProvider);
+                    final dao = OutboxDao(db);
+                    await dao.resetErrors();
+                    await dao.clearStale(attemptsThreshold: 3);
+                    ref.invalidate(syncStatsProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.cleaning_services),
+                  label: const Text('تفريغ ذكي'),
+                ),
+                if (hasErrors)
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SyncErrorLogScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text('سجل الأخطاء'),
+                  ),
+              ],
             ),
           ],
         ),

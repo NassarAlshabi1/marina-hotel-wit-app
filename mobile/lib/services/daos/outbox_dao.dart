@@ -444,6 +444,51 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     }).toList();
   }
 
+  /// ✅ جلب السجلات الفاشلة مع تفاصيل الخطأ
+  Future<List<SyncErrorRecord>> getFailedRecords({int limit = 50}) async {
+    final failed = await (select(outbox)
+          ..where((t) => t.processingStatus.equals('failed'))
+          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)])
+          ..limit(limit))
+        .get();
+
+    return failed.map((entry) {
+      return SyncErrorRecord(
+        id: entry.id,
+        uuid: entry.localUuid,
+        entity: entry.entity,
+        operation: entry.op,
+        error: entry.lastError ?? 'Unknown error',
+        attempts: entry.attempts,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
+        payload: jsonDecode(entry.payload) as Map<String, dynamic>,
+      );
+    }).toList();
+  }
+
+  /// ✅ جلب جميع السجلات ذات الأخطاء (فاشلة + متضاربة)
+  Future<List<SyncErrorRecord>> getAllErrorRecords({int limit = 100}) async {
+    final errors = await (select(outbox)
+          ..where((t) => t.processingStatus.isIn(['failed', 'conflict']))
+          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)])
+          ..limit(limit))
+        .get();
+
+    return errors.map((entry) {
+      return SyncErrorRecord(
+        id: entry.id,
+        uuid: entry.localUuid,
+        entity: entry.entity,
+        operation: entry.op,
+        error: entry.lastError ?? 'Unknown error',
+        attempts: entry.attempts,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
+        payload: jsonDecode(entry.payload) as Map<String, dynamic>,
+        status: entry.processingStatus,
+      );
+    }).toList();
+  }
+
   Future<void> resolveConflict(
     int id,
     Map<String, dynamic> resolvedData, {
@@ -532,4 +577,47 @@ class OutboxStats {
   int get total => pending + processing + completed + failed + conflicts;
   int get needsAttention => failed + conflicts;
   bool get hasPendingWork => pending > 0 || processing > 0;
+}
+
+/// ✅ سجل خطأ المزامنة
+class SyncErrorRecord {
+  SyncErrorRecord({
+    required this.id,
+    required this.uuid,
+    required this.entity,
+    required this.operation,
+    required this.error,
+    required this.attempts,
+    required this.timestamp,
+    required this.payload,
+    this.status = 'failed',
+  });
+
+  final int id;
+  final String uuid;
+  final String entity;
+  final String operation;
+  final String error;
+  final int attempts;
+  final DateTime timestamp;
+  final Map<String, dynamic> payload;
+  final String status;
+
+  /// اختصار للخطأ (أول 100 حرف)
+  String get shortError => error.length > 100 ? '${error.substring(0, 100)}...' : error;
+
+  /// هل هو تعارض
+  bool get isConflict => status == 'conflict';
+
+  /// لون الحالة
+  String get statusLabel {
+    switch (status) {
+      case 'failed':
+        return 'فشل';
+      case 'conflict':
+        return 'تعارض';
+      default:
+        return status;
+    }
+  }
 }

@@ -529,6 +529,7 @@ class AppwriteSyncManager {
   Future<Map<String, dynamic>> getSyncStatistics() async {
     try {
       final outboxCount = await outboxDao.count();
+      final outboxStats = await outboxDao.getStats();
       
       // استخدام SyncLogDao المحلي بدلاً من Appwrite السحابي
       final syncLogDao = SyncLogDao(database);
@@ -558,9 +559,12 @@ class AppwriteSyncManager {
         'successRate': syncStats.successRate,
         'totalRecordsPushed': syncStats.totalRecordsPushed,
         'totalRecordsPulled': syncStats.totalRecordsPulled,
-        'totalConflicts': 0,
+        'totalConflicts': outboxStats.conflicts,
         'lastSyncTime': syncStats.lastSync?.toIso8601String(),
         'outboxCount': outboxCount,
+        'pendingCount': outboxStats.pending,
+        'failedCount': outboxStats.failed,
+        'conflictCount': outboxStats.conflicts,
         'lastErrorMessage': lastFailed?.errorMessage,
         'lastErrorTime': lastFailed?.createdAt.toIso8601String(),
         'timeline': timeline,
@@ -578,6 +582,9 @@ class AppwriteSyncManager {
         'totalConflicts': 0,
         'lastSyncTime': _lastSyncTime?.toIso8601String(),
         'outboxCount': 0,
+        'pendingCount': 0,
+        'failedCount': 0,
+        'conflictCount': 0,
         'lastErrorMessage': null,
         'lastErrorTime': null,
         'timeline': <Map<String, dynamic>>[],
