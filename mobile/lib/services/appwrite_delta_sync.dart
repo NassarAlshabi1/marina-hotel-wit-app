@@ -563,7 +563,7 @@ class AppwriteDeltaSync {
   static const _requiredFieldsPerEntity = {
     'salary_payments': ['employeeId', 'cycleId', 'paymentDateIso', 'paymentDate'],
     'shift_notes': ['shiftDate', 'createdAt'],
-    'salary_withdrawals': ['expenseId', 'amount', 'note', 'date'],
+    'salary_withdrawals': ['employeeId', 'action', 'expenseId', 'amount', 'note', 'date'],
     'salary_cycles': ['employeeId', 'cycleKey', 'startDate', 'endDate'],
     'cash_transactions': ['transactionType', 'transactionTime'],
     'booking_price_adjustments': ['bookingUuid', 'bookingLocalUuid', 'effectiveHotelDay'],
@@ -734,6 +734,10 @@ class AppwriteDeltaSync {
               // date مطلوب - استخدام التاريخ الحالي
               sanitized['date'] = sanitized['date'] ?? 
                   DateTime.now().toIso8601String();
+              break;
+            case 'action':
+              // action مطلوب لـ salary_withdrawals - قيمة افتراضية
+              sanitized['action'] = sanitized['action'] ?? 'سحب راتب';
               break;
             default:
               // للحقول الأخرى، نستخدم قيمة افتراضية
