@@ -1,0 +1,12 @@
+# حماية مجلد النسخ الاحتياطية
+Order Deny,Allow
+Deny from all
+
+# منع الوصول لجميع الملفات
+<Files "*">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+# رسالة خطأ مخصصة
+ErrorDocument 403 "الوصول مرفوض - مجلد محمي"

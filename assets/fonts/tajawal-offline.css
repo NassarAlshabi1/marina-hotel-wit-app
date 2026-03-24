@@ -1,0 +1,74 @@
+/**
+ * خط تجوال محلي للعمل بدون انترنت
+ * يحتوي على خط تجوال مدمج مع CSS fallback للخطوط العربية
+ */
+
+/* خط تجوال - احتياطي من خطوط النظام */
+@font-face {
+  font-family: 'Tajawal-Fallback';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Tahoma'), local('Arial Unicode MS'), local('Arial');
+  unicode-range: U+0600-06FF, U+200C-200E, U+2010-2011, U+204F, U+2E80-2FD5;
+}
+
+@font-face {
+  font-family: 'Tajawal-Fallback';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Tahoma Bold'), local('Arial Unicode MS Bold'), local('Arial Bold');
+  unicode-range: U+0600-06FF, U+200C-200E, U+2010-2011, U+204F, U+2E80-2FD5;
+}
+
+/* تحديد خط تجوال كخط أساسي مع احتياطيات */
+.tajawal, 
+body, 
+html {
+    font-family: 'Tajawal', 'Tajawal-Fallback', 'Cairo', 'Segoe UI', 'Tahoma', 'Arial Unicode MS', 'Arial', sans-serif !important;
+}
+
+/* تحسينات للنصوص العربية */
+.arabic-text, 
+[dir="rtl"], 
+[lang="ar"] {
+    font-family: 'Tajawal', 'Tajawal-Fallback', 'Cairo', 'Segoe UI', 'Tahoma', 'Arial Unicode MS', 'Arial', sans-serif;
+    text-align: right;
+    direction: rtl;
+    line-height: 1.6;
+    font-feature-settings: "liga" 1, "calt" 1;
+}
+
+/* أوزان الخطوط */
+.fw-light { font-weight: 300; }
+.fw-normal { font-weight: 400; }
+.fw-medium { font-weight: 500; }
+.fw-semibold { font-weight: 600; }
+.fw-bold { font-weight: 700; }
+.fw-bolder { font-weight: 800; }
+
+/* تحسينات للعرض */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* تحسينات للطباعة */
+@media print {
+    body, * {
+        font-family: 'Tahoma', 'Arial Unicode MS', 'Arial', sans-serif !important;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+    }
+}
+
+/* تحسينات للشاشات عالية الدقة */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    * {
+        font-smooth: always;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
