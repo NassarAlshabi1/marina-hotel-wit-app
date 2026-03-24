@@ -563,7 +563,7 @@ class AppwriteDeltaSync {
   static const _requiredFieldsPerEntity = {
     'salary_payments': ['employeeId', 'cycleId', 'paymentDateIso', 'paymentDate'],
     'shift_notes': ['shiftDate', 'createdAt'],
-    'salary_withdrawals': ['employeeId', 'action', 'expenseId', 'amount', 'note', 'date'],
+    'salary_withdrawals': ['employeeId', 'action', 'amount', 'date'],
     'salary_cycles': ['employeeId', 'cycleKey', 'startDate', 'endDate'],
     'cash_transactions': ['transactionType', 'transactionTime'],
     'booking_price_adjustments': ['bookingUuid', 'bookingLocalUuid', 'effectiveHotelDay'],
@@ -718,22 +718,14 @@ class AppwriteDeltaSync {
                 sanitized['effectiveHotelDay'] = DateTime.now().toIso8601String().split('T').first;
               }
               break;
-            case 'expenseId':
-              // expenseId لـ salary_withdrawals - يمكن أن يكون 0 إذا لم يكن موجوداً
-              sanitized['expenseId'] = sanitized['expenseId'] ?? 0;
-              break;
             case 'amount':
               // amount مطلوب - استخدام 0 كقيمة افتراضية
               sanitized['amount'] = sanitized['amount'] ?? 0;
               break;
-            case 'note':
-              // note يمكن أن يكون نص فارغ
-              sanitized['note'] = sanitized['note'] ?? '';
-              break;
             case 'date':
               // date مطلوب - استخدام التاريخ الحالي
               sanitized['date'] = sanitized['date'] ?? 
-                  DateTime.now().toIso8601String();
+                  DateTime.now().toIso8601String().split('T').first;
               break;
             case 'action':
               // action مطلوب لـ salary_withdrawals - قيمة افتراضية
