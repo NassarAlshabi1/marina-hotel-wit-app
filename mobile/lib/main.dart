@@ -41,6 +41,8 @@ import 'utils/id.dart';
 
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
+import 'services/sync_orchestrator.dart';
+import 'services/sync_health_monitor.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
@@ -200,6 +202,15 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('ℹ️ المزامنة التلقائية معطلة عند بدء التطبيق');
 
     await SyncQueueService.instance.initialize();
+
+    // ✅ تهيئة SyncOrchestrator و SyncHealthMonitor لشاشات الإحصائيات
+    debugPrint('🎯 [9/10] Initializing SyncOrchestrator...');
+    await SyncOrchestrator.instance.initialize(database);
+    debugPrint('✅ SyncOrchestrator ready');
+
+    debugPrint('🏥 [10/10] Initializing SyncHealthMonitor...');
+    await SyncHealthMonitor.instance.initialize();
+    debugPrint('✅ SyncHealthMonitor ready');
 
     _setupEngineMonitoring(autoSyncEngine);
 
