@@ -48,6 +48,7 @@ import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
+import 'services/appwrite_delta_sycn.dart';
 import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
