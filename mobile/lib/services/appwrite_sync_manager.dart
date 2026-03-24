@@ -14,6 +14,7 @@ import 'appwrite_error_handler.dart';
 import 'appwrite_models.dart';
 import 'appwrite_config.dart';
 import 'appwrite_delta_sync.dart';  // ✅ Field-Level Delta Sync
+import 'appwrite_full_pull.dart';   // ✅ Full Pull Service
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/sync_log_dao.dart';
@@ -2189,16 +2190,25 @@ class AppwriteSyncManager {
 
   /// تحميل جميع البيانات من الخادم مع تعطيل القيود الخارجية مؤقتاً
   Future<void> pullAllRemoteData() async {
-    _logger.info('Pulling all remote data with FK disabled...', tag: 'SYNC');
+    _logger.info('Pulling all remote data...', tag: 'SYNC');
     
-    // ✅ إعادة تعيين timestamp للسحب لجلب جميع البيانات
-    final deltaSync = AppwriteDeltaSync.instance;
-    if (deltaSync.isInitialized) {
-      await deltaSync.resetPullTimestamp();
-      _logger.info('🔄 تم إعادة تعيين timestamp للسحب الشامل', tag: 'SYNC');
+    // ✅ استخدام خدمة السحب الشامل الجديدة
+    final fullPull = AppwriteFullPull();
+    if (!fullPull.isInitialized) {
+      await fullPull.initialize(appwriteService, database);
     }
     
-    await startFullSync();
+    final result = await fullPull.pullAll();
+    
+    if (result.success) {
+      _logger.info('✅ ${result.message}', tag: 'SYNC');
+    } else {
+      _logger.error('❌ ${result.message}', tag: 'SYNC');
+    }
+    
+    // تحديث وقت آخر مزامنة
+    _lastSyncTime = DateTime.now();
+    await _saveSettings();
   }
 
   /// دالة wrapper لتنفيذ المزامنة الكاملة مع تعطيل FOREIGN KEY
