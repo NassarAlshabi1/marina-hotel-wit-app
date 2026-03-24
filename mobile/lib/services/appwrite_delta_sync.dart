@@ -741,6 +741,39 @@ class AppwriteDeltaSync {
       }
     }
     
+    // ✅ التحقق من حقول التخفيض في bookings
+    // إذا كان هناك تخفيض، يجب إرسال الثلاثة حقول معاً
+    if (collectionEntity == 'bookings') {
+      final hasDiscount = sanitized.containsKey('discount') && 
+                       sanitized['discount'] != null && 
+                       (sanitized['discount'] as num) > 0;
+      
+      if (hasDiscount) {
+        // التأكد من وجود discountType
+        if (!sanitized.containsKey('discountType') || 
+            sanitized['discountType'] == null ||
+            (sanitized['discountType'] as String).isEmpty) {
+          sanitized['discountType'] = 'per_night'; // قيمة افتراضية
+          _logger.debug(
+            '📝 أضيف discountType=default للتخفيض',
+            tag: 'DELTA_SYNC',
+          );
+        }
+        
+        // التأكد من وجود discountStartDate
+        if (!sanitized.containsKey('discountStartDate') || 
+            sanitized['discountStartDate'] == null ||
+            (sanitized['discountStartDate'] as String).isEmpty) {
+          // استخدام تاريخ اليوم كقيمة افتراضية
+          sanitized['discountStartDate'] = DateTime.now().toIso8601String().split('T').first;
+          _logger.debug(
+            '📝 أضيف discountStartDate=${sanitized['discountStartDate']} للتخفيض',
+            tag: 'DELTA_SYNC',
+          );
+        }
+      }
+    }
+    
     return sanitized;
   }
 
