@@ -667,7 +667,8 @@ Map<String, dynamic> _preparePayload(Map<String, dynamic> source) {
     if (normalizedKey == 'vectorClock' && value is Map) {
       result[normalizedKey] = jsonEncode(value);
     } else {
-      result[normalizedKey] = _normalizeValue(value);
+      // ✅ تمرير المفتاح لتحديد ما إذا كان حقل timestamp
+      result[normalizedKey] = _normalizeValue(value, key: normalizedKey);
     }
   });
   return result;
@@ -684,9 +685,21 @@ Map<String, dynamic> _computeDiff(Map<String, dynamic> oldData, Map<String, dyna
   return diff;
 }
 
-dynamic _normalizeValue(dynamic value) {
+/// حقول timestamp فقط (يجب تحويلها إلى milliseconds)
+const _timestampFields = {
+  'createdAt', 'updatedAt', 'deletedAt', 'lastModified',
+  'lastNightEpoch', 'syncTimestamp', 'createdAtEpoch', 'lastModifiedEpoch',
+  'lastActive', 'lastSeen', 'timestamp', 'voidedAt', 'reversedAt',
+  'cancelledAt', 'financialFrozenAt',
+};
+
+dynamic _normalizeValue(dynamic value, {String? key}) {
   if (value is int) {
-    return _normalizeTimestamp(value);
+    // فقط تحويل حقول timestamp، وليس كل integer fields
+    if (key != null && _timestampFields.contains(key)) {
+      return _normalizeTimestamp(value);
+    }
+    return value; // إرجاع القيمة كما هي للحقول غير timestamp
   } else if (value is num) {
     return value;
   } else if (value is Map<String, dynamic>) {
@@ -695,9 +708,6 @@ dynamic _normalizeValue(dynamic value) {
     return value.map((item) {
       if (item is Map<String, dynamic>) {
         return _preparePayload(item);
-      }
-      if (item is int) {
-        return _normalizeTimestamp(item);
       }
       return item;
     }).toList();
