@@ -2190,6 +2190,14 @@ class AppwriteSyncManager {
   /// تحميل جميع البيانات من الخادم مع تعطيل القيود الخارجية مؤقتاً
   Future<void> pullAllRemoteData() async {
     _logger.info('Pulling all remote data with FK disabled...', tag: 'SYNC');
+    
+    // ✅ إعادة تعيين timestamp للسحب لجلب جميع البيانات
+    final deltaSync = AppwriteDeltaSync.instance;
+    if (deltaSync.isInitialized) {
+      await deltaSync.resetPullTimestamp();
+      _logger.info('🔄 تم إعادة تعيين timestamp للسحب الشامل', tag: 'SYNC');
+    }
+    
     await startFullSync();
   }
 

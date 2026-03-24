@@ -65,6 +65,27 @@ class AppwriteDeltaSync {
   /// الحد الأقصى للسجلات في PULL الواحد (0 = بدون حد)
   static const int _maxPullRecords = 500;
 
+  /// ✅ حقل التimestamp المستخدم للسحب حسب الجدول
+  /// بعض الجداول تحتوي على syncTimestamp، والبعض الآخر يستخدم lastModified
+  static const _timestampFieldPerEntity = {
+    // الجداول التي تحتوي على syncTimestamp
+    'employees': 'syncTimestamp',
+    // باقي الجداول تستخدم lastModified
+    'rooms': 'lastModified',
+    'bookings': 'lastModified',
+    'payments': 'lastModified',
+    'expenses': 'lastModified',
+    'debts': 'lastModified',
+    'booking_notes': 'lastModified',
+    'booking_nights': 'lastModified',
+    'cash_transactions': 'lastModified',
+    'salary_cycles': 'lastModified',
+    'salary_payments': 'lastModified',
+    'salary_withdrawals': 'lastModified',
+    'shift_notes': 'lastModified',
+    'booking_price_adjustments': 'lastModified',
+  };
+
   Future<void> initialize(
       AppwriteService appwriteService, AppDatabase db) async {
     _appwriteService = appwriteService;
@@ -262,11 +283,17 @@ class AppwriteDeltaSync {
 
       final lastPullEpoch = await _getLastDeltaPullTimestamp();
       
+      // ✅ إذا كان أول سحب (lastPullEpoch == 0)، نجلب جميع السجلات
+      // وليس آخر 24 ساعة فقط
       final sinceEpoch = lastPullEpoch > 0 
           ? lastPullEpoch 
-          : Time.nowEpoch() - (24 * 60 * 60);
+          : 0; // جلب الكل من البداية
 
-      _logger.info('⏱️ سحب التغييرات منذ: $sinceEpoch (epoch)', tag: 'DELTA_SYNC');
+      final isFirstPull = lastPullEpoch == 0;
+      _logger.info(
+        '⏱️ سحب التغييرات منذ: $sinceEpoch (epoch) ${isFirstPull ? "- أول سحب (جلب الكل)" : ""}',
+        tag: 'DELTA_SYNC',
+      );
 
       int totalPulled = 0;
       final List<String> failedEntities = [];
@@ -399,6 +426,15 @@ class AppwriteDeltaSync {
       },
     );
 
+    // ✅ تحديد حقل التimestamp للسحب حسب الجدول
+    // بعض الجداول لا تحتوي على syncTimestamp، نستخدم lastModified بدلاً منها
+    final timestampField = _timestampFieldPerEntity[entity.name] ?? 'lastModified';
+    
+    _logger.info(
+      '📥 سحب ${entity.name} باستخدام $timestampField > $sinceEpoch...',
+      tag: 'DELTA_SYNC',
+    );
+
     // ✅ جلب السجلات على دفعات
     do {
       totalBatches++;
@@ -406,8 +442,8 @@ class AppwriteDeltaSync {
 
       try {
         final queries = [
-          Query.greaterThan('syncTimestamp', sinceEpoch),
-          Query.orderDesc('syncTimestamp'),
+          Query.greaterThan(timestampField, sinceEpoch),
+          Query.orderDesc(timestampField),
           Query.limit(_pullBatchSize),
           Query.offset(offset),
         ];
@@ -439,7 +475,8 @@ class AppwriteDeltaSync {
             
             if (localData != null) {
               final localTs = localData['lastModified'] ?? localData['updated_at'] ?? 0;
-              final remoteTs = remoteData['syncTimestamp'] ?? remoteData['updated_at'] ?? 0;
+              // ✅ استخدام الحقل المناسب حسب الجدول
+              final remoteTs = remoteData[timestampField] ?? remoteData['lastModified'] ?? remoteData['updated_at'] ?? 0;
               
               if (localTs > 0 && remoteTs > 0 && localTs > remoteTs) {
                 final resolution = conflictResolver.resolve(ConflictContext(
@@ -943,6 +980,13 @@ class AppwriteDeltaSync {
   Future<void> _updateLastDeltaPullTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsLastDeltaPullKey, Time.nowEpoch());
+  }
+
+  /// ✅ إعادة تعيين timestamp للسحب - يُستخدم قبل السحب الشامل
+  Future<void> resetPullTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsLastDeltaPullKey);
+    _logger.info('🔄 تم إعادة تعيين timestamp للسحب', tag: 'DELTA_SYNC');
   }
 
   Future<void> _persistSuccessfulChanges(DeltaSyncComputation computation,
