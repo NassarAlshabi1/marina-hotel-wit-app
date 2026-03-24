@@ -33,11 +33,11 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   ref,
 ) {
-  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final appwriteService = ref.watch(appwriteServiceProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
-  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
+  orch.initialize(appwriteService: appwriteService, smart: smart, database: db);
   return orch;
 });
 
