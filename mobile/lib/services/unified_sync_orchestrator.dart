@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
-import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
+import 'appwrite_delta_sync.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
@@ -61,17 +61,23 @@ class UnifiedSyncState {
   }
 }
 
+/// ✅ موحد المزامنة - يستخدم Field-Level Delta Sync فقط
+/// 
+/// تم توحيد جميع عمليات المزامنة مع Appwrite لاستخدام
+/// AppwriteDeltaSync الذي يرسل الحقول المتغيرة فقط (Field-Level)
 class UnifiedSyncOrchestrator {
   UnifiedSyncOrchestrator._();
 
   static final UnifiedSyncOrchestrator instance = UnifiedSyncOrchestrator._();
 
-  AppwriteSyncManager? _appwrite;
+  /// ✅ استخدام AppwriteDeltaSync بدلاً من AppwriteSyncManager
+  AppwriteDeltaSync get _deltaSync => AppwriteDeltaSync.instance;
+  
   GoogleDriveUnifiedSyncCoordinator? _driveCoordinator;
   SmartSyncManager? _smart;
   AppDatabase? _database;
+  AppwriteService? _appwriteService;
 
-  StreamSubscription? _appwriteSub;
   StreamSubscription<SyncResult>? _driveSub;
   Timer? _debounceTimer;
 
@@ -89,21 +95,20 @@ class UnifiedSyncOrchestrator {
   );
 
   Future<void> initialize({
-    AppwriteSyncManager? appwrite,
     GoogleDriveUnifiedSyncCoordinator? driveCoordinator,
     SmartSyncManager? smart,
     AppDatabase? database,
+    AppwriteService? appwriteService,
   }) async {
-    if (appwrite != null) {
-      _appwrite = appwrite;
-      await _appwrite!.initialize();
-    }
     if (driveCoordinator != null) {
       _driveCoordinator = driveCoordinator;
     }
     _smart = smart ?? _smart ?? SmartSyncManager.instance;
     if (database != null) {
       _database = database;
+    }
+    if (appwriteService != null) {
+      _appwriteService = appwriteService;
     }
     _driveCoordinator ??= GoogleDriveUnifiedSyncCoordinator.instance;
 
@@ -116,51 +121,7 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _attachListeners() async {
-    await _appwriteSub?.cancel();
     await _driveSub?.cancel();
-
-    if (_appwrite != null) {
-      _appwriteSub = _appwrite!.syncStatusStream.listen((status) async {
-        switch (status) {
-          case SyncStatus.syncing:
-            _emit(
-              _state.copyWith(
-                phase: 'pushing',
-                message: 'مزامنة الدلتا مع Appwrite',
-                timestamp: DateTime.now(),
-              ),
-            );
-          case SyncStatus.success:
-            _emit(
-              _state.copyWith(
-                phase: 'pulling',
-                message: 'سحب التغييرات وإنهاء الدمج',
-                timestamp: DateTime.now(),
-                lastPushAt: DateTime.now(),
-              ),
-            );
-            await _snapshotIfNeeded();
-          case SyncStatus.failed:
-            _emit(
-              _state.copyWith(
-                phase: 'error',
-                message: 'فشل مزامنة Appwrite',
-                timestamp: DateTime.now(),
-                lastError: 'Appwrite sync failed',
-              ),
-            );
-          case SyncStatus.idle:
-          case SyncStatus.partial:
-            _emit(
-              _state.copyWith(
-                phase: 'idle',
-                message: 'جاهز',
-                timestamp: DateTime.now(),
-              ),
-            );
-        }
-      });
-    }
 
     if (_driveCoordinator != null) {
       _driveSub = _driveCoordinator!.syncResults.listen((result) {
@@ -196,7 +157,6 @@ class UnifiedSyncOrchestrator {
 
   Future<void> dispose() async {
     _debounceTimer?.cancel();
-    await _appwriteSub?.cancel();
     await _driveSub?.cancel();
     await _stateController.close();
     _initialized = false;
@@ -205,14 +165,14 @@ class UnifiedSyncOrchestrator {
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(seconds: 10), () async {
-      // رفع تلقائي إلى Appwrite فقط بعد كل تغيير
+      // ✅ رفع تلقائي باستخدام Field-Level Delta Sync
       await _autoSyncToAppwrite(
         reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
       );
     });
   }
 
-  /// رفع تلقائي إلى Appwrite فقط (بدون Google Drive)
+  /// ✅ رفع تلقائي إلى Appwrite باستخدام Field-Level Delta Sync
   Future<bool> _autoSyncToAppwrite({String reason = 'auto'}) async {
     if (_syncing) {
       return false;
@@ -228,12 +188,13 @@ class UnifiedSyncOrchestrator {
       }
 
       _syncing = true;
-      debugPrint('🔄 رفع تلقائي إلى Appwrite: $reason');
+      debugPrint('🔄 رفع تلقائي إلى Appwrite (Field-Level): $reason');
 
+      // ✅ استخدام AppwriteDeltaSync للرفع التلقائي
       final success = await _syncAppwrite(push: true, pull: false);
 
       if (success) {
-        debugPrint('✅ تم الرفع التلقائي إلى Appwrite');
+        debugPrint('✅ تم الرفع التلقائي إلى Appwrite (Field-Level)');
       } else {
         debugPrint('❌ فشل الرفع التلقائي إلى Appwrite');
       }
@@ -262,7 +223,7 @@ class UnifiedSyncOrchestrator {
     _emit(
       _state.copyWith(
         phase: push ? 'pushing' : 'pulling',
-        message: 'تشغيل المزامنة الموحدة',
+        message: 'تشغيل المزامنة الموحدة (Field-Level)',
         timestamp: DateTime.now(),
       ),
     );
@@ -296,7 +257,7 @@ class UnifiedSyncOrchestrator {
       _emit(
         _state.copyWith(
           phase: success ? 'completing' : 'error',
-          message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
+          message: success ? 'اكتملت الدورة (Field-Level)' : 'فشل في مزامنة واحدة أو أكثر',
           timestamp: DateTime.now(),
         ),
       );
@@ -383,7 +344,6 @@ class UnifiedSyncOrchestrator {
       db.select(db.payments).get(),
       db.select(db.debts).get(),
       db.select(db.bookingNights).get(),
-      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
       db.select(db.shiftNotes).get(),
     ]);
 
@@ -397,43 +357,46 @@ class UnifiedSyncOrchestrator {
       'payments': (results[6] as List).map((e) => e.toJson()).toList(),
       'debts': (results[7] as List).map((e) => e.toJson()).toList(),
       'booking_nights': (results[8] as List).map((e) => e.toJson()).toList(),
-      // ❌ hotel_day_ledger - محلي فقط
       'shift_notes': (results[9] as List).map((e) => e.toJson()).toList(),
     };
     return models.SyncChecksum.compute({'tables': snapshot});
   }
 
+  /// ✅ مزامنة Appwrite باستخدام Field-Level Delta Sync
+  /// 
+  /// هذه الدالة تستخدم AppwriteDeltaSync الذي:
+  /// - يحسب الفروقات على مستوى الحقل
+  /// - يرسل الحقول المتغيرة فقط (NOT full document)
+  /// - يستخدم updateDocument(data: changedFields)
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {
-    final manager = await _ensureAppwriteManager();
-    if (manager == null) {
-      return false;
+    // تهيئة AppwriteDeltaSync إذا لم يكن مهيأً
+    if (!_deltaSync.isInitialized) {
+      if (_database == null) {
+        _database = DatabaseManager.instance;
+      }
+      if (_appwriteService == null) {
+        _appwriteService = AppwriteService();
+      }
+      await _deltaSync.initialize(_appwriteService!, _database!);
     }
 
+    // ✅ استخدام Field-Level Delta Sync
     if (push && pull) {
-      final result = await manager.sync(push: true, pull: true);
-      return result.isSuccess;
+      final result = await _deltaSync.fullSync();
+      return result.success;
     }
 
-    var success = true;
     if (push) {
-      success = await manager.pushLocalChanges() && success;
+      final result = await _deltaSync.pushDeltaChanges();
+      return result.success;
     }
+
     if (pull) {
-      success = await manager.pullRemoteChanges() && success;
+      final result = await _deltaSync.pullDeltaChanges();
+      return result.success;
     }
 
-    return success;
-  }
-
-  Future<AppwriteSyncManager?> _ensureAppwriteManager() async {
-    if (_appwrite != null) return _appwrite;
-    final db = _database ?? DatabaseManager.instance;
-    _database ??= db;
-    final service = AppwriteService();
-    final manager = AppwriteSyncManager(appwriteService: service, database: db);
-    await manager.initialize();
-    _appwrite = manager;
-    return manager;
+    return true;
   }
 
   Future<bool> _syncGoogleDrive({

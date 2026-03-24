@@ -13,6 +13,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_models.dart';
 import 'appwrite_config.dart';
+import 'appwrite_delta_sync.dart';  // ✅ Field-Level Delta Sync
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/sync_log_dao.dart';
@@ -397,11 +398,10 @@ class AppwriteSyncManager {
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:
+  /// ✅ تستخدم Field-Level Delta Sync
   /// - تتحقق من الاتصال بالشبكة
-  /// - تنشئ سجل في sync_logs (start)
-  /// - Push: تفرّغ outbox إلى Appwrite
-  /// - Pull: تسحب collections (rooms → bookings → employees → expenses → payments → debts)
-  /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
+  /// - Push: تستخدم AppwriteDeltaSync لإرسال الحقول المتغيرة فقط
+  /// - Pull: تسحب التحديثات من Appwrite وتدمج محلياً
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
@@ -430,24 +430,14 @@ class AppwriteSyncManager {
     _syncController.add(_currentStatus);
 
     final startTime = DateTime.now();
-
-    final metrics = SyncMetrics.instance;
-    metrics.startSync();
-
-    final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    final int conflicts = 0;
+    int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
-    late String syncLogId;
-    late String syncLogLocalUuid;
-    int syncLogVersion = 1;
-    bool hasSyncLog = false;
-    int? syncLogCreatedEpoch;
 
     try {
-      _logger.info('Starting sync...', tag: 'SYNC');
+      _logger.info('Starting Field-Level Delta Sync...', tag: 'SYNC');
 
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
@@ -455,215 +445,52 @@ class AppwriteSyncManager {
         throw Exception('No internet connection');
       }
 
-      // إنشاء سجل مزامنة
-      syncLogLocalUuid = IdGen.uuid();
-      syncLogCreatedEpoch = Time.nowEpoch();
-
-      final syncLog = await appwriteService.createSyncLog({
-        'deviceId': _currentDeviceId ?? 'unknown',
-        'syncType': push && pull
-            ? 'full'
-            : push
-            ? 'push'
-            : pull
-            ? 'pull'
-            : 'noop',
-        'startTime': startTime.toIso8601String(),
-        'status': SyncLogStatus.inProgress.value,
-        'action': 'sync_start',
-        'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
-        'timestamp': syncLogCreatedEpoch,
-        'localUuid': syncLogLocalUuid,
-        'createdAt': syncLogCreatedEpoch,
-        'updatedAt': syncLogCreatedEpoch,
-        'lastModified': syncLogCreatedEpoch,
-        'version': syncLogVersion,
-        'origin': 'mobile',
-      });
-      syncLogId = syncLog.$id;
-      hasSyncLog = true;
-
-      if (push) {
-        recordsPushed += await _timePhase(
-          'pushAllEntities',
-          _pushAllEntities,
-          phaseMs,
-        );
+      // ✅ تهيئة AppwriteDeltaSync إذا لم يكن مهيأً
+      final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        await deltaSync.initialize(appwriteService, database);
       }
 
-      if (pull) {
-        recordsPulled += await _timePhase('syncRooms', () async {
-          final rooms = await appwriteService.listRooms(useCache: false);
-          final roomsSynced = await _syncRooms(rooms);
-          _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
-          return roomsSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncBookings', () async {
-          final bookings = await appwriteService.listBookings(useCache: false);
-          final bookingsSynced = await _syncBookings(bookings);
-          _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
-          return bookingsSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncEmployees', () async {
-          final employees = await appwriteService.listEmployees(
-            useCache: false,
-          );
-          final employeesSynced = await _syncEmployees(employees);
-          _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
-          return employeesSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncExpenses', () async {
-          final expenses = await appwriteService.listExpenses(useCache: false);
-          final expensesSynced = await _syncExpenses(expenses);
-          _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
-          return expensesSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncPayments', () async {
-          final payments = await appwriteService.listPayments(useCache: false);
-          final paymentsSynced = await _syncPayments(payments);
-          _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
-          return paymentsSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncDebts', () async {
-          final debts = await appwriteService.listDebts(useCache: false);
-          final debtsSynced = await _syncDebts(debts);
-          _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
-          return debtsSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
-          final adjustments = await appwriteService.listDocuments(
-            collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-          );
-          final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
-          _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
-          return adjustmentsSynced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncBookingNights', () async {
-          final bookingNights = await appwriteService.listBookingNights(useCache: false);
-          final synced = await _syncBookingNights(bookingNights);
-          _logger.debug('Synced $synced booking nights', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncBookingNotes', () async {
-          final bookingNotes = await appwriteService.listBookingNotes(useCache: false);
-          final synced = await _syncBookingNotes(bookingNotes);
-          _logger.debug('Synced $synced booking notes', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncCashTransactions', () async {
-          final cashTransactions = await appwriteService.listCashTransactions(useCache: false);
-          final synced = await _syncCashTransactions(cashTransactions);
-          _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncShiftNotes', () async {
-          final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
-          final synced = await _syncShiftNotes(shiftNotes);
-          _logger.debug('Synced $synced shift notes', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncSalaryCycles', () async {
-          final salaryCycles = await appwriteService.listSalaryCycles(useCache: false);
-          final synced = await _syncSalaryCycles(salaryCycles);
-          _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
-
-        recordsPulled += await _timePhase('syncSalaryPayments', () async {
-          final salaryPayments = await appwriteService.listSalaryPayments(useCache: false);
-          final synced = await _syncSalaryPayments(salaryPayments);
-          _logger.debug('Synced $synced salary payments', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+      // ✅ تنفيذ المزامنة باستخدام Field-Level Delta Sync
+      if (push && pull) {
+        final result = await deltaSync.fullSync();
+        recordsPushed = result.pushedCount;
+        recordsPulled = result.pulledCount;
+        conflicts = result.conflictCount;
+        if (!result.success) {
+          errorMessage = result.message;
+          finalStatus = SyncStatus.failed;
+        }
+      } else if (push) {
+        final result = await deltaSync.pushDeltaChanges();
+        recordsPushed = result.pushedCount;
+        conflicts = result.conflictCount;
+        if (!result.success) {
+          errorMessage = result.message;
+          finalStatus = SyncStatus.failed;
+        }
+      } else if (pull) {
+        final result = await deltaSync.pullDeltaChanges();
+        recordsPulled = result.pulledCount;
+        if (!result.success) {
+          errorMessage = result.message;
+          finalStatus = SyncStatus.failed;
+        }
       }
 
-      // تحديث سجل المزامنة
-      final endTime = DateTime.now();
-      final endEpoch = Time.nowEpoch();
-      syncLogVersion += 1;
-
-      if (hasSyncLog) {
-        await appwriteService.upsertDocument(
-          collectionId: AppwriteConfig.syncLogsCollectionId,
-          documentId: syncLogId,
-          data: {
-            'endTime': endTime.toIso8601String(),
-            'status': SyncLogStatus.completed.value,
-            'action': 'sync_complete',
-            'details':
-                '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
-            'updatedAt': endEpoch,
-            'lastModified': endEpoch,
-            'timestamp': endEpoch,
-            'version': syncLogVersion,
-            'localUuid': syncLogLocalUuid,
-            'origin': 'mobile',
-          },
-        );
-      }
-
-      _lastSyncTime = endTime;
+      _lastSyncTime = DateTime.now();
       await _saveSettings();
 
       _logger.info(
-        'Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)',
+        'Field-Level Delta Sync completed (pushed: $recordsPushed, pulled: $recordsPulled)',
         tag: 'SYNC',
       );
     } catch (e, stackTrace) {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
-
-      if (hasSyncLog) {
-        final failEpoch = Time.nowEpoch();
-        syncLogVersion += 1;
-        try {
-          await appwriteService.upsertDocument(
-            collectionId: AppwriteConfig.syncLogsCollectionId,
-            documentId: syncLogId,
-            data: {
-              'status': SyncLogStatus.failed.value,
-              'action': 'sync_failed',
-              'errorMessage': (() {
-                final msg = errorMessage ?? '';
-                if (msg.length > SyncConstants.maxErrorMessageLength) {
-                  return msg.substring(0, SyncConstants.maxErrorMessageLength);
-                }
-                return msg;
-              })(),
-              'details':
-                  '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
-              'updatedAt': failEpoch,
-              'lastModified': failEpoch,
-              'timestamp': failEpoch,
-              'localUuid': syncLogLocalUuid,
-              'origin': 'mobile',
-            },
-          );
-        } catch (logError, logStackTrace) {
-          _logger.warning(
-            'Failed to update sync log after failure',
-            tag: 'SYNC',
-            error: logError,
-            stackTrace: logStackTrace,
-          );
-        }
-      }
-
       _errorHandler.handleError(e, context: 'sync()', stackTrace: stackTrace);
-
       _logger.error(
-        'Sync failed',
+        'Field-Level Delta Sync failed',
         error: e,
         stackTrace: stackTrace,
         tag: 'SYNC',
@@ -677,6 +504,7 @@ class AppwriteSyncManager {
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
 
+    final metrics = SyncMetrics.instance;
     if (finalStatus == SyncStatus.success) {
       metrics.recordSuccess(
         recordsSynced: recordsPushed + recordsPulled,
@@ -684,37 +512,6 @@ class AppwriteSyncManager {
       );
     } else {
       metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
-    }
-
-    try {
-      final payload = <String, Object?>{
-        'durationMs': duration.inMilliseconds,
-        'recordsPushed': recordsPushed,
-        'recordsPulled': recordsPulled,
-        'conflicts': conflicts,
-        'status': finalStatus.name,
-        'phasesMs': phaseMs,
-      };
-
-      var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
-      if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
-        const ellipsis = '…';
-        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
-        if (maxLen > 0) {
-          encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
-        } else {
-          encoded = encoded.substring(0, SyncConstants.maxMetricsPayloadLength);
-        }
-      }
-
-      _logger.debug('Sync metrics: $encoded', tag: 'METRICS');
-    } catch (e, stackTrace) {
-      _logger.warning(
-        'Failed to log sync metrics',
-        error: e,
-        stackTrace: stackTrace,
-        tag: 'METRICS',
-      );
     }
 
     return SyncResult(
@@ -1287,6 +1084,10 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  /// تم الاستبدال بـ AppwriteDeltaSync الذي يرسل الحقول المتغيرة فقط
+  /// يُستخدم فقط في pushAllLocalDataToAppwrite للاستعادة من backup
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _roomToRemote(Room room) {
     final data = <String, dynamic>{
       'roomNumber': room.roomNumber,
@@ -1314,6 +1115,10 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  /// تم الاستبدال بـ AppwriteDeltaSync الذي يرسل الحقول المتغيرة فقط
+  /// يُستخدم فقط في pushAllLocalDataToAppwrite للاستعادة من backup
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _bookingToRemote(Booking booking) {
   final data = <String, dynamic>{
     'roomNumber': booking.roomNumber,
@@ -1340,8 +1145,9 @@ class AppwriteSyncManager {
     'lastModified': booking.lastModified,
     'version': booking.version,
     'origin': booking.origin,
+    'vectorClock': jsonEncode(booking.vectorClock ?? {}),
   };
-  
+
   _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
   _putIfNotNull(data, 'serverId', booking.serverId);
   _putIfNotNull(data, 'deletedAt', booking.deletedAt);
@@ -1368,6 +1174,8 @@ class AppwriteSyncManager {
 }
 
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _expenseToRemote(Expense expense) {
     final data = <String, dynamic>{
       'expenseType': expense.expenseType,
@@ -1392,6 +1200,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _paymentToRemote(Payment payment) {
     final data = <String, dynamic>{
       'amount': payment.amount,
@@ -1433,6 +1243,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
       'localUuid': debt.localUuid,
@@ -1544,7 +1356,7 @@ class AppwriteSyncManager {
     }
   }
 
-  /// سحب التغييرات من Appwrite
+  /// سحب التغييرات من Appwrite باستخدام Field-Level Delta Sync
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
     if (_currentStatus == SyncStatus.syncing) {
@@ -1554,97 +1366,22 @@ class AppwriteSyncManager {
 
     _isPulling = true;
     try {
-      _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
+      _logger.info('📥 سحب التغييرات من Appwrite (Field-Level Delta Sync)...', tag: 'SYNC');
 
-      int recordsPulled = 0;
+      // ✅ تهيئة AppwriteDeltaSync إذا لم يكن مهيأً
+      final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        await deltaSync.initialize(appwriteService, database);
+      }
 
-      // مزامنة الغرف
-      final rooms = await appwriteService.listRooms(useCache: false);
-      final roomsSynced = await _syncRooms(rooms);
-      recordsPulled += roomsSynced;
-
-      // مزامنة الحجوزات
-      final bookings = await appwriteService.listBookings(useCache: false);
-      final bookingsSynced = await _syncBookings(bookings);
-      recordsPulled += bookingsSynced;
-
-      // مزامنة الموظفين
-      final employees = await appwriteService.listEmployees(useCache: false);
-      final employeesSynced = await _syncEmployees(employees);
-      recordsPulled += employeesSynced;
-
-      // مزامنة المصروفات
-      final expenses = await appwriteService.listExpenses(useCache: false);
-      final expensesSynced = await _syncExpenses(expenses);
-      recordsPulled += expensesSynced;
-
-      // مزامنة المدفوعات
-      final payments = await appwriteService.listPayments(useCache: false);
-      final paymentsSynced = await _syncPayments(payments);
-      recordsPulled += paymentsSynced;
-
-      // مزامنة الديون
-      final debts = await appwriteService.listDebts(useCache: false);
-      final debtsSynced = await _syncDebts(debts);
-      recordsPulled += debtsSynced;
-
-      // مزامنة ملاحظات الشيفت
-      final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
-      recordsPulled += await _syncShiftNotes(shiftNotes);
-
-      // مزامنة ملاحظات الحجز
-      final bookingNotes = await appwriteService.listBookingNotes(
-        useCache: false,
-      );
-      recordsPulled += await _syncBookingNotes(bookingNotes);
-
-      // مزامنة ليالي الحجز
-      final bookingNights = await appwriteService.listBookingNights(
-        useCache: false,
-      );
-      recordsPulled += await _syncBookingNights(bookingNights);
-
-      // مزامنة المعاملات النقدية
-      final cashTransactions = await appwriteService.listCashTransactions(
-        useCache: false,
-      );
-      recordsPulled += await _syncCashTransactions(cashTransactions);
-
-      // مزامنة دورات الرواتب
-      final salaryCycles = await appwriteService.listSalaryCycles(
-        useCache: false,
-      );
-      recordsPulled += await _syncSalaryCycles(salaryCycles);
-
-      // مزامنة مدفوعات الرواتب
-      final salaryPayments = await appwriteService.listSalaryPayments(
-        useCache: false,
-      );
-      recordsPulled += await _syncSalaryPayments(salaryPayments);
+      // ✅ استخدام Field-Level Delta Sync للسحب
+      final result = await deltaSync.pullDeltaChanges();
 
       _lastSyncTime = DateTime.now();
       await _saveSettings();
 
-      // تحديث حالة إشغال الغرف بناءً على الحجوزات المسحوبة
-      if (recordsPulled > 0) {
-        await RoomsRepository(database)
-            .refreshAllRoomOccupancy(originIsServer: true);
-      }
-
-      // تنظيف outbox بعد السحب الكامل - بيانات السيرفر هي المرجع
-      final pending = await outboxDao.count();
-      if (pending > 0) {
-        _logger.info(
-          '🧹 تنظيف $pending سجل من outbox بعد السحب الكامل',
-          tag: 'SYNC',
-        );
-        await (database.delete(database.outbox)
-              ..where((t) => t.processingStatus.isIn(['pending', 'failed'])))
-            .go();
-      }
-
-      if (recordsPulled > 0) {
-        _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
+      if (result.pulledCount > 0) {
+        _logger.info('✅ تم سحب ${result.pulledCount} سجل من Appwrite (Field-Level)', tag: 'SYNC');
         return true;
       } else {
         _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
@@ -1991,6 +1728,8 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _employeeToRemote(Employee employee) {
     final data = <String, dynamic>{
       'name': employee.name,
@@ -2011,6 +1750,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _bookingNoteToRemote(BookingNote note) {
     final data = <String, dynamic>{
       'bookingId': note.bookingId,
@@ -2033,6 +1774,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
     final data = <String, dynamic>{
       'bookingLocalId': night.bookingLocalId,
@@ -2059,6 +1802,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
@@ -2081,6 +1826,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) {
     final data = <String, dynamic>{
       'employeeId': cycle.employeeId,
@@ -2106,6 +1853,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) {
     final data = <String, dynamic>{
       'cycleId': payment.cycleId,
@@ -2129,6 +1878,8 @@ class AppwriteSyncManager {
     return data;
   }
 
+  /// ⚠️ DEPRECATED: يستخدم full document payload
+  @Deprecated('Use AppwriteDeltaSync for Field-Level Delta Sync')
   Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
     // حساب shiftDate من createdAtIso أو createdAt
     String shiftDate;
