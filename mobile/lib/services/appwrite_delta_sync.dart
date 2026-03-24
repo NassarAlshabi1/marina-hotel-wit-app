@@ -544,14 +544,36 @@ class AppwriteDeltaSync {
     'deletedAtEpoch',
   };
 
+  /// حقول sync التي يجب إزالتها من المجموعات التي لا تدعمها
+  /// هذه الحقول تُرسل من الـ adapters لكن Appwrite لا يدعمها في بعض المجموعات
+  static const _unsupportedSyncFields = {
+    'bookings': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'booking_nights': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'salary_payments': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'salary_cycles': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'shift_notes': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'booking_notes': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'rooms': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'employees': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'expenses': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+    'cash_transactions': ['sync_version', 'sync_vector_clock', 'vector_clock', 'sync_origin'],
+  };
+
   /// حقول مطلوبة لكل كيان في Appwrite
   static const _requiredFieldsPerEntity = {
     'salary_payments': ['employeeId', 'cycleId', 'paymentDateIso', 'paymentDate'],
     'shift_notes': ['shiftDate', 'createdAt'],
     'salary_withdrawals': ['employeeId', 'action', 'date'],
-    'salary_cycles': ['employeeId', 'cycleKey', 'startDate'],
+    'salary_cycles': ['employeeId', 'cycleKey', 'startDate', 'endDate'],
     'cash_transactions': ['transactionType', 'transactionTime'],
     'booking_price_adjustments': ['bookingUuid', 'bookingLocalUuid', 'effectiveHotelDay'],
+    'payments': ['sync_version', 'sync_vector_clock'],
+  };
+
+  /// حقول sync مطلوبة فقط لمجموعات محددة (ليست كل المجموعات)
+  static const _syncFieldsPerEntity = {
+    'payments': ['sync_version', 'sync_vector_clock'],
+    'debts': ['vector_clock', 'sync_version', 'sync_origin', 'sync_vector_clock'],
   };
 
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload,
@@ -561,6 +583,14 @@ class AppwriteDeltaSync {
     // إزالة الحقول المحلية فقط
     for (final field in _localOnlyFields) {
       sanitized.remove(field);
+    }
+
+    // ✅ إزالة حقول sync غير المدعومة لهذه المجموعة
+    final unsupportedFields = _unsupportedSyncFields[collectionEntity];
+    if (unsupportedFields != null) {
+      for (final field in unsupportedFields) {
+        sanitized.remove(field);
+      }
     }
 
     // تحويل المبالغ إلى أعداد صحيحة (Appwrite يتطلب integer)
@@ -579,15 +609,32 @@ class AppwriteDeltaSync {
     // ✅ تقليص الحقول النصية الطويلة (Appwrite يحدد 50 حرف للـ strings القصيرة)
     _truncateStringFields(sanitized);
 
-    // ✅ إضافة الحقول المطلوبة عالمياً
-    if (!sanitized.containsKey('sync_version')) {
-      sanitized['sync_version'] = 1;
-    }
-
     // ✅ إضافة id إذا لم يكن موجوداً (بعض المجموعات تتطلبه)
-    if (!sanitized.containsKey('id') && sanitized.containsKey('localUuid')) {
-      // استخدام الـ UUID كـ id
-      sanitized['id'] = sanitized['localUuid'];
+    // ملاحظة: لا نضيف id لأن Appwrite يستخدم document ID تلقائياً
+
+    // ✅ إضافة حقول sync فقط للمجموعات التي تتطلبها
+    final syncFields = _syncFieldsPerEntity[collectionEntity];
+    if (syncFields != null) {
+      for (final field in syncFields) {
+        if (!sanitized.containsKey(field) || sanitized[field] == null) {
+          switch (field) {
+            case 'sync_version':
+              sanitized['sync_version'] = sanitized['version'] ?? 1;
+              break;
+            case 'sync_vector_clock':
+              final vc = sanitized['vectorClock'] ?? sanitized['vector_clock'];
+              sanitized['sync_vector_clock'] = vc is String ? vc : jsonEncode(vc ?? {});
+              break;
+            case 'vector_clock':
+              final vc2 = sanitized['vectorClock'];
+              sanitized['vector_clock'] = vc2 is String ? vc2 : jsonEncode(vc2 ?? {});
+              break;
+            case 'sync_origin':
+              sanitized['sync_origin'] = sanitized['origin'] ?? 'mobile';
+              break;
+          }
+        }
+      }
     }
     
     // التحقق من الحقول المطلوبة وإضافة قيم افتراضية إذا كانت مفقودة
@@ -644,6 +691,12 @@ class AppwriteDeltaSync {
               // استخدام hotelDayStart أو createdAtIso كـ startDate
               sanitized['startDate'] = sanitized['hotelDayStart'] ?? 
                   sanitized['createdAtIso'] ?? 
+                  DateTime.now().toIso8601String();
+              break;
+            case 'endDate':
+              // استخدام hotelDayEnd أو createdAtIso كـ endDate
+              sanitized['endDate'] = sanitized['hotelDayEnd'] ?? 
+                  sanitized['startDate'] ?? 
                   DateTime.now().toIso8601String();
               break;
             case 'bookingUuid':

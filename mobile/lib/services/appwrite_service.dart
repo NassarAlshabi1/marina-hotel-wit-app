@@ -217,6 +217,7 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     final cleanData = Map<String, dynamic>.from(data)..remove('id');
+    final localUuid = cleanData['localUuid']?.toString() ?? documentId;
 
     // 1. محاولة جلب المستند الحالي للتحقق من التعارض (Optimistic Concurrency Control)
     try {
@@ -248,8 +249,51 @@ class AppwriteService {
         operationName: 'updateDocument',
       );
     } on AppwriteException catch (e) {
-      // 404 Not Found -> إنشاء مستند جديد
+      // 404 Not Found -> البحث بـ localUuid أولاً ثم إنشاء مستند جديد
       if (e.code == 404) {
+        // ✅ البحث عن المستند بـ localUuid (قد يكون document ID مختلف)
+        try {
+          final searchResult = await _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: collectionId,
+            queries: [Query.equal('localUuid', localUuid)],
+          );
+
+          if (searchResult.documents.isNotEmpty) {
+            // وجدنا المستند بـ document ID مختلف - استخدمه للتحديث
+            final actualDocId = searchResult.documents.first.$id;
+            _logger.info(
+              'Found document by localUuid, actual ID: $actualDocId (requested: $documentId)',
+              tag: 'SYNC',
+            );
+            
+            final shouldUpdate = _shouldUpdateRemote(
+              searchResult.documents.first.data, 
+              cleanData
+            );
+            
+            if (!shouldUpdate) {
+              return searchResult.documents.first;
+            }
+            
+            return await _networkHelper.withRetryAndTimeout(
+              operation: () => _databases.updateDocument(
+                databaseId: AppwriteConfigManager.databaseId,
+                collectionId: collectionId,
+                documentId: actualDocId,
+                data: cleanData,
+              ),
+              operationName: 'updateDocument(found_by_localUuid)',
+            );
+          }
+        } catch (searchError) {
+          _logger.debug(
+            'Search by localUuid failed: $searchError',
+            tag: 'SYNC',
+          );
+        }
+
+        // لم نجد المستند - إنشاء جديد
         try {
           return await _networkHelper.withRetryAndTimeout(
             operation: () => _databases.createDocument(
@@ -261,22 +305,35 @@ class AppwriteService {
             operationName: 'createDocument',
           );
         } on AppwriteException catch (createError) {
-          // ✅ إذا كان المستند موجوداً بالفعل، نحاول التحديث بدلاً من ذلك
+          // ✅ إذا كان المستند موجوداً بالفعل، نحاول البحث عنه مرة أخرى ثم التحديث
           if (createError.code == 409 ||
               createError.message?.contains('document_already_exists') == true) {
             _logger.info(
-              'Document $documentId already exists, switching to update',
+              'Document $documentId already exists (race condition), searching again...',
               tag: 'SYNC',
             );
-            return await _networkHelper.withRetryAndTimeout(
-              operation: () => _databases.updateDocument(
+            
+            // البحث عن المستند بـ localUuid
+            try {
+              final searchResult = await _databases.listDocuments(
                 databaseId: AppwriteConfigManager.databaseId,
                 collectionId: collectionId,
-                documentId: documentId,
-                data: cleanData,
-              ),
-              operationName: 'updateDocument(fallback)',
-            );
+                queries: [Query.equal('localUuid', localUuid)],
+              );
+
+              if (searchResult.documents.isNotEmpty) {
+                final actualDocId = searchResult.documents.first.$id;
+                return await _networkHelper.withRetryAndTimeout(
+                  operation: () => _databases.updateDocument(
+                    databaseId: AppwriteConfigManager.databaseId,
+                    collectionId: collectionId,
+                    documentId: actualDocId,
+                    data: cleanData,
+                  ),
+                  operationName: 'updateDocument(fallback)',
+                );
+              }
+            } catch (_) {}
           }
           rethrow;
         }

@@ -105,7 +105,7 @@ class SalaryPaymentsAdapter
       'serverId': model.serverId,
       'employeeId': model.employeeId ?? 0, // ✅ حقل مطلوب - integer
       'cycleId': model.cycleId,
-      'amount': model.amount, // ✅ إضافة amount - موجود في Appwrite
+      'amount': model.amount.round(), // ✅ تحويل إلى integer - Appwrite يتطلب integer
       'hotelDayKey': model.hotelDayKey,
       'paymentDateIso': model.paymentDateIso,
       'paymentDate': model.paymentDateIso ?? DateTime.now().toIso8601String(), // ✅ حقل مطلوب - string
