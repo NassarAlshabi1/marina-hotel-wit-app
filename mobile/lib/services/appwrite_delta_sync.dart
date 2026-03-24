@@ -988,8 +988,15 @@ class AppwriteDeltaSync {
       final successfulUuids = successfulChanges.map((c) => c.localUuid).toList();
       await outboxDao.cleanupSuccessfulByUuids(successfulUuids);
       
+      // ✅ تنظيف إضافي: مسح جميع السجلات المعلقة القديمة (أكثر من ساعة)
+      // هذا يضمن عدم تراكم سجلات قديمة بسبب مشاكل في الاكتشاف
+      final oldRecordsDeleted = await outboxDao.cleanupOldPendingRecords(
+        maxAgeHours: 1,
+      );
+      totalDeleted += oldRecordsDeleted;
+      
       _logger.info(
-        '🧹 تم مسح $totalDeleted سجل من Outbox (${successfulChanges.length} تغيير)',
+        '🧹 تم مسح $totalDeleted سجل من Outbox (${successfulChanges.length} تغيير + $oldRecordsDeleted قديم)',
         tag: 'DELTA_SYNC',
       );
     } catch (e) {
