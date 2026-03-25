@@ -16,6 +16,7 @@ import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
+import 'google_drive_sign_in_manager.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
@@ -158,20 +159,16 @@ class GoogleDriveBackupService {
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
 
-  GoogleSignIn? _googleSignIn;
+  GoogleSignIn? get _googleSignIn => GoogleDriveSignInManager.instance.client;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
 
   void _initializeGoogleSignIn() {
-    _googleSignIn = GoogleSignIn(scopes: _scopes);
+    // Already handled by GoogleDriveSignInManager
   }
 
   Future<void> _ensureDriveClient() async {
-    if (_googleSignIn == null) {
-      _initializeGoogleSignIn();
-    }
-
     GoogleSignInAccount? account = _googleSignIn?.currentUser;
     if (account == null) {
       try {
