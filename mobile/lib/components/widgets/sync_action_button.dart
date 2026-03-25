@@ -53,7 +53,7 @@ class SyncActionButton extends ConsumerWidget {
                 ),
               );
               break;
-              case 'push':
+            case 'push':
               final deltaSync = ref.read(appwriteDeltaSyncProvider);
               final result = await deltaSync.pushDeltaChanges();
               messenger.showSnackBar(
