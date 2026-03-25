@@ -6,6 +6,7 @@ import 'local_db.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'appwrite_logger.dart';
+import '../utils/status_utils.dart';
 
 /// ✅ خدمة السحب الشامل من Appwrite
 /// تجلب جميع البيانات بدون أي فلترة - كل الجداول وكل الحقول
@@ -178,11 +179,29 @@ class AppwriteFullPull {
         collectionId: AppwriteConfig.shiftNotesCollectionId,
         repo: reg.shiftNotes,
       ),
-      // 14. تعديلات أسعار الحجوزات
+      // 14. تعديلات الأسعار
+      _PullEntity(
+        name: 'price_adjustments',
+        collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+        repo: reg.priceAdjustments,
+      ),
+      // 15. تعديلات أسعار الحجوزات
       _PullEntity(
         name: 'booking_price_adjustments',
         collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         repo: reg.bookingPriceAdjustments,
+      ),
+      // 16. سجلات التدقيق
+      _PullEntity(
+        name: 'audit_logs',
+        collectionId: AppwriteConfig.auditLogsCollectionId,
+        repo: reg.auditLogs,
+      ),
+      // 17. إلغاءات الدفع
+      _PullEntity(
+        name: 'payment_voids',
+        collectionId: AppwriteConfig.paymentVoidsCollectionId,
+        repo: reg.paymentVoids,
       ),
     ];
   }
@@ -199,6 +218,12 @@ class AppwriteFullPull {
 
     int totalCount = 0;
     int offset = 0;
+    int errorCount = 0;
+
+    _logger.info(
+      '📥 بدء سحب ${entity.name} من collection: ${entity.collectionId}',
+      tag: 'FULL_PULL',
+    );
 
     // حلقة لجلب جميع السجلات على دفعات
     while (true) {
@@ -214,13 +239,18 @@ class AppwriteFullPull {
         );
 
         final documents = response.documents;
+        final totalAvailable = response.total;
 
         if (documents.isEmpty) {
+          _logger.info(
+            '📭 لا مزيد من السجلات في ${entity.name}',
+            tag: 'FULL_PULL',
+          );
           break; // لا مزيد من السجلات
         }
 
-        _logger.debug(
-          '📦 جلب ${documents.length} سجل من ${entity.name} (offset: $offset)',
+        _logger.info(
+          '📦 جلب ${documents.length} سجل من ${entity.name} (offset: $offset, total: $totalAvailable)',
           tag: 'FULL_PULL',
         );
 
@@ -229,6 +259,17 @@ class AppwriteFullPull {
           try {
             // نسخ جميع البيانات كما هي
             final remoteData = Map<String, dynamic>.from(doc.data);
+
+            // ✅ تنظيف البيانات من حقول Appwrite الخاصة
+            _cleanDataFromAppwrite(remoteData, doc.$id);
+
+            // ✅ logging للبيانات المستلمة (أول 3 سجلات فقط)
+            if (totalCount < 3) {
+              _logger.debug(
+                '📄 نموذج سجل ${entity.name} #${totalCount + 1}: ${remoteData.keys.take(10).join(', ')}...',
+                tag: 'FULL_PULL',
+              );
+            }
 
             // استخدام document ID كـ localUuid إذا لم يكن موجوداً
             remoteData['localUuid'] = remoteData['localUuid']?.toString() ??
@@ -239,10 +280,12 @@ class AppwriteFullPull {
             await entity.repo!.upsertFromJson(remoteData, src: Source.appwrite);
             totalCount++;
           } catch (e) {
+            errorCount++;
             _logger.warning(
               '⚠️ فشل حفظ سجل من ${entity.name}: $e',
               tag: 'FULL_PULL',
             );
+            // الاستمرار في معالجة باقي السجلات
           }
         }
 
@@ -261,8 +304,35 @@ class AppwriteFullPull {
       }
     }
 
+    _logger.info(
+      '✅ انتهى سحب ${entity.name}: $totalCount سجل (أخطاء: $errorCount)',
+      tag: 'FULL_PULL',
+    );
+
     result.totalPulled += totalCount;
     return totalCount;
+  }
+
+  /// ✅ تنظيف البيانات من حقول Appwrite الخاصة قبل الحفظ
+  /// هذه الحقول يضيفها Appwrite تلقائياً ولا يجب تخزينها محلياً
+  void _cleanDataFromAppwrite(Map<String, dynamic> data, String docId) {
+    // إزالة حقول Appwrite الخاصة
+    data.remove('\$id');
+    data.remove('\$createdAt');
+    data.remove('\$updatedAt');
+    data.remove('\$permissions');
+    data.remove('\$collectionId');
+    data.remove('\$databaseId');
+    
+    // أيضاً إزالة الحقول بأسماء بديلة
+    data.remove('createdAt_\$');
+    data.remove('updatedAt_\$');
+    
+    // الاحتفاظ بـ document ID كـ reference إذا لزم الأمر
+    // يمكن استخدامه لاحقاً للتحديثات
+    if (!data.containsKey('serverDocId')) {
+      data['serverDocId'] = docId;
+    }
   }
 
   /// تحديث حالة إشغال الغرف
@@ -272,8 +342,9 @@ class AppwriteFullPull {
 
       final occupiedRooms = <String>{};
       for (final booking in bookings) {
-        if (booking.deletedAt == null &&
-            (booking.status == 'checkin' || booking.status == 'checked_in')) {
+        // ✅ استخدام StatusUtils للتحقق من الحجوزات النشطة
+        // يدعم جميع حالات الحجز: محجوزة، نشط، active، confirmed، مؤقت، إلخ
+        if (booking.deletedAt == null && StatusUtils.isActiveBooking(booking.status)) {
           occupiedRooms.add(booking.roomNumber);
         }
       }

@@ -1,6 +1,9 @@
 import '../services/local_db.dart';
 
 class StatusUtils {
+  // ✅ تعريف دالة التطبيع أولاً لتجنب مشاكل التهيئة
+  static String _normalize(String value) => value.trim().toLowerCase();
+
   static final Set<String> _availableRoomStatuses = {
     'شاغرة',
     'شاغره',
@@ -21,6 +24,11 @@ class StatusUtils {
     'active',
     'مؤقت',
     'provisional',
+    // ✅ إضافة حالات تسجيل الدخول
+    'checkin',
+    'checked_in',
+    'تسجيل دخول',
+    'داخل',
   }.map(_normalize).toSet();
 
   static final Set<String> _activeBookingStatuses = {
@@ -33,14 +41,17 @@ class StatusUtils {
     'in_progress',
     'مؤقت',
     'provisional',
+    // ✅ إضافة حالات تسجيل الدخول
+    'checkin',
+    'checked_in',
+    'تسجيل دخول',
+    'داخل',
   }.map(_normalize).toSet();
 
   static final Set<String> _provisionalStatuses = {
     'مؤقت',
     'provisional',
   }.map(_normalize).toSet();
-
-  static String _normalize(String value) => value.trim().toLowerCase();
 
   static bool isRoomAvailable(String status) =>
       _availableRoomStatuses.contains(_normalize(status));
