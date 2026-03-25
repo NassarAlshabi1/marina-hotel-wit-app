@@ -8,6 +8,7 @@ import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
+import '../../services/appwrite_delta_sync.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
@@ -109,6 +110,10 @@ class _AppwriteSettingsScreenState
 
             // قسم المزامنة
             _buildSyncSection(context, syncStatsAsync),
+            const SizedBox(height: 16),
+
+            // قسم أخطاء Field-Level Delta Sync
+            _buildDeltaSyncErrorsSection(context),
             const SizedBox(height: 16),
 
             // قسم التخزين المؤقت
@@ -350,6 +355,30 @@ class _AppwriteSettingsScreenState
 
             const SizedBox(height: 12),
 
+            // Field-Level Delta Sync buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _pushDeltaSync,
+                    icon: const Icon(Icons.cloud_upload),
+                    label: const Text('رفع'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _pullDeltaSync,
+                    icon: const Icon(Icons.cloud_download),
+                    label: const Text('سحب'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
             // أزرار المزامنة
             Row(
               children: [
@@ -478,6 +507,218 @@ class _AppwriteSettingsScreenState
         ],
       ],
     );
+  }
+
+  // ==================== قسم أخطاء Field-Level Delta Sync ====================
+  Widget _buildDeltaSyncErrorsSection(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.error_outline, color: Colors.red, size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Field-Level Delta Sync',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            
+            // Current sync status from Delta Sync
+            FutureBuilder<SyncResult>(
+              future: _getDeltaSyncStatus(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final result = snapshot.data;
+                if (result == null) {
+                  return const Text('لم يتم تهيئة خدمة المزامنة بعد');
+                }
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Status indicator
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: result.isSuccess
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: result.isSuccess ? Colors.green : Colors.red,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            result.isSuccess ? Icons.check_circle : Icons.error,
+                            color: result.isSuccess ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              result.isSuccess
+                                  ? 'المزامنة تعمل بشكل صحيح'
+                                  : 'خطأ: ${result.message}',
+                              style: TextStyle(
+                                color: result.isSuccess
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Stats
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            title: 'مدفوع',
+                            value: '${result.recordsPushed}',
+                            icon: Icons.cloud_upload,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: 'مسحوب',
+                            value: '${result.recordsPulled}',
+                            icon: Icons.cloud_download,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: 'تضارب',
+                            value: '${result.conflicts.length}',
+                            icon: Icons.warning,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Errors list
+                    if (result.errors.isNotEmpty) ...[
+                      const Text(
+                        'الأخطاء الأخيرة:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 150),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: result.errors.length,
+                          itemBuilder: (context, index) {
+                            return Card(
+                              color: Colors.red.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Text(
+                                  result.errors[index],
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Quick actions
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              setState(() => _isLoading = true);
+                              try {
+                                final deltaSync = AppwriteDeltaSync.instance;
+                                final retryResult = await deltaSync.retryFailed();
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(retryResult.isSuccess
+                                        ? 'تم إعادة المحاولة'
+                                        : 'فشل: ${retryResult.message}'),
+                                  ),
+                                );
+                              } finally {
+                                setState(() => _isLoading = false);
+                              }
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('إعادة المحاولة'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              setState(() => _isLoading = true);
+                              try {
+                                final deltaSync = AppwriteDeltaSync.instance;
+                                final result = await deltaSync.pushOnly(force: true);
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(result.isSuccess
+                                        ? 'تم رفع ${result.recordsPushed} سجل'
+                                        : 'فشل: ${result.message}'),
+                                  ),
+                                );
+                              } finally {
+                                setState(() => _isLoading = false);
+                              }
+                            },
+                            icon: const Icon(Icons.upload),
+                            label: const Text('فرض الرفع'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<SyncResult> _getDeltaSyncStatus() async {
+    try {
+      final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        return SyncResult.error('الخدمة غير مهيأة');
+      }
+      return SyncResult.success('متهيأة');
+    } catch (e) {
+      return SyncResult.error(e.toString());
+    }
   }
 
   // ==================== قسم التخزين المؤقت ====================
@@ -1557,5 +1798,75 @@ class _AppwriteSettingsScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _pushDeltaSync() async {
+    setState(() => _isLoading = true);
+    try {
+      final deltaSync = AppwriteDeltaSync.instance;
+      final result = await deltaSync.pushOnly();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.isSuccess
+                ? 'تم رفع ${result.recordsPushed} سجل بنجاح'
+                : 'فشل الرفع: ${result.message}'),
+            backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+          ),
+        );
+        ref.invalidate(ap.syncStatsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
+    }
+  }
+
+  Future<void> _pullDeltaSync() async {
+    setState(() => _isLoading = true);
+    try {
+      final deltaSync = AppwriteDeltaSync.instance;
+      final result = await deltaSync.pullOnly();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.isSuccess
+                ? 'تم سحب ${result.recordsPulled} سجل بنجاح'
+                : 'فشل السحب: ${result.message}'),
+            backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+          ),
+        );
+        
+        if (result.isSuccess && result.recordsPulled > 0) {
+          final fixService = RestoreFixService(DatabaseManager.instance);
+          await fixService.runAutoFixAfterRestore();
+        }
+        
+        ref.invalidate(ap.syncStatsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
+    }
   }
 }

@@ -136,8 +136,12 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
         debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        // تحديث حالة تسجيل الدخول إذا كانت هناك جلسة محفوظة
+        await _updateGoogleDriveSignInState(account);
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
+        // محاولة التحقق من حالة تسجيل الدخول (قد تكون هناك جلسة محفوظة)
+        await _checkGoogleDriveSignInStatus();
       }
     } catch (e) {
       debugPrint('⚠️ فشلت استعادة الجلسة: $e');
@@ -253,6 +257,34 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('Error: $e');
     debugPrint('Stack trace: $stackTrace');
     debugPrint('═══════════════════════════════════════════════════════');
+  }
+}
+
+/// Helper function to update Google Drive sign-in state after app start
+Future<void> _updateGoogleDriveSignInState(GoogleSignInAccount account) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    // If there's a saved session, clear the skipped flag
+    await prefs.setBool('drive_login_skipped', false);
+    debugPrint('✅ تم مسح علامة تخطي تسجيل الدخول');
+  } catch (e) {
+    debugPrint('⚠️ خطأ في تحديث حالة تسجيل الدخول: $e');
+  }
+}
+
+/// Helper function to check and verify Google Drive sign-in status on app install
+Future<void> _checkGoogleDriveSignInStatus() async {
+  try {
+    final backupService = GoogleDriveBackupService();
+    // التحقق من حالة تسجيل الدخول الحالية
+    if (backupService.isSignedIn || backupService.currentUser != null) {
+      debugPrint('✅ تم اكتشاف جلسة Google Drive نشطة');
+      // تحديث الحالة في Provider
+    } else {
+      debugPrint('ℹ️ لا يوجد تسجيل دخول نشط في Google Drive');
+    }
+  } catch (e) {
+    debugPrint('⚠️ خطأ في التحقق من حالة Google Drive: $e');
   }
 }
 
