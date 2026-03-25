@@ -139,7 +139,16 @@ class _SalaryWithdrawalsReportScreenState
         if (conditions.isEmpty) {
           return const drift.Constant(true);
         }
-        return drift.Expression.combine(conditions, drift.and);
+        
+        drift.Expression<bool>? result;
+        for (final cond in conditions) {
+          if (result == null) {
+            result = cond;
+          } else {
+            result = result & cond;
+          }
+        }
+        return result!;
       });
 
       query.orderBy([(t) => drift.OrderingTerm.desc(t.date)]);
