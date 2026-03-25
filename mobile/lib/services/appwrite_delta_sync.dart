@@ -574,6 +574,7 @@ class AppwriteDeltaSync {
       case 'booking_price_adjustments': return AppwriteConfig.bookingPriceAdjustmentsCollectionId;
       case 'audit_logs': return AppwriteConfig.auditLogsCollectionId;
       case 'payment_voids': return AppwriteConfig.paymentVoidsCollectionId;
+      case 'salary_withdrawals': return AppwriteConfig.salaryWithdrawalsCollectionId;
       default: return null;
     }
   }

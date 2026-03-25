@@ -92,6 +92,7 @@ class SalaryWithdrawalsRepository {
   }
 
   /// إضافة سجل للـ Outbox للمزامنة مع Appwrite
+  /// ✅ الحقول مطابقة لأنواع Appwrite Console
   Future<void> _addToOutbox({
     required String localUuid,
     required int recordId,
@@ -104,23 +105,28 @@ class SalaryWithdrawalsRepository {
     required int now,
     required String nowIso,
   }) async {
-    // بناء بيانات السجل للإرسال
-    final payload = {
-      'id': recordId,
-      'localUuid': localUuid,
-      'expenseId': expenseId,
-      'employeeId': employeeId,
-      'action': action,
-      'amount': amount,
-      'note': note,
-      'date': date,
-      'createdAt': now,
-      'updatedAt': now,
-      'lastModified': now,
-      'createdAtIso': nowIso,
-      'updatedAtIso': nowIso,
-      'version': 1,
-      'origin': 'local',
+    // ✅ بناء بيانات السجل للإرسال - مطابقة لأنواع Appwrite Console
+    // ملاحظة: 'id' هو حقل integer مطلوب في Appwrite (منفصل عن $id)
+    final payload = <String, dynamic>{
+      // ✅ الحقول المطلوبة (required) - مطابقة لـ Appwrite Console
+      'id': localUuid.hashCode.abs(),             // ✅ integer (required) - hash من UUID
+      'localUuid': localUuid,                     // string (required)
+      'employeeId': employeeId,                   // integer (required)
+      'action': action,                           // string (required)
+      'amount': amount.toInt(),                   // ✅ integer (required) - تحويل من double
+      'date': date,                               // string (required)
+      'createdAt': now,                           // integer (required)
+      'updatedAt': now,                           // integer (required)
+      'lastModified': now,                        // integer (required)
+      'version': 1,                               // integer (required)
+      'origin': 'local',                          // string (required)
+      'vectorClock': '{}',                        // ✅ string (required)
+
+      // ✅ الحقول الاختيارية
+      'expenseId': expenseId,                     // integer (optional)
+      if (note != null && note.isNotEmpty) 'note': note,  // string (optional)
+      'createdAtIso': nowIso,                     // string (optional)
+      'updatedAtIso': nowIso,                     // string (optional)
     };
 
     await _outbox.merge(
