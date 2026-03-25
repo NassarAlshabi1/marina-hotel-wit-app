@@ -97,90 +97,92 @@ class AppwriteFullPull {
 
   /// ترتيب الكيانات للسحب (حسب العلاقات)
   List<_PullEntity> _getEntitiesInOrder() {
+    final reg = _adapterRegistry!;
+    
     return [
       // 1. الغرف أولاً
       _PullEntity(
         name: 'rooms',
         collectionId: AppwriteConfig.roomsCollectionId,
-        repo: _adapterRegistry!.rooms,
+        repo: reg.rooms,
       ),
       // 2. الموظفين
       _PullEntity(
         name: 'employees',
         collectionId: AppwriteConfig.employeesCollectionId,
-        repo: _adapterRegistry!.employees,
+        repo: reg.employees,
       ),
       // 3. الحجوزات
       _PullEntity(
         name: 'bookings',
         collectionId: AppwriteConfig.bookingsCollectionId,
-        repo: _adapterRegistry!.bookings,
+        repo: reg.bookings,
       ),
       // 4. ليالي الحجز
       _PullEntity(
         name: 'booking_nights',
         collectionId: AppwriteConfig.bookingNightsCollectionId,
-        repo: _adapterRegistry!.nights,
+        repo: reg.nights,
       ),
       // 5. ملاحظات الحجز
       _PullEntity(
         name: 'booking_notes',
         collectionId: AppwriteConfig.bookingNotesCollectionId,
-        repo: _adapterRegistry!.bookingNotes,
+        repo: reg.bookingNotes,
       ),
       // 6. المدفوعات
       _PullEntity(
         name: 'payments',
         collectionId: AppwriteConfig.paymentsCollectionId,
-        repo: _adapterRegistry!.payments,
+        repo: reg.payments,
       ),
       // 7. المصروفات
       _PullEntity(
         name: 'expenses',
         collectionId: AppwriteConfig.expensesCollectionId,
-        repo: _adapterRegistry!.expenses,
+        repo: reg.expenses,
       ),
       // 8. الديون
       _PullEntity(
         name: 'debts',
         collectionId: AppwriteConfig.debtsCollectionId,
-        repo: _adapterRegistry!.debts,
+        repo: reg.debts,
       ),
       // 9. المعاملات النقدية
       _PullEntity(
         name: 'cash_transactions',
         collectionId: AppwriteConfig.cashTransactionsCollectionId,
-        repo: _adapterRegistry!.cashTransactions,
+        repo: reg.cashTransactions,
       ),
       // 10. دورات الرواتب
       _PullEntity(
         name: 'salary_cycles',
         collectionId: AppwriteConfig.salaryCyclesCollectionId,
-        repo: _adapterRegistry!.salaryCycles,
+        repo: reg.salaryCycles,
       ),
       // 11. مدفوعات الرواتب
       _PullEntity(
         name: 'salary_payments',
         collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-        repo: _adapterRegistry!.salaryPayments,
+        repo: reg.salaryPayments,
       ),
       // 12. سحوبات الرواتب
       _PullEntity(
         name: 'salary_withdrawals',
         collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
-        repo: _adapterRegistry!.salaryWithdrawals,
+        repo: reg.salaryWithdrawals,
       ),
       // 13. ملاحظات الورديات
       _PullEntity(
         name: 'shift_notes',
         collectionId: AppwriteConfig.shiftNotesCollectionId,
-        repo: _adapterRegistry!.shiftNotes,
+        repo: reg.shiftNotes,
       ),
       // 14. تعديلات أسعار الحجوزات
       _PullEntity(
         name: 'booking_price_adjustments',
         collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-        repo: _adapterRegistry!.bookingPriceAdjustments,
+        repo: reg.bookingPriceAdjustments,
       ),
     ];
   }
@@ -234,7 +236,7 @@ class AppwriteFullPull {
                 doc.$id;
 
             // حفظ السجل (upsert)
-            await entity.repo.upsertFromJson(remoteData, src: Source.appwrite);
+            await entity.repo!.upsertFromJson(remoteData, src: Source.appwrite);
             totalCount++;
           } catch (e) {
             _logger.warning(
@@ -285,9 +287,9 @@ class AppwriteFullPull {
         final newStatus = shouldBeOccupied ? 'مشغولة' : 'شاغرة';
 
         if (room.status != newStatus) {
-          await (_database!.update(_database!.rooms))
-              .where((t) => t.id.equals(room.id))
-              .write(RoomsCompanion(status: drift.Value(newStatus)));
+          final query = _database!.update(_database!.rooms)
+            ..where((t) => t.id.equals(room.id));
+          await query.write(RoomsCompanion(status: drift.Value(newStatus)));
         }
       }
 
@@ -302,12 +304,12 @@ class AppwriteFullPull {
 class _PullEntity {
   final String name;
   final String? collectionId;
-  final BaseRepository repo;
+  final dynamic repo; // BaseRepository<dynamic, dynamic>
 
   _PullEntity({
     required this.name,
     this.collectionId,
-    required this.repo,
+    this.repo,
   });
 }
 
