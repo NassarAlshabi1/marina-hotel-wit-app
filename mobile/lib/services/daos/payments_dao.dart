@@ -85,25 +85,26 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     String? roomNumber,
     bool includeDeleted = false,
   }) async {
-    final q = select(payments);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    final countExp = payments.id.count();
+    final query = selectOnly(payments)..addColumns([countExp]);
+
+    if (!includeDeleted) {
+      query.where(payments.deletedAt.isNull());
+    }
 
     if (from != null && to != null) {
-      q.where(
-        (t) =>
-            t.paymentDate.isBiggerOrEqualValue(from) &
-            t.paymentDate.isSmallerOrEqualValue(to),
+      query.where(
+        payments.paymentDate.isBiggerOrEqualValue(from) &
+        payments.paymentDate.isSmallerOrEqualValue(to),
       );
     }
 
     if (roomNumber != null && roomNumber.isNotEmpty) {
-      q.where((t) => t.roomNumber.equals(roomNumber));
+      query.where(payments.roomNumber.equals(roomNumber));
     }
 
-    final count = q.id.count();
-    final query = q..addColumns([count]);
     final result = await query.getSingle();
-    return result.read(count) ?? 0;
+    return result.read(countExp) ?? 0;
   }
 
   Stream<List<Payment>> watchList({
