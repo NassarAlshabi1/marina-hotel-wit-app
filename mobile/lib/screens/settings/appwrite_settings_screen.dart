@@ -491,7 +491,7 @@ class _AppwriteSettingsScreenState
             Expanded(
               child: _buildStatCard(
                 title: 'تضارب',
-                value: '${stats['totalConflicts'] ?? 0}',
+                value: '${stats['conflictCount'] ?? stats['totalConflicts'] ?? 0}',
                 icon: Icons.warning,
                 color: Colors.amber,
               ),
@@ -685,11 +685,14 @@ class _AppwriteSettingsScreenState
           message: 'الخدمة غير مهيأة',
         );
       }
+      final status = await deltaSync.getStatus();
       return AppwriteDeltaSyncResult(
-        success: true, 
-        message: 'متهيأة',
-        pushedCount: 0,
-        pulledCount: 0,
+        success: status['initialized'] == true, 
+        message: status['is_syncing'] == true ? 'المزامنة جارية...' : 'متهيأة',
+        pushedCount: status['pushed_count'] ?? 0,
+        pulledCount: status['pulled_count'] ?? 0,
+        failedCount: status['failed_count'] ?? 0,
+        conflictCount: status['outbox']?['conflicts'] ?? 0,
       );
     } catch (e) {
       return AppwriteDeltaSyncResult(

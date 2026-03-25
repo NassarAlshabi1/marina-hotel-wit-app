@@ -59,6 +59,9 @@ class AppwriteDeltaSync {
   static const _prefsLastDeltaPullKey = 'appwrite_last_delta_pull';
   static const _prefsDeviceIdKey = 'appwrite_delta_device_id';
   static const _prefsDeltaSyncEnabledKey = 'appwrite_delta_sync_enabled';
+  static const _prefsPushedCountKey = 'appwrite_delta_pushed_count';
+  static const _prefsPulledCountKey = 'appwrite_delta_pulled_count';
+  static const _prefsFailedCountKey = 'appwrite_delta_failed_count';
   
   /// حجم الدفعة الواحدة في PULL
   static const int _pullBatchSize = 100;
@@ -351,6 +354,10 @@ class AppwriteDeltaSync {
           : 'تم سحب $totalPulled تغيير، فشل في: ${failedEntities.join(', ')}';
 
       _logger.info('✅ $message', tag: 'DELTA_SYNC');
+      
+      // تحديث الإحصائيات المحفوظة للسحب
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsPulledCountKey, (prefs.getInt(_prefsPulledCountKey) ?? 0) + totalPulled);
 
       return AppwriteDeltaSyncResult(
         success: failedEntities.isEmpty,
@@ -1051,6 +1058,7 @@ class AppwriteDeltaSync {
   Future<Map<String, dynamic>> getStatus() async {
     final lastPush = await _getLastDeltaPushTimestamp();
     final lastPull = await _getLastDeltaPullTimestamp();
+    final prefs = await SharedPreferences.getInstance();
     
     // إضافة إحصائيات Outbox
     final outboxDao = OutboxDao(_database!);
@@ -1067,6 +1075,9 @@ class AppwriteDeltaSync {
       'last_pull_time': lastPull > 0
           ? DateTime.fromMillisecondsSinceEpoch(lastPull * 1000).toIso8601String()
           : null,
+      'pushed_count': prefs.getInt(_prefsPushedCountKey) ?? 0,
+      'pulled_count': prefs.getInt(_prefsPulledCountKey) ?? 0,
+      'failed_count': prefs.getInt(_prefsFailedCountKey) ?? 0,
       'outbox': {
         'pending': outboxStats.pending,
         'processing': outboxStats.processing,
