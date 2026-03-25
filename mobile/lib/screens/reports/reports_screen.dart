@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../utils/lazy_screen_loader.dart';
 import '../../utils/status_utils.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
@@ -12,6 +13,7 @@ import 'income_expense_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
+  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final db = ref.watch(coreProviders.dbProvider);
@@ -42,48 +44,28 @@ class ReportsScreen extends ConsumerWidget {
                 icon: Icons.receipt_long,
                 label: 'تقرير دفوعات النزلاء',
                 color: Colors.green,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PaymentsReportScreen(),
-                  ),
-                ),
+                onTap: () => _lazyPush(context, const PaymentsReportScreen()),
               ),
               const SizedBox(height: 8),
               _ReportShortcut(
                 icon: Icons.account_balance_wallet,
                 label: 'تقرير المصروفات',
                 color: Colors.orange,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ExpensesReportScreen(),
-                  ),
-                ),
+                onTap: () => _lazyPush(context, const ExpensesReportScreen()),
               ),
               const SizedBox(height: 8),
               _ReportShortcut(
                 icon: Icons.stacked_line_chart,
                 label: 'تقرير الدخل والخرج',
                 color: Colors.teal,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const IncomeExpenseReportScreen(),
-                  ),
-                ),
+                onTap: () => _lazyPush(context, const IncomeExpenseReportScreen()),
               ),
               const SizedBox(height: 8),
               _ReportShortcut(
                 icon: Icons.payments_outlined,
                 label: 'تقرير سحبيات الرواتب',
                 color: Colors.blue,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SalaryWithdrawalsReportScreen(),
-                  ),
-                ),
+                onTap: () => _lazyPush(context, const SalaryWithdrawalsReportScreen()),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -95,10 +77,7 @@ class ReportsScreen extends ConsumerWidget {
                 icon: Icons.pie_chart,
                 label: 'تقرير الديون',
                 color: Colors.purple,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
-                ),
+                onTap: () => _lazyPush(context, const DebtsReportScreen()),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -135,6 +114,16 @@ class ReportsScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+  
+  /// Lazy push - shows loading indicator while navigating
+  void _lazyPush(BuildContext context, Widget page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _LazyLoadingWrapper(child: page),
       ),
     );
   }
@@ -215,5 +204,50 @@ class _ReportShortcut extends StatelessWidget {
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       ),
     );
+  }
+}
+
+/// Lazy loading wrapper - shows loading while page initializes
+class _LazyLoadingWrapper extends StatefulWidget {
+  const _LazyLoadingWrapper({required this.child});
+  
+  final Widget child;
+  
+  @override
+  State<_LazyLoadingWrapper> createState() => _LazyLoadingWrapperState();
+}
+
+class _LazyLoadingWrapperState extends State<_LazyLoadingWrapper> {
+  bool _isReady = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Defer child initialization to next frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _isReady = true);
+      }
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    if (!_isReady) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('جاري التحميل...')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('جاري تحميل الشاشة...'),
+            ],
+          ),
+        ),
+      );
+    }
+    return widget.child;
   }
 }
