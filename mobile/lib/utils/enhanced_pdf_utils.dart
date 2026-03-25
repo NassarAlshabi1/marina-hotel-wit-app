@@ -30,12 +30,15 @@ class PdfColors {
   static const grey700 = PdfColor(0.38, 0.38, 0.38);
 
   static const blue50 = PdfColor(0.9, 0.95, 1.0);
+  static const blue200 = PdfColor(0.75, 0.85, 0.95);
   static const blue700 = PdfColor(0.1, 0.4, 0.7);
   static const blue800 = PdfColor(0.08, 0.35, 0.65);
   static const blue900 = PdfColor(0.05, 0.2, 0.5);
 
   static const green700 = PdfColor(0.2, 0.6, 0.2);
   static const red700 = PdfColor(0.8, 0.2, 0.2);
+  static const red = PdfColor(0.9, 0.2, 0.2);
+  static const orange = PdfColor(1.0, 0.6, 0.0);
 }
 
 /// أنماط النصوص المخصصة
