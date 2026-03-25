@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -83,7 +84,9 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
+  if (kDebugMode) {
+    debugPrint('BASE_API_URL=${Env.baseApiUrl}');
+  }
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) => DiagnosticsLogger.instance.recordError(
@@ -94,13 +97,17 @@ Future<void> main() async {
     ),
   );
 
-  unawaited(_initializeFullyAutomatedSyncSystem());
+  // Initialize services lazily - don't block UI startup
+  _initializeCoreServices();
+  _initializeSyncServicesLazy(); // Don't await - run in background
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
-  debugPrint('═══════════════════════════════════════════════════════');
-  debugPrint('🚀 Initializing Fully Automated Sync System');
-  debugPrint('═══════════════════════════════════════════════════════');
+  if (kDebugMode) {
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('🚀 Initializing Fully Automated Sync System');
+    debugPrint('═══════════════════════════════════════════════════════');
+  }
 
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -116,43 +123,59 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('appwrite_sync_enabled', false);
     }
 
-    debugPrint('📦 Initializing Appwrite Config Manager...');
+    if (kDebugMode) {
+      debugPrint('📦 Initializing Appwrite Config Manager...');
+    }
     await AppwriteConfigManager.init();
-    debugPrint('✅ Appwrite Config loaded');
+    if (kDebugMode) {
+      debugPrint('✅ Appwrite Config loaded');
+    }
 
-    debugPrint('📝 Initializing Google Drive Logger...');
+    if (kDebugMode) {
+      debugPrint('📝 Initializing Google Drive Logger...');
+    }
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
       enableConsole: true,
       enableFile: false,
     );
-    debugPrint('✅ Logger initialized');
+    if (kDebugMode) {
+      debugPrint('✅ Logger initialized');
+    }
 
-    debugPrint('🔐 Initializing Google Drive Backup Service...');
+    if (kDebugMode) {
+      debugPrint('🔐 Initializing Google Drive Backup Service...');
+    }
     final backupService = GoogleDriveBackupService();
 
     try {
       // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
-      if (account != null) {
+      if (account != null && kDebugMode) {
         debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
         // تحديث حالة تسجيل الدخول إذا كانت هناك جلسة محفوظة
         await _updateGoogleDriveSignInState(account);
-      } else {
+      } else if (kDebugMode) {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
         // محاولة التحقق من حالة تسجيل الدخول (قد تكون هناك جلسة محفوظة)
         await _checkGoogleDriveSignInStatus();
       }
     } catch (e) {
-      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      if (kDebugMode) debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
 
-    debugPrint('🔧 [3/7] Initializing Database...');
+    if (kDebugMode) {
+      debugPrint('🔧 [3/7] Initializing Database...');
+    }
     final database = DatabaseManager.instance;
-    debugPrint('✅ Database ready');
+    if (kDebugMode) {
+      debugPrint('✅ Database ready');
+    }
 
-    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
+    if (kDebugMode) {
+      debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
+    }
     final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
     await unifiedOrchestrator.initialize(database: database);
     debugPrint('✅ Unified Sync Orchestrator ready');
@@ -287,6 +310,41 @@ Future<void> _checkGoogleDriveSignInStatus() async {
   } catch (e) {
     debugPrint('⚠️ خطأ في التحقق من حالة Google Drive: $e');
   }
+}
+
+/// Core services that must be initialized immediately (lightweight)
+Future<void> _initializeCoreServices() async {
+  try {
+    await DiagnosticsLogger.instance.initialize();
+    await ApiConfigService.instance.initialize();
+    
+    FlutterError.onError = (details) {
+      DiagnosticsLogger.instance.recordFlutterError(details);
+      FlutterError.presentError(details);
+    };
+
+    PlatformDispatcher.instance.onError = (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'PLATFORM',
+        level: LogLevel.critical,
+      );
+      return true;
+    };
+  } catch (e) {
+    if (kDebugMode) debugPrint('⚠️ Core services init error: $e');
+  }
+}
+
+/// Lazy initialization - runs in background without blocking UI
+void _initializeSyncServicesLazy() {
+  // Use microtask to allow UI to render first
+  Future.microtask(() async {
+    // Small delay to prioritize UI rendering
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _initializeFullyAutomatedSyncSystem();
+  });
 }
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {

@@ -36,6 +36,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final TextEditingController _roomSearchController = TextEditingController();
 
   bool _loading = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  static const int _pageSize = 50;
 
   final List<_PaymentReportRow> _rows = [];
   double _totalAmount = 0;
