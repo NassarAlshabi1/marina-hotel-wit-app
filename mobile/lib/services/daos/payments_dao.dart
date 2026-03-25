@@ -50,6 +50,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     String? to,
     String? roomNumber,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
@@ -69,7 +71,39 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
+    
+    // Add pagination support
+    if (limit != null) q.limit(limit, offset: offset);
+    
     return q.get();
+  }
+  
+  /// Get total count for pagination
+  Future<int> countForReport({
+    String? from,
+    String? to,
+    String? roomNumber,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
+      );
+    }
+
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+
+    final count = q.id.count();
+    final query = q..addColumns([count]);
+    final result = await query.getSingle();
+    return result.read(count) ?? 0;
   }
 
   Stream<List<Payment>> watchList({

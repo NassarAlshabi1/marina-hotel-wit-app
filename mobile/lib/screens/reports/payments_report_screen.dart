@@ -13,10 +13,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/cache_providers.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/debouncer.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -30,6 +32,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
 
+  // Debouncer for search
+  final Debouncer _searchDebouncer = Debouncer(milliseconds: 500);
+
   // فلاتر
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -38,6 +43,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   bool _loading = false;
   bool _hasMore = true;
   int _currentPage = 0;
+  int _totalCount = 0;
   static const int _pageSize = 50;
 
   final List<_PaymentReportRow> _rows = [];
@@ -52,6 +58,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   @override
   void dispose() {
     _roomSearchController.dispose();
+    _searchDebouncer.dispose();
     super.dispose();
   }
 
