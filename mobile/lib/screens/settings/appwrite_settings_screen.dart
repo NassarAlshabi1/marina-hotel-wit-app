@@ -530,7 +530,7 @@ class _AppwriteSettingsScreenState
             const Divider(height: 24),
             
             // Current sync status from Delta Sync
-            FutureBuilder<SyncResult>(
+            FutureBuilder<AppwriteDeltaSyncResult>(
               future: _getDeltaSyncStatus(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -549,28 +549,28 @@ class _AppwriteSettingsScreenState
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: result.isSuccess
+                        color: result.success
                             ? Colors.green.shade50
                             : Colors.red.shade50,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: result.isSuccess ? Colors.green : Colors.red,
+                          color: result.success ? Colors.green : Colors.red,
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            result.isSuccess ? Icons.check_circle : Icons.error,
-                            color: result.isSuccess ? Colors.green : Colors.red,
+                            result.success ? Icons.check_circle : Icons.error,
+                            color: result.success ? Colors.green : Colors.red,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              result.isSuccess
+                              result.success
                                   ? 'المزامنة تعمل بشكل صحيح'
                                   : 'خطأ: ${result.message}',
                               style: TextStyle(
-                                color: result.isSuccess
+                                color: result.success
                                     ? Colors.green.shade700
                                     : Colors.red.shade700,
                               ),
@@ -587,7 +587,7 @@ class _AppwriteSettingsScreenState
                         Expanded(
                           child: _buildStatCard(
                             title: 'مدفوع',
-                            value: '${result.recordsPushed}',
+                            value: '${result.pushedCount}',
                             icon: Icons.cloud_upload,
                             color: Colors.blue,
                           ),
@@ -596,7 +596,7 @@ class _AppwriteSettingsScreenState
                         Expanded(
                           child: _buildStatCard(
                             title: 'مسحوب',
-                            value: '${result.recordsPulled}',
+                            value: '${result.pulledCount}',
                             icon: Icons.cloud_download,
                             color: Colors.green,
                           ),
@@ -604,47 +604,14 @@ class _AppwriteSettingsScreenState
                         const SizedBox(width: 8),
                         Expanded(
                           child: _buildStatCard(
-                            title: 'تضارب',
-                            value: '${result.conflicts.length}',
-                            icon: Icons.warning,
-                            color: Colors.orange,
+                            title: 'فاشل',
+                            value: '${result.failedCount}',
+                            icon: Icons.error,
+                            color: Colors.red,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    
-                    // Errors list
-                    if (result.errors.isNotEmpty) ...[
-                      const Text(
-                        'الأخطاء الأخيرة:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        constraints: const BoxConstraints(maxHeight: 150),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: result.errors.length,
-                          itemBuilder: (context, index) {
-                            return Card(
-                              color: Colors.red.shade50,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  result.errors[index],
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                    
                     const SizedBox(height: 12),
                     
                     // Quick actions
@@ -657,10 +624,10 @@ class _AppwriteSettingsScreenState
                               setState(() => _isLoading = true);
                               try {
                                 final deltaSync = AppwriteDeltaSync.instance;
-                                final retryResult = await deltaSync.retryFailed();
+                                final retryResult = await deltaSync.pushDeltaChanges();
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text(retryResult.isSuccess
+                                    content: Text(retryResult.success
                                         ? 'تم إعادة المحاولة'
                                         : 'فشل: ${retryResult.message}'),
                                   ),
@@ -681,11 +648,11 @@ class _AppwriteSettingsScreenState
                               setState(() => _isLoading = true);
                               try {
                                 final deltaSync = AppwriteDeltaSync.instance;
-                                final result = await deltaSync.pushOnly(force: true);
+                                final result = await deltaSync.fullSync();
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text(result.isSuccess
-                                        ? 'تم رفع ${result.recordsPushed} سجل'
+                                    content: Text(result.success
+                                        ? 'تم المزامنة الكاملة'
                                         : 'فشل: ${result.message}'),
                                   ),
                                 );
@@ -693,8 +660,8 @@ class _AppwriteSettingsScreenState
                                 setState(() => _isLoading = false);
                               }
                             },
-                            icon: const Icon(Icons.upload),
-                            label: const Text('فرض الرفع'),
+                            icon: const Icon(Icons.sync),
+                            label: const Text('مزامنة كاملة'),
                           ),
                         ),
                       ],
@@ -709,15 +676,26 @@ class _AppwriteSettingsScreenState
     );
   }
 
-  Future<SyncResult> _getDeltaSyncStatus() async {
+  Future<AppwriteDeltaSyncResult> _getDeltaSyncStatus() async {
     try {
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
-        return SyncResult.error('الخدمة غير مهيأة');
+        return AppwriteDeltaSyncResult(
+          success: false, 
+          message: 'الخدمة غير مهيأة',
+        );
       }
-      return SyncResult.success('متهيأة');
+      return AppwriteDeltaSyncResult(
+        success: true, 
+        message: 'متهيأة',
+        pushedCount: 0,
+        pulledCount: 0,
+      );
     } catch (e) {
-      return SyncResult.error(e.toString());
+      return AppwriteDeltaSyncResult(
+        success: false, 
+        message: e.toString(),
+      );
     }
   }
 
@@ -1804,15 +1782,15 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final deltaSync = AppwriteDeltaSync.instance;
-      final result = await deltaSync.pushOnly();
+      final result = await deltaSync.pushDeltaChanges();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.isSuccess
-                ? 'تم رفع ${result.recordsPushed} سجل بنجاح'
+            content: Text(result.success
+                ? 'تم رفع ${result.pushedCount} سجل بنجاح'
                 : 'فشل الرفع: ${result.message}'),
-            backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+            backgroundColor: result.success ? Colors.green : Colors.red,
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
@@ -1836,19 +1814,19 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final deltaSync = AppwriteDeltaSync.instance;
-      final result = await deltaSync.pullOnly();
+      final result = await deltaSync.pullDeltaChanges();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.isSuccess
-                ? 'تم سحب ${result.recordsPulled} سجل بنجاح'
+            content: Text(result.success
+                ? 'تم سحب ${result.pulledCount} سجل بنجاح'
                 : 'فشل السحب: ${result.message}'),
-            backgroundColor: result.isSuccess ? Colors.green : Colors.red,
+            backgroundColor: result.success ? Colors.green : Colors.red,
           ),
         );
         
-        if (result.isSuccess && result.recordsPulled > 0) {
+        if (result.success && result.pulledCount > 0) {
           final fixService = RestoreFixService(DatabaseManager.instance);
           await fixService.runAutoFixAfterRestore();
         }

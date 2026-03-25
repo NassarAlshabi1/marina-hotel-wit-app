@@ -53,13 +53,13 @@ class SyncActionButton extends ConsumerWidget {
                 ),
               );
               break;
-            case 'push':
+              case 'push':
               final deltaSync = ref.read(appwriteDeltaSyncProvider);
-              final result = await deltaSync.pushOnly();
+              final result = await deltaSync.pushDeltaChanges();
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text(result.isSuccess
-                      ? 'تم رفع ${result.recordsPushed} سجل بنجاح'
+                  content: Text(result.success
+                      ? 'تم رفع ${result.pushedCount} سجل بنجاح'
                       : 'فشل الرفع: ${result.message}'),
                   duration: const Duration(seconds: 3),
                 ),
@@ -67,11 +67,11 @@ class SyncActionButton extends ConsumerWidget {
               break;
             case 'pull':
               final deltaSync = ref.read(appwriteDeltaSyncProvider);
-              final result = await deltaSync.pullOnly();
+              final result = await deltaSync.pullDeltaChanges();
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text(result.isSuccess
-                      ? 'تم سحب ${result.recordsPulled} سجل بنجاح'
+                  content: Text(result.success
+                      ? 'تم سحب ${result.pulledCount} سجل بنجاح'
                       : 'فشل السحب: ${result.message}'),
                   duration: const Duration(seconds: 3),
                 ),
