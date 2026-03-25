@@ -39,6 +39,10 @@ class _SalaryWithdrawalsReportScreenState
   double _totalWithdrawals = 0;
   double _totalDeductions = 0;
 
+  // قائمة الموظفين
+  List<EmployeeItem> _employees = [];
+  EmployeeItem? _selectedEmployee;
+
   bool _initialized = false;
 
   @override
@@ -58,7 +62,30 @@ class _SalaryWithdrawalsReportScreenState
       now.day,
     ).subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    // جلب قائمة الموظفين
+    await _loadEmployees();
     await _fetchReport();
+  }
+
+  Future<void> _loadEmployees() async {
+    try {
+      final db = ref.read(coreProviders.dbProvider);
+      final employees = await (db.select(db.employees)
+            ..where((t) => t.status.equals('active'))
+            ..orderBy([(t) => drift.OrderingTerm.asc(t.name)]))
+          .get();
+
+      setState(() {
+        _employees = [
+          EmployeeItem(id: null, name: 'جميع الموظفين'),
+          ...employees.map((e) => EmployeeItem(id: e.id, name: e.name)),
+        ];
+        _selectedEmployee = _employees.first;
+      });
+    } catch (e) {
+      debugPrint('Error loading employees: $e');
+    }
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -94,20 +121,28 @@ class _SalaryWithdrawalsReportScreenState
       final query = db.select(db.salaryWithdrawals);
 
       // تطبيق فلتر التاريخ
-      if (_fromDate != null || _toDate != null) {
-        query.where((t) {
-          final conditions = <drift.Expression<bool>>[];
-          if (_fromDate != null) {
-            final fromStr = DateFormat('yyyy-MM-dd').format(_fromDate!);
-            conditions.add(t.date.isBiggerOrEqualValue(fromStr));
-          }
-          if (_toDate != null) {
-            final toStr = DateFormat('yyyy-MM-dd').format(_toDate!);
-            conditions.add(t.date.isSmallerOrEqualValue(toStr));
-          }
-          return drift.Expression.combine(conditions, drift.and);
-        });
-      }
+      query.where((t) {
+        final conditions = <drift.Expression<bool>>[];
+
+        if (_fromDate != null) {
+          final fromStr = DateFormat('yyyy-MM-dd').format(_fromDate!);
+          conditions.add(t.date.isBiggerOrEqualValue(fromStr));
+        }
+        if (_toDate != null) {
+          final toStr = DateFormat('yyyy-MM-dd').format(_toDate!);
+          conditions.add(t.date.isSmallerOrEqualValue(toStr));
+        }
+
+        // فلتر الموظف
+        if (_selectedEmployee?.id != null) {
+          conditions.add(t.employeeId.equals(_selectedEmployee!.id!));
+        }
+
+        if (conditions.isEmpty) {
+          return const drift.Constant(true);
+        }
+        return drift.Expression.combine(conditions, drift.and);
+      });
 
       query.orderBy([(t) => drift.OrderingTerm.desc(t.date)]);
 
@@ -134,6 +169,7 @@ class _SalaryWithdrawalsReportScreenState
 
       for (final w in withdrawals) {
         final row = SalaryWithdrawalRow(
+          employeeId: w.employeeId,
           employeeName: employeeNames[w.employeeId] ?? 'غير معروف',
           action: w.action,
           amount: w.amount,
@@ -203,6 +239,7 @@ class _SalaryWithdrawalsReportScreenState
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
+    final employeeLabel = _selectedEmployee?.name ?? 'جميع الموظفين';
 
     pw.Widget buildReportHeader() {
       return pw.Container(
@@ -241,6 +278,12 @@ class _SalaryWithdrawalsReportScreenState
                   style: pw.TextStyle(font: fonts.bold, fontSize: 16),
                 ),
                 pw.SizedBox(height: 4),
+                pw.Text(
+                  'الموظف: $employeeLabel',
+                  style: pw.TextStyle(
+                      font: fonts.bold, fontSize: 11, color: PdfColors.blue700),
+                ),
+                pw.SizedBox(height: 2),
                 pw.Text(
                   'من $fromLabel إلى $toLabel',
                   style: pw.TextStyle(
@@ -357,7 +400,10 @@ class _SalaryWithdrawalsReportScreenState
 
     final pdfBytes = await doc.save();
     final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-    final fileName = 'salary-withdrawals-report-$timestamp.pdf';
+    final employeeSuffix = _selectedEmployee?.id != null
+        ? '-${_selectedEmployee!.name.replaceAll(' ', '-')}'
+        : '-all';
+    final fileName = 'salary-withdrawals$employeeSuffix-$timestamp.pdf';
 
     try {
       final downloadDir = Directory('/storage/emulated/0/Download');
@@ -398,7 +444,7 @@ class _SalaryWithdrawalsReportScreenState
       title: 'تقرير سحبيات الرواتب',
       body: Column(
         children: [
-          // فلتر التاريخ
+          // فلتر التاريخ والموظف
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -411,58 +457,106 @@ class _SalaryWithdrawalsReportScreenState
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  flex: 4,
-                  child: _buildDateFilterButton(
-                    label: 'من',
-                    date: _fromDate,
-                    height: inputsHeight,
-                    onTap: () => _pickDate(isFrom: true),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 4,
-                  child: _buildDateFilterButton(
-                    label: 'إلى',
-                    date: _toDate,
-                    height: inputsHeight,
-                    onTap: () => _pickDate(isFrom: false),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: inputsHeight,
-                  width: inputsHeight,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _fetchReport,
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      elevation: 0,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                // صف التاريخ والأزرار
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: _buildDateFilterButton(
+                        label: 'من',
+                        date: _fromDate,
+                        height: inputsHeight,
+                        onTap: () => _pickDate(isFrom: true),
+                      ),
                     ),
-                    child: const Icon(Icons.search, size: 20),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: inputsHeight,
-                  width: inputsHeight,
-                  child: ElevatedButton(
-                    onPressed: _rows.isEmpty ? null : _exportPdf,
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      elevation: 0,
-                      backgroundColor: Colors.red[700],
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 4,
+                      child: _buildDateFilterButton(
+                        label: 'إلى',
+                        date: _toDate,
+                        height: inputsHeight,
+                        onTap: () => _pickDate(isFrom: false),
+                      ),
                     ),
-                    child: const Icon(Icons.picture_as_pdf, size: 20),
-                  ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: inputsHeight,
+                      width: inputsHeight,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _fetchReport,
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Icon(Icons.search, size: 20),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: inputsHeight,
+                      width: inputsHeight,
+                      child: ElevatedButton(
+                        onPressed: _rows.isEmpty ? null : _exportPdf,
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          elevation: 0,
+                          backgroundColor: Colors.red[700],
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Icon(Icons.picture_as_pdf, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // فلتر الموظف
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: inputsHeight,
+                        child: DropdownButtonFormField<EmployeeItem?>(
+                          value: _selectedEmployee,
+                          decoration: InputDecoration(
+                            labelText: 'الموظف',
+                            labelStyle: TextStyle(
+                                fontSize: 12, color: Colors.grey[600]),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 0),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade400),
+                            ),
+                          ),
+                          items: _employees.map((emp) {
+                            return DropdownMenuItem<EmployeeItem?>(
+                              value: emp,
+                              child: Text(
+                                emp.name,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedEmployee = value;
+                            });
+                            _fetchReport();
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -696,8 +790,25 @@ class _SalaryWithdrawalsReportScreenState
   }
 }
 
+/// عنصر الموظف للقائمة المنسدلة
+class EmployeeItem {
+  EmployeeItem({required this.id, required this.name});
+
+  final int? id;
+  final String name;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EmployeeItem && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
 class SalaryWithdrawalRow {
   SalaryWithdrawalRow({
+    this.employeeId,
     required this.employeeName,
     required this.action,
     required this.amount,
@@ -705,6 +816,7 @@ class SalaryWithdrawalRow {
     this.note,
   });
 
+  final int? employeeId;
   final String employeeName;
   final String action;
   final double amount;
