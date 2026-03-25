@@ -31,7 +31,7 @@ class AppColors {
   static const Color dividerColor = Color(0xFFdee2e6); // Bootstrap border color
 
   // Admin sidebar colors
-  static const Color sidebarColor = Color(0xFF0F172A);
+  static const Color sidebarColor = Color(0xFF7C4DFF);
   static const Color sidebarAccent = Color(0xFF16213C);
 }
 
