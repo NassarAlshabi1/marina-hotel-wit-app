@@ -56,12 +56,10 @@ class _SalaryWithdrawalsReportScreenState
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(const Duration(days: 30));
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    // من أول الشهر الحالي
+    _fromDate = DateTime(now.year, now.month, 1, 0, 0, 0);
+    // إلى آخر الشهر الحالي
+    _toDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
     // جلب قائمة الموظفين
     await _loadEmployees();
