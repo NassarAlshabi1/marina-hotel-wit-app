@@ -169,11 +169,38 @@ class AppwriteDeltaSync {
         }
       }
 
+      // ✅ الترتيب الصحيح مع حماية إضافية
+      // القاعدة الذهبية: لا تمسح Outbox إلا إذا كنت متأكداً 100% من أن البيانات آمنة
       if (successfulChanges.isNotEmpty) {
-        await _persistSuccessfulChanges(computation, successfulChanges);
-        // ✅ مسح السجلات الناجحة من Outbox فوراً
-        await _cleanupOutboxAfterSync(successfulChanges);
-        await _updateLastDeltaPushTimestamp();
+        try {
+          // 1️⃣ تحديث المرآة أولاً (حفظ الحالة الجديدة للمقارنة في المزامنة القادمة)
+          await _persistSuccessfulChanges(computation, successfulChanges);
+          
+          // 2️⃣ تحديث timestamp (منع إعادة إرسال نفس البيانات)
+          await _updateLastDeltaPushTimestamp();
+          
+          // 3️⃣ مسح Outbox فقط بعد نجاح الخطوتين السابقتين
+          await _cleanupOutboxAfterSync(successfulChanges);
+          
+          _logger.info(
+            '✅ تم اكتمال المزامنة المحلية: ${successfulChanges.length} سجل',
+            tag: 'DELTA_SYNC',
+          );
+        } catch (e) {
+          // ❌ فشل في الخطوات المحلية - Outbox يبقى سليماً للمحاولة مرة أخرى
+          _logger.error(
+            '❌ فشل في الخطوات المحلية بعد نجاح الشبكة: $e\n'
+            '⚠️ Outbox لم يُمسح - ستتم إعادة المحاولة تلقائياً',
+            tag: 'DELTA_SYNC',
+          );
+          // نعيد نتيجة فشل جزئي
+          return AppwriteDeltaSyncResult(
+            success: false,
+            message: 'تم الرفع لكن فشل التحديث المحلي: $e',
+            pushedCount: successfulChanges.length,
+            failedCount: failedChanges.length + 1, // +1 للفشل المحلي
+          );
+        }
       }
 
       final totalPushed = successfulChanges.length;
@@ -206,8 +233,9 @@ class AppwriteDeltaSync {
     if (collectionId == null) return;
 
     final payload = Map<String, dynamic>.from(change.data);
-    payload['deviceId'] = _deviceId;
-    payload['syncTimestamp'] = Time.nowEpoch();
+    // ✅ عدم الكتابة فوق القيم الموجودة إذا كانت أحدث
+    payload['deviceId'] ??= _deviceId;
+    payload['syncTimestamp'] = Time.nowEpoch(); // هذا يجب أن يكون دائماً جديداً
 
     // ✅ استخدام Field-Level payload إذا كان متاحاً
     Map<String, dynamic> sanitizedPayload;
@@ -333,16 +361,16 @@ class AppwriteDeltaSync {
           }
         }
 
+        // ✅ الترتيب الصحيح: إعادة بناء المرآة قبل إعادة تفعيل Foreign Keys
         if (totalPulled > 0) {
+          _logger.info('🔄 إعادة بناء المرآة...', tag: 'DELTA_SYNC');
+          await _deltaSyncService!.rebuildMirror();
+          
+          // ✅ تحديث occupancy بعد إعادة بناء المرآة
           await RoomsRepository(_database!).refreshAllRoomOccupancy(originIsServer: true);
         }
 
         await _updateLastDeltaPullTimestamp();
-
-        if (totalPulled > 0) {
-          _logger.info('🔄 إعادة بناء المرآة...', tag: 'DELTA_SYNC');
-          await _deltaSyncService!.rebuildMirror();
-        }
 
       } finally {
         await _database!.customStatement('PRAGMA foreign_keys = ON');
@@ -478,6 +506,23 @@ class AppwriteDeltaSync {
             final localUuid = remoteData['localUuid'] ?? doc.$id;
             remoteData['localUuid'] = localUuid;
             
+            // ✅ التحقق من الحذف في Appwrite - حذف محلي بدلاً من upsert
+            final isDeletedInRemote = remoteData['deletedAt'] != null || 
+                                      remoteData['isDeleted'] == true ||
+                                      remoteData['deletedAtEpoch'] != null;
+            
+            if (isDeletedInRemote) {
+              try {
+                await entity.repo.deleteByUuid(localUuid);
+                _logger.debug('🗑️ حذف محلي للسجل المحذوف في Appwrite: $localUuid', tag: 'DELTA_SYNC');
+              } catch (e) {
+                _logger.warning('فشل حذف ${entity.name}/$localUuid: $e', tag: 'DELTA_SYNC');
+              }
+              batchCount++;
+              totalSuccessCount++;
+              continue;
+            }
+            
             final localData = await entity.repo.getJsonByUuid(localUuid);
             
             if (localData != null) {
@@ -574,7 +619,6 @@ class AppwriteDeltaSync {
       case 'booking_price_adjustments': return AppwriteConfig.bookingPriceAdjustmentsCollectionId;
       case 'audit_logs': return AppwriteConfig.auditLogsCollectionId;
       case 'payment_voids': return AppwriteConfig.paymentVoidsCollectionId;
-      case 'salary_withdrawals': return AppwriteConfig.salaryWithdrawalsCollectionId;
       default: return null;
     }
   }
@@ -612,7 +656,7 @@ class AppwriteDeltaSync {
     'salary_cycles': ['employeeId', 'cycleKey', 'startDate', 'endDate'],
     'cash_transactions': ['transactionType', 'transactionTime'],
     'booking_price_adjustments': ['bookingUuid', 'bookingLocalUuid', 'effectiveHotelDay'],
-    'payments': ['amount', 'paymentDate', 'paymentMethod', 'revenueType', 'sync_version', 'sync_vector_clock'],
+    'payments': ['amount', 'paymentDate', 'paymentMethod', 'revenueType'], // sync_version و sync_vector_clock تُعالج في _syncFieldsPerEntity
     'debts': ['guestName', 'checkinDate', 'totalAmount', 'paidAmount', 'localUuid', 'createdAt', 'updatedAt', 'lastModified'],
     'expenses': ['expenseType', 'description', 'amount', 'date', 'localUuid', 'createdAt', 'updatedAt', 'lastModified'],
     'rooms': ['roomNumber', 'type', 'status', 'price', 'localUuid', 'createdAt', 'updatedAt', 'lastModified'],
@@ -830,10 +874,6 @@ class AppwriteDeltaSync {
               // action مطلوب لـ salary_withdrawals - قيمة افتراضية
               sanitized['action'] = sanitized['action'] ?? 'سحب راتب';
               break;
-            case 'amount':
-              // amount مطلوب - استخدام 0 كقيمة افتراضية
-              sanitized['amount'] = sanitized['amount'] ?? 0;
-              break;
             case 'paymentMethod':
               // paymentMethod مطلوب لـ payments
               sanitized['paymentMethod'] = sanitized['paymentMethod'] ?? 'نقدي';
@@ -846,16 +886,6 @@ class AppwriteDeltaSync {
               // paymentDate مطلوب لـ payments
               sanitized['paymentDate'] = sanitized['paymentDate'] ?? 
                   DateTime.now().toIso8601String();
-              break;
-            case 'sync_version':
-              // sync_version لـ payments/debts
-              sanitized['sync_version'] = sanitized['version'] ?? 
-                  sanitized['sync_version'] ?? 1;
-              break;
-            case 'sync_vector_clock':
-              // sync_vector_clock لـ payments/debts
-              final vc = sanitized['vectorClock'] ?? sanitized['sync_vector_clock'] ?? '{}';
-              sanitized['sync_vector_clock'] = vc is String ? vc : jsonEncode(vc);
               break;
             default:
               // للحقول الأخرى، نستخدم قيمة افتراضية
@@ -940,12 +970,13 @@ class AppwriteDeltaSync {
   }
 
   /// ✅ تقليص الحقول النصية الطويلة (Appwrite يحدد 50 حرف للـ strings القصيرة)
+  /// ملاحظة: للنص العربي، كل حرف = 2 بايت تقريباً في UTF-8
   void _truncateStringFields(Map<String, dynamic> data) {
-    // حقول يجب تقليصها إلى 50 حرف كحد أقصى
+    // حقول يجب تقليصها (القيمة هي عدد الرموز، وليس البايتات)
     final shortStringFields = {
       'stayDurationIso': 50,
       'roomNumber': 20,
-      'guestName': 100,
+      'guestName': 50, // ✅ تقليل إلى 50 رمز (100 بايت تقريباً للعربي)
       'guestPhone': 20,
       'nationality': 50,
       'status': 30,
@@ -955,14 +986,23 @@ class AppwriteDeltaSync {
 
     for (final entry in shortStringFields.entries) {
       final field = entry.key;
-      final maxLength = entry.value;
+      final maxChars = entry.value;
 
       if (data.containsKey(field) && data[field] is String) {
         final value = data[field] as String;
-        if (value.length > maxLength) {
-          data[field] = value.substring(0, maxLength);
+        // ✅ حساب البايتات الفعلية للنص العربي
+        final bytes = utf8.encode(value);
+        final maxBytes = maxChars * 2; // افتراض 2 بايت/حرف للعربي
+        
+        if (bytes.length > maxBytes) {
+          // تقليص مع مراعاة عدم قطع الحرف في المنتصف
+          var truncated = value;
+          while (utf8.encode(truncated).length > maxBytes && truncated.isNotEmpty) {
+            truncated = truncated.substring(0, truncated.length - 1);
+          }
+          data[field] = truncated;
           _logger.debug(
-            '✂️ تم تقليص $field من ${value.length} إلى $maxLength حرف',
+            '✂️ تم تقليص $field من ${bytes.length} بايت إلى ${utf8.encode(truncated).length} بايت',
             tag: 'DELTA_SYNC',
           );
         }
@@ -1089,19 +1129,35 @@ class AppwriteDeltaSync {
     };
   }
   
-  /// مزامنة كاملة (Push + Pull)
+  /// مزامنة كاملة (Pull ثم Push للسلامة)
+  /// الترتيب الصحيح: Pull أولاً للحصول على أحدث بيانات، ثم Push
   Future<AppwriteDeltaSyncResult> fullSync() async {
     _logger.info('🔄 بدء مزامنة كاملة...', tag: 'DELTA_SYNC');
     
-    // Push أولاً
+    // 1️⃣ Pull أولاً للحصول على أحدث بيانات من الخادم
+    final pullResult = await pullDeltaChanges();
+    
+    // 2️⃣ Push بعد الـ Pull (للتأكد من عدم فقدان بيانات محلية)
     final pushResult = await pushDeltaChanges();
     
-    // ثم Pull
-    final pullResult = await pullDeltaChanges();
+    // 3️⃣ Pull نهائي إذا كان هناك push ناجح (للحصول على التغييرات المتزامنة)
+    if (pushResult.pushedCount > 0 && pushResult.success) {
+      final finalPull = await pullDeltaChanges();
+      return AppwriteDeltaSyncResult(
+        success: pushResult.success && pullResult.success && finalPull.success,
+        message: 'Pull 1: ${pullResult.message}\n'
+                'Push: ${pushResult.message}\n'
+                'Pull 2: ${finalPull.message}',
+        pushedCount: pushResult.pushedCount,
+        pulledCount: pullResult.pulledCount + finalPull.pulledCount,
+        conflictCount: pushResult.conflictCount + pullResult.conflictCount + finalPull.conflictCount,
+        failedCount: pushResult.failedCount + pullResult.failedCount + finalPull.failedCount,
+      );
+    }
     
     return AppwriteDeltaSyncResult(
       success: pushResult.success && pullResult.success,
-      message: 'Push: ${pushResult.message}\nPull: ${pullResult.message}',
+      message: 'Pull: ${pullResult.message}\nPush: ${pushResult.message}',
       pushedCount: pushResult.pushedCount,
       pulledCount: pullResult.pulledCount,
       conflictCount: pushResult.conflictCount + pullResult.conflictCount,
