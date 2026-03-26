@@ -183,6 +183,30 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     return adapter.toJson(row, src: src);
   }
 
+  /// ✅ حذف سجل باستخدام UUID
+  Future<int> deleteByUuid(String uuid) async {
+    try {
+      final query = db.delete(table)
+        ..where((t) {
+          final columns = table.$columns;
+          final uuidColumn = columns.firstWhere(
+            (c) => c.$name == 'local_uuid' || c.$name == 'localUuid',
+            orElse: () => throw Exception('No UUID column found'),
+          );
+          return (uuidColumn as TextColumn).equals(uuid);
+        });
+      return await query.go();
+    } catch (e, st) {
+      developer.log(
+        'deleteByUuid failed for ${table.actualTableName}/$uuid',
+        error: e,
+        stackTrace: st,
+        name: 'BaseRepository',
+      );
+      rethrow;
+    }
+  }
+
   Future<List<List<Column>>> _resolveConflictTargets() async {
     final tableName = table.actualTableName;
     final cached = _conflictTargetCache[tableName];
