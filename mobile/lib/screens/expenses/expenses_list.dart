@@ -45,11 +45,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     'سحب من الراتب',
     'خصم من الراتب',
     'سلفة',
-    'مكافأة',
-    'خصم تأخير',
-    'خصم غياب',
-    'مصروفات طبية',
-    'سداد دين',
   ];
 
   @override
