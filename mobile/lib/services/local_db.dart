@@ -757,7 +757,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 35;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2051,6 +2051,79 @@ class AppDatabase extends _$AppDatabase {
               'Migration 35: completed Field-Level Sync schema',
               name: 'db.migration',
             );
+          }
+          if (from < 36) {
+            // Migration 36: ترحيل مصروفات الرواتب القديمة إلى النظام الجديد
+            developer.log(
+              'Migration 36: Migrating old salary expenses to new system',
+              name: 'db.migration',
+            );
+
+            try {
+              // 1. العثور على المصروفات التي تحتوي على expenseType = "سحب راتب" أو "خصم راتب"
+              final oldSalaryExpenses = await m.database.customSelect(
+                "SELECT id, relatedId, description, amount, date, localUuid, createdAt, updatedAt "
+                "FROM expenses WHERE expenseType IN ('سحب راتب', 'خصم راتب', 'سحب من الراتب', 'خصم من الراتب')",
+              ).get();
+
+              developer.log(
+                'Migration 36: Found ${oldSalaryExpenses.length} old salary expenses to migrate',
+                name: 'db.migration',
+              );
+
+              // 2. تحديث expenseType إلى "رواتب"
+              await m.database.customStatement(
+                "UPDATE expenses SET expenseType = 'رواتب' WHERE expenseType IN ('سحب راتب', 'خصم راتب', 'سحب من الراتب', 'خصم من الراتب')",
+              );
+
+              // 3. إنشاء سجلات في salary_withdrawals للمصروفات التي لها relatedId (موظف)
+              for (final row in oldSalaryExpenses) {
+                final expenseId = row.data['id'] as int?;
+                final employeeId = row.data['relatedId'] as int?;
+                final description = row.data['description'] as String?;
+                final amount = row.data['amount'] as double?;
+                final date = row.data['date'] as String?;
+                final localUuid = row.data['localUuid'] as String?;
+                final createdAt = row.data['createdAt'] as int?;
+                final updatedAt = row.data['updatedAt'] as int?;
+
+                if (expenseId != null && employeeId != null && employeeId > 0) {
+                  // التحقق من عدم وجود سجل مسبق
+                  final existing = await m.database.customSelect(
+                    "SELECT id FROM salary_withdrawals WHERE expenseId = $expenseId",
+                  ).get();
+
+                  if (existing.isEmpty) {
+                    // تحديد نوع الإجراء من الوصف أو الافتراضي
+                    String action = 'سحب من الراتب';
+                    if (description != null) {
+                      if (description.contains('خصم')) {
+                        action = 'خصم من الراتب';
+                      }
+                    }
+
+                    // إنشاء سجل جديد
+                    await m.database.customStatement(
+                      "INSERT INTO salary_withdrawals "
+                      "(expenseId, employeeId, action, amount, note, date, localUuid, createdAt, updatedAt, lastModified, version, origin) "
+                      "VALUES ($expenseId, $employeeId, '$action', ${amount ?? 0}, '$description', '$date', '${localUuid ?? const Uuid().v4()}', ${createdAt ?? DateTime.now().millisecondsSinceEpoch}, ${updatedAt ?? DateTime.now().millisecondsSinceEpoch}, ${updatedAt ?? DateTime.now().millisecondsSinceEpoch}, 1, 'migration')",
+                    );
+                  }
+                }
+              }
+
+              developer.log(
+                'Migration 36: completed migrating old salary expenses',
+                name: 'db.migration',
+              );
+            } catch (e, st) {
+              developer.log(
+                'Migration 36: failed - $e',
+                name: 'db.migration',
+                error: e,
+                stackTrace: st,
+              );
+            }
           }
         },
       );
