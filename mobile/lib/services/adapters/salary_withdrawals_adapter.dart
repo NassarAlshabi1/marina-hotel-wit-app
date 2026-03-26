@@ -29,11 +29,29 @@ class SalaryWithdrawalsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
+    // ✅ استخدم resolver للـ foreign keys
+    final employeeId = await resolver.resolveEmployee(
+      db,
+      json['employeeId'] ?? json['employee_id'],
+      src: src,
+    );
+
+    final expenseId = json['expenseId'] != null || json['expense_id'] != null
+        ? await resolver.resolveExpense(
+            db,
+            json['expenseId'] ?? json['expense_id'],
+            src: src,
+          )
+        : null;
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
     return ResolveResult(
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      resolvedEmployeeId: employeeId,
+      resolvedExpenseId: expenseId,
     );
   }
 
@@ -49,23 +67,36 @@ class SalaryWithdrawalsAdapter
     final lastModified = refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+
+    // ✅ validation للـ amount
+    final amount = _asDouble(json, 'amount', src) ?? 0.0;
+    if (amount < 0) {
+      throw ArgumentError('Amount cannot be negative: $amount');
+    }
+
     return SalaryWithdrawalsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
         _asString(json, 'localUuid', src) ??
             _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
+            (src == Source.drive
+                ? throw ArgumentError('localUuid required for Drive import')
+                : IdGen.uuid()),
       ),
       serverId: _vInt(json, 'serverId', src),
-      expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
-      employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
+      expenseId: refs.resolvedExpenseId != null
+          ? d.Value(refs.resolvedExpenseId!)
+          : _vInt(json, 'expenseId', src, altKey: 'expense_id'),
+      employeeId: refs.resolvedEmployeeId != null
+          ? d.Value(refs.resolvedEmployeeId!)
+          : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
       action: _vStr(
         json,
         'action',
         src,
         fallback: 'سحب راتب',
       ),
-      amount: _vDouble(json, 'amount', src, fallback: 0.0),
+      amount: d.Value(amount),
       note: _vStr(json, 'note', src),
       date: _vStr(
         json,
@@ -77,18 +108,15 @@ class SalaryWithdrawalsAdapter
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
-      createdAtIso: _vStr(json, 'createdAtIso', src),
+      createdAtIso: _vStr(json, 'createdAtIso', src,
+          fallback: Time.epochToIso(createdAt)),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(
-        json,
-        'lastModifiedEpoch',
-        src,
-        fallback: lastModified,
-      ),
+      createdAtEpoch: d.Value(createdAt),
+      lastModifiedEpoch: d.Value(lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
-      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      origin: _vStr(json, 'origin', src,
+          fallback: src == Source.appwrite ? 'server' : 'mobile'),
       vectorClock: _vMapJson(
         json,
         'vectorClock',
@@ -101,7 +129,7 @@ class SalaryWithdrawalsAdapter
 
   @override
   Map<String, dynamic> toJson(SalaryWithdrawal model, {required Source src}) {
-    return {
+    final json = <String, dynamic>{
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
@@ -117,8 +145,17 @@ class SalaryWithdrawalsAdapter
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock != null && model.vectorClock.isNotEmpty ? jsonEncode(model.vectorClock) : '{}',
     };
+
+    // ✅ vectorClock دائماً Map
+    final vc = model.vectorClock;
+    if (vc != null && vc.isNotEmpty) {
+      json[_k(src, 'vectorClock', 'vector_clock')] = vc;
+    } else {
+      json[_k(src, 'vectorClock', 'vector_clock')] = <String, dynamic>{};
+    }
+
+    return json;
   }
 }
 
@@ -161,12 +198,25 @@ d.Value<bool> _vBool(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+/// ✅ Improved _epoch with ISO 8601 support
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   if (v != null) return v;
+
   final s = _asString(json, key, src);
   if (s == null) return null;
-  return int.tryParse(s);
+
+  // محاولة parsing كـ int أولاً
+  final asInt = int.tryParse(s);
+  if (asInt != null) return asInt;
+
+  // محاولة parsing كـ ISO 8601 date
+  try {
+    final date = DateTime.parse(s);
+    return date.millisecondsSinceEpoch ~/ 1000; // convert to seconds
+  } catch (_) {}
+
+  return null;
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
@@ -245,7 +295,8 @@ Map<String, dynamic>? _asMap(Map<String, dynamic> json, String key, Source src) 
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v == null) return null;
-  return v.toString();
+  final str = v.toString();
+  return str.isEmpty ? null : str; // ✅ تجاهل empty strings
 }
 
 Object? _raw(Map<String, dynamic> json, String key, Source src) {

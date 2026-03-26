@@ -3,6 +3,12 @@ class Time {
 
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
+  
+  /// ✅ Convert epoch seconds to ISO 8601 string
+  static String epochToIso(int epochSeconds) {
+    return DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000).toIso8601String();
+  }
+  
   static String nowDateString() {
     final now = DateTime.now();
     return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
