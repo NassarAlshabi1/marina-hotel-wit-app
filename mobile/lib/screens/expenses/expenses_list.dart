@@ -26,13 +26,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   DateTime? _toDate;
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
+
+  // ✅ أنواع المصروفات الأساسية
   static const String _salaryType = 'رواتب';
-  static const String _salaryWithdrawAction = 'سحب من الراتب';
-  static const String _salaryDeductionAction = 'خصم من الراتب';
-  static const List<String> _salaryActions = [
-    _salaryWithdrawAction,
-    _salaryDeductionAction,
-  ];
   static const List<String> availableTypes = [
     'رواتب',
     'ديزل',
@@ -41,6 +37,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     'مستلزمات',
     'مساعدة محتاج',
     'اخرى',
+  ];
+
+  // ✅ قائمة إجراءات الرواتب الافتراضية (قابلة للتوسعة)
+  // Default salary actions list - can be extended dynamically
+  static const List<String> defaultSalaryActions = [
+    'سحب من الراتب',
+    'خصم من الراتب',
+    'سلفة',
+    'مكافأة',
+    'خصم تأخير',
+    'خصم غياب',
+    'مصروفات طبية',
+    'سداد دين',
   ];
 
   @override
@@ -162,7 +171,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
     
     // For salary expenses, check salary_withdrawals table
-    if (_isSalaryAction(expense.expenseType)) {
+    if (expense.expenseType == _salaryType) {
       final employeeId = salaryExpenseToEmployee[expense.id];
       if (employeeId != null && employeeNames.containsKey(employeeId)) {
         return employeeNames[employeeId];
@@ -399,15 +408,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       text: existing?.date ?? Time.hotelDayKey(),
     );
 
-    String dialogSalaryAction = _salaryWithdrawAction;
+    // ✅ الإجراء المحدد للموظف - حر بدون قيود
+    String selectedSalaryAction = defaultSalaryActions.first;
     selectedType = existing?.expenseType ?? 'اخرى';
 
     // Load salary withdrawal data for existing salary expenses
     SalaryWithdrawal? existingSalaryWithdrawal;
-    if (existing != null && _isSalaryAction(existing.expenseType)) {
-      selectedType = _salaryType;
-      dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
-      
+    if (existing != null && existing.expenseType == _salaryType) {
       // Try to load from salary_withdrawals table
       final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
       final allWithdrawals = await salaryRepo.listAll();
@@ -415,8 +422,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         existingSalaryWithdrawal = allWithdrawals.firstWhere(
           (sw) => sw.expenseId == existing.id,
         );
-        // Use data from salary_withdrawals if found
-        dialogSalaryAction = existingSalaryWithdrawal.action;
+        // ✅ استخدم الإجراء كما هو بدون تحويل
+        selectedSalaryAction = existingSalaryWithdrawal.action;
       } catch (_) {
         // Not found, use defaults
       }
@@ -429,6 +436,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     int? selectedEmployeeId = existing?.relatedId;
     if (selectedEmployeeId == null && existingSalaryWithdrawal != null) {
       selectedEmployeeId = existingSalaryWithdrawal.employeeId;
+    }
+
+    // ✅ قائمة الإجراءات المتاحة (قابلة للتوسعة)
+    List<String> salaryActions = List.from(defaultSalaryActions);
+    
+    // إضافة الإجراء الحالي إذا لم يكن في القائمة
+    if (!salaryActions.contains(selectedSalaryAction)) {
+      salaryActions.insert(0, selectedSalaryAction);
     }
 
     final ok = await showDialog<bool>(
@@ -466,7 +481,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           }
                         } else {
                           selectedEmployeeId = null;
-                          dialogSalaryAction = _salaryWithdrawAction;
                         }
                       });
                     },
@@ -493,12 +507,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             setState(() => selectedEmployeeId = value),
                       ),
                       const SizedBox(height: 12),
+                      // ✅ حقل الإجراء - حر مع إمكانية الكتابة
                       DropdownButtonFormField<String>(
-                        initialValue: dialogSalaryAction,
+                        initialValue: selectedSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
+                          hintText: 'اختر أو اكتب نوع المعاملة',
                         ),
-                        items: _salaryActions
+                        items: salaryActions
                             .map(
                               (action) => DropdownMenuItem<String>(
                                 value: action,
@@ -508,7 +524,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             .toList(),
                         onChanged: (value) {
                           if (value == null) return;
-                          setState(() => dialogSalaryAction = value);
+                          setState(() => selectedSalaryAction = value);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      // ✅ حقل نصي لإضافة إجراء جديد مخصص
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'أو اكتب إجراء مخصص جديد',
+                          hintText: 'مثال: سلفة طارئة',
+                        ),
+                        onChanged: (value) {
+                          if (value.trim().isNotEmpty) {
+                            setState(() {
+                              selectedSalaryAction = value.trim();
+                            });
+                          }
                         },
                       ),
                     ],
@@ -585,9 +616,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final trimmedDate =
         date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
-    final savedType = isSalaryExpense
-        ? _deriveSalaryExpenseType(dialogSalaryAction)
-        : (selectedType ?? 'اخرى');
+    
+    // ✅ استخدام النوع والإجراء كما هما بدون تحويل
+    final savedType = selectedType ?? 'اخرى';
 
     if (parsedAmount <= 0) {
       description.dispose();
@@ -606,10 +637,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
 
       if (isSalaryExpense && selectedEmployeeId != null) {
+        // ✅ تمرير الإجراء كما هو بدون تحويل
         await salaryRepo.saveFromExpense(
           expenseId: newId,
           employeeId: selectedEmployeeId!,
-          action: savedType,
+          action: selectedSalaryAction, // ✅ مباشرة بدون تحويل
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
@@ -626,10 +658,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
 
       if (isSalaryExpense && selectedEmployeeId != null) {
+        // ✅ تمرير الإجراء كما هو بدون تحويل
         await salaryRepo.saveFromExpense(
           expenseId: existing.id,
           employeeId: selectedEmployeeId!,
-          action: savedType,
+          action: selectedSalaryAction, // ✅ مباشرة بدون تحويل
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
@@ -650,30 +683,5 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (mounted) {
       _refreshExpensesStream();
     }
-  }
-
-  bool _isSalaryAction(String? type) {
-    if (type == null) return false;
-    final normalized = type.trim();
-    return normalized == _salaryType ||
-        normalized == 'سحب راتب' ||
-        normalized == _salaryWithdrawAction ||
-        normalized == _salaryDeductionAction ||
-        normalized == 'خصم راتب';
-  }
-
-  String _mapExpenseTypeToSalaryAction(String type) {
-    final normalized = type.trim();
-    if (normalized == _salaryDeductionAction || normalized == 'خصم راتب') {
-      return _salaryDeductionAction;
-    }
-    return _salaryWithdrawAction;
-  }
-
-  String _deriveSalaryExpenseType(String action) {
-    if (action == _salaryDeductionAction) {
-      return _salaryDeductionAction;
-    }
-    return 'سحب راتب';
   }
 }
