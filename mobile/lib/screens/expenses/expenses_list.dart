@@ -643,6 +643,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     amount.dispose();
     date.dispose();
 
+    // ✅ تحديث قائمة سحوبات الرواتب
+    ref.invalidate(salaryWithdrawalsListProvider);
+    
     markDataChanged();
     if (mounted) {
       _refreshExpensesStream();
