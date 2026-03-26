@@ -44,7 +44,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const List<String> defaultSalaryActions = [
     'سحب من الراتب',
     'خصم من الراتب',
-    'سلفة',
   ];
 
   @override
