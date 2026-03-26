@@ -545,48 +545,41 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // ============================================================================
 
   Future<SyncResult> _performSync({required bool useFieldLevel}) async {
-    if (useFieldLevel) {
-      // TODO: استدعاء FieldLevelSyncService.fullSync()
-      return SyncResult(
-        recordsPushed: 0,
-        recordsPulled: 0,
-        fieldsPushed: 5,
-        fieldsPulled: 3,
-        conflicts: 0,
-      );
-    } else {
-      final deltaSync = AppwriteDeltaSync.instance;
-      final result = await deltaSync.fullSync();
-      return SyncResult(
-        recordsPushed: result.recordsPushed,
-        recordsPulled: result.recordsPulled,
-        fieldsPushed: 0,
-        fieldsPulled: 0,
-        conflicts: result.conflictCount,
-      );
-    }
+    // ✅ AppwriteDeltaSync يدعم Field-Level Sync بالفعل عبر DeltaSyncService.compute()
+    // لذلك نستخدمه في كلتا الحالتين
+    final deltaSync = AppwriteDeltaSync.instance;
+    final result = await deltaSync.fullSync();
+    return SyncResult(
+      recordsPushed: result.recordsPushed,
+      recordsPulled: result.recordsPulled,
+      fieldsPushed: useFieldLevel ? result.recordsPushed : 0, // Field-Level mode
+      fieldsPulled: useFieldLevel ? result.recordsPulled : 0,
+      conflicts: result.conflictCount,
+      failedCount: result.failedCount,
+    );
   }
 
   Future<SyncResult> _performPull({required bool useFieldLevel}) async {
-    if (useFieldLevel) {
-      // TODO: استدعاء FieldLevelSyncService.pull()
-      return SyncResult(recordsPulled: 0, fieldsPulled: 5);
-    } else {
-      final deltaSync = AppwriteDeltaSync.instance;
-      final result = await deltaSync.pullDeltaChanges();
-      return SyncResult(recordsPulled: result.recordsPulled);
-    }
+    // ✅ AppwriteDeltaSync يدعم Field-Level Sync بالفعل
+    final deltaSync = AppwriteDeltaSync.instance;
+    final result = await deltaSync.pullDeltaChanges();
+    return SyncResult(
+      recordsPulled: result.recordsPulled,
+      fieldsPulled: useFieldLevel ? result.recordsPulled : 0,
+      failedCount: result.failedCount,
+    );
   }
 
   Future<SyncResult> _performPush({required bool useFieldLevel}) async {
-    if (useFieldLevel) {
-      // TODO: استدعاء FieldLevelSyncService.push()
-      return SyncResult(recordsPushed: 0, fieldsPushed: 5);
-    } else {
-      final deltaSync = AppwriteDeltaSync.instance;
-      final result = await deltaSync.pushDeltaChanges();
-      return SyncResult(recordsPushed: result.recordsPushed);
-    }
+    // ✅ AppwriteDeltaSync يدعم Field-Level Sync بالفعل عبر DeltaSyncService.compute()
+    // الذي يحسب fieldChanges و fieldMetadata لكل تغيير
+    final deltaSync = AppwriteDeltaSync.instance;
+    final result = await deltaSync.pushDeltaChanges();
+    return SyncResult(
+      recordsPushed: result.recordsPushed,
+      fieldsPushed: useFieldLevel ? result.recordsPushed : 0,
+      failedCount: result.failedCount,
+    );
   }
 
   // ============================================================================
