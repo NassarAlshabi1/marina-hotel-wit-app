@@ -1874,9 +1874,9 @@ class AppwriteSyncManager {
       'lastModified': cycle.lastModified,
       'version': cycle.version,
       'origin': cycle.origin,
-      // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'startDate': cycle.hotelDayStart ?? cycle.startDate ?? '',
-      'endDate': cycle.hotelDayEnd ?? cycle.endDate ?? '',
+      // ✅ استخدام hotelDayStart و hotelDayEnd الموجودين فعلياً
+      'startDate': cycle.hotelDayStart ?? '',
+      'endDate': cycle.hotelDayEnd ?? '',
     };
     _putIfNotNull(data, 'serverId', cycle.serverId);
     _putIfNotNull(data, 'deletedAt', cycle.deletedAt);

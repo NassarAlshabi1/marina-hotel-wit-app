@@ -31,14 +31,12 @@ class SalaryWithdrawalsAdapter
   }) async {
     // ✅ استخدم resolver للـ foreign keys
     final employeeId = await resolver.resolveEmployee(
-      db,
       json['employeeId'] ?? json['employee_id'],
       src: src,
     );
 
     final expenseId = json['expenseId'] != null || json['expense_id'] != null
         ? await resolver.resolveExpense(
-            db,
             json['expenseId'] ?? json['expense_id'],
             src: src,
           )
@@ -74,6 +72,10 @@ class SalaryWithdrawalsAdapter
       throw ArgumentError('Amount cannot be negative: $amount');
     }
 
+    // ✅ استخراج القيم المحللة
+    final resolvedExpenseId = refs.resolvedExpenseId;
+    final resolvedEmployeeId = refs.resolvedEmployeeId;
+
     return SalaryWithdrawalsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -84,11 +86,11 @@ class SalaryWithdrawalsAdapter
                 : IdGen.uuid()),
       ),
       serverId: _vInt(json, 'serverId', src),
-      expenseId: refs.resolvedExpenseId != null
-          ? d.Value(refs.resolvedExpenseId!)
+      expenseId: resolvedExpenseId != null
+          ? d.Value(resolvedExpenseId)
           : _vInt(json, 'expenseId', src, altKey: 'expense_id'),
-      employeeId: refs.resolvedEmployeeId != null
-          ? d.Value(refs.resolvedEmployeeId!)
+      employeeId: resolvedEmployeeId != null
+          ? d.Value(resolvedEmployeeId)
           : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
       action: _vStr(
         json,
@@ -149,11 +151,7 @@ class SalaryWithdrawalsAdapter
 
     // ✅ vectorClock دائماً Map
     final vc = model.vectorClock;
-    if (vc != null && vc.isNotEmpty) {
-      json[_k(src, 'vectorClock', 'vector_clock')] = vc;
-    } else {
-      json[_k(src, 'vectorClock', 'vector_clock')] = <String, dynamic>{};
-    }
+    json[_k(src, 'vectorClock', 'vector_clock')] = vc.isNotEmpty ? vc : <String, dynamic>{};
 
     return json;
   }
@@ -181,19 +179,6 @@ d.Value<String> _vStr(
 }) {
   final v = _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v = _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
@@ -229,31 +214,6 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
     return int.tryParse(v);
   }
   return null;
-}
-
-bool? _asBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is bool) return v;
-  if (v is num) return v != 0;
-  if (v is String) {
-    final t = v.toLowerCase();
-    if (t == 'true' || t == '1') return true;
-    if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v = _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
 }
 
 double? _asDouble(Map<String, dynamic> json, String key, Source src) {
