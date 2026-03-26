@@ -390,12 +390,20 @@ class AppwriteSyncManager {
   }
 
   /// تنظيف الموارد
-  void dispose() {
+  Future<void> dispose() async {
     _syncTimer?.cancel();
     _debouncePushTimer?.cancel();
-    _outboxSubscription?.cancel();
+    
+    // ✅ انتظر إلغاء الاشتراك
+    await _outboxSubscription?.cancel();
+    _outboxSubscription = null;
+    
     stopAutoSync();
-    _syncController.close();
+    
+    // ✅ أغلق الـ stream بأمان
+    if (!_syncController.isClosed) {
+      await _syncController.close();
+    }
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:
@@ -406,27 +414,18 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
-    if (!await _mutex.acquire()) {
-      _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
+    // ✅ فحص واحد فقط للـ mutex مع timeout
+    if (!await _mutex.acquire(timeout: Duration(seconds: 30))) {
+      _logger.warning('Failed to acquire sync mutex (timeout or busy)', tag: 'SYNC');
       return SyncResult(
         status: SyncStatus.failed,
-        errorMessage: 'Sync mutex timeout',
+        errorMessage: 'Sync in progress or timeout',
         timestamp: DateTime.now(),
         duration: Duration.zero,
       );
     }
 
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('Sync already in progress', tag: 'SYNC');
-      _mutex.release();
-      return SyncResult(
-        status: SyncStatus.failed,
-        errorMessage: 'Sync already in progress',
-        timestamp: DateTime.now(),
-        duration: Duration.zero,
-      );
-    }
-
+    // ✅ الآن نحن الوحيدون الذين يمكنهم التغيير
     _currentStatus = SyncStatus.syncing;
     _syncController.add(_currentStatus);
 
@@ -498,6 +497,7 @@ class AppwriteSyncManager {
       );
     }
 
+    // ✅ دائماً حرر الـ mutex في finally
     _currentStatus = finalStatus;
     _syncController.add(_currentStatus);
     _mutex.release();
@@ -632,8 +632,18 @@ class AppwriteSyncManager {
       final data = Map<String, dynamic>.from(doc.data);
       data['localUuid'] ??= doc.$id;
       
+      // ✅ التحقق من صحة discountStartDate
       if (data.containsKey('discountStartDate')) {
-        data['discountStartDate'] = data.remove('discountStartDate');
+        final dateStr = data['discountStartDate']?.toString();
+        if (dateStr != null && dateStr.isNotEmpty) {
+          try {
+            // التحقق من صحة التاريخ
+            DateTime.parse(dateStr);
+            data['discountStartDate'] = dateStr;
+          } catch (_) {
+            data.remove('discountStartDate'); // إزالة إذا كان غير صالح
+          }
+        }
       }
       
       await _adapterRegistry.bookings.upsertFromJson(
@@ -847,7 +857,8 @@ class AppwriteSyncManager {
   }
 
   Future<int> _pushAllEntities() async {
-    const batchSize = 200;
+    const batchSize = 50; // ✅ أصغر حجم لتجنب rate limiting
+    const maxConcurrent = 3; // ✅ تحديد concurrent operations
     int totalProcessed = 0;
 
     while (true) {
@@ -856,15 +867,28 @@ class AppwriteSyncManager {
         break;
       }
 
-      int processedInBatch = 0;
-      for (final entry in entries) {
-        final success = await _processOutboxEntry(entry);
-        if (success) {
-          await outboxDao.removeById(entry.id);
-          processedInBatch++;
-        }
-      }
+      // ✅ معالجة batch بشكل متوازي مع حد
+      final results = await Future.wait(
+        entries.map((entry) => _processOutboxEntry(entry).then((success) async {
+          if (success) {
+            await outboxDao.removeById(entry.id);
+            return true;
+          }
+          return false;
+        })),
+        eagerError: false,
+      ).catchError((e) {
+        _logger.warning('Batch failed partially: $e', tag: 'SYNC');
+        return <bool>[];
+      });
+
+      final processedInBatch = results.where((r) => r).length;
       totalProcessed += processedInBatch;
+
+      // ✅ تأخير بين الـ batches لتجنب rate limiting
+      if (entries.length == batchSize) {
+        await Future.delayed(Duration(milliseconds: 100));
+      }
 
       if (entries.length == batchSize && processedInBatch == 0) {
         _logger.warning(
