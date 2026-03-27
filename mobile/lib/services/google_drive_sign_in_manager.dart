@@ -21,6 +21,7 @@ class GoogleDriveSignInManager {
       scopes: kGoogleDriveScopes,
       // Note: In google_sign_in 7.x, use clientId parameter for iOS/Web
       // For Android, clientId is configured in google-services.json
+      clientId: kGoogleDriveServerClientId, // Required for iOS/Web
     );
     return _client!;
   }

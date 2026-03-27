@@ -211,8 +211,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       return;
     }
 
-    // flutter_contacts 2.x: pickContact returns the full contact directly
-    final contact = await FlutterContacts.pickContact(
+    // flutter_contacts 2.x: use native.showPicker to get contact ID
+    final contactId = await FlutterContacts.native.showPicker();
+    if (contactId == null || !mounted) return;
+
+    // Fetch the full contact with phone numbers
+    final contact = await FlutterContacts.get(
+      contactId,
       withProperties: true,
     );
     if (contact == null || !mounted) return;

@@ -19,7 +19,7 @@ class AlarmBackup {
       '@mipmap/ic_launcher',
     );
     const initSettings = InitializationSettings(android: androidSettings);
-    await _notif.initialize(initializationSettings: initSettings);
+    await _notif.initialize(initSettings);
     debugPrint('✅ Alarm system initialized');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة

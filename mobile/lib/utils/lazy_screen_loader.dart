@@ -36,7 +36,6 @@ class LazyScreenLoader {
 
         return await _loading[key] as T;
       }(),
-      placeholder: placeholder ?? const Center(child: CircularProgressIndicator()),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return placeholder ?? const Center(child: CircularProgressIndicator());
@@ -88,7 +87,7 @@ extension LazyNavigator on NavigatorState {
       LazyScreenLoader.preload(routeName, pageBuilder as Future<Widget> Function());
     }
     final page = await pageBuilder();
-    return push<T>(MaterialPageRoute(builder: (_) => page));
+    return push<T>(MaterialPageRoute(builder: (_) => page as Widget));
   }
 }
 

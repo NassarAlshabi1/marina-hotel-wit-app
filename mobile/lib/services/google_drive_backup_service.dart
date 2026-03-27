@@ -170,15 +170,19 @@ class GoogleDriveBackupService {
   }
 
   Future<void> _ensureDriveClient() async {
-    GoogleSignInAccount? account = _currentUser;
+    GoogleSignInAccount? account = _currentUser ?? _googleSignIn?.currentUser;
     if (account == null) {
       try {
-        account = await _googleSignIn?.signInSilently();
-        if (account != null) {
-          _currentUser = account;
+        // In google_sign_in 7.x, attemptSignedIn() replaces signInSilently()
+        final signedIn = await _googleSignIn?.attemptSignedIn();
+        if (signedIn == true) {
+          account = _googleSignIn?.currentUser;
+          if (account != null) {
+            _currentUser = account;
+          }
         }
       } catch (e) {
-        _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
+        _log('⚠️ فشل attemptSignedIn أثناء تحديث الاعتماديات: $e');
       }
     }
 
@@ -187,8 +191,10 @@ class GoogleDriveBackupService {
     }
 
     final auth = await account.authentication;
+    // In google_sign_in 7.x, accessToken is an AccessToken object
+    final accessToken = auth.accessToken;
     final headers = {
-      'Authorization': 'Bearer ${auth.accessToken}',
+      'Authorization': 'Bearer ${accessToken != null ? accessToken.idToken ?? '' : ''}',
       'Content-Type': 'application/json',
     };
     _driveApi = drive.DriveApi(GoogleAuthClient(headers));
@@ -218,7 +224,9 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      // In google_sign_in 7.x, attemptSignedIn() replaces signInSilently()
+      bool signedIn = await _googleSignIn!.attemptSignedIn();
+      GoogleSignInAccount? account = signedIn ? _googleSignIn!.currentUser : null;
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
@@ -229,8 +237,10 @@ class GoogleDriveBackupService {
         _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
         final auth = await account.authentication;
+        // In google_sign_in 7.x, accessToken is an AccessToken object
+        final accessToken = auth.accessToken;
         final headers = {
-          'Authorization': 'Bearer ${auth.accessToken}',
+          'Authorization': 'Bearer ${accessToken != null ? accessToken.idToken ?? '' : ''}',
           'Content-Type': 'application/json',
         };
         final client = GoogleAuthClient(headers);
@@ -261,15 +271,18 @@ class GoogleDriveBackupService {
       }
 
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      final GoogleSignInAccount? account =
-          await _googleSignIn!.signInSilently();
+      // In google_sign_in 7.x, attemptSignedIn() replaces signInSilently()
+      final bool signedIn = await _googleSignIn!.attemptSignedIn();
+      final GoogleSignInAccount? account = signedIn ? _googleSignIn!.currentUser : null;
 
       if (account != null) {
         _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
         final auth = await account.authentication;
+        // In google_sign_in 7.x, accessToken is an AccessToken object
+        final accessToken = auth.accessToken;
         final headers = {
-          'Authorization': 'Bearer ${auth.accessToken}',
+          'Authorization': 'Bearer ${accessToken != null ? accessToken.idToken ?? '' : ''}',
           'Content-Type': 'application/json',
         };
         final client = GoogleAuthClient(headers);
@@ -291,13 +304,17 @@ class GoogleDriveBackupService {
   Future<bool> signInSilentlyIfNeeded() async {
     try {
       if (_googleSignIn == null) _initializeGoogleSignIn();
-      final account = await _googleSignIn!.signInSilently();
+      // In google_sign_in 7.x, attemptSignedIn() replaces signInSilently()
+      final bool signedIn = await _googleSignIn!.attemptSignedIn();
+      final account = signedIn ? _googleSignIn!.currentUser : null;
 
       if (account != null) {
         _currentUser = account; // Track current user
         final auth = await account.authentication;
+        // In google_sign_in 7.x, accessToken is an AccessToken object
+        final accessToken = auth.accessToken;
         final headers = {
-          'Authorization': 'Bearer ${auth.accessToken}',
+          'Authorization': 'Bearer ${accessToken != null ? accessToken.idToken ?? '' : ''}',
           'Content-Type': 'application/json',
         };
         final client = GoogleAuthClient(headers);
@@ -309,7 +326,7 @@ class GoogleDriveBackupService {
       _log('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
       return false;
     } catch (e) {
-      _log('❌ signInSilently error: $e');
+      _log('❌ attemptSignedIn error: $e');
       return false;
     }
   }

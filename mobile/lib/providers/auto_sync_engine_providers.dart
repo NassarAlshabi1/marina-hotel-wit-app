@@ -5,7 +5,7 @@ import '../services/google_drive_conflict_resolver.dart';
 import '../services/google_drive_unified_sync_coordinator.dart';
 
 final autoSyncEngineProvider = Provider<AutoSyncEngine>((ref) {
-  ref.keepAlive();
+  // Provider keeps value alive by default in Riverpod 3.x
   return AutoSyncEngine.instance;
 });
 
@@ -16,7 +16,7 @@ final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
 
 final unifiedSyncCoordinatorProvider =
     Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
-  ref.keepAlive();
+  // Provider keeps value alive by default in Riverpod 3.x
   return GoogleDriveUnifiedSyncCoordinator.instance;
 });
 
@@ -26,7 +26,7 @@ final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
 });
 
 final conflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
-  ref.keepAlive();
+  // Provider keeps value alive by default in Riverpod 3.x
   return GoogleDriveConflictResolver.instance;
 });
 

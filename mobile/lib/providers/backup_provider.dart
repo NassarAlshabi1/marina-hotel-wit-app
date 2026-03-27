@@ -1434,7 +1434,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((
   ref,
 ) {
-  ref.keepAlive(); // المحافظة على الخدمة في الذاكرة
+  // Provider keeps value alive by default in Riverpod 3.x
   return GoogleDriveBackupService();
 });
 

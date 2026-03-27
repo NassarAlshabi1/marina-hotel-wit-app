@@ -24,7 +24,7 @@ class SyncNotificationManager {
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _localNotifications.initialize(
-      initializationSettings: initSettings,
+      initSettings,
       onDidReceiveNotificationResponse: (details) {
         // يمكن إضافة توجيه عند الضغط على الإشعار هنا
       },

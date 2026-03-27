@@ -232,13 +232,7 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
         icon: Icons.account_balance_wallet,
         color: Colors.cyan,
       ),
-      _CollectionInfo(
-        id: AppwriteConfig.hotelDayLedgerCollectionId,
-        name: 'دفتر اليومية',
-        description: 'دفتر اليومية المحاسبي',
-        icon: Icons.book,
-        color: Colors.indigo,
-      ),
+      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته مع Appwrite
       _CollectionInfo(
         id: AppwriteConfig.shiftNotesCollectionId,
         name: 'ملاحظات النوبة',
