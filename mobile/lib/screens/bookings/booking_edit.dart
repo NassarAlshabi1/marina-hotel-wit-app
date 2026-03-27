@@ -227,7 +227,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
       _guestPhone.text = normalizedPhone;
       if (_guestName.text.isEmpty) {
-        _guestName.text = contact.displayName;
+        _guestName.text = contact.displayName ?? '';
       }
       markDataChanged();
     }

@@ -419,14 +419,24 @@ class GoogleDriveSyncService {
       return _driveApi!;
     }
 
-    final account = await _googleSignIn.signInSilently(suppressErrors: true) ??
-        (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
+    // In google_sign_in 7.x, use attemptLightweightAuthentication() and authenticate()
+    var account = await _googleSignIn.attemptLightweightAuthentication();
+    if (account == null && _allowInteractiveSignIn) {
+      account = await _googleSignIn.authenticate(scopeHint: const [drive.DriveApi.driveAppdataScope]);
+    }
 
     if (account == null) {
       throw StateError('لم يتم تسجيل الدخول إلى Google Drive.');
     }
+    
+    _currentUser = account;
 
-    final headers = await account.authHeaders;
+    final accessToken = await _getAccessToken(account);
+    if (accessToken == null) {
+      throw StateError('فشل الحصول على رمز الوصول لـ Google Drive.');
+    }
+    
+    final headers = {'Authorization': 'Bearer $accessToken'};
     _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
     return _driveApi!;
   }
