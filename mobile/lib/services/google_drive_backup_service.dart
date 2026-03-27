@@ -159,30 +159,44 @@ class GoogleDriveBackupService {
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
 
-  GoogleSignIn? get _googleSignIn => GoogleDriveSignInManager.instance.client;
+  GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
-  GoogleSignInAccount? _currentUser; // Track current user manually (removed in 7.x)
+  GoogleSignInAccount? _currentUser; // Track current user manually
 
   void _initializeGoogleSignIn() {
-    // Already handled by GoogleDriveSignInManager
+    // In google_sign_in 7.x, initialization is automatic
+  }
+  
+  /// Helper to get Drive API access token from account
+  Future<String?> _getAccessToken(GoogleSignInAccount account) async {
+    try {
+      // Try to get authorization without user interaction first
+      final clientAuth = await account.authorizationClient.authorizationForScopes(_scopes);
+      if (clientAuth != null) {
+        return clientAuth.accessToken;
+      }
+      // If that fails, request interactive authorization
+      final newAuth = await account.authorizationClient.authorizeScopes(_scopes);
+      return newAuth.accessToken;
+    } catch (e) {
+      _log('⚠️ فشل الحصول على رمز الوصول: $e');
+      return null;
+    }
   }
 
   Future<void> _ensureDriveClient() async {
-    GoogleSignInAccount? account = _currentUser ?? _googleSignIn?.currentUser;
+    GoogleSignInAccount? account = _currentUser;
     if (account == null) {
       try {
-        // In google_sign_in 7.x, attemptSignedIn() replaces signInSilently()
-        final signedIn = await _googleSignIn?.attemptSignedIn();
-        if (signedIn == true) {
-          account = _googleSignIn?.currentUser;
-          if (account != null) {
-            _currentUser = account;
-          }
+        // In google_sign_in 7.x, attemptLightweightAuthentication() replaces signInSilently()
+        account = await _googleSignIn.attemptLightweightAuthentication();
+        if (account != null) {
+          _currentUser = account;
         }
       } catch (e) {
-        _log('⚠️ فشل attemptSignedIn أثناء تحديث الاعتماديات: $e');
+        _log('⚠️ فشل attemptLightweightAuthentication أثناء تحديث الاعتماديات: $e');
       }
     }
 
@@ -190,11 +204,13 @@ class GoogleDriveBackupService {
       throw Exception('يجب إعادة تسجيل الدخول في Google Drive لإكمال العملية');
     }
 
-    final auth = await account.authentication;
-    // In google_sign_in 7.x, accessToken is an AccessToken object
-    final accessToken = auth.accessToken;
+    final accessToken = await _getAccessToken(account);
+    if (accessToken == null) {
+      throw Exception('فشل الحصول على رمز الوصول لـ Google Drive');
+    }
+    
     final headers = {
-      'Authorization': 'Bearer ${accessToken != null ? accessToken.idToken ?? '' : ''}',
+      'Authorization': 'Bearer $accessToken',
       'Content-Type': 'application/json',
     };
     _driveApi = drive.DriveApi(GoogleAuthClient(headers));
@@ -266,23 +282,22 @@ class GoogleDriveBackupService {
   /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
   Future<GoogleSignInAccount?> attemptSilentSignIn() async {
     try {
-      if (_googleSignIn == null) {
-        _initializeGoogleSignIn();
-      }
-
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      // In google_sign_in 7.x, attemptSignedIn() replaces signInSilently()
-      final bool signedIn = await _googleSignIn!.attemptSignedIn();
-      final GoogleSignInAccount? account = signedIn ? _googleSignIn!.currentUser : null;
+      // In google_sign_in 7.x, attemptLightweightAuthentication() replaces signInSilently()
+      final GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
 
       if (account != null) {
         _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
-        final auth = await account.authentication;
-        // In google_sign_in 7.x, accessToken is an AccessToken object
-        final accessToken = auth.accessToken;
+        
+        final accessToken = await _getAccessToken(account);
+        if (accessToken == null) {
+          _log('⚠️ فشل الحصول على رمز الوصول');
+          return null;
+        }
+        
         final headers = {
-          'Authorization': 'Bearer ${accessToken != null ? accessToken.idToken ?? '' : ''}',
+          'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
         };
         final client = GoogleAuthClient(headers);

@@ -297,7 +297,7 @@ class AppwriteDeltaSync {
         try {
           await _appwriteService!.deleteDocument(
               collectionId: collectionId, documentId: change.localUuid);
-        } on AppwriteException catch (e) {
+        } on appwrite.AppwriteException catch (e) {
           // تم التعامل مع خطأ 404 مسبقاً في AppwriteService و AppwriteNetworkHelper
           if (e.code != 404) rethrow;
         }
@@ -486,11 +486,11 @@ class AppwriteDeltaSync {
       batchCount = 0;
 
       try {
-        final queries = [
-          Query.greaterThan(timestampField, sinceEpoch),
-          Query.orderDesc(timestampField),
-          Query.limit(_pullBatchSize),
-          Query.offset(offset),
+        final queries = <String>[
+          appwrite.Query.greaterThan(timestampField, sinceEpoch),
+          appwrite.Query.orderDesc(timestampField),
+          appwrite.Query.limit(_pullBatchSize),
+          appwrite.Query.offset(offset),
         ];
 
         final response = await _appwriteService!.databases.listDocuments(
@@ -583,7 +583,7 @@ class AppwriteDeltaSync {
           break;
         }
 
-      } on AppwriteException catch (e) {
+      } on appwrite.AppwriteException catch (e) {
         _logger.error(
           '❌ خطأ Appwrite في ${entity.name}: ${e.code} - ${e.message}',
           tag: 'DELTA_SYNC',
