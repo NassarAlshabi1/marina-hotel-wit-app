@@ -928,6 +928,8 @@ class AppwriteSyncManager {
           return await _processBookingNightEntry(entry);
         case 'salary_cycles':
           return await _processSalaryCycleEntry(entry);
+        case 'salary_withdrawals':
+          return await _processSalaryWithdrawalEntry(entry);
         case 'booking_price_adjustments':
           return await _processBookingPriceAdjustmentEntry(entry);
         default:
@@ -1459,6 +1461,7 @@ class AppwriteSyncManager {
       'debts': 0,
       'salary_cycles': 0,
       'salary_payments': 0,
+      'salary_withdrawals': 0,
       'shift_notes': 0,
       'booking_price_adjustments': 0,
       'errors': 0,
@@ -1691,6 +1694,29 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
+      // رفع سحوبات الرواتب
+      final salaryWithdrawals = await database
+          .select(database.salaryWithdrawals)
+          .get();
+      for (final item in salaryWithdrawals) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
+            item,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertSalaryWithdrawal(item.localUuid, payload);
+          stats['salary_withdrawals'] = (stats['salary_withdrawals'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سحب راتب: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['salary_withdrawals']} سحب راتب',
+        tag: 'SYNC',
+      );
+
       // رفع ملاحظات الشيفت
       final shiftNotes = await database.select(database.shiftNotes).get();
       for (final item in shiftNotes) {
@@ -1740,6 +1766,7 @@ class AppwriteSyncManager {
           stats['debts']! +
           stats['salary_cycles']! +
           stats['salary_payments']! +
+          stats['salary_withdrawals']! +
           stats['shift_notes']! +
           (stats['booking_price_adjustments'] ?? 0);
 
@@ -2168,6 +2195,38 @@ class AppwriteSyncManager {
 
   Future<SalaryCycle?> _getSalaryCycleByLocalUuid(String uuid) {
     return (database.select(database.salaryCycles)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getSalaryWithdrawalByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.salaryWithdrawals.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertSalaryWithdrawal(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<SalaryWithdrawal?> _getSalaryWithdrawalByLocalUuid(String uuid) {
+    return (database.select(database.salaryWithdrawals)
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();

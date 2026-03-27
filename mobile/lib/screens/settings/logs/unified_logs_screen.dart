@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../components/app_scaffold.dart';
-import '../../../core/core.dart';
+import '../../../core/core.dart' hide LogLevel;
 import '../../../providers/appwrite_providers.dart';
 import '../../../services/appwrite_logger.dart';
 import '../../../services/google_drive_logger.dart';
