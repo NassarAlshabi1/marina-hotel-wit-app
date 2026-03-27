@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart';
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
@@ -132,8 +134,11 @@ class AppwriteDeltaSync {
       _logger.info('📤 بدء المزامنة التفاضلية (Field-Level) إلى Appwrite...',
           tag: 'DELTA_SYNC');
       
-      // ✅ استخدام Field-Level Sync فقط عبر DeltaSyncService
-      // لا نستخدم Outbox التقليدي - DeltaSyncService يحسب الفروقات على مستوى الحقل
+      // ✅ التحقق من صحة المرآة وإعادة بنائها إذا لزم الأمر
+      await _ensureMirrorIntegrity();
+      
+      // ✅ استخدام Field-Level Sync عبر DeltaSyncService
+      // DeltaSyncService يحسب الفروقات من قاعدة البيانات والمرآة
       final lastPushTs = await _getLastDeltaPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastPushTs);
 
@@ -143,7 +148,12 @@ class AppwriteDeltaSync {
             success: true, message: 'لا توجد تغييرات', pushedCount: 0);
       }
 
-      _logger.info('📊 تم اكتشاف ${computation.changes.length} تغيير للحصول على Field-Level', tag: 'DELTA_SYNC');
+      // ✅ طباعة تفصيلية للتشخيص
+      final entityCounts = <String, int>{};
+      for (final change in computation.changes) {
+        entityCounts[change.entity] = (entityCounts[change.entity] ?? 0) + 1;
+      }
+      _logger.info('📊 تم اكتشاف ${computation.changes.length} تغيير: $entityCounts', tag: 'DELTA_SYNC');
 
       final successfulChanges = <DeltaSyncChange>[];
       final failedChanges = <DeltaSyncChange>[];
@@ -595,6 +605,218 @@ class AppwriteDeltaSync {
   /// الطريقة القديمة (للتوافق)
   Future<int> _pullEntityChanges(_SyncEntity entity, int sinceEpoch) async {
     return _pullEntityChangesWithPagination(entity, sinceEpoch);
+  }
+
+  // ==================== MIRROR INTEGRITY ====================
+
+  /// ✅ التحقق من صحة المرآة وإعادة بنائها إذا لزم الأمر
+  /// هذا يضمن أن Delta Sync يكتشف جميع التغييرات بشكل صحيح
+  Future<void> _ensureMirrorIntegrity() async {
+    try {
+      // الجداول الحرجة التي يجب التحقق منها
+      const criticalTables = [
+        'salary_withdrawals',
+        'expenses',
+        'payments',
+        'bookings',
+      ];
+
+      for (final tableName in criticalTables) {
+        final mirrorCount = await _getMirrorCount(tableName);
+        final dbCount = await _getDbCount(tableName);
+
+        // إذا كانت المرآة فارغة أو أقل من قاعدة البيانات
+        if (mirrorCount == 0 && dbCount > 0) {
+          _logger.warning(
+            '⚠️ المرآة فارغة لـ $tableName ($dbCount سجل) - إعادة بناء...',
+            tag: 'DELTA_SYNC',
+          );
+          await _rebuildTableMirror(tableName);
+        } else if (mirrorCount < dbCount * 0.9) {
+          // إذا كانت المرآة ناقصة بأكثر من 10%
+          _logger.warning(
+            '⚠️ المرآة ناقصة لـ $tableName (مرآة: $mirrorCount, قاعدة: $dbCount) - إعادة بناء...',
+            tag: 'DELTA_SYNC',
+          );
+          await _rebuildTableMirror(tableName);
+        }
+      }
+    } catch (e) {
+      _logger.error('❌ خطأ في التحقق من المرآة: $e', tag: 'DELTA_SYNC');
+    }
+  }
+
+  /// الحصول على عدد سجلات المرآة لجدول معين
+  Future<int> _getMirrorCount(String tableName) async {
+    try {
+      final result = await _database!.customSelect(
+        'SELECT COUNT(*) as count FROM sync_mirror WHERE sync_entity_name = ?',
+        variables: [Variable.withString(tableName)],
+      ).getSingle();
+      return result.read<int>('count');
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /// الحصول على عدد سجلات جدول معين
+  Future<int> _getDbCount(String tableName) async {
+    try {
+      final result = await _database!.customSelect(
+        'SELECT COUNT(*) as count FROM $tableName WHERE deleted_at IS NULL',
+      ).getSingle();
+      return result.read<int>('count');
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /// إعادة بناء مرآة جدول معين
+  Future<void> _rebuildTableMirror(String tableName) async {
+    try {
+      // مسح المرآة القديمة
+      await _database!.customStatement(
+        'DELETE FROM sync_mirror WHERE sync_entity_name = ?',
+        [tableName],
+      );
+
+      final now = Time.nowEpoch();
+      int count = 0;
+
+      // بناء المرآة حسب نوع الجدول
+      switch (tableName) {
+        case 'salary_withdrawals':
+          count = await _rebuildSalaryWithdrawalsMirror(now);
+          break;
+        case 'expenses':
+          count = await _rebuildExpensesMirror(now);
+          break;
+        case 'payments':
+          count = await _rebuildPaymentsMirror(now);
+          break;
+        case 'bookings':
+          count = await _rebuildBookingsMirror(now);
+          break;
+      }
+
+      _logger.info('✅ تم إعادة بناء مرآة $tableName: $count سجل', tag: 'DELTA_SYNC');
+    } catch (e) {
+      _logger.error('❌ فشل إعادة بناء مرآة $tableName: $e', tag: 'DELTA_SYNC');
+    }
+  }
+
+  /// إعادة بناء مرآة salary_withdrawals
+  Future<int> _rebuildSalaryWithdrawalsMirror(int now) async {
+    final records = await _database!.select(_database!.salaryWithdrawals).get();
+    int count = 0;
+
+    for (final record in records) {
+      final payload = _adapterRegistry!.salaryWithdrawals.adapter.toJson(
+        record,
+        src: Source.appwrite,
+      );
+      final rowHash = _computeHash(payload);
+
+      await _database!.customStatement(
+        '''INSERT INTO sync_mirror 
+           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
+           VALUES (?, ?, ?, ?, ?)''',
+        ['salary_withdrawals', record.localUuid, rowHash, jsonEncode(payload), now],
+      );
+      count++;
+    }
+
+    return count;
+  }
+
+  /// إعادة بناء مرآة expenses
+  Future<int> _rebuildExpensesMirror(int now) async {
+    final records = await _database!.select(_database!.expenses).get();
+    int count = 0;
+
+    for (final record in records) {
+      final payload = _adapterRegistry!.expenses.adapter.toJson(record, src: Source.appwrite);
+      final rowHash = _computeHash(payload);
+
+      await _database!.customStatement(
+        '''INSERT INTO sync_mirror 
+           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
+           VALUES (?, ?, ?, ?, ?)''',
+        ['expenses', record.localUuid, rowHash, jsonEncode(payload), now],
+      );
+      count++;
+    }
+
+    return count;
+  }
+
+  /// إعادة بناء مرآة payments
+  Future<int> _rebuildPaymentsMirror(int now) async {
+    final records = await _database!.select(_database!.payments).get();
+    int count = 0;
+
+    for (final record in records) {
+      final payload = _adapterRegistry!.payments.adapter.toJson(record, src: Source.appwrite);
+      final rowHash = _computeHash(payload);
+
+      await _database!.customStatement(
+        '''INSERT INTO sync_mirror 
+           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
+           VALUES (?, ?, ?, ?, ?)''',
+        ['payments', record.localUuid, rowHash, jsonEncode(payload), now],
+      );
+      count++;
+    }
+
+    return count;
+  }
+
+  /// إعادة بناء مرآة bookings
+  Future<int> _rebuildBookingsMirror(int now) async {
+    final records = await _database!.select(_database!.bookings).get();
+    int count = 0;
+
+    for (final record in records) {
+      final payload = _adapterRegistry!.bookings.adapter.toJson(record, src: Source.appwrite);
+      final rowHash = _computeHash(payload);
+
+      await _database!.customStatement(
+        '''INSERT INTO sync_mirror 
+           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
+           VALUES (?, ?, ?, ?, ?)''',
+        ['bookings', record.localUuid, rowHash, jsonEncode(payload), now],
+      );
+      count++;
+    }
+
+    return count;
+  }
+
+  /// حساب hash للبيانات
+  String _computeHash(Map<String, dynamic> payload) {
+    final sorted = _sortMapForHash(payload);
+    final jsonStr = jsonEncode(sorted);
+    return sha1.convert(utf8.encode(jsonStr)).toString();
+  }
+
+  /// ترتيب Map لحساب hash متسق
+  Map<String, dynamic> _sortMapForHash(Map<String, dynamic> source) {
+    final entries = source.entries.map((entry) {
+      final value = entry.value;
+      dynamic normalized;
+      if (value is Map<String, dynamic>) {
+        normalized = _sortMapForHash(value);
+      } else if (value is List) {
+        normalized = value.map((item) {
+          if (item is Map<String, dynamic>) return _sortMapForHash(item);
+          return item;
+        }).toList();
+      } else {
+        normalized = value;
+      }
+      return MapEntry(entry.key, normalized);
+    }).toList()..sort((a, b) => a.key.compareTo(b.key));
+    return Map<String, dynamic>.fromEntries(entries);
   }
 
   // ==================== HELPERS ====================

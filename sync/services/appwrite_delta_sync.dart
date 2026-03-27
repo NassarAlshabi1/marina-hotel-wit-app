@@ -241,8 +241,6 @@ class AppwriteDeltaSync {
         'employees': AppwriteConfig.employeesCollectionId,
         'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
         'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-<<<<<<< Updated upstream
-=======
         'booking_notes': AppwriteConfig.bookingNotesCollectionId,
         'shift_notes': AppwriteConfig.shiftNotesCollectionId,
         'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
@@ -251,7 +249,6 @@ class AppwriteDeltaSync {
         'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
         'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
         'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
->>>>>>> Stashed changes
       };
 
       for (final entry in entitiesToPull.entries) {
@@ -339,8 +336,6 @@ class AppwriteDeltaSync {
       case 'booking_price_adjustments':
         await _applyBookingPriceAdjustmentChange(db, documentId, data);
         break;
-<<<<<<< Updated upstream
-=======
       case 'booking_notes':
         await _applyBookingNoteChange(db, documentId, data);
         break;
@@ -365,7 +360,6 @@ class AppwriteDeltaSync {
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
         break;
->>>>>>> Stashed changes
     }
   }
 
@@ -588,8 +582,6 @@ class AppwriteDeltaSync {
     await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
   }
 
-<<<<<<< Updated upstream
-=======
   Future<void> _applyBookingNoteChange(AppDatabase db, String localUuid, Map<String, dynamic> data) async {
     final bookingId = _asInt(data['bookingId']);
     if (bookingId == null) return;
@@ -806,7 +798,6 @@ class AppwriteDeltaSync {
     await db.into(db.priceAdjustments).insertOnConflictUpdate(companion);
   }
 
->>>>>>> Stashed changes
   String? _getCollectionId(String entity) {
     switch (entity) {
       case 'rooms':
