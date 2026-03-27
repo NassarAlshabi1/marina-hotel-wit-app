@@ -757,7 +757,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2119,6 +2119,27 @@ class AppDatabase extends _$AppDatabase {
             } catch (e, st) {
               developer.log(
                 'Migration 36: failed - $e',
+                name: 'db.migration',
+                error: e,
+                stackTrace: st,
+              );
+            }
+          }
+          if (from < 37) {
+            // Migration 37: إنشاء جدول sync_mirror للمزامنة
+            developer.log(
+              'Migration 37: Creating sync_mirror table',
+              name: 'db.migration',
+            );
+            try {
+              await m.createTable(syncMirror);
+              developer.log(
+                'Migration 37: sync_mirror table created successfully',
+                name: 'db.migration',
+              );
+            } catch (e, st) {
+              developer.log(
+                'Migration 37: failed - $e',
                 name: 'db.migration',
                 error: e,
                 stackTrace: st,
