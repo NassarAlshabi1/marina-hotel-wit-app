@@ -211,21 +211,18 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       return;
     }
 
-    final contact = await FlutterContacts.openExternalPick();
-    if (contact == null || !mounted) return;
-
-    final fullContact = await FlutterContacts.getContact(
-      contact.id,
+    // flutter_contacts 2.x: pickContact returns the full contact directly
+    final contact = await FlutterContacts.pickContact(
       withProperties: true,
     );
-    if (!mounted) return;
+    if (contact == null || !mounted) return;
 
-    if (fullContact != null && fullContact.phones.isNotEmpty) {
-      final rawPhone = fullContact.phones.first.number;
+    if (contact.phones.isNotEmpty) {
+      final rawPhone = contact.phones.first.number;
       final normalizedPhone = _normalizePhoneForWhatsApp(rawPhone);
       _guestPhone.text = normalizedPhone;
       if (_guestName.text.isEmpty) {
-        _guestName.text = fullContact.displayName;
+        _guestName.text = contact.displayName;
       }
       markDataChanged();
     }

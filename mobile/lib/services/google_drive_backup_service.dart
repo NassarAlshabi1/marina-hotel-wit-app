@@ -163,16 +163,20 @@ class GoogleDriveBackupService {
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
+  GoogleSignInAccount? _currentUser; // Track current user manually (removed in 7.x)
 
   void _initializeGoogleSignIn() {
     // Already handled by GoogleDriveSignInManager
   }
 
   Future<void> _ensureDriveClient() async {
-    GoogleSignInAccount? account = _googleSignIn?.currentUser;
+    GoogleSignInAccount? account = _currentUser;
     if (account == null) {
       try {
         account = await _googleSignIn?.signInSilently();
+        if (account != null) {
+          _currentUser = account;
+        }
       } catch (e) {
         _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
@@ -182,7 +186,11 @@ class GoogleDriveBackupService {
       throw Exception('يجب إعادة تسجيل الدخول في Google Drive لإكمال العملية');
     }
 
-    final headers = await account.authHeaders;
+    final auth = await account.authentication;
+    final headers = {
+      'Authorization': 'Bearer ${auth.accessToken}',
+      'Content-Type': 'application/json',
+    };
     _driveApi = drive.DriveApi(GoogleAuthClient(headers));
   }
 
@@ -218,8 +226,13 @@ class GoogleDriveBackupService {
       }
 
       if (account != null) {
+        _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
-        final headers = await account.authHeaders;
+        final auth = await account.authentication;
+        final headers = {
+          'Authorization': 'Bearer ${auth.accessToken}',
+          'Content-Type': 'application/json',
+        };
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
@@ -252,8 +265,13 @@ class GoogleDriveBackupService {
           await _googleSignIn!.signInSilently();
 
       if (account != null) {
+        _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
-        final headers = await account.authHeaders;
+        final auth = await account.authentication;
+        final headers = {
+          'Authorization': 'Bearer ${auth.accessToken}',
+          'Content-Type': 'application/json',
+        };
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
@@ -276,7 +294,12 @@ class GoogleDriveBackupService {
       final account = await _googleSignIn!.signInSilently();
 
       if (account != null) {
-        final headers = await account.authHeaders;
+        _currentUser = account; // Track current user
+        final auth = await account.authentication;
+        final headers = {
+          'Authorization': 'Bearer ${auth.accessToken}',
+          'Content-Type': 'application/json',
+        };
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
         _log('✅ تم تسجيل الدخول بهدوء: ${account.email}');
@@ -294,6 +317,7 @@ class GoogleDriveBackupService {
   Future<void> signOut() async {
     try {
       await _googleSignIn?.signOut();
+      _currentUser = null; // Clear tracked user
       _driveApi = null;
       _backupFolderId = null;
       _log('✅ تم تسجيل الخروج من Google Drive');
@@ -304,10 +328,10 @@ class GoogleDriveBackupService {
     }
   }
 
-  GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
+  GoogleSignInAccount? get currentUser => _currentUser;
   GoogleSignIn? get googleSignIn => _googleSignIn;
 
-  bool get isSignedIn => _googleSignIn?.currentUser != null;
+  bool get isSignedIn => _currentUser != null;
 
   Future<String> getOrCreateBackupFolder() async {
     if (_backupFolderId != null) {

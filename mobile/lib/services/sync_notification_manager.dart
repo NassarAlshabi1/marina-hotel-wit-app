@@ -24,7 +24,7 @@ class SyncNotificationManager {
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _localNotifications.initialize(
-      initSettings,
+      initializationSettings: initSettings,
       onDidReceiveNotificationResponse: (details) {
         // يمكن إضافة توجيه عند الضغط على الإشعار هنا
       },
@@ -55,7 +55,13 @@ class SyncNotificationManager {
     // نستخدم رقم عشوائي أو ثابت للـ ID
     final id = DateTime.now().millisecondsSinceEpoch % 100000;
 
-    await _localNotifications.show(id, title, body, details, payload: payload);
+    await _localNotifications.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
   }
 
   /// إشعار نجاح المزامنة

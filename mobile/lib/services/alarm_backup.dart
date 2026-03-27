@@ -19,7 +19,7 @@ class AlarmBackup {
       '@mipmap/ic_launcher',
     );
     const initSettings = InitializationSettings(android: androidSettings);
-    await _notif.initialize(initSettings);
+    await _notif.initialize(initializationSettings: initSettings);
     debugPrint('✅ Alarm system initialized');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
@@ -127,10 +127,10 @@ class AlarmBackup {
     );
     const details = NotificationDetails(android: androidDetails);
     await _notif.show(
-      0,
-      'نسخة احتياطية فشلت',
-      'يرجى فتح التطبيق لتسجيل الدخول وإكمال النسخة',
-      details,
+      id: 0,
+      title: 'نسخة احتياطية فشلت',
+      body: 'يرجى فتح التطبيق لتسجيل الدخول وإكمال النسخة',
+      notificationDetails: details,
     );
   }
 
