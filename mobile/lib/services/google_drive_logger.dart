@@ -155,6 +155,9 @@ class GoogleDriveLogger extends ChangeNotifier {
     );
   }
 
+  /// Getter للوصول المباشر للسجلات
+  List<LogEntry> get logs => List.unmodifiable(_logs);
+
   List<LogEntry> getLogs({LogLevel? filterLevel}) {
     if (filterLevel == null) {
       return List.unmodifiable(_logs);
