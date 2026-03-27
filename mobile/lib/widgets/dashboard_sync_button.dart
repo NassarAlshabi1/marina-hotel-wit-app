@@ -545,39 +545,49 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // ============================================================================
 
   Future<SyncResult> _performSync({required bool useFieldLevel}) async {
-    // ✅ AppwriteDeltaSync يدعم Field-Level Sync بالفعل عبر DeltaSyncService.compute()
-    // لذلك نستخدمه في كلتا الحالتين
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.fullSync();
+    
+    if (!result.success && result.message.contains('غير جاهزة')) {
+      throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
+    }
+
     return SyncResult(
-      recordsPushed: result.recordsPushed,
-      recordsPulled: result.recordsPulled,
-      fieldsPushed: useFieldLevel ? result.recordsPushed : 0, // Field-Level mode
-      fieldsPulled: useFieldLevel ? result.recordsPulled : 0,
+      recordsPushed: result.pushedCount,
+      recordsPulled: result.pulledCount,
+      fieldsPushed: useFieldLevel ? result.pushedCount : 0,
+      fieldsPulled: useFieldLevel ? result.pulledCount : 0,
       conflicts: result.conflictCount,
       failedCount: result.failedCount,
     );
   }
 
   Future<SyncResult> _performPull({required bool useFieldLevel}) async {
-    // ✅ AppwriteDeltaSync يدعم Field-Level Sync بالفعل
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.pullDeltaChanges();
+    
+    if (!result.success && result.message.contains('غير جاهزة')) {
+      throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
+    }
+
     return SyncResult(
-      recordsPulled: result.recordsPulled,
-      fieldsPulled: useFieldLevel ? result.recordsPulled : 0,
+      recordsPulled: result.pulledCount,
+      fieldsPulled: useFieldLevel ? result.pulledCount : 0,
       failedCount: result.failedCount,
     );
   }
 
   Future<SyncResult> _performPush({required bool useFieldLevel}) async {
-    // ✅ AppwriteDeltaSync يدعم Field-Level Sync بالفعل عبر DeltaSyncService.compute()
-    // الذي يحسب fieldChanges و fieldMetadata لكل تغيير
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.pushDeltaChanges();
+    
+    if (!result.success && result.message.contains('غير جاهزة')) {
+      throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
+    }
+
     return SyncResult(
-      recordsPushed: result.recordsPushed,
-      fieldsPushed: useFieldLevel ? result.recordsPushed : 0,
+      recordsPushed: result.pushedCount,
+      fieldsPushed: useFieldLevel ? result.pushedCount : 0,
       failedCount: result.failedCount,
     );
   }
