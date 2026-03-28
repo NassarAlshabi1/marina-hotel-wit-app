@@ -445,6 +445,9 @@ class AppwriteSyncManager {
         throw Exception('No internet connection');
       }
 
+      // ✅ تهيئة AppwriteService أولاً قبل استخدامه
+      await appwriteService.initialize();
+
       // ✅ تهيئة AppwriteDeltaSync إذا لم يكن مهيأً
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
