@@ -55,6 +55,7 @@ import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/sync_service.dart';
+import 'services/appwrite_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -129,6 +130,16 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await AppwriteConfigManager.init();
     if (kDebugMode) {
       debugPrint('✅ Appwrite Config loaded');
+    }
+
+    // ✅ تهيئة AppwriteService فوراً بعد تحميل الإعدادات
+    // هذا يضمن أن _databases جاهز قبل أي عملية مزامنة
+    if (kDebugMode) {
+      debugPrint('⚡ Pre-initializing AppwriteService...');
+    }
+    await AppwriteService().initialize();
+    if (kDebugMode) {
+      debugPrint('✅ AppwriteService ready');
     }
 
     if (kDebugMode) {
