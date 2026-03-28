@@ -91,6 +91,9 @@ class SalaryWithdrawalsAdapter
       // ✅ employeeId: integer required (foreign key)
       employeeId: d.Value(employeeId),
       
+      // ✅ name: string optional - اسم الموظف للتخزين والعرض السريع
+      name: _vStr(json, 'name', src),
+      
       // ✅ action: string(255) required - حر بدون قيود
       action: d.Value(action),
       
@@ -161,6 +164,9 @@ class SalaryWithdrawalsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'expenseId', 'expense_id'): model.expenseId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      
+      // ✅ Employee name for quick display
+      _k(src, 'name', 'name'): model.name,
       
       // ✅ Business fields
       _k(src, 'action', 'action'): model.action, // حر بدون قيود

@@ -631,10 +631,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
 
       if (isSalaryExpense && selectedEmployeeId != null) {
-        // ✅ تمرير الإجراء كما هو بدون تحويل
+        // ✅ الحصول على اسم الموظف
+        final employeeName = availableEmployees
+            .where((e) => e.id == selectedEmployeeId)
+            .firstOrNull?.name;
+        
+        // ✅ تمرير الإجراء واسم الموظف
         await salaryRepo.saveFromExpense(
           expenseId: newId,
           employeeId: selectedEmployeeId!,
+          employeeName: employeeName, // ✅ اسم الموظف
           action: selectedSalaryAction, // ✅ مباشرة بدون تحويل
           amount: parsedAmount,
           date: trimmedDate,
@@ -652,10 +658,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
 
       if (isSalaryExpense && selectedEmployeeId != null) {
-        // ✅ تمرير الإجراء كما هو بدون تحويل
+        // ✅ الحصول على اسم الموظف
+        final employeeName = availableEmployees
+            .where((e) => e.id == selectedEmployeeId)
+            .firstOrNull?.name;
+        
+        // ✅ تمرير الإجراء واسم الموظف
         await salaryRepo.saveFromExpense(
           expenseId: existing.id,
           employeeId: selectedEmployeeId!,
+          employeeName: employeeName, // ✅ اسم الموظف
           action: selectedSalaryAction, // ✅ مباشرة بدون تحويل
           amount: parsedAmount,
           date: trimmedDate,

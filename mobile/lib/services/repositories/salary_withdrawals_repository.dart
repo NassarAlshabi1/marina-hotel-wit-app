@@ -26,6 +26,7 @@ class SalaryWithdrawalsRepository {
     required String action,
     required double amount,
     required String date,
+    String? employeeName, // ✅ اسم الموظف للتخزين والعرض السريع
     String? note,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -49,6 +50,7 @@ class SalaryWithdrawalsRepository {
             ..where((t) => t.expenseId.equals(expenseId)))
           .write(SalaryWithdrawalsCompanion(
         employeeId: Value(employeeId),
+        name: Value(employeeName), // ✅ تحديث اسم الموظف
         action: Value(action),
         amount: Value(amount),
         note: Value(note),
@@ -65,6 +67,7 @@ class SalaryWithdrawalsRepository {
         SalaryWithdrawalsCompanion(
           expenseId: Value(expenseId),
           employeeId: Value(employeeId),
+          name: Value(employeeName), // ✅ إضافة اسم الموظف
           action: Value(action),
           amount: Value(amount),
           note: Value(note),
@@ -87,6 +90,7 @@ class SalaryWithdrawalsRepository {
       recordId: recordId!,
       expenseId: expenseId,
       employeeId: employeeId,
+      employeeName: employeeName, // ✅ تمرير اسم الموظف
       action: action,
       amount: amount,
       date: date,
@@ -118,6 +122,7 @@ class SalaryWithdrawalsRepository {
     required int recordId,
     required int expenseId,
     required int employeeId,
+    String? employeeName, // ✅ اسم الموظف
     required String action,
     required double amount,
     required String date,
@@ -131,6 +136,7 @@ class SalaryWithdrawalsRepository {
       'localUuid': localUuid,
       'expenseId': expenseId,
       'employeeId': employeeId,
+      if (employeeName != null && employeeName.isNotEmpty) 'name': employeeName, // ✅ اسم الموظف
       'action': action,
       'amount': amount.toInt(), // ✅ integer for Appwrite
       'date': date,

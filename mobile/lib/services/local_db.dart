@@ -572,6 +572,7 @@ class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get expenseId => integer().nullable().unique()();
   IntColumn get employeeId => integer().references(Employees, #id)();
+  TextColumn get name => text().nullable()(); // اسم الموظف للتخزين المحلي والعرض السريع
   TextColumn get action => text()(); // 'سحب راتب', 'خصم من الراتب'
   RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get note => text().nullable()();
@@ -757,7 +758,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 37;
+  int get schemaVersion => 38;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2140,6 +2141,27 @@ class AppDatabase extends _$AppDatabase {
             } catch (e, st) {
               developer.log(
                 'Migration 37: failed - $e',
+                name: 'db.migration',
+                error: e,
+                stackTrace: st,
+              );
+            }
+          }
+          if (from < 38) {
+            // Migration 38: إضافة حقل name لجدول salary_withdrawals
+            developer.log(
+              'Migration 38: Adding name column to salary_withdrawals',
+              name: 'db.migration',
+            );
+            try {
+              await m.addColumn(salaryWithdrawals, salaryWithdrawals.name);
+              developer.log(
+                'Migration 38: name column added to salary_withdrawals',
+                name: 'db.migration',
+              );
+            } catch (e, st) {
+              developer.log(
+                'Migration 38: failed - $e',
                 name: 'db.migration',
                 error: e,
                 stackTrace: st,
