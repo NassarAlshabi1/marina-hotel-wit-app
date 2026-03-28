@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:pdf/pdf.dart' show PdfPageFormat, PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +12,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/enhanced_pdf_utils.dart' show EnhancedPdfUtils, PdfColors, ArabicPdfFonts;
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
@@ -285,7 +285,6 @@ class _SalaryEntitlementsScreenState
             fonts: fonts,
             headerColor: PdfColors.blue800,
             alternateRowColor: PdfColors.grey100,
-            cellAlignment: pw.Alignment.centerRight,
           ),
         ],
       ),
@@ -295,7 +294,7 @@ class _SalaryEntitlementsScreenState
     for (final ent in _entitlements) {
       if (ent.transactions.isNotEmpty) {
         doc.addPage(
-          pw.Page(
+          pw.MultiPage(
             textDirection: pw.TextDirection.rtl,
             theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
             pageFormat: PdfPageFormat.a4,
@@ -424,7 +423,7 @@ class _SalaryEntitlementsScreenState
     String label,
     String value,
     PdfColor color,
-    ArabicFonts fonts,
+    ArabicPdfFonts fonts,
   ) {
     return pw.Column(
       children: [
