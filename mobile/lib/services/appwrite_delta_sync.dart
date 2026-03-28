@@ -134,13 +134,25 @@ class AppwriteDeltaSync {
       _logger.info('📤 بدء المزامنة التفاضلية (Field-Level) إلى Appwrite...',
           tag: 'DELTA_SYNC');
       
-      // ✅ التحقق من صحة المرآة وإعادة بنائها إذا لزم الأمر
-      await _ensureMirrorIntegrity();
+      // ✅ تشخيص: طباعة lastPushTs
+      final lastPushTs = await _getLastDeltaPushTimestamp();
+      _logger.info('⏱️ lastPushTs: $lastPushTs (${lastPushTs > 0 ? DateTime.fromMillisecondsSinceEpoch(lastPushTs * 1000) : "never"})', tag: 'DELTA_SYNC');
+      
+      // ✅ تشخيص: عدد السجلات في المرآة
+      final mirrorCount = await _getMirrorCount();
+      _logger.info('📊 عدد السجلات في المرآة: $mirrorCount', tag: 'DELTA_SYNC');
+      
+      // ❌ تم إزالة _ensureMirrorIntegrity() لأنها تُعيد بناء المرآة من البيانات الحالية
+      // مما يجعل rowHash متطابقاً ويمنع اكتشاف التغييرات!
+      // await _ensureMirrorIntegrity();
       
       // ✅ استخدام Field-Level Sync عبر DeltaSyncService
       // DeltaSyncService يحسب الفروقات من قاعدة البيانات والمرآة
-      final lastPushTs = await _getLastDeltaPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastPushTs);
+      
+      // ✅ تشخيص: عدد السجلات المحلية
+      final localCounts = await _getLocalRecordCounts();
+      _logger.info('📊 السجلات المحلية: $localCounts', tag: 'DELTA_SYNC');
 
       if (computation.changes.isEmpty) {
         _logger.info('✅ لا توجد تغييرات للمزامنة', tag: 'DELTA_SYNC');
@@ -647,15 +659,45 @@ class AppwriteDeltaSync {
   }
 
   /// الحصول على عدد سجلات المرآة لجدول معين
-  Future<int> _getMirrorCount(String tableName) async {
+  Future<int> _getMirrorCount([String? tableName]) async {
     try {
-      final result = await _database!.customSelect(
-        'SELECT COUNT(*) as count FROM sync_mirror WHERE sync_entity_name = ?',
-        variables: [Variable.withString(tableName)],
-      ).getSingle();
-      return result.read<int>('count');
+      if (tableName != null) {
+        final result = await _database!.customSelect(
+          'SELECT COUNT(*) as count FROM sync_mirror WHERE sync_entity_name = ?',
+          variables: [Variable.withString(tableName)],
+        ).getSingle();
+        return result.read<int>('count');
+      } else {
+        // إجمالي جميع السجلات في المرآة
+        final result = await _database!.customSelect(
+          'SELECT COUNT(*) as count FROM sync_mirror',
+        ).getSingle();
+        return result.read<int>('count');
+      }
     } catch (e) {
       return 0;
+    }
+  }
+
+  /// الحصول على عدد سجلات الجداول المحلية
+  Future<Map<String, int>> _getLocalRecordCounts() async {
+    try {
+      final counts = <String, int>{};
+      final tables = ['rooms', 'bookings', 'employees', 'expenses', 'payments', 'debts', 'salary_withdrawals'];
+      
+      for (final table in tables) {
+        try {
+          final result = await _database!.customSelect(
+            'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
+          ).getSingle();
+          counts[table] = result.read<int>('count');
+        } catch (_) {
+          counts[table] = 0;
+        }
+      }
+      return counts;
+    } catch (e) {
+      return {};
     }
   }
 
