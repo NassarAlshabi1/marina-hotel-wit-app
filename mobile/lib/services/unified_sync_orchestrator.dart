@@ -377,6 +377,8 @@ class UnifiedSyncOrchestrator {
       if (_appwriteService == null) {
         _appwriteService = AppwriteService();
       }
+      // ✅ تهيئة AppwriteService أولاً قبل استخدامه
+      await _appwriteService!.initialize();
       await _deltaSync.initialize(_appwriteService!, _database!);
     }
 
