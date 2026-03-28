@@ -56,6 +56,7 @@ import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/sync_service.dart';
 import 'services/appwrite_service.dart';
+import 'services/connectivity_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -64,6 +65,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
+
+  // ✅ تهيئة ConnectivityService أولاً للتحقق من وجود انترنت
+  await ConnectivityService.instance.initialize();
 
   FlutterError.onError = (details) {
     DiagnosticsLogger.instance.recordFlutterError(details);
@@ -132,14 +136,29 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       debugPrint('✅ Appwrite Config loaded');
     }
 
-    // ✅ تهيئة AppwriteService فوراً بعد تحميل الإعدادات
-    // هذا يضمن أن _databases جاهز قبل أي عملية مزامنة
-    if (kDebugMode) {
-      debugPrint('⚡ Pre-initializing AppwriteService...');
-    }
-    await AppwriteService().initialize();
-    if (kDebugMode) {
-      debugPrint('✅ AppwriteService ready');
+    // ✅ تهيئة مسبقة لـ AppwriteService فقط في حالة وجود انترنت
+    final hasInternet = ConnectivityService.instance.isOnline;
+    if (hasInternet) {
+      if (kDebugMode) {
+        debugPrint('🌐 إنترنت متاح - تهيئة مسبقة لـ AppwriteService...');
+      }
+      try {
+        await AppwriteService().initialize();
+        _appwriteServiceInitialized = true;
+        if (kDebugMode) {
+          debugPrint('✅ AppwriteService جاهز (تهيئة مسبقة)');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ فشلت التهيئة المسبقة لـ AppwriteService: $e');
+        }
+      }
+    } else {
+      if (kDebugMode) {
+        debugPrint('📴 لا يوجد إنترنت - تأجيل تهيئة AppwriteService حتى يتوفر الاتصال');
+      }
+      // مراقبة الاتصال وتهيئة AppwriteService عند توفره
+      _initializeAppwriteServiceWhenOnline();
     }
 
     if (kDebugMode) {
@@ -355,6 +374,111 @@ void _initializeSyncServicesLazy() {
     // Small delay to prioritize UI rendering
     await Future.delayed(const Duration(milliseconds: 500));
     await _initializeFullyAutomatedSyncSystem();
+  });
+}
+
+/// ✅ مراقبة ذكية للاتصال وتهيئة AppwriteService تلقائياً عند توفر الإنترنت
+StreamSubscription<ConnectionStatus>? _connectivitySubscription;
+bool _appwriteServiceInitialized = false;
+int _appwriteInitRetries = 0;
+const int _maxRetries = 3;
+Timer? _retryTimer;
+
+void _initializeAppwriteServiceWhenOnline() {
+  // إلغاء الاشتراك السابق إن وجد
+  _connectivitySubscription?.cancel();
+  _retryTimer?.cancel();
+  
+  _connectivitySubscription = ConnectivityService.instance.statusStream.listen(
+    (status) async {
+      // إذا كان الإنترنت متاحاً ولم يتم تهيئة AppwriteService بعد
+      if (status.isOnline && !_appwriteServiceInitialized) {
+        if (kDebugMode) {
+          debugPrint('🌐 تم اكتشاف إنترنت (${status.type}) - تهيئة AppwriteService تلقائياً...');
+        }
+        
+        await _tryInitializeAppwriteService();
+      }
+    },
+    onError: (error) {
+      if (kDebugMode) {
+        debugPrint('❌ خطأ في مراقبة الاتصال: $error');
+      }
+    },
+  );
+  
+  // التحقق الفوري إذا كان الإنترنت متاحاً بالفعل
+  if (ConnectivityService.instance.isOnline && !_appwriteServiceInitialized) {
+    _tryInitializeAppwriteService();
+  }
+}
+
+/// محاولة تهيئة AppwriteService مع إعادة المحاولة عند الفشل
+Future<void> _tryInitializeAppwriteService() async {
+  if (_appwriteServiceInitialized) return;
+  
+  try {
+    await AppwriteService().initialize();
+    _appwriteServiceInitialized = true;
+    _appwriteInitRetries = 0;
+    
+    if (kDebugMode) {
+      debugPrint('✅ AppwriteService جاهز (تهيئة تلقائية عند توفر الإنترنت)');
+    }
+    
+    // محاولة مزامنة معلقة إن وجدت
+    _tryPendingSync();
+  } catch (e) {
+    _appwriteInitRetries++;
+    
+    if (kDebugMode) {
+      debugPrint('⚠️ فشلت التهيئة التلقائية (محاولة $_appwriteInitRetries/$_maxRetries): $e');
+    }
+    
+    // إعادة المحاولة مع تأخير تصاعدي
+    if (_appwriteInitRetries < _maxRetries) {
+      final delay = Duration(seconds: _appwriteInitRetries * 5);
+      _retryTimer?.cancel();
+      _retryTimer = Timer(delay, () {
+        if (ConnectivityService.instance.isOnline && !_appwriteServiceInitialized) {
+          _tryInitializeAppwriteService();
+        }
+      });
+    } else {
+      if (kDebugMode) {
+        debugPrint('❌ فشلت جميع محاولات تهيئة AppwriteService - سيتم إعادة المحاولة عند تغير الاتصال');
+      }
+      // إعادة تعيين العداد للسماح بمحاولات جديدة عند تغير الاتصال
+      _appwriteInitRetries = 0;
+    }
+  }
+}
+
+/// محاولة تنفيذ مزامنة معلقة عند توفر الإنترنت
+void _tryPendingSync() {
+  Future.microtask(() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      
+      if (appwriteEnabled && _appwriteServiceInitialized) {
+        if (kDebugMode) {
+          debugPrint('🔄 محاولة مزامنة معلقة...');
+        }
+        
+        // التحقق من وجود عمليات في Outbox
+        final orchestrator = UnifiedSyncOrchestrator.instance;
+        await orchestrator.syncNow(push: true, pull: true, reason: 'auto_on_connect');
+        
+        if (kDebugMode) {
+          debugPrint('✅ تمت المزامنة التلقائية عند توفر الإنترنت');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ فشلت المزامنة التلقائية: $e');
+      }
+    }
   });
 }
 
