@@ -97,7 +97,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         _selectedType = widget.initialType;
       }
     }
-    await _fetchReport();
+    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
+    // await _fetchReport();
   }
 
   Future<void> _loadExpenseTypes() async {

@@ -11,12 +11,48 @@ import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 import 'income_expense_report_screen.dart';
 
-class ReportsScreen extends ConsumerWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.watch(coreProviders.dbProvider);
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  bool _chartsLoaded = false;
+  Map<String, dynamic>? _chartsData;
+  bool _isLoadingCharts = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // ❌ لا نحمل الرسوم البيانية تلقائياً - المستخدم يضغط الزر
+  }
+
+  Future<void> _loadCharts() async {
+    if (_isLoadingCharts || _chartsLoaded) return;
+    
+    setState(() => _isLoadingCharts = true);
+    
+    try {
+      final db = ref.read(coreProviders.dbProvider);
+      final data = await _prepareData(db);
+      if (mounted) {
+        setState(() {
+          _chartsData = data;
+          _chartsLoaded = true;
+          _isLoadingCharts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCharts = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AppScaffold(
       title: 'التقارير',
       actions: [
@@ -25,95 +61,122 @@ class ReportsScreen extends ConsumerWidget {
           icon: const Icon(Icons.sync),
         ),
       ],
-      body: FutureBuilder(
-        future: _prepareData(db),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final d = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(12),
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          const Text(
+            'التقارير المالية',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.receipt_long,
+            label: 'تقرير دفوعات النزلاء',
+            color: Colors.green,
+            onTap: () => _lazyPush(context, const PaymentsReportScreen()),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.account_balance_wallet,
+            label: 'تقرير المصروفات',
+            color: Colors.orange,
+            onTap: () => _lazyPush(context, const ExpensesReportScreen()),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.stacked_line_chart,
+            label: 'تقرير الدخل والخرج',
+            color: Colors.teal,
+            onTap: () => _lazyPush(context, const IncomeExpenseReportScreen()),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.payments_outlined,
+            label: 'تقرير سحبيات الرواتب',
+            color: Colors.blue,
+            onTap: () => _lazyPush(context, const SalaryWithdrawalsReportScreen()),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'تقارير المخاطر والمتابعة',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.pie_chart,
+            label: 'تقرير الديون',
+            color: Colors.purple,
+            onTap: () => _lazyPush(context, const DebtsReportScreen()),
+          ),
+          const SizedBox(height: 24),
+          // مؤشرات سريعة - تحميل عند الطلب فقط
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'التقارير المالية',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              _ReportShortcut(
-                icon: Icons.receipt_long,
-                label: 'تقرير دفوعات النزلاء',
-                color: Colors.green,
-                onTap: () => _lazyPush(context, const PaymentsReportScreen()),
-              ),
-              const SizedBox(height: 8),
-              _ReportShortcut(
-                icon: Icons.account_balance_wallet,
-                label: 'تقرير المصروفات',
-                color: Colors.orange,
-                onTap: () => _lazyPush(context, const ExpensesReportScreen()),
-              ),
-              const SizedBox(height: 8),
-              _ReportShortcut(
-                icon: Icons.stacked_line_chart,
-                label: 'تقرير الدخل والخرج',
-                color: Colors.teal,
-                onTap: () => _lazyPush(context, const IncomeExpenseReportScreen()),
-              ),
-              const SizedBox(height: 8),
-              _ReportShortcut(
-                icon: Icons.payments_outlined,
-                label: 'تقرير سحبيات الرواتب',
-                color: Colors.blue,
-                onTap: () => _lazyPush(context, const SalaryWithdrawalsReportScreen()),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'تقارير المخاطر والمتابعة',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              _ReportShortcut(
-                icon: Icons.pie_chart,
-                label: 'تقرير الديون',
-                color: Colors.purple,
-                onTap: () => _lazyPush(context, const DebtsReportScreen()),
-              ),
-              const SizedBox(height: 24),
               const Text(
                 'مؤشرات سريعة',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'الإشغال اليومي (آخر 7 أيام)',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(
-                height: 200,
-                child: BarChart(BarChartData(barGroups: d['dailyOcc'])),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'الإيرادات مقابل المصروفات (الشهر)',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(
-                height: 200,
-                child: BarChart(BarChartData(barGroups: d['revExp'])),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'أعلى الغرف إشغالاً',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(
-                height: 200,
-                child: BarChart(BarChartData(barGroups: d['topRooms'])),
-              ),
+              if (!_chartsLoaded)
+                TextButton.icon(
+                  onPressed: _isLoadingCharts ? null : _loadCharts,
+                  icon: _isLoadingCharts 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.bar_chart, size: 18),
+                  label: Text(_isLoadingCharts ? 'جاري التحميل...' : 'عرض الرسوم البيانية'),
+                ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          if (_chartsLoaded && _chartsData != null) ...[
+            const Text(
+              'الإشغال اليومي (آخر 7 أيام)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200,
+              child: BarChart(BarChartData(barGroups: _chartsData!['dailyOcc'])),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'الإيرادات مقابل المصروفات (الشهر)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200,
+              child: BarChart(BarChartData(barGroups: _chartsData!['revExp'])),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'أعلى الغرف إشغالاً',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200,
+              child: BarChart(BarChartData(barGroups: _chartsData!['topRooms'])),
+            ),
+          ] else if (!_chartsLoaded) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.bar_chart, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'اضغط "عرض الرسوم البيانية" لتحميل المؤشرات',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

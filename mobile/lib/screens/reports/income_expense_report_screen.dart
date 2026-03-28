@@ -47,7 +47,8 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    _setQuickFilter('month'); // الافتراضي: الشهر الحالي
+    _setQuickFilter('month'); // الافتراضي: الشهر الحالي - يحدد التواريخ فقط
+    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
   }
 
   void _setQuickFilter(String period) {
@@ -97,7 +98,8 @@ class _IncomeExpenseReportScreenState
       _fromDate = start;
       _toDate = end;
     });
-    _fetchReport();
+    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
+    // _fetchReport();
   }
 
   bool _isToday() {

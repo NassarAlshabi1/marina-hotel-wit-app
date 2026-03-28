@@ -61,9 +61,10 @@ class _SalaryWithdrawalsReportScreenState
     // إلى آخر الشهر الحالي
     _toDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-    // جلب قائمة الموظفين
+    // جلب قائمة الموظفين فقط (بدون تحميل البيانات تلقائياً)
     await _loadEmployees();
-    await _fetchReport();
+    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
+    // await _fetchReport();
   }
 
   Future<void> _loadEmployees() async {

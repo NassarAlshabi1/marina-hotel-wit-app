@@ -67,7 +67,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-    await _fetchReport();
+    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
+    // await _fetchReport();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {

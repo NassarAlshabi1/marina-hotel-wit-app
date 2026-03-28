@@ -55,7 +55,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         .subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-    await _fetchReport();
+    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
+    // await _fetchReport();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
