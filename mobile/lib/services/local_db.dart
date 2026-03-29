@@ -2180,7 +2180,10 @@ class AppDatabase extends _$AppDatabase {
           name: 'db.migration',
         );
         try {
-          await m.addColumn(salaryWithdrawals, salaryWithdrawals.name);
+          await m.addColumn(
+            salaryWithdrawals,
+            salaryWithdrawals.name as GeneratedColumn<Object>,
+          );
           developer.log(
             'Migration 38: name column added to salary_withdrawals',
             name: 'db.migration',

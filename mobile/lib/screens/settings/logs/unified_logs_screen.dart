@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../components/app_scaffold.dart';
-import '../../../core/core.dart';
+import '../../../core/core.dart' hide LogLevel;
 import '../../../services/appwrite_logger.dart';
 import '../../../services/google_drive_logger.dart';
-import '../../../services/logging/log_models.dart';
 
 /// Providers للوصول إلى السجلات
 final appwriteLogsProvider = Provider<List<LogEntry>>((ref) {

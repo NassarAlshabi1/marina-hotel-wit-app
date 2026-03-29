@@ -55,6 +55,7 @@ class SyncCircuitBreaker {
 /// مراقب أداء المزامنة
 class SyncPerformanceMonitor {
   final _timings = <String, List<int>>{};
+
   /// أقصى عدد من القياسات المحفوظة لكل عملية (يمنع النمو بلا حدود)
   static const _maxEntriesPerLabel = 50;
 
@@ -105,6 +106,7 @@ class SyncPerformanceMonitor {
 /// LRU Cache لـ JSON مع إزالة تدريجية (evict أقدم 25% عند الامتلاء)
 class _JsonCache {
   final _cache = <String, String>{};
+
   /// مفاتيح مرتبة حسب وقت الإدخال (الأقدم أولاً)
   final _accessOrder = <String>[];
   static const _maxSize = 500;
@@ -203,8 +205,7 @@ class DeltaSyncChange {
       'rowHash': rowHash,
       'localUuid': localUuid,
       'clientTs': clientTimestamp,
-      if (fieldMetadata != null)
-        '_fieldMetadata': fieldMetadata!.toJson(),
+      if (fieldMetadata != null) '_fieldMetadata': fieldMetadata!.toJson(),
       if (fieldChanges != null)
         '_fieldChanges': fieldChanges!.map((c) => c.toJson()).toList(),
     };
@@ -254,7 +255,7 @@ class DeltaSyncComputation {
 
 class DeltaSyncService {
   DeltaSyncService(this.db, {String? deviceId})
-      : _deviceId = deviceId ?? IdGen.uuid();
+    : _deviceId = deviceId ?? IdGen.uuid();
 
   final AppDatabase db;
   final String _deviceId;
@@ -297,7 +298,9 @@ class DeltaSyncService {
           _entityConfigs();
         });
         if (kDebugMode) {
-          debugPrint('🚀 DeltaSync warmup completed (${perf.lastMs("warmup")}ms)');
+          debugPrint(
+            '🚀 DeltaSync warmup completed (${perf.lastMs("warmup")}ms)',
+          );
         }
         return;
       } catch (e) {
@@ -307,7 +310,9 @@ class DeltaSyncService {
           rethrow;
         }
         final delay = Duration(milliseconds: 100 * (1 << attempt));
-        debugPrint('⚠️ Warmup attempt $attempt failed, retrying in ${delay.inMilliseconds}ms...');
+        debugPrint(
+          '⚠️ Warmup attempt $attempt failed, retrying in ${delay.inMilliseconds}ms...',
+        );
         await Future.delayed(delay);
       }
     }
@@ -365,14 +370,12 @@ class DeltaSyncService {
   Future<DeltaSyncComputation> _computeInternal({int? since}) async {
     // ✅ تحسين 1: جلب state + mirror بالتوازي
     final results = await Future.wait([
-      (db.select(db.syncState)..where((t) => t.id.equals(1)))
-          .getSingleOrNull(),
+      (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull(),
       _getMirror(),
     ]);
 
     final state = results[0] as dynamic;
-    final previousMirror =
-        results[1] as Map<String, Map<String, MirrorRow>>;
+    final previousMirror = results[1] as Map<String, Map<String, MirrorRow>>;
 
     final baseSince = since ?? (state?.lastPushTs as int?) ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
@@ -380,8 +383,10 @@ class DeltaSyncService {
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
 
     // ✅ تحسين 5: جلب كل الكيانات بشكل موازٍ
-    final allRowsFutures =
-        await perf.measure('fetchAll', () => Future.wait(configs.map((c) => c.fetchAll())));
+    final allRowsFutures = await perf.measure(
+      'fetchAll',
+      () => Future.wait(configs.map((c) => c.fetchAll())),
+    );
 
     // ✅ تحسين 5: معالجة موازية مع Semaphore (4 كيانات في نفس الوقت)
     final semaphore = _Semaphore(4);
@@ -481,33 +486,38 @@ class DeltaSyncService {
 
       if (deletedAt != null && deletedAt > normalizedSince) {
         payload['deletedAt'] = deletedAt;
-        changes.add(DeltaSyncChange(
-          entity: config.entity,
-          operation: 'delete',
-          data: payload,
-          rowHash: rowHash,
-          localUuid: localUuid,
-          clientTimestamp: clientTs,
-        ));
+        changes.add(
+          DeltaSyncChange(
+            entity: config.entity,
+            operation: 'delete',
+            data: payload,
+            rowHash: rowHash,
+            localUuid: localUuid,
+            clientTimestamp: clientTs,
+          ),
+        );
       } else {
         final isFirstSyncForTable = !hasMirror;
         final isNewRecordInMirror = previous == null;
         final createdAfterLastSync =
             createdAt != null && createdAt > normalizedSince;
 
-        final shouldInsert = isFirstSyncForTable ||
+        final shouldInsert =
+            isFirstSyncForTable ||
             (hasMirror && isNewRecordInMirror) ||
             createdAfterLastSync;
 
         if (shouldInsert) {
-          changes.add(DeltaSyncChange(
-            entity: config.entity,
-            operation: 'insert',
-            data: payload,
-            rowHash: rowHash,
-            localUuid: localUuid,
-            clientTimestamp: clientTs,
-          ));
+          changes.add(
+            DeltaSyncChange(
+              entity: config.entity,
+              operation: 'insert',
+              data: payload,
+              rowHash: rowHash,
+              localUuid: localUuid,
+              clientTimestamp: clientTs,
+            ),
+          );
         } else if (previous != null &&
             lastModified != null &&
             lastModified > normalizedSince &&
@@ -525,34 +535,43 @@ class DeltaSyncService {
           );
 
           if (fieldLevelDiff.isNotEmpty) {
-            final diff = Map<String, dynamic>.from(fieldLevelDiff.changedFields);
+            final diff = Map<String, dynamic>.from(
+              fieldLevelDiff.changedFields,
+            );
             diff['localUuid'] = localUuid;
             diff['lastModified'] = lastModified;
-            if (payload.containsKey('version')) diff['version'] = payload['version'];
-            if (payload.containsKey('vectorClock')) diff['vectorClock'] = payload['vectorClock'];
+            if (payload.containsKey('version'))
+              diff['version'] = payload['version'];
+            if (payload.containsKey('vectorClock'))
+              diff['vectorClock'] = payload['vectorClock'];
 
-            changes.add(DeltaSyncChange(
-              entity: config.entity,
-              operation: 'update',
-              data: diff,
-              rowHash: rowHash,
-              localUuid: localUuid,
-              clientTimestamp: clientTs,
-              fieldMetadata: FieldMetadata(
-                versions: fieldLevelDiff.fieldVersions,
-                timestamps: fieldLevelDiff.fieldTimestamps,
-                vectorClocks: fieldLevelDiff.fieldVectorClocks,
-                devices: fieldLevelDiff.fieldDevices,
+            changes.add(
+              DeltaSyncChange(
+                entity: config.entity,
+                operation: 'update',
+                data: diff,
+                rowHash: rowHash,
+                localUuid: localUuid,
+                clientTimestamp: clientTs,
+                fieldMetadata: FieldMetadata(
+                  versions: fieldLevelDiff.fieldVersions,
+                  timestamps: fieldLevelDiff.fieldTimestamps,
+                  vectorClocks: fieldLevelDiff.fieldVectorClocks,
+                  devices: fieldLevelDiff.fieldDevices,
+                ),
+                fieldChanges: fieldLevelDiff.toFieldChanges(
+                  _deviceId,
+                  _deviceId,
+                ),
               ),
-              fieldChanges:
-                  fieldLevelDiff.toFieldChanges(_deviceId, _deviceId),
-            ));
+            );
           }
         }
       }
 
       // ✅ تحسين fieldsHash: إعادة استخدام Hash السابق إذا rowHash لم يتغير
-      final String? computedFieldsHash = (previous != null && previous.rowHash == rowHash)
+      final String? computedFieldsHash =
+          (previous != null && previous.rowHash == rowHash)
           ? previous.fieldsHash
           : _hashFieldsOnly(sanitized);
 
@@ -575,20 +594,23 @@ class DeltaSyncService {
       if (previous == null) continue;
 
       final payload = Map<String, dynamic>.from(previous.payload);
-      final previousDeletedAt =
-          _asInt(payload['deletedAt'] ?? payload['deleted_at']);
+      final previousDeletedAt = _asInt(
+        payload['deletedAt'] ?? payload['deleted_at'],
+      );
       final deleteStamp = previousDeletedAt ?? nowTs;
       payload['deletedAt'] = deleteStamp;
       payload['rowHash'] = previous.rowHash;
 
-      changes.add(DeltaSyncChange(
-        entity: config.entity,
-        operation: 'delete',
-        data: payload,
-        rowHash: previous.rowHash,
-        localUuid: uuid,
-        clientTimestamp: deleteStamp,
-      ));
+      changes.add(
+        DeltaSyncChange(
+          entity: config.entity,
+          operation: 'delete',
+          data: payload,
+          rowHash: previous.rowHash,
+          localUuid: uuid,
+          clientTimestamp: deleteStamp,
+        ),
+      );
     }
 
     return _EntityProcessResult(changes: changes, snapshot: tableSnapshot);
@@ -599,9 +621,9 @@ class DeltaSyncService {
     int? since,
     int bufferSize = 100,
   }) async* {
-    final state = await (db.select(db.syncState)
-            ..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final state = await (db.select(
+      db.syncState,
+    )..where((t) => t.id.equals(1))).getSingleOrNull();
     final baseSince = since ?? state?.lastPushTs ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
     final previousMirror = await _loadMirror();
@@ -661,8 +683,7 @@ class DeltaSyncService {
           );
           buffer.add(change);
           yieldedChanges.add(change);
-        } else if (previous != null &&
-            lastModified != null &&
+        } else if (lastModified != null &&
             lastModified > normalizedSince &&
             rowHash != previous.rowHash) {
           final diff = _computeFieldLevelDiffOptimized(
@@ -699,7 +720,8 @@ class DeltaSyncService {
         }
 
         // ✅ تحسين fieldsHash: إعادة استخدام Hash السابق إذا rowHash لم يتغير
-        final String? computedFieldsHash = (previous != null && previous.rowHash == rowHash)
+        final String? computedFieldsHash =
+            (previous != null && previous.rowHash == rowHash)
             ? previous.fieldsHash
             : _hashFieldsOnly(sanitized);
 
@@ -722,8 +744,9 @@ class DeltaSyncService {
         final prev = existingMirror[uuid];
         if (prev == null) continue;
         final payload = Map<String, dynamic>.from(prev.payload);
-        final prevDeletedAt =
-            _asInt(payload['deletedAt'] ?? payload['deleted_at']);
+        final prevDeletedAt = _asInt(
+          payload['deletedAt'] ?? payload['deleted_at'],
+        );
         final deleteStamp = prevDeletedAt ?? nowTs;
         payload['deletedAt'] = deleteStamp;
         payload['rowHash'] = prev.rowHash;
@@ -757,7 +780,9 @@ class DeltaSyncService {
       );
       await persistMirror(computation);
       if (kDebugMode) {
-        debugPrint('📊 computeStream: yielded ${yieldedChanges.length} changes, mirror updated');
+        debugPrint(
+          '📊 computeStream: yielded ${yieldedChanges.length} changes, mirror updated',
+        );
       }
     }
   }
@@ -794,10 +819,12 @@ class DeltaSyncService {
       // ✅ إصلاح SQL Injection: حذف ذكي باستخدام parameterized queries فقط
       if (rows.length < 100) {
         // Approach 1: حذف فردي آمن (للكميات الصغيرة)
-        final existing = await db.customSelect(
-          'SELECT local_uuid FROM sync_mirror WHERE sync_entity_name = ?',
-          variables: [Variable<String>(table)],
-        ).get();
+        final existing = await db
+            .customSelect(
+              'SELECT local_uuid FROM sync_mirror WHERE sync_entity_name = ?',
+              variables: [Variable<String>(table)],
+            )
+            .get();
         final currentUuids = rows.keys.toSet();
         for (final row in existing) {
           final uuid = row.read<String>('local_uuid');
@@ -827,8 +854,7 @@ class DeltaSyncService {
       }
 
       if (batch.isNotEmpty) {
-        final placeholders =
-            batch.map((_) => '(?, ?, ?, ?, ?)').join(',');
+        final placeholders = batch.map((_) => '(?, ?, ?, ?, ?)').join(',');
         final flat = batch.expand((x) => x).toList();
         await db.customStatement(
           'INSERT OR REPLACE INTO sync_mirror (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) VALUES $placeholders',
@@ -911,8 +937,7 @@ class DeltaSyncService {
           );
         }
 
-        final int sampleSize =
-            (currentRows.length * 0.1).ceil().clamp(1, 50);
+        final int sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
         // ✅ إصلاح: نسخ القائمة قبل shuffle لتجنب تعديل الأصلية
         final sample = List<dynamic>.from(currentRows)..shuffle();
         final sampledRows = sample.take(sampleSize);
@@ -989,8 +1014,7 @@ class DeltaSyncService {
         }
 
         if (batch.isNotEmpty) {
-          final placeholders =
-              batch.map((_) => '(?, ?, ?, ?, ?)').join(',');
+          final placeholders = batch.map((_) => '(?, ?, ?, ?, ?)').join(',');
           final flat = batch.expand((x) => x).toList();
           await db.customStatement(
             'INSERT OR REPLACE INTO sync_mirror (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) VALUES $placeholders',
@@ -1015,14 +1039,18 @@ class DeltaSyncService {
 
   /// ✅ تنظيف صفوف المرآة القديمة التي لم تُرى منذ فترة
   /// يُستدعى دورياً لمنع تضخم جدول sync_mirror
-  Future<int> cleanupStaleMirrorRows({Duration maxAge = const Duration(days: 30)}) async {
+  Future<int> cleanupStaleMirrorRows({
+    Duration maxAge = const Duration(days: 30),
+  }) async {
     await _ensureMirrorTable();
     final cutoff = Time.nowEpoch() - maxAge.inMilliseconds;
     try {
-      final result = await db.customSelect(
-        'SELECT COUNT(*) as cnt FROM sync_mirror WHERE last_seen_at < ?',
-        variables: [Variable<int>(cutoff)],
-      ).getSingle();
+      final result = await db
+          .customSelect(
+            'SELECT COUNT(*) as cnt FROM sync_mirror WHERE last_seen_at < ?',
+            variables: [Variable<int>(cutoff)],
+          )
+          .getSingle();
       final count = result.read<int>('cnt');
       if (count > 0) {
         await db.customStatement(
@@ -1033,7 +1061,9 @@ class DeltaSyncService {
         _mirrorCache = null;
         _mirrorCacheTime = null;
         if (kDebugMode) {
-          debugPrint('🧹 Cleaned up $count stale mirror rows (older than ${maxAge.inDays} days)');
+          debugPrint(
+            '🧹 Cleaned up $count stale mirror rows (older than ${maxAge.inDays} days)',
+          );
         }
       }
       return count;
@@ -1047,162 +1077,163 @@ class DeltaSyncService {
   static List<_EntityConfig>? _cachedConfigs;
   List<_EntityConfig> _entityConfigs() {
     return _cachedConfigs ??= [
-        makeConfig<Room>(
-          'rooms',
-          () => db.select(db.rooms).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<Booking>(
-          'bookings',
-          () => db.select(db.bookings).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<BookingNote>(
-          'booking_notes',
-          () => db.select(db.bookingNotes).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<Employee>(
-          'employees',
-          () => db.select(db.employees).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<Expense>(
-          'expenses',
-          () => db.select(db.expenses).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<CashTransaction>(
-          'cash_transactions',
-          () => db.select(db.cashTransactions).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<Payment>(
-          'payments',
-          () => db.select(db.payments).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<Debt>(
-          'debts',
-          () => db.select(db.debts).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<BookingNight>(
-          'booking_nights',
-          () => db.select(db.bookingNights).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<BookingPriceAdjustment>(
-          'booking_price_adjustments',
-          () => db.select(db.bookingPriceAdjustments).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
-        makeConfig<ShiftNote>(
-          'shift_notes',
-          () => db.select(db.shiftNotes).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<SalaryCycle>(
-          'salary_cycles',
-          () => db.select(db.salaryCycles).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<SalaryPayment>(
-          'salary_payments',
-          () => db.select(db.salaryPayments).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<PriceAdjustment>(
-          'price_adjustments',
-          () => db.select(db.priceAdjustments).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        makeConfig<AuditLog>(
-          'audit_logs',
-          () => db.select(db.auditLogs).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.createdAt,
-          (row) => null,
-          (row) => row.toJson(),
-        ),
-        makeConfig<PaymentVoid>(
-          'payment_voids',
-          () => db.select(db.paymentVoids).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-        // ✅ كيانات جديدة
-        makeConfig<SalaryWithdrawal>(
-          'salary_withdrawals',
-          () => db.select(db.salaryWithdrawals).get(),
-          (row) => row.localUuid,
-          (row) => row.createdAt,
-          (row) => row.lastModified,
-          (row) => row.deletedAt,
-          (row) => row.toJson(),
-        ),
-      ];
+      makeConfig<Room>(
+        'rooms',
+        () => db.select(db.rooms).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<Booking>(
+        'bookings',
+        () => db.select(db.bookings).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<BookingNote>(
+        'booking_notes',
+        () => db.select(db.bookingNotes).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<Employee>(
+        'employees',
+        () => db.select(db.employees).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<Expense>(
+        'expenses',
+        () => db.select(db.expenses).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<CashTransaction>(
+        'cash_transactions',
+        () => db.select(db.cashTransactions).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<Payment>(
+        'payments',
+        () => db.select(db.payments).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<Debt>(
+        'debts',
+        () => db.select(db.debts).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<BookingNight>(
+        'booking_nights',
+        () => db.select(db.bookingNights).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<BookingPriceAdjustment>(
+        'booking_price_adjustments',
+        () => db.select(db.bookingPriceAdjustments).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
+      makeConfig<ShiftNote>(
+        'shift_notes',
+        () => db.select(db.shiftNotes).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<SalaryCycle>(
+        'salary_cycles',
+        () => db.select(db.salaryCycles).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<SalaryPayment>(
+        'salary_payments',
+        () => db.select(db.salaryPayments).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<PriceAdjustment>(
+        'price_adjustments',
+        () => db.select(db.priceAdjustments).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      makeConfig<AuditLog>(
+        'audit_logs',
+        () => db.select(db.auditLogs).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.createdAt,
+        (row) => null,
+        (row) => row.toJson(),
+      ),
+      makeConfig<PaymentVoid>(
+        'payment_voids',
+        () => db.select(db.paymentVoids).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+      // ✅ كيانات جديدة
+      makeConfig<SalaryWithdrawal>(
+        'salary_withdrawals',
+        () => db.select(db.salaryWithdrawals).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
+    ];
+  }
 
   /// ✅ تحسين 4: Factory method لتقليل تكرار كود Entity Configs
   _EntityConfig makeConfig<T>(
@@ -1235,10 +1266,7 @@ class DeltaSyncService {
 
 /// نتيجة معالجة كيان واحد
 class _EntityProcessResult {
-  const _EntityProcessResult({
-    required this.changes,
-    required this.snapshot,
-  });
+  const _EntityProcessResult({required this.changes, required this.snapshot});
 
   final List<DeltaSyncChange> changes;
   final Map<String, MirrorRow> snapshot;
@@ -1349,9 +1377,7 @@ Map<String, dynamic> _preparePayload(Map<String, dynamic> source) {
 /// ✅ تحسين 3: Hash للحقول فقط (بدون حقول النظام)
 String _hashFieldsOnly(Map<String, dynamic> data) {
   final fields = Map<String, dynamic>.fromEntries(
-    data.entries.where(
-      (e) => !FieldSyncConfig.systemFields.contains(e.key),
-    ),
+    data.entries.where((e) => !FieldSyncConfig.systemFields.contains(e.key)),
   );
   return _hashPayload(fields);
 }
@@ -1359,10 +1385,21 @@ String _hashFieldsOnly(Map<String, dynamic> data) {
 // تم حذف _computeDiff (كود ميت — لم يُستدعَ من أي مكان)
 
 const _timestampFields = {
-  'createdAt', 'updatedAt', 'deletedAt', 'lastModified',
-  'lastNightEpoch', 'syncTimestamp', 'createdAtEpoch', 'lastModifiedEpoch',
-  'lastActive', 'lastSeen', 'timestamp', 'voidedAt', 'reversedAt',
-  'cancelledAt', 'financialFrozenAt',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+  'lastModified',
+  'lastNightEpoch',
+  'syncTimestamp',
+  'createdAtEpoch',
+  'lastModifiedEpoch',
+  'lastActive',
+  'lastSeen',
+  'timestamp',
+  'voidedAt',
+  'reversedAt',
+  'cancelledAt',
+  'financialFrozenAt',
 };
 
 dynamic _normalizeValue(dynamic value, {String? key}) {
@@ -1408,8 +1445,7 @@ Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
       normalized = value;
     }
     return MapEntry(entry.key, normalized);
-  }).toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
+  }).toList()..sort((a, b) => a.key.compareTo(b.key));
   return Map<String, dynamic>.fromEntries(entries);
 }
 
@@ -1525,23 +1561,27 @@ class _FieldLevelDiffResult {
 
   /// ✅ Factory للنتيجة الفارغة (تحسين الأداء)
   static _FieldLevelDiffResult empty() => _FieldLevelDiffResult(
-        changedFields: {},
-        fieldVersions: {},
-        fieldTimestamps: {},
-        fieldVectorClocks: {},
-        fieldDevices: {},
-      );
+    changedFields: {},
+    fieldVersions: {},
+    fieldTimestamps: {},
+    fieldVectorClocks: {},
+    fieldDevices: {},
+  );
 
   List<FieldChange> toFieldChanges(String deviceId, String localDeviceId) {
-    return changedFields.entries.map((e) => FieldChange(
-      fieldName: e.key,
-      oldValue: null,
-      newValue: e.value,
-      version: fieldVersions[e.key] ?? 1,
-      timestamp: fieldTimestamps[e.key] ?? 0,
-      deviceId: fieldDevices[e.key] ?? localDeviceId,
-      vectorClock: fieldVectorClocks[e.key] ?? '{}',
-    )).toList();
+    return changedFields.entries
+        .map(
+          (e) => FieldChange(
+            fieldName: e.key,
+            oldValue: null,
+            newValue: e.value,
+            version: fieldVersions[e.key] ?? 1,
+            timestamp: fieldTimestamps[e.key] ?? 0,
+            deviceId: fieldDevices[e.key] ?? localDeviceId,
+            vectorClock: fieldVectorClocks[e.key] ?? '{}',
+          ),
+        )
+        .toList();
   }
 }
 

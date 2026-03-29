@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,9 +60,9 @@ class _AppwriteConnectionSettingsScreenState
     _debounce = Timer(const Duration(milliseconds: 300), () {
       final hasChanges =
           _endpointController.text != AppwriteConfigManager.endpoint ||
-              _projectIdController.text != AppwriteConfigManager.projectId ||
-              _databaseIdController.text != AppwriteConfigManager.databaseId ||
-              _apiKeyController.text != AppwriteConfigManager.apiKey;
+          _projectIdController.text != AppwriteConfigManager.projectId ||
+          _databaseIdController.text != AppwriteConfigManager.databaseId ||
+          _apiKeyController.text != AppwriteConfigManager.apiKey;
 
       if (hasChanges != _hasChanges) {
         setState(() => _hasChanges = hasChanges);
@@ -221,9 +222,7 @@ class _AppwriteConnectionSettingsScreenState
         ..connectionTimeout = const Duration(seconds: 10);
 
       try {
-        final request = await client.getUrl(
-          Uri.parse('$endpoint/health'),
-        );
+        final request = await client.getUrl(Uri.parse('$endpoint/health'));
         // إضافة headers للتأكد من صحة المشروع
         request.headers.set('X-Appwrite-Project', projectId);
         final response = await request.close();
@@ -239,8 +238,9 @@ class _AppwriteConnectionSettingsScreenState
                     ? '✅ الاتصال ناجح (${latencyMs}ms)'
                     : '⚠️ الخادم يستجيب (${response.statusCode}) — تأكد من صحة Project ID',
               ),
-              backgroundColor:
-                  response.statusCode == 200 ? Colors.green : Colors.orange,
+              backgroundColor: response.statusCode == 200
+                  ? Colors.green
+                  : Colors.orange,
               // ✅ مدة SnackBar: 3 ثوانٍ للنتائج
               duration: const Duration(seconds: 3),
             ),
@@ -256,14 +256,13 @@ class _AppwriteConnectionSettingsScreenState
               duration: Duration(seconds: 4),
             ),
           );
-        } on HttpException catch (e) {
+        }
+      } on HttpException catch (e) {
         sw.stop();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                '❌ خطأ في الاتصال: ${e.message}',
-              ),
+              content: Text('❌ خطأ في الاتصال: ${e.message}'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 4),
             ),
@@ -419,8 +418,7 @@ class _AppwriteConnectionSettingsScreenState
                   icon: const Icon(Icons.paste, size: 18),
                   onPressed: () {
                     if (AppwriteConfigManager.endpoint.isNotEmpty) {
-                      _endpointController.text =
-                          AppwriteConfigManager.endpoint;
+                      _endpointController.text = AppwriteConfigManager.endpoint;
                     }
                   },
                   tooltip: 'استعادة القيمة الحالية',
@@ -438,7 +436,8 @@ class _AppwriteConnectionSettingsScreenState
                 if (uri == null) {
                   return 'عنوان URL غير صالح';
                 }
-                if (!uri.hasScheme || (!uri.isScheme('HTTP') && !uri.isScheme('HTTPS'))) {
+                if (!uri.hasScheme ||
+                    (!uri.isScheme('HTTP') && !uri.isScheme('HTTPS'))) {
                   return 'يجب أن يبدأ بـ http:// أو https://';
                 }
                 if (!uri.hasAuthority) {
@@ -547,7 +546,9 @@ class _AppwriteConnectionSettingsScreenState
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isCustom ? 'الإعدادات الحالية (مخصصة)' : 'الإعدادات الافتراضية',
+                  isCustom
+                      ? 'الإعدادات الحالية (مخصصة)'
+                      : 'الإعدادات الافتراضية',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -623,14 +624,10 @@ class _AppwriteConnectionSettingsScreenState
           if (copyable)
             IconButton(
               icon: const Icon(Icons.copy, size: 16),
-              onPressed: () =>
-                  _copyToClipboard(value, copyLabel ?? label),
+              onPressed: () => _copyToClipboard(value, copyLabel ?? label),
               tooltip: 'نسخ',
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
         ],
       ),

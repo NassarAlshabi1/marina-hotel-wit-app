@@ -6,8 +6,8 @@ part of 'sync_state.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$SyncSettingsImpl _$$SyncSettingsImplFromJson(Map<String, dynamic> json) =>
-    _$SyncSettingsImpl(
+_SyncSettings _$SyncSettingsFromJson(Map<String, dynamic> json) =>
+    _SyncSettings(
       autoSyncEnabled: json['autoSyncEnabled'] as bool? ?? true,
       syncIntervalMinutes: (json['syncIntervalMinutes'] as num?)?.toInt() ?? 5,
       syncOnWifiOnly: json['syncOnWifiOnly'] as bool? ?? true,
@@ -17,7 +17,7 @@ _$SyncSettingsImpl _$$SyncSettingsImplFromJson(Map<String, dynamic> json) =>
           SyncPriority.normal,
     );
 
-Map<String, dynamic> _$$SyncSettingsImplToJson(_$SyncSettingsImpl instance) =>
+Map<String, dynamic> _$SyncSettingsToJson(_SyncSettings instance) =>
     <String, dynamic>{
       'autoSyncEnabled': instance.autoSyncEnabled,
       'syncIntervalMinutes': instance.syncIntervalMinutes,

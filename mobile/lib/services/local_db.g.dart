@@ -22641,6 +22641,15 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
       'REFERENCES employees (id)',
     ),
   );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _actionMeta = const VerificationMeta('action');
   @override
   late final GeneratedColumn<String> action = GeneratedColumn<String>(
@@ -22697,6 +22706,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     id,
     expenseId,
     employeeId,
+    name,
     action,
     amount,
     note,
@@ -22835,6 +22845,12 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     } else if (isInserting) {
       context.missing(_employeeIdMeta);
     }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
     if (data.containsKey('action')) {
       context.handle(
         _actionMeta,
@@ -22942,6 +22958,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.int,
         data['${effectivePrefix}employee_id'],
       )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
       action: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}action'],
@@ -22989,6 +23009,7 @@ class SalaryWithdrawal extends DataClass
   final int id;
   final int? expenseId;
   final int employeeId;
+  final String? name;
   final String action;
   final double amount;
   final String? note;
@@ -23011,6 +23032,7 @@ class SalaryWithdrawal extends DataClass
     required this.id,
     this.expenseId,
     required this.employeeId,
+    this.name,
     required this.action,
     required this.amount,
     this.note,
@@ -23052,6 +23074,9 @@ class SalaryWithdrawal extends DataClass
       map['expense_id'] = Variable<int>(expenseId);
     }
     map['employee_id'] = Variable<int>(employeeId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
     map['action'] = Variable<String>(action);
     map['amount'] = Variable<double>(amount);
     if (!nullToAbsent || note != null) {
@@ -23092,6 +23117,7 @@ class SalaryWithdrawal extends DataClass
           ? const Value.absent()
           : Value(expenseId),
       employeeId: Value(employeeId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
       action: Value(action),
       amount: Value(amount),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
@@ -23124,6 +23150,7 @@ class SalaryWithdrawal extends DataClass
       id: serializer.fromJson<int>(json['id']),
       expenseId: serializer.fromJson<int?>(json['expenseId']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
+      name: serializer.fromJson<String?>(json['name']),
       action: serializer.fromJson<String>(json['action']),
       amount: serializer.fromJson<double>(json['amount']),
       note: serializer.fromJson<String?>(json['note']),
@@ -23151,6 +23178,7 @@ class SalaryWithdrawal extends DataClass
       'id': serializer.toJson<int>(id),
       'expenseId': serializer.toJson<int?>(expenseId),
       'employeeId': serializer.toJson<int>(employeeId),
+      'name': serializer.toJson<String?>(name),
       'action': serializer.toJson<String>(action),
       'amount': serializer.toJson<double>(amount),
       'note': serializer.toJson<String?>(note),
@@ -23176,6 +23204,7 @@ class SalaryWithdrawal extends DataClass
     int? id,
     Value<int?> expenseId = const Value.absent(),
     int? employeeId,
+    Value<String?> name = const Value.absent(),
     String? action,
     double? amount,
     Value<String?> note = const Value.absent(),
@@ -23198,6 +23227,7 @@ class SalaryWithdrawal extends DataClass
     id: id ?? this.id,
     expenseId: expenseId.present ? expenseId.value : this.expenseId,
     employeeId: employeeId ?? this.employeeId,
+    name: name.present ? name.value : this.name,
     action: action ?? this.action,
     amount: amount ?? this.amount,
     note: note.present ? note.value : this.note,
@@ -23238,6 +23268,7 @@ class SalaryWithdrawal extends DataClass
       employeeId: data.employeeId.present
           ? data.employeeId.value
           : this.employeeId,
+      name: data.name.present ? data.name.value : this.name,
       action: data.action.present ? data.action.value : this.action,
       amount: data.amount.present ? data.amount.value : this.amount,
       note: data.note.present ? data.note.value : this.note,
@@ -23265,6 +23296,7 @@ class SalaryWithdrawal extends DataClass
           ..write('id: $id, ')
           ..write('expenseId: $expenseId, ')
           ..write('employeeId: $employeeId, ')
+          ..write('name: $name, ')
           ..write('action: $action, ')
           ..write('amount: $amount, ')
           ..write('note: $note, ')
@@ -23292,6 +23324,7 @@ class SalaryWithdrawal extends DataClass
     id,
     expenseId,
     employeeId,
+    name,
     action,
     amount,
     note,
@@ -23318,6 +23351,7 @@ class SalaryWithdrawal extends DataClass
           other.id == this.id &&
           other.expenseId == this.expenseId &&
           other.employeeId == this.employeeId &&
+          other.name == this.name &&
           other.action == this.action &&
           other.amount == this.amount &&
           other.note == this.note &&
@@ -23342,6 +23376,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<int> id;
   final Value<int?> expenseId;
   final Value<int> employeeId;
+  final Value<String?> name;
   final Value<String> action;
   final Value<double> amount;
   final Value<String?> note;
@@ -23364,6 +23399,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.id = const Value.absent(),
     this.expenseId = const Value.absent(),
     this.employeeId = const Value.absent(),
+    this.name = const Value.absent(),
     this.action = const Value.absent(),
     this.amount = const Value.absent(),
     this.note = const Value.absent(),
@@ -23387,6 +23423,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.id = const Value.absent(),
     this.expenseId = const Value.absent(),
     required int employeeId,
+    this.name = const Value.absent(),
     required String action,
     this.amount = const Value.absent(),
     this.note = const Value.absent(),
@@ -23416,6 +23453,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<int>? id,
     Expression<int>? expenseId,
     Expression<int>? employeeId,
+    Expression<String>? name,
     Expression<String>? action,
     Expression<double>? amount,
     Expression<String>? note,
@@ -23439,6 +23477,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (id != null) 'id': id,
       if (expenseId != null) 'expense_id': expenseId,
       if (employeeId != null) 'employee_id': employeeId,
+      if (name != null) 'name': name,
       if (action != null) 'action': action,
       if (amount != null) 'amount': amount,
       if (note != null) 'note': note,
@@ -23464,6 +23503,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<int>? id,
     Value<int?>? expenseId,
     Value<int>? employeeId,
+    Value<String?>? name,
     Value<String>? action,
     Value<double>? amount,
     Value<String?>? note,
@@ -23487,6 +23527,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       id: id ?? this.id,
       expenseId: expenseId ?? this.expenseId,
       employeeId: employeeId ?? this.employeeId,
+      name: name ?? this.name,
       action: action ?? this.action,
       amount: amount ?? this.amount,
       note: note ?? this.note,
@@ -23550,6 +23591,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (employeeId.present) {
       map['employee_id'] = Variable<int>(employeeId.value);
     }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
     if (action.present) {
       map['action'] = Variable<String>(action.value);
     }
@@ -23585,6 +23629,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('id: $id, ')
           ..write('expenseId: $expenseId, ')
           ..write('employeeId: $employeeId, ')
+          ..write('name: $name, ')
           ..write('action: $action, ')
           ..write('amount: $amount, ')
           ..write('note: $note, ')
@@ -46010,6 +46055,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<int> id,
       Value<int?> expenseId,
       required int employeeId,
+      Value<String?> name,
       required String action,
       Value<double> amount,
       Value<String?> note,
@@ -46034,6 +46080,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int?> expenseId,
       Value<int> employeeId,
+      Value<String?> name,
       Value<String> action,
       Value<double> amount,
       Value<String?> note,
@@ -46164,6 +46211,11 @@ class $$SalaryWithdrawalsTableFilterComposer
 
   ColumnFilters<int> get expenseId => $composableBuilder(
     column: $table.expenseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -46300,6 +46352,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get action => $composableBuilder(
     column: $table.action,
     builder: (column) => ColumnOrderings(column),
@@ -46416,6 +46473,9 @@ class $$SalaryWithdrawalsTableAnnotationComposer
   GeneratedColumn<int> get expenseId =>
       $composableBuilder(column: $table.expenseId, builder: (column) => column);
 
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
   GeneratedColumn<String> get action =>
       $composableBuilder(column: $table.action, builder: (column) => column);
 
@@ -46502,6 +46562,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int?> expenseId = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
                 Value<String> action = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<String?> note = const Value.absent(),
@@ -46524,6 +46585,7 @@ class $$SalaryWithdrawalsTableTableManager
                 id: id,
                 expenseId: expenseId,
                 employeeId: employeeId,
+                name: name,
                 action: action,
                 amount: amount,
                 note: note,
@@ -46548,6 +46610,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int?> expenseId = const Value.absent(),
                 required int employeeId,
+                Value<String?> name = const Value.absent(),
                 required String action,
                 Value<double> amount = const Value.absent(),
                 Value<String?> note = const Value.absent(),
@@ -46570,6 +46633,7 @@ class $$SalaryWithdrawalsTableTableManager
                 id: id,
                 expenseId: expenseId,
                 employeeId: employeeId,
+                name: name,
                 action: action,
                 amount: amount,
                 note: note,

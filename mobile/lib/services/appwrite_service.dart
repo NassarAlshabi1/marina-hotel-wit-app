@@ -307,8 +307,8 @@ class AppwriteService {
         } on AppwriteException catch (createError) {
           // ✅ إذا كان المستند موجوداً بالفعل، نحاول البحث عنه مرة أخرى ثم التحديث
           if (createError.code == 409 ||
-                  createError.message?.contains('document_already_exists') ??
-              false) {
+              (createError.message?.contains('document_already_exists') ??
+                  false)) {
             _logger.info(
               'Document $documentId already exists (race condition), searching again...',
               tag: 'SYNC',
