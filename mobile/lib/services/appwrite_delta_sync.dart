@@ -262,15 +262,12 @@ class AppwriteDeltaSync {
     // ✅ استخدام Field-Level payload إذا كان متاحاً
     Map<String, dynamic> sanitizedPayload;
     if (change.fieldChanges != null && change.fieldChanges!.isNotEmpty) {
-      // استخدام الحقول المتغيرة فقط مع Field-Level metadata
+      // استخدام الحقول المتغيرة فقط
       sanitizedPayload = _sanitizePayload(payload, collectionEntity: change.entity);
       
-      // إضافة Field-Level metadata
-      for (final fieldChange in change.fieldChanges!) {
-        sanitizedPayload['_${fieldChange.fieldName}_version'] = fieldChange.version;
-        sanitizedPayload['_${fieldChange.fieldName}_timestamp'] = fieldChange.timestamp;
-        sanitizedPayload['_${fieldChange.fieldName}_device'] = fieldChange.deviceId;
-      }
+      // ✅ إصلاح: لا تُرسل حقول metadata (_version, _timestamp, _device) إلى Appwrite
+      // لأنها ليست معرّفة في Appwrite schema وستُسبب document_invalid_structure
+      // المتبقي metadata محفوظ في change.fieldMetadata / change.toMap() للاستخدام المحلي فقط
       
       _logger.debug(
         '📤 Field-Level update: ${change.entity}/${change.localUuid} - ${change.fieldChanges!.length} fields changed',
