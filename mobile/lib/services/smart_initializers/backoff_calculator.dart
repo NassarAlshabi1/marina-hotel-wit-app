@@ -1,5 +1,3 @@
-import 'dart:math';
-
 /// حاسبة زمن الانتظار التدريجي (Exponential Backoff with Jitter).
 ///
 /// يُستخدم لمنع إرسال طلبات متكررة عند فشل تهيئة المزامنة.
@@ -8,6 +6,9 @@ import 'dart:math';
 /// - المحاولة 2: 10 ثوانٍ ±2
 /// - المحاولة 3: 20 ثانية ±3
 /// - المحاولة 4+: 30 ثانية ±5 (سقف أقصى)
+///
+/// لا يستخدم أي مكتبة خارجية (لا dart:math) لتجنب مشاكل
+/// AOT compilation في CI.
 class BackoffCalculator {
   BackoffCalculator._();
 
@@ -18,14 +19,28 @@ class BackoffCalculator {
   static const int _maxDelayMs = 30000;
 
   /// نطاق التذبذب لكل مرحلة بالمليثانية.
-  /// الفهرس 0 → المحاولة 1، الفهرس 1 → المحاولة 2، وهكذا.
   static const List<int> _jitterRangesMs = [1000, 2000, 3000];
 
   /// السقف الأقصى للتذبذب بالمليثانية.
   static const int _maxJitterMs = 5000;
 
-  /// المولّد العشوائي لضمان Jitter.
-  static final Random _random = Random();
+  /// بذرة مولّد الأرقام العشوائية (LCG — Lehmer).
+  static int _lcgState = _initialSeed();
+
+  /// بذرة أولية من الوقت الحالي.
+  static int _initialSeed() {
+    // Use DateTime milliseconds as seed — no external imports needed.
+    final now = DateTime.now();
+    return now.microsecondsSinceEpoch & 0x7FFFFFFF;
+  }
+
+  /// مولّد عشوائي بسيط (Linear Congruential Generator).
+  ///
+  /// يستخدم معاملات Lehmer القياسية:
+  /// state = (state * 48271) % 2147483647
+  static int _nextRandom() {
+    return _lcgState = (_lcgState * 48271) % 2147483647;
+  }
 
   /// حساب مدة الانتظار التالية بناءً على عدد المحاولات السابقة.
   ///
@@ -45,23 +60,20 @@ class BackoffCalculator {
       jitterRange = _maxJitterMs;
     }
 
-    // Jitter: delay + (random * jitterRange * 2 - jitterRange)
-    final jitter = (_random.nextDouble() * 2 * jitterRange - jitterRange)
-        .round();
+    // Jitter: random value in [-jitterRange, +jitterRange]
+    final randomValue = _nextRandom() % (2 * jitterRange + 1);
+    final jitter = randomValue - jitterRange;
     return (baseDelay + jitter).clamp(1000, _maxDelayMs + _maxJitterMs);
   }
 
   /// حساب مدة الانتظار كـ [Duration].
-  ///
-  /// مريح للاستخدام المباشر مع [Timer].
   static Duration calculateDuration(int attempt) {
     return Duration(milliseconds: calculateDelay(attempt));
   }
 
-  /// إعادة تعيين العداد (اختباري).
-  /// لا حاجة فعلية لأن [attempt] يُمرّر خارجياً.
+  /// إعادة تعيين البذرة العشوائية.
   static void reset() {
-    // No-op: الحالة تُدار خارجياً عبر [attempt].
+    _lcgState = _initialSeed();
   }
 
   /// الحد الأقصى لعدد المحاولات قبل الوصول للسقف الثابت.

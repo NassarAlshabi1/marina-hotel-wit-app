@@ -466,8 +466,15 @@ class FieldSyncConfig {
       case 'salary_withdrawals':
         return const FieldSyncConfig(
           entityName: 'salary_withdrawals',
-          trackableFields: {'action', 'amount', 'note', 'date'},
-          criticalFields: {'amount', 'action'},
+          trackableFields: {
+            'action',
+            'amount',
+            'note',
+            'date',
+            'name',
+            'employeeId',
+          },
+          criticalFields: {'amount', 'action', 'employeeId'},
           ignoredFields: systemFields,
           fieldTypes: {'amount': FieldType.real},
           mergeStrategies: {'amount': FieldMergeStrategy.lastWriteWins},

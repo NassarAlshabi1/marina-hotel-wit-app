@@ -88,13 +88,13 @@ class SalaryWithdrawalsRepository {
           );
     }
 
-    // ✅ بناء بيانات السجل الكاملة
-    final payload = _buildPayload(
+    // ✅ 1. إضافة للمزامنة عبر Outbox (بـ payload يدوي متوافق مع Appwrite)
+    final outboxPayload = _buildPayload(
       localUuid: localUuid,
       recordId: recordId,
       expenseId: expenseId,
       employeeId: employeeId,
-      employeeName: employeeName, // ✅ تمرير اسم الموظف
+      employeeName: employeeName,
       action: action,
       amount: amount,
       date: date,
@@ -103,24 +103,33 @@ class SalaryWithdrawalsRepository {
       nowIso: nowIso,
     );
 
-    // ✅ 1. إضافة للمزامنة عبر Outbox
     await _addToOutbox(
       localUuid: localUuid,
       recordId: recordId,
-      payload: payload,
+      payload: outboxPayload,
       now: now,
     );
 
-    // ✅ 2. تحديث المرآة فوراً (لـ Delta Sync)
+    // ✅ 2. تحديث المرآة باستخدام Adapter.toJson() (متوافق مع Delta Sync compute)
+    final updatedRow = await (_db.select(
+      _db.salaryWithdrawals,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingle();
+
+    final mirrorPayload = _adapters.salaryWithdrawals.adapter.toJson(
+      updatedRow,
+      src: Source.appwrite,
+    );
+
     await _updateMirror(
       localUuid: localUuid,
-      payload: payload,
+      payload: mirrorPayload,
       now: now,
       isNewRecord: isNewRecord,
     );
   }
 
-  /// ✅ بناء payload كامل للسجل
+  /// ✅ بناء payload يدوي للـ Outbox (متوافق مع Appwrite server)
+  /// ⚠️ لا يُستخدم للمرآة — المرآة تستخدم Adapter.toJson() بدلاً منه
   Map<String, dynamic> _buildPayload({
     required String localUuid,
     required int recordId,
