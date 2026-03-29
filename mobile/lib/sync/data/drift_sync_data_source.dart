@@ -58,7 +58,9 @@ class DriftOutboxDataSource implements OutboxDataSource {
 
   @override
   Future<Map<String, dynamic>?> getLocalRecord(
-      String table, String uuid) async {
+    String table,
+    String uuid,
+  ) async {
     // قراءة السجل المحلي
     return null;
   }
@@ -115,10 +117,7 @@ class DriftInboxDataSource implements InboxDataSource {
 /// API Remote Data Source
 /// يربط DeltaSyncEngine بواجهة برمجة التطبيقات (API)
 class ApiRemoteDataSource implements RemoteDataSource {
-  ApiRemoteDataSource({
-    required this.baseUrl,
-    this.authToken,
-  });
+  ApiRemoteDataSource({required this.baseUrl, this.authToken});
   final String baseUrl;
   final String? authToken;
 

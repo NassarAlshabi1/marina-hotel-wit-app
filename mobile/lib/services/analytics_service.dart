@@ -52,32 +52,33 @@ class SyncStats {
     Duration? averageSyncTime,
     DateTime? lastSyncTime,
     bool? isHealthy,
-  }) =>
-      SyncStats(
-        totalPushOperations: totalPushOperations ?? this.totalPushOperations,
-        totalPullOperations: totalPullOperations ?? this.totalPullOperations,
-        totalConflicts: totalConflicts ?? this.totalConflicts,
-        totalFailures: totalFailures ?? this.totalFailures,
-        totalRetries: totalRetries ?? this.totalRetries,
-        averageSyncTime: averageSyncTime ?? this.averageSyncTime,
-        lastSyncTime: lastSyncTime ?? this.lastSyncTime,
-        isHealthy: isHealthy ?? this.isHealthy,
-      );
+  }) => SyncStats(
+    totalPushOperations: totalPushOperations ?? this.totalPushOperations,
+    totalPullOperations: totalPullOperations ?? this.totalPullOperations,
+    totalConflicts: totalConflicts ?? this.totalConflicts,
+    totalFailures: totalFailures ?? this.totalFailures,
+    totalRetries: totalRetries ?? this.totalRetries,
+    averageSyncTime: averageSyncTime ?? this.averageSyncTime,
+    lastSyncTime: lastSyncTime ?? this.lastSyncTime,
+    isHealthy: isHealthy ?? this.isHealthy,
+  );
 
   Map<String, dynamic> toJson() => {
-        'totalPushOperations': totalPushOperations,
-        'totalPullOperations': totalPullOperations,
-        'totalConflicts': totalConflicts,
-        'totalFailures': totalFailures,
-        'totalRetries': totalRetries,
-        'averageSyncTimeMs': averageSyncTime.inMilliseconds,
-        'lastSyncTime': lastSyncTime?.toIso8601String(),
-        'isHealthy': isHealthy,
-        'failureRate':
-            totalPushOperations > 0 ? totalFailures / totalPushOperations : 0.0,
-        'retryRate':
-            totalPushOperations > 0 ? totalRetries / totalPushOperations : 0.0,
-      };
+    'totalPushOperations': totalPushOperations,
+    'totalPullOperations': totalPullOperations,
+    'totalConflicts': totalConflicts,
+    'totalFailures': totalFailures,
+    'totalRetries': totalRetries,
+    'averageSyncTimeMs': averageSyncTime.inMilliseconds,
+    'lastSyncTime': lastSyncTime?.toIso8601String(),
+    'isHealthy': isHealthy,
+    'failureRate': totalPushOperations > 0
+        ? totalFailures / totalPushOperations
+        : 0.0,
+    'retryRate': totalPushOperations > 0
+        ? totalRetries / totalPushOperations
+        : 0.0,
+  };
 }
 
 /// خدمة التحليلات للمزامنة
@@ -106,8 +107,10 @@ class AnalyticsService {
       await _analytics!.setAnalyticsCollectionEnabled(true);
       developer.log('✅ AnalyticsService initialized', name: 'AnalyticsService');
     } catch (e) {
-      developer.log('⚠️ Analytics initialization failed: $e',
-          name: 'AnalyticsService');
+      developer.log(
+        '⚠️ Analytics initialization failed: $e',
+        name: 'AnalyticsService',
+      );
       // لا نوقف التطبيق بسبب فشل التحليلات
     }
   }
@@ -144,10 +147,7 @@ class AnalyticsService {
 
     // إرسال إلى Firebase
     try {
-      await _analytics?.logEvent(
-        name: eventName,
-        parameters: allParameters,
-      );
+      await _analytics?.logEvent(name: eventName, parameters: allParameters);
     } catch (e) {
       // لا نوقف التطبيق بسبب فشل إرسال التحليلات
     }
@@ -188,11 +188,7 @@ class AnalyticsService {
     _sessionFailures++;
     await logSyncEvent(
       SyncAnalyticsEvent.syncFailed,
-      parameters: {
-        'error': error,
-        'operation': operation,
-        'attempt': attempt,
-      },
+      parameters: {'error': error, 'operation': operation, 'attempt': attempt},
     );
   }
 
@@ -251,10 +247,7 @@ class AnalyticsService {
   }) async {
     await logSyncEvent(
       SyncAnalyticsEvent.maxRetriesReached,
-      parameters: {
-        'operation': operation,
-        'totalAttempts': totalAttempts,
-      },
+      parameters: {'operation': operation, 'totalAttempts': totalAttempts},
     );
   }
 
@@ -266,10 +259,7 @@ class AnalyticsService {
     _sessionConflicts++;
     await logSyncEvent(
       SyncAnalyticsEvent.conflictResolved,
-      parameters: {
-        'resolution': resolution,
-        'entityType': entityType,
-      },
+      parameters: {'resolution': resolution, 'entityType': entityType},
     );
   }
 
@@ -375,8 +365,9 @@ class AnalyticsService {
     try {
       await _analytics?.logEvent(
         name: name,
-        parameters:
-            parameters.map((key, value) => MapEntry(key, value as Object)),
+        parameters: parameters.map(
+          (key, value) => MapEntry(key, value as Object),
+        ),
       );
     } catch (e) {
       // تجاهل الأخطاء

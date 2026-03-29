@@ -25,11 +25,11 @@ class SalaryEntitlement {
   final int totalMonthsWorked;
   final double basicSalary;
   final double dailyRate;
-  final double totalEntitlement;      // إجمالي المستحق
-  final double totalWithdrawals;      // إجمالي المسحوبات
-  final double totalDeductions;       // إجمالي الخصومات
-  final double totalPaid;             // إجمالي المدفوع (مسحوبات + خصومات)
-  final double netEntitlement;        // المتبقي
+  final double totalEntitlement; // إجمالي المستحق
+  final double totalWithdrawals; // إجمالي المسحوبات
+  final double totalDeductions; // إجمالي الخصومات
+  final double totalPaid; // إجمالي المدفوع (مسحوبات + خصومات)
+  final double netEntitlement; // المتبقي
   final List<SalaryTransaction> transactions;
 
   /// نسبة الاستحقاق من الراتب الشهري
@@ -53,8 +53,8 @@ class SalaryTransaction {
   });
 
   final int id;
-  final String type;      // 'سحب' أو 'خصم'
-  final String action;    // الإجراء الفعلي
+  final String type; // 'سحب' أو 'خصم'
+  final String action; // الإجراء الفعلي
   final double amount;
   final String date;
   final String? note;
@@ -67,7 +67,7 @@ class SalaryEntitlementService {
   final AppDatabase _db;
 
   /// حساب استحقاق موظف واحد
-  /// 
+  ///
   /// المعادلة:
   /// - الراتب اليومي = الراتب الأساسي / 30
   /// - الأيام العمل = من تاريخ التعيين حتى اليوم
@@ -77,7 +77,7 @@ class SalaryEntitlementService {
     Employee employee,
   ) async {
     final now = DateTime.now();
-    
+
     // تاريخ التعيين
     DateTime hireDate;
     try {
@@ -94,14 +94,14 @@ class SalaryEntitlementService {
 
     // الراتب اليومي (على أساس 30 يوم)
     final dailyRate = employee.basicSalary / 30;
-    
+
     // إجمالي المستحق
     final totalEntitlement = dailyRate * daysWorked;
 
     // جلب المسحوبات من salary_withdrawals
-    final withdrawals = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.employeeId.equals(employee.id)))
-        .get();
+    final withdrawals = await (_db.select(
+      _db.salaryWithdrawals,
+    )..where((t) => t.employeeId.equals(employee.id))).get();
 
     double totalWithdrawals = 0;
     double totalDeductions = 0;
@@ -112,43 +112,49 @@ class SalaryEntitlementService {
       final amount = w.amount;
 
       // تصنيف المعاملة
-      bool isWithdrawal = _isWithdrawalAction(action);
-      bool isDeduction = _isDeductionAction(action);
+      final bool isWithdrawal = _isWithdrawalAction(action);
+      final bool isDeduction = _isDeductionAction(action);
 
       if (isWithdrawal) {
         totalWithdrawals += amount;
-        transactions.add(SalaryTransaction(
-          id: w.id,
-          type: 'سحب',
-          action: action,
-          amount: amount,
-          date: w.date,
-          note: w.note,
-          expenseId: w.expenseId,
-        ));
+        transactions.add(
+          SalaryTransaction(
+            id: w.id,
+            type: 'سحب',
+            action: action,
+            amount: amount,
+            date: w.date,
+            note: w.note,
+            expenseId: w.expenseId,
+          ),
+        );
       } else if (isDeduction) {
         totalDeductions += amount;
-        transactions.add(SalaryTransaction(
-          id: w.id,
-          type: 'خصم',
-          action: action,
-          amount: amount,
-          date: w.date,
-          note: w.note,
-          expenseId: w.expenseId,
-        ));
+        transactions.add(
+          SalaryTransaction(
+            id: w.id,
+            type: 'خصم',
+            action: action,
+            amount: amount,
+            date: w.date,
+            note: w.note,
+            expenseId: w.expenseId,
+          ),
+        );
       } else {
         // افتراضياً: سحب
         totalWithdrawals += amount;
-        transactions.add(SalaryTransaction(
-          id: w.id,
-          type: 'سحب',
-          action: action,
-          amount: amount,
-          date: w.date,
-          note: w.note,
-          expenseId: w.expenseId,
-        ));
+        transactions.add(
+          SalaryTransaction(
+            id: w.id,
+            type: 'سحب',
+            action: action,
+            amount: amount,
+            date: w.date,
+            note: w.note,
+            expenseId: w.expenseId,
+          ),
+        );
       }
     }
 
@@ -178,9 +184,9 @@ class SalaryEntitlementService {
 
   /// حساب استحقاقات جميع الموظفين النشطين
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
-    final employees = await (_db.select(_db.employees)
-          ..where((e) => e.status.equals('active')))
-        .get();
+    final employees = await (_db.select(
+      _db.employees,
+    )..where((e) => e.status.equals('active'))).get();
 
     final entitlements = <SalaryEntitlement>[];
     for (final employee in employees) {
@@ -226,9 +232,9 @@ class SalaryEntitlementService {
 
   /// حساب استحقاق موظف واحد حسب الـ ID
   Future<SalaryEntitlement?> calculateById(int employeeId) async {
-    final employee = await (_db.select(_db.employees)
-          ..where((t) => t.id.equals(employeeId)))
-        .getSingleOrNull();
+    final employee = await (_db.select(
+      _db.employees,
+    )..where((t) => t.id.equals(employeeId))).getSingleOrNull();
 
     if (employee == null) return null;
     return calculateEmployeeEntitlement(employee);
@@ -251,7 +257,9 @@ class SalaryEntitlementService {
       'مقابل مالي',
       'مساعدة مالية',
     ];
-    return withdrawalActions.any((a) => action.contains(a) || a.contains(action));
+    return withdrawalActions.any(
+      (a) => action.contains(a) || a.contains(action),
+    );
   }
 
   /// تحديد ما إذا كان الإجراء خصم
@@ -265,6 +273,8 @@ class SalaryEntitlementService {
       'جزاء',
       'عقوبة',
     ];
-    return deductionActions.any((a) => action.contains(a) || a.contains(action));
+    return deductionActions.any(
+      (a) => action.contains(a) || a.contains(action),
+    );
   }
 }

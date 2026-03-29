@@ -129,8 +129,9 @@ class AppwriteConfig {
 
   /// عدد المحاولات — ⚡ 2 (كانت 3)
   static const int fastRetries = 2;
-  static const Duration fastRetryDelay =
-      Duration(milliseconds: 500); // ⚡ كان 2 ثانية
+  static const Duration fastRetryDelay = Duration(
+    milliseconds: 500,
+  ); // ⚡ كان 2 ثانية
   static const double fastBackoffMultiplier = 1.5; // ⚡ كان 2.0
 
   /// إعادة محاولة للعمليات الحرجة
@@ -243,21 +244,21 @@ class AppwriteConfig {
 
   /// الحصول على المهلة حسب نوع العملية
   static Duration timeoutFor(String operation) => switch (operation) {
-        'ping' || 'health' => pingTimeout,
-        'read' || 'query' => receiveTimeout,
-        'write' || 'create' || 'update' || 'delete' => sendTimeout,
-        'batch' || 'bulk' => longOperationTimeout,
-        'connect' => connectionTimeout,
-        _ => receiveTimeout,
-      };
+    'ping' || 'health' => pingTimeout,
+    'read' || 'query' => receiveTimeout,
+    'write' || 'create' || 'update' || 'delete' => sendTimeout,
+    'batch' || 'bulk' => longOperationTimeout,
+    'connect' => connectionTimeout,
+    _ => receiveTimeout,
+  };
 
   /// الحصول على فاصل المزامنة حسب الأولوية
   static Duration syncIntervalFor(String priority) => switch (priority) {
-        'critical' => criticalSyncInterval,
-        'normal' => normalSyncInterval,
-        'background' => backgroundSyncInterval,
-        _ => normalSyncInterval,
-      };
+    'critical' => criticalSyncInterval,
+    'normal' => normalSyncInterval,
+    'background' => backgroundSyncInterval,
+    _ => normalSyncInterval,
+  };
 
   /// الحصول على حجم الدفعة الأمثل
   static int batchSizeFor(int totalCount) {
@@ -269,12 +270,12 @@ class AppwriteConfig {
 
   /// Headers مُحسَّنة للسرعة
   static Map<String, String> get fastHeaders => {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': projectId,
-        'Accept-Encoding': 'gzip',
-        'Connection': 'keep-alive',
-        'X-Appwrite-Response-Format': '1.0',
-      };
+    'Content-Type': 'application/json',
+    'X-Appwrite-Project': projectId,
+    'Accept-Encoding': 'gzip',
+    'Connection': 'keep-alive',
+    'X-Appwrite-Response-Format': '1.0',
+  };
 
   /// URL للمجموعة مع معاملات السرعة
   static String fastCollectionUrl(
@@ -306,15 +307,17 @@ class AppwriteConfig {
     if (!kDebugMode) return;
 
     debugPrint(
-        '╔════════════════════════════════════════════════════════════╗');
+      '╔════════════════════════════════════════════════════════════╗',
+    );
+    debugPrint('║           ⚡ Appwrite Fast Configuration                   ║');
     debugPrint(
-        '║           ⚡ Appwrite Fast Configuration                   ║');
-    debugPrint(
-        '╠════════════════════════════════════════════════════════════╣');
+      '╠════════════════════════════════════════════════════════════╣',
+    );
     debugPrint('║ Endpoint: $endpoint');
     debugPrint('║ Project: ${projectId.substring(0, 8)}...');
     debugPrint(
-        '║ ════════════════════════════════════════════════════════════');
+      '║ ════════════════════════════════════════════════════════════',
+    );
     debugPrint('║ ⚡ السرعة:');
     debugPrint('║   • Connection: ${connectionTimeout.inSeconds}s');
     debugPrint('║   • Receive: ${receiveTimeout.inSeconds}s');
@@ -322,22 +325,25 @@ class AppwriteConfig {
     debugPrint('║   • HTTP/2: ${enableHttp2 ? "✅" : "❌"}');
     debugPrint('║   • Keep-Alive: ${enableHttpKeepAlive ? "✅" : "❌"}');
     debugPrint(
-        '║ ════════════════════════════════════════════════════════════');
+      '║ ════════════════════════════════════════════════════════════',
+    );
     debugPrint('║ 🔄 المزامنة:');
-    debugPrint(
-        '║   • Critical: ${criticalSyncInterval.inMinutes}min');
-    debugPrint(
-        '║   • Normal: ${normalSyncInterval.inMinutes}min');
+    debugPrint('║   • Critical: ${criticalSyncInterval.inMinutes}min');
+    debugPrint('║   • Normal: ${normalSyncInterval.inMinutes}min');
     debugPrint('║   • Batch Size: $optimalBatchSize');
     debugPrint(
-        '║ ════════════════════════════════════════════════════════════');
+      '║ ════════════════════════════════════════════════════════════',
+    );
     debugPrint('║ 💾 التخزين المؤقت:');
     debugPrint(
-        '║   • Memory: ${memoryCacheSizeMB}MB (${memoryCacheExpiry.inMinutes}min)');
+      '║   • Memory: ${memoryCacheSizeMB}MB (${memoryCacheExpiry.inMinutes}min)',
+    );
     debugPrint(
-        '║   • Disk: ${diskCacheSizeMB}MB (${diskCacheExpiry.inHours}h)');
+      '║   • Disk: ${diskCacheSizeMB}MB (${diskCacheExpiry.inHours}h)',
+    );
     debugPrint(
-        '╚════════════════════════════════════════════════════════════╝');
+      '╚════════════════════════════════════════════════════════════╝',
+    );
   }
 
   /// طباعة الإعدادات (للتشخيص) — alias للتوافق
@@ -357,7 +363,7 @@ class AppwriteConfig {
       isValid = false;
     }
 
-    if (kDebugMode && connectionTimeout > Duration(seconds: 10)) {
+    if (kDebugMode && connectionTimeout > const Duration(seconds: 10)) {
       debugPrint('⚠️ Warning: Connection timeout too slow');
     }
 

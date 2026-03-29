@@ -9,9 +9,9 @@ import 'appwrite_network_helper.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
-  static final AppwriteService _instance = AppwriteService._internal();
   factory AppwriteService() => _instance;
   AppwriteService._internal();
+  static final AppwriteService _instance = AppwriteService._internal();
 
   late final Client _client;
   late final Databases _databases;
@@ -100,7 +100,7 @@ class AppwriteService {
 
     final allDocuments = <models.Document>[];
     int pageOffset = 0;
-    final pageSize = AppwriteConfig.maxPageSize;
+    const pageSize = AppwriteConfig.maxPageSize;
 
     while (true) {
       final pagedQueries = _applyPagingQueries(
@@ -266,16 +266,16 @@ class AppwriteService {
               'Found document by localUuid, actual ID: $actualDocId (requested: $documentId)',
               tag: 'SYNC',
             );
-            
+
             final shouldUpdate = _shouldUpdateRemote(
-              searchResult.documents.first.data, 
-              cleanData
+              searchResult.documents.first.data,
+              cleanData,
             );
-            
+
             if (!shouldUpdate) {
               return searchResult.documents.first;
             }
-            
+
             return await _networkHelper.withRetryAndTimeout(
               operation: () => _databases.updateDocument(
                 databaseId: AppwriteConfigManager.databaseId,
@@ -307,12 +307,13 @@ class AppwriteService {
         } on AppwriteException catch (createError) {
           // ✅ إذا كان المستند موجوداً بالفعل، نحاول البحث عنه مرة أخرى ثم التحديث
           if (createError.code == 409 ||
-              createError.message?.contains('document_already_exists') == true) {
+                  createError.message?.contains('document_already_exists') ??
+              false) {
             _logger.info(
               'Document $documentId already exists (race condition), searching again...',
               tag: 'SYNC',
             );
-            
+
             // البحث عن المستند بـ localUuid
             try {
               final searchResult = await _databases.listDocuments(
@@ -348,8 +349,8 @@ class AppwriteService {
     Map<String, dynamic> local,
   ) {
     // 1. استخدام Vector Clock إذا توفر
-    final remoteClockStr = remote['vectorClock']?.toString() ??
-        remote['vector_clock']?.toString();
+    final remoteClockStr =
+        remote['vectorClock']?.toString() ?? remote['vector_clock']?.toString();
     final localClockStr =
         local['vectorClock']?.toString() ?? local['vector_clock']?.toString();
 
@@ -378,7 +379,8 @@ class AppwriteService {
 
   /// استخراج الطابع الزمني من البيانات
   int? _extractTs(Map<String, dynamic> data) {
-    final ts = data['updatedAt'] ??
+    final ts =
+        data['updatedAt'] ??
         data['updated_at'] ??
         data['lastModified'] ??
         data['last_modified'] ??
@@ -928,7 +930,7 @@ class AppwriteService {
 
     _ensureInitialized();
 
-    final testCollection = AppwriteConfig.syncLogsCollectionId;
+    const testCollection = AppwriteConfig.syncLogsCollectionId;
     final testDocumentId = ID.unique();
     final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -1034,7 +1036,7 @@ class AppwriteService {
           (results['tests'] as Map)['write'] == true &&
           (results['tests'] as Map)['delete'] != true) {
         try {
-          final testCollection = AppwriteConfig.syncLogsCollectionId;
+          const testCollection = AppwriteConfig.syncLogsCollectionId;
           await _databases.deleteDocument(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,
@@ -1059,7 +1061,7 @@ class AppwriteService {
     required String documentId,
   }) async {
     _ensureInitialized();
-    return await _networkHelper.withTimeout(
+    return _networkHelper.withTimeout(
       operation: () => _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -1076,7 +1078,7 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     _ensureInitialized();
-    return await _networkHelper.withTimeout(
+    return _networkHelper.withTimeout(
       operation: () => _databases.createDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -1094,7 +1096,7 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     _ensureInitialized();
-    return await _networkHelper.withTimeout(
+    return _networkHelper.withTimeout(
       operation: () => _databases.updateDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -1107,7 +1109,7 @@ class AppwriteService {
 
   /// إنشاء سجل مزامنة
   Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
-    return await createDocument(
+    return createDocument(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       documentId: data['localUuid'] ?? 'ID.unique()',
       data: data,
@@ -1119,7 +1121,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return await listDocuments(
+    return listDocuments(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       queries: queries,
       useCache: useCache,
@@ -1128,7 +1130,7 @@ class AppwriteService {
 
   /// إنشاء جهاز
   Future<models.Document> createDevice(Map<String, dynamic> data) async {
-    return await createDocument(
+    return createDocument(
       collectionId: AppwriteConfig.devicesCollectionId,
       documentId: data['localUuid'] ?? 'ID.unique()',
       data: data,
@@ -1140,7 +1142,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return await listDocuments(
+    return listDocuments(
       collectionId: AppwriteConfig.devicesCollectionId,
       queries: queries,
       useCache: useCache,

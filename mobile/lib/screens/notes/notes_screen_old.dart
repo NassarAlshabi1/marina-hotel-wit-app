@@ -98,10 +98,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
   Widget _buildNotesStats() {
     final unreadCount = _notes.where((n) => !n.isRead).length;
-    final highPriorityCount =
-        _notes.where((n) => n.priority == NotePriority.high).length;
-    final activeCount =
-        _notes.where((n) => n.status == NoteStatus.active).length;
+    final highPriorityCount = _notes
+        .where((n) => n.priority == NotePriority.high)
+        .length;
+    final activeCount = _notes
+        .where((n) => n.status == NoteStatus.active)
+        .length;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -581,7 +583,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                             onPressed: () async {
                               final date = await showDatePicker(
                                 context: context,
-                                initialDate: expiresAt ??
+                                initialDate:
+                                    expiresAt ??
                                     DateTime.now().add(const Duration(days: 7)),
                                 firstDate: DateTime.now(),
                                 lastDate: DateTime.now().add(

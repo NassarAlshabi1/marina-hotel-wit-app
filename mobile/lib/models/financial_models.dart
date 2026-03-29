@@ -13,12 +13,12 @@ class AppliedAdjustment {
   final String? appliedBy;
 
   Map<String, dynamic> toJson() => {
-        'uuid': uuid,
-        'type': type,
-        'amount': amount,
-        'reason': reason,
-        'appliedBy': appliedBy,
-      };
+    'uuid': uuid,
+    'type': type,
+    'amount': amount,
+    'reason': reason,
+    'appliedBy': appliedBy,
+  };
 }
 
 class NightlyBreakdown {

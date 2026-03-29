@@ -62,7 +62,7 @@ class UnifiedSyncState {
 }
 
 /// ✅ موحد المزامنة - يستخدم Field-Level Delta Sync فقط
-/// 
+///
 /// تم توحيد جميع عمليات المزامنة مع Appwrite لاستخدام
 /// AppwriteDeltaSync الذي يرسل الحقول المتغيرة فقط (Field-Level)
 class UnifiedSyncOrchestrator {
@@ -72,7 +72,7 @@ class UnifiedSyncOrchestrator {
 
   /// ✅ استخدام AppwriteDeltaSync بدلاً من AppwriteSyncManager
   AppwriteDeltaSync get _deltaSync => AppwriteDeltaSync.instance;
-  
+
   GoogleDriveUnifiedSyncCoordinator? _driveCoordinator;
   SmartSyncManager? _smart;
   AppDatabase? _database;
@@ -133,12 +133,12 @@ class UnifiedSyncOrchestrator {
               timestamp: DateTime.now(),
               lastPushAt:
                   result.pushedChanges != null && result.pushedChanges! > 0
-                      ? DateTime.now()
-                      : _state.lastPushAt,
+                  ? DateTime.now()
+                  : _state.lastPushAt,
               lastPullAt:
                   result.pulledChanges != null && result.pulledChanges! > 0
-                      ? DateTime.now()
-                      : _state.lastPullAt,
+                  ? DateTime.now()
+                  : _state.lastPullAt,
             ),
           );
         } else {
@@ -243,7 +243,7 @@ class UnifiedSyncOrchestrator {
       if (googleDriveEnabled) {
         success =
             await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
-                success;
+            success;
       }
 
       if (forceSnapshot) {
@@ -257,7 +257,9 @@ class UnifiedSyncOrchestrator {
       _emit(
         _state.copyWith(
           phase: success ? 'completing' : 'error',
-          message: success ? 'اكتملت الدورة (Field-Level)' : 'فشل في مزامنة واحدة أو أكثر',
+          message: success
+              ? 'اكتملت الدورة (Field-Level)'
+              : 'فشل في مزامنة واحدة أو أكثر',
           timestamp: DateTime.now(),
         ),
       );
@@ -363,7 +365,7 @@ class UnifiedSyncOrchestrator {
   }
 
   /// ✅ مزامنة Appwrite باستخدام Field-Level Delta Sync
-  /// 
+  ///
   /// هذه الدالة تستخدم AppwriteDeltaSync الذي:
   /// - يحسب الفروقات على مستوى الحقل
   /// - يرسل الحقول المتغيرة فقط (NOT full document)
@@ -371,12 +373,8 @@ class UnifiedSyncOrchestrator {
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {
     // تهيئة AppwriteDeltaSync إذا لم يكن مهيأً
     if (!_deltaSync.isInitialized) {
-      if (_database == null) {
-        _database = DatabaseManager.instance;
-      }
-      if (_appwriteService == null) {
-        _appwriteService = AppwriteService();
-      }
+      _database ??= DatabaseManager.instance;
+      _appwriteService ??= AppwriteService();
       // ✅ تهيئة AppwriteService أولاً قبل استخدامه
       await _appwriteService!.initialize();
       await _deltaSync.initialize(_appwriteService!, _database!);

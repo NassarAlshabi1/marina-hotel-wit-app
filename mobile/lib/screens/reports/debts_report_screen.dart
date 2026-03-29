@@ -51,8 +51,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
   Future<void> _initializeDefaults() async {
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 30));
+    _fromDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 30));
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
@@ -60,8 +63,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -96,13 +100,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
       // المعالجة الثقيلة في الخلفية
       final result = await compute(
-          _processDebtsData,
-          _DebtProcessParams(
-            debts: rawDebts,
-            fromDate: _fromDate,
-            toDate: _toDate,
-            searchQuery: _searchController.text.trim().toLowerCase(),
-          ));
+        _processDebtsData,
+        _DebtProcessParams(
+          debts: rawDebts,
+          fromDate: _fromDate,
+          toDate: _toDate,
+          searchQuery: _searchController.text.trim().toLowerCase(),
+        ),
+      );
 
       setState(() {
         _rows
@@ -143,8 +148,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final searchLabel =
-        _searchController.text.isNotEmpty ? _searchController.text : 'الكل';
+    final searchLabel = _searchController.text.isNotEmpty
+        ? _searchController.text
+        : 'الكل';
 
     pw.Widget buildReportHeader() {
       return pw.Container(
@@ -153,7 +159,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         decoration: const pw.BoxDecoration(
           color: PdfColors.white,
           border: pw.Border(
-              bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+            bottom: pw.BorderSide(color: PdfColors.grey300, width: 1),
+          ),
         ),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -162,30 +169,42 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(hotelName,
-                    style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 18,
-                        color: PdfColors.blue900)),
+                pw.Text(
+                  hotelName,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 18,
+                    color: PdfColors.blue900,
+                  ),
+                ),
                 if (hotelPhone.isNotEmpty)
-                  pw.Text('هاتف: $hotelPhone',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'هاتف: $hotelPhone',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
                 if (hotelAddress.isNotEmpty)
-                  pw.Text('عنوان: $hotelAddress',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'عنوان: $hotelAddress',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
               ],
             ),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text('تقرير الديون',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                pw.Text(
+                  'تقرير الديون',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 16),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text('من $fromLabel إلى $toLabel',
-                    style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 10,
-                        color: PdfColors.grey700)),
+                pw.Text(
+                  'من $fromLabel إلى $toLabel',
+                  style: pw.TextStyle(
+                    font: fonts.regular,
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
+                ),
               ],
             ),
             if (logoImage != null)
@@ -206,8 +225,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('بحث عن: $searchLabel',
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+              pw.Text(
+                'بحث عن: $searchLabel',
+                style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+              ),
             ],
           ),
         ),
@@ -221,7 +242,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       'الدين',
       'المدفوع',
       'المتبقي',
-      'الحالة'
+      'الحالة',
     ];
 
     final dataRows = <List<String>>[];
@@ -259,7 +280,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount} - ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
             style: pw.TextStyle(
-                font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.grey600,
+            ),
           ),
         ),
         build: (context) => [
@@ -278,8 +302,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           pw.Container(
             alignment: pw.Alignment.centerLeft,
             child: pw.Container(
-              padding:
-                  const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const pw.EdgeInsets.symmetric(
+                vertical: 8,
+                horizontal: 16,
+              ),
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: PdfColors.blue800, width: 1),
                 borderRadius: pw.BorderRadius.circular(4),
@@ -288,14 +314,17 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               child: pw.Row(
                 mainAxisSize: pw.MainAxisSize.min,
                 children: [
-                  pw.Text('المتبقي الإجمالي: ',
-                      style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                  pw.Text(
+                    'المتبقي الإجمالي: ',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+                  ),
                   pw.Text(
                     _currencyFmt.format(_totalRemaining),
                     style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 14,
-                        color: PdfColors.red700),
+                      font: fonts.bold,
+                      fontSize: 14,
+                      color: PdfColors.red700,
+                    ),
                   ),
                 ],
               ),
@@ -358,9 +387,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2)),
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: Column(
@@ -399,7 +429,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                           elevation: 0,
                           backgroundColor: Theme.of(context).primaryColor,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.search, size: 20),
                       ),
@@ -416,7 +447,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                           elevation: 0,
                           backgroundColor: Colors.red[700],
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.picture_as_pdf, size: 20),
                       ),
@@ -436,13 +468,21 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                           decoration: InputDecoration(
                             labelText: 'بحث باسم النزيل أو السبب',
                             labelStyle: TextStyle(
-                                fontSize: 12, color: Colors.grey[600]),
-                            prefixIcon: const Icon(Icons.search,
-                                size: 16, color: Colors.grey),
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
                             border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 0),
+                              horizontal: 12,
+                              vertical: 0,
+                            ),
                           ),
                           onSubmitted: (_) => _fetchReport(),
                         ),
@@ -467,14 +507,20 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               children: [
                 Expanded(
                   child: _buildSummaryItem(
-                      'إجمالي الدين', _totalDebt, Colors.black),
+                    'إجمالي الدين',
+                    _totalDebt,
+                    Colors.black,
+                  ),
                 ),
                 Expanded(
                   child: _buildSummaryItem('المدفوع', _totalPaid, Colors.green),
                 ),
                 Expanded(
-                  child:
-                      _buildSummaryItem('المتبقي', _totalRemaining, Colors.red),
+                  child: _buildSummaryItem(
+                    'المتبقي',
+                    _totalRemaining,
+                    Colors.red,
+                  ),
                 ),
               ],
             ),
@@ -485,18 +531,18 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _rows.isEmpty
-                    ? const EmptyState(
-                        title: 'لا توجد ديون',
-                        message: 'لم يتم العثور على ديون تطابق الفلاتر.',
-                        icon: Icons.check_circle_outline,
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _rows.length,
-                        itemBuilder: (context, index) {
-                          return _buildDebtCard(_rows[index]);
-                        },
-                      ),
+                ? const EmptyState(
+                    title: 'لا توجد ديون',
+                    message: 'لم يتم العثور على ديون تطابق الفلاتر.',
+                    icon: Icons.check_circle_outline,
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _rows.length,
+                    itemBuilder: (context, index) {
+                      return _buildDebtCard(_rows[index]);
+                    },
+                  ),
           ),
         ],
       ),
@@ -507,13 +553,21 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
         Text(
           _currencyFmt.format(value),
           style: TextStyle(
-              fontSize: 13, fontWeight: FontWeight.bold, color: valueColor),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
         ),
       ],
     );
@@ -542,14 +596,18 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(label,
-                    style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                ),
                 Text(
                   date != null
                       ? DateFormat('yyyy/MM/dd').format(date)
                       : 'غير محدد',
                   style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w500),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -580,7 +638,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                       Text(
                         row.guestName,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -596,23 +656,27 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                     Text(
                       _currencyFmt.format(row.totalAmount),
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                     if (row.remainingAmount > 0)
                       Text(
                         'متبقي: ${_currencyFmt.format(row.remainingAmount)}',
                         style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold),
+                          fontSize: 11,
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                       )
                     else
                       const Text(
                         'مسدد بالكامل',
                         style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold),
+                          fontSize: 11,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                   ],
                 ),
@@ -644,11 +708,12 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 }
 
 class _DebtProcessParams {
-  _DebtProcessParams(
-      {required this.debts,
-      this.fromDate,
-      this.toDate,
-      required this.searchQuery});
+  _DebtProcessParams({
+    required this.debts,
+    this.fromDate,
+    this.toDate,
+    required this.searchQuery,
+  });
   final List<Map<String, dynamic>> debts;
   final DateTime? fromDate;
   final DateTime? toDate;
@@ -656,11 +721,12 @@ class _DebtProcessParams {
 }
 
 class _DebtsReportResult {
-  _DebtsReportResult(
-      {required this.rows,
-      required this.totalDebt,
-      required this.totalPaid,
-      required this.totalRemaining});
+  _DebtsReportResult({
+    required this.rows,
+    required this.totalDebt,
+    required this.totalPaid,
+    required this.totalRemaining,
+  });
   final List<_DebtReportRow> rows;
   final double totalDebt;
   final double totalPaid;
@@ -712,52 +778,60 @@ _DebtsReportResult _processDebtsData(_DebtProcessParams params) {
     if (params.fromDate != null) {
       // ignore time for 'from' comparison (start of day)
       final start = DateTime(
-          params.fromDate!.year, params.fromDate!.month, params.fromDate!.day);
+        params.fromDate!.year,
+        params.fromDate!.month,
+        params.fromDate!.day,
+      );
       if (dateRecorded.isBefore(start)) continue;
     }
     if (params.toDate != null) {
       if (dateRecorded.isAfter(params.toDate!)) continue;
     }
 
-    final guestName =
-        (data['guestName'] ?? data['guest_name'] ?? 'غير معروف').toString();
-    final debtReason =
-        (data['debtReason'] ?? data['debt_reason'] ?? '-').toString();
+    final guestName = (data['guestName'] ?? data['guest_name'] ?? 'غير معروف')
+        .toString();
+    final debtReason = (data['debtReason'] ?? data['debt_reason'] ?? '-')
+        .toString();
 
     // Filter Search
     if (params.searchQuery.isNotEmpty) {
       final matchesName = guestName.toLowerCase().contains(params.searchQuery);
-      final matchesReason =
-          debtReason.toLowerCase().contains(params.searchQuery);
+      final matchesReason = debtReason.toLowerCase().contains(
+        params.searchQuery,
+      );
       if (!matchesName && !matchesReason) continue;
     }
 
     final amount = ((data['amount'] ?? 0) as num).toDouble();
-    final paidAmount =
-        ((data['paidAmount'] ?? data['paid_amount'] ?? 0) as num).toDouble();
+    final paidAmount = ((data['paidAmount'] ?? data['paid_amount'] ?? 0) as num)
+        .toDouble();
     final remaining = amount - paidAmount;
-    final isSettled = (data['isSettled'] ?? data['is_settled']) == true ||
+    final isSettled =
+        (data['isSettled'] ?? data['is_settled']) == true ||
         (data['isSettled'] == 1);
 
     // Booking handling
     final bookingIdVal = data['bookingId'] ?? data['booking_id'];
-    final String bookingCode =
-        bookingIdVal != null ? bookingIdVal.toString() : '-';
+    final String bookingCode = bookingIdVal != null
+        ? bookingIdVal.toString()
+        : '-';
 
     tDebt += amount;
     tPaid += paidAmount;
     tRemaining += remaining;
 
-    filteredRows.add(_DebtReportRow(
-      dateRecorded: dateRecorded,
-      guestName: guestName,
-      reason: debtReason,
-      totalAmount: amount,
-      paidAmount: paidAmount,
-      remainingAmount: remaining,
-      isSettled: isSettled,
-      bookingCode: bookingCode,
-    ));
+    filteredRows.add(
+      _DebtReportRow(
+        dateRecorded: dateRecorded,
+        guestName: guestName,
+        reason: debtReason,
+        totalAmount: amount,
+        paidAmount: paidAmount,
+        remainingAmount: remaining,
+        isSettled: isSettled,
+        bookingCode: bookingCode,
+      ),
+    );
   }
 
   // Sort

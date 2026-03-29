@@ -138,11 +138,7 @@ class EnhancedSyncButton extends ConsumerWidget {
 }
 
 class _SyncButtonContent extends StatelessWidget {
-  const _SyncButtonContent({
-    this.state,
-    this.onPressed,
-    this.isError = false,
-  });
+  const _SyncButtonContent({this.state, this.onPressed, this.isError = false});
   final SyncState? state;
   final VoidCallback? onPressed;
   final bool isError;

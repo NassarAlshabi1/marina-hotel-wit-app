@@ -18,8 +18,10 @@ class MockOutboxDao {
   }
 
   Future<void> markAsFailed(String id, String error) async {
-    final item =
-        _pending.firstWhere((item) => item['id'] == id, orElse: () => {});
+    final item = _pending.firstWhere(
+      (item) => item['id'] == id,
+      orElse: () => {},
+    );
     if (item.isNotEmpty) {
       item['status'] = 'failed';
       item['error'] = error;
@@ -27,8 +29,10 @@ class MockOutboxDao {
   }
 
   Future<void> incrementRetry(String id) async {
-    final item =
-        _pending.firstWhere((item) => item['id'] == id, orElse: () => {});
+    final item = _pending.firstWhere(
+      (item) => item['id'] == id,
+      orElse: () => {},
+    );
     if (item.isNotEmpty) {
       item['retryCount'] = (item['retryCount'] ?? 0) + 1;
     }
@@ -324,10 +328,7 @@ void main() {
         final data = {'id': '1', 'name': 'Test'};
 
         // Act & Assert
-        expect(
-          () => mockApiService.pushData(data),
-          throwsA(isA<Exception>()),
-        );
+        expect(() => mockApiService.pushData(data), throwsA(isA<Exception>()));
       });
 
       test('should handle server errors', () async {
@@ -338,10 +339,7 @@ void main() {
         final data = {'id': '1', 'name': 'Test'};
 
         // Act & Assert
-        expect(
-          () => mockApiService.pushData(data),
-          throwsA(isA<Exception>()),
-        );
+        expect(() => mockApiService.pushData(data), throwsA(isA<Exception>()));
       });
 
       test('should mark item as failed after max retries', () async {

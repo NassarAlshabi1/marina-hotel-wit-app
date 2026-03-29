@@ -344,7 +344,7 @@ class DeltaSyncService {
     }
     _isComputing = true;
 
-    return await perf.measure('compute', () async {
+    return perf.measure('compute', () async {
       try {
         final result = await _computeInternal(since: since);
         _circuitBreaker.recordSuccess();
@@ -386,7 +386,7 @@ class DeltaSyncService {
     // ✅ تحسين 5: معالجة موازية مع Semaphore (4 كيانات في نفس الوقت)
     final semaphore = _Semaphore(4);
     final entityResults = await perf.measure('processEntities', () async {
-      return await Future.wait(
+      return Future.wait(
         configs.asMap().entries.map((entry) async {
           await semaphore.acquire();
           try {
@@ -691,9 +691,11 @@ class DeltaSyncService {
 
         // ✅ Backpressure: yield batch بدلاً من individual
         if (buffer.length >= bufferSize) {
-          for (final c in buffer) yield c;
+          for (final c in buffer) {
+            yield c;
+          }
           buffer.clear();
-          await Future.delayed(Duration(milliseconds: 1));
+          await Future.delayed(const Duration(milliseconds: 1));
         }
 
         // ✅ تحسين fieldsHash: إعادة استخدام Hash السابق إذا rowHash لم يتغير
@@ -741,7 +743,9 @@ class DeltaSyncService {
     }
 
     // ✅ Backpressure: flush أي عناصر متبقية في buffer
-    for (final c in buffer) yield c;
+    for (final c in buffer) {
+      yield c;
+    }
     buffer.clear();
 
     // ✅ إصلاح: تحديث المرآة بعد الانتهاء لمنع تكرار التغييرات
@@ -1043,7 +1047,7 @@ class DeltaSyncService {
   static List<_EntityConfig>? _cachedConfigs;
   List<_EntityConfig> _entityConfigs() {
     return _cachedConfigs ??= [
-        _makeConfig<Room>(
+        makeConfig<Room>(
           'rooms',
           () => db.select(db.rooms).get(),
           (row) => row.localUuid,
@@ -1052,7 +1056,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<Booking>(
+        makeConfig<Booking>(
           'bookings',
           () => db.select(db.bookings).get(),
           (row) => row.localUuid,
@@ -1061,7 +1065,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<BookingNote>(
+        makeConfig<BookingNote>(
           'booking_notes',
           () => db.select(db.bookingNotes).get(),
           (row) => row.localUuid,
@@ -1070,7 +1074,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<Employee>(
+        makeConfig<Employee>(
           'employees',
           () => db.select(db.employees).get(),
           (row) => row.localUuid,
@@ -1079,7 +1083,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<Expense>(
+        makeConfig<Expense>(
           'expenses',
           () => db.select(db.expenses).get(),
           (row) => row.localUuid,
@@ -1088,7 +1092,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<CashTransaction>(
+        makeConfig<CashTransaction>(
           'cash_transactions',
           () => db.select(db.cashTransactions).get(),
           (row) => row.localUuid,
@@ -1097,7 +1101,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<Payment>(
+        makeConfig<Payment>(
           'payments',
           () => db.select(db.payments).get(),
           (row) => row.localUuid,
@@ -1106,7 +1110,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<Debt>(
+        makeConfig<Debt>(
           'debts',
           () => db.select(db.debts).get(),
           (row) => row.localUuid,
@@ -1115,7 +1119,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<BookingNight>(
+        makeConfig<BookingNight>(
           'booking_nights',
           () => db.select(db.bookingNights).get(),
           (row) => row.localUuid,
@@ -1124,7 +1128,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<BookingPriceAdjustment>(
+        makeConfig<BookingPriceAdjustment>(
           'booking_price_adjustments',
           () => db.select(db.bookingPriceAdjustments).get(),
           (row) => row.localUuid,
@@ -1134,7 +1138,7 @@ class DeltaSyncService {
           (row) => row.toJson(),
         ),
         // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
-        _makeConfig<ShiftNote>(
+        makeConfig<ShiftNote>(
           'shift_notes',
           () => db.select(db.shiftNotes).get(),
           (row) => row.localUuid,
@@ -1143,7 +1147,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<SalaryCycle>(
+        makeConfig<SalaryCycle>(
           'salary_cycles',
           () => db.select(db.salaryCycles).get(),
           (row) => row.localUuid,
@@ -1152,7 +1156,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<SalaryPayment>(
+        makeConfig<SalaryPayment>(
           'salary_payments',
           () => db.select(db.salaryPayments).get(),
           (row) => row.localUuid,
@@ -1161,7 +1165,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<PriceAdjustment>(
+        makeConfig<PriceAdjustment>(
           'price_adjustments',
           () => db.select(db.priceAdjustments).get(),
           (row) => row.localUuid,
@@ -1170,7 +1174,7 @@ class DeltaSyncService {
           (row) => row.deletedAt,
           (row) => row.toJson(),
         ),
-        _makeConfig<AuditLog>(
+        makeConfig<AuditLog>(
           'audit_logs',
           () => db.select(db.auditLogs).get(),
           (row) => row.localUuid,
@@ -1179,7 +1183,7 @@ class DeltaSyncService {
           (row) => null,
           (row) => row.toJson(),
         ),
-        _makeConfig<PaymentVoid>(
+        makeConfig<PaymentVoid>(
           'payment_voids',
           () => db.select(db.paymentVoids).get(),
           (row) => row.localUuid,
@@ -1189,7 +1193,7 @@ class DeltaSyncService {
           (row) => row.toJson(),
         ),
         // ✅ كيانات جديدة
-        _makeConfig<SalaryWithdrawal>(
+        makeConfig<SalaryWithdrawal>(
           'salary_withdrawals',
           () => db.select(db.salaryWithdrawals).get(),
           (row) => row.localUuid,
@@ -1201,7 +1205,7 @@ class DeltaSyncService {
       ];
 
   /// ✅ تحسين 4: Factory method لتقليل تكرار كود Entity Configs
-  _EntityConfig _makeConfig<T>(
+  _EntityConfig makeConfig<T>(
     String entity,
     Future<List<dynamic>> Function() fetchAll,
     String Function(T row) localUuid,
@@ -1460,7 +1464,9 @@ _FieldLevelDiffResult _computeFieldLevelDiffOptimized(
   final trackableKeys = newData.keys.where((k) {
     if (FieldSyncConfig.systemFields.contains(k)) return false;
     if (config.trackableFields.isNotEmpty &&
-        !config.trackableFields.contains(k)) return false;
+        !config.trackableFields.contains(k)) {
+      return false;
+    }
     return true;
   });
 

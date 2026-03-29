@@ -101,10 +101,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 children: [
                   Icon(Icons.delete_forever, size: 20, color: Colors.red),
                   SizedBox(width: 8),
-                  Text(
-                    'مسح السجلات',
-                    style: TextStyle(color: Colors.red),
-                  ),
+                  Text('مسح السجلات', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
@@ -225,7 +222,11 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   Widget _buildStatItem(
-      String label, String value, Color color, IconData icon) {
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Column(
       children: [
         Row(
@@ -244,10 +245,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         ),
       ],
     );
@@ -314,11 +312,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           .where(
             (log) =>
                 log.message.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ) ||
-                log.tag.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ),
+                  _searchQuery.toLowerCase(),
+                ) ||
+                log.tag.toLowerCase().contains(_searchQuery.toLowerCase()),
           )
           .toList();
     }
@@ -437,10 +433,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               const SizedBox(height: 4),
               Text(
                 'Error: ${log.error}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.red.shade400,
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.red.shade400),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -555,10 +548,13 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               _buildDetailRow('المصدر', log.tag),
               _buildDetailRow(
                 'الوقت',
-                DateTimeFormatter.formatDateTime(log.timestamp.toIso8601String()),
+                DateTimeFormatter.formatDateTime(
+                  log.timestamp.toIso8601String(),
+                ),
               ),
               _buildDetailRow('الرسالة', log.message),
-              if (log.error != null) _buildDetailRow('الخطأ', log.error.toString()),
+              if (log.error != null)
+                _buildDetailRow('الخطأ', log.error.toString()),
               if (log.stackTrace != null)
                 _buildDetailRow('Stack Trace', log.stackTrace.toString()),
             ],
@@ -583,9 +579,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
 
   void _copyLogToClipboard(LogEntry log) {
     Clipboard.setData(ClipboardData(text: log.toFormattedString()));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ السجل')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم نسخ السجل')));
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -627,9 +623,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل تصدير السجلات: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('فشل تصدير السجلات: $e')));
       }
     }
   }

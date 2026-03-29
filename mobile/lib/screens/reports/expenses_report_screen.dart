@@ -116,8 +116,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -150,9 +151,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final fromStr = _fromDate != null
           ? DateFormat('yyyy-MM-dd').format(_fromDate!)
           : null;
-      final toStr =
-          _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : null;
-      final selectedType = widget.showTypeFilter &&
+      final toStr = _toDate != null
+          ? DateFormat('yyyy-MM-dd').format(_toDate!)
+          : null;
+      final selectedType =
+          widget.showTypeFilter &&
               _selectedType != null &&
               _selectedType!.isNotEmpty
           ? _selectedType
@@ -167,13 +170,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
       List<Map<String, dynamic>> employeeMaps = [];
       if (widget.includeEmployeeDetails) {
-        final employeeIds =
-            expenses.map((e) => e.relatedId).whereType<int>().toSet();
+        final employeeIds = expenses
+            .map((e) => e.relatedId)
+            .whereType<int>()
+            .toSet();
         if (employeeIds.isNotEmpty) {
           final employees = await (db.select(
             db.employees,
-          )..where((tbl) => tbl.id.isIn(employeeIds.toList())))
-              .get();
+          )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
           employeeMaps = employees.map((e) => e.toJson()).toList();
         }
       }
@@ -183,12 +187,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
       // 2. معالجة في الخلفية
       final result = await compute(
-          _processExpensesData,
-          _ExpenseProcessParams(
-            expenses: expenseMaps,
-            employees: employeeMaps,
-            allowedTypes: widget.allowedTypes?.toList(),
-          ));
+        _processExpensesData,
+        _ExpenseProcessParams(
+          expenses: expenseMaps,
+          employees: employeeMaps,
+          allowedTypes: widget.allowedTypes?.toList(),
+        ),
+      );
 
       setState(() {
         _rows
@@ -230,8 +235,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedTypeLabel =
-        _selectedType?.isNotEmpty ?? false ? _selectedType! : 'الكل';
+    final selectedTypeLabel = _selectedType?.isNotEmpty ?? false
+        ? _selectedType!
+        : 'الكل';
 
     pw.Widget buildReportHeader() {
       return pw.Container(
@@ -240,7 +246,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         decoration: const pw.BoxDecoration(
           color: PdfColors.white,
           border: pw.Border(
-              bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+            bottom: pw.BorderSide(color: PdfColors.grey300, width: 1),
+          ),
         ),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -252,14 +259,21 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 pw.Text(
                   hotelName,
                   style: pw.TextStyle(
-                      font: fonts.bold, fontSize: 18, color: PdfColors.blue900),
+                    font: fonts.bold,
+                    fontSize: 18,
+                    color: PdfColors.blue900,
+                  ),
                 ),
                 if (hotelPhone.isNotEmpty)
-                  pw.Text('هاتف: $hotelPhone',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'هاتف: $hotelPhone',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
                 if (hotelAddress.isNotEmpty)
-                  pw.Text('عنوان: $hotelAddress',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'عنوان: $hotelAddress',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
               ],
             ),
             pw.Column(
@@ -273,18 +287,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 pw.Text(
                   'من $fromLabel إلى $toLabel',
                   style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.grey700),
+                    font: fonts.regular,
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
                 ),
               ],
             ),
             if (logoImage != null)
-              pw.Container(
-                height: 50,
-                width: 50,
-                child: pw.Image(logoImage),
-              )
+              pw.Container(height: 50, width: 50, child: pw.Image(logoImage))
             else
               pw.SizedBox(width: 50),
           ],
@@ -301,8 +312,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('${widget.typeLabel}: $selectedTypeLabel',
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+              pw.Text(
+                '${widget.typeLabel}: $selectedTypeLabel',
+                style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+              ),
             ],
           ),
         ),
@@ -350,7 +363,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount} - تاريخ الطباعة: ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
             style: pw.TextStyle(
-                font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.grey600,
+            ),
           ),
         ),
         build: (context) => [
@@ -369,8 +385,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           pw.Container(
             alignment: pw.Alignment.centerLeft,
             child: pw.Container(
-              padding:
-                  const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const pw.EdgeInsets.symmetric(
+                vertical: 8,
+                horizontal: 16,
+              ),
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: PdfColors.blue800, width: 1),
                 borderRadius: pw.BorderRadius.circular(4),
@@ -379,14 +397,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               child: pw.Row(
                 mainAxisSize: pw.MainAxisSize.min,
                 children: [
-                  pw.Text('${widget.totalSummaryLabel}: ',
-                      style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                  pw.Text(
+                    '${widget.totalSummaryLabel}: ',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+                  ),
                   pw.Text(
                     _currencyFmt.format(_totalAmount),
                     style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 14,
-                        color: PdfColors.red700),
+                      font: fonts.bold,
+                      fontSize: 14,
+                      color: PdfColors.red700,
+                    ),
                   ),
                 ],
               ),
@@ -430,10 +451,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       debugPrint('Direct save failed: $e');
     }
 
-    await Printing.sharePdf(
-      bytes: pdfBytes,
-      filename: fileName,
-    );
+    await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
   }
 
   @override
@@ -491,7 +509,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                           elevation: 0,
                           backgroundColor: Theme.of(context).primaryColor,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.search, size: 20),
                       ),
@@ -507,7 +526,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                           elevation: 0,
                           backgroundColor: Colors.red[700],
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.picture_as_pdf, size: 20),
                       ),
@@ -524,32 +544,44 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                           child: DropdownButtonFormField<String?>(
                             initialValue: _selectedType,
                             style: const TextStyle(
-                                fontSize: 12, color: Colors.black),
+                              fontSize: 12,
+                              color: Colors.black,
+                            ),
                             decoration: InputDecoration(
                               labelText: widget.typeLabel,
                               labelStyle: TextStyle(
-                                  fontSize: 12, color: Colors.grey[600]),
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 0),
+                                horizontal: 12,
+                                vertical: 0,
+                              ),
                               border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    BorderSide(color: Colors.grey.shade400),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade400,
+                                ),
                               ),
                             ),
                             items: [
                               const DropdownMenuItem<String?>(
                                 value: null,
-                                child: Text('الكل',
-                                    style: TextStyle(fontSize: 12)),
+                                child: Text(
+                                  'الكل',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                               ),
                               ..._availableTypes.map(
                                 (type) => DropdownMenuItem<String?>(
                                   value: type,
-                                  child: Text(type,
-                                      style: const TextStyle(fontSize: 12)),
+                                  child: Text(
+                                    type,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                 ),
                               ),
                             ],
@@ -581,21 +613,27 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 Text(
                   'عدد السجلات: ${_rows.length}',
                   style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey.shade600),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
                 Row(
                   children: [
-                    Text('${widget.totalSummaryLabel}: ',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                      '${widget.totalSummaryLabel}: ',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                     Text(
                       _currencyFmt.format(_totalAmount),
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: Colors.red),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.red,
+                      ),
                     ),
                   ],
                 ),
@@ -606,19 +644,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _rows.isEmpty
-                    ? const EmptyState(
-                        title: 'لا توجد بيانات',
-                        message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
-                        icon: Icons.receipt_long,
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _rows.length,
-                        itemBuilder: (context, index) {
-                          final row = _rows[index];
-                          return _buildExpenseCard(row);
-                        },
-                      ),
+                ? const EmptyState(
+                    title: 'لا توجد بيانات',
+                    message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
+                    icon: Icons.receipt_long,
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _rows.length,
+                    itemBuilder: (context, index) {
+                      final row = _rows[index];
+                      return _buildExpenseCard(row);
+                    },
+                  ),
           ),
         ],
       ),
@@ -657,7 +695,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       ? DateFormat('yyyy/MM/dd').format(date)
                       : 'غير محدد',
                   style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w500),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -672,9 +712,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -699,10 +737,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '${row.type}${row.employeeName != null ? ' - ${row.employeeName}' : ''}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -724,10 +759,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               children: [
                 Text(
                   _dateLabelFormat.format(row.date),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -739,8 +771,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 }
 
 class _ExpenseProcessParams {
-  _ExpenseProcessParams(
-      {required this.expenses, required this.employees, this.allowedTypes});
+  _ExpenseProcessParams({
+    required this.expenses,
+    required this.employees,
+    this.allowedTypes,
+  });
   final List<Map<String, dynamic>> expenses;
   final List<Map<String, dynamic>> employees;
   final List<String>? allowedTypes;
@@ -771,15 +806,15 @@ class _ExpensesReportResult {
 
 _ExpensesReportResult _processExpensesData(_ExpenseProcessParams params) {
   final employeeMap = {
-    for (final e in params.employees) e['id']: e['name'] as String
+    for (final e in params.employees) e['id']: e['name'] as String,
   };
 
   final rows = <_ExpenseReportRow>[];
   double totalAmount = 0;
 
   for (final expense in params.expenses) {
-    final expenseType =
-        (expense['expense_type'] ?? expense['type'] ?? '').toString();
+    final expenseType = (expense['expense_type'] ?? expense['type'] ?? '')
+        .toString();
 
     // فلترة الأنواع إذا لزم الأمر
     if (params.allowedTypes != null && params.allowedTypes!.isNotEmpty) {

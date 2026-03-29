@@ -35,13 +35,14 @@ void main() {
     });
 
     test(
-        'nightsWithCutoff counts 1 night for same-day checkout before next cutoff',
-        () {
-      final checkin = DateTime(2026, 1, 15, 16, 0, 0);
-      final checkout = DateTime(2026, 1, 16, 14, 0, 0);
-      final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
-      expect(nights, 1);
-    });
+      'nightsWithCutoff counts 1 night for same-day checkout before next cutoff',
+      () {
+        final checkin = DateTime(2026, 1, 15, 16, 0, 0);
+        final checkout = DateTime(2026, 1, 16, 14, 0, 0);
+        final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
+        expect(nights, 1);
+      },
+    );
 
     test('nightsWithCutoff counts 2 nights spanning two hotel days', () {
       final checkin = DateTime(2026, 1, 15, 16, 0, 0);
@@ -68,8 +69,10 @@ void main() {
     });
 
     test('formatAmount shows decimals when requested', () {
-      expect(CurrencyFormatter.formatAmount(1999.99, showDecimals: true),
-          '1,999.99');
+      expect(
+        CurrencyFormatter.formatAmount(1999.99, showDecimals: true),
+        '1,999.99',
+      );
     });
 
     test('parseAmount returns exact value without truncation', () {
@@ -101,40 +104,48 @@ void main() {
     });
 
     test(
-        'discount applies correctly when segment is on or after discount start hotel day',
-        () {
-      final segmentStart = DateTime(2026, 1, 16, 16, 0, 0);
-      final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
+      'discount applies correctly when segment is on or after discount start hotel day',
+      () {
+        final segmentStart = DateTime(2026, 1, 16, 16, 0, 0);
+        final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
 
-      final hotelDay = Time.hotelDayStart(segmentStart);
-      final hotelDayDate =
-          DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
-      final discountDay = DateTime(
-        discountStartDate.year,
-        discountStartDate.month,
-        discountStartDate.day,
-      );
+        final hotelDay = Time.hotelDayStart(segmentStart);
+        final hotelDayDate = DateTime(
+          hotelDay.year,
+          hotelDay.month,
+          hotelDay.day,
+        );
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
 
-      expect(hotelDayDate.isBefore(discountDay), false);
-    });
+        expect(hotelDayDate.isBefore(discountDay), false);
+      },
+    );
 
     test(
-        'discount does not apply when segment hotel day is before discount start',
-        () {
-      final segmentStart = DateTime(2026, 1, 15, 10, 0, 0);
-      final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
+      'discount does not apply when segment hotel day is before discount start',
+      () {
+        final segmentStart = DateTime(2026, 1, 15, 10, 0, 0);
+        final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
 
-      final hotelDay = Time.hotelDayStart(segmentStart);
-      final hotelDayDate =
-          DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
-      final discountDay = DateTime(
-        discountStartDate.year,
-        discountStartDate.month,
-        discountStartDate.day,
-      );
+        final hotelDay = Time.hotelDayStart(segmentStart);
+        final hotelDayDate = DateTime(
+          hotelDay.year,
+          hotelDay.month,
+          hotelDay.day,
+        );
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
 
-      expect(hotelDayDate.isBefore(discountDay), true);
-    });
+        expect(hotelDayDate.isBefore(discountDay), true);
+      },
+    );
   });
 
   group('Financial Calculations', () {

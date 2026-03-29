@@ -33,7 +33,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final bool hasApiKey = _apiKey.isNotEmpty;
-  final String skipReason = 'APPWRITE_API_KEY not provided; skipping integration test.';
+  final String skipReason =
+      'APPWRITE_API_KEY not provided; skipping integration test.';
 
   late AppDatabase db;
   late AdapterRegistry adapters;
@@ -81,7 +82,10 @@ void main() {
   }
 
   /// Clean up test documents from Appwrite
-  Future<void> cleanupTestDocuments(String collectionId, List<String> documentIds) async {
+  Future<void> cleanupTestDocuments(
+    String collectionId,
+    List<String> documentIds,
+  ) async {
     if (!hasApiKey) return;
     for (final docId in documentIds) {
       try {
@@ -188,9 +192,9 @@ void main() {
       await db.into(db.rooms).insert(companion);
 
       // Verify local insertion
-      final localRoom = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localRoom = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localRoom, isNotNull);
       expect(localRoom.roomNumber, equals(roomData['roomNumber']));
 
@@ -227,9 +231,9 @@ void main() {
       int pulledCount = 0;
       for (final doc in result.documents) {
         // Check if room exists locally
-        final existing = await (db.select(db.rooms)
-              ..where((t) => t.localUuid.equals(doc.$id)))
-            .getSingleOrNull();
+        final existing = await (db.select(
+          db.rooms,
+        )..where((t) => t.localUuid.equals(doc.$id))).getSingleOrNull();
 
         if (existing == null) {
           // Insert into local database
@@ -289,10 +293,13 @@ void main() {
       await db.into(db.rooms).insert(companion);
 
       // Convert back to JSON
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.rooms.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       // Verify critical fields
       expect(exportedData['localUuid'], equals(uuid));
@@ -339,8 +346,14 @@ void main() {
     });
 
     tearDownAll(() async {
-      await cleanupTestDocuments(AppwriteConfig.bookingsCollectionId, testDocIds.where((id) => id != testRoomUuid).toList());
-      await cleanupTestDocuments(AppwriteConfig.roomsCollectionId, [testRoomUuid].whereType<String>().toList());
+      await cleanupTestDocuments(
+        AppwriteConfig.bookingsCollectionId,
+        testDocIds.where((id) => id != testRoomUuid).toList(),
+      );
+      await cleanupTestDocuments(
+        AppwriteConfig.roomsCollectionId,
+        [testRoomUuid].whereType<String>().toList(),
+      );
     });
 
     test('Create booking locally and push to server', () async {
@@ -408,9 +421,9 @@ void main() {
       await db.into(db.bookings).insert(companion);
 
       // Verify local insertion
-      final localBooking = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localBooking = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localBooking, isNotNull);
       expect(localBooking.guestName, equals('Test Guest'));
 
@@ -468,8 +481,14 @@ void main() {
         roomData,
         src: Source.appwrite,
       );
-      await db.into(db.rooms).insert(
-            adapters.rooms.adapter.fromJson(roomData, src: Source.appwrite, refs: roomRefs),
+      await db
+          .into(db.rooms)
+          .insert(
+            adapters.rooms.adapter.fromJson(
+              roomData,
+              src: Source.appwrite,
+              refs: roomRefs,
+            ),
           );
 
       // Create original booking data
@@ -507,10 +526,13 @@ void main() {
       await db.into(db.bookings).insert(companion);
 
       // Convert back to JSON
-      final row = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.bookings.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.bookings.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       // Verify critical fields
       expect(exportedData['localUuid'], equals(uuid));
@@ -528,7 +550,10 @@ void main() {
     final testDocIds = <String>[];
 
     tearDownAll(() async {
-      await cleanupTestDocuments(AppwriteConfig.paymentsCollectionId, testDocIds);
+      await cleanupTestDocuments(
+        AppwriteConfig.paymentsCollectionId,
+        testDocIds,
+      );
     });
 
     test('Create payment locally', () async {
@@ -563,9 +588,9 @@ void main() {
       await db.into(db.payments).insert(companion);
 
       // Verify
-      final localPayment = await (db.select(db.payments)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localPayment = await (db.select(
+        db.payments,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localPayment, isNotNull);
       expect(localPayment.amount, equals(500.0));
     });
@@ -617,14 +642,20 @@ void main() {
       );
       await db.into(db.payments).insert(companion);
 
-      final row = await (db.select(db.payments)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.payments.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.payments,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.payments.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exportedData['localUuid'], equals(uuid));
       expect(exportedData['amount'], equals(originalData['amount']));
-      expect(exportedData['paymentMethod'], equals(originalData['paymentMethod']));
+      expect(
+        exportedData['paymentMethod'],
+        equals(originalData['paymentMethod']),
+      );
     });
   });
 
@@ -636,7 +667,10 @@ void main() {
     final testDocIds = <String>[];
 
     tearDownAll(() async {
-      await cleanupTestDocuments(AppwriteConfig.expensesCollectionId, testDocIds);
+      await cleanupTestDocuments(
+        AppwriteConfig.expensesCollectionId,
+        testDocIds,
+      );
     });
 
     test('Create expense locally', () async {
@@ -672,9 +706,9 @@ void main() {
       );
       await db.into(db.expenses).insert(companion);
 
-      final localExpense = await (db.select(db.expenses)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localExpense = await (db.select(
+        db.expenses,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localExpense, isNotNull);
       expect(localExpense.amount, equals(250.0));
       expect(localExpense.idempotencyKey, equals('exp-$uuid'));
@@ -727,14 +761,20 @@ void main() {
       );
       await db.into(db.expenses).insert(companion);
 
-      final row = await (db.select(db.expenses)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.expenses.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.expenses,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.expenses.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exportedData['localUuid'], equals(uuid));
       expect(exportedData['expenseType'], equals(originalData['expenseType']));
-      expect(exportedData['idempotencyKey'], equals(originalData['idempotencyKey']));
+      expect(
+        exportedData['idempotencyKey'],
+        equals(originalData['idempotencyKey']),
+      );
       expect(exportedData['deviceId'], equals(originalData['deviceId']));
     });
   });
@@ -747,7 +787,10 @@ void main() {
     final testDocIds = <String>[];
 
     tearDownAll(() async {
-      await cleanupTestDocuments(AppwriteConfig.employeesCollectionId, testDocIds);
+      await cleanupTestDocuments(
+        AppwriteConfig.employeesCollectionId,
+        testDocIds,
+      );
     });
 
     test('Create employee locally', () async {
@@ -781,9 +824,9 @@ void main() {
       );
       await db.into(db.employees).insert(companion);
 
-      final localEmployee = await (db.select(db.employees)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localEmployee = await (db.select(
+        db.employees,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localEmployee, isNotNull);
       expect(localEmployee.name, equals('Test Employee'));
       expect(localEmployee.basicSalary, equals(5000.0));
@@ -854,9 +897,9 @@ void main() {
       );
       await db.into(db.debts).insert(companion);
 
-      final localDebt = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localDebt = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localDebt, isNotNull);
       expect(localDebt.guestName, equals('Test Debtor'));
       expect(localDebt.totalAmount, equals(1000.0));
@@ -887,7 +930,10 @@ void main() {
     final testDocIds = <String>[];
 
     tearDownAll(() async {
-      await cleanupTestDocuments(AppwriteConfig.shiftNotesCollectionId, testDocIds);
+      await cleanupTestDocuments(
+        AppwriteConfig.shiftNotesCollectionId,
+        testDocIds,
+      );
     });
 
     test('Create shift note locally', () async {
@@ -925,9 +971,9 @@ void main() {
       );
       await db.into(db.shiftNotes).insert(companion);
 
-      final localNote = await (db.select(db.shiftNotes)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localNote = await (db.select(
+        db.shiftNotes,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localNote, isNotNull);
       expect(localNote.title, equals('Test Shift Note'));
       expect(localNote.priority, equals('high'));
@@ -965,10 +1011,13 @@ void main() {
       );
       await db.into(db.shiftNotes).insert(companion);
 
-      final row = await (db.select(db.shiftNotes)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.shiftNotes.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.shiftNotes,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.shiftNotes.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exportedData['localUuid'], equals(uuid));
       expect(exportedData['title'], equals(originalData['title']));
@@ -1014,9 +1063,9 @@ void main() {
       );
       await db.into(db.cashTransactions).insert(companion);
 
-      final localCash = await (db.select(db.cashTransactions)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localCash = await (db.select(
+        db.cashTransactions,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localCash, isNotNull);
       expect(localCash.transactionType, equals('income'));
       expect(localCash.amount, equals(500.0));
@@ -1051,8 +1100,14 @@ void main() {
         roomData,
         src: Source.appwrite,
       );
-      await db.into(db.rooms).insert(
-            adapters.rooms.adapter.fromJson(roomData, src: Source.appwrite, refs: roomRefs),
+      await db
+          .into(db.rooms)
+          .insert(
+            adapters.rooms.adapter.fromJson(
+              roomData,
+              src: Source.appwrite,
+              refs: roomRefs,
+            ),
           );
 
       final bookingData = {
@@ -1113,9 +1168,9 @@ void main() {
       );
       await db.into(db.bookingNights).insert(companion);
 
-      final localNight = await (db.select(db.bookingNights)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localNight = await (db.select(
+        db.bookingNights,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localNight, isNotNull);
       expect(localNight.hotelDayKey, equals('2025-01-15'));
       expect(localNight.nightlyRate, equals(100.0));
@@ -1150,14 +1205,20 @@ void main() {
         employeeData,
         src: Source.appwrite,
       );
-      await db.into(db.employees).insert(
-            adapters.employees.adapter.fromJson(employeeData, src: Source.appwrite, refs: empRefs),
+      await db
+          .into(db.employees)
+          .insert(
+            adapters.employees.adapter.fromJson(
+              employeeData,
+              src: Source.appwrite,
+              refs: empRefs,
+            ),
           );
 
       // Get the employee ID
-      final employee = await (db.select(db.employees)
-            ..where((t) => t.localUuid.equals(employeeUuid)))
-          .getSingle();
+      final employee = await (db.select(
+        db.employees,
+      )..where((t) => t.localUuid.equals(employeeUuid))).getSingle();
 
       final cycleData = {
         'localUuid': uuid,
@@ -1187,9 +1248,9 @@ void main() {
       );
       await db.into(db.salaryCycles).insert(companion);
 
-      final localCycle = await (db.select(db.salaryCycles)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localCycle = await (db.select(
+        db.salaryCycles,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localCycle, isNotNull);
       expect(localCycle.cycleKey, equals('2025-01'));
       expect(localCycle.status, equals('draft'));
@@ -1346,9 +1407,11 @@ void main() {
 
         // Fetch
         final table = repository.table;
-        final row = await (db.select(table)
-              ..where((t) => (t as dynamic).localUuid.equals(data['localUuid'])))
-            .getSingle();
+        final row =
+            await (db.select(table)..where(
+                  (t) => (t as dynamic).localUuid.equals(data['localUuid']),
+                ))
+                .getSingle();
 
         // Convert back
         final exported = repository.toJsonForSource(row, src: Source.appwrite);
@@ -1441,10 +1504,7 @@ void main() {
       final result = await databases.listDocuments(
         databaseId: _testDatabaseId,
         collectionId: AppwriteConfig.bookingsCollectionId,
-        queries: [
-          Query.equal('status', 'checked_in'),
-          Query.limit(10),
-        ],
+        queries: [Query.equal('status', 'checked_in'), Query.limit(10)],
       );
 
       print('Active bookings found: ${result.documents.length}');
@@ -1469,11 +1529,7 @@ void main() {
       final uuid = generateTestUuid();
       final now = currentEpoch();
 
-      final vectorClock = {
-        'device-A': 3,
-        'device-B': 5,
-        'device-C': 1,
-      };
+      final vectorClock = {'device-A': 3, 'device-B': 5, 'device-C': 1};
 
       final data = {
         'localUuid': uuid,
@@ -1500,10 +1556,13 @@ void main() {
       );
       await db.into(db.rooms).insert(companion);
 
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exported = adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exported = adapters.rooms.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exported['vectorClock'], isNotNull);
       expect(exported['vectorClock']['device-A'], equals(3));
@@ -1540,10 +1599,13 @@ void main() {
       );
       await db.into(db.rooms).insert(companion);
 
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exported = adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exported = adapters.rooms.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exported['vectorClock'], isNotNull);
       expect(exported['vectorClock'], isEmpty);
@@ -1600,9 +1662,9 @@ void main() {
       await adapters.rooms.upsertFromJson(olderData, src: Source.appwrite);
 
       // Verify the local (newer) data was preserved
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
 
       // The data should remain as the newer version
       expect(row.type, equals('single')); // Original value preserved

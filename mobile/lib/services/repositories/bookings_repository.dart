@@ -9,9 +9,9 @@ import '../../utils/time.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = BookingsDao(db, OutboxDao(db)),
-        derivedFields = BookingDerivedFieldsService(db);
+    : outbox = OutboxDao(db),
+      dao = BookingsDao(db, OutboxDao(db)),
+      derivedFields = BookingDerivedFieldsService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final BookingsDao dao;
@@ -107,14 +107,18 @@ class BookingsRepository {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
-        roomNumber:
-            roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
-        guestName:
-            guestName != null ? d.Value(guestName) : const d.Value.absent(),
-        guestPhone:
-            guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
-        guestIdType:
-            guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
+        roomNumber: roomNumber != null
+            ? d.Value(roomNumber)
+            : const d.Value.absent(),
+        guestName: guestName != null
+            ? d.Value(guestName)
+            : const d.Value.absent(),
+        guestPhone: guestPhone != null
+            ? d.Value(guestPhone)
+            : const d.Value.absent(),
+        guestIdType: guestIdType != null
+            ? d.Value(guestIdType)
+            : const d.Value.absent(),
         guestIdNumber: guestIdNumber != null
             ? d.Value(guestIdNumber)
             : const d.Value.absent(),
@@ -127,13 +131,15 @@ class BookingsRepository {
         guestNationality: guestNationality != null
             ? d.Value(guestNationality)
             : const d.Value.absent(),
-        guestEmail:
-            guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
+        guestEmail: guestEmail != null
+            ? d.Value(guestEmail)
+            : const d.Value.absent(),
         guestAddress: guestAddress != null
             ? d.Value(guestAddress)
             : const d.Value.absent(),
-        checkinDate:
-            checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
+        checkinDate: checkinDate != null
+            ? d.Value(checkinDate)
+            : const d.Value.absent(),
         checkoutDate: checkoutDate != null
             ? d.Value(checkoutDate)
             : const d.Value.absent(),
@@ -158,7 +164,6 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
-
       await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange(
         'bookings',
@@ -212,9 +217,9 @@ class BookingsRepository {
   }
 
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
-    final booking = await (db.select(db.bookings)
-          ..where((b) => b.id.equals(bookingId)))
-        .getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) return;
 
     final discount = booking.discount;
@@ -226,11 +231,12 @@ class BookingsRepository {
       booking.discountStartDate ?? booking.checkinDate,
     );
 
-    final existing = await (db.select(db.bookingPriceAdjustments)
-          ..where((a) => a.bookingLocalId.equals(bookingId))
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.deletedAt.isNull()))
-        .get();
+    final existing =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalId.equals(bookingId))
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull()))
+            .get();
 
     final hasMatch = existing.any(
       (a) =>
@@ -244,7 +250,9 @@ class BookingsRepository {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    await db.into(db.bookingPriceAdjustments).insert(
+    await db
+        .into(db.bookingPriceAdjustments)
+        .insert(
           BookingPriceAdjustmentsCompanion(
             localUuid: d.Value(IdGen.uuid()),
             bookingLocalUuid: d.Value(booking.localUuid),

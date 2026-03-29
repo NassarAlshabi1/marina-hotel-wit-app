@@ -86,8 +86,7 @@ class GuestInfoDao extends DatabaseAccessor<AppDatabase>
     );
     return (update(
       guestInfos,
-    )..where((tbl) => tbl.id.equals(id)))
-        .write(companion);
+    )..where((tbl) => tbl.id.equals(id))).write(companion);
   }
 
   Future<int> softDelete(int id) async {

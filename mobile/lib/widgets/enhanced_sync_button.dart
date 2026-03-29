@@ -68,12 +68,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       }
     });
 
-    _connectivitySubscription =
-        ConnectivityService.instance.statusStream.listen((status) {
-      if (mounted) {
-        setState(() => _isOnline = status.isOnline);
-      }
-    });
+    _connectivitySubscription = ConnectivityService.instance.statusStream
+        .listen((status) {
+          if (mounted) {
+            setState(() => _isOnline = status.isOnline);
+          }
+        });
 
     _isOnline = ConnectivityService.instance.isOnline;
   }
@@ -141,9 +141,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               children: [
                 Icon(Icons.error, color: Colors.white),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text('تعذر إكمال المزامنة. راجع التفاصيل.'),
-                ),
+                Expanded(child: Text('تعذر إكمال المزامنة. راجع التفاصيل.')),
               ],
             ),
             backgroundColor: Colors.red,
@@ -186,16 +184,20 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               _buildDetailRow('الخطورة', error.severity.name),
               _buildDetailRow('قابل للإعادة', error.isRetriable ? 'نعم' : 'لا'),
               const SizedBox(height: 8),
-              const Text('الرسالة:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'الرسالة:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child:
-                    Text(error.message, style: const TextStyle(fontSize: 12)),
+                child: Text(
+                  error.message,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -284,8 +286,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 },
               ),
               ListTile(
-                leading:
-                    const Icon(Icons.health_and_safety, color: Colors.purple),
+                leading: const Icon(
+                  Icons.health_and_safety,
+                  color: Colors.purple,
+                ),
                 title: const Text('فحص سلامة البيانات'),
                 subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
                 onTap: () async {
@@ -513,14 +517,18 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               children: checks
                   .map(
                     (check) => ListTile(
-                      leading:
-                          const Icon(Icons.table_chart, color: Colors.blue),
+                      leading: const Icon(
+                        Icons.table_chart,
+                        color: Colors.blue,
+                      ),
                       title: Text(check.tableName),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
                         check.checksum.substring(0, 8),
                         style: const TextStyle(
-                            fontFamily: 'monospace', fontSize: 10),
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                   )
@@ -572,13 +580,13 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   error.severity == ErrorSeverity.critical
                       ? Icons.error
                       : error.severity == ErrorSeverity.high
-                          ? Icons.warning
-                          : Icons.info,
+                      ? Icons.warning
+                      : Icons.info,
                   color: error.severity == ErrorSeverity.critical
                       ? Colors.red
                       : error.severity == ErrorSeverity.high
-                          ? Colors.orange
-                          : Colors.blue,
+                      ? Colors.orange
+                      : Colors.blue,
                 ),
                 title: Text(error.operation),
                 subtitle: Text(
@@ -718,8 +726,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  constraints:
-                      const BoxConstraints(minWidth: 20, minHeight: 20),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
                   child: Center(
                     child: Text(
                       pendingCount > 99 ? '99+' : '$pendingCount',
@@ -743,8 +753,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child:
-                      const Icon(Icons.warning, size: 12, color: Colors.white),
+                  child: const Icon(
+                    Icons.warning,
+                    size: 12,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],

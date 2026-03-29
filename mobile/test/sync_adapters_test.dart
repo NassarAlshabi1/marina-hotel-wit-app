@@ -82,9 +82,9 @@ void main() {
       await db.into(db.rooms).insert(companion);
 
       // Verify local insertion
-      final localRoom = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localRoom = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localRoom, isNotNull);
       expect(localRoom.roomNumber, equals(roomData['roomNumber']));
       expect(localRoom.price, equals(150.0));
@@ -127,10 +127,13 @@ void main() {
       await db.into(db.rooms).insert(companion);
 
       // Convert back to JSON
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.rooms.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       // Verify critical fields
       expect(exportedData['localUuid'], equals(uuid));
@@ -172,8 +175,14 @@ void main() {
         roomData,
         src: Source.appwrite,
       );
-      await db.into(db.rooms).insert(
-            adapters.rooms.adapter.fromJson(roomData, src: Source.appwrite, refs: roomRefs),
+      await db
+          .into(db.rooms)
+          .insert(
+            adapters.rooms.adapter.fromJson(
+              roomData,
+              src: Source.appwrite,
+              refs: roomRefs,
+            ),
           );
 
       final bookingData = {
@@ -209,9 +218,9 @@ void main() {
       );
       await db.into(db.bookings).insert(companion);
 
-      final localBooking = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localBooking = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localBooking, isNotNull);
       expect(localBooking.guestName, equals('Test Guest محمد'));
       expect(localBooking.guestIdType, equals('بطاقة شخصية'));
@@ -242,8 +251,14 @@ void main() {
         roomData,
         src: Source.appwrite,
       );
-      await db.into(db.rooms).insert(
-            adapters.rooms.adapter.fromJson(roomData, src: Source.appwrite, refs: roomRefs),
+      await db
+          .into(db.rooms)
+          .insert(
+            adapters.rooms.adapter.fromJson(
+              roomData,
+              src: Source.appwrite,
+              refs: roomRefs,
+            ),
           );
 
       final originalData = {
@@ -275,10 +290,13 @@ void main() {
       );
       await db.into(db.bookings).insert(companion);
 
-      final row = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.bookings.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.bookings.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exportedData['guestName'], equals('أحمد محمد العلي'));
       expect(exportedData['guestIdType'], equals('إقامة'));
@@ -324,9 +342,9 @@ void main() {
       );
       await db.into(db.payments).insert(companion);
 
-      final localPayment = await (db.select(db.payments)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localPayment = await (db.select(
+        db.payments,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localPayment, isNotNull);
       expect(localPayment.amount, equals(1500.50));
       expect(localPayment.paymentMethod, equals('cash'));
@@ -365,10 +383,13 @@ void main() {
       );
       await db.into(db.payments).insert(companion);
 
-      final row = await (db.select(db.payments)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exportedData = adapters.payments.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.payments,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exportedData = adapters.payments.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exportedData['amount'], equals(750.75));
       expect(exportedData['paymentMethod'], equals('card'));
@@ -416,15 +437,17 @@ void main() {
       );
       await db.into(db.expenses).insert(companion);
 
-      final localExpense = await (db.select(db.expenses)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localExpense = await (db.select(
+        db.expenses,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localExpense, isNotNull);
       expect(localExpense.amount, equals(500.0));
       expect(localExpense.idempotencyKey, equals('exp-$uuid'));
       expect(localExpense.deviceId, equals('device-001'));
 
-      print('✓ Expense created with idempotencyKey: ${localExpense.idempotencyKey}');
+      print(
+        '✓ Expense created with idempotencyKey: ${localExpense.idempotencyKey}',
+      );
     });
   });
 
@@ -464,9 +487,9 @@ void main() {
       );
       await db.into(db.employees).insert(companion);
 
-      final localEmployee = await (db.select(db.employees)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localEmployee = await (db.select(
+        db.employees,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localEmployee, isNotNull);
       expect(localEmployee.name, equals('أحمد محمد'));
       expect(localEmployee.basicSalary, equals(5000.0));
@@ -517,9 +540,9 @@ void main() {
       );
       await db.into(db.debts).insert(companion);
 
-      final localDebt = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localDebt = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localDebt, isNotNull);
       expect(localDebt.totalAmount, equals(1500.0));
       expect(localDebt.remainingAmount, equals(1000.0));
@@ -568,9 +591,9 @@ void main() {
       );
       await db.into(db.shiftNotes).insert(companion);
 
-      final localNote = await (db.select(db.shiftNotes)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localNote = await (db.select(
+        db.shiftNotes,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localNote, isNotNull);
       expect(localNote.title, equals('ملاحظة مهمة'));
       expect(localNote.priority, equals('high'));
@@ -618,9 +641,9 @@ void main() {
       );
       await db.into(db.cashTransactions).insert(companion);
 
-      final localCash = await (db.select(db.cashTransactions)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localCash = await (db.select(
+        db.cashTransactions,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localCash, isNotNull);
       expect(localCash.transactionType, equals('income'));
       expect(localCash.amount, equals(2000.0));
@@ -657,8 +680,14 @@ void main() {
         roomData,
         src: Source.appwrite,
       );
-      await db.into(db.rooms).insert(
-            adapters.rooms.adapter.fromJson(roomData, src: Source.appwrite, refs: roomRefs),
+      await db
+          .into(db.rooms)
+          .insert(
+            adapters.rooms.adapter.fromJson(
+              roomData,
+              src: Source.appwrite,
+              refs: roomRefs,
+            ),
           );
 
       final bookingData = {
@@ -689,9 +718,9 @@ void main() {
       await db.into(db.bookings).insert(bookingCompanion);
 
       // Get the booking local ID
-      final booking = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals('booking-night-$uuid')))
-          .getSingle();
+      final booking = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals('booking-night-$uuid'))).getSingle();
 
       // Create booking night with bookingLocalId
       final nightData = {
@@ -705,7 +734,10 @@ void main() {
         'baseRate': 100.0,
         'adjustment': -10.0,
         'finalRate': 90.0,
-        'appliedAdjustmentsJson': jsonEncode({'discount': 10, 'type': 'early_booking'}),
+        'appliedAdjustmentsJson': jsonEncode({
+          'discount': 10,
+          'type': 'early_booking',
+        }),
         'createdAt': now,
         'updatedAt': now,
         'lastModified': now,
@@ -725,9 +757,9 @@ void main() {
       );
       await db.into(db.bookingNights).insert(companion);
 
-      final localNight = await (db.select(db.bookingNights)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
+      final localNight = await (db.select(
+        db.bookingNights,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localNight, isNotNull);
       expect(localNight.hotelDayKey, equals('2025-01-15'));
       expect(localNight.nightlyRate, equals(100.0));
@@ -737,7 +769,9 @@ void main() {
       final adjustments = jsonDecode(localNight.appliedAdjustmentsJson!);
       expect(adjustments['discount'], equals(10));
 
-      print('✓ Booking night created with adjustments: ${localNight.appliedAdjustmentsJson}');
+      print(
+        '✓ Booking night created with adjustments: ${localNight.appliedAdjustmentsJson}',
+      );
     });
   });
 
@@ -750,11 +784,7 @@ void main() {
       final uuid = generateTestUuid();
       final now = currentEpoch();
 
-      final vectorClock = {
-        'device-A': 3,
-        'device-B': 5,
-        'device-C': 1,
-      };
+      final vectorClock = {'device-A': 3, 'device-B': 5, 'device-C': 1};
 
       final data = {
         'localUuid': uuid,
@@ -781,10 +811,13 @@ void main() {
       );
       await db.into(db.rooms).insert(companion);
 
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exported = adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exported = adapters.rooms.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exported['vectorClock'], isNotNull);
       expect(exported['vectorClock']['device-A'], equals(3));
@@ -823,10 +856,13 @@ void main() {
       );
       await db.into(db.rooms).insert(companion);
 
-      final row = await (db.select(db.rooms)
-            ..where((t) => t.localUuid.equals(uuid)))
-          .getSingle();
-      final exported = adapters.rooms.toJsonForSource(row, src: Source.appwrite);
+      final row = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(uuid))).getSingle();
+      final exported = adapters.rooms.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(exported['vectorClock'], isNotNull);
       expect(exported['vectorClock'], isEmpty);
@@ -984,9 +1020,11 @@ void main() {
 
         // Fetch
         final table = repository.table;
-        final row = await (db.select(table)
-              ..where((t) => (t as dynamic).localUuid.equals(data['localUuid'])))
-            .getSingle();
+        final row =
+            await (db.select(table)..where(
+                  (t) => (t as dynamic).localUuid.equals(data['localUuid']),
+                ))
+                .getSingle();
 
         // Convert back
         final exported = repository.toJsonForSource(row, src: Source.appwrite);
@@ -1009,14 +1047,28 @@ void main() {
   test('Test summary', () async {
     // Count records in each table
     final roomsCount = await (db.select(db.rooms).get()).then((l) => l.length);
-    final bookingsCount = await (db.select(db.bookings).get()).then((l) => l.length);
-    final paymentsCount = await (db.select(db.payments).get()).then((l) => l.length);
-    final expensesCount = await (db.select(db.expenses).get()).then((l) => l.length);
-    final employeesCount = await (db.select(db.employees).get()).then((l) => l.length);
+    final bookingsCount = await (db.select(db.bookings).get()).then(
+      (l) => l.length,
+    );
+    final paymentsCount = await (db.select(db.payments).get()).then(
+      (l) => l.length,
+    );
+    final expensesCount = await (db.select(db.expenses).get()).then(
+      (l) => l.length,
+    );
+    final employeesCount = await (db.select(db.employees).get()).then(
+      (l) => l.length,
+    );
     final debtsCount = await (db.select(db.debts).get()).then((l) => l.length);
-    final shiftNotesCount = await (db.select(db.shiftNotes).get()).then((l) => l.length);
-    final cashCount = await (db.select(db.cashTransactions).get()).then((l) => l.length);
-    final nightsCount = await (db.select(db.bookingNights).get()).then((l) => l.length);
+    final shiftNotesCount = await (db.select(db.shiftNotes).get()).then(
+      (l) => l.length,
+    );
+    final cashCount = await (db.select(db.cashTransactions).get()).then(
+      (l) => l.length,
+    );
+    final nightsCount = await (db.select(db.bookingNights).get()).then(
+      (l) => l.length,
+    );
 
     print('\n=== Test Summary ===');
     print('Rooms: $roomsCount');

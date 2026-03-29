@@ -561,7 +561,8 @@ class AutoBackupManager {
       _lastRenewedHotelDay = currentHotelDay;
       if (count > 0) {
         debugPrint(
-            '🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
+          '🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)',
+        );
       }
     } catch (e) {
       debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');

@@ -115,8 +115,8 @@ class CombinedRetryStrategy implements RetryStrategy {
   CombinedRetryStrategy({
     ExponentialBackoffStrategy? backoff,
     CircuitBreakerStrategy? circuitBreaker,
-  })  : _backoff = backoff ?? ExponentialBackoffStrategy(),
-        _circuitBreaker = circuitBreaker ?? CircuitBreakerStrategy();
+  }) : _backoff = backoff ?? ExponentialBackoffStrategy(),
+       _circuitBreaker = circuitBreaker ?? CircuitBreakerStrategy();
   final ExponentialBackoffStrategy _backoff;
   final CircuitBreakerStrategy _circuitBreaker;
 

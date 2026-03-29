@@ -726,8 +726,9 @@ class Invoice {
                     style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
-                      color:
-                          remainingAmount > 0 ? PdfColors.red : PdfColors.green,
+                      color: remainingAmount > 0
+                          ? PdfColors.red
+                          : PdfColors.green,
                     ),
                   ),
                 ],

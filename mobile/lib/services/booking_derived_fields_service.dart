@@ -17,10 +17,11 @@ class BookingDerivedFieldsService {
     DateTime? now,
     bool forceRebuild = false,
   }) async {
-    final booking = await (db.select(db.bookings)
-          ..where((b) => b.id.equals(bookingId))
-          ..where((b) => b.deletedAt.isNull()))
-        .getSingleOrNull();
+    final booking =
+        await (db.select(db.bookings)
+              ..where((b) => b.id.equals(bookingId))
+              ..where((b) => b.deletedAt.isNull()))
+            .getSingleOrNull();
     if (booking == null) {
       return;
     }
@@ -35,8 +36,10 @@ class BookingDerivedFieldsService {
   }) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
-    final calculation =
-        await calcService.calculateForBooking(booking, now: moment);
+    final calculation = await calcService.calculateForBooking(
+      booking,
+      now: moment,
+    );
 
     await calcService.updateNightlyRecords(
       booking,
@@ -49,10 +52,11 @@ class BookingDerivedFieldsService {
     final actualCheckout = _parseDateTime(booking.actualCheckout);
     final expectedNightsValue =
         plannedCheckout != null && actualCheckout == null
-            ? calculation.financialSummary.totalNights
-            : booking.expectedNights;
+        ? calculation.financialSummary.totalNights
+        : booking.expectedNights;
 
-    final isOverdue = calculation.bookingActive &&
+    final isOverdue =
+        calculation.bookingActive &&
         plannedCheckout != null &&
         moment.isAfter(plannedCheckout);
     final needsReview =
@@ -65,8 +69,7 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       await (db.update(
         db.bookings,
-      )..where((b) => b.id.equals(booking.id)))
-          .write(
+      )..where((b) => b.id.equals(booking.id))).write(
         BookingsCompanion(
           expectedNights: d.Value(expectedNightsValue),
           calculatedNights: d.Value(calculation.financialSummary.totalNights),
@@ -98,11 +101,13 @@ class BookingDerivedFieldsService {
 
   Future<int> refreshAllActiveBookings({DateTime? now}) async {
     final moment = now ?? DateTime.now();
-    final activeBookings = await (db.select(db.bookings)
-          ..where(
-              (b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
-          ..where((b) => b.deletedAt.isNull()))
-        .get();
+    final activeBookings =
+        await (db.select(db.bookings)
+              ..where(
+                (b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''),
+              )
+              ..where((b) => b.deletedAt.isNull()))
+            .get();
 
     final active = activeBookings.where(StatusUtils.isBookingActive).toList();
 
@@ -131,8 +136,9 @@ class BookingDerivedFieldsService {
   }
 
   Future<void> _promoteProvisionalBooking(int bookingId) async {
-    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId)))
-        .write(const BookingsCompanion(status: d.Value('محجوزة')));
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
+      const BookingsCompanion(status: d.Value('محجوزة')),
+    );
   }
 
   // ignore: unused_element
@@ -145,17 +151,18 @@ class BookingDerivedFieldsService {
     required String discountType,
     required DateTime? discountStartDate,
   }) async {
-    final lastNight = await (db.select(db.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(booking.id))
-          ..where((n) => n.deletedAt.isNull())
-          ..orderBy([
-            (n) => d.OrderingTerm(
+    final lastNight =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([
+                (n) => d.OrderingTerm(
                   expression: n.nightEnd,
                   mode: d.OrderingMode.desc,
                 ),
-          ])
-          ..limit(1))
-        .getSingleOrNull();
+              ])
+              ..limit(1))
+            .getSingleOrNull();
 
     DateTime start = checkin;
     if (lastNight != null) {
@@ -238,8 +245,7 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       await (db.delete(
         db.bookingNights,
-      )..where((t) => t.bookingLocalId.equals(booking.id)))
-          .go();
+      )..where((t) => t.bookingLocalId.equals(booking.id))).go();
 
       await db.batch((batch) {
         int sequence = 0;
@@ -292,8 +298,11 @@ class BookingDerivedFieldsService {
 
     if (discount > 0) {
       // التحقق من تاريخ بدء التخفيض
-      final segDay =
-          DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
+      final segDay = DateTime(
+        segmentStart.year,
+        segmentStart.month,
+        segmentStart.day,
+      );
 
       bool shouldApplyDiscount = true;
       if (discountStartDate != null) {
@@ -405,16 +414,12 @@ class BookingDerivedFieldsService {
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1
           ? (checkout.isAfter(segStart)
-              ? checkout
-              : segStart.add(const Duration(minutes: 1)))
+                ? checkout
+                : segStart.add(const Duration(minutes: 1)))
           : nextDay;
 
       segments.add(
-        _NightSegment(
-          hotelDayKey: dayKey,
-          start: segStart,
-          end: segEnd,
-        ),
+        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
       );
     }
 

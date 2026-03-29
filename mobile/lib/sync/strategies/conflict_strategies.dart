@@ -12,9 +12,9 @@ class ConflictResolver {
     ConflictStrategy defaultStrategy = ConflictStrategy.newerWins,
     Map<String, ConflictStrategy>? tableStrategies,
     SmartMergeResolver? smartMergeResolver,
-  })  : _defaultStrategy = defaultStrategy,
-        _tableStrategies = tableStrategies ?? {},
-        _smartMergeResolver = smartMergeResolver;
+  }) : _defaultStrategy = defaultStrategy,
+       _tableStrategies = tableStrategies ?? {},
+       _smartMergeResolver = smartMergeResolver;
   final ConflictStrategy _defaultStrategy;
   final Map<String, ConflictStrategy> _tableStrategies;
   final SmartMergeResolver? _smartMergeResolver;
@@ -272,7 +272,7 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
       // للخرائط: دمج متكرر
       return {
         ...local as Map<String, dynamic>,
-        ...remote as Map<String, dynamic>
+        ...remote as Map<String, dynamic>,
       };
     }
 
@@ -353,13 +353,16 @@ class ConflictManager {
 
   /// تنظيف التعارضات المحلولة القديمة
   void cleanup({Duration? olderThan}) {
-    final cutoff =
-        DateTime.now().subtract(olderThan ?? const Duration(days: 7));
+    final cutoff = DateTime.now().subtract(
+      olderThan ?? const Duration(days: 7),
+    );
 
-    _conflicts.removeWhere((c) =>
-        c.resolution != null &&
-        c.resolvedAt != null &&
-        c.resolvedAt!.isBefore(cutoff));
+    _conflicts.removeWhere(
+      (c) =>
+          c.resolution != null &&
+          c.resolvedAt != null &&
+          c.resolvedAt!.isBefore(cutoff),
+    );
   }
 }
 

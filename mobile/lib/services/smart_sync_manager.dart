@@ -91,7 +91,8 @@ class SmartSyncManager {
           deviceIdentifier = androidInfo.id;
         } else if (Platform.isIOS) {
           final iosInfo = await deviceInfo.iosInfo;
-          deviceIdentifier = iosInfo.identifierForVendor ??
+          deviceIdentifier =
+              iosInfo.identifierForVendor ??
               'ios-${DateTime.now().millisecondsSinceEpoch}';
         }
       } catch (e) {
@@ -394,8 +395,12 @@ class SmartSyncManager {
           final remoteRecord = remoteMap[uuid];
 
           // مقارنة timestamps - دعم camelCase و snake_case
-          final localTimestamp = (localRecord['lastModified'] ?? localRecord['last_modified']) as int?;
-          final remoteTimestamp = (remoteRecord['lastModified'] ?? remoteRecord['last_modified']) as int?;
+          final localTimestamp =
+              (localRecord['lastModified'] ?? localRecord['last_modified'])
+                  as int?;
+          final remoteTimestamp =
+              (remoteRecord['lastModified'] ?? remoteRecord['last_modified'])
+                  as int?;
 
           if (localTimestamp != null && remoteTimestamp != null) {
             final localTime = DateTime.fromMillisecondsSinceEpoch(
@@ -816,8 +821,8 @@ class SmartSyncManager {
       }
 
       _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-      final deltaResult =
-          await GoogleDriveDeltaSync.instance.pushDeltaChanges();
+      final deltaResult = await GoogleDriveDeltaSync.instance
+          .pushDeltaChanges();
 
       if (deltaResult.success) {
         await _updateLastSyncTime();
@@ -870,8 +875,8 @@ class SmartSyncManager {
 
       if (GoogleDriveDeltaSync.instance.isInitialized) {
         _log('🔄 استخدام Delta Sync للتحديثات السريعة...');
-        final deltaResult =
-            await GoogleDriveDeltaSync.instance.pullDeltaChanges();
+        final deltaResult = await GoogleDriveDeltaSync.instance
+            .pullDeltaChanges();
 
         if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();

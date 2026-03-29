@@ -67,8 +67,8 @@ final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
 /// مزود حالة الاتصال
 final connectionStatusProvider =
     StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
-  return ConnectionStatusNotifier(ref);
-});
+      return ConnectionStatusNotifier(ref);
+    });
 
 class ConnectionState {
   ConnectionState({
@@ -95,7 +95,7 @@ class ConnectionState {
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
   ConnectionStatusNotifier(this.ref)
-      : super(ConnectionState(isConnected: false));
+    : super(ConnectionState(isConnected: false));
   final Ref ref;
 
   Future<void> checkConnection() async {

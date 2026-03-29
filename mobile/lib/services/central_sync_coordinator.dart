@@ -111,7 +111,7 @@ class CentralSyncCoordinator {
       'sync_count': _syncCount,
       'cooldown_remaining': _lastSyncTime != null
           ? syncCooldown.inSeconds -
-              DateTime.now().difference(_lastSyncTime!).inSeconds
+                DateTime.now().difference(_lastSyncTime!).inSeconds
           : 0,
     };
   }

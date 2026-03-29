@@ -131,8 +131,9 @@ class EnhancedConflictResolver {
   }
 
   ConflictResolution _handleConcurrentConflict(ConflictContext context) {
-    final timeDiff =
-        context.localTimestamp.difference(context.remoteTimestamp).abs();
+    final timeDiff = context.localTimestamp
+        .difference(context.remoteTimestamp)
+        .abs();
 
     if (timeDiff.inSeconds < 30) {
       debugPrint(
@@ -252,7 +253,7 @@ class EnhancedConflictResolver {
     final mergedTimestamps = <String, int>{};
     final mergedVectorClocks = <String, String>{};
     final mergedDevices = <String, String>{};
-    
+
     final localVersions = localFieldMetadata?.versions ?? {};
     final remoteVersions = remoteFieldMetadata?.versions ?? {};
     final localTimestamps = localFieldMetadata?.timestamps ?? {};
@@ -261,12 +262,12 @@ class EnhancedConflictResolver {
     final remoteVectorClocks = remoteFieldMetadata?.vectorClocks ?? {};
     final localDevices = localFieldMetadata?.devices ?? {};
     final remoteDevices = remoteFieldMetadata?.devices ?? {};
-    
+
     final allKeys = <String>{
       ...context.localData.keys,
       ...context.remoteData.keys,
     };
-    
+
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final effectiveDeviceId = deviceId ?? 'unknown';
 
@@ -278,7 +279,7 @@ class EnhancedConflictResolver {
       }
 
       // تجاهل الحقول غير القابلة للتتبع
-      if (config.trackableFields.isNotEmpty && 
+      if (config.trackableFields.isNotEmpty &&
           !config.trackableFields.contains(key)) {
         merged[key] = context.localData[key] ?? context.remoteData[key];
         continue;
@@ -344,8 +345,9 @@ class EnhancedConflictResolver {
         winnerDevice = remoteDevices[key] ?? effectiveDeviceId;
       } else {
         // تعارض متزامن - استخدام الاستراتيجية
-        final strategy = config.mergeStrategies[key] ?? FieldMergeStrategy.lastWriteWins;
-        
+        final strategy =
+            config.mergeStrategies[key] ?? FieldMergeStrategy.lastWriteWins;
+
         switch (strategy) {
           case FieldMergeStrategy.lastWriteWins:
             final localTs = localTimestamps[key] ?? 0;
@@ -354,17 +356,22 @@ class EnhancedConflictResolver {
               winner = localValue;
               winnerVersion = (localVersions[key] ?? 0) + 1;
               winnerTimestamp = now;
-              winnerVectorClock = localVc.merge(remoteVc).increment(effectiveDeviceId).toJson();
+              winnerVectorClock = localVc
+                  .merge(remoteVc)
+                  .increment(effectiveDeviceId)
+                  .toJson();
               winnerDevice = effectiveDeviceId;
             } else {
               winner = remoteValue;
               winnerVersion = (remoteVersions[key] ?? 0) + 1;
               winnerTimestamp = now;
-              winnerVectorClock = remoteVc.merge(localVc).increment(effectiveDeviceId).toJson();
+              winnerVectorClock = remoteVc
+                  .merge(localVc)
+                  .increment(effectiveDeviceId)
+                  .toJson();
               winnerDevice = effectiveDeviceId;
             }
-            break;
-            
+
           case FieldMergeStrategy.highestWins:
             final localNum = _toNumber(localValue);
             final remoteNum = _toNumber(remoteValue);
@@ -376,10 +383,12 @@ class EnhancedConflictResolver {
               winnerVersion = (remoteVersions[key] ?? 0) + 1;
             }
             winnerTimestamp = now;
-            winnerVectorClock = localVc.merge(remoteVc).increment(effectiveDeviceId).toJson();
+            winnerVectorClock = localVc
+                .merge(remoteVc)
+                .increment(effectiveDeviceId)
+                .toJson();
             winnerDevice = effectiveDeviceId;
-            break;
-            
+
           case FieldMergeStrategy.lowestWins:
             final localNum = _toNumber(localValue);
             final remoteNum = _toNumber(remoteValue);
@@ -391,25 +400,35 @@ class EnhancedConflictResolver {
               winnerVersion = (remoteVersions[key] ?? 0) + 1;
             }
             winnerTimestamp = now;
-            winnerVectorClock = localVc.merge(remoteVc).increment(effectiveDeviceId).toJson();
+            winnerVectorClock = localVc
+                .merge(remoteVc)
+                .increment(effectiveDeviceId)
+                .toJson();
             winnerDevice = effectiveDeviceId;
-            break;
-            
+
           case FieldMergeStrategy.semanticMerge:
             winner = _trySemanticMerge(localValue, remoteValue);
-            winnerVersion = ((localVersions[key] ?? 0) > (remoteVersions[key] ?? 0) 
-                ? localVersions[key]! : remoteVersions[key]!) + 1;
+            winnerVersion =
+                ((localVersions[key] ?? 0) > (remoteVersions[key] ?? 0)
+                    ? localVersions[key]!
+                    : remoteVersions[key]!) +
+                1;
             winnerTimestamp = now;
-            winnerVectorClock = localVc.merge(remoteVc).increment(effectiveDeviceId).toJson();
+            winnerVectorClock = localVc
+                .merge(remoteVc)
+                .increment(effectiveDeviceId)
+                .toJson();
             winnerDevice = effectiveDeviceId;
-            break;
-            
+
           default:
             // افتراضياً: Last-Write-Wins
             winner = localValue;
             winnerVersion = (localVersions[key] ?? 0) + 1;
             winnerTimestamp = now;
-            winnerVectorClock = localVc.merge(remoteVc).increment(effectiveDeviceId).toJson();
+            winnerVectorClock = localVc
+                .merge(remoteVc)
+                .increment(effectiveDeviceId)
+                .toJson();
             winnerDevice = effectiveDeviceId;
         }
       }

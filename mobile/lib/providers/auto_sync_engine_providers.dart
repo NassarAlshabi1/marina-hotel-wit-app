@@ -16,9 +16,9 @@ final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
 
 final unifiedSyncCoordinatorProvider =
     Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
-  // Provider keeps value alive by default in Riverpod 3.x
-  return GoogleDriveUnifiedSyncCoordinator.instance;
-});
+      // Provider keeps value alive by default in Riverpod 3.x
+      return GoogleDriveUnifiedSyncCoordinator.instance;
+    });
 
 final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
   final coordinator = ref.watch(unifiedSyncCoordinatorProvider);
@@ -103,11 +103,14 @@ class AutoSyncEngineController
   }
 }
 
-final autoSyncEngineControllerProvider = StateNotifierProvider<
-    AutoSyncEngineController, AsyncValue<Map<String, dynamic>>>((ref) {
-  final engine = ref.watch(autoSyncEngineProvider);
-  return AutoSyncEngineController(engine);
-});
+final autoSyncEngineControllerProvider =
+    StateNotifierProvider<
+      AutoSyncEngineController,
+      AsyncValue<Map<String, dynamic>>
+    >((ref) {
+      final engine = ref.watch(autoSyncEngineProvider);
+      return AutoSyncEngineController(engine);
+    });
 
 final isSyncingProvider = Provider<bool>((ref) {
   final coordinatorState = ref.watch(unifiedSyncCoordinatorProvider);

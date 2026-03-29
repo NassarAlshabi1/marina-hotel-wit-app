@@ -13,7 +13,8 @@ class AppwriteCollectionsTab extends ConsumerStatefulWidget {
       _AppwriteCollectionsTabState();
 }
 
-class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab> {
+class _AppwriteCollectionsTabState
+    extends ConsumerState<AppwriteCollectionsTab> {
   late AppDatabase _db;
   final Map<String, bool> _collectionSyncStatus = {};
 
@@ -113,10 +114,7 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -270,19 +268,15 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
       ),
     ];
 
-    return collections
-        .asMap()
-        .entries
-        .map((entry) {
-          final isLast = entry.key == collections.length - 1;
-          return Column(
-            children: [
-              _buildCollectionTile(entry.value),
-              if (!isLast) const Divider(height: 1),
-            ],
-          );
-        })
-        .toList();
+    return collections.asMap().entries.map((entry) {
+      final isLast = entry.key == collections.length - 1;
+      return Column(
+        children: [
+          _buildCollectionTile(entry.value),
+          if (!isLast) const Divider(height: 1),
+        ],
+      );
+    }).toList();
   }
 
   Widget _buildCollectionTile(_CollectionInfo collection) {
@@ -293,11 +287,7 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
           color: collection.color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(UIConstants.radiusMD),
         ),
-        child: Icon(
-          collection.icon,
-          color: collection.color,
-          size: 24,
-        ),
+        child: Icon(collection.icon, color: collection.color, size: 24),
       ),
       title: Text(
         collection.name,
@@ -333,8 +323,9 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: collection.color.withOpacity(0.1),
-                        borderRadius:
-                            BorderRadius.circular(UIConstants.radiusMD),
+                        borderRadius: BorderRadius.circular(
+                          UIConstants.radiusMD,
+                        ),
                       ),
                       child: Icon(
                         collection.icon,
@@ -396,9 +387,7 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
                         onPressed: () {
                           // Copy to clipboard
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('تم نسخ معرف الجدول'),
-                            ),
+                            const SnackBar(content: Text('تم نسخ معرف الجدول')),
                           );
                         },
                       ),
@@ -416,9 +405,7 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(UIConstants.radiusMD),
-                    border: Border.all(
-                      color: Colors.green.withOpacity(0.3),
-                    ),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
                   ),
                   child: const Row(
                     children: [
@@ -449,12 +436,6 @@ class _AppwriteCollectionsTabState extends ConsumerState<AppwriteCollectionsTab>
 }
 
 class _CollectionInfo {
-  final String id;
-  final String name;
-  final String description;
-  final IconData icon;
-  final Color color;
-
   _CollectionInfo({
     required this.id,
     required this.name,
@@ -462,4 +443,9 @@ class _CollectionInfo {
     required this.icon,
     required this.color,
   });
+  final String id;
+  final String name;
+  final String description;
+  final IconData icon;
+  final Color color;
 }

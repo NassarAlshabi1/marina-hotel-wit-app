@@ -99,27 +99,27 @@ class DatabaseHealth {
   });
 
   factory DatabaseHealth.healthy([int? responseTime]) => DatabaseHealth._(
-        status: DatabaseHealthStatus.healthy,
-        responseTimeMs: responseTime,
-        timestamp: DateTime.now(),
-      );
+    status: DatabaseHealthStatus.healthy,
+    responseTimeMs: responseTime,
+    timestamp: DateTime.now(),
+  );
 
   factory DatabaseHealth.slow(int responseTime) => DatabaseHealth._(
-        status: DatabaseHealthStatus.slow,
-        responseTimeMs: responseTime,
-        timestamp: DateTime.now(),
-      );
+    status: DatabaseHealthStatus.slow,
+    responseTimeMs: responseTime,
+    timestamp: DateTime.now(),
+  );
 
   factory DatabaseHealth.notInitialized() => DatabaseHealth._(
-        status: DatabaseHealthStatus.notInitialized,
-        timestamp: DateTime.now(),
-      );
+    status: DatabaseHealthStatus.notInitialized,
+    timestamp: DateTime.now(),
+  );
 
   factory DatabaseHealth.error(String message) => DatabaseHealth._(
-        status: DatabaseHealthStatus.error,
-        errorMessage: message,
-        timestamp: DateTime.now(),
-      );
+    status: DatabaseHealthStatus.error,
+    errorMessage: message,
+    timestamp: DateTime.now(),
+  );
   final DatabaseHealthStatus status;
   final int? responseTimeMs;
   final String? errorMessage;

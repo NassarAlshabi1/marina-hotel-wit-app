@@ -11,8 +11,8 @@ const _uuid = Uuid();
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db)
-      : _outbox = OutboxDao(_db),
-        _adapters = AdapterRegistry(_db);
+    : _outbox = OutboxDao(_db),
+      _adapters = AdapterRegistry(_db);
 
   final AppDatabase _db;
   final OutboxDao _outbox;
@@ -33,61 +33,65 @@ class SalaryWithdrawalsRepository {
     final nowIso = DateTime.now().toIso8601String();
 
     // Check if record exists
-    final existing = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.expenseId.equals(expenseId)))
-        .getSingleOrNull();
+    final existing = await (_db.select(
+      _db.salaryWithdrawals,
+    )..where((t) => t.expenseId.equals(expenseId))).getSingleOrNull();
 
     String localUuid;
     int? recordId;
-    bool isNewRecord = existing == null;
+    final bool isNewRecord = existing == null;
 
     if (existing != null) {
       // Update existing
       localUuid = existing.localUuid;
       recordId = existing.id;
 
-      await (_db.update(_db.salaryWithdrawals)
-            ..where((t) => t.expenseId.equals(expenseId)))
-          .write(SalaryWithdrawalsCompanion(
-        employeeId: Value(employeeId),
-        name: Value(employeeName), // ✅ تحديث اسم الموظف
-        action: Value(action),
-        amount: Value(amount),
-        note: Value(note),
-        date: Value(date),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        updatedAtIso: Value(nowIso),
-      ));
-    } else {
-      // Insert new
-      localUuid = _uuid.v4();
-
-      recordId = await _db.into(_db.salaryWithdrawals).insert(
+      await (_db.update(
+        _db.salaryWithdrawals,
+      )..where((t) => t.expenseId.equals(expenseId))).write(
         SalaryWithdrawalsCompanion(
-          expenseId: Value(expenseId),
           employeeId: Value(employeeId),
-          name: Value(employeeName), // ✅ إضافة اسم الموظف
+          name: Value(employeeName), // ✅ تحديث اسم الموظف
           action: Value(action),
           amount: Value(amount),
           note: Value(note),
           date: Value(date),
-          localUuid: Value(localUuid),
-          createdAt: Value(now),
           updatedAt: Value(now),
           lastModified: Value(now),
-          createdAtIso: Value(nowIso),
           updatedAtIso: Value(nowIso),
-          version: const Value(1),
-          origin: const Value('local'),
         ),
       );
+    } else {
+      // Insert new
+      localUuid = _uuid.v4();
+
+      recordId = await _db
+          .into(_db.salaryWithdrawals)
+          .insert(
+            SalaryWithdrawalsCompanion(
+              expenseId: Value(expenseId),
+              employeeId: Value(employeeId),
+              name: Value(employeeName), // ✅ إضافة اسم الموظف
+              action: Value(action),
+              amount: Value(amount),
+              note: Value(note),
+              date: Value(date),
+              localUuid: Value(localUuid),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+              createdAtIso: Value(nowIso),
+              updatedAtIso: Value(nowIso),
+              version: const Value(1),
+              origin: const Value('local'),
+            ),
+          );
     }
 
     // ✅ بناء بيانات السجل الكاملة
     final payload = _buildPayload(
       localUuid: localUuid,
-      recordId: recordId!,
+      recordId: recordId,
       expenseId: expenseId,
       employeeId: employeeId,
       employeeName: employeeName, // ✅ تمرير اسم الموظف
@@ -136,19 +140,20 @@ class SalaryWithdrawalsRepository {
       'localUuid': localUuid,
       'expenseId': expenseId,
       'employeeId': employeeId,
-      if (employeeName != null && employeeName.isNotEmpty) 'name': employeeName, // ✅ اسم الموظف
+      if (employeeName != null && employeeName.isNotEmpty)
+        'name': employeeName, // ✅ اسم الموظف
       'action': action,
       'amount': amount.toInt(), // ✅ integer for Appwrite
       'date': date,
       if (note != null && note.isNotEmpty) 'note': note,
-      
+
       // ✅ Timestamps
       'createdAt': now,
       'updatedAt': now,
       'lastModified': now,
       'createdAtIso': nowIso,
       'updatedAtIso': nowIso,
-      
+
       // ✅ Sync metadata
       'version': 1,
       'origin': 'local',
@@ -184,17 +189,22 @@ class SalaryWithdrawalsRepository {
     try {
       // حساب hash للبيانات
       final sortedPayload = _sortMapForHash(payload);
-      final rowHash = sha1.convert(utf8.encode(jsonEncode(sortedPayload))).toString();
-      
+      final rowHash = sha1
+          .convert(utf8.encode(jsonEncode(sortedPayload)))
+          .toString();
+
       // تحديث أو إدراج في المرآة
       await _db.customStatement(
-        '''INSERT OR REPLACE INTO sync_mirror 
+        '''
+INSERT OR REPLACE INTO sync_mirror 
            (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
            VALUES (?, ?, ?, ?, ?)''',
         ['salary_withdrawals', localUuid, rowHash, jsonEncode(payload), now],
       );
-      
-      print('✅ [Mirror] Updated salary_withdrawals/$localUuid (isNew: $isNewRecord)');
+
+      print(
+        '✅ [Mirror] Updated salary_withdrawals/$localUuid (isNew: $isNewRecord)',
+      );
     } catch (e) {
       print('⚠️ [Mirror] Failed to update mirror: $e');
       // لا نرمي الخطأ لأن العملية الأساسية نجحت
@@ -224,24 +234,28 @@ class SalaryWithdrawalsRepository {
   /// ✅ حذف سجل بواسطة expenseId
   Future<void> deleteByExpenseId(int expenseId) async {
     // جلب السجل قبل الحذف للحصول على localUuid
-    final existing = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.expenseId.equals(expenseId)))
-        .getSingleOrNull();
+    final existing = await (_db.select(
+      _db.salaryWithdrawals,
+    )..where((t) => t.expenseId.equals(expenseId))).getSingleOrNull();
 
     if (existing != null) {
       final now = DateTime.now().millisecondsSinceEpoch;
 
       // حذف من قاعدة البيانات المحلية
-      await (_db.delete(_db.salaryWithdrawals)
-            ..where((t) => t.expenseId.equals(expenseId)))
-          .go();
+      await (_db.delete(
+        _db.salaryWithdrawals,
+      )..where((t) => t.expenseId.equals(expenseId))).go();
 
       // ✅ 1. إضافة عملية حذف للـ Outbox
       await _outbox.merge(
         entity: 'salary_withdrawals',
         op: 'delete',
         localUuid: existing.localUuid,
-        payload: {'deleted': true, 'localUuid': existing.localUuid, 'deletedAt': now},
+        payload: {
+          'deleted': true,
+          'localUuid': existing.localUuid,
+          'deletedAt': now,
+        },
         clientTs: now ~/ 1000,
       );
 
@@ -265,21 +279,24 @@ class SalaryWithdrawalsRepository {
 
   /// جلب جميع السجلات
   Future<List<SalaryWithdrawal>> listAll() async {
-    return await (_db.select(_db.salaryWithdrawals)
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
+    return (_db.select(
+      _db.salaryWithdrawals,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
   }
 
   /// جلب سجل واحد بواسطة localUuid
   Future<SalaryWithdrawal?> getByUuid(String localUuid) async {
-    return await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.salaryWithdrawals,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
   /// تحويل السجل إلى JSON للإرسال
   Map<String, dynamic> toJson(SalaryWithdrawal record) {
-    return _adapters.salaryWithdrawals.adapter.toJson(record, src: Source.appwrite);
+    return _adapters.salaryWithdrawals.adapter.toJson(
+      record,
+      src: Source.appwrite,
+    );
   }
 
   /// ✅ إعادة بناء المرآة من قاعدة البيانات
@@ -300,13 +317,22 @@ class SalaryWithdrawalsRepository {
       for (final record in records) {
         final payload = toJson(record);
         final sortedPayload = _sortMapForHash(payload);
-        final rowHash = sha1.convert(utf8.encode(jsonEncode(sortedPayload))).toString();
+        final rowHash = sha1
+            .convert(utf8.encode(jsonEncode(sortedPayload)))
+            .toString();
 
         await _db.customStatement(
-          '''INSERT INTO sync_mirror 
+          '''
+INSERT INTO sync_mirror 
              (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
              VALUES (?, ?, ?, ?, ?)''',
-          ['salary_withdrawals', record.localUuid, rowHash, jsonEncode(payload), now],
+          [
+            'salary_withdrawals',
+            record.localUuid,
+            rowHash,
+            jsonEncode(payload),
+            now,
+          ],
         );
         count++;
       }

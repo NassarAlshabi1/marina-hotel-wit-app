@@ -40,10 +40,7 @@ class EnhancedBookingCalculationService {
   }) async {
     final moment = now ?? DateTime.now();
     final context = _resolveDateRange(booking, moment);
-    final breakdown = await _buildNightlyBreakdown(
-      booking,
-      context: context,
-    );
+    final breakdown = await _buildNightlyBreakdown(booking, context: context);
 
     final summary = await _buildFinancialSummary(
       booking,
@@ -97,11 +94,8 @@ class EnhancedBookingCalculationService {
     List<NightlyBreakdown>? breakdown,
   }) async {
     final context = _resolveDateRange(booking, now ?? DateTime.now());
-    final resolvedBreakdown = breakdown ??
-        await _buildNightlyBreakdown(
-          booking,
-          context: context,
-        );
+    final resolvedBreakdown =
+        breakdown ?? await _buildNightlyBreakdown(booking, context: context);
     await _replaceBookingNights(
       booking: booking,
       breakdown: resolvedBreakdown,
@@ -109,13 +103,10 @@ class EnhancedBookingCalculationService {
     );
   }
 
-  Future<void> recalculateAfterSync(
-    int bookingId, {
-    DateTime? now,
-  }) async {
-    final booking = await (db.select(db.bookings)
-          ..where((b) => b.id.equals(bookingId)))
-        .getSingleOrNull();
+  Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) return;
 
     final calculation = await calculateForBooking(booking, now: now);
@@ -156,15 +147,17 @@ class EnhancedBookingCalculationService {
     Booking booking, {
     required _BookingDateRange context,
   }) async {
-    final room = await (db.select(db.rooms)
-          ..where((r) => r.roomNumber.equals(booking.roomNumber))
-          ..where((r) => r.deletedAt.isNull()))
-        .getSingleOrNull();
+    final room =
+        await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(booking.roomNumber))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
     final int baseRate = _asInt(room?.price ?? 0);
 
     final adjustments = await _fetchActiveAdjustments(booking);
-    final legacyDiscount =
-        booking.discountType == 'total' ? 0 : _asInt(booking.discount);
+    final legacyDiscount = booking.discountType == 'total'
+        ? 0
+        : _asInt(booking.discount);
     final legacyDiscountStart = _parseDateTime(booking.discountStartDate);
 
     final segments = _buildNightSegments(context.checkin, context.checkout);
@@ -179,8 +172,9 @@ class EnhancedBookingCalculationService {
 
       for (final adj in adjustments) {
         final effectiveDate = DateTime.parse(adj.effectiveHotelDay);
-        final endDate =
-            adj.endHotelDay != null ? DateTime.parse(adj.endHotelDay!) : null;
+        final endDate = adj.endHotelDay != null
+            ? DateTime.parse(adj.endHotelDay!)
+            : null;
         if (!_isWithinRange(nightDate, effectiveDate, endDate)) {
           continue;
         }
@@ -247,8 +241,11 @@ class EnhancedBookingCalculationService {
       breakdown.add(
         NightlyBreakdown(
           hotelDayKey: Time.dateToString(
-            DateTime(context.checkin.year, context.checkin.month,
-                context.checkin.day),
+            DateTime(
+              context.checkin.year,
+              context.checkin.month,
+              context.checkin.day,
+            ),
           ),
           nightStart: context.checkin,
           nightEnd: context.checkout,
@@ -282,8 +279,9 @@ class EnhancedBookingCalculationService {
       (sum, night) => sum + night.finalRate,
     );
 
-    final totalDiscount =
-        booking.discountType == 'total' ? _asInt(booking.discount) : 0;
+    final totalDiscount = booking.discountType == 'total'
+        ? _asInt(booking.discount)
+        : 0;
     if (totalDiscount > 0) {
       totalDue = (totalDue - totalDiscount).clamp(0, totalDue);
       totalAdjustments -= totalDiscount;
@@ -304,20 +302,22 @@ class EnhancedBookingCalculationService {
   }
 
   Future<int> _getTotalPayments(Booking booking) async {
-    final payments = await (db.select(db.payments)
-          ..where(
-            (p) => (p.bookingLocalId.equals(booking.id) |
-                p.bookingUuidCache.equals(booking.localUuid)),
-          )
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isPendingBalance.equals(false))
-          ..where(
-            (p) =>
-                p.revenueType.equals('room') |
-                p.revenueType.equals('') |
-                p.revenueType.isNull(),
-          ))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              ..where(
+                (p) =>
+                    (p.bookingLocalId.equals(booking.id) |
+                    p.bookingUuidCache.equals(booking.localUuid)),
+              )
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isPendingBalance.equals(false))
+              ..where(
+                (p) =>
+                    p.revenueType.equals('room') |
+                    p.revenueType.equals('') |
+                    p.revenueType.isNull(),
+              ))
+            .get();
 
     return payments.fold<int>(0, (sum, p) => sum + _asInt(p.amount));
   }
@@ -327,7 +327,8 @@ class EnhancedBookingCalculationService {
   ) async {
     return (db.select(db.bookingPriceAdjustments)
           ..where(
-            (a) => (a.bookingLocalId.equals(booking.id) |
+            (a) =>
+                (a.bookingLocalId.equals(booking.id) |
                 a.bookingLocalUuid.equals(booking.localUuid)),
           )
           ..where((a) => a.isActive.equals(true))
@@ -346,16 +347,15 @@ class EnhancedBookingCalculationService {
 
     var shouldRebuild = forceRebuild;
     if (!shouldRebuild) {
-      final existing = await (db.select(db.bookingNights)
-            ..where((n) => n.bookingLocalId.equals(booking.id))
-            ..where((n) => n.deletedAt.isNull()))
-          .get();
+      final existing =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where((n) => n.deletedAt.isNull()))
+              .get();
       if (existing.length != breakdown.length) {
         shouldRebuild = true;
       } else {
-        final byDay = {
-          for (final night in existing) night.hotelDayKey: night,
-        };
+        final byDay = {for (final night in existing) night.hotelDayKey: night};
         for (final night in breakdown) {
           final current = byDay[night.hotelDayKey];
           if (current == null) {
@@ -385,9 +385,9 @@ class EnhancedBookingCalculationService {
 
     await db.transaction(() async {
       if (shouldRebuild) {
-        await (db.delete(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id)))
-            .go();
+        await (db.delete(
+          db.bookingNights,
+        )..where((n) => n.bookingLocalId.equals(booking.id))).go();
       }
 
       int sequence = 0;
@@ -473,7 +473,10 @@ class EnhancedBookingCalculationService {
     if (discountStartDate == null) return true;
     final nightDay = DateTime(nightDate.year, nightDate.month, nightDate.day);
     final discountDay = DateTime(
-        discountStartDate.year, discountStartDate.month, discountStartDate.day);
+      discountStartDate.year,
+      discountStartDate.month,
+      discountStartDate.day,
+    );
     return !nightDay.isBefore(discountDay);
   }
 
@@ -570,16 +573,12 @@ class EnhancedBookingCalculationService {
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1
           ? (checkout.isAfter(segStart)
-              ? checkout
-              : segStart.add(const Duration(minutes: 1)))
+                ? checkout
+                : segStart.add(const Duration(minutes: 1)))
           : nextDay;
 
       segments.add(
-        _NightSegment(
-          hotelDayKey: dayKey,
-          start: segStart,
-          end: segEnd,
-        ),
+        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
       );
     }
 

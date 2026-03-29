@@ -289,8 +289,8 @@ class _SmartSyncDashboardCardState
                           isSyncing
                               ? 'جارِ المزامنة...'
                               : isEnabled
-                                  ? 'مُفعلة'
-                                  : 'معطلة',
+                              ? 'مُفعلة'
+                              : 'معطلة',
                           style: TextStyle(
                             fontSize: 10,
                             color: isSyncing ? Colors.blue : Colors.grey,

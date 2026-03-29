@@ -40,10 +40,7 @@ class BackgroundSyncService {
     _config = config;
 
     // تسجيل معالج المهام في WorkManager
-    Workmanager().initialize(
-      _callbackDispatcher,
-      isInDebugMode: false,
-    );
+    Workmanager().initialize(_callbackDispatcher, isInDebugMode: false);
 
     _isInitialized = true;
     developer.log('BackgroundSyncService initialized', name: 'BackgroundSync');
@@ -65,8 +62,9 @@ class BackgroundSyncService {
       _syncTaskName,
       frequency: _config.autoSyncInterval,
       constraints: Constraints(
-        networkType:
-            _config.requireWifi ? NetworkType.connected : NetworkType.connected,
+        networkType: _config.requireWifi
+            ? NetworkType.connected
+            : NetworkType.connected,
         requiresBatteryNotLow: true,
         requiresCharging: _config.requireCharging,
         requiresDeviceIdle: false,
@@ -114,14 +112,18 @@ class BackgroundSyncService {
 
     final canSync = await _canRunBackgroundSync();
     if (!canSync) {
-      developer.log('Cannot run background sync - constraints not met',
-          name: 'BackgroundSync');
+      developer.log(
+        'Cannot run background sync - constraints not met',
+        name: 'BackgroundSync',
+      );
       return;
     }
 
     try {
-      developer.log('Running immediate background sync',
-          name: 'BackgroundSync');
+      developer.log(
+        'Running immediate background sync',
+        name: 'BackgroundSync',
+      );
       await _orchestrator!.performFullSync();
     } catch (e, stackTrace) {
       developer.log(

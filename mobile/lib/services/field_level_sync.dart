@@ -1,15 +1,14 @@
 // lib/services/field_level_sync.dart
 /// Field-Level Delta Sync System
 /// نظام مزامنة تفاضلية على مستوى الحقل
-/// 
+///
 /// الميزات:
 /// - تتبع تغييرات كل حقل على حدة
 /// - دمج ذكي للتعارضات
 /// - Vector Clock لكل حقل
 /// - حل التعارضات بناءً على النسخة والوقت
+library;
 
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 import 'local_db.dart';
 import 'vector_clock.dart';
@@ -32,6 +31,20 @@ class FieldChange {
     this.fieldType = FieldType.text,
   });
 
+  factory FieldChange.fromJson(Map<String, dynamic> json) => FieldChange(
+    fieldName: json['fieldName'] as String,
+    oldValue: _deserializeValue(json['oldValue'], json['fieldType']),
+    newValue: _deserializeValue(json['newValue'], json['fieldType']),
+    version: json['version'] as int,
+    timestamp: json['timestamp'] as int,
+    deviceId: json['deviceId'] as String,
+    vectorClock: json['vectorClock'] as String? ?? '{}',
+    fieldType: FieldType.values.firstWhere(
+      (e) => e.name == json['fieldType'],
+      orElse: () => FieldType.text,
+    ),
+  );
+
   final String fieldName;
   final dynamic oldValue;
   final dynamic newValue;
@@ -51,20 +64,6 @@ class FieldChange {
     'vectorClock': vectorClock,
     'fieldType': fieldType.name,
   };
-
-  factory FieldChange.fromJson(Map<String, dynamic> json) => FieldChange(
-    fieldName: json['fieldName'] as String,
-    oldValue: _deserializeValue(json['oldValue'], json['fieldType']),
-    newValue: _deserializeValue(json['newValue'], json['fieldType']),
-    version: json['version'] as int,
-    timestamp: json['timestamp'] as int,
-    deviceId: json['deviceId'] as String,
-    vectorClock: json['vectorClock'] as String? ?? '{}',
-    fieldType: FieldType.values.firstWhere(
-      (e) => e.name == json['fieldType'],
-      orElse: () => FieldType.text,
-    ),
-  );
 
   static dynamic _serializeValue(dynamic value) {
     if (value == null) return null;
@@ -91,14 +90,7 @@ class FieldChange {
 }
 
 /// أنواع الحقول
-enum FieldType {
-  text,
-  integer,
-  real,
-  boolean,
-  datetime,
-  json,
-}
+enum FieldType { text, integer, real, boolean, datetime, json }
 
 /// نتيجة حساب الفروقات على مستوى الحقل
 class FieldLevelDiff {
@@ -120,15 +112,19 @@ class FieldLevelDiff {
   bool get isNotEmpty => changedFields.isNotEmpty;
 
   List<FieldChange> toFieldChanges(String deviceId) {
-    return changedFields.entries.map((e) => FieldChange(
-      fieldName: e.key,
-      oldValue: null, // لا نحتاج القيمة القديمة للإرسال
-      newValue: e.value,
-      version: fieldVersions[e.key] ?? 1,
-      timestamp: fieldTimestamps[e.key] ?? 0,
-      deviceId: fieldDevices[e.key] ?? deviceId,
-      vectorClock: fieldVectorClocks[e.key] ?? '{}',
-    )).toList();
+    return changedFields.entries
+        .map(
+          (e) => FieldChange(
+            fieldName: e.key,
+            oldValue: null, // لا نحتاج القيمة القديمة للإرسال
+            newValue: e.value,
+            version: fieldVersions[e.key] ?? 1,
+            timestamp: fieldTimestamps[e.key] ?? 0,
+            deviceId: fieldDevices[e.key] ?? deviceId,
+            vectorClock: fieldVectorClocks[e.key] ?? '{}',
+          ),
+        )
+        .toList();
   }
 }
 
@@ -185,33 +181,22 @@ class FieldSyncConfig {
     required this.mergeStrategies,
   });
 
-  final String entityName;
-  final Set<String> trackableFields;
-  final Set<String> criticalFields;
-  final Set<String> ignoredFields;
-  final Map<String, FieldType> fieldTypes;
-  final Map<String, FieldMergeStrategy> mergeStrategies;
-
-  /// حقول النظام التي لا يتم تتبعها
-  static const systemFields = {
-    'id', 'local_id', 'localUuid', 'serverId',
-    'createdAt', 'updatedAt', 'deletedAt',
-    'createdAtIso', 'updatedAtIso', 'deletedAtIso',
-    'createdAtEpoch', 'lastModifiedEpoch',
-    'version', 'origin', 'vectorClock',
-    'lastModified',
-  };
-
   factory FieldSyncConfig.forEntity(String entityName) {
     switch (entityName) {
       case 'rooms':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'rooms',
           trackableFields: {
-            'roomNumber', 'type', 'price', 'status',
-            'cleaningStatus', 'lastCleanedHotelDay',
-            'lastOccupiedHotelDay', 'requiresMaintenance',
-            'imageUrl', 'floor',
+            'roomNumber',
+            'type',
+            'price',
+            'status',
+            'cleaningStatus',
+            'lastCleanedHotelDay',
+            'lastOccupiedHotelDay',
+            'requiresMaintenance',
+            'imageUrl',
+            'floor',
           },
           criticalFields: {'status', 'price', 'roomNumber'},
           ignoredFields: systemFields,
@@ -227,21 +212,45 @@ class FieldSyncConfig {
         );
 
       case 'bookings':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'bookings',
           trackableFields: {
-            'roomNumber', 'guestName', 'guestPhone', 'guestNationality',
-            'guestIdType', 'guestIdNumber', 'guestIdIssueDate', 'guestIdIssuePlace',
-            'checkinDate', 'checkoutDate', 'actualCheckout',
-            'status', 'notes', 'discount', 'discountType', 'discountStartDate',
-            'expectedNights', 'calculatedNights', 'totalNightsCached',
-            'stayDurationIso', 'totalDueCached', 'totalPaidCached',
-            'remainingBalanceCached', 'isFullyPaid', 'isOverdue',
-            'hotelDayCheckin', 'hotelDayCheckout',
+            'roomNumber',
+            'guestName',
+            'guestPhone',
+            'guestNationality',
+            'guestIdType',
+            'guestIdNumber',
+            'guestIdIssueDate',
+            'guestIdIssuePlace',
+            'checkinDate',
+            'checkoutDate',
+            'actualCheckout',
+            'status',
+            'notes',
+            'discount',
+            'discountType',
+            'discountStartDate',
+            'expectedNights',
+            'calculatedNights',
+            'totalNightsCached',
+            'stayDurationIso',
+            'totalDueCached',
+            'totalPaidCached',
+            'remainingBalanceCached',
+            'isFullyPaid',
+            'isOverdue',
+            'hotelDayCheckin',
+            'hotelDayCheckout',
           },
           criticalFields: {
-            'status', 'checkoutDate', 'actualCheckout', 'roomNumber',
-            'totalDueCached', 'totalPaidCached', 'remainingBalanceCached',
+            'status',
+            'checkoutDate',
+            'actualCheckout',
+            'roomNumber',
+            'totalDueCached',
+            'totalPaidCached',
+            'remainingBalanceCached',
             'isFullyPaid',
           },
           ignoredFields: systemFields,
@@ -268,12 +277,19 @@ class FieldSyncConfig {
         );
 
       case 'payments':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'payments',
           trackableFields: {
-            'amount', 'paymentDate', 'notes', 'paymentMethod',
-            'revenueType', 'roomNumber', 'referenceNumber',
-            'hotelDayKey', 'isPendingBalance', 'linkedDebtUuid',
+            'amount',
+            'paymentDate',
+            'notes',
+            'paymentMethod',
+            'revenueType',
+            'roomNumber',
+            'referenceNumber',
+            'hotelDayKey',
+            'isPendingBalance',
+            'linkedDebtUuid',
           },
           criticalFields: {'amount', 'paymentDate', 'paymentMethod'},
           ignoredFields: systemFields,
@@ -288,17 +304,19 @@ class FieldSyncConfig {
         );
 
       case 'employees':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'employees',
           trackableFields: {
-            'name', 'basicSalary', 'position', 'phone',
-            'hireDate', 'status',
+            'name',
+            'basicSalary',
+            'position',
+            'phone',
+            'hireDate',
+            'status',
           },
           criticalFields: {'basicSalary', 'status', 'name'},
           ignoredFields: systemFields,
-          fieldTypes: {
-            'basicSalary': FieldType.real,
-          },
+          fieldTypes: {'basicSalary': FieldType.real},
           mergeStrategies: {
             'basicSalary': FieldMergeStrategy.lastWriteWins,
             'status': FieldMergeStrategy.lastWriteWins,
@@ -306,11 +324,16 @@ class FieldSyncConfig {
         );
 
       case 'expenses':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'expenses',
           trackableFields: {
-            'expenseType', 'description', 'amount', 'date',
-            'hotelDayKey', 'categoryUuid', 'isAutoGenerated',
+            'expenseType',
+            'description',
+            'amount',
+            'date',
+            'hotelDayKey',
+            'categoryUuid',
+            'isAutoGenerated',
           },
           criticalFields: {'amount', 'date', 'expenseType'},
           ignoredFields: systemFields,
@@ -318,21 +341,32 @@ class FieldSyncConfig {
             'amount': FieldType.real,
             'isAutoGenerated': FieldType.boolean,
           },
-          mergeStrategies: {
-            'amount': FieldMergeStrategy.lastWriteWins,
-          },
+          mergeStrategies: {'amount': FieldMergeStrategy.lastWriteWins},
         );
 
       case 'debts':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'debts',
           trackableFields: {
-            'guestName', 'checkinDate', 'checkoutDate', 'dateRecorded',
-            'debtReason', 'totalAmount', 'paidAmount', 'remainingAmount',
-            'paymentDate', 'isSettled', 'pledge', 'pledgeType', 'note',
+            'guestName',
+            'checkinDate',
+            'checkoutDate',
+            'dateRecorded',
+            'debtReason',
+            'totalAmount',
+            'paidAmount',
+            'remainingAmount',
+            'paymentDate',
+            'isSettled',
+            'pledge',
+            'pledgeType',
+            'note',
           },
           criticalFields: {
-            'totalAmount', 'paidAmount', 'remainingAmount', 'isSettled',
+            'totalAmount',
+            'paidAmount',
+            'remainingAmount',
+            'isSettled',
           },
           ignoredFields: systemFields,
           fieldTypes: {
@@ -349,17 +383,21 @@ class FieldSyncConfig {
         );
 
       case 'shift_notes':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'shift_notes',
           trackableFields: {
-            'title', 'content', 'priority', 'shiftType',
-            'isRead', 'expiresAt', 'createdBy', 'shiftDate',
+            'title',
+            'content',
+            'priority',
+            'shiftType',
+            'isRead',
+            'expiresAt',
+            'createdBy',
+            'shiftDate',
           },
           criticalFields: {'content', 'priority'},
           ignoredFields: systemFields,
-          fieldTypes: {
-            'isRead': FieldType.integer,
-          },
+          fieldTypes: {'isRead': FieldType.integer},
           mergeStrategies: {
             'content': FieldMergeStrategy.semanticMerge,
             'priority': FieldMergeStrategy.lastWriteWins,
@@ -367,40 +405,33 @@ class FieldSyncConfig {
         );
 
       case 'booking_notes':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'booking_notes',
-          trackableFields: {
-            'noteText', 'alertType', 'alertUntil', 'isActive',
-          },
+          trackableFields: {'noteText', 'alertType', 'alertUntil', 'isActive'},
           criticalFields: {'noteText', 'alertType'},
           ignoredFields: systemFields,
-          fieldTypes: {
-            'isActive': FieldType.integer,
-          },
-          mergeStrategies: {
-            'noteText': FieldMergeStrategy.semanticMerge,
-          },
+          fieldTypes: {'isActive': FieldType.integer},
+          mergeStrategies: {'noteText': FieldMergeStrategy.semanticMerge},
         );
 
       case 'cash_transactions':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'cash_transactions',
           trackableFields: {
-            'transactionType', 'amount', 'referenceType',
-            'description', 'transactionTime',
+            'transactionType',
+            'amount',
+            'referenceType',
+            'description',
+            'transactionTime',
           },
           criticalFields: {'amount', 'transactionType'},
           ignoredFields: systemFields,
-          fieldTypes: {
-            'amount': FieldType.real,
-          },
-          mergeStrategies: {
-            'amount': FieldMergeStrategy.lastWriteWins,
-          },
+          fieldTypes: {'amount': FieldType.real},
+          mergeStrategies: {'amount': FieldMergeStrategy.lastWriteWins},
         );
 
       case 'salary_cycles':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'salary_cycles',
           trackableFields: {
             'cycleKey', 'hotelDayStart', 'hotelDayEnd',
@@ -415,13 +446,11 @@ class FieldSyncConfig {
             'actualPaid': FieldType.integer,
             'remainingAmount': FieldType.integer,
           },
-          mergeStrategies: {
-            'actualPaid': FieldMergeStrategy.highestWins,
-          },
+          mergeStrategies: {'actualPaid': FieldMergeStrategy.highestWins},
         );
 
       case 'salary_payments':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'salary_payments',
           trackableFields: {
             // ❌ تم إزالة amount - غير موجودة في Appwrite
@@ -430,37 +459,33 @@ class FieldSyncConfig {
           },
           criticalFields: {'paymentDateIso'},
           ignoredFields: systemFields,
-          fieldTypes: {
-            'isAutoGenerated': FieldType.boolean,
-          },
-          mergeStrategies: {
-            'paymentDateIso': FieldMergeStrategy.lastWriteWins,
-          },
+          fieldTypes: {'isAutoGenerated': FieldType.boolean},
+          mergeStrategies: {'paymentDateIso': FieldMergeStrategy.lastWriteWins},
         );
 
       case 'salary_withdrawals':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'salary_withdrawals',
-          trackableFields: {
-            'action', 'amount', 'note', 'date',
-          },
+          trackableFields: {'action', 'amount', 'note', 'date'},
           criticalFields: {'amount', 'action'},
           ignoredFields: systemFields,
-          fieldTypes: {
-            'amount': FieldType.real,
-          },
-          mergeStrategies: {
-            'amount': FieldMergeStrategy.lastWriteWins,
-          },
+          fieldTypes: {'amount': FieldType.real},
+          mergeStrategies: {'amount': FieldMergeStrategy.lastWriteWins},
         );
 
       case 'booking_nights':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'booking_nights',
           trackableFields: {
-            'hotelDayKey', 'nightStart', 'nightEnd',
-            'nightlyRate', 'sequence', 'isProcessedByAutoFix',
-            'baseRate', 'adjustment', 'finalRate',
+            'hotelDayKey',
+            'nightStart',
+            'nightEnd',
+            'nightlyRate',
+            'sequence',
+            'isProcessedByAutoFix',
+            'baseRate',
+            'adjustment',
+            'finalRate',
           },
           criticalFields: {'nightlyRate', 'finalRate'},
           ignoredFields: systemFields,
@@ -479,7 +504,7 @@ class FieldSyncConfig {
         );
 
       case 'booking_price_adjustments':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'booking_price_adjustments',
           trackableFields: {
             'adjustmentType', 'adjustmentMode',
@@ -493,21 +518,28 @@ class FieldSyncConfig {
             'adjustmentType': FieldType.integer,
             'isActive': FieldType.boolean,
           },
-          mergeStrategies: {
-            'isActive': FieldMergeStrategy.lastWriteWins,
-          },
+          mergeStrategies: {'isActive': FieldMergeStrategy.lastWriteWins},
         );
 
       // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
       case 'price_adjustments':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'price_adjustments',
           trackableFields: {
-            'targetType', 'targetUuid', 'adjustmentType',
-            'previousValue', 'newValue', 'reason',
-            'effectiveDate', 'appliedBy', 'hotelDayKey',
-            'roomNumber', 'isReversed', 'reversedAt', 'reversedBy',
+            'targetType',
+            'targetUuid',
+            'adjustmentType',
+            'previousValue',
+            'newValue',
+            'reason',
+            'effectiveDate',
+            'appliedBy',
+            'hotelDayKey',
+            'roomNumber',
+            'isReversed',
+            'reversedAt',
+            'reversedBy',
           },
           criticalFields: {'previousValue', 'newValue', 'isReversed'},
           ignoredFields: systemFields,
@@ -516,19 +548,24 @@ class FieldSyncConfig {
             'newValue': FieldType.integer,
             'isReversed': FieldType.boolean,
           },
-          mergeStrategies: {
-            'isReversed': FieldMergeStrategy.lastWriteWins,
-          },
+          mergeStrategies: {'isReversed': FieldMergeStrategy.lastWriteWins},
         );
 
       case 'payment_voids':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'payment_voids',
           trackableFields: {
-            'originalPaymentUuid', 'originalPaymentId', 'bookingUuid',
-            'voidedAmount', 'voidReason', 'voidedBy',
-            'voidedAt', 'voidedAtIso', 'hotelDayKey',
-            'reversalPaymentUuid', 'approvedBy',
+            'originalPaymentUuid',
+            'originalPaymentId',
+            'bookingUuid',
+            'voidedAmount',
+            'voidReason',
+            'voidedBy',
+            'voidedAt',
+            'voidedAtIso',
+            'hotelDayKey',
+            'reversalPaymentUuid',
+            'approvedBy',
           },
           criticalFields: {'voidedAmount', 'voidReason', 'originalPaymentUuid'},
           ignoredFields: systemFields,
@@ -537,19 +574,28 @@ class FieldSyncConfig {
             'voidedAt': FieldType.integer,
             'originalPaymentId': FieldType.integer,
           },
-          mergeStrategies: {
-            'voidedAmount': FieldMergeStrategy.lastWriteWins,
-          },
+          mergeStrategies: {'voidedAmount': FieldMergeStrategy.lastWriteWins},
         );
 
       case 'audit_logs':
-        return FieldSyncConfig(
+        return const FieldSyncConfig(
           entityName: 'audit_logs',
           trackableFields: {
-            'operationType', 'entityType', 'entityUuid', 'entityId',
-            'previousState', 'newState', 'changedFields',
-            'performedBy', 'deviceId', 'ipAddress', 'hotelDayKey',
-            'timestamp', 'timestampIso', 'isFinancial', 'amountImpact',
+            'operationType',
+            'entityType',
+            'entityUuid',
+            'entityId',
+            'previousState',
+            'newState',
+            'changedFields',
+            'performedBy',
+            'deviceId',
+            'ipAddress',
+            'hotelDayKey',
+            'timestamp',
+            'timestampIso',
+            'isFinancial',
+            'amountImpact',
           },
           criticalFields: {'operationType', 'entityType', 'entityUuid'},
           ignoredFields: {'id', 'localUuid', 'createdAt'},
@@ -575,15 +621,42 @@ class FieldSyncConfig {
         );
     }
   }
+
+  final String entityName;
+  final Set<String> trackableFields;
+  final Set<String> criticalFields;
+  final Set<String> ignoredFields;
+  final Map<String, FieldType> fieldTypes;
+  final Map<String, FieldMergeStrategy> mergeStrategies;
+
+  /// حقول النظام التي لا يتم تتبعها
+  static const systemFields = {
+    'id',
+    'local_id',
+    'localUuid',
+    'serverId',
+    'createdAt',
+    'updatedAt',
+    'deletedAt',
+    'createdAtIso',
+    'updatedAtIso',
+    'deletedAtIso',
+    'createdAtEpoch',
+    'lastModifiedEpoch',
+    'version',
+    'origin',
+    'vectorClock',
+    'lastModified',
+  };
 }
 
 /// استراتيجية دمج الحقول
 enum FieldMergeStrategy {
-  lastWriteWins,      // آخر كتابة تفوز
-  highestWins,        // القيمة الأعلى تفوز
-  lowestWins,         // القيمة الأقل تفوز
-  semanticMerge,      // دمج دلالي (للنصوص والقوائم)
-  vectorClockWins,    // Vector Clock يقرر
+  lastWriteWins, // آخر كتابة تفوز
+  highestWins, // القيمة الأعلى تفوز
+  lowestWins, // القيمة الأقل تفوز
+  semanticMerge, // دمج دلالي (للنصوص والقوائم)
+  vectorClockWins, // Vector Clock يقرر
 }
 
 // ============================================================================
@@ -592,13 +665,11 @@ enum FieldMergeStrategy {
 
 /// متتبع تغييرات الحقول
 class FieldLevelTracker {
-  FieldLevelTracker({
-    required this.deviceId,
-    this.onFieldChange,
-  });
+  FieldLevelTracker({required this.deviceId, this.onFieldChange});
 
   final String deviceId;
-  final void Function(String entity, String uuid, FieldChange change)? onFieldChange;
+  final void Function(String entity, String uuid, FieldChange change)?
+  onFieldChange;
 
   /// تكوينات الحقول المخزنة مؤقتاً
   final Map<String, FieldSyncConfig> _configs = {};
@@ -633,8 +704,10 @@ class FieldLevelTracker {
       // تجاهل حقول النظام
       if (config.ignoredFields.contains(key)) continue;
       // تجاهل الحقول غير القابلة للتتبع
-      if (config.trackableFields.isNotEmpty && 
-          !config.trackableFields.contains(key)) continue;
+      if (config.trackableFields.isNotEmpty &&
+          !config.trackableFields.contains(key)) {
+        continue;
+      }
 
       final oldValue = oldData[key];
       final newValue = newData[key];
@@ -642,16 +715,16 @@ class FieldLevelTracker {
       // إذا تغير الحقل
       if (!_valuesEqual(oldValue, newValue)) {
         changedFields[key] = newValue;
-        
+
         final oldVersion = oldFieldVersions[key] ?? 0;
         fieldVersions[key] = oldVersion + 1;
         fieldTimestamps[key] = now;
-        
+
         // تحديث Vector Clock
         final oldVc = VectorClock.fromJson(oldFieldVectorClocks[key] ?? '{}');
         final newVc = oldVc.increment(deviceId);
         fieldVectorClocks[key] = newVc.toJson();
-        
+
         fieldDevices[key] = deviceId;
       }
     }
@@ -701,10 +774,7 @@ class FieldLevelTracker {
     final mergedVectorClocks = <String, String>{};
     final conflicts = <FieldConflict>[];
 
-    final allKeys = <String>{
-      ...localData.keys,
-      ...remoteData.keys,
-    };
+    final allKeys = <String>{...localData.keys, ...remoteData.keys};
 
     for (final key in allKeys) {
       // تجاهل حقول النظام - نستخدم القيمة المحلية
@@ -714,7 +784,7 @@ class FieldLevelTracker {
       }
 
       // تجاهل الحقول غير القابلة للتتبع
-      if (config.trackableFields.isNotEmpty && 
+      if (config.trackableFields.isNotEmpty &&
           !config.trackableFields.contains(key)) {
         merged[key] = localData[key] ?? remoteData[key];
         continue;
@@ -754,7 +824,8 @@ class FieldLevelTracker {
       }
 
       // تعارض حقيقي - حل باستخدام الاستراتيجية
-      final strategy = config.mergeStrategies[key] ?? FieldMergeStrategy.lastWriteWins;
+      final strategy =
+          config.mergeStrategies[key] ?? FieldMergeStrategy.lastWriteWins;
       final resolution = _resolveFieldConflict(
         key: key,
         localValue: localValue,
@@ -778,13 +849,15 @@ class FieldLevelTracker {
       mergedVectorClocks[key] = resolution.vectorClock;
 
       if (resolution.hadConflict) {
-        conflicts.add(FieldConflict(
-          fieldName: key,
-          localValue: localValue,
-          remoteValue: remoteValue,
-          winner: resolution.winner,
-          resolutionStrategy: strategy.name,
-        ));
+        conflicts.add(
+          FieldConflict(
+            fieldName: key,
+            localValue: localValue,
+            remoteValue: remoteValue,
+            winner: resolution.winner,
+            resolutionStrategy: strategy.name,
+          ),
+        );
       }
     }
 
@@ -814,7 +887,7 @@ class FieldLevelTracker {
     required FieldMergeStrategy strategy,
     required bool isCritical,
   }) {
-    bool hadConflict = true;
+    const bool hadConflict = true;
 
     // 1. محاولة Vector Clock أولاً
     final localVC = VectorClock.fromJson(localVectorClock);
@@ -916,7 +989,8 @@ class FieldLevelTracker {
         final merged = _trySemanticMerge(localValue, remoteValue);
         return _FieldResolution(
           winner: merged,
-          version: (localVersion > remoteVersion ? localVersion : remoteVersion) + 1,
+          version:
+              (localVersion > remoteVersion ? localVersion : remoteVersion) + 1,
           timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
           deviceId: deviceId,
           vectorClock: localVC.merge(remoteVC).increment(deviceId).toJson(),
@@ -1008,15 +1082,18 @@ class FieldVersionsDao {
   ) async {
     final query = db.customSelect(
       'SELECT field_name, version FROM field_versions WHERE entity_name = ? AND record_uuid = ?',
-      variables: [Variable.withString(entityName), Variable.withString(recordUuid)],
+      variables: [
+        Variable.withString(entityName),
+        Variable.withString(recordUuid),
+      ],
     );
 
     final rows = await query.get();
     return Map.fromEntries(
-      rows.map((row) => MapEntry(
-        row.read<String>('field_name'),
-        row.read<int>('version'),
-      )),
+      rows.map(
+        (row) =>
+            MapEntry(row.read<String>('field_name'), row.read<int>('version')),
+      ),
     );
   }
 
@@ -1027,15 +1104,20 @@ class FieldVersionsDao {
   ) async {
     final query = db.customSelect(
       'SELECT field_name, timestamp FROM field_versions WHERE entity_name = ? AND record_uuid = ?',
-      variables: [Variable.withString(entityName), Variable.withString(recordUuid)],
+      variables: [
+        Variable.withString(entityName),
+        Variable.withString(recordUuid),
+      ],
     );
 
     final rows = await query.get();
     return Map.fromEntries(
-      rows.map((row) => MapEntry(
-        row.read<String>('field_name'),
-        row.read<int>('timestamp'),
-      )),
+      rows.map(
+        (row) => MapEntry(
+          row.read<String>('field_name'),
+          row.read<int>('timestamp'),
+        ),
+      ),
     );
   }
 
@@ -1046,15 +1128,20 @@ class FieldVersionsDao {
   ) async {
     final query = db.customSelect(
       'SELECT field_name, vector_clock FROM field_versions WHERE entity_name = ? AND record_uuid = ?',
-      variables: [Variable.withString(entityName), Variable.withString(recordUuid)],
+      variables: [
+        Variable.withString(entityName),
+        Variable.withString(recordUuid),
+      ],
     );
 
     final rows = await query.get();
     return Map.fromEntries(
-      rows.map((row) => MapEntry(
-        row.read<String>('field_name'),
-        row.read<String>('vector_clock'),
-      )),
+      rows.map(
+        (row) => MapEntry(
+          row.read<String>('field_name'),
+          row.read<String>('vector_clock'),
+        ),
+      ),
     );
   }
 
@@ -1065,15 +1152,20 @@ class FieldVersionsDao {
   ) async {
     final query = db.customSelect(
       'SELECT field_name, device_id FROM field_versions WHERE entity_name = ? AND record_uuid = ?',
-      variables: [Variable.withString(entityName), Variable.withString(recordUuid)],
+      variables: [
+        Variable.withString(entityName),
+        Variable.withString(recordUuid),
+      ],
     );
 
     final rows = await query.get();
     return Map.fromEntries(
-      rows.map((row) => MapEntry(
-        row.read<String>('field_name'),
-        row.read<String>('device_id'),
-      )),
+      rows.map(
+        (row) => MapEntry(
+          row.read<String>('field_name'),
+          row.read<String>('device_id'),
+        ),
+      ),
     );
   }
 
@@ -1094,19 +1186,25 @@ class FieldVersionsDao {
       final deviceId = devices[fieldName] ?? '';
 
       await db.customStatement(
-        '''INSERT OR REPLACE INTO field_versions 
+        '''
+INSERT OR REPLACE INTO field_versions 
            (entity_name, record_uuid, field_name, version, timestamp, vector_clock, device_id)
            VALUES (?, ?, ?, ?, ?, ?, ?)''',
-        [entityName, recordUuid, fieldName, version, timestamp, vectorClock, deviceId],
+        [
+          entityName,
+          recordUuid,
+          fieldName,
+          version,
+          timestamp,
+          vectorClock,
+          deviceId,
+        ],
       );
     }
   }
 
   /// حذف نسخ حقول سجل معين
-  Future<void> deleteFieldVersions(
-    String entityName,
-    String recordUuid,
-  ) async {
+  Future<void> deleteFieldVersions(String entityName, String recordUuid) async {
     await db.customStatement(
       'DELETE FROM field_versions WHERE entity_name = ? AND record_uuid = ?',
       [entityName, recordUuid],
@@ -1141,11 +1239,6 @@ class FieldMetadata {
     required this.devices,
   });
 
-  final Map<String, int> versions;
-  final Map<String, int> timestamps;
-  final Map<String, String> vectorClocks;
-  final Map<String, String> devices;
-
   /// إنشاء metadata فارغ
   factory FieldMetadata.empty() => const FieldMetadata(
     versions: {},
@@ -1154,14 +1247,6 @@ class FieldMetadata {
     devices: {},
   );
 
-  /// تحويل إلى JSON للحفظ
-  Map<String, dynamic> toJson() => {
-    'versions': versions,
-    'timestamps': timestamps,
-    'vectorClocks': vectorClocks,
-    'devices': devices,
-  };
-
   /// إنشاء من JSON
   factory FieldMetadata.fromJson(Map<String, dynamic> json) => FieldMetadata(
     versions: Map<String, int>.from(json['versions'] ?? {}),
@@ -1169,4 +1254,17 @@ class FieldMetadata {
     vectorClocks: Map<String, String>.from(json['vectorClocks'] ?? {}),
     devices: Map<String, String>.from(json['devices'] ?? {}),
   );
+
+  final Map<String, int> versions;
+  final Map<String, int> timestamps;
+  final Map<String, String> vectorClocks;
+  final Map<String, String> devices;
+
+  /// تحويل إلى JSON للحفظ
+  Map<String, dynamic> toJson() => {
+    'versions': versions,
+    'timestamps': timestamps,
+    'vectorClocks': vectorClocks,
+    'devices': devices,
+  };
 }

@@ -42,8 +42,9 @@ class SyncWorker {
       existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
 
-    developer
-        .log('✅ تم جدولة المزامنة الدورية كل ${frequency.inMinutes} دقيقة');
+    developer.log(
+      '✅ تم جدولة المزامنة الدورية كل ${frequency.inMinutes} دقيقة',
+    );
   }
 
   /// إلغاء المزامنة الدورية
@@ -59,9 +60,7 @@ class SyncWorker {
     await Workmanager().registerOneOffTask(
       'sync-${DateTime.now().millisecondsSinceEpoch}',
       taskName,
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingWorkPolicy.replace,
     );
   }

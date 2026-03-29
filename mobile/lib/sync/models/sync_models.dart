@@ -56,24 +56,24 @@ class DeltaChange {
   });
 
   factory DeltaChange.fromJson(Map<String, dynamic> json) => DeltaChange(
-        id: json['id'] as String,
-        table: json['table'] as String,
-        uuid: json['uuid'] as String,
-        operation: SyncOperation.values.firstWhere(
-          (e) => e.name == json['operation'],
-          orElse: () => SyncOperation.update,
-        ),
-        payload: Map<String, dynamic>.from(json['payload'] as Map),
-        timestamp: DateTime.parse(json['timestamp'] as String),
-        vectorClock: json['vectorClock'] as String,
-        checksum: json['checksum'] as String?,
-        deviceId: json['deviceId'] as String?,
-        retryCount: json['retryCount'] as int? ?? 0,
-        lastError: json['lastError'] as String?,
-        nextRetryAt: json['nextRetryAt'] != null
-            ? DateTime.parse(json['nextRetryAt'] as String)
-            : null,
-      );
+    id: json['id'] as String,
+    table: json['table'] as String,
+    uuid: json['uuid'] as String,
+    operation: SyncOperation.values.firstWhere(
+      (e) => e.name == json['operation'],
+      orElse: () => SyncOperation.update,
+    ),
+    payload: Map<String, dynamic>.from(json['payload'] as Map),
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    vectorClock: json['vectorClock'] as String,
+    checksum: json['checksum'] as String?,
+    deviceId: json['deviceId'] as String?,
+    retryCount: json['retryCount'] as int? ?? 0,
+    lastError: json['lastError'] as String?,
+    nextRetryAt: json['nextRetryAt'] != null
+        ? DateTime.parse(json['nextRetryAt'] as String)
+        : null,
+  );
   final String id;
   final String table;
   final String uuid;
@@ -88,19 +88,19 @@ class DeltaChange {
   final DateTime? nextRetryAt;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'table': table,
-        'uuid': uuid,
-        'operation': operation.name,
-        'payload': payload,
-        'timestamp': timestamp.toIso8601String(),
-        'vectorClock': vectorClock,
-        'checksum': checksum,
-        'deviceId': deviceId,
-        'retryCount': retryCount,
-        'lastError': lastError,
-        'nextRetryAt': nextRetryAt?.toIso8601String(),
-      };
+    'id': id,
+    'table': table,
+    'uuid': uuid,
+    'operation': operation.name,
+    'payload': payload,
+    'timestamp': timestamp.toIso8601String(),
+    'vectorClock': vectorClock,
+    'checksum': checksum,
+    'deviceId': deviceId,
+    'retryCount': retryCount,
+    'lastError': lastError,
+    'nextRetryAt': nextRetryAt?.toIso8601String(),
+  };
 }
 
 /// نتيجة مزامنة دلتا
@@ -147,15 +147,15 @@ class DeltaSyncResult {
   }
 
   Map<String, dynamic> toJson() => {
-        'success': success,
-        'uploadedCount': uploadedCount,
-        'downloadedCount': downloadedCount,
-        'conflictCount': conflictCount,
-        'errorCount': errorCount,
-        'conflicts': conflicts.map((c) => c.toJson()).toList(),
-        'errors': errors,
-        'timestamp': timestamp?.toIso8601String(),
-      };
+    'success': success,
+    'uploadedCount': uploadedCount,
+    'downloadedCount': downloadedCount,
+    'conflictCount': conflictCount,
+    'errorCount': errorCount,
+    'conflicts': conflicts.map((c) => c.toJson()).toList(),
+    'errors': errors,
+    'timestamp': timestamp?.toIso8601String(),
+  };
 }
 
 /// تعارض مزامنة
@@ -173,24 +173,25 @@ class SyncConflict {
   });
 
   factory SyncConflict.fromJson(Map<String, dynamic> json) => SyncConflict(
-        id: json['id'] as String,
-        table: json['table'] as String,
-        uuid: json['uuid'] as String,
-        remoteChange: DeltaChange.fromJson(
-            Map<String, dynamic>.from(json['remoteChange'] as Map)),
-        localRecord: Map<String, dynamic>.from(json['localRecord'] as Map),
-        detectedAt: DateTime.parse(json['detectedAt'] as String),
-        resolution: json['resolution'] != null
-            ? ConflictResolution.values.firstWhere(
-                (e) => e.name == json['resolution'],
-                orElse: () => ConflictResolution.manual,
-              )
-            : null,
-        resolvedBy: json['resolvedBy'] as String?,
-        resolvedAt: json['resolvedAt'] != null
-            ? DateTime.parse(json['resolvedAt'] as String)
-            : null,
-      );
+    id: json['id'] as String,
+    table: json['table'] as String,
+    uuid: json['uuid'] as String,
+    remoteChange: DeltaChange.fromJson(
+      Map<String, dynamic>.from(json['remoteChange'] as Map),
+    ),
+    localRecord: Map<String, dynamic>.from(json['localRecord'] as Map),
+    detectedAt: DateTime.parse(json['detectedAt'] as String),
+    resolution: json['resolution'] != null
+        ? ConflictResolution.values.firstWhere(
+            (e) => e.name == json['resolution'],
+            orElse: () => ConflictResolution.manual,
+          )
+        : null,
+    resolvedBy: json['resolvedBy'] as String?,
+    resolvedAt: json['resolvedAt'] != null
+        ? DateTime.parse(json['resolvedAt'] as String)
+        : null,
+  );
   final String id;
   final String table;
   final String uuid;
@@ -202,16 +203,16 @@ class SyncConflict {
   final DateTime? resolvedAt;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'table': table,
-        'uuid': uuid,
-        'remoteChange': remoteChange.toJson(),
-        'localRecord': localRecord,
-        'detectedAt': detectedAt.toIso8601String(),
-        'resolution': resolution?.name,
-        'resolvedBy': resolvedBy,
-        'resolvedAt': resolvedAt?.toIso8601String(),
-      };
+    'id': id,
+    'table': table,
+    'uuid': uuid,
+    'remoteChange': remoteChange.toJson(),
+    'localRecord': localRecord,
+    'detectedAt': detectedAt.toIso8601String(),
+    'resolution': resolution?.name,
+    'resolvedBy': resolvedBy,
+    'resolvedAt': resolvedAt?.toIso8601String(),
+  };
 }
 
 /// حل التعارض
@@ -303,13 +304,13 @@ class SyncStats {
   final Map<String, int> byTable;
 
   Map<String, dynamic> toJson() => {
-        'lastSyncAt': lastSyncAt.toIso8601String(),
-        'totalSynced': totalSynced,
-        'totalConflicts': totalConflicts,
-        'totalErrors': totalErrors,
-        'averageSyncTimeMs': averageSyncTime.inMilliseconds,
-        'byTable': byTable,
-      };
+    'lastSyncAt': lastSyncAt.toIso8601String(),
+    'totalSynced': totalSynced,
+    'totalConflicts': totalConflicts,
+    'totalErrors': totalErrors,
+    'averageSyncTimeMs': averageSyncTime.inMilliseconds,
+    'byTable': byTable,
+  };
 }
 
 /// معلومات الجهاز للمزامنة
@@ -330,13 +331,13 @@ class SyncDeviceInfo {
   final String? appVersion;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'platform': platform,
-        'priority': priority,
-        'lastSeen': lastSeen?.toIso8601String(),
-        'appVersion': appVersion,
-      };
+    'id': id,
+    'name': name,
+    'platform': platform,
+    'priority': priority,
+    'lastSeen': lastSeen?.toIso8601String(),
+    'appVersion': appVersion,
+  };
 }
 
 /// حدث مزامنة
@@ -359,14 +360,14 @@ class SyncEvent {
   final DateTime? timestamp;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'table': table,
-        'uuid': uuid,
-        'operation': operation,
-        'payload': payload,
-        'timestamp': timestamp?.toIso8601String(),
-      };
+    'id': id,
+    'type': type.name,
+    'table': table,
+    'uuid': uuid,
+    'operation': operation,
+    'payload': payload,
+    'timestamp': timestamp?.toIso8601String(),
+  };
 }
 
 /// نتيجة تطبيق تغيير

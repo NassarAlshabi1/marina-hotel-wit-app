@@ -223,18 +223,20 @@ class DatabaseHealthMonitor {
   Future<List<HealthSnapshot>> getHistory({int days = 30}) async {
     try {
       final cutoff = DateTime.now().subtract(Duration(days: days));
-      final rows = await db.customSelect(
-        '''
+      final rows = await db
+          .customSelect(
+            '''
         SELECT scanned_at, health_score, total_issues, status
         FROM database_health_log
         WHERE scanned_at > ?
         ORDER BY scanned_at DESC
         LIMIT 100
         ''',
-        variables: [
-          Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000),
-        ],
-      ).get();
+            variables: [
+              Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000),
+            ],
+          )
+          .get();
 
       return rows.map((row) {
         return HealthSnapshot(

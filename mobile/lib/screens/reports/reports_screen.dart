@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import '../../utils/lazy_screen_loader.dart';
 import '../../utils/status_utils.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
@@ -13,7 +12,7 @@ import 'income_expense_report_screen.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
-  
+
   @override
   ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
@@ -31,9 +30,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Future<void> _loadCharts() async {
     if (_isLoadingCharts || _chartsLoaded) return;
-    
+
     setState(() => _isLoadingCharts = true);
-    
+
     try {
       final db = ref.read(coreProviders.dbProvider);
       final data = await _prepareData(db);
@@ -94,7 +93,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             icon: Icons.payments_outlined,
             label: 'تقرير سحبيات الرواتب',
             color: Colors.blue,
-            onTap: () => _lazyPush(context, const SalaryWithdrawalsReportScreen()),
+            onTap: () =>
+                _lazyPush(context, const SalaryWithdrawalsReportScreen()),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -120,14 +120,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               if (!_chartsLoaded)
                 TextButton.icon(
                   onPressed: _isLoadingCharts ? null : _loadCharts,
-                  icon: _isLoadingCharts 
+                  icon: _isLoadingCharts
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.bar_chart, size: 18),
-                  label: Text(_isLoadingCharts ? 'جاري التحميل...' : 'عرض الرسوم البيانية'),
+                  label: Text(
+                    _isLoadingCharts
+                        ? 'جاري التحميل...'
+                        : 'عرض الرسوم البيانية',
+                  ),
                 ),
             ],
           ),
@@ -139,7 +143,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             SizedBox(
               height: 200,
-              child: BarChart(BarChartData(barGroups: _chartsData!['dailyOcc'])),
+              child: BarChart(
+                BarChartData(barGroups: _chartsData!['dailyOcc']),
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -157,7 +163,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             SizedBox(
               height: 200,
-              child: BarChart(BarChartData(barGroups: _chartsData!['topRooms'])),
+              child: BarChart(
+                BarChartData(barGroups: _chartsData!['topRooms']),
+              ),
             ),
           ] else if (!_chartsLoaded) ...[
             Card(
@@ -180,14 +188,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       ),
     );
   }
-  
+
   /// Lazy push - shows loading indicator while navigating
   void _lazyPush(BuildContext context, Widget page) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => _LazyLoadingWrapper(child: page),
-      ),
+      MaterialPageRoute(builder: (_) => _LazyLoadingWrapper(child: page)),
     );
   }
 
@@ -197,8 +203,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
-      final busy =
-          rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
+      final busy = rooms
+          .where((r) => StatusUtils.isRoomOccupied(r.status))
+          .length;
       final occ = (busy * 100 / total).round();
       return BarChartGroupData(
         x: i,
@@ -273,16 +280,16 @@ class _ReportShortcut extends StatelessWidget {
 /// Lazy loading wrapper - shows loading while page initializes
 class _LazyLoadingWrapper extends StatefulWidget {
   const _LazyLoadingWrapper({required this.child});
-  
+
   final Widget child;
-  
+
   @override
   State<_LazyLoadingWrapper> createState() => _LazyLoadingWrapperState();
 }
 
 class _LazyLoadingWrapperState extends State<_LazyLoadingWrapper> {
   bool _isReady = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -293,7 +300,7 @@ class _LazyLoadingWrapperState extends State<_LazyLoadingWrapper> {
       }
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (!_isReady) {

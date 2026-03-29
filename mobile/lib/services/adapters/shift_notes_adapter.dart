@@ -28,7 +28,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final uuid = _asString(json, 'localUuid', src) ??
+    final uuid =
+        _asString(json, 'localUuid', src) ??
         _asString(json, 'local_uuid', src) ??
         IdGen.uuid();
     // ignore: unused_local_variable
@@ -57,7 +58,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
 
@@ -124,11 +126,14 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
     } else if (model.createdAtIso != null && model.createdAtIso!.isNotEmpty) {
       shiftDate = model.createdAtIso!.split('T').first;
     } else {
-      shiftDate = DateTime.fromMillisecondsSinceEpoch(model.createdAt * 1000).toIso8601String().split('T').first;
+      shiftDate = DateTime.fromMillisecondsSinceEpoch(
+        model.createdAt * 1000,
+      ).toIso8601String().split('T').first;
     }
 
     if (src == Source.appwrite) {
-      final createdAtIso = model.createdAtIso ??
+      final createdAtIso =
+          model.createdAtIso ??
           DateTime.fromMillisecondsSinceEpoch(
             model.createdAt * 1000,
           ).toIso8601String();
@@ -164,10 +169,13 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): jsonEncode(model.vectorClock ?? {}),
+      _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
+        model.vectorClock ?? {},
+      ),
       // ✅ الحقول المطلوبة في Appwrite (required=true)
       'shiftDate': shiftDate,
       'note': model.content ?? model.title ?? '',
@@ -183,7 +191,8 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v = _asInt(json, key, src) ??
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -196,7 +205,8 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v = _asString(json, key, src) ??
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -209,13 +219,18 @@ d.Value<Map<String, dynamic>> _vMapJson(
   String? altKey,
   Map<String, dynamic>? fallback,
 }) {
-  final v = _asMap(json, key, src) ??
+  final v =
+      _asMap(json, key, src) ??
       (altKey != null ? _asMap(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-Map<String, dynamic>? _asMap(Map<String, dynamic> json, String key, Source src) {
+Map<String, dynamic>? _asMap(
+  Map<String, dynamic> json,
+  String key,
+  Source src,
+) {
   final v = _raw(json, key, src);
   if (v is Map<String, dynamic>) return v;
   if (v is Map) return Map<String, dynamic>.from(v);

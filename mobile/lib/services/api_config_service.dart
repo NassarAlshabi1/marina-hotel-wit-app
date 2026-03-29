@@ -54,14 +54,14 @@ class ApiConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'baseUrl': baseUrl,
-        'apiKey': apiKey,
-        'connectTimeout': connectTimeout,
-        'receiveTimeout': receiveTimeout,
-        'enableLogging': enableLogging,
-        'useSsl': useSsl,
-        'customHeaders': customHeaders,
-      };
+    'baseUrl': baseUrl,
+    'apiKey': apiKey,
+    'connectTimeout': connectTimeout,
+    'receiveTimeout': receiveTimeout,
+    'enableLogging': enableLogging,
+    'useSsl': useSsl,
+    'customHeaders': customHeaders,
+  };
 
   static final ApiConfig defaultConfig = ApiConfig(
     baseUrl: Env.baseApiUrl,
@@ -229,13 +229,13 @@ class ServerInfo {
   final bool isDefault;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'url': url,
-        'apiKey': apiKey,
-        'addedAt': addedAt.toIso8601String(),
-        'isDefault': isDefault,
-      };
+    'id': id,
+    'name': name,
+    'url': url,
+    'apiKey': apiKey,
+    'addedAt': addedAt.toIso8601String(),
+    'isDefault': isDefault,
+  };
 
   ServerInfo copyWith({
     String? id,

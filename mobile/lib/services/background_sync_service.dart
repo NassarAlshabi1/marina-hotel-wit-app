@@ -38,10 +38,7 @@ class BackgroundSyncService {
     if (_isInitialized) return;
 
     try {
-      await Workmanager().initialize(
-        _callbackDispatcher,
-        isInDebugMode: false,
-      );
+      await Workmanager().initialize(_callbackDispatcher, isInDebugMode: false);
 
       await _batteryOptimizer.initialize();
 
@@ -129,8 +126,9 @@ class BackgroundSyncService {
         backgroundSyncTask,
         initialDelay: delay,
         constraints: Constraints(
-          networkType:
-              requireNetwork ? NetworkType.connected : NetworkType.connected,
+          networkType: requireNetwork
+              ? NetworkType.connected
+              : NetworkType.connected,
           requiresCharging: requireCharging,
         ),
         existingWorkPolicy: ExistingWorkPolicy.replace,
@@ -315,10 +313,7 @@ void _callbackDispatcher() {
       case batteryAwareSyncTask:
         return BackgroundSyncService.executeBackgroundSync();
       default:
-        developer.log(
-          '⚠️ Unknown task: $task',
-          name: 'BackgroundSyncService',
-        );
+        developer.log('⚠️ Unknown task: $task', name: 'BackgroundSyncService');
         return Future.value(false);
     }
   });

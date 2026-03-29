@@ -200,13 +200,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
                     ),
                     IconButton(
                       onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: content),
-                        );
+                        await Clipboard.setData(ClipboardData(text: content));
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(copyMessage)),
-                        );
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(copyMessage)));
                       },
                       icon: const Icon(Icons.copy),
                     ),
@@ -258,10 +256,10 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _buildErrorState()
-              : _snapshot == null
-                  ? const Center(child: Text('لا توجد بيانات'))
-                  : _buildContent(),
+          ? _buildErrorState()
+          : _snapshot == null
+          ? const Center(child: Text('لا توجد بيانات'))
+          : _buildContent(),
     );
   }
 
@@ -276,10 +274,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
             const SizedBox(height: 12),
             const Text('فشل تحميل بيانات التشخيص'),
             const SizedBox(height: 8),
-            Text(
-              _error ?? '',
-              textAlign: TextAlign.center,
-            ),
+            Text(_error ?? '', textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadAll,
@@ -371,10 +366,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
 
   Widget _buildTablesTab() {
     final query = _tableSearchQuery.toLowerCase();
-    final entries = _counts.entries
-        .where((e) => e.key.toLowerCase().contains(query))
-        .toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final entries =
+        _counts.entries
+            .where((e) => e.key.toLowerCase().contains(query))
+            .toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
 
     return Column(
       children: [
@@ -623,9 +619,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
     // ✅ إعادة بناء UI لأن السجلات تُعرض عبر ref.watch
     // لا حاجة لـ setState لأن Riverpod يعيد البناء تلقائياً
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم مسح جميع السجلات')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم مسح جميع السجلات')));
     }
   }
 
@@ -652,7 +648,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
       child: Column(
         children: [
           DropdownButtonFormField<String>(
-            value: tables.contains(_selectedTable) ? _selectedTable : 'all',
+            initialValue: tables.contains(_selectedTable)
+                ? _selectedTable
+                : 'all',
             decoration: const InputDecoration(
               labelText: 'عرض البيانات',
               border: OutlineInputBorder(),
@@ -687,12 +685,19 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'حجم التقرير ~${jsonSizeKb ~/ 1024}MB — يُنصح باستخدام تصدير الملف بدلاً من العرض المباشر',
-                      style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                      ),
                     ),
                   ),
                 ],
@@ -712,7 +717,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.data_object, size: 48, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.data_object,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'التقرير كبير جداً للعرض المباشر',

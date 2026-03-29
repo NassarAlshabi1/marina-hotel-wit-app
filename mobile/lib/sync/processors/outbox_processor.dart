@@ -16,9 +16,9 @@ class OutboxProcessor {
     required OutboxStorage storage,
     required VectorClockManager clockManager,
     required SyncConfiguration config,
-  })  : _storage = storage,
-        _clockManager = clockManager,
-        _config = config;
+  }) : _storage = storage,
+       _clockManager = clockManager,
+       _config = config;
   final OutboxStorage _storage;
   final VectorClockManager _clockManager;
   final SyncConfiguration _config;
@@ -199,8 +199,9 @@ class OutboxProcessor {
     if (_isProcessing) return;
 
     _isProcessing = true;
-    _statusController
-        .add(OutboxStatus(pendingCount: 0, failedCount: 0, isProcessing: true));
+    _statusController.add(
+      OutboxStatus(pendingCount: 0, failedCount: 0, isProcessing: true),
+    );
 
     try {
       final retryable = await fetchReadyForRetry();
@@ -233,8 +234,9 @@ class OutboxProcessor {
 
   /// تنظيف السجلات القديمة المُزامنة
   Future<int> cleanup({Duration? olderThan}) async {
-    final cutoff =
-        DateTime.now().subtract(olderThan ?? const Duration(days: 7));
+    final cutoff = DateTime.now().subtract(
+      olderThan ?? const Duration(days: 7),
+    );
     return _storage.deleteSyncedBefore(cutoff);
   }
 
@@ -262,11 +264,13 @@ class OutboxProcessor {
   /// إشعار بحالة Outbox
   void _notifyStatus() async {
     final stats = await _storage.getStats();
-    _statusController.add(OutboxStatus(
-      pendingCount: stats.pendingCount,
-      failedCount: stats.failedCount,
-      isProcessing: _isProcessing,
-    ));
+    _statusController.add(
+      OutboxStatus(
+        pendingCount: stats.pendingCount,
+        failedCount: stats.failedCount,
+        isProcessing: _isProcessing,
+      ),
+    );
   }
 
   /// حساب تأخير Exponential Backoff

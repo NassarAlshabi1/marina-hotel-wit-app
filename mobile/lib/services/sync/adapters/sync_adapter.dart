@@ -15,10 +15,7 @@ abstract class SyncAdapter {
   Future<void> initialize();
 
   /// إجراء مزامنة
-  Future<SyncResult> sync({
-    required bool push,
-    required bool pull,
-  });
+  Future<SyncResult> sync({required bool push, required bool pull});
 
   /// تفعيل/تعطيل المزامنة
   Future<void> setEnabled(bool enabled);

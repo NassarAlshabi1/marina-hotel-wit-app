@@ -46,11 +46,11 @@ class RestoreSnapshot {
   final int totalSizeBytes;
 
   Map<String, dynamic> toJson() => {
-        'filePath': filePath,
-        'createdAt': createdAt.toIso8601String(),
-        'recordCounts': recordCounts,
-        'totalSizeBytes': totalSizeBytes,
-      };
+    'filePath': filePath,
+    'createdAt': createdAt.toIso8601String(),
+    'recordCounts': recordCounts,
+    'totalSizeBytes': totalSizeBytes,
+  };
 }
 
 /// تقرير شامل عن عملية الإصلاح التلقائي
@@ -87,25 +87,25 @@ class RestoreFixReport {
   final int durationMs;
 
   Map<String, dynamic> toJson() => {
-        'success': success,
-        'bookingsFixed': bookingsFixed,
-        'roomsUpdated': roomsUpdated,
-        'paymentsRecalculated': paymentsRecalculated,
-        'changes': changes,
-        'error': error,
-        'executedAt': executedAt.toIso8601String(),
-        'durationMs': durationMs,
-      };
+    'success': success,
+    'bookingsFixed': bookingsFixed,
+    'roomsUpdated': roomsUpdated,
+    'paymentsRecalculated': paymentsRecalculated,
+    'changes': changes,
+    'error': error,
+    'executedAt': executedAt.toIso8601String(),
+    'durationMs': durationMs,
+  };
 }
 
 /// خدمة الإصلاح التلقائي للنسخة الاحتياطية
 /// تقوم بإعادة حساب الليالي، حالات الغرف، والمدفوعات بعد استعادة النسخة الاحتياطية
 class RestoreFixService {
   RestoreFixService(this.db, {this.onBeforeCommit})
-      : bookingsDao = BookingsDao(db, OutboxDao(db)),
-        roomsDao = RoomsDao(db, OutboxDao(db)),
-        paymentsDao = PaymentsDao(db, OutboxDao(db)),
-        debtsDao = DebtsDao(db, OutboxDao(db));
+    : bookingsDao = BookingsDao(db, OutboxDao(db)),
+      roomsDao = RoomsDao(db, OutboxDao(db)),
+      paymentsDao = PaymentsDao(db, OutboxDao(db)),
+      debtsDao = DebtsDao(db, OutboxDao(db));
   final AppDatabase db;
   final BookingsDao bookingsDao;
   final RoomsDao roomsDao;
@@ -231,8 +231,7 @@ class RestoreFixService {
 
           final updatedBooking = await (db.select(
             db.bookings,
-          )..where((b) => b.id.equals(booking.id)))
-              .getSingleOrNull();
+          )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
 
           if (updatedBooking != null) {
             final paymentChanges = await _recalculateBookingFinancials(
@@ -358,8 +357,8 @@ class RestoreFixService {
       final checkoutDate = booking.actualCheckout != null
           ? DateTime.parse(booking.actualCheckout!)
           : (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
-              ? DateTime.parse(booking.checkoutDate!)
-              : now);
+                ? DateTime.parse(booking.checkoutDate!)
+                : now);
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00
       final calculatedNights = Time.nightsWithCutoff(
@@ -428,30 +427,35 @@ class RestoreFixService {
   ) async {
     final changes = <String>[];
     try {
-      final payments = await (db.select(db.payments)
-            ..where((p) => p.bookingLocalId.equals(booking.id))
-            ..where((p) => p.deletedAt.isNull()))
-          .get();
+      final payments =
+          await (db.select(db.payments)
+                ..where((p) => p.bookingLocalId.equals(booking.id))
+                ..where((p) => p.deletedAt.isNull()))
+              .get();
 
       final totalPaid = payments.fold<double>(
         0,
         (sum, payment) => sum + payment.amount,
       );
 
-      final room = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(booking.roomNumber)))
-          .getSingleOrNull();
+      final room =
+          await (db.select(db.rooms)
+                ..where((r) => r.roomNumber.equals(booking.roomNumber)))
+              .getSingleOrNull();
       double? expectedTotal;
       if (room != null) {
-        final nights = await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id))
-              ..where((n) => n.deletedAt.isNull()))
-            .get();
+        final nights =
+            await (db.select(db.bookingNights)
+                  ..where((n) => n.bookingLocalId.equals(booking.id))
+                  ..where((n) => n.deletedAt.isNull()))
+                .get();
 
         final double totalNightAmount;
         if (nights.isNotEmpty) {
-          totalNightAmount =
-              nights.fold<double>(0, (sum, n) => sum + n.nightlyRate);
+          totalNightAmount = nights.fold<double>(
+            0,
+            (sum, n) => sum + n.nightlyRate,
+          );
         } else {
           final baseRate = room.price;
           final discount = booking.discount;
@@ -461,8 +465,9 @@ class RestoreFixService {
                 .clamp(0, baseRate * booking.calculatedNights)
                 .toDouble();
           } else if (discount > 0) {
-            final discountedRate =
-                (baseRate - discount).clamp(0, baseRate).toDouble();
+            final discountedRate = (baseRate - discount)
+                .clamp(0, baseRate)
+                .toDouble();
             totalNightAmount = discountedRate * booking.calculatedNights;
           } else {
             totalNightAmount = baseRate * booking.calculatedNights;
@@ -477,8 +482,9 @@ class RestoreFixService {
         }
         expectedTotal = finalTotal;
 
-        final remainingBalance =
-            (expectedTotal - totalPaid).clamp(0, expectedTotal).toDouble();
+        final remainingBalance = (expectedTotal - totalPaid)
+            .clamp(0, expectedTotal)
+            .toDouble();
         final isFullyPaid = remainingBalance <= 0;
 
         if (booking.totalDueCached != expectedTotal ||
@@ -531,20 +537,22 @@ class RestoreFixService {
         }
       }
 
-      final debts = await (db.select(db.debts)
-            ..where((d) => d.bookingLocalId.equals(booking.id))
-            ..where((d) => d.deletedAt.isNull()))
-          .get();
+      final debts =
+          await (db.select(db.debts)
+                ..where((d) => d.bookingLocalId.equals(booking.id))
+                ..where((d) => d.deletedAt.isNull()))
+              .get();
       if (debts.isNotEmpty && expectedTotal != null) {
-        final remaining =
-            (expectedTotal - totalPaid).clamp(0, expectedTotal).toDouble();
+        final remaining = (expectedTotal - totalPaid)
+            .clamp(0, expectedTotal)
+            .toDouble();
         final isSettled = remaining <= 0 ? 1 : 0;
         for (final debt in debts) {
           final shouldUpdate =
               (debt.totalAmount - expectedTotal).abs() > 0.001 ||
-                  (debt.paidAmount - totalPaid).abs() > 0.001 ||
-                  (debt.remainingAmount - remaining).abs() > 0.001 ||
-                  debt.isSettled != isSettled;
+              (debt.paidAmount - totalPaid).abs() > 0.001 ||
+              (debt.remainingAmount - remaining).abs() > 0.001 ||
+              debt.isSettled != isSettled;
           if (shouldUpdate) {
             await _logConflict(
               fixId: fixId,
@@ -566,8 +574,7 @@ class RestoreFixService {
             );
             await (db.update(
               db.debts,
-            )..where((t) => t.id.equals(debt.id)))
-                .write(
+            )..where((t) => t.id.equals(debt.id))).write(
               DebtsCompanion(
                 totalAmount: Value(expectedTotal),
                 paidAmount: Value(totalPaid),
@@ -595,8 +602,7 @@ class RestoreFixService {
     try {
       final allBookings = await (db.select(
         db.bookings,
-      )..where((b) => b.deletedAt.isNull()))
-          .get();
+      )..where((b) => b.deletedAt.isNull())).get();
 
       // تصفية الحجوزات النشطة باستخدام StatusUtils
       final activeBookings = allBookings
@@ -605,8 +611,7 @@ class RestoreFixService {
       final occupiedRooms = activeBookings.map((b) => b.roomNumber).toSet();
       final rooms = await (db.select(
         db.rooms,
-      )..where((r) => r.deletedAt.isNull()))
-          .get();
+      )..where((r) => r.deletedAt.isNull())).get();
       final updates = <_RoomStatusUpdate>[];
       for (final room in rooms) {
         final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
@@ -684,13 +689,11 @@ class RestoreFixService {
   Future<_RebuildContext> _prepareRebuildContext(DateTime restoreMoment) async {
     final bookings = await (db.select(
       db.bookings,
-    )..where((b) => b.deletedAt.isNull()))
-        .get();
+    )..where((b) => b.deletedAt.isNull())).get();
 
     final rooms = await (db.select(
       db.rooms,
-    )..where((r) => r.deletedAt.isNull()))
-        .get();
+    )..where((r) => r.deletedAt.isNull())).get();
 
     final roomsByNumber = <String, Room>{
       for (final room in rooms) room.roomNumber: room,
@@ -787,8 +790,10 @@ class RestoreFixService {
     required Map<String, _LedgerAccumulator> ledger,
   }) async {
     final calcService = EnhancedBookingCalculationService(db);
-    final calculation =
-        await calcService.calculateForBooking(booking, now: restoreMoment);
+    final calculation = await calcService.calculateForBooking(
+      booking,
+      now: restoreMoment,
+    );
     final breakdown = calculation.breakdown;
 
     final List<BookingNightsCompanion> nightRows = [];
@@ -851,24 +856,27 @@ class RestoreFixService {
     final int totalNights = math.max(breakdown.length, 1);
     final double totalDue = calculation.financialSummary.totalDue.toDouble();
 
-    final paymentRows = await (db.select(db.payments)
-          ..where(
-            (p) => (p.bookingLocalId.equals(booking.id) |
-                p.bookingUuidCache.equals(booking.localUuid)),
-          )
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isPendingBalance.equals(false))
-          ..where(
-            (p) =>
-                p.revenueType.equals('room') |
-                p.revenueType.equals('') |
-                p.revenueType.isNull(),
-          ))
-        .get();
+    final paymentRows =
+        await (db.select(db.payments)
+              ..where(
+                (p) =>
+                    (p.bookingLocalId.equals(booking.id) |
+                    p.bookingUuidCache.equals(booking.localUuid)),
+              )
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isPendingBalance.equals(false))
+              ..where(
+                (p) =>
+                    p.revenueType.equals('room') |
+                    p.revenueType.equals('') |
+                    p.revenueType.isNull(),
+              ))
+            .get();
     double totalPaid = 0;
     for (final payment in paymentRows) {
       totalPaid += payment.amount;
-      final String key = payment.hotelDayKey ??
+      final String key =
+          payment.hotelDayKey ??
           _hotelDayKey(_parseDate(payment.paymentDate) ?? restoreMoment);
       final accumulator = ledger.putIfAbsent(key, _LedgerAccumulator.new);
       accumulator.paymentsProcessed += 1;
@@ -879,7 +887,8 @@ class RestoreFixService {
     if (remaining < 0) remaining = 0;
 
     final bool isFullyPaid = remaining <= 0;
-    final bool isOverdue = calculation.bookingActive &&
+    final bool isOverdue =
+        calculation.bookingActive &&
         calculation.checkout.isBefore(restoreMoment) &&
         breakdown.isNotEmpty;
     final bool needsReview = isOverdue || remaining > 0;
@@ -897,8 +906,7 @@ class RestoreFixService {
     final String stampIso = DateTime.now().toUtc().toIso8601String();
     await (db.update(
       db.bookings,
-    )..where((tbl) => tbl.id.equals(booking.id)))
-        .write(
+    )..where((tbl) => tbl.id.equals(booking.id))).write(
       BookingsCompanion(
         calculatedNights: Value(totalNights),
         expectedNights: Value(totalNights),
@@ -934,10 +942,10 @@ class RestoreFixService {
   ) async {
     final expenses = await (db.select(
       db.expenses,
-    )..where((e) => e.deletedAt.isNull()))
-        .get();
+    )..where((e) => e.deletedAt.isNull())).get();
     for (final expense in expenses) {
-      final String key = expense.hotelDayKey ??
+      final String key =
+          expense.hotelDayKey ??
           _hotelDayKey(_parseDate(expense.date) ?? context.restoreMoment);
       final accumulator = ledger.putIfAbsent(key, _LedgerAccumulator.new);
       accumulator.totalExpenses += expense.amount;
@@ -1082,8 +1090,11 @@ class RestoreFixService {
   }
 
   // ignore: unused_element
-  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout,
-      {int cutoffHour = 14}) {
+  List<_NightSegment> _buildNightSegments(
+    DateTime checkin,
+    DateTime checkout, {
+    int cutoffHour = 14,
+  }) {
     final segments = <_NightSegment>[];
 
     final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
@@ -1109,16 +1120,12 @@ class RestoreFixService {
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1
           ? (checkout.isAfter(segStart)
-              ? checkout
-              : segStart.add(const Duration(minutes: 1)))
+                ? checkout
+                : segStart.add(const Duration(minutes: 1)))
           : nextDay;
 
       segments.add(
-        _NightSegment(
-          hotelDayKey: dayKey,
-          start: segStart,
-          end: segEnd,
-        ),
+        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
       );
     }
 
@@ -1151,7 +1158,9 @@ class RestoreFixService {
     required String fixType,
   }) async {
     final logId = IdGen.uuid();
-    await db.into(db.restoreFixLog).insert(
+    await db
+        .into(db.restoreFixLog)
+        .insert(
           RestoreFixLogCompanion(
             fixId: Value(logId),
             executedAt: Value(Time.nowEpoch()),

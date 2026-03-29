@@ -27,8 +27,9 @@ class DatabaseHealthTriggers {
         return null;
       }
 
-      final report =
-          quickScan ? await monitor.quickScan() : await monitor.deepScan();
+      final report = quickScan
+          ? await monitor.quickScan()
+          : await monitor.deepScan();
 
       await prefs.setInt('health_last_scan', now);
 

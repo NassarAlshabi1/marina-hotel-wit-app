@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/sync_service.dart';
 import '../../services/appwrite_delta_sync.dart';
-import '../../providers/appwrite_providers.dart';
 
 class SyncActionButton extends ConsumerWidget {
   const SyncActionButton({super.key});
@@ -19,8 +18,8 @@ class SyncActionButton extends ConsumerWidget {
     final tooltip = isSyncing
         ? 'جاري المزامنة...'
         : hasError
-            ? 'حدث خطأ في آخر مزامنة، اضغط لإعادة المحاولة'
-            : 'مزامنة يدوية (احتياطية) - Field-Level Delta Sync';
+        ? 'حدث خطأ في آخر مزامنة، اضغط لإعادة المحاولة'
+        : 'مزامنة يدوية (احتياطية) - Field-Level Delta Sync';
 
     return PopupMenuButton<String>(
       tooltip: tooltip,
@@ -52,31 +51,32 @@ class SyncActionButton extends ConsumerWidget {
                   duration: Duration(seconds: 2),
                 ),
               );
-              break;
             case 'push':
               final deltaSync = ref.read(appwriteDeltaSyncProvider);
               final result = await deltaSync.pushDeltaChanges();
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text(result.success
-                      ? 'تم رفع ${result.pushedCount} سجل بنجاح'
-                      : 'فشل الرفع: ${result.message}'),
+                  content: Text(
+                    result.success
+                        ? 'تم رفع ${result.pushedCount} سجل بنجاح'
+                        : 'فشل الرفع: ${result.message}',
+                  ),
                   duration: const Duration(seconds: 3),
                 ),
               );
-              break;
             case 'pull':
               final deltaSync = ref.read(appwriteDeltaSyncProvider);
               final result = await deltaSync.pullDeltaChanges();
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text(result.success
-                      ? 'تم سحب ${result.pulledCount} سجل بنجاح'
-                      : 'فشل السحب: ${result.message}'),
+                  content: Text(
+                    result.success
+                        ? 'تم سحب ${result.pulledCount} سجل بنجاح'
+                        : 'فشل السحب: ${result.message}',
+                  ),
                   duration: const Duration(seconds: 3),
                 ),
               );
-              break;
           }
         } catch (e) {
           messenger.showSnackBar(

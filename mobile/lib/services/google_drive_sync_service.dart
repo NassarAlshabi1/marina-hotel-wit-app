@@ -56,7 +56,8 @@ class DriveSyncShard {
       totalParts: json['totalParts'] as int? ?? 1,
       size: json['size'] as int? ?? 0,
       checksum: json['checksum'] as String? ?? '',
-      modifiedAt: DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
+      modifiedAt:
+          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       version: json['version'] as int? ?? 1,
     );
@@ -166,9 +167,9 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  })  : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
-        _driveApi = driveApi,
-        _shardSizeBytes = shardSizeBytes;
+  }) : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+       _driveApi = driveApi,
+       _shardSizeBytes = shardSizeBytes;
 
   final GoogleSignIn _googleSignIn;
   drive.DriveApi? _driveApi;
@@ -184,15 +185,14 @@ class GoogleDriveSyncService {
   /// Helper to get Drive API access token from account
   Future<String?> _getAccessToken(GoogleSignInAccount account) async {
     try {
-      final clientAuth = await account.authorizationClient.authorizationForScopes(
-        const [drive.DriveApi.driveAppdataScope],
-      );
+      final clientAuth = await account.authorizationClient
+          .authorizationForScopes(const [drive.DriveApi.driveAppdataScope]);
       if (clientAuth != null) {
         return clientAuth.accessToken;
       }
-      final newAuth = await account.authorizationClient.authorizeScopes(
-        const [drive.DriveApi.driveAppdataScope],
-      );
+      final newAuth = await account.authorizationClient.authorizeScopes(const [
+        drive.DriveApi.driveAppdataScope,
+      ]);
       return newAuth.accessToken;
     } catch (e) {
       debugPrint('⚠️ فشل الحصول على رمز الوصول: $e');
@@ -223,18 +223,18 @@ class GoogleDriveSyncService {
   Future<GoogleSignInAccount?> signIn() async {
     try {
       // In google_sign_in 7.x, use attemptLightweightAuthentication() and authenticate()
-      final account = await _googleSignIn.attemptLightweightAuthentication() ??
-          await _googleSignIn.authenticate(scopeHint: const [drive.DriveApi.driveAppdataScope]);
-      if (account == null) {
-        return null;
-      }
+      final account =
+          await _googleSignIn.attemptLightweightAuthentication() ??
+          await _googleSignIn.authenticate(
+            scopeHint: const [drive.DriveApi.driveAppdataScope],
+          );
       _currentUser = account;
-      
+
       final accessToken = await _getAccessToken(account);
       if (accessToken == null) {
         throw StateError('فشل الحصول على رمز الوصول.');
       }
-      
+
       final headers = {'Authorization': 'Bearer $accessToken'};
       _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
       return account;
@@ -302,8 +302,9 @@ class GoogleDriveSyncService {
         q: 'name="$_kIndexFileName" and trashed=false',
         $fields: 'files(id,modifiedTime)',
       );
-      final indexFile =
-          (indexList.files ?? []).isNotEmpty ? indexList.files!.first : null;
+      final indexFile = (indexList.files ?? []).isNotEmpty
+          ? indexList.files!.first
+          : null;
       if (indexFile?.modifiedTime != null) {
         return indexFile!.modifiedTime;
       }
@@ -314,8 +315,9 @@ class GoogleDriveSyncService {
         $fields: 'files(id,modifiedTime)',
         orderBy: 'modifiedTime desc',
       );
-      final snapFile =
-          (snapList.files ?? []).isNotEmpty ? snapList.files!.first : null;
+      final snapFile = (snapList.files ?? []).isNotEmpty
+          ? snapList.files!.first
+          : null;
       return snapFile?.modifiedTime;
     } catch (error) {
       debugPrint('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
@@ -448,20 +450,22 @@ class GoogleDriveSyncService {
     // In google_sign_in 7.x, use attemptLightweightAuthentication() and authenticate()
     var account = await _googleSignIn.attemptLightweightAuthentication();
     if (account == null && _allowInteractiveSignIn) {
-      account = await _googleSignIn.authenticate(scopeHint: const [drive.DriveApi.driveAppdataScope]);
+      account = await _googleSignIn.authenticate(
+        scopeHint: const [drive.DriveApi.driveAppdataScope],
+      );
     }
 
     if (account == null) {
       throw StateError('لم يتم تسجيل الدخول إلى Google Drive.');
     }
-    
+
     _currentUser = account;
 
     final accessToken = await _getAccessToken(account);
     if (accessToken == null) {
       throw StateError('فشل الحصول على رمز الوصول لـ Google Drive.');
     }
-    
+
     final headers = {'Authorization': 'Bearer $accessToken'};
     _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
     return _driveApi!;
@@ -643,10 +647,12 @@ class GoogleDriveSyncService {
     drive.DriveApi api,
     String fileId,
   ) async {
-    final media = await api.files.get(
-      fileId,
-      downloadOptions: drive.DownloadOptions.fullMedia,
-    ) as drive.Media;
+    final media =
+        await api.files.get(
+              fileId,
+              downloadOptions: drive.DownloadOptions.fullMedia,
+            )
+            as drive.Media;
     final builder = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
       builder.add(chunk);

@@ -3,9 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Simple in-memory cache with TTL support for reports and data
 class DataCache {
-  static final DataCache _instance = DataCache._internal();
   factory DataCache() => _instance;
   DataCache._internal();
+  static final DataCache _instance = DataCache._internal();
 
   final Map<String, _CacheItem> _cache = {};
   static const _defaultTTL = Duration(minutes: 5);
@@ -14,7 +14,7 @@ class DataCache {
   T? get<T>(String key) {
     final item = _cache[key];
     if (item == null) return null;
-    
+
     if (item.isExpired) {
       _cache.remove(key);
       return null;
@@ -59,7 +59,7 @@ class DataCache {
   }) async {
     final cached = get<T>(key);
     if (cached != null) return cached;
-    
+
     final fresh = await fetcher();
     await set(key, fresh, ttl: ttl);
     return fresh;
@@ -68,18 +68,18 @@ class DataCache {
 
 class _CacheItem {
   _CacheItem({required this.value, required this.expiresAt});
-  
+
   final dynamic value;
   final DateTime expiresAt;
-  
+
   bool get isExpired => DateTime.now().isAfter(expiresAt);
 }
 
 /// Persisted cache using SharedPreferences (for larger data)
 class PersistedCache {
-  static final PersistedCache _instance = PersistedCache._internal();
   factory PersistedCache() => _instance;
   PersistedCache._internal();
+  static final PersistedCache _instance = PersistedCache._internal();
 
   static const _prefix = 'cache_';
   static const _ttlPrefix = 'cache_ttl_';
@@ -89,14 +89,14 @@ class PersistedCache {
     final prefs = await SharedPreferences.getInstance();
     final dataStr = prefs.getString('$_prefix$key');
     final ttl = prefs.getInt('$_ttlPrefix$key');
-    
+
     if (dataStr == null) return null;
     if (ttl != null && DateTime.now().millisecondsSinceEpoch > ttl) {
       await prefs.remove('$_prefix$key');
       await prefs.remove('$_ttlPrefix$key');
       return null;
     }
-    
+
     try {
       return jsonDecode(dataStr) as T;
     } catch (e) {

@@ -33,8 +33,9 @@ class OutboxRecord {
       uuid: row.read<String>('uuid'),
       operation: row.read<String>('operation'),
       payload: row.read<String>('payload'),
-      timestamp:
-          DateTime.fromMillisecondsSinceEpoch(row.read<int>('timestamp')),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('timestamp'),
+      ),
       vectorClock: row.read<String>('vector_clock'),
       checksum: row.readNullable<String>('checksum'),
       deviceId: row.readNullable<String>('device_id'),
@@ -160,10 +161,12 @@ class DriftOutboxStorage implements OutboxStorage {
 
   @override
   Future<DeltaChange?> getById(String id) async {
-    final rows = await _db.customSelect(
-      'SELECT * FROM $_table WHERE id = ?',
-      variables: [Variable.withString(id)],
-    ).get();
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM $_table WHERE id = ?',
+          variables: [Variable.withString(id)],
+        )
+        .get();
     if (rows.isEmpty) return null;
     return _toDeltaChange(OutboxRecord.fromRow(rows.first));
   }
@@ -187,10 +190,12 @@ class DriftOutboxStorage implements OutboxStorage {
                AND (next_retry_at IS NULL OR next_retry_at <= ?)
                ORDER BY timestamp ASC LIMIT ?''';
     }
-    final rows = await _db.customSelect(
-      sql,
-      variables: [Variable.withInt(beforeMs), Variable.withInt(limit)],
-    ).get();
+    final rows = await _db
+        .customSelect(
+          sql,
+          variables: [Variable.withInt(beforeMs), Variable.withInt(limit)],
+        )
+        .get();
     return rows.map((r) => _toDeltaChange(OutboxRecord.fromRow(r))).toList();
   }
 
@@ -230,10 +235,9 @@ class DriftOutboxStorage implements OutboxStorage {
 
   @override
   Future<void> deleteByTable(String table) async {
-    await _db.customStatement(
-      'DELETE FROM $_table WHERE table_name = ?',
-      [table],
-    );
+    await _db.customStatement('DELETE FROM $_table WHERE table_name = ?', [
+      table,
+    ]);
   }
 
   @override
@@ -247,12 +251,14 @@ class DriftOutboxStorage implements OutboxStorage {
   @override
   Future<int> pendingCount() async {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final rows = await _db.customSelect(
-      '''SELECT COUNT(*) as cnt FROM $_table
+    final rows = await _db
+        .customSelect(
+          '''SELECT COUNT(*) as cnt FROM $_table
          WHERE is_synced = 0 AND is_failed = 0
          AND (next_retry_at IS NULL OR next_retry_at <= ?)''',
-      variables: [Variable.withInt(nowMs)],
-    ).get();
+          variables: [Variable.withInt(nowMs)],
+        )
+        .get();
     return rows.first.read<int>('cnt');
   }
 
@@ -261,36 +267,33 @@ class DriftOutboxStorage implements OutboxStorage {
     final pending = await pendingCount();
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final syncingRows = await _db.customSelect(
-      '''SELECT COUNT(*) as cnt FROM $_table
+    final syncingRows = await _db
+        .customSelect(
+          '''SELECT COUNT(*) as cnt FROM $_table
          WHERE is_synced = 0 AND is_failed = 0
          AND next_retry_at IS NOT NULL AND next_retry_at > ?''',
-      variables: [Variable.withInt(nowMs)],
-    ).get();
+          variables: [Variable.withInt(nowMs)],
+        )
+        .get();
     final syncing = syncingRows.first.read<int>('cnt');
 
     final syncedRows = await _db
-        .customSelect(
-          'SELECT COUNT(*) as cnt FROM $_table WHERE is_synced = 1',
-        )
+        .customSelect('SELECT COUNT(*) as cnt FROM $_table WHERE is_synced = 1')
         .get();
     final synced = syncedRows.first.read<int>('cnt');
 
     final failedRows = await _db
-        .customSelect(
-          'SELECT COUNT(*) as cnt FROM $_table WHERE is_failed = 1',
-        )
+        .customSelect('SELECT COUNT(*) as cnt FROM $_table WHERE is_failed = 1')
         .get();
     final failed = failedRows.first.read<int>('cnt');
 
-    final oldestRows = await _db.customSelect(
-      '''SELECT timestamp FROM $_table
+    final oldestRows = await _db.customSelect('''SELECT timestamp FROM $_table
          WHERE is_synced = 0
-         ORDER BY timestamp ASC LIMIT 1''',
-    ).get();
+         ORDER BY timestamp ASC LIMIT 1''').get();
     final oldest = oldestRows.isNotEmpty
         ? DateTime.fromMillisecondsSinceEpoch(
-            oldestRows.first.read<int>('timestamp'))
+            oldestRows.first.read<int>('timestamp'),
+          )
         : null;
 
     return OutboxStats(

@@ -167,9 +167,9 @@ class PhpApiService {
       'method': method,
       'path': path,
       'data': data?.toString().substring(
-            0,
-            data.toString().length.clamp(0, 500),
-          ),
+        0,
+        data.toString().length.clamp(0, 500),
+      ),
       'statusCode': statusCode,
       'timestamp': DateTime.now().toIso8601String(),
     });
@@ -286,7 +286,7 @@ class PhpApiService {
       final queryParams = <String, dynamic>{
         'page': page,
         'page_size': pageSize,
-        if (since != null) 'since': since,
+        'since': ?since,
         if (filter != null && filter.isNotEmpty) 'filter': filter,
         ...?extraParams,
       };

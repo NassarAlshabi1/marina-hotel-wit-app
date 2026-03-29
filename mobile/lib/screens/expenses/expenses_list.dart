@@ -78,17 +78,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             final employeeNames = {
               for (final emp in employees) emp.id: emp.name,
             };
-            
+
             // Build a map of expenseId -> employeeId from salary_withdrawals
             final salaryExpenseToEmployee = <int, int>{};
-            if (salaryWithdrawalsAsync.hasValue && salaryWithdrawalsAsync.value != null) {
+            if (salaryWithdrawalsAsync.hasValue &&
+                salaryWithdrawalsAsync.value != null) {
               for (final sw in salaryWithdrawalsAsync.value!) {
                 if (sw.expenseId != null) {
                   salaryExpenseToEmployee[sw.expenseId!] = sw.employeeId;
                 }
               }
             }
-            
+
             return StreamBuilder<List<Expense>>(
               stream: _expensesStream,
               builder: (context, snapshot) {
@@ -124,21 +125,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         ),
                       )
                     else
-                      ...filteredExpenses.map(
-                        (expense) {
-                          // Get employee name: first from relatedId, then from salary_withdrawals
-                          final employeeName = _getEmployeeNameForExpense(
-                            expense,
-                            employeeNames,
-                            salaryExpenseToEmployee,
-                          );
-                          return _buildExpenseCard(
-                            expense,
-                            employeeName,
-                            employees,
-                          );
-                        },
-                      ),
+                      ...filteredExpenses.map((expense) {
+                        // Get employee name: first from relatedId, then from salary_withdrawals
+                        final employeeName = _getEmployeeNameForExpense(
+                          expense,
+                          employeeNames,
+                          salaryExpenseToEmployee,
+                        );
+                        return _buildExpenseCard(
+                          expense,
+                          employeeName,
+                          employees,
+                        );
+                      }),
                   ],
                 );
               },
@@ -160,10 +159,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     Map<int, int> salaryExpenseToEmployee,
   ) {
     // First try from relatedId
-    if (expense.relatedId != null && employeeNames.containsKey(expense.relatedId)) {
+    if (expense.relatedId != null &&
+        employeeNames.containsKey(expense.relatedId)) {
       return employeeNames[expense.relatedId];
     }
-    
+
     // For salary expenses, check salary_withdrawals table
     if (expense.expenseType == _salaryType) {
       final employeeId = salaryExpenseToEmployee[expense.id];
@@ -171,7 +171,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         return employeeNames[employeeId];
       }
     }
-    
+
     return null;
   }
 
@@ -189,14 +189,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   DateTime _parseExpenseDate(String value) {
-    final normalized =
-        value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     return DateTime.tryParse(normalized) ?? DateTime.now();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initial = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -221,8 +223,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildFiltersCard() {
-    final fromLabel =
-        _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final fromLabel = _fromDate != null
+        ? _dateFormat.format(_fromDate!)
+        : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     return Card(
       child: Padding(
@@ -425,7 +428,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     final availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
-    
+
     // Get employee ID: first from relatedId, then from salary_withdrawals
     int? selectedEmployeeId = existing?.relatedId;
     if (selectedEmployeeId == null && existingSalaryWithdrawal != null) {
@@ -433,8 +436,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
 
     // ✅ قائمة الإجراءات المتاحة (قابلة للتوسعة)
-    List<String> salaryActions = List.from(defaultSalaryActions);
-    
+    final List<String> salaryActions = List.from(defaultSalaryActions);
+
     // إضافة الإجراء الحالي إذا لم يكن في القائمة
     if (!salaryActions.contains(selectedSalaryAction)) {
       salaryActions.insert(0, selectedSalaryAction);
@@ -607,10 +610,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate =
-        date.text.trim().isEmpty ? Time.hotelDayKey() : date.text.trim();
+    final trimmedDate = date.text.trim().isEmpty
+        ? Time.hotelDayKey()
+        : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
-    
+
     // ✅ استخدام النوع والإجراء كما هما بدون تحويل
     final savedType = selectedType ?? 'اخرى';
 
@@ -634,8 +638,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         // ✅ الحصول على اسم الموظف
         final employeeName = availableEmployees
             .where((e) => e.id == selectedEmployeeId)
-            .firstOrNull?.name;
-        
+            .firstOrNull
+            ?.name;
+
         // ✅ تمرير الإجراء واسم الموظف
         await salaryRepo.saveFromExpense(
           expenseId: newId,
@@ -661,8 +666,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         // ✅ الحصول على اسم الموظف
         final employeeName = availableEmployees
             .where((e) => e.id == selectedEmployeeId)
-            .firstOrNull?.name;
-        
+            .firstOrNull
+            ?.name;
+
         // ✅ تمرير الإجراء واسم الموظف
         await salaryRepo.saveFromExpense(
           expenseId: existing.id,
@@ -684,7 +690,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     // ✅ تحديث قائمة سحوبات الرواتب
     ref.invalidate(salaryWithdrawalsListProvider);
-    
+
     markDataChanged();
     if (mounted) {
       _refreshExpensesStream();

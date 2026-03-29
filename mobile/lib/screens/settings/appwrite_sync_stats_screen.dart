@@ -124,8 +124,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   ) {
     final outboxCount = _intVal(stats, 'outboxCount');
     final failedCount = _intVal(stats, 'failedCount');
-    final conflictCount = _intVal(stats, 'conflictCount') +
-        _intVal(stats, 'totalConflicts');
+    final conflictCount =
+        _intVal(stats, 'conflictCount') + _intVal(stats, 'totalConflicts');
     final hasErrors = failedCount > 0 || conflictCount > 0;
     // ✅ حالة تحميل موحدة لمنع Rapid Taps
     final isActionLoading = ref.watch(_isStatsActionLoadingProvider);
@@ -143,7 +143,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                     children: [
                       const Text(
                         'Outbox',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -156,28 +159,40 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                           children: [
                             if (failedCount > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.red.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   '$failedCount فشل',
-                                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ),
                             if (failedCount > 0 && conflictCount > 0)
                               const SizedBox(width: 8),
                             if (conflictCount > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.orange.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   '$conflictCount تعارض',
-                                  style: const TextStyle(fontSize: 12, color: Colors.orange),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange,
+                                  ),
                                 ),
                               ),
                           ],
@@ -214,29 +229,46 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 // ✅ زر محمي من Rapid Taps
                 ElevatedButton.icon(
-                  onPressed: isActionLoading ? null : () async {
-                    ref.read(_isStatsActionLoadingProvider.notifier).state = true;
-                    try {
-                      final manager = ref.read(appwriteSyncManagerProvider);
-                      await manager.sync();
-                      ref.invalidate(syncStatsProvider);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تمت إعادة المحاولة')),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('فشل: $e'), backgroundColor: Colors.red),
-                        );
-                      }
-                    } finally {
-                      if (context.mounted) {
-                        ref.read(_isStatsActionLoadingProvider.notifier).state = false;
-                      }
-                    }
-                  },
+                  onPressed: isActionLoading
+                      ? null
+                      : () async {
+                          ref
+                                  .read(_isStatsActionLoadingProvider.notifier)
+                                  .state =
+                              true;
+                          try {
+                            final manager = ref.read(
+                              appwriteSyncManagerProvider,
+                            );
+                            await manager.sync();
+                            ref.invalidate(syncStatsProvider);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('تمت إعادة المحاولة'),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('فشل: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (context.mounted) {
+                              ref
+                                      .read(
+                                        _isStatsActionLoadingProvider.notifier,
+                                      )
+                                      .state =
+                                  false;
+                            }
+                          }
+                        },
                   icon: isActionLoading
                       ? const SizedBox(
                           width: 16,
@@ -247,35 +279,48 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                   label: const Text('مزامنة الآن'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: isActionLoading ? null : () async {
-                    ref.read(_isStatsActionLoadingProvider.notifier).state = true;
-                    try {
-                      final db = ref.read(databaseProvider);
-                      final dao = OutboxDao(db);
-                      await dao.resetErrors();
-                      await dao.clearStale(attemptsThreshold: 3);
-                      ref.invalidate(syncStatsProvider);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('فشل: $e'), backgroundColor: Colors.red),
-                        );
-                      }
-                    } finally {
-                      if (context.mounted) {
-                        ref.read(_isStatsActionLoadingProvider.notifier).state = false;
-                      }
-                    }
-                  },
+                  onPressed: isActionLoading
+                      ? null
+                      : () async {
+                          ref
+                                  .read(_isStatsActionLoadingProvider.notifier)
+                                  .state =
+                              true;
+                          try {
+                            final db = ref.read(databaseProvider);
+                            final dao = OutboxDao(db);
+                            await dao.resetErrors();
+                            await dao.clearStale(attemptsThreshold: 3);
+                            ref.invalidate(syncStatsProvider);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('فشل: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (context.mounted) {
+                              ref
+                                      .read(
+                                        _isStatsActionLoadingProvider.notifier,
+                                      )
+                                      .state =
+                                  false;
+                            }
+                          }
+                        },
                   icon: const Icon(Icons.cleaning_services),
                   label: const Text('تفريغ ذكي'),
                 ),
@@ -427,7 +472,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             SizedBox(
               height: 200,
               child: Semantics(
-                label: 'رسم بياني دائري: معدل النجاح ${clampedSuccess.toStringAsFixed(1)}%',
+                label:
+                    'رسم بياني دائري: معدل النجاح ${clampedSuccess.toStringAsFixed(1)}%',
                 child: ExcludeSemantics(
                   child: PieChart(
                     PieChartData(
@@ -487,8 +533,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   Widget _buildDataTransferCard(Map<String, dynamic> stats) {
     final recordsPushed = _intVal(stats, 'totalRecordsPushed');
     final recordsPulled = _intVal(stats, 'totalRecordsPulled');
-    final conflicts = _intVal(stats, 'totalConflicts') +
-        _intVal(stats, 'conflictCount');
+    final conflicts =
+        _intVal(stats, 'totalConflicts') + _intVal(stats, 'conflictCount');
 
     // ✅ Empty State — لا توجد بيانات منقولة
     final hasData = recordsPushed > 0 || recordsPulled > 0 || conflicts > 0;
@@ -528,14 +574,15 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             SizedBox(
               height: 200,
               child: Semantics(
-                label: 'رسم بياني: رفع $recordsPushed، تحميل $recordsPulled، تضارب $conflicts',
+                label:
+                    'رسم بياني: رفع $recordsPushed، تحميل $recordsPulled، تضارب $conflicts',
                 child: ExcludeSemantics(
                   child: BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
                       // ✅ maxValue آمن > 0 بسبب hasData check
                       maxY: maxValue * 1.2,
-                      barTouchData: BarTouchData(enabled: true),
+                      barTouchData: const BarTouchData(enabled: true),
                       titlesData: FlTitlesData(
                         show: true,
                         bottomTitles: AxisTitles(
@@ -593,15 +640,27 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                       barGroups: [
                         BarChartGroupData(
                           x: 0,
-                          barRods: [_buildBarRod(recordsPushed.toDouble(), Colors.orange)],
+                          barRods: [
+                            _buildBarRod(
+                              recordsPushed.toDouble(),
+                              Colors.orange,
+                            ),
+                          ],
                         ),
                         BarChartGroupData(
                           x: 1,
-                          barRods: [_buildBarRod(recordsPulled.toDouble(), Colors.purple)],
+                          barRods: [
+                            _buildBarRod(
+                              recordsPulled.toDouble(),
+                              Colors.purple,
+                            ),
+                          ],
                         ),
                         BarChartGroupData(
                           x: 2,
-                          barRods: [_buildBarRod(conflicts.toDouble(), Colors.amber)],
+                          barRods: [
+                            _buildBarRod(conflicts.toDouble(), Colors.amber),
+                          ],
                         ),
                       ],
                     ),
@@ -723,14 +782,20 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       message,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     if (subMessage != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         subMessage,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade400,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -888,7 +953,8 @@ final _syncHasErrorsProvider = Provider<bool>((ref) {
   return statsAsync.when(
     data: (stats) {
       final failed = (stats['failedCount'] as int?) ?? 0;
-      final conflicts = ((stats['conflictCount'] as int?) ?? 0) +
+      final conflicts =
+          ((stats['conflictCount'] as int?) ?? 0) +
           ((stats['totalConflicts'] as int?) ?? 0);
       return failed > 0 || conflicts > 0;
     },

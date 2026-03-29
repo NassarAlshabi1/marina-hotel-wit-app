@@ -101,8 +101,8 @@ class FileManagementTab extends ConsumerWidget {
     final crossAxisCount = width < 360
         ? 1
         : width < 600
-            ? 2
-            : 3;
+        ? 2
+        : 3;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -170,9 +170,7 @@ class FileManagementTab extends ConsumerWidget {
       );
     }
 
-    return Column(
-      children: operations.map(_buildOperationItem).toList(),
-    );
+    return Column(children: operations.map(_buildOperationItem).toList());
   }
 
   Widget _buildOperationItem(Map<String, dynamic> operation) {

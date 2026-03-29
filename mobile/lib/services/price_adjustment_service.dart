@@ -22,9 +22,9 @@ class PriceAdjustmentService {
     final effectiveDate = effectiveFrom ?? now;
     final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
 
-    final room = await (db.select(db.rooms)
-          ..where((r) => r.roomNumber.equals(roomNumber)))
-        .getSingleOrNull();
+    final room = await (db.select(
+      db.rooms,
+    )..where((r) => r.roomNumber.equals(roomNumber))).getSingleOrNull();
 
     if (room == null) {
       return PriceAdjustmentResult(
@@ -107,7 +107,7 @@ class PriceAdjustmentService {
       'نشط',
       'active',
       'مسجل دخول',
-      'checked_in'
+      'checked_in',
     ];
 
     return (db.select(db.bookings)
@@ -125,11 +125,14 @@ class PriceAdjustmentService {
     required String adjustmentUuid,
     required String appliedBy,
   }) async {
-    final nights = await (db.select(db.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(booking.id))
-          ..where((n) => n.deletedAt.isNull())
-          ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
-        .get();
+    final nights =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..where(
+                (n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay),
+              ))
+            .get();
 
     int updated = 0;
     final entries = <String>[];
@@ -156,12 +159,15 @@ class PriceAdjustmentService {
       adjustedRate = double.parse(adjustedRate.toStringAsFixed(2));
 
       if ((oldRate - adjustedRate).abs() > 0.001) {
-        await (db.update(db.bookingNights)..where((n) => n.id.equals(night.id)))
-            .write(BookingNightsCompanion(
-          nightlyRate: Value(adjustedRate),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ));
+        await (db.update(
+          db.bookingNights,
+        )..where((n) => n.id.equals(night.id))).write(
+          BookingNightsCompanion(
+            nightlyRate: Value(adjustedRate),
+            updatedAt: Value(Time.nowEpoch()),
+            lastModified: Value(Time.nowEpoch()),
+          ),
+        );
 
         updated++;
         entries.add(
@@ -175,10 +181,11 @@ class PriceAdjustmentService {
   }
 
   Future<void> _recalculateBookingTotals(Booking booking) async {
-    final nights = await (db.select(db.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(booking.id))
-          ..where((n) => n.deletedAt.isNull()))
-        .get();
+    final nights =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
 
     final double totalNightAmount = nights.fold<double>(
       0.0,
@@ -187,15 +194,18 @@ class PriceAdjustmentService {
 
     double totalDue = totalNightAmount;
     if (booking.discount > 0 && booking.discountType == 'total') {
-      totalDue =
-          (totalNightAmount - booking.discount).clamp(0.0, totalNightAmount);
+      totalDue = (totalNightAmount - booking.discount).clamp(
+        0.0,
+        totalNightAmount,
+      );
     }
     totalDue = double.parse(totalDue.toStringAsFixed(2));
 
-    final payments = await (db.select(db.payments)
-          ..where((p) => p.bookingLocalId.equals(booking.id))
-          ..where((p) => p.deletedAt.isNull()))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              ..where((p) => p.bookingLocalId.equals(booking.id))
+              ..where((p) => p.deletedAt.isNull()))
+            .get();
 
     final totalPaid = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final remaining = double.parse((totalDue - totalPaid).toStringAsFixed(2));
@@ -219,21 +229,25 @@ class PriceAdjustmentService {
     required String performedBy,
   }) async {
     final now = DateTime.now();
-    await db.into(db.auditLogs).insert(AuditLogsCompanion(
-          localUuid: Value(_uuid.v4()),
-          operationType: Value(action),
-          entityType: const Value('booking_nights'),
-          entityUuid: const Value(''),
-          previousState: const Value(null),
-          newState: Value(details),
-          performedBy: Value(performedBy),
-          deviceId: const Value('app'),
-          hotelDayKey: Value(Time.hotelDayKey(now: now)),
-          timestamp: Value(Time.nowEpoch()),
-          timestampIso: Value(now.toIso8601String()),
-          isFinancial: const Value(true),
-          createdAt: Value(Time.nowEpoch()),
-        ));
+    await db
+        .into(db.auditLogs)
+        .insert(
+          AuditLogsCompanion(
+            localUuid: Value(_uuid.v4()),
+            operationType: Value(action),
+            entityType: const Value('booking_nights'),
+            entityUuid: const Value(''),
+            previousState: const Value(null),
+            newState: Value(details),
+            performedBy: Value(performedBy),
+            deviceId: const Value('app'),
+            hotelDayKey: Value(Time.hotelDayKey(now: now)),
+            timestamp: Value(Time.nowEpoch()),
+            timestampIso: Value(now.toIso8601String()),
+            isFinancial: const Value(true),
+            createdAt: Value(Time.nowEpoch()),
+          ),
+        );
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {
@@ -271,12 +285,14 @@ class PriceAdjustmentService {
     final bookingPreviews = <Map<String, dynamic>>[];
 
     for (final booking in activeBookings) {
-      final nights = await (db.select(db.bookingNights)
-            ..where((n) => n.bookingLocalId.equals(booking.id))
-            ..where((n) => n.deletedAt.isNull())
-            ..where(
-                (n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
-          .get();
+      final nights =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where((n) => n.deletedAt.isNull())
+                ..where(
+                  (n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay),
+                ))
+              .get();
 
       if (nights.isEmpty) continue;
 
@@ -339,10 +355,7 @@ class PriceAdjustmentResult {
 }
 
 class _NightUpdateResult {
-  _NightUpdateResult({
-    required this.nightsUpdated,
-    required this.auditEntries,
-  });
+  _NightUpdateResult({required this.nightsUpdated, required this.auditEntries});
   final int nightsUpdated;
   final List<String> auditEntries;
 }

@@ -71,7 +71,10 @@ class BackupOverviewTab extends ConsumerWidget {
               icon: Icons.schedule,
             ),
             const InfoRow(
-                label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
+              label: 'عدد النسخ',
+              value: '5 نسخ',
+              icon: Icons.layers,
+            ),
             InfoRow(
               label: 'المساحة الإجمالية',
               value: FileSizeFormatter.formatBytes(75 * 1024 * 1024),
@@ -88,8 +91,8 @@ class BackupOverviewTab extends ConsumerWidget {
     final crossAxisCount = width < 360
         ? 1
         : width < 600
-            ? 2
-            : 3;
+        ? 2
+        : 3;
     return GridView.count(
       crossAxisCount: crossAxisCount,
       shrinkWrap: true,
@@ -152,9 +155,7 @@ class BackupOverviewTab extends ConsumerWidget {
       },
     ];
 
-    return Column(
-      children: backups.map(_buildBackupItem).toList(),
-    );
+    return Column(children: backups.map(_buildBackupItem).toList());
   }
 
   Widget _buildBackupItem(Map<String, dynamic> backup) {
@@ -207,8 +208,8 @@ class BackupOverviewTab extends ConsumerWidget {
     final crossAxisCount = width < 360
         ? 1
         : width < 600
-            ? 2
-            : 3;
+        ? 2
+        : 3;
     return GridView.count(
       crossAxisCount: crossAxisCount,
       shrinkWrap: true,

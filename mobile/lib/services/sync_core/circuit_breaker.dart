@@ -18,7 +18,7 @@ class CircuitBreakerConfig {
 
 class CircuitBreaker {
   CircuitBreaker({required this.name, CircuitBreakerConfig? config})
-      : config = config ?? const CircuitBreakerConfig();
+    : config = config ?? const CircuitBreakerConfig();
   final String name;
   final CircuitBreakerConfig config;
 

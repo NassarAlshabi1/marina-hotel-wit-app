@@ -110,7 +110,8 @@ class FileManagementService {
       await Share.shareXFiles(
         xFiles,
         subject: 'ملفات مارينا هوتيل',
-        text: customMessage ??
+        text:
+            customMessage ??
             'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
       );
 
@@ -345,8 +346,7 @@ class FileManagementService {
 
       // إضافة البيانات
       for (final row in tableData) {
-        final values = (row as Map<String, dynamic>)
-            .values
+        final values = (row as Map<String, dynamic>).values
             .map((value) => _escapeCsvValue(value?.toString() ?? ''))
             .join(',');
         csvContent.writeln(values);

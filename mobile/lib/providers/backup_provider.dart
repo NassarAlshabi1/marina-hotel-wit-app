@@ -196,8 +196,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final lastBackup = await _backupService.getLastBackupTime();
 
       // جلب آخر وقت نسخ احتياطي محلي
-      final lastLocalBackup =
-          await _localBackupService.getLastLocalBackupTime();
+      final lastLocalBackup = await _localBackupService
+          .getLastLocalBackupTime();
 
       // جلب حجم قاعدة البيانات
       final dbSize = await _backupService.estimateDatabaseSize();
@@ -225,10 +225,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final resolvedBackupType = enableLocal && autoEnabled
           ? BackupType.both
           : enableLocal
-              ? BackupType.local
-              : autoEnabled
-                  ? BackupType.googleDrive
-                  : BackupType.both;
+          ? BackupType.local
+          : autoEnabled
+          ? BackupType.googleDrive
+          : BackupType.both;
 
       // محاولة استعادة جلسة Google Drive تلقائياً
       GoogleSignInAccount? account;
@@ -592,10 +592,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final updatedBackupType = enableDrive && enableLocal
           ? BackupType.both
           : enableLocal
-              ? BackupType.local
-              : enableDrive
-                  ? BackupType.googleDrive
-                  : settings.backupType;
+          ? BackupType.local
+          : enableDrive
+          ? BackupType.googleDrive
+          : settings.backupType;
 
       state = state.copyWith(
         autoSettings: settings.copyWith(
@@ -756,8 +756,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       // تحديث قائمة النسخ المحلية
       final localBackups = await _localBackupService.listLocalBackups();
-      final lastLocalBackup =
-          await _localBackupService.getLastLocalBackupTime();
+      final lastLocalBackup = await _localBackupService
+          .getLastLocalBackupTime();
       final folderInfo = await _localBackupService.getBackupFolderInfo();
 
       state = state.copyWith(
@@ -1218,7 +1218,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final backupData = await _backupService.exportDatabaseToJson();
           await _backupService.uploadBackup(backupData);
         } else {
-          final sqlitePath = localBackupPath ??
+          final sqlitePath =
+              localBackupPath ??
               (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
           final sqliteFile = File(sqlitePath);
           if (!await sqliteFile.exists()) {
@@ -1248,8 +1249,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       await refreshLocalBackups();
       await refreshBackupsList();
 
-      final lastLocalBackup =
-          await _localBackupService.getLastLocalBackupTime();
+      final lastLocalBackup = await _localBackupService
+          .getLastLocalBackupTime();
       final lastDriveBackup = await _backupService.getLastBackupTime();
 
       state = state.copyWith(
@@ -1449,19 +1450,19 @@ final fileManagementServiceProvider = Provider<FileManagementService>((ref) {
 // Provider للحالة
 final backupStatusProvider =
     StateNotifierProvider<BackupStatusNotifier, BackupState>((ref) {
-  final driveService = ref.watch(googleDriveBackupServiceProvider);
-  final localService = ref.watch(localBackupServiceProvider);
-  final fileService = ref.watch(fileManagementServiceProvider);
-  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
-  final smartSync = ref.watch(smartSyncManagerProvider);
-  return BackupStatusNotifier(
-    driveService,
-    localService,
-    fileService,
-    appwriteSync,
-    smartSync,
-  );
-});
+      final driveService = ref.watch(googleDriveBackupServiceProvider);
+      final localService = ref.watch(localBackupServiceProvider);
+      final fileService = ref.watch(fileManagementServiceProvider);
+      final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+      final smartSync = ref.watch(smartSyncManagerProvider);
+      return BackupStatusNotifier(
+        driveService,
+        localService,
+        fileService,
+        appwriteSync,
+        smartSync,
+      );
+    });
 
 // Provider للنسخ المتاحة (Google Drive)
 final availableBackupsProvider = Provider<List<DriveBackupFile>>((ref) {

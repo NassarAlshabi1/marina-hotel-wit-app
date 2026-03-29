@@ -30,8 +30,9 @@ class BlacklistScreen extends ConsumerWidget {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor:
-                        e.active ? Colors.red.shade100 : Colors.grey.shade300,
+                    backgroundColor: e.active
+                        ? Colors.red.shade100
+                        : Colors.grey.shade300,
                     child: Icon(
                       Icons.gavel,
                       color: e.active ? Colors.red : Colors.grey,

@@ -11,9 +11,9 @@ import '../utils/status_utils.dart';
 /// ✅ خدمة السحب الشامل من Appwrite
 /// تجلب جميع البيانات بدون أي فلترة - كل الجداول وكل الحقول
 class AppwriteFullPull {
-  static final AppwriteFullPull _instance = AppwriteFullPull._internal();
   factory AppwriteFullPull() => _instance;
   AppwriteFullPull._internal();
+  static final AppwriteFullPull _instance = AppwriteFullPull._internal();
 
   AppwriteService? _appwriteService;
   AppDatabase? _database;
@@ -25,9 +25,7 @@ class AppwriteFullPull {
 
   /// هل تم التهيئة
   bool get isInitialized =>
-      _appwriteService != null &&
-      _database != null &&
-      _adapterRegistry != null;
+      _appwriteService != null && _database != null && _adapterRegistry != null;
 
   /// تهيئة الخدمة
   Future<void> initialize(AppwriteService service, AppDatabase db) async {
@@ -40,18 +38,12 @@ class AppwriteFullPull {
   /// سحب جميع البيانات من Appwrite
   Future<FullPullResult> pullAll() async {
     if (!isInitialized) {
-      return FullPullResult(
-        success: false,
-        message: 'الخدمة غير مهيأة',
-      );
+      return FullPullResult(success: false, message: 'الخدمة غير مهيأة');
     }
 
     _logger.info('🚀 بدء السحب الشامل من Appwrite...', tag: 'FULL_PULL');
 
-    final result = FullPullResult(
-      success: true,
-      message: 'تم السحب بنجاح',
-    );
+    final result = FullPullResult(success: true, message: 'تم السحب بنجاح');
 
     // تعطيل FOREIGN KEY مؤقتاً
     await _database!.customStatement('PRAGMA foreign_keys=OFF');
@@ -69,10 +61,7 @@ class AppwriteFullPull {
             tag: 'FULL_PULL',
           );
         } catch (e) {
-          _logger.error(
-            '❌ فشل سحب ${entity.name}: $e',
-            tag: 'FULL_PULL',
-          );
+          _logger.error('❌ فشل سحب ${entity.name}: $e', tag: 'FULL_PULL');
           result.failedEntities.add(entity.name);
         }
       }
@@ -99,7 +88,7 @@ class AppwriteFullPull {
   /// ترتيب الكيانات للسحب (حسب العلاقات)
   List<_PullEntity> _getEntitiesInOrder() {
     final reg = _adapterRegistry!;
-    
+
     return [
       // 1. الغرف أولاً
       _PullEntity(
@@ -232,10 +221,7 @@ class AppwriteFullPull {
         final response = await _appwriteService!.databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: entity.collectionId!,
-          queries: [
-            Query.limit(_batchSize),
-            Query.offset(offset),
-          ],
+          queries: [Query.limit(_batchSize), Query.offset(offset)],
         );
 
         final documents = response.documents;
@@ -272,7 +258,8 @@ class AppwriteFullPull {
             }
 
             // استخدام document ID كـ localUuid إذا لم يكن موجوداً
-            remoteData['localUuid'] = remoteData['localUuid']?.toString() ??
+            remoteData['localUuid'] =
+                remoteData['localUuid']?.toString() ??
                 remoteData['local_uuid']?.toString() ??
                 doc.$id;
 
@@ -323,11 +310,11 @@ class AppwriteFullPull {
     data.remove('\$permissions');
     data.remove('\$collectionId');
     data.remove('\$databaseId');
-    
+
     // أيضاً إزالة الحقول بأسماء بديلة
     data.remove('createdAt_\$');
     data.remove('updatedAt_\$');
-    
+
     // الاحتفاظ بـ document ID كـ reference إذا لزم الأمر
     // يمكن استخدامه لاحقاً للتحديثات
     if (!data.containsKey('serverDocId')) {
@@ -344,7 +331,8 @@ class AppwriteFullPull {
       for (final booking in bookings) {
         // ✅ استخدام StatusUtils للتحقق من الحجوزات النشطة
         // يدعم جميع حالات الحجز: محجوزة، نشط، active، confirmed، مؤقت، إلخ
-        if (booking.deletedAt == null && StatusUtils.isActiveBooking(booking.status)) {
+        if (booking.deletedAt == null &&
+            StatusUtils.isActiveBooking(booking.status)) {
           occupiedRooms.add(booking.roomNumber);
         }
       }
@@ -373,23 +361,17 @@ class AppwriteFullPull {
 
 /// كيان للسحب
 class _PullEntity {
+  // BaseRepository<dynamic, dynamic>
+
+  _PullEntity({required this.name, this.collectionId, this.repo});
   final String name;
   final String? collectionId;
-  final dynamic repo; // BaseRepository<dynamic, dynamic>
-
-  _PullEntity({
-    required this.name,
-    this.collectionId,
-    this.repo,
-  });
+  final dynamic repo;
 }
 
 /// نتيجة السحب الشامل
 class FullPullResult {
-  FullPullResult({
-    required this.success,
-    required this.message,
-  });
+  FullPullResult({required this.success, required this.message});
 
   bool success;
   String message;

@@ -16,8 +16,9 @@ DateTime _safeParseDateTime(String? dateStr, {DateTime? fallback}) {
   if (dateStr == null || dateStr.trim().isEmpty) {
     return fallback ?? DateTime.now();
   }
-  final normalized =
-      dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
+  final normalized = dateStr.contains('T')
+      ? dateStr
+      : dateStr.replaceFirst(' ', 'T');
   try {
     return DateTime.parse(normalized);
   } catch (_) {
@@ -235,8 +236,9 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests =
-        bookings.where((b) => b.status == 'checked_in').length;
+    final checkedInGuests = bookings
+        .where((b) => b.status == 'checked_in')
+        .length;
 
     pdf.addPage(
       pw.MultiPage(

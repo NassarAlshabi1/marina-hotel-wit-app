@@ -161,8 +161,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       discountStartDate.day,
       14,
     );
-    final effectiveStart =
-        discountDayStart.isAfter(checkin) ? discountDayStart : checkin;
+    final effectiveStart = discountDayStart.isAfter(checkin)
+        ? discountDayStart
+        : checkin;
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
@@ -219,11 +220,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final expectedNights = booking.expectedNights > 0
                   ? booking.expectedNights
                   : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-              final isActive = actualCheckout == null &&
+              final isActive =
+                  actualCheckout == null &&
                   StatusUtils.isBookingActive(booking);
               final actualNights = Time.nightsWithCutoff(
                 checkin,
-                checkout: actualCheckout ??
+                checkout:
+                    actualCheckout ??
                     (isActive ? DateTime.now() : plannedCheckout),
               );
 
@@ -235,14 +238,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               );
 
               return StreamBuilder<List<db.BookingNight>>(
-                stream: (dbInstance.select(dbInstance.bookingNights)
-                      ..where((n) => n.bookingLocalId.equals(booking.id))
-                      ..where((n) => n.deletedAt.isNull()))
-                    .watch(),
+                stream:
+                    (dbInstance.select(dbInstance.bookingNights)
+                          ..where((n) => n.bookingLocalId.equals(booking.id))
+                          ..where((n) => n.deletedAt.isNull()))
+                        .watch(),
                 builder: (context, nightsSnap) {
                   final nights = nightsSnap.data ?? const <db.BookingNight>[];
-                  final nightsCount =
-                      nights.isNotEmpty ? nights.length : actualNights;
+                  final nightsCount = nights.isNotEmpty
+                      ? nights.length
+                      : actualNights;
                   final double nightTotal = nights.isNotEmpty
                       ? nights.fold<double>(
                           0,
@@ -251,7 +256,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                               (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
                         )
                       : (() {
-                          final checkout = actualCheckout ??
+                          final checkout =
+                              actualCheckout ??
                               (isActive ? DateTime.now() : plannedCheckout);
                           if (checkout == null) {
                             return actualNights * roomRate;
@@ -264,10 +270,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                             );
                             final fullNightsRaw =
                                 actualNights - discountedNights;
-                            final fullNights =
-                                fullNightsRaw < 0 ? 0 : fullNightsRaw;
-                            final discountedRate =
-                                (roomRate - discount).clamp(0, roomRate);
+                            final fullNights = fullNightsRaw < 0
+                                ? 0
+                                : fullNightsRaw;
+                            final discountedRate = (roomRate - discount).clamp(
+                              0,
+                              roomRate,
+                            );
                             return (fullNights * roomRate) +
                                 (discountedNights * discountedRate);
                           }
@@ -276,8 +285,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
                   final double totalAmount =
                       discount > 0 && discountType == 'total'
-                          ? (nightTotal - discount).clamp(0, nightTotal)
-                          : nightTotal;
+                      ? (nightTotal - discount).clamp(0, nightTotal)
+                      : nightTotal;
 
                   int discountedNights = 0;
                   int surchargeNights = 0;
@@ -286,10 +295,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   double totalSurcharge = 0;
 
                   if (nights.isNotEmpty) {
-                    discountedNights =
-                        nights.where((n) => n.adjustment < 0).length;
-                    surchargeNights =
-                        nights.where((n) => n.adjustment > 0).length;
+                    discountedNights = nights
+                        .where((n) => n.adjustment < 0)
+                        .length;
+                    surchargeNights = nights
+                        .where((n) => n.adjustment > 0)
+                        .length;
                     normalNights =
                         nightsCount - discountedNights - surchargeNights;
                     if (normalNights < 0) normalNights = 0;
@@ -327,8 +338,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       double remainingAmount = totalAmount - paidAmount;
                       if (remainingAmount < 0) remainingAmount = 0;
                       _remainingAmount = remainingAmount;
-                      final uiPayments =
-                          dbPayments.map(_mapDbPaymentToUi).toList();
+                      final uiPayments = dbPayments
+                          .map(_mapDbPaymentToUi)
+                          .toList();
                       final summary = BookingPaymentSummary(
                         bookingId: booking.localUuid,
                         totalAmount: totalAmount,
@@ -361,9 +373,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           Container(
                             margin: const EdgeInsets.symmetric(horizontal: 16),
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(25),
                             ),
                             child: TabBar(
@@ -373,14 +385,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                               indicatorSize: TabBarIndicatorSize.tab,
-                              labelColor:
-                                  Theme.of(context).colorScheme.onPrimary,
+                              labelColor: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary,
                               unselectedLabelColor: Theme.of(
                                 context,
                               ).colorScheme.onSurfaceVariant,
                               labelStyle: const TextStyle(fontSize: 13),
-                              unselectedLabelStyle:
-                                  const TextStyle(fontSize: 13),
+                              unselectedLabelStyle: const TextStyle(
+                                fontSize: 13,
+                              ),
                               dividerColor: Colors.transparent,
                               tabs: const [
                                 Tab(text: 'دفعة جديدة'),
@@ -428,10 +442,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
     final checkinText = dateFmt.format(checkin);
-    final plannedText =
-        plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
-    final actualText =
-        actualCheckout != null ? dateFmt.format(actualCheckout) : null;
+    final plannedText = plannedCheckout != null
+        ? dateFmt.format(plannedCheckout)
+        : null;
+    final actualText = actualCheckout != null
+        ? dateFmt.format(actualCheckout)
+        : null;
     final hasPhone = _currentGuestPhone.isNotEmpty;
     final identityLine = widget.booking.guestIdNumber.isEmpty
         ? widget.booking.guestIdType
@@ -648,10 +664,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 children: [
                   const Text(
                     'تقدم الدفع',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   Text(
                     '${summary.paidPercentage.toStringAsFixed(1)}%',
@@ -888,11 +901,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _buildQuickPaymentButton(
-                '100%',
-                remaining,
-                summary,
-              ),
+              child: _buildQuickPaymentButton('100%', remaining, summary),
             ),
           ],
         ),
@@ -1159,9 +1168,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d+'),
-                      ),
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
                     ],
                   ),
 
@@ -1226,13 +1233,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               onPressed: _isSavingPayment
                   ? null
                   : () => _processPayment(
-                        method,
-                        amountController.text,
-                        notesController.text,
-                        referenceController.text,
-                        cardDigitsController.text,
-                        bankController.text,
-                      ),
+                      method,
+                      amountController.text,
+                      notesController.text,
+                      referenceController.text,
+                      cardDigitsController.text,
+                      bankController.text,
+                    ),
               child: _isSavingPayment
                   ? const SizedBox(
                       width: 20,
@@ -1400,8 +1407,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         final amount = nights * roomRate;
 
         return ElevatedButton(
-          onPressed:
-              amount > 0 ? () => _showDailyPaymentDialog(nights, amount) : null,
+          onPressed: amount > 0
+              ? () => _showDailyPaymentDialog(nights, amount)
+              : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
             foregroundColor: Colors.white,
@@ -1520,8 +1528,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final now = DateTime.now();
     final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
     final currentTotal = currentNights * roomRate;
-    final allPayments =
-        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
+    final allPayments = await paymentsRepo
+        .paymentsByBooking(widget.booking.id)
+        .first;
     final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
     double newRemaining = currentTotal - totalPaid;
     if (newRemaining < 0) newRemaining = 0;
@@ -1613,10 +1622,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       checkout: actualCheckout ?? plannedCheckout,
     );
 
-    final nights = await (dbInstance.select(dbInstance.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(widget.booking.id))
-          ..where((n) => n.deletedAt.isNull()))
-        .get();
+    final nights =
+        await (dbInstance.select(dbInstance.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
     final discount = widget.booking.discount;
     final discountType = widget.booking.discountType;
     final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
@@ -1649,8 +1659,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final double totalAmount = discount > 0 && discountType == 'total'
         ? (nightTotal - discount).clamp(0, nightTotal)
         : nightTotal;
-    final payments =
-        await paymentsRepo.paymentsByBooking(widget.booking.id).first;
+    final payments = await paymentsRepo
+        .paymentsByBooking(widget.booking.id)
+        .first;
     final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) remainingAmount = 0;
@@ -2034,8 +2045,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             _buildStatementPreviewRow(
               'المتبقي',
               _currencyFmt.format(summary.remainingAmount),
-              valueColor:
-                  summary.remainingAmount > 0 ? Colors.red : Colors.green,
+              valueColor: summary.remainingAmount > 0
+                  ? Colors.red
+                  : Colors.green,
             ),
             const Divider(height: 16),
             Row(

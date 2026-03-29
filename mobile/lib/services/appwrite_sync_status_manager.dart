@@ -5,16 +5,15 @@ import 'appwrite_config.dart';
 /// مدير حالة مزامنة الجداول مع Appwrite
 /// يتولى إدارة تفعيل/تعطيل المزامنة لكل جدول على حدة
 class AppwriteSyncStatusManager {
+  factory AppwriteSyncStatusManager() => _instance;
+
+  AppwriteSyncStatusManager._internal();
   static const String _syncStatusPrefix = 'appwrite_sync_status_';
   static const String _lastSyncTimePrefix = 'appwrite_last_sync_';
   static const String _syncCountPrefix = 'appwrite_sync_count_';
 
   static final AppwriteSyncStatusManager _instance =
       AppwriteSyncStatusManager._internal();
-
-  factory AppwriteSyncStatusManager() => _instance;
-
-  AppwriteSyncStatusManager._internal();
 
   /// جميع معرفات الجداول المتاحة
   static const List<String> allCollectionIds = [
@@ -53,9 +52,7 @@ class AppwriteSyncStatusManager {
     await prefs.setBool('$_syncStatusPrefix$collectionId', enabled);
 
     if (kDebugMode) {
-      debugPrint(
-        '📱 Collection Sync Status Updated: $collectionId = $enabled',
-      );
+      debugPrint('📱 Collection Sync Status Updated: $collectionId = $enabled');
     }
   }
 
@@ -231,17 +228,16 @@ class AppwriteSyncStatusManager {
 
 /// فئة تمثل معلومات مزامنة جدول معين
 class CollectionSyncInfo {
-  final String collectionId;
-  final bool isEnabled;
-  final DateTime? lastSyncTime;
-  final int syncCount;
-
   CollectionSyncInfo({
     required this.collectionId,
     required this.isEnabled,
     required this.lastSyncTime,
     required this.syncCount,
   });
+  final String collectionId;
+  final bool isEnabled;
+  final DateTime? lastSyncTime;
+  final int syncCount;
 
   /// الحصول على نص يصف حالة المزامنة
   String get statusText => isEnabled ? 'مفعل' : 'معطل';
@@ -254,14 +250,15 @@ class CollectionSyncInfo {
 
   /// التحويل إلى خريطة
   Map<String, dynamic> toMap() => {
-        'collectionId': collectionId,
-        'isEnabled': isEnabled,
-        'lastSyncTime': lastSyncTime?.toIso8601String(),
-        'syncCount': syncCount,
-      };
+    'collectionId': collectionId,
+    'isEnabled': isEnabled,
+    'lastSyncTime': lastSyncTime?.toIso8601String(),
+    'syncCount': syncCount,
+  };
 
   @override
-  String toString() => 'CollectionSyncInfo('
+  String toString() =>
+      'CollectionSyncInfo('
       'collectionId: $collectionId, '
       'isEnabled: $isEnabled, '
       'lastSyncTime: $lastSyncTime, '

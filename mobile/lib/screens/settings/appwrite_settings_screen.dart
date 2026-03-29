@@ -35,8 +35,10 @@ class _AppwriteSettingsScreenState
   bool _logConsole = true;
   bool _logFile = false;
   bool _isLoading = false;
+
   /// ✅ Cache الـ Future لمنع إعادة إنشائه في كل rebuild
   late Future<AppwriteDeltaSyncResult> _deltaSyncStatusFuture;
+
   /// ✅ تتبع حالة Dialog التحميل للإغلاق الآمن
   bool _isShowingLoadingDialog = false;
 
@@ -250,8 +252,9 @@ class _AppwriteSettingsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color:
-                                state.isConnected ? Colors.green : Colors.red,
+                            color: state.isConnected
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
@@ -419,7 +422,9 @@ class _AppwriteSettingsScreenState
                     onPressed: _isLoading ? null : _pushDeltaSync,
                     icon: const Icon(Icons.cloud_upload),
                     label: const Text('رفع'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -428,7 +433,9 @@ class _AppwriteSettingsScreenState
                     onPressed: _isLoading ? null : _pullDeltaSync,
                     icon: const Icon(Icons.cloud_download),
                     label: const Text('سحب'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
                   ),
                 ),
               ],
@@ -463,7 +470,7 @@ class _AppwriteSettingsScreenState
               ],
             ),
             const SizedBox(height: 8),
-            
+
             // زر عرض سجل المزامنة
             SizedBox(
               width: double.infinity,
@@ -547,7 +554,8 @@ class _AppwriteSettingsScreenState
             Expanded(
               child: _buildStatCard(
                 title: 'تضارب',
-                value: '${stats['conflictCount'] ?? stats['totalConflicts'] ?? 0}',
+                value:
+                    '${stats['conflictCount'] ?? stats['totalConflicts'] ?? 0}',
                 icon: Icons.warning,
                 color: Colors.amber,
               ),
@@ -573,8 +581,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.error_outline, color: Colors.red, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -584,7 +592,7 @@ class _AppwriteSettingsScreenState
               ],
             ),
             const Divider(height: 24),
-            
+
             // ✅ FutureBuilder مع Future مُخزَّن — لا يُعاد إنشاؤه في كل rebuild
             FutureBuilder<AppwriteDeltaSyncResult>(
               future: _deltaSyncStatusFuture,
@@ -592,12 +600,12 @@ class _AppwriteSettingsScreenState
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 final result = snapshot.data;
                 if (result == null) {
                   return const Text('لم يتم تهيئة خدمة المزامنة بعد');
                 }
-                
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -636,7 +644,7 @@ class _AppwriteSettingsScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Stats
                     Row(
                       children: [
@@ -669,50 +677,61 @@ class _AppwriteSettingsScreenState
                       ],
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Quick actions
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _isLoading ? null : () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              _safeSetState(() => _isLoading = true);
-                              try {
-                                final deltaSync = AppwriteDeltaSync.instance;
-                                if (!deltaSync.isInitialized) {
-                                  if (mounted) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('الخدمة غير مهيئة'),
-                                        backgroundColor: Colors.orange,
-                                      ),
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
                                     );
-                                  }
-                                  return;
-                                }
-                                final retryResult = await deltaSync.pushDeltaChanges();
-                                if (mounted) {
-                                  messenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(retryResult.success
-                                        ? 'تم إعادة المحاولة'
-                                        : 'فشل: ${retryResult.message}'),
-                                  ),
-                                );
-                                  _refreshDeltaSyncStatus();
-                                  ref.invalidate(ap.syncStatsProvider);
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  messenger.showSnackBar(
-                                    SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-                                  );
-                                }
-                              } finally {
-                                _safeSetState(() => _isLoading = false);
-                              }
-                            },
+                                    _safeSetState(() => _isLoading = true);
+                                    try {
+                                      final deltaSync =
+                                          AppwriteDeltaSync.instance;
+                                      if (!deltaSync.isInitialized) {
+                                        if (mounted) {
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text('الخدمة غير مهيئة'),
+                                              backgroundColor: Colors.orange,
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+                                      final retryResult = await deltaSync
+                                          .pushDeltaChanges();
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              retryResult.success
+                                                  ? 'تم إعادة المحاولة'
+                                                  : 'فشل: ${retryResult.message}',
+                                            ),
+                                          ),
+                                        );
+                                        _refreshDeltaSyncStatus();
+                                        ref.invalidate(ap.syncStatsProvider);
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('خطأ: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      _safeSetState(() => _isLoading = false);
+                                    }
+                                  },
                             icon: const Icon(Icons.refresh),
                             label: const Text('إعادة المحاولة'),
                           ),
@@ -720,44 +739,54 @@ class _AppwriteSettingsScreenState
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _isLoading ? null : () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              _safeSetState(() => _isLoading = true);
-                              try {
-                                final deltaSync = AppwriteDeltaSync.instance;
-                                if (!deltaSync.isInitialized) {
-                                  if (mounted) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('الخدمة غير مهيئة'),
-                                        backgroundColor: Colors.orange,
-                                      ),
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
                                     );
-                                  }
-                                  return;
-                                }
-                                final result = await deltaSync.fullSync();
-                                if (mounted) {
-                                  messenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(result.success
-                                        ? 'تم المزامنة الكاملة'
-                                        : 'فشل: ${result.message}'),
-                                  ),
-                                );
-                                  _refreshDeltaSyncStatus();
-                                  ref.invalidate(ap.syncStatsProvider);
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  messenger.showSnackBar(
-                                    SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-                                  );
-                                }
-                              } finally {
-                                _safeSetState(() => _isLoading = false);
-                              }
-                            },
+                                    _safeSetState(() => _isLoading = true);
+                                    try {
+                                      final deltaSync =
+                                          AppwriteDeltaSync.instance;
+                                      if (!deltaSync.isInitialized) {
+                                        if (mounted) {
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text('الخدمة غير مهيئة'),
+                                              backgroundColor: Colors.orange,
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+                                      final result = await deltaSync.fullSync();
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              result.success
+                                                  ? 'تم المزامنة الكاملة'
+                                                  : 'فشل: ${result.message}',
+                                            ),
+                                          ),
+                                        );
+                                        _refreshDeltaSyncStatus();
+                                        ref.invalidate(ap.syncStatsProvider);
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('خطأ: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      _safeSetState(() => _isLoading = false);
+                                    }
+                                  },
                             icon: const Icon(Icons.sync),
                             label: const Text('مزامنة كاملة'),
                           ),
@@ -779,13 +808,13 @@ class _AppwriteSettingsScreenState
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
         return AppwriteDeltaSyncResult(
-          success: false, 
+          success: false,
           message: 'الخدمة غير مهيأة',
         );
       }
       final status = await deltaSync.getStatus();
       return AppwriteDeltaSyncResult(
-        success: status['initialized'] == true, 
+        success: status['initialized'] == true,
         message: status['is_syncing'] == true ? 'المزامنة جارية...' : 'متهيأة',
         pushedCount: status['pushed_count'] ?? 0,
         pulledCount: status['pulled_count'] ?? 0,
@@ -793,10 +822,7 @@ class _AppwriteSettingsScreenState
         conflictCount: status['outbox']?['conflicts'] ?? 0,
       );
     } catch (e) {
-      return AppwriteDeltaSyncResult(
-        success: false, 
-        message: e.toString(),
-      );
+      return AppwriteDeltaSyncResult(success: false, message: e.toString());
     }
   }
 
@@ -1134,8 +1160,10 @@ class _AppwriteSettingsScreenState
                 return Column(
                   children: devices.map<Widget>((device) {
                     return ListTile(
-                      leading:
-                          const Icon(Icons.phone_android, color: Colors.teal),
+                      leading: const Icon(
+                        Icons.phone_android,
+                        color: Colors.teal,
+                      ),
                       title: Text(device.deviceName),
                       subtitle: Text(
                         '${device.deviceModel} - ${device.osVersion}',
@@ -1887,7 +1915,9 @@ class _AppwriteSettingsScreenState
       }
 
       final result = await operation();
-      final count = operationName == 'رفع' ? result.pushedCount : result.pulledCount;
+      final count = operationName == 'رفع'
+          ? result.pushedCount
+          : result.pulledCount;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1924,12 +1954,12 @@ class _AppwriteSettingsScreenState
 
   Future<void> _pushDeltaSync() => _runDeltaSync(
     operationName: 'رفع',
-    operation: () => AppwriteDeltaSync.instance.pushDeltaChanges(),
+    operation: AppwriteDeltaSync.instance.pushDeltaChanges,
   );
 
   Future<void> _pullDeltaSync() => _runDeltaSync(
     operationName: 'سحب',
-    operation: () => AppwriteDeltaSync.instance.pullDeltaChanges(),
+    operation: AppwriteDeltaSync.instance.pullDeltaChanges,
     onSuccess: (result) async {
       if (result.pulledCount > 0) {
         final fixService = RestoreFixService(DatabaseManager.instance);

@@ -17,8 +17,8 @@ class RealtimeSyncService {
   RealtimeSyncService({
     required SyncOrchestrator orchestrator,
     required RealtimeConfig config,
-  })  : _orchestrator = orchestrator,
-        _config = config;
+  }) : _orchestrator = orchestrator,
+       _config = config;
   final SyncOrchestrator _orchestrator;
   final RealtimeConfig _config;
 
@@ -53,8 +53,9 @@ class RealtimeSyncService {
     if (!_config.enabled) return;
 
     // الاستماع لتغيرات الاتصال
-    _connectivitySubscription =
-        Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _handleConnectivityChange,
+    );
 
     // محاولة الاتصال الأولى
     await _connect();
@@ -82,8 +83,10 @@ class RealtimeSyncService {
     _connectionStateController.add(ConnectionState.connecting);
 
     try {
-      developer.log('Connecting to WebSocket: ${_config.wsUrl}',
-          name: 'RealtimeSync');
+      developer.log(
+        'Connecting to WebSocket: ${_config.wsUrl}',
+        name: 'RealtimeSync',
+      );
 
       _channel = IOWebSocketChannel.connect(
         _config.wsUrl,
@@ -252,26 +255,18 @@ class RealtimeSyncService {
 
   /// إرسال رسالة المصادقة
   void _sendAuth() {
-    _send({
-      'type': 'auth',
-      'token': _config.authToken,
-    });
+    _send({'type': 'auth', 'token': _config.authToken});
   }
 
   /// الاشتراك في التغييرات
   void _subscribeToChanges() {
-    _send({
-      'type': 'subscribe',
-      'tables': _config.tablesToWatch,
-    });
+    _send({'type': 'subscribe', 'tables': _config.tablesToWatch});
   }
 
   /// إلغاء الاشتراك
   // ignore: unused_element
   void _unsubscribe() {
-    _send({
-      'type': 'unsubscribe',
-    });
+    _send({'type': 'unsubscribe'});
   }
 
   /// إرسال ping
@@ -382,13 +377,13 @@ class RealtimeEvent {
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'table': table,
-        'operation': operation,
-        'uuid': uuid,
-        'payload': payload,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': type.name,
+    'table': table,
+    'operation': operation,
+    'uuid': uuid,
+    'payload': payload,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// أنواع أحداث Realtime

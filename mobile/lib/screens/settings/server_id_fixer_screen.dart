@@ -233,8 +233,8 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                 color: _status == 'اكتمل بنجاح'
                     ? Colors.green.shade50
                     : _status == 'فشل'
-                        ? Colors.red.shade50
-                        : Colors.orange.shade50,
+                    ? Colors.red.shade50
+                    : Colors.orange.shade50,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -243,13 +243,13 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                         _status == 'اكتمل بنجاح'
                             ? Icons.check_circle
                             : _status == 'فشل'
-                                ? Icons.error
-                                : Icons.pending,
+                            ? Icons.error
+                            : Icons.pending,
                         color: _status == 'اكتمل بنجاح'
                             ? Colors.green
                             : _status == 'فشل'
-                                ? Colors.red
-                                : Colors.orange,
+                            ? Colors.red
+                            : Colors.orange,
                       ),
                       const SizedBox(width: 8),
                       Text(

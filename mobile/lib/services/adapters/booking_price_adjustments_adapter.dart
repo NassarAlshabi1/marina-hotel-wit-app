@@ -9,8 +9,12 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class BookingPriceAdjustmentsAdapter extends EntityAdapter<
-    BookingPriceAdjustment, BookingPriceAdjustmentsCompanion> {
+class BookingPriceAdjustmentsAdapter
+    extends
+        EntityAdapter<
+          BookingPriceAdjustment,
+          BookingPriceAdjustmentsCompanion
+        > {
   BookingPriceAdjustmentsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -29,10 +33,12 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final bookingUuid = _asString(json, 'bookingLocalUuid', src) ??
+    final bookingUuid =
+        _asString(json, 'bookingLocalUuid', src) ??
         _asString(json, 'booking_local_uuid', src) ??
         _asString(json, 'booking_uuid', src);
-    final localId = _asInt(json, 'bookingLocalId', src) ??
+    final localId =
+        _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
     final resolvedId = await resolver.resolveBooking(
       localId: localId,
@@ -57,7 +63,8 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return BookingPriceAdjustmentsCompanion(
@@ -100,14 +107,14 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
         altKey: 'effective_hotel_day',
         fallback: '',
       ),
-      endHotelDay: _vStr(
+      endHotelDay: _vStr(json, 'endHotelDay', src, altKey: 'end_hotel_day'),
+      isActive: _vBool(
         json,
-        'endHotelDay',
+        'isActive',
         src,
-        altKey: 'end_hotel_day',
+        altKey: 'is_active',
+        fallback: true,
       ),
-      isActive:
-          _vBool(json, 'isActive', src, altKey: 'is_active', fallback: true),
       reason: _vStr(json, 'reason', src),
       appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by'),
       cancelledAt: _vStr(json, 'cancelledAt', src, altKey: 'cancelled_at'),
@@ -139,8 +146,10 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
   }
 
   @override
-  Map<String, dynamic> toJson(BookingPriceAdjustment model,
-      {required Source src}) {
+  Map<String, dynamic> toJson(
+    BookingPriceAdjustment model, {
+    required Source src,
+  }) {
     return {
       // ✅ إرسال snake_case كما يتطلب Appwrite
       'id': model.id,
@@ -165,7 +174,9 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<
       'lastModified': model.lastModified,
       'version': model.version,
       'origin': model.origin,
-      'vectorClock': model.vectorClock != null && model.vectorClock.isNotEmpty ? jsonEncode(model.vectorClock) : '{}',
+      'vectorClock': model.vectorClock.isNotEmpty
+          ? jsonEncode(model.vectorClock)
+          : '{}',
     };
   }
 }
@@ -177,7 +188,8 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v = _asInt(json, key, src) ??
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -190,7 +202,8 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v = _asString(json, key, src) ??
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -203,7 +216,8 @@ d.Value<double> _vDouble(
   String? altKey,
   double? fallback,
 }) {
-  final v = _asDouble(json, key, src) ??
+  final v =
+      _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -216,7 +230,8 @@ d.Value<bool> _vBool(
   String? altKey,
   bool? fallback,
 }) {
-  final v = _asBool(json, key, src) ??
+  final v =
+      _asBool(json, key, src) ??
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -276,13 +291,18 @@ d.Value<Map<String, dynamic>> _vMapJson(
   String? altKey,
   Map<String, dynamic>? fallback,
 }) {
-  final v = _asMap(json, key, src) ??
+  final v =
+      _asMap(json, key, src) ??
       (altKey != null ? _asMap(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-Map<String, dynamic>? _asMap(Map<String, dynamic> json, String key, Source src) {
+Map<String, dynamic>? _asMap(
+  Map<String, dynamic> json,
+  String key,
+  Source src,
+) {
   final v = _raw(json, key, src);
   if (v is Map<String, dynamic>) return v;
   if (v is Map) return Map<String, dynamic>.from(v);

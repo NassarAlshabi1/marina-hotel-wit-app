@@ -22,7 +22,7 @@ class AppwriteBackupResult {
 
 class AppwriteBackupService {
   AppwriteBackupService({AppwriteService? appwriteService})
-      : _appwriteService = appwriteService ?? AppwriteService();
+    : _appwriteService = appwriteService ?? AppwriteService();
 
   final AppwriteService _appwriteService;
 
@@ -56,11 +56,11 @@ class AppwriteBackupService {
 
     while (true) {
       try {
-        final result =
-            await (_appwriteService.databases as dynamic).listCollections(
-          databaseId: AppwriteConfigManager.databaseId,
-          queries: [Query.limit(limit), Query.offset(offset)],
-        );
+        final result = await (_appwriteService.databases as dynamic)
+            .listCollections(
+              databaseId: AppwriteConfigManager.databaseId,
+              queries: [Query.limit(limit), Query.offset(offset)],
+            );
         final batch = (result as dynamic).collections as List<dynamic>? ?? [];
         if (batch.isEmpty) {
           break;
@@ -79,11 +79,11 @@ class AppwriteBackupService {
     if (allCollections.isEmpty && usedFallback) {
       for (final id in _defaultCollectionIds) {
         try {
-          final collection =
-              await (_appwriteService.databases as dynamic).getCollection(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: id,
-          );
+          final collection = await (_appwriteService.databases as dynamic)
+              .getCollection(
+                databaseId: AppwriteConfigManager.databaseId,
+                collectionId: id,
+              );
           allCollections.add(collection);
         } catch (_) {
           allCollections.add({r'$id': id});
@@ -147,8 +147,9 @@ class AppwriteBackupService {
         collectionId: id,
         useCache: false,
       );
-      collections[id] =
-          docs.map((doc) => {r'$id': doc.$id, ...doc.data}).toList();
+      collections[id] = docs
+          .map((doc) => {r'$id': doc.$id, ...doc.data})
+          .toList();
       counts[id] = docs.length;
     }
 
@@ -164,10 +165,7 @@ class AppwriteBackupService {
         'counts': counts,
         'includesSchema': includeSchema,
       },
-      if (includeSchema)
-        'schema': {
-          'collections': schemaCollections,
-        },
+      if (includeSchema) 'schema': {'collections': schemaCollections},
       'collections': collections,
     };
 

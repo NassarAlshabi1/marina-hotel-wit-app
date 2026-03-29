@@ -72,7 +72,11 @@ class SyncErrorLogScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, List<SyncErrorRecord> errors) {
+  Widget _buildContent(
+    BuildContext context,
+    WidgetRef ref,
+    List<SyncErrorRecord> errors,
+  ) {
     if (errors.isEmpty) {
       return Center(
         child: Column(
@@ -159,7 +163,11 @@ class SyncErrorLogScreen extends ConsumerWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
+        style: TextStyle(
+          fontSize: 12,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -174,7 +182,9 @@ class SyncErrorLogScreen extends ConsumerWidget {
     );
   }
 
-  Map<String, List<SyncErrorRecord>> _groupErrorsByEntity(List<SyncErrorRecord> errors) {
+  Map<String, List<SyncErrorRecord>> _groupErrorsByEntity(
+    List<SyncErrorRecord> errors,
+  ) {
     final grouped = <String, List<SyncErrorRecord>>{};
     for (final error in errors) {
       grouped.putIfAbsent(error.entity, () => []).add(error);
@@ -220,7 +230,9 @@ class SyncErrorLogScreen extends ConsumerWidget {
                       tooltip: 'مسح أخطاء هذا الجدول',
                     ),
                     IconButton(
-                      icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+                      icon: Icon(
+                        expanded ? Icons.expand_less : Icons.expand_more,
+                      ),
                       onPressed: () => isExpanded.value = !isExpanded.value,
                     ),
                   ],
@@ -230,7 +242,9 @@ class SyncErrorLogScreen extends ConsumerWidget {
 
               // قائمة الأخطاء
               if (expanded)
-                ...groupErrors.map((error) => _buildErrorItem(context, ref, error)),
+                ...groupErrors.map(
+                  (error) => _buildErrorItem(context, ref, error),
+                ),
             ],
           );
         },
@@ -238,7 +252,11 @@ class SyncErrorLogScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorItem(BuildContext context, WidgetRef ref, SyncErrorRecord error) {
+  Widget _buildErrorItem(
+    BuildContext context,
+    WidgetRef ref,
+    SyncErrorRecord error,
+  ) {
     return ExpansionTile(
       tilePadding: const EdgeInsets.only(left: 16, right: 8),
       leading: Container(
@@ -262,7 +280,10 @@ class SyncErrorLogScreen extends ConsumerWidget {
             style: const TextStyle(fontSize: 11, color: Colors.grey),
           ),
           const SizedBox(width: 8),
-          _buildMiniBadge(error.statusLabel, error.isConflict ? Colors.orange : Colors.red),
+          _buildMiniBadge(
+            error.statusLabel,
+            error.isConflict ? Colors.orange : Colors.red,
+          ),
           const SizedBox(width: 8),
           Text(
             'المحاولات: ${error.attempts}',
@@ -281,7 +302,10 @@ class SyncErrorLogScreen extends ConsumerWidget {
               _buildDetailRow('العملية', error.operation),
               _buildDetailRow('الحالة', error.statusLabel),
               _buildDetailRow('المحاولات', error.attempts.toString()),
-              _buildDetailRow('الوقت', DateFormat('yyyy-MM-dd HH:mm:ss').format(error.timestamp)),
+              _buildDetailRow(
+                'الوقت',
+                DateFormat('yyyy-MM-dd HH:mm:ss').format(error.timestamp),
+              ),
 
               const Divider(height: 24),
 
@@ -301,7 +325,11 @@ class SyncErrorLogScreen extends ConsumerWidget {
                 ),
                 child: SelectableText(
                   error.error,
-                  style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: Colors.red.shade900),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: Colors.red.shade900,
+                  ),
                 ),
               ),
 
@@ -319,7 +347,10 @@ class SyncErrorLogScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   TextButton.icon(
                     icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                    label: const Text('حذف', style: TextStyle(color: Colors.red)),
+                    label: const Text(
+                      'حذف',
+                      style: TextStyle(color: Colors.red),
+                    ),
                     onPressed: () => _deleteError(context, ref, error),
                   ),
                 ],
@@ -343,12 +374,7 @@ class SyncErrorLogScreen extends ConsumerWidget {
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 12))),
         ],
       ),
     );
@@ -363,7 +389,11 @@ class SyncErrorLogScreen extends ConsumerWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500),
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -437,7 +467,11 @@ class SyncErrorLogScreen extends ConsumerWidget {
     }
   }
 
-  void _handleMenuAction(BuildContext context, WidgetRef ref, String action) async {
+  void _handleMenuAction(
+    BuildContext context,
+    WidgetRef ref,
+    String action,
+  ) async {
     final db = ref.read(databaseProvider);
     final outboxDao = OutboxDao(db);
 
@@ -462,7 +496,7 @@ class SyncErrorLogScreen extends ConsumerWidget {
           ),
         );
 
-        if (confirmed == true) {
+        if (confirmed ?? false) {
           await outboxDao.clearStale(attemptsThreshold: 0);
           ref.invalidate(syncErrorLogProvider);
           if (context.mounted) {
@@ -471,26 +505,32 @@ class SyncErrorLogScreen extends ConsumerWidget {
             );
           }
         }
-        break;
 
       case 'retry_all':
         await outboxDao.resetErrors();
         ref.invalidate(syncErrorLogProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم إعادة تعيين جميع الأخطاء للمحاولة مرة أخرى')),
+            const SnackBar(
+              content: Text('تم إعادة تعيين جميع الأخطاء للمحاولة مرة أخرى'),
+            ),
           );
         }
-        break;
     }
   }
 
-  void _clearEntityErrors(BuildContext context, WidgetRef ref, String entity) async {
+  void _clearEntityErrors(
+    BuildContext context,
+    WidgetRef ref,
+    String entity,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد المسح'),
-        content: Text('هل تريد مسح جميع أخطاء جدول "${_getEntityLabel(entity)}"؟'),
+        content: Text(
+          'هل تريد مسح جميع أخطاء جدول "${_getEntityLabel(entity)}"؟',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -505,7 +545,7 @@ class SyncErrorLogScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
       // TODO: Add deleteByEntity method to OutboxDao
@@ -518,19 +558,27 @@ class SyncErrorLogScreen extends ConsumerWidget {
     }
   }
 
-  void _retryError(BuildContext context, WidgetRef ref, SyncErrorRecord error) async {
+  void _retryError(
+    BuildContext context,
+    WidgetRef ref,
+    SyncErrorRecord error,
+  ) async {
     final db = ref.read(databaseProvider);
     final outboxDao = OutboxDao(db);
     await outboxDao.scheduleRetry(error.id, error.error, error.attempts);
     ref.invalidate(syncErrorLogProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تمت جدولة إعادة المحاولة')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تمت جدولة إعادة المحاولة')));
     }
   }
 
-  void _deleteError(BuildContext context, WidgetRef ref, SyncErrorRecord error) async {
+  void _deleteError(
+    BuildContext context,
+    WidgetRef ref,
+    SyncErrorRecord error,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -550,15 +598,15 @@ class SyncErrorLogScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
       await outboxDao.cleanupSingleSuccess(error.id);
       ref.invalidate(syncErrorLogProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم حذف السجل')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم حذف السجل')));
       }
     }
   }

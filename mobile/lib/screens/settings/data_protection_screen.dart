@@ -65,9 +65,11 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         prefs.getBool('google_drive_sync_enabled') ?? false;
     final googleDriveSyncDisableOnStart =
         prefs.getBool('google_drive_sync_disable_on_start') ?? false;
-    final googleDrivePushEnabled = prefs.getBool('gd_unified_push_enabled') ??
+    final googleDrivePushEnabled =
+        prefs.getBool('gd_unified_push_enabled') ??
         true; // Push مفعّل افتراضياً
-    final googleDrivePullEnabled = prefs.getBool('gd_unified_pull_enabled') ??
+    final googleDrivePullEnabled =
+        prefs.getBool('gd_unified_pull_enabled') ??
         false; // Pull معطل افتراضياً (Push فقط)
     if (!mounted) return;
     setState(() {
@@ -785,7 +787,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 data: (stats) {
                   final lastSyncLabel =
                       _formatOptionalDate(stats['lastSyncTime'] as String?) ??
-                          '---';
+                      '---';
                   final successRate = stats['successRate'];
                   final successLabel = successRate is num
                       ? '${successRate.toStringAsFixed(0)}%'
@@ -1145,8 +1147,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               color: isErrorMessage
                   ? Colors.red.shade50
                   : isSuccessMessage
-                      ? Colors.green.shade50
-                      : Colors.blue.shade50,
+                  ? Colors.green.shade50
+                  : Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -1155,8 +1157,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 color: isErrorMessage
                     ? Colors.red.shade700
                     : isSuccessMessage
-                        ? Colors.green.shade700
-                        : Colors.blue.shade700,
+                    ? Colors.green.shade700
+                    : Colors.blue.shade700,
                 fontWeight: FontWeight.w600,
               ),
             ),

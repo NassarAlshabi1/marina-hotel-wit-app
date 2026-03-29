@@ -69,9 +69,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               // تجميع الضيوف من الحجوزات
               final guests = _groupGuestsFromBookings(bookings);
               final filteredGuests = _filterGuests(guests);
-              final roomPrices = {
-                for (final r in rooms) r.roomNumber: r.price,
-              };
+              final roomPrices = {for (final r in rooms) r.roomNumber: r.price};
 
               if (guests.isEmpty) {
                 return const Center(
@@ -80,8 +78,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     children: [
                       Icon(Icons.people_outline, size: 64, color: Colors.grey),
                       SizedBox(height: 16),
-                      Text('لا يوجد ضيوف مسجلين',
-                          style: TextStyle(fontSize: 18)),
+                      Text(
+                        'لا يوجد ضيوف مسجلين',
+                        style: TextStyle(fontSize: 18),
+                      ),
                       SizedBox(height: 8),
                       Text(
                         'سيتم عرض الضيوف عند إضافة حجوزات',
@@ -176,12 +176,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
 
     final sortedGuests =
-        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()
-          ..sort(
-            (a, b) => b.bookings.first.checkinDate.compareTo(
-              a.bookings.first.checkinDate,
-            ),
-          );
+        guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
+          (a, b) => b.bookings.first.checkinDate.compareTo(
+            a.bookings.first.checkinDate,
+          ),
+        );
     return sortedGuests;
   }
 
@@ -228,10 +227,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
-    final lastVisit =
-        guest.bookings.isNotEmpty ? guest.bookings.first.checkinDate : '';
-    final latestBooking =
-        guest.bookings.isNotEmpty ? guest.bookings.first : null;
+    final lastVisit = guest.bookings.isNotEmpty
+        ? guest.bookings.first.checkinDate
+        : '';
+    final latestBooking = guest.bookings.isNotEmpty
+        ? guest.bookings.first
+        : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -246,8 +247,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor:
-                      activeBookings > 0 ? Colors.green : Colors.blueGrey,
+                  backgroundColor: activeBookings > 0
+                      ? Colors.green
+                      : Colors.blueGrey,
                   child: Text(
                     latestBooking != null ? latestBooking.roomNumber : '—',
                     style: const TextStyle(
@@ -375,7 +377,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     label: const Text('السجل', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -388,7 +392,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     label: const Text('تعديل', style: TextStyle(fontSize: 11)),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -397,14 +403,19 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(Icons.delete_outline,
-                        size: 14, color: Colors.red),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 14,
+                      color: Colors.red,
+                    ),
                     label: const Text('حذف', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -446,10 +457,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildPricePreview(
-    Booking booking,
-    Map<String, double> roomPrices,
-  ) {
+  Widget _buildPricePreview(Booking booking, Map<String, double> roomPrices) {
     final basePrice = roomPrices[booking.roomNumber];
     if (basePrice == null) {
       return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
@@ -490,8 +498,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     leading: CircleAvatar(
                       backgroundColor:
                           StatusUtils.isActiveBooking(booking.status)
-                              ? Colors.green
-                              : Colors.blue,
+                          ? Colors.green
+                          : Colors.blue,
                       child: Text((index + 1).toString()),
                     ),
                     title: Text('غرفة ${booking.roomNumber}'),
@@ -626,13 +634,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         final bookingUuid = b.localUuid;
 
         // 1. حذف ليالي الحجز (BookingNights)
-        final nights = await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(bookingId)))
-            .get();
+        final nights = await (db.select(
+          db.bookingNights,
+        )..where((n) => n.bookingLocalId.equals(bookingId))).get();
         for (final night in nights) {
-          await (db.delete(db.bookingNights)
-                ..where((n) => n.id.equals(night.id)))
-              .go();
+          await (db.delete(
+            db.bookingNights,
+          )..where((n) => n.id.equals(night.id))).go();
           await db.outboxDao.merge(
             entity: 'booking_nights',
             op: 'delete',
@@ -644,13 +652,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         }
 
         // 2. حذف تعديلات الأسعار (BookingPriceAdjustments)
-        final adjustments = await (db.select(db.bookingPriceAdjustments)
-              ..where((a) => a.bookingLocalId.equals(bookingId)))
-            .get();
+        final adjustments = await (db.select(
+          db.bookingPriceAdjustments,
+        )..where((a) => a.bookingLocalId.equals(bookingId))).get();
         for (final adj in adjustments) {
-          await (db.delete(db.bookingPriceAdjustments)
-                ..where((a) => a.id.equals(adj.id)))
-              .go();
+          await (db.delete(
+            db.bookingPriceAdjustments,
+          )..where((a) => a.id.equals(adj.id))).go();
           await db.outboxDao.merge(
             entity: 'booking_price_adjustments',
             op: 'delete',
@@ -662,12 +670,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         }
 
         // 3. حذف إلغاءات المدفوعات (PaymentVoids)
-        final voids = await (db.select(db.paymentVoids)
-              ..where((v) => v.bookingUuid.equals(bookingUuid)))
-            .get();
+        final voids = await (db.select(
+          db.paymentVoids,
+        )..where((v) => v.bookingUuid.equals(bookingUuid))).get();
         for (final v in voids) {
-          await (db.delete(db.paymentVoids)..where((t) => t.id.equals(v.id)))
-              .go();
+          await (db.delete(
+            db.paymentVoids,
+          )..where((t) => t.id.equals(v.id))).go();
           await db.outboxDao.merge(
             entity: 'payment_voids',
             op: 'delete',
@@ -721,9 +730,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
 
       // 10. حذف سجلات الضيف من جدول GuestInfos
-      final guestInfos = await (db.select(db.guestInfos)
-            ..where((g) => g.guestName.equals(guest.name)))
-          .get();
+      final guestInfos = await (db.select(
+        db.guestInfos,
+      )..where((g) => g.guestName.equals(guest.name))).get();
       for (final gi in guestInfos) {
         await (db.delete(db.guestInfos)..where((g) => g.id.equals(gi.id))).go();
         await db.outboxDao.merge(

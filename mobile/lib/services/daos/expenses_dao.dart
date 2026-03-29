@@ -99,16 +99,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   Stream<Expense?> watchById(int id) =>
       (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<Expense?> getByLocalUuid(String localUuid) => (select(
-        expenses,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+    expenses,
+  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<Expense?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) return Future.value(null);
     return (select(
       expenses,
-    )..where((t) => t.serverId.equals(parsedServerId)))
-        .getSingleOrNull();
+    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
   Future<int> insertOne(
@@ -133,8 +131,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'expenses', operation: 'create');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'expenses',
+          operation: 'create',
+        );
       }
       return id;
     });
@@ -156,8 +156,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         expenses,
-      )..where((t) => t.id.equals(id)))
-          .write(comp);
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -165,8 +164,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'expenses', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'expenses',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -188,8 +189,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         expenses,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .write(comp);
+      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -197,8 +197,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'expenses', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'expenses',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -215,8 +217,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await (select(
         expenses,
-      )..where((t) => t.serverId.equals(parsedServerId)))
-          .getSingleOrNull();
+      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
@@ -225,8 +226,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         expenses,
-      )..where((t) => t.serverId.equals(parsedServerId)))
-          .write(comp);
+      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'update',
@@ -234,8 +234,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'expenses', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'expenses',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -250,14 +252,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) return 0;
-      final rows =
-          await (update(expenses)..where((t) => t.id.equals(id))).write(
-        ExpensesCompanion(
-          deletedAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ),
-      );
+      final rows = await (update(expenses)..where((t) => t.id.equals(id)))
+          .write(
+            ExpensesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await _mergeOutbox(
           op: 'delete',
@@ -265,18 +267,21 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'expenses', operation: 'delete');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'expenses',
+          operation: 'delete',
+        );
       }
       return rows;
     });
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
-    final row = await (select(expenses)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (select(expenses)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
     if (row == null) return null;
     return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
   }

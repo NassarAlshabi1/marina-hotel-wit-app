@@ -269,11 +269,12 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription =
-          _database!.select(_database!.outbox).watch().listen((_) {
-        _log('📦 Detected change in outbox', level: LogLevel.debug);
-        notifyLocalChange();
-      });
+      _outboxSubscription = _database!.select(_database!.outbox).watch().listen(
+        (_) {
+          _log('📦 Detected change in outbox', level: LogLevel.debug);
+          notifyLocalChange();
+        },
+      );
       _log('✅ Started outbox monitoring for auto-sync');
     }
 
@@ -646,8 +647,9 @@ class GoogleDriveUnifiedSyncCoordinator {
       return SyncMode.fullBackup;
     }
 
-    final hoursSinceFullBackup =
-        DateTime.now().difference(_lastFullBackupTime!).inHours;
+    final hoursSinceFullBackup = DateTime.now()
+        .difference(_lastFullBackupTime!)
+        .inHours;
     if (hoursSinceFullBackup >= _fullBackupIntervalHours) {
       return SyncMode.fullBackup;
     }
@@ -773,11 +775,13 @@ class GoogleDriveUnifiedSyncCoordinator {
           (_backupService?.isSignedIn ?? false)) {
         _outboxSubscription?.cancel();
         if (_database != null) {
-          _outboxSubscription =
-              _database!.select(_database!.outbox).watch().listen((_) {
-            _log('📦 Detected change in outbox', level: LogLevel.debug);
-            notifyLocalChange();
-          });
+          _outboxSubscription = _database!
+              .select(_database!.outbox)
+              .watch()
+              .listen((_) {
+                _log('📦 Detected change in outbox', level: LogLevel.debug);
+                notifyLocalChange();
+              });
         }
       }
     }

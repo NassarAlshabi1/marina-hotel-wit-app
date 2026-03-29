@@ -24,12 +24,12 @@ class DeltaSyncEngine {
     required InboxDataSource inbox,
     required RemoteDataSource remote,
     required ConflictResolver conflictResolver,
-  })  : _config = config,
-        _clockManager = clockManager,
-        _outbox = outbox,
-        _inbox = inbox,
-        _remote = remote,
-        _conflictResolver = conflictResolver;
+  }) : _config = config,
+       _clockManager = clockManager,
+       _outbox = outbox,
+       _inbox = inbox,
+       _remote = remote,
+       _conflictResolver = conflictResolver;
   final SyncConfiguration _config;
   final VectorClockManager _clockManager;
   final OutboxDataSource _outbox;
@@ -107,7 +107,8 @@ class DeltaSyncEngine {
     try {
       // جلب التغييرات من السيرفر
       final remoteChanges = await _remote.fetchChanges(
-        since: since ??
+        since:
+            since ??
             await _outbox.getLastSyncTimestamp() ??
             DateTime.fromMillisecondsSinceEpoch(0),
         limit: _config.batchSize,
@@ -188,8 +189,11 @@ class DeltaSyncEngine {
 
       case VectorClockComparison.concurrent:
         // ⚠️ تعارض حقيقي - حل التعارض
-        _emitEvent(SyncEventType.conflictDetected,
-            table: change.table, uuid: change.uuid);
+        _emitEvent(
+          SyncEventType.conflictDetected,
+          table: change.table,
+          uuid: change.uuid,
+        );
 
         final conflict = SyncConflict(
           id: 'conflict_${change.uuid}_${DateTime.now().millisecondsSinceEpoch}',
@@ -208,8 +212,11 @@ class DeltaSyncEngine {
         }
         // إذا كان المحلي فائزاً، نتركه كما هو
 
-        _emitEvent(SyncEventType.conflictResolved,
-            table: change.table, uuid: change.uuid);
+        _emitEvent(
+          SyncEventType.conflictResolved,
+          table: change.table,
+          uuid: change.uuid,
+        );
 
         return ApplyChangeResult.conflict(conflict);
 
@@ -326,13 +333,15 @@ class DeltaSyncEngine {
 
   /// إصدار حدث
   void _emitEvent(SyncEventType type, {String? table, String? uuid}) {
-    _eventController.add(SyncEvent(
-      id: 'event_${DateTime.now().millisecondsSinceEpoch}',
-      type: type,
-      table: table,
-      uuid: uuid,
-      timestamp: DateTime.now(),
-    ));
+    _eventController.add(
+      SyncEvent(
+        id: 'event_${DateTime.now().millisecondsSinceEpoch}',
+        type: type,
+        table: table,
+        uuid: uuid,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   /// التحقق من وجود تغييرات معلقة
@@ -382,7 +391,10 @@ class ApplyChangeResult {
 
   factory ApplyChangeResult.conflict(SyncConflict conflict) =>
       ApplyChangeResult._(
-          success: false, hasConflict: true, conflict: conflict);
+        success: false,
+        hasConflict: true,
+        conflict: conflict,
+      );
   final bool success;
   final bool skipped;
   final bool hasConflict;
@@ -394,10 +406,12 @@ abstract class OutboxDataSource {
   Future<List<DeltaChange>> fetchPending({required int batchSize});
   Future<void> markAsSynced(String id);
   Future<void> markAsFailed(String id, String error);
-  Future<void> scheduleRetry(String id,
-      {required String error,
-      required int retryCount,
-      required DateTime nextRetryAt});
+  Future<void> scheduleRetry(
+    String id, {
+    required String error,
+    required int retryCount,
+    required DateTime nextRetryAt,
+  });
   Future<int> pendingCount();
   Future<DateTime?> getLastSyncTimestamp();
   Future<void> updateLastSyncTimestamp(DateTime timestamp);
@@ -414,17 +428,16 @@ abstract class InboxDataSource {
 
 /// مصدر البيانات البعيدة
 abstract class RemoteDataSource {
-  Future<List<DeltaChange>> fetchChanges(
-      {required DateTime since, required int limit});
+  Future<List<DeltaChange>> fetchChanges({
+    required DateTime since,
+    required int limit,
+  });
   Future<PushChangesResult> pushChanges(List<DeltaChange> changes);
 }
 
 /// نتيجة رفع التغييرات
 class PushChangesResult {
-  PushChangesResult({
-    this.successfulIds = const [],
-    this.errors = const {},
-  });
+  PushChangesResult({this.successfulIds = const [], this.errors = const {}});
   final List<String> successfulIds;
   final Map<String, String> errors;
 }

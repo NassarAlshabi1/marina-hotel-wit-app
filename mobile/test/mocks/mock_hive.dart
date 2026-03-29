@@ -72,9 +72,8 @@ class MockHiveLazyBox<T> extends MockHiveBox<T> {
 
   Future<T?> getAsync(String key) async => get(key);
 
-  Future<Map<String, T>> toMap() async => Map.fromEntries(
-        keys.map((k) => MapEntry(k, get(k)!)),
-      );
+  Future<Map<String, T>> toMap() async =>
+      Map.fromEntries(keys.map((k) => MapEntry(k, get(k)!)));
 }
 
 /// Mock لـ Hive

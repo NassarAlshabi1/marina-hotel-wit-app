@@ -131,7 +131,8 @@ class GoogleDriveConflictResolver {
 
   Future<ConflictResolutionStrategy> getStrategy() async {
     final prefs = await SharedPreferences.getInstance();
-    final strategyName = prefs.getString(_prefsStrategyKey) ??
+    final strategyName =
+        prefs.getString(_prefsStrategyKey) ??
         ConflictResolutionStrategy.newerWins.name;
 
     return ConflictResolutionStrategy.values.firstWhere(
@@ -171,7 +172,8 @@ class GoogleDriveConflictResolver {
     final conflicts = <ConflictDetails>[];
     final threshold = await getConflictThreshold();
 
-    final tables = tablesToCheck ??
+    final tables =
+        tablesToCheck ??
         ['bookings', 'payments', 'expenses', 'rooms', 'debts', 'employees'];
 
     for (final tableName in tables) {
@@ -205,10 +207,7 @@ class GoogleDriveConflictResolver {
             );
 
             conflicts.add(conflict);
-            _log(
-              '⚠️ Detected conflict: $conflict',
-              level: LogLevel.warning,
-            );
+            _log('⚠️ Detected conflict: $conflict', level: LogLevel.warning);
           }
         }
       }

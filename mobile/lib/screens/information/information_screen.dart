@@ -205,14 +205,16 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                   children: [
                     TextFormField(
                       controller: roomController,
-                      decoration:
-                          const InputDecoration(labelText: 'رقم الغرفة'),
+                      decoration: const InputDecoration(
+                        labelText: 'رقم الغرفة',
+                      ),
                       validator: _requiredValidator,
                     ),
                     TextFormField(
                       controller: guestNameController,
-                      decoration:
-                          const InputDecoration(labelText: 'اسم النزيل'),
+                      decoration: const InputDecoration(
+                        labelText: 'اسم النزيل',
+                      ),
                       validator: _requiredValidator,
                     ),
                     TextFormField(
@@ -222,14 +224,16 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     ),
                     TextFormField(
                       controller: idNumberController,
-                      decoration:
-                          const InputDecoration(labelText: 'رقم الهوية'),
+                      decoration: const InputDecoration(
+                        labelText: 'رقم الهوية',
+                      ),
                       validator: _requiredValidator,
                     ),
                     DropdownButtonFormField<String>(
                       initialValue: selectedIdType,
-                      decoration:
-                          const InputDecoration(labelText: 'نوع الهوية'),
+                      decoration: const InputDecoration(
+                        labelText: 'نوع الهوية',
+                      ),
                       items: _idTypes
                           .map(
                             (type) => DropdownMenuItem(
@@ -257,8 +261,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     ),
                     TextFormField(
                       controller: issuePlaceController,
-                      decoration:
-                          const InputDecoration(labelText: 'مكان الإصدار'),
+                      decoration: const InputDecoration(
+                        labelText: 'مكان الإصدار',
+                      ),
                     ),
                     TextFormField(
                       controller: governorateController,
@@ -297,8 +302,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         nationality: nationalityController.text,
         idNumber: idNumberController.text,
         idType: selectedIdType,
-        issueDate:
-            issueDateController.text.isEmpty ? null : issueDateController.text,
+        issueDate: issueDateController.text.isEmpty
+            ? null
+            : issueDateController.text,
         issuePlace: issuePlaceController.text,
         governorate: governorateController.text,
       );
@@ -326,9 +332,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('حذف السجل'),
-        content: Text(
-          'سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟',
-        ),
+        content: Text('سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -408,7 +412,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           pageFormat: pdf.PdfPageFormat.a4,
           textDirection: pw.TextDirection.rtl,
           margin: const pw.EdgeInsets.only(
-              top: 10, left: 20, right: 20, bottom: 20),
+            top: 10,
+            left: 20,
+            right: 20,
+            bottom: 20,
+          ),
           theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
           header: (context) {
             return pw.Column(
@@ -513,8 +521,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               ),
               cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.center,
-              border:
-                  pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+              border: pw.TableBorder.all(
+                color: pdf.PdfColors.grey400,
+                width: 0.5,
+              ),
               headerAlignments: {
                 0: pw.Alignment.centerRight,
                 1: pw.Alignment.centerRight,

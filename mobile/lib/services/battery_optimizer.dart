@@ -130,8 +130,10 @@ class BatteryOptimizer extends ChangeNotifier {
         name: 'BatteryOptimizer',
       );
     } catch (e) {
-      developer.log('⚠️ BatteryOptimizer init error: $e',
-          name: 'BatteryOptimizer');
+      developer.log(
+        '⚠️ BatteryOptimizer init error: $e',
+        name: 'BatteryOptimizer',
+      );
     }
   }
 
@@ -165,8 +167,9 @@ class BatteryOptimizer extends ChangeNotifier {
     });
 
     // مراقبة الاتصال
-    _connectivitySubscription =
-        _connectivity.onConnectivityChanged.listen((result) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      result,
+    ) {
       _connectionState = result;
       notifyListeners();
 
@@ -304,8 +307,9 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     if (_connectionState == ConnectivityResult.mobile) {
-      recommendations
-          .add('📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية');
+      recommendations.add(
+        '📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية',
+      );
     }
 
     if (syncSettings.compressData) {

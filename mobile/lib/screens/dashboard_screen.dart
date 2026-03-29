@@ -221,8 +221,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   final occupied = rooms
                       .where((r) => StatusUtils.isRoomOccupied(r.status))
                       .length;
-                  final rate =
-                      total > 0 ? ((occupied / total) * 100).round() : 0;
+                  final rate = total > 0
+                      ? ((occupied / total) * 100).round()
+                      : 0;
                   return _buildStatCard(
                     'الإشغال',
                     '$rate%',
@@ -446,16 +447,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final Color bgColor = isOccupied
         ? Colors.red.shade600
         : (isAvailable
-            ? Colors.green.shade600
-            : (isMaintenance ? Colors.orange.shade600 : Colors.grey.shade400));
+              ? Colors.green.shade600
+              : (isMaintenance
+                    ? Colors.orange.shade600
+                    : Colors.grey.shade400));
 
     final String tooltipText = room != null ? room.status : 'غير مسجلة';
 
     return Tooltip(
       message: tooltipText,
       child: GestureDetector(
-        onLongPress:
-            room != null ? () => _showRoomOptionsDialog(context, room) : null,
+        onLongPress: room != null
+            ? () => _showRoomOptionsDialog(context, room)
+            : null,
         child: Material(
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
@@ -654,8 +658,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               const Icon(Icons.add, color: Colors.blue),
@@ -712,8 +717,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return 'أدخل السعر';
                       final price = CurrencyFormatter.parseAmount(v);
-                      if (price == null || price <= 0)
+                      if (price == null || price <= 0) {
                         return 'أدخل سعراً صحيحاً';
+                      }
                       return null;
                     },
                   ),
@@ -721,31 +727,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                      initialValue: status,
-                      decoration: InputDecoration(
-                        labelText: 'الحالة',
-                        prefixIcon: const Icon(Icons.toggle_on),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          initialValue: status,
+                          decoration: InputDecoration(
+                            labelText: 'الحالة',
+                            prefixIcon: const Icon(Icons.toggle_on),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'شاغرة',
+                              child: Text('شاغرة'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'محجوزة',
+                              child: Text('محجوزة'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'صيانة',
+                              child: Text('صيانة'),
+                            ),
+                          ],
+                          onChanged: (v) =>
+                              setLocalState(() => status = v ?? status),
                         ),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'شاغرة',
-                          child: Text('شاغرة'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'محجوزة',
-                          child: Text('محجوزة'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'صيانة',
-                          child: Text('صيانة'),
-                        ),
-                      ],
-                      onChanged: (v) =>
-                          setLocalState(() => status = v ?? status),
-                    ),
                   ),
                 ],
               ),

@@ -78,13 +78,16 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           entity: 'debts',
           op: 'create',
           localUuid: uuid,
-          serverId:
-              companion.serverId.present ? companion.serverId.value : null,
+          serverId: companion.serverId.present
+              ? companion.serverId.value
+              : null,
           payload: _payloadFrom(companion),
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'debts', operation: 'create');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'debts',
+          operation: 'create',
+        );
       }
       return id;
     });
@@ -107,8 +110,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       );
       final rows = await (update(
         debts,
-      )..where((t) => t.id.equals(id)))
-          .write(companion);
+      )..where((t) => t.id.equals(id))).write(companion);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'debts',
@@ -118,8 +120,10 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           payload: _payloadFrom(companion, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'debts', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'debts',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -146,8 +150,10 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           payload: {'debt_id': existing.serverId},
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'debts', operation: 'delete');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'debts',
+          operation: 'delete',
+        );
       }
       return rows;
     });

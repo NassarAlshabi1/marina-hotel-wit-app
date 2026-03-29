@@ -64,24 +64,20 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<CashTransaction?> getById(int id) => (select(
-        cashTransactions,
-      )..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+    cashTransactions,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
   Stream<CashTransaction?> watchById(int id) => (select(
-        cashTransactions,
-      )..where((t) => t.id.equals(id)))
-          .watchSingleOrNull();
+    cashTransactions,
+  )..where((t) => t.id.equals(id))).watchSingleOrNull();
   Future<CashTransaction?> getByLocalUuid(String localUuid) => (select(
-        cashTransactions,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .getSingleOrNull();
+    cashTransactions,
+  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<CashTransaction?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) return Future.value(null);
     return (select(
       cashTransactions,
-    )..where((t) => t.serverId.equals(parsedServerId)))
-        .getSingleOrNull();
+    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
   Future<int> insertOne(
@@ -108,8 +104,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp),
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'cash_transactions', operation: 'create');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'cash_transactions',
+          operation: 'create',
+        );
       }
       return id;
     });
@@ -131,8 +129,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         cashTransactions,
-      )..where((t) => t.id.equals(id)))
-          .write(comp);
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -142,8 +139,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'cash_transactions', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'cash_transactions',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -165,8 +164,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         cashTransactions,
-      )..where((t) => t.localUuid.equals(localUuid)))
-          .write(comp);
+      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -176,8 +174,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'cash_transactions', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'cash_transactions',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -194,8 +194,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await (select(
         cashTransactions,
-      )..where((t) => t.serverId.equals(parsedServerId)))
-          .getSingleOrNull();
+      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) return 0;
       final comp = data.copyWith(
         updatedAt: Value(now),
@@ -204,8 +203,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       );
       final rows = await (update(
         cashTransactions,
-      )..where((t) => t.serverId.equals(parsedServerId)))
-          .write(comp);
+      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -215,8 +213,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'cash_transactions', operation: 'update');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'cash_transactions',
+          operation: 'update',
+        );
       }
       return rows;
     });
@@ -233,12 +233,12 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) return 0;
       final rows =
           await (update(cashTransactions)..where((t) => t.id.equals(id))).write(
-        CashTransactionsCompanion(
-          deletedAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ),
-      );
+            CashTransactionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -248,8 +248,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: {'id': id},
           clientTs: now,
         );
-        SyncGuardian.instance
-            .notifyLocalChange(table: 'cash_transactions', operation: 'delete');
+        SyncGuardian.instance.notifyLocalChange(
+          table: 'cash_transactions',
+          operation: 'delete',
+        );
       }
       return rows;
     });

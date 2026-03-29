@@ -86,8 +86,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                 return false;
               }
               return true;
-            }).toList()
-              ..sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
+            }).toList()..sort((a, b) => b.checkinDate.compareTo(a.checkinDate));
 
             if (filtered.isEmpty) {
               return const EmptyState(
@@ -124,27 +123,29 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 : null;
                             final actualCheckout =
                                 booking.actualCheckout != null
-                                    ? DateTime.tryParse(booking.actualCheckout!)
-                                    : null;
+                                ? DateTime.tryParse(booking.actualCheckout!)
+                                : null;
                             final price = room?.price ?? 0;
                             final expectedNights = booking.expectedNights > 0
                                 ? booking.expectedNights
                                 : (checkin == null
-                                    ? 1
-                                    : Time.nightsWithCutoff(
-                                        checkin,
-                                        checkout: plannedCheckout,
-                                      ));
+                                      ? 1
+                                      : Time.nightsWithCutoff(
+                                          checkin,
+                                          checkout: plannedCheckout,
+                                        ));
 
                             // Calculate nights based on current time for active bookings
                             // or based on actual/planned checkout for finished ones.
-                            final isActive = actualCheckout == null &&
+                            final isActive =
+                                actualCheckout == null &&
                                 StatusUtils.isBookingActive(booking);
                             final actualNights = checkin == null
                                 ? expectedNights
                                 : Time.nightsWithCutoff(
                                     checkin,
-                                    checkout: actualCheckout ??
+                                    checkout:
+                                        actualCheckout ??
                                         (isActive
                                             ? DateTime.now()
                                             : plannedCheckout),
@@ -193,19 +194,21 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                       final expectedNights = booking.expectedNights > 0
                           ? booking.expectedNights
                           : (checkin == null
-                              ? 1
-                              : Time.nightsWithCutoff(
-                                  checkin,
-                                  checkout: plannedCheckout,
-                                ));
+                                ? 1
+                                : Time.nightsWithCutoff(
+                                    checkin,
+                                    checkout: plannedCheckout,
+                                  ));
 
-                      final isActive = actualCheckout == null &&
+                      final isActive =
+                          actualCheckout == null &&
                           StatusUtils.isBookingActive(booking);
                       final actualNights = checkin == null
                           ? expectedNights
                           : Time.nightsWithCutoff(
                               checkin,
-                              checkout: actualCheckout ??
+                              checkout:
+                                  actualCheckout ??
                                   (isActive ? DateTime.now() : plannedCheckout),
                             );
 
@@ -406,8 +409,9 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color:
-        Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+    color: Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
     child: const Row(
       children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),
@@ -504,8 +508,9 @@ class _BookingRow extends ConsumerWidget {
         final Color statusColor = remaining <= 0.0
             ? Colors.green
             : (paid > 0 ? Colors.orange : Colors.red);
-        final String statusText =
-            remaining <= 0.0 ? 'مسددة' : (paid > 0 ? 'جزئياً' : 'غير مسددة');
+        final String statusText = remaining <= 0.0
+            ? 'مسددة'
+            : (paid > 0 ? 'جزئياً' : 'غير مسددة');
 
         return compact
             ? _CompactBookingCard(

@@ -82,8 +82,9 @@ class _LockEvent {
   @override
   String toString() {
     final categoryName = category.name;
-    final durationStr =
-        duration != null ? ' (${duration!.inMilliseconds}ms)' : '';
+    final durationStr = duration != null
+        ? ' (${duration!.inMilliseconds}ms)'
+        : '';
     return '${timestamp.toIso8601String().substring(11, 23)} - $action: $holder on $categoryName$durationStr';
   }
 }

@@ -38,7 +38,8 @@ class LazyScreenLoader {
       }(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return placeholder ?? const Center(child: CircularProgressIndicator());
+          return placeholder ??
+              const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -49,7 +50,10 @@ class LazyScreenLoader {
   }
 
   /// Preload screen in background
-  static Future<void> preload(String key, Future<Widget> Function() loader) async {
+  static Future<void> preload(
+    String key,
+    Future<Widget> Function() loader,
+  ) async {
     if (!_cache.containsKey(key) && !_loading.containsKey(key)) {
       _loading[key] = loader().then((widget) {
         _cache[key] = widget;
@@ -84,7 +88,10 @@ extension LazyNavigator on NavigatorState {
     bool preload = false,
   }) async {
     if (preload) {
-      LazyScreenLoader.preload(routeName, pageBuilder as Future<Widget> Function());
+      LazyScreenLoader.preload(
+        routeName,
+        pageBuilder as Future<Widget> Function(),
+      );
     }
     final page = await pageBuilder();
     return push<T>(MaterialPageRoute(builder: (_) => page as Widget));

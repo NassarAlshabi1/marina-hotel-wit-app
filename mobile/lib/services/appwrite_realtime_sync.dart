@@ -49,9 +49,7 @@ class AppwriteRealtimeSync {
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
-  Future<void> initialize({
-    required String deviceId,
-  }) async {
+  Future<void> initialize({required String deviceId}) async {
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
     debugPrint('📡 AppwriteRealtimeSync initialized');
@@ -75,7 +73,9 @@ class AppwriteRealtimeSync {
       _subscription = _realtime!.subscribe(channels);
       _isListening = true;
 
-      debugPrint('📡 Realtime: connection established, listening for events...');
+      debugPrint(
+        '📡 Realtime: connection established, listening for events...',
+      );
 
       _subscription!.stream.listen(
         (message) {
@@ -108,29 +108,38 @@ class AppwriteRealtimeSync {
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
     // استخراج معرف الجهاز المصدر مع دعم لعدة أسماء حقول محتملة
-    final sourceDevice = payload['device_id'] ?? 
-                         payload['lastModifiedBy'] ?? 
-                         payload['deviceId'];
+    final sourceDevice =
+        payload['device_id'] ??
+        payload['lastModifiedBy'] ??
+        payload['deviceId'];
 
     // تجاهل التغييرات من نفس الجهاز فقط إذا كنا متأكدين من تطابق المعرف
-    if (sourceDevice != null && _currentDeviceId != null && sourceDevice == _currentDeviceId) {
-      debugPrint('📡 Realtime: skipping local change from this device ($sourceDevice)');
+    if (sourceDevice != null &&
+        _currentDeviceId != null &&
+        sourceDevice == _currentDeviceId) {
+      debugPrint(
+        '📡 Realtime: skipping local change from this device ($sourceDevice)',
+      );
       return;
     }
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     final eventTypes = message.events;
-    final isDataChange = eventTypes.any((e) =>
-        e.endsWith('.create') ||
-        e.endsWith('.update') ||
-        e.endsWith('.delete'));
+    final isDataChange = eventTypes.any(
+      (e) =>
+          e.endsWith('.create') ||
+          e.endsWith('.update') ||
+          e.endsWith('.delete'),
+    );
 
     if (!isDataChange) {
       debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
       return;
     }
 
-    debugPrint('📡 Realtime: change detected in ${message.channels} - Source: ${sourceDevice ?? 'unknown'}');
+    debugPrint(
+      '📡 Realtime: change detected in ${message.channels} - Source: ${sourceDevice ?? 'unknown'}',
+    );
 
     // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
     final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
@@ -159,7 +168,8 @@ class AppwriteRealtimeSync {
       // ✅ تحسين: زيادة عداد التغييرات
       pendingRemoteChangesCount.value++;
       debugPrint(
-          '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
+        '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}',
+      );
     });
   }
 
@@ -185,7 +195,7 @@ class AppwriteRealtimeSync {
 
   void _reconnect() {
     if (_isListening) return;
-    
+
     // استخدام تأخير متزايد أو ثابت لإعادة الاتصال
     debugPrint('📡 Realtime: attempting to reconnect in 5 seconds...');
     Future.delayed(const Duration(seconds: 5), () async {

@@ -30,8 +30,9 @@ class VectorClock {
     final newClocks = Map<String, int>.from(clocks);
     for (final entry in other.clocks.entries) {
       final currentValue = newClocks[entry.key] ?? 0;
-      newClocks[entry.key] =
-          currentValue > entry.value ? currentValue : entry.value;
+      newClocks[entry.key] = currentValue > entry.value
+          ? currentValue
+          : entry.value;
     }
     return VectorClock(newClocks);
   }

@@ -45,7 +45,8 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
     final now = Time.nowEpoch();
     final createdAt =
         refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ??
+    final lastModified =
+        refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
     return EmployeesCompanion(
@@ -112,7 +113,9 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock != null && model.vectorClock.isNotEmpty ? jsonEncode(model.vectorClock) : '{}',
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock.isNotEmpty
+          ? jsonEncode(model.vectorClock)
+          : '{}',
     };
   }
 }
@@ -124,7 +127,8 @@ d.Value<int> _vInt(
   String? altKey,
   int? fallback,
 }) {
-  final v = _asInt(json, key, src) ??
+  final v =
+      _asInt(json, key, src) ??
       (altKey != null ? _asInt(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -137,7 +141,8 @@ d.Value<String> _vStr(
   String? altKey,
   String? fallback,
 }) {
-  final v = _asString(json, key, src) ??
+  final v =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -150,7 +155,8 @@ d.Value<double> _vDouble(
   String? altKey,
   double? fallback,
 }) {
-  final v = _asDouble(json, key, src) ??
+  final v =
+      _asDouble(json, key, src) ??
       (altKey != null ? _asDouble(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
@@ -193,13 +199,18 @@ d.Value<Map<String, dynamic>> _vMapJson(
   String? altKey,
   Map<String, dynamic>? fallback,
 }) {
-  final v = _asMap(json, key, src) ??
+  final v =
+      _asMap(json, key, src) ??
       (altKey != null ? _asMap(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-Map<String, dynamic>? _asMap(Map<String, dynamic> json, String key, Source src) {
+Map<String, dynamic>? _asMap(
+  Map<String, dynamic> json,
+  String key,
+  Source src,
+) {
   final v = _raw(json, key, src);
   if (v is Map<String, dynamic>) return v;
   if (v is Map) return Map<String, dynamic>.from(v);

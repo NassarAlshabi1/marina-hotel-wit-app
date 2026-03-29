@@ -49,8 +49,9 @@ class AppwriteDevice {
       deviceModel: json['deviceModel'] ?? '',
       osVersion: json['osVersion'] ?? '',
       lastSeen: parseDate(json['lastSeen'], fallback: DateTime.now()),
-      lastActive:
-          json.containsKey('lastActive') ? parseDate(json['lastActive']) : null,
+      lastActive: json.containsKey('lastActive')
+          ? parseDate(json['lastActive'])
+          : null,
       status: json['status'] ?? 'active',
       createdAt: parseDate(json['createdAt'], fallback: DateTime.now()),
       updatedAt: parseDate(json['updatedAt'], fallback: DateTime.now()),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../providers/repository_providers.dart';
 import '../../providers/sync_log_providers.dart';
 import '../../services/daos/sync_log_dao.dart';
 
@@ -82,7 +81,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                   children: [
                     Icon(Icons.delete_forever, size: 20, color: Colors.red),
                     SizedBox(width: 12),
-                    Text('مسح جميع السجلات', style: TextStyle(color: Colors.red)),
+                    Text(
+                      'مسح جميع السجلات',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   ],
                 ),
               ),
@@ -96,7 +98,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           // بطاقة الإحصائيات
           // ═════════════════════════════════════════════════════════
           statsAsync.when(
-            data: (stats) => _buildStatsCard(stats),
+            data: _buildStatsCard,
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
@@ -109,14 +111,15 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             child: Row(
               children: [
                 // زر الفلترة
-                Container(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: IconButton(
                     icon: Badge(
-                      isLabelVisible: _selectedDirection != null || _selectedStatus != null,
+                      isLabelVisible:
+                          _selectedDirection != null || _selectedStatus != null,
                       child: const Icon(Icons.filter_list),
                     ),
                     onPressed: _showFilterDialog,
@@ -133,7 +136,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                     },
                     decoration: InputDecoration(
                       hintText: 'بحث في السجلات...',
-                      hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
+                      ),
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
@@ -150,7 +156,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 0,
+                      ),
                     ),
                   ),
                 ),
@@ -171,8 +180,12 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                         final searchLower = _searchQuery.toLowerCase();
                         return log.syncId.toLowerCase().contains(searchLower) ||
                             log.deviceId.toLowerCase().contains(searchLower) ||
-                            (log.errorMessage?.toLowerCase().contains(searchLower) ?? false) ||
-                            (log.target?.toLowerCase().contains(searchLower) ?? false);
+                            (log.errorMessage?.toLowerCase().contains(
+                                  searchLower,
+                                ) ??
+                                false) ||
+                            (log.target?.toLowerCase().contains(searchLower) ??
+                                false);
                       }).toList();
 
                 if (filteredLogs.isEmpty) {
@@ -210,7 +223,11 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red.shade300,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'خطأ في تحميل السجلات',
@@ -252,10 +269,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.blue.shade600,
-            Colors.blue.shade800,
-          ],
+          colors: [Colors.blue.shade600, Colors.blue.shade800],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -313,7 +327,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                   icon: Icons.error,
                   label: 'فاشل',
                   value: '${stats.failedSyncs}',
-                  color: stats.failedSyncs > 0 ? Colors.red.shade300 : Colors.white70,
+                  color: stats.failedSyncs > 0
+                      ? Colors.red.shade300
+                      : Colors.white70,
                   highlight: stats.failedSyncs > 0,
                 ),
               ),
@@ -355,10 +371,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
-            color: color.withOpacity(0.8),
-          ),
+          style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
         ),
       ],
     );
@@ -393,10 +406,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               noRecordsAtAll
                   ? 'سيظهر هنا سجل جميع عمليات المزامنة\nالناجحة والفاشلة'
                   : 'جرب تغيير معايير البحث أو الفلترة',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
             if (noRecordsAtAll) ...[
@@ -565,7 +575,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                   ),
                   // حالة العملية
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(20),
@@ -688,10 +701,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -711,7 +721,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
         minChildSize: 0.4,
         maxChildSize: 0.95,
         builder: (context, scrollController) {
-          return Container(
+          return DecoratedBox(
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -844,14 +854,16 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           _buildDetailRow('معرف المزامنة', log.syncId, canCopy: true),
           _buildDetailRow('الجهاز', log.deviceId, canCopy: true),
           _buildDetailRow('الحالة', _translateStatus(log.status)),
-          if (log.target != null)
-            _buildDetailRow('الوجهة', log.target!),
+          if (log.target != null) _buildDetailRow('الوجهة', log.target!),
         ]),
         const SizedBox(height: 16),
         _buildDetailSection('التوقيت', [
           _buildDetailRow('وقت البدء', _formatFullDateTime(log.createdAt)),
           if (log.completedAt != null)
-            _buildDetailRow('وقت الانتهاء', _formatFullDateTime(log.completedAt!)),
+            _buildDetailRow(
+              'وقت الانتهاء',
+              _formatFullDateTime(log.completedAt!),
+            ),
           if (log.durationMs != null)
             _buildDetailRow('المدة', _formatDuration(log.durationMs!)),
         ]),
@@ -915,10 +927,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             width: 120,
             child: Text(
               label,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
           ),
           Expanded(
@@ -1033,17 +1042,17 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   /// ═══════════════════════════════════════════════════════════════
   /// معالجة إجراءات القائمة
   /// ═══════════════════════════════════════════════════════════════
-  void _handleMenuAction(String action, AsyncValue<List<SyncLogEntry>> logsAsync) {
+  void _handleMenuAction(
+    String action,
+    AsyncValue<List<SyncLogEntry>> logsAsync,
+  ) {
     switch (action) {
       case 'copy_all':
         _copyAllLogs(logsAsync);
-        break;
       case 'share_all':
         _shareAllLogs(logsAsync);
-        break;
       case 'clear_all':
         _showClearConfirmation();
-        break;
     }
   }
 
@@ -1074,28 +1083,40 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       }
 
       final buffer = StringBuffer();
-      buffer.writeln('╔══════════════════════════════════════════════════════════╗');
-      buffer.writeln('║              📋 سجل المزامنة الكامل                       ║');
-      buffer.writeln('╚══════════════════════════════════════════════════════════╝');
+      buffer.writeln(
+        '╔══════════════════════════════════════════════════════════╗',
+      );
+      buffer.writeln(
+        '║              📋 سجل المزامنة الكامل                       ║',
+      );
+      buffer.writeln(
+        '╚══════════════════════════════════════════════════════════╝',
+      );
       buffer.writeln();
-      buffer.writeln('📅 تاريخ التصدير: ${DateTime.now().toString().split(".")[0]}');
+      buffer.writeln(
+        '📅 تاريخ التصدير: ${DateTime.now().toString().split(".")[0]}',
+      );
       buffer.writeln('📊 عدد السجلات: ${logs.length}');
       buffer.writeln();
 
-      int successCount = logs.where((l) => l.status == 'success').length;
-      int failedCount = logs.where((l) => l.status == 'failed').length;
+      final int successCount = logs.where((l) => l.status == 'success').length;
+      final int failedCount = logs.where((l) => l.status == 'failed').length;
 
       for (final log in logs) {
         buffer.writeln(_formatLogForCopy(log));
         buffer.writeln();
       }
 
-      buffer.writeln('══════════════════════════════════════════════════════════');
+      buffer.writeln(
+        '══════════════════════════════════════════════════════════',
+      );
       buffer.writeln('📊 الإحصائيات:');
       buffer.writeln('   ✅ ناجحة: $successCount');
       buffer.writeln('   ❌ فاشلة: $failedCount');
       buffer.writeln('   📦 المجموع: ${logs.length}');
-      buffer.writeln('══════════════════════════════════════════════════════════');
+      buffer.writeln(
+        '══════════════════════════════════════════════════════════',
+      );
 
       Clipboard.setData(ClipboardData(text: buffer.toString()));
       _showSnackBar('تم نسخ ${logs.length} سجل', Colors.green);
@@ -1115,12 +1136,16 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       }
 
       final buffer = StringBuffer();
-      buffer.writeln('سجل المزامنة - ${DateTime.now().toString().split(".")[0]}');
+      buffer.writeln(
+        'سجل المزامنة - ${DateTime.now().toString().split(".")[0]}',
+      );
       buffer.writeln('عدد السجلات: ${logs.length}');
       buffer.writeln('─' * 40);
 
       for (final log in logs) {
-        buffer.writeln('[${log.status == 'success' ? '✅' : '❌'}] ${_translateDirection(log.direction)} - ${_formatFullDateTime(log.createdAt)}');
+        buffer.writeln(
+          '[${log.status == 'success' ? '✅' : '❌'}] ${_translateDirection(log.direction)} - ${_formatFullDateTime(log.createdAt)}',
+        );
         if (log.errorMessage != null) {
           buffer.writeln('   الخطأ: ${log.errorMessage}');
         }
@@ -1157,7 +1182,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       buffer.writeln();
       buffer.writeln('────────────────────────────────────────');
       buffer.writeln('❌ الخطأ:');
-      buffer.writeln(log.errorMessage!);
+      buffer.writeln(log.errorMessage);
       buffer.writeln('────────────────────────────────────────');
     }
 
@@ -1221,7 +1246,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String?>(
-              value: _selectedDirection,
+              initialValue: _selectedDirection,
               decoration: const InputDecoration(
                 labelText: 'نوع العملية',
                 border: OutlineInputBorder(),
@@ -1236,7 +1261,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: const InputDecoration(
                 labelText: 'الحالة',
                 border: OutlineInputBorder(),

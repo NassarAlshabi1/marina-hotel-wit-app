@@ -12,8 +12,8 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   RealTimeRoomsProvider({
     required RoomRepository repository,
     required AppwriteRealtimeService realtimeService,
-  })  : _repository = repository,
-        _realtimeService = realtimeService;
+  }) : _repository = repository,
+       _realtimeService = realtimeService;
   final RoomRepository _repository;
   // ignore: unused_field
   final AppwriteRealtimeService _realtimeService;

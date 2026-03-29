@@ -5,21 +5,10 @@ part 'sync_state.freezed.dart';
 part 'sync_state.g.dart';
 
 /// حالات المزامنة الممكنة
-enum SyncStatus {
-  idle,
-  syncing,
-  error,
-  disabled,
-  offline,
-}
+enum SyncStatus { idle, syncing, error, disabled, offline }
 
 /// أولوية المزامنة
-enum SyncPriority {
-  low,
-  normal,
-  high,
-  critical,
-}
+enum SyncPriority { low, normal, high, critical }
 
 /// نموذج حالة المزامنة باستخدام Freezed
 @freezed
@@ -37,20 +26,14 @@ class SyncState with _$SyncState {
 
   factory SyncState.idle() => const SyncState(status: SyncStatus.idle);
 
-  factory SyncState.syncing({
-    int progress = 0,
-    String? message,
-  }) =>
-      SyncState(
-        status: SyncStatus.syncing,
-        progress: progress,
-        message: message,
-      );
+  factory SyncState.syncing({int progress = 0, String? message}) => SyncState(
+    status: SyncStatus.syncing,
+    progress: progress,
+    message: message,
+  );
 
-  factory SyncState.error(String error) => SyncState(
-        status: SyncStatus.error,
-        error: error,
-      );
+  factory SyncState.error(String error) =>
+      SyncState(status: SyncStatus.error, error: error);
 
   factory SyncState.offline() => const SyncState(status: SyncStatus.offline);
 

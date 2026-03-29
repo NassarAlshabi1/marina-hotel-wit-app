@@ -3,8 +3,8 @@
 /// 1. الحقول المطلوبة في Appwrite
 /// 2. البيانات المحلية الفارغة/null
 /// 3. أنواع البيانات (string vs integer)
+library;
 
-import 'dart:convert';
 import 'local_db.dart';
 
 /// مخطط الحقول المطلوبة لكل جدول في Appwrite
@@ -16,8 +16,21 @@ const Map<String, Set<String>> kRequiredFieldsByCollection = {
   'shift_notes': {'shiftDate', 'note'},
   'salary_cycles': {'employeeId', 'startDate', 'endDate'},
   'salary_payments': {'employeeId', 'paymentDate'},
-  'payments': {'amount', 'paymentDate', 'paymentMethod', 'sync_version', 'sync_vector_clock'},
-  'debts': {'guestName', 'totalAmount', 'vector_clock', 'sync_version', 'sync_origin', 'sync_vector_clock'},
+  'payments': {
+    'amount',
+    'paymentDate',
+    'paymentMethod',
+    'sync_version',
+    'sync_vector_clock',
+  },
+  'debts': {
+    'guestName',
+    'totalAmount',
+    'vector_clock',
+    'sync_version',
+    'sync_origin',
+    'sync_vector_clock',
+  },
   'expenses': {'expenseType', 'description', 'amount', 'date'},
   'employees': {'name', 'basicSalary', 'status'},
   'cash_transactions': {'transactionType', 'amount', 'transactionTime'},
@@ -85,14 +98,6 @@ const Map<String, Map<String, String>> kFieldTypes = {
 
 /// نتيجة التحقق من سجل واحد
 class FieldValidationResult {
-  final String collection;
-  final String? localUuid;
-  final int? localId;
-  final List<String> missingRequiredFields;
-  final List<String> nullFields;
-  final Map<String, String> typeMismatches;
-  final bool isValid;
-
   FieldValidationResult({
     required this.collection,
     this.localUuid,
@@ -101,13 +106,19 @@ class FieldValidationResult {
     required this.nullFields,
     required this.typeMismatches,
   }) : isValid = missingRequiredFields.isEmpty && typeMismatches.isEmpty;
+  final String collection;
+  final String? localUuid;
+  final int? localId;
+  final List<String> missingRequiredFields;
+  final List<String> nullFields;
+  final Map<String, String> typeMismatches;
+  final bool isValid;
 }
 
 /// مدقق المخطط
 class SyncSchemaValidator {
-  final AppDatabase database;
-
   SyncSchemaValidator(this.database);
+  final AppDatabase database;
 
   /// التحقق من جميع الجداول
   Future<Map<String, dynamic>> validateAllTables() async {
@@ -165,16 +176,23 @@ class SyncSchemaValidator {
     return results;
   }
 
-  void _updateSummary(Map<String, dynamic> results, List<Map<String, dynamic>> tableResults) {
+  void _updateSummary(
+    Map<String, dynamic> results,
+    List<Map<String, dynamic>> tableResults,
+  ) {
     for (final r in tableResults) {
-      results['summary']['totalRecords'] = (results['summary']['totalRecords'] ?? 0) + 1;
+      results['summary']['totalRecords'] =
+          (results['summary']['totalRecords'] ?? 0) + 1;
       if (r['isValid'] == true) {
-        results['summary']['validRecords'] = (results['summary']['validRecords'] ?? 0) + 1;
+        results['summary']['validRecords'] =
+            (results['summary']['validRecords'] ?? 0) + 1;
       } else {
-        results['summary']['invalidRecords'] = (results['summary']['invalidRecords'] ?? 0) + 1;
+        results['summary']['invalidRecords'] =
+            (results['summary']['invalidRecords'] ?? 0) + 1;
       }
       if ((r['warnings'] as List?)?.isNotEmpty ?? false) {
-        results['summary']['warnings'] = (results['summary']['warnings'] ?? 0) + 1;
+        results['summary']['warnings'] =
+            (results['summary']['warnings'] ?? 0) + 1;
       }
     }
   }
@@ -194,7 +212,7 @@ class SyncSchemaValidator {
       }
 
       // التحقق من أنواع البيانات
-      if (room.price != null && room.price! < 0) {
+      if (room.price < 0) {
         warnings.add('price سالب: ${room.price}');
       }
 
@@ -257,19 +275,14 @@ class SyncSchemaValidator {
       final issues = <String>[];
       final warnings = <String>[];
 
-      if (payment.amount == null || payment.amount! < 0) {
+      if (payment.amount < 0) {
         issues.add('amount غير صالح: ${payment.amount}');
       }
-      if (payment.paymentDate == null || payment.paymentDate!.isEmpty) {
+      if (payment.paymentDate.isEmpty) {
         issues.add('paymentDate فارغ');
       }
-      if (payment.paymentMethod == null || payment.paymentMethod!.isEmpty) {
+      if (payment.paymentMethod.isEmpty) {
         issues.add('paymentMethod فارغ');
-      }
-
-      // التحقق من الحقول المطلوبة للـ sync
-      if (payment.version == null) {
-        warnings.add('version فارغ - سيستخدم 1');
       }
 
       results.add({
@@ -295,18 +308,13 @@ class SyncSchemaValidator {
       final issues = <String>[];
       final warnings = <String>[];
 
-      if (debt.guestName == null || debt.guestName!.isEmpty) {
+      if (debt.guestName.isEmpty) {
         issues.add('guestName فارغ');
       }
-      if (debt.totalAmount == null || debt.totalAmount! < 0) {
+      if (debt.totalAmount < 0) {
         issues.add('totalAmount غير صالح: ${debt.totalAmount}');
       }
-
-      // التحقق من حقول sync
-      if (debt.version == null) {
-        warnings.add('version فارغ - سيستخدم 1');
-      }
-      if (debt.origin == null || debt.origin!.isEmpty) {
+      if (debt.origin.isEmpty) {
         warnings.add('origin فارغ - سيستخدم mobile');
       }
 
@@ -334,7 +342,7 @@ class SyncSchemaValidator {
       final warnings = <String>[];
 
       // التحقق من employeeId
-      if (cycle.employeeId == null || cycle.employeeId! <= 0) {
+      if (cycle.employeeId <= 0) {
         issues.add('employeeId غير صالح: ${cycle.employeeId}');
       }
 
@@ -342,7 +350,8 @@ class SyncSchemaValidator {
       final startDate = cycle.hotelDayStart;
       final endDate = cycle.hotelDayEnd;
 
-      if ((startDate == null || startDate.isEmpty) && (endDate == null || endDate.isEmpty)) {
+      if ((startDate == null || startDate.isEmpty) &&
+          (endDate == null || endDate.isEmpty)) {
         warnings.add('startDate و endDate فارغان - سيتم استخدام قيم افتراضية');
       }
 
@@ -376,7 +385,7 @@ class SyncSchemaValidator {
       }
 
       // التحقق من paymentDate (مطلوب في Appwrite)
-      if (payment.paymentDateIso == null || payment.paymentDateIso!.isEmpty) {
+      if (payment.paymentDateIso.isEmpty) {
         warnings.add('paymentDateIso فارغ - سيتم استخدام التاريخ الحالي');
       }
 
@@ -415,8 +424,7 @@ class SyncSchemaValidator {
       }
 
       // التحقق من note (مطلوب في Appwrite - يستخدم content أو title)
-      if ((note.content == null || note.content!.isEmpty) &&
-          (note.title == null || note.title!.isEmpty)) {
+      if ((note.content.isEmpty) && (note.title.isEmpty)) {
         issues.add('content و title فارغان - لا يمكن تحديد note');
       }
 
@@ -444,12 +452,12 @@ class SyncSchemaValidator {
       final warnings = <String>[];
 
       // التحقق من bookingUuid (مطلوب في Appwrite - يستخدم localUuid كمرجع)
-      if (note.localUuid == null || note.localUuid!.isEmpty) {
+      if (note.localUuid.isEmpty) {
         issues.add('localUuid فارغ - لا يمكن تحديد bookingUuid');
       }
 
       // التحقق من note (مطلوب في Appwrite - يستخدم noteText)
-      if (note.noteText == null || note.noteText!.isEmpty) {
+      if (note.noteText.isEmpty) {
         issues.add('noteText فارغ - لا يمكن تحديد note');
       }
 
@@ -471,9 +479,13 @@ class SyncSchemaValidator {
   String generateReport(Map<String, dynamic> validationResults) {
     final buffer = StringBuffer();
 
-    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln(
+      '═══════════════════════════════════════════════════════════',
+    );
     buffer.writeln('                تقرير التحقق من مخطط المزامنة');
-    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln(
+      '═══════════════════════════════════════════════════════════',
+    );
     buffer.writeln();
 
     final summary = validationResults['summary'] as Map<String, dynamic>;
@@ -484,17 +496,26 @@ class SyncSchemaValidator {
     buffer.writeln('   ⚠️ تحذيرات: ${summary['warnings']}');
     buffer.writeln();
 
-    final details = validationResults['details'] as Map<String, List<Map<String, dynamic>>>;
+    final details =
+        validationResults['details'] as Map<String, List<Map<String, dynamic>>>;
     for (final entry in details.entries) {
       final tableName = entry.key;
       final records = entry.value;
-      final invalidRecords = records.where((r) => r['isValid'] == false).toList();
-      final warningRecords = records.where((r) => (r['warnings'] as List?)?.isNotEmpty ?? false).toList();
+      final invalidRecords = records
+          .where((r) => r['isValid'] == false)
+          .toList();
+      final warningRecords = records
+          .where((r) => (r['warnings'] as List?)?.isNotEmpty ?? false)
+          .toList();
 
       if (invalidRecords.isNotEmpty || warningRecords.isNotEmpty) {
-        buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        buffer.writeln(
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        );
         buffer.writeln('📋 جدول: $tableName');
-        buffer.writeln('   إجمالي: ${records.length} | ❌ غير صالح: ${invalidRecords.length} | ⚠️ تحذيرات: ${warningRecords.length}');
+        buffer.writeln(
+          '   إجمالي: ${records.length} | ❌ غير صالح: ${invalidRecords.length} | ⚠️ تحذيرات: ${warningRecords.length}',
+        );
 
         if (invalidRecords.isNotEmpty) {
           buffer.writeln();
@@ -521,9 +542,13 @@ class SyncSchemaValidator {
       }
     }
 
-    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln(
+      '═══════════════════════════════════════════════════════════',
+    );
     buffer.writeln('                      نهاية التقرير');
-    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln(
+      '═══════════════════════════════════════════════════════════',
+    );
 
     return buffer.toString();
   }

@@ -139,9 +139,7 @@ class LocalBackupsTab extends ConsumerWidget {
       },
     ];
 
-    return Column(
-      children: backups.map(_buildBackupItem).toList(),
-    );
+    return Column(children: backups.map(_buildBackupItem).toList());
   }
 
   Widget _buildBackupItem(Map<String, dynamic> backup) {

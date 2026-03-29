@@ -333,9 +333,6 @@ Future<void> _checkGoogleDriveSignInStatus() async {
   }
 }
 
-
-
-
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
 
@@ -407,8 +404,9 @@ void _setupEngineMonitoring(AutoSyncEngine engine) {
     debugPrint('❌ Failed attempts: ${state.failedAttempts}');
 
     if (state.nextRetryAt != null) {
-      final secondsUntil =
-          state.nextRetryAt!.difference(DateTime.now()).inSeconds;
+      final secondsUntil = state.nextRetryAt!
+          .difference(DateTime.now())
+          .inSeconds;
       debugPrint('⏰ Next retry in: ${secondsUntil}s');
     }
 
@@ -528,7 +526,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final database = ref.read(databaseProvider);
             await deltaSync.initialize(appwriteService, database);
             if (kDebugMode) {
-              debugPrint('✅ Appwrite Delta Sync initialized (deviceId: ${deltaSync.deviceId})');
+              debugPrint(
+                '✅ Appwrite Delta Sync initialized (deviceId: ${deltaSync.deviceId})',
+              );
             }
           } else {
             if (kDebugMode) {
@@ -639,7 +639,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       _lastAppwriteAutoPull = DateTime.now();
 
       if (kDebugMode) {
-        debugPrint('✅ Delta Sync: Initial pull completed at ${_lastAppwriteAutoPull}');
+        debugPrint(
+          '✅ Delta Sync: Initial pull completed at $_lastAppwriteAutoPull',
+        );
       }
     } catch (e) {
       debugPrint('❌ Delta Sync: Initial pull error: $e');
@@ -677,26 +679,25 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       AppSessionManager.onAppOpen().catchError(
         (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
       );
-      ref.read(backupStatusProvider.notifier).refreshSignInStatus().catchError(
+      ref
+          .read(backupStatusProvider.notifier)
+          .refreshSignInStatus()
+          .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
       unawaited(_autoPullAppwriteOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-            (e, s) =>
-                debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
-          );
+        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      );
       SyncGuardian.instance.onAppForeground().catchError(
-            (e, s) =>
-                debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
-          );
+        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
-      Future.microtask(
-        AppSessionManager.onAppCloseOrBackground,
-      ).catchError(
+      Future.microtask(AppSessionManager.onAppCloseOrBackground).catchError(
         (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );
     }

@@ -33,9 +33,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _guestNationality = TextEditingController(text: 'يمني');
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(
-    RegExp('[0-9]'),
-  );
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp('[0-9]'));
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -110,8 +108,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (b != null) {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
-      _guestNationality.text =
-          b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
+      _guestNationality.text = b.guestNationality.isEmpty
+          ? 'يمني'
+          : b.guestNationality;
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -473,11 +472,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         CheckboxListTile(
                           title: const Text('تعديل السعر (تخفيض/زيادة)'),
                           subtitle: const Text(
-                              'تعديل السعر اليومي أو الإجمالي لهذا الحجز'),
-                          value: _hasAdjustment,
-                          onChanged: (value) => setState(
-                            () => _hasAdjustment = value ?? false,
+                            'تعديل السعر اليومي أو الإجمالي لهذا الحجز',
                           ),
+                          value: _hasAdjustment,
+                          onChanged: (value) =>
+                              setState(() => _hasAdjustment = value ?? false),
                           activeColor: Colors.blue,
                           dense: true,
                           visualDensity: const VisualDensity(
@@ -505,10 +504,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   ),
                                   validator: _hasAdjustment
                                       ? (v) {
-                                          if (v == null || v.trim().isEmpty)
+                                          if (v == null || v.trim().isEmpty) {
                                             return 'مطلوب';
-                                          if (double.tryParse(v.trim()) == null)
+                                          }
+                                          if (double.tryParse(v.trim()) ==
+                                              null) {
                                             return 'رقم غير صحيح';
+                                          }
                                           return null;
                                         }
                                       : null,
@@ -520,14 +522,19 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   initialValue: _isDiscount,
                                   items: const [
                                     DropdownMenuItem(
-                                        value: true, child: Text('تخفيض')),
+                                      value: true,
+                                      child: Text('تخفيض'),
+                                    ),
                                     DropdownMenuItem(
-                                        value: false, child: Text('زيادة')),
+                                      value: false,
+                                      child: Text('زيادة'),
+                                    ),
                                   ],
                                   onChanged: (v) =>
                                       setState(() => _isDiscount = v ?? true),
-                                  decoration:
-                                      const InputDecoration(labelText: 'النوع'),
+                                  decoration: const InputDecoration(
+                                    labelText: 'النوع',
+                                  ),
                                 ),
                               ),
                             ],
@@ -540,16 +547,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   initialValue: _adjustmentType,
                                   items: const [
                                     DropdownMenuItem(
-                                        value: 'per_night',
-                                        child: Text('لكل ليلة')),
+                                      value: 'per_night',
+                                      child: Text('لكل ليلة'),
+                                    ),
                                     DropdownMenuItem(
-                                        value: 'total',
-                                        child: Text('من الإجمالي')),
+                                      value: 'total',
+                                      child: Text('من الإجمالي'),
+                                    ),
                                   ],
                                   onChanged: (v) => setState(
-                                      () => _adjustmentType = v ?? 'per_night'),
+                                    () => _adjustmentType = v ?? 'per_night',
+                                  ),
                                   decoration: const InputDecoration(
-                                      labelText: 'طريقة الحساب'),
+                                    labelText: 'طريقة الحساب',
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -559,11 +570,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   readOnly: true,
                                   decoration: const InputDecoration(
                                     labelText: 'يبدأ من تاريخ',
-                                    suffixIcon:
-                                        Icon(Icons.calendar_today, size: 16),
+                                    suffixIcon: Icon(
+                                      Icons.calendar_today,
+                                      size: 16,
+                                    ),
                                   ),
-                                  onTap: () => _pickDate(_adjustmentStartDate,
-                                      onlyDate: true),
+                                  onTap: () => _pickDate(
+                                    _adjustmentStartDate,
+                                    onlyDate: true,
+                                  ),
                                 ),
                               ),
                             ],
@@ -707,8 +722,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       final expectedNights =
                           int.tryParse(_expectedNights.text.trim()) ?? 1;
                       final checkinDt = _parseDateTime(checkin);
-                      final checkoutDt =
-                          checkout != null ? _parseDateTime(checkout) : null;
+                      final checkoutDt = checkout != null
+                          ? _parseDateTime(checkout)
+                          : null;
                       final calculatedNights = checkinDt == null
                           ? expectedNights
                           : Time.nightsWithCutoff(
@@ -728,8 +744,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             double.tryParse(_adjustmentAmount.text.trim()) ?? 0;
                         discountValue = _isDiscount ? rawAmount : -rawAmount;
                         discountType = _adjustmentType;
-                        discountStartDate =
-                            _optionalText(_adjustmentStartDate.text);
+                        discountStartDate = _optionalText(
+                          _adjustmentStartDate.text,
+                        );
                       }
 
                       final blacklist = ref.read(blacklistRepoProvider);
@@ -789,7 +806,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         if (_hasAdvancePayment) {
                           final amount =
                               double.tryParse(_advancePayment.text.trim()) ??
-                                  0.0;
+                              0.0;
                           if (amount > 0) {
                             final paymentsRepo = ref.read(paymentsRepoProvider);
                             await paymentsRepo.create(
@@ -893,9 +910,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
     final roomNumber = _roomNumber.text.trim();
     final room = rooms.cast<Room?>().firstWhere(
-          (r) => r?.roomNumber == roomNumber,
-          orElse: () => null,
-        );
+      (r) => r?.roomNumber == roomNumber,
+      orElse: () => null,
+    );
 
     if (room == null) return const SizedBox.shrink();
 
@@ -970,11 +987,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: Colors.black87)),
-          Text(value,
-              style:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -1060,10 +1080,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         validator: _req,
       ),
       data: (rooms) {
-        final availableRooms = rooms
-            .where((room) => StatusUtils.isRoomAvailable(room.status))
-            .toList()
-          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+        final availableRooms =
+            rooms
+                .where((room) => StatusUtils.isRoomAvailable(room.status))
+                .toList()
+              ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
         final currentValue = _roomNumber.text.trim();
         if (!_roomInitialized &&
@@ -1138,8 +1159,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final roomsRepo = ref.read(roomsRepoProvider);
     final bookings = await (db.select(
       db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     final occupiedRooms = <String>{};
     for (final booking in bookings) {
       if (StatusUtils.isActiveBooking(booking.status)) {
@@ -1149,8 +1169,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
     final rooms = await (db.select(
       db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);

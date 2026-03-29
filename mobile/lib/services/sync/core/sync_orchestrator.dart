@@ -58,10 +58,12 @@ class SyncOrchestrator {
       for (final adapter in _adapters) {
         if (!adapter.isEnabled) continue;
 
-        _emitState(SyncState.syncing(
-          progress: (completed / _adapters.length * 100).toInt(),
-          message: 'مزامنة ${adapter.name}...',
-        ));
+        _emitState(
+          SyncState.syncing(
+            progress: (completed / _adapters.length * 100).toInt(),
+            message: 'مزامنة ${adapter.name}...',
+          ),
+        );
 
         final result = await _syncWithRetry(adapter, push: push, pull: pull);
         results[adapter.name] = result;
@@ -72,10 +74,14 @@ class SyncOrchestrator {
       }
 
       final allSuccess = results.values.every((r) => r.isSuccess ?? false);
-      final totalPushed =
-          results.values.fold<int>(0, (sum, r) => sum + (r.pushedCount ?? 0));
-      final totalPulled =
-          results.values.fold<int>(0, (sum, r) => sum + (r.pulledCount ?? 0));
+      final totalPushed = results.values.fold<int>(
+        0,
+        (sum, r) => sum + (r.pushedCount ?? 0),
+      );
+      final totalPulled = results.values.fold<int>(
+        0,
+        (sum, r) => sum + (r.pulledCount ?? 0),
+      );
 
       final result = SyncResult.success(
         pushed: totalPushed,
@@ -84,7 +90,8 @@ class SyncOrchestrator {
       );
 
       _emitState(
-          allSuccess ? SyncState.idle() : SyncState.error(result.message));
+        allSuccess ? SyncState.idle() : SyncState.error(result.message),
+      );
       return result;
     } catch (e) {
       final errorResult = SyncResult.error('خطأ في المزامنة: $e');

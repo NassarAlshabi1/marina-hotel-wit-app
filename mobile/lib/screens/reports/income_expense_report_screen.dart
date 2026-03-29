@@ -168,37 +168,44 @@ class _IncomeExpenseReportScreenState
       final toStr = DateFormat('yyyy-MM-dd').format(_toDate);
 
       // Fetch payments (Income)
-      final payments =
-          await paymentsDao.listForReport(from: fromStr, to: toStr);
+      final payments = await paymentsDao.listForReport(
+        from: fromStr,
+        to: toStr,
+      );
       final payList = payments
-          .map((p) => {
-                'date': p.paymentDate,
-                'amount': p.amount,
-                'guestName': p
-                    .revenueType, // Or join with booking if needed, simplifying here for speed
-              })
+          .map(
+            (p) => {
+              'date': p.paymentDate,
+              'amount': p.amount,
+              'guestName': p
+                  .revenueType, // Or join with booking if needed, simplifying here for speed
+            },
+          )
           .toList();
 
       // Fetch expenses
       final expenses = await expensesDao.listFiltered(from: fromStr, to: toStr);
       final expList = expenses
-          .map((e) => {
-                'date': e.date,
-                'amount': e.amount,
-                'type': e.expenseType,
-                'description': e.description,
-              })
+          .map(
+            (e) => {
+              'date': e.date,
+              'amount': e.amount,
+              'type': e.expenseType,
+              'description': e.description,
+            },
+          )
           .toList();
 
       // Process in isolate
       final result = await compute(
-          _processReportData,
-          _ReportParams(
-            payments: payList,
-            expenses: expList,
-            fromDate: _fromDate,
-            toDate: _toDate,
-          ));
+        _processReportData,
+        _ReportParams(
+          payments: payList,
+          expenses: expList,
+          fromDate: _fromDate,
+          toDate: _toDate,
+        ),
+      );
 
       if (mounted) {
         setState(() {
@@ -245,7 +252,8 @@ class _IncomeExpenseReportScreenState
         decoration: const pw.BoxDecoration(
           color: PdfColors.white,
           border: pw.Border(
-              bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+            bottom: pw.BorderSide(color: PdfColors.grey300, width: 1),
+          ),
         ),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -254,30 +262,42 @@ class _IncomeExpenseReportScreenState
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(hotelName,
-                    style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 18,
-                        color: PdfColors.blue900)),
+                pw.Text(
+                  hotelName,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 18,
+                    color: PdfColors.blue900,
+                  ),
+                ),
                 if (hotelPhone.isNotEmpty)
-                  pw.Text('هاتف: $hotelPhone',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'هاتف: $hotelPhone',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
                 if (hotelAddress.isNotEmpty)
-                  pw.Text('عنوان: $hotelAddress',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'عنوان: $hotelAddress',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
               ],
             ),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text('تقرير الدخل والمصروفات',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 16)),
+                pw.Text(
+                  'تقرير الدخل والمصروفات',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 16),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text('من $fromLabel إلى $toLabel',
-                    style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 10,
-                        color: PdfColors.grey700)),
+                pw.Text(
+                  'من $fromLabel إلى $toLabel',
+                  style: pw.TextStyle(
+                    font: fonts.regular,
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
+                ),
               ],
             ),
             if (logoImage != null)
@@ -290,44 +310,63 @@ class _IncomeExpenseReportScreenState
     }
 
     final summaryCard = pw.Container(
-        padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.grey400),
-          borderRadius: pw.BorderRadius.circular(8),
-        ),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            _buildPdfSummaryItem(
-                'إجمالي الدخل', _incomeTotal, PdfColors.green700, fonts.bold),
-            _buildPdfSummaryItem('إجمالي المصروفات', _expenseTotal,
-                PdfColors.red700, fonts.bold),
-            _buildPdfSummaryItem('صافي الربح', _net,
-                _net >= 0 ? PdfColors.blue700 : PdfColors.red700, fonts.bold),
-          ],
-        ));
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          _buildPdfSummaryItem(
+            'إجمالي الدخل',
+            _incomeTotal,
+            PdfColors.green700,
+            fonts.bold,
+          ),
+          _buildPdfSummaryItem(
+            'إجمالي المصروفات',
+            _expenseTotal,
+            PdfColors.red700,
+            fonts.bold,
+          ),
+          _buildPdfSummaryItem(
+            'صافي الربح',
+            _net,
+            _net >= 0 ? PdfColors.blue700 : PdfColors.red700,
+            fonts.bold,
+          ),
+        ],
+      ),
+    );
 
     final headers = ['التاريخ', 'النوع', 'الوصف', 'المبلغ'];
 
     // Combined list for PDF
     final combined = <_CombinedEntry>[];
     for (final e in _incomeEntries) {
-      combined.add(_CombinedEntry(
+      combined.add(
+        _CombinedEntry(
           date: e.date,
           description: e.description,
           amount: e.amount,
           isIncome: true,
           isSalary: false,
-          type: 'دخل'));
+          type: 'دخل',
+        ),
+      );
     }
     for (final e in _expenseEntries) {
-      combined.add(_CombinedEntry(
+      combined.add(
+        _CombinedEntry(
           date: e.date,
           description: e.description,
           amount: e.amount,
           isIncome: false,
           isSalary: e.isSalary,
-          type: e.type));
+          type: e.type,
+        ),
+      );
     }
     combined.sort((a, b) => b.date.compareTo(a.date));
 
@@ -352,7 +391,10 @@ class _IncomeExpenseReportScreenState
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount} - ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
             style: pw.TextStyle(
-                font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.grey600,
+            ),
           ),
         ),
         build: (context) => [
@@ -408,18 +450,30 @@ class _IncomeExpenseReportScreenState
   }
 
   pw.Widget _buildPdfSummaryItem(
-      String label, double value, PdfColor color, pw.Font font) {
+    String label,
+    double value,
+    PdfColor color,
+    pw.Font font,
+  ) {
     return pw.Column(
       children: [
-        pw.Text(label,
-            style: pw.TextStyle(
-                font: font, fontSize: 10, color: PdfColors.grey700)),
-        pw.Text(_currencyFormat.format(value),
-            style: pw.TextStyle(
-                font: font,
-                fontSize: 12,
-                color: color,
-                fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 10,
+            color: PdfColors.grey700,
+          ),
+        ),
+        pw.Text(
+          _currencyFormat.format(value),
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 12,
+            color: color,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
@@ -440,9 +494,10 @@ class _IncomeExpenseReportScreenState
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2)),
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: Column(
@@ -479,7 +534,8 @@ class _IncomeExpenseReportScreenState
                           elevation: 0,
                           backgroundColor: Theme.of(context).primaryColor,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.search, size: 20),
                       ),
@@ -491,14 +547,15 @@ class _IncomeExpenseReportScreenState
                       child: ElevatedButton(
                         onPressed:
                             (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
-                                ? null
-                                : _showExportOptions,
+                            ? null
+                            : _showExportOptions,
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           elevation: 0,
                           backgroundColor: Colors.red[700],
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.picture_as_pdf, size: 20),
                       ),
@@ -511,20 +568,34 @@ class _IncomeExpenseReportScreenState
                   child: Row(
                     children: [
                       _buildQuickChip(
-                          'اليوم', _isToday(), () => _setQuickFilter('today')),
+                        'اليوم',
+                        _isToday(),
+                        () => _setQuickFilter('today'),
+                      ),
                       const SizedBox(width: 8),
-                      _buildQuickChip('الأسبوع', _isThisWeek(),
-                          () => _setQuickFilter('week')),
+                      _buildQuickChip(
+                        'الأسبوع',
+                        _isThisWeek(),
+                        () => _setQuickFilter('week'),
+                      ),
                       const SizedBox(width: 8),
-                      _buildQuickChip('الشهر', _isThisMonth(),
-                          () => _setQuickFilter('month')),
+                      _buildQuickChip(
+                        'الشهر',
+                        _isThisMonth(),
+                        () => _setQuickFilter('month'),
+                      ),
                       const SizedBox(width: 8),
-                      _buildQuickChip('السنة', _isThisYear(),
-                          () => _setQuickFilter('year')),
+                      _buildQuickChip(
+                        'السنة',
+                        _isThisYear(),
+                        () => _setQuickFilter('year'),
+                      ),
                       const SizedBox(width: 12),
                       FilterChip(
-                        label: Text(_detailedMode ? 'عرض مفصل' : 'عرض ملخص',
-                            style: const TextStyle(fontSize: 11)),
+                        label: Text(
+                          _detailedMode ? 'عرض مفصل' : 'عرض ملخص',
+                          style: const TextStyle(fontSize: 11),
+                        ),
                         selected: _detailedMode,
                         onSelected: (v) => setState(() => _detailedMode = v),
                         selectedColor: Colors.blue.withOpacity(0.2),
@@ -551,7 +622,10 @@ class _IncomeExpenseReportScreenState
                 _buildSummaryItem('الدخل', _incomeTotal, Colors.green),
                 _buildSummaryItem('المصروفات', _expenseTotal, Colors.red),
                 _buildSummaryItem(
-                    'الصافي', _net, _net >= 0 ? Colors.blue : Colors.red),
+                  'الصافي',
+                  _net,
+                  _net >= 0 ? Colors.blue : Colors.red,
+                ),
               ],
             ),
           ),
@@ -561,12 +635,12 @@ class _IncomeExpenseReportScreenState
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
-                    ? const EmptyState(
-                        title: 'لا توجد بيانات',
-                        message: 'لم يتم العثور على سجلات ضمن الفترة.',
-                        icon: Icons.bar_chart,
-                      )
-                    : _buildDetailsList(),
+                ? const EmptyState(
+                    title: 'لا توجد بيانات',
+                    message: 'لم يتم العثور على سجلات ضمن الفترة.',
+                    icon: Icons.bar_chart,
+                  )
+                : _buildDetailsList(),
           ),
         ],
       ),
@@ -580,17 +654,26 @@ class _IncomeExpenseReportScreenState
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildStatCard('عدد الدفعات', _incomeEntries.length.toString(),
-                Icons.arrow_downward, Colors.green),
-            const SizedBox(height: 10),
-            _buildStatCard('عدد المصروفات', _expenseEntries.length.toString(),
-                Icons.arrow_upward, Colors.red),
+            _buildStatCard(
+              'عدد الدفعات',
+              _incomeEntries.length.toString(),
+              Icons.arrow_downward,
+              Colors.green,
+            ),
             const SizedBox(height: 10),
             _buildStatCard(
-                'عدد الرواتب',
-                _expenseEntries.where((e) => e.isSalary).length.toString(),
-                Icons.people,
-                Colors.orange),
+              'عدد المصروفات',
+              _expenseEntries.length.toString(),
+              Icons.arrow_upward,
+              Colors.red,
+            ),
+            const SizedBox(height: 10),
+            _buildStatCard(
+              'عدد الرواتب',
+              _expenseEntries.where((e) => e.isSalary).length.toString(),
+              Icons.people,
+              Colors.orange,
+            ),
           ],
         ),
       );
@@ -599,22 +682,28 @@ class _IncomeExpenseReportScreenState
     // Detailed mode: Combined list
     final combined = <_CombinedEntry>[];
     for (final e in _incomeEntries) {
-      combined.add(_CombinedEntry(
+      combined.add(
+        _CombinedEntry(
           date: e.date,
           description: e.description,
           amount: e.amount,
           isIncome: true,
           isSalary: false,
-          type: 'دخل'));
+          type: 'دخل',
+        ),
+      );
     }
     for (final e in _expenseEntries) {
-      combined.add(_CombinedEntry(
+      combined.add(
+        _CombinedEntry(
           date: e.date,
           description: e.description,
           amount: e.amount,
           isIncome: false,
           isSalary: e.isSalary,
-          type: e.type));
+          type: e.type,
+        ),
+      );
     }
     combined.sort((a, b) => b.date.compareTo(a.date));
 
@@ -630,29 +719,44 @@ class _IncomeExpenseReportScreenState
   Widget _buildSummaryItem(String label, double value, Color color) {
     return Column(
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
         Text(
           _currencyFormat.format(value),
           style: TextStyle(
-              fontSize: 13, fontWeight: FontWeight.bold, color: color),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 1,
       child: ListTile(
         leading: CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
-            child: Icon(icon, color: color, size: 20)),
+          backgroundColor: color.withOpacity(0.1),
+          child: Icon(icon, color: color, size: 20),
+        ),
         title: Text(title, style: const TextStyle(fontSize: 13)),
-        trailing: Text(value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        trailing: Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
       ),
     );
   }
@@ -684,7 +788,9 @@ class _IncomeExpenseReportScreenState
                         ? entry.description
                         : entry.type,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                   Text(
                     _dateFormat.format(entry.date),
@@ -696,7 +802,10 @@ class _IncomeExpenseReportScreenState
             Text(
               '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
               style: TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 14, color: color),
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: color,
+              ),
             ),
           ],
         ),
@@ -727,11 +836,17 @@ class _IncomeExpenseReportScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(label,
-                    style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
-                Text(date != null ? _dateFormat.format(date) : '-',
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w500)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                ),
+                Text(
+                  date != null ? _dateFormat.format(date) : '-',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
             const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
@@ -743,15 +858,21 @@ class _IncomeExpenseReportScreenState
 
   Widget _buildQuickChip(String label, bool selected, VoidCallback onTap) {
     return ChoiceChip(
-      label: Text(label,
-          style: TextStyle(
-              fontSize: 11, color: selected ? Colors.white : Colors.black)),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: selected ? Colors.white : Colors.black,
+        ),
+      ),
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: Theme.of(context).primaryColor,
       backgroundColor: Colors.grey[200],
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20), side: BorderSide.none),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide.none,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       visualDensity: VisualDensity.compact,
     );
@@ -759,20 +880,24 @@ class _IncomeExpenseReportScreenState
 }
 
 class _IncomeEntry {
-  _IncomeEntry(
-      {required this.date, required this.description, required this.amount});
+  _IncomeEntry({
+    required this.date,
+    required this.description,
+    required this.amount,
+  });
   final DateTime date;
   final String description;
   final double amount;
 }
 
 class _ExpenseEntry {
-  _ExpenseEntry(
-      {required this.date,
-      required this.type,
-      required this.description,
-      required this.amount,
-      required this.isSalary});
+  _ExpenseEntry({
+    required this.date,
+    required this.type,
+    required this.description,
+    required this.amount,
+    required this.isSalary,
+  });
   final DateTime date;
   final String type;
   final String description;
@@ -781,13 +906,14 @@ class _ExpenseEntry {
 }
 
 class _CombinedEntry {
-  _CombinedEntry(
-      {required this.date,
-      required this.description,
-      required this.amount,
-      required this.isIncome,
-      required this.isSalary,
-      required this.type});
+  _CombinedEntry({
+    required this.date,
+    required this.description,
+    required this.amount,
+    required this.isIncome,
+    required this.isSalary,
+    required this.type,
+  });
   final DateTime date;
   final String description;
   final double amount;
@@ -797,11 +923,12 @@ class _CombinedEntry {
 }
 
 class _ReportParams {
-  _ReportParams(
-      {required this.payments,
-      required this.expenses,
-      required this.fromDate,
-      required this.toDate});
+  _ReportParams({
+    required this.payments,
+    required this.expenses,
+    required this.fromDate,
+    required this.toDate,
+  });
   final List<Map<String, dynamic>> payments;
   final List<Map<String, dynamic>> expenses;
   final DateTime fromDate;
@@ -809,13 +936,14 @@ class _ReportParams {
 }
 
 class _ReportResult {
-  _ReportResult(
-      {required this.incomeEntries,
-      required this.expenseEntries,
-      required this.incomeTotal,
-      required this.expenseTotal,
-      required this.salaryTotal,
-      required this.net});
+  _ReportResult({
+    required this.incomeEntries,
+    required this.expenseEntries,
+    required this.incomeTotal,
+    required this.expenseTotal,
+    required this.salaryTotal,
+    required this.net,
+  });
   final List<_IncomeEntry> incomeEntries;
   final List<_ExpenseEntry> expenseEntries;
   final double incomeTotal;
@@ -827,7 +955,13 @@ class _ReportResult {
 _ReportResult _processReportData(_ReportParams params) {
   bool isWithinRange(DateTime date) {
     final endOfDay = DateTime(
-        params.toDate.year, params.toDate.month, params.toDate.day, 23, 59, 59);
+      params.toDate.year,
+      params.toDate.month,
+      params.toDate.day,
+      23,
+      59,
+      59,
+    );
     return !date.isBefore(params.fromDate) && !date.isAfter(endOfDay);
   }
 
@@ -840,15 +974,19 @@ _ReportResult _processReportData(_ReportParams params) {
     DateTime? dt;
     try {
       dt = DateTime.parse(
-          dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr);
+        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
+      );
     } catch (_) {
       continue;
     }
     if (!isWithinRange(dt)) continue;
-    incomeList.add(_IncomeEntry(
+    incomeList.add(
+      _IncomeEntry(
         date: dt,
         description: 'دفعة حجز - ${p['guestName'] ?? ''}',
-        amount: ((p['amount'] ?? 0) as num).toDouble()));
+        amount: ((p['amount'] ?? 0) as num).toDouble(),
+      ),
+    );
   }
 
   final expenseList = <_ExpenseEntry>[];
@@ -858,18 +996,22 @@ _ReportResult _processReportData(_ReportParams params) {
     DateTime? dt;
     try {
       dt = DateTime.parse(
-          dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr);
+        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
+      );
     } catch (_) {
       continue;
     }
     if (!isWithinRange(dt)) continue;
     final type = (e['type'] ?? '').toString();
-    expenseList.add(_ExpenseEntry(
+    expenseList.add(
+      _ExpenseEntry(
         date: dt,
         type: type,
         description: (e['description'] ?? '').toString(),
         amount: ((e['amount'] ?? 0) as num).toDouble(),
-        isSalary: isSalaryExpense(type)));
+        isSalary: isSalaryExpense(type),
+      ),
+    );
   }
 
   incomeList.sort((a, b) => a.date.compareTo(b.date));
@@ -882,10 +1024,11 @@ _ReportResult _processReportData(_ReportParams params) {
       .fold<double>(0, (s, e) => s + e.amount);
 
   return _ReportResult(
-      incomeEntries: incomeList,
-      expenseEntries: expenseList,
-      incomeTotal: incTotal,
-      expenseTotal: expTotal,
-      salaryTotal: salTotal,
-      net: incTotal - expTotal);
+    incomeEntries: incomeList,
+    expenseEntries: expenseList,
+    incomeTotal: incTotal,
+    expenseTotal: expTotal,
+    salaryTotal: salTotal,
+    net: incTotal - expTotal,
+  );
 }

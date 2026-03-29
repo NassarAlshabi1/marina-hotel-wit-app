@@ -130,8 +130,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     Map<String, dynamic> remote,
   ) {
     // 1. محاولة استخدام Vector Clock
-    final remoteClockStr = remote['vector_clock']?.toString() ??
-        remote['vectorClock']?.toString();
+    final remoteClockStr =
+        remote['vector_clock']?.toString() ?? remote['vectorClock']?.toString();
     final localClockStr =
         local['vector_clock']?.toString() ?? local['vectorClock']?.toString();
 
@@ -163,7 +163,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
   /// استخراج الطابع الزمني من البيانات
   int? _extractTimestamp(Map<String, dynamic> data) {
-    final ts = data['updated_at'] ??
+    final ts =
+        data['updated_at'] ??
         data['updatedAt'] ??
         data['last_modified'] ??
         data['lastModified'] ??
@@ -219,8 +220,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final targets = <List<Column>>[];
     final sanitizedName = tableName.replaceAll("'", "''");
 
-    final indexRows =
-        await db.customSelect("PRAGMA index_list('$sanitizedName')").get();
+    final indexRows = await db
+        .customSelect("PRAGMA index_list('$sanitizedName')")
+        .get();
     for (final row in indexRows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
       if (!isUnique) {
@@ -231,8 +233,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         continue;
       }
       final sanitizedIndex = indexName.replaceAll("'", "''");
-      final infoRows =
-          await db.customSelect("PRAGMA index_info('$sanitizedIndex')").get();
+      final infoRows = await db
+          .customSelect("PRAGMA index_info('$sanitizedIndex')")
+          .get();
       final cols = <Column>[];
       for (final info in infoRows) {
         final name = info.data['name']?.toString();

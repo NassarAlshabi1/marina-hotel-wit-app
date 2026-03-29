@@ -13,7 +13,7 @@ import 'models/sync_models.dart';
 /// عند استلام تغيير من جهاز آخر، ندمج العدادات
 class VectorClock {
   VectorClock([Map<String, int>? initial])
-      : clocks = Map<String, int>.from(initial ?? {});
+    : clocks = Map<String, int>.from(initial ?? {});
 
   /// إنشاء من JSON
   factory VectorClock.fromJson(String json) {
@@ -23,9 +23,7 @@ class VectorClock {
 
   /// إنشاء ساعة جديدة بناءً على مجموعة من الأجهزة
   factory VectorClock.forDevices(List<String> deviceIds) {
-    return VectorClock({
-      for (final id in deviceIds) id: 0,
-    });
+    return VectorClock({for (final id in deviceIds) id: 0});
   }
 
   /// ساعة فارغة
@@ -52,10 +50,7 @@ class VectorClock {
     final newClocks = Map<String, int>.from(clocks);
 
     for (final entry in other.clocks.entries) {
-      newClocks[entry.key] = math.max(
-        newClocks[entry.key] ?? 0,
-        entry.value,
-      );
+      newClocks[entry.key] = math.max(newClocks[entry.key] ?? 0, entry.value);
     }
 
     return VectorClock(newClocks);
@@ -153,8 +148,8 @@ class VectorClock {
 /// يتتبع ساعات جميع الأجهزة المعروفة
 class VectorClockManager {
   VectorClockManager({required String deviceId})
-      : _deviceId = deviceId,
-        _currentClock = VectorClock.forDevice(deviceId);
+    : _deviceId = deviceId,
+      _currentClock = VectorClock.forDevice(deviceId);
 
   /// استعادة من JSON
   factory VectorClockManager.fromStorageJson(Map<String, dynamic> json) {
@@ -209,10 +204,7 @@ class VectorClockManager {
   /// إضافة جهاز جديد معروف
   void addKnownDevice(String deviceId) {
     if (!_currentClock.clocks.containsKey(deviceId)) {
-      _currentClock = VectorClock({
-        ..._currentClock.clocks,
-        deviceId: 0,
-      });
+      _currentClock = VectorClock({..._currentClock.clocks, deviceId: 0});
     }
   }
 
@@ -229,9 +221,9 @@ class VectorClockManager {
 
   /// تحويل إلى JSON للتخزين
   Map<String, dynamic> toStorageJson() => {
-        'deviceId': _deviceId,
-        'clocks': _currentClock.clocks,
-      };
+    'deviceId': _deviceId,
+    'clocks': _currentClock.clocks,
+  };
 
   @override
   String toString() =>
@@ -275,15 +267,17 @@ class ConflictMonitor {
     required Map<String, dynamic> localData,
     required Map<String, dynamic> remoteData,
   }) {
-    _conflicts.add(DetectedConflict(
-      table: table,
-      uuid: uuid,
-      localClock: localClock,
-      remoteClock: remoteClock,
-      localData: localData,
-      remoteData: remoteData,
-      detectedAt: DateTime.now(),
-    ));
+    _conflicts.add(
+      DetectedConflict(
+        table: table,
+        uuid: uuid,
+        localClock: localClock,
+        remoteClock: remoteClock,
+        localData: localData,
+        remoteData: remoteData,
+        detectedAt: DateTime.now(),
+      ),
+    );
 
     // الحفاظ على حد التاريخ
     if (_conflicts.length > maxHistory) {
@@ -306,11 +300,11 @@ class ConflictMonitor {
 
   /// إحصائيات التعارضات
   Map<String, dynamic> get stats => {
-        'total': _conflicts.length,
-        'active': activeConflicts.length,
-        'resolved': _conflicts.where((c) => c.resolved).length,
-        'byTable': _groupByTable(),
-      };
+    'total': _conflicts.length,
+    'active': activeConflicts.length,
+    'resolved': _conflicts.where((c) => c.resolved).length,
+    'byTable': _groupByTable(),
+  };
 
   Map<String, int> _groupByTable() {
     final result = <String, int>{};

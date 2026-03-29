@@ -16,7 +16,6 @@ import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
-import 'google_drive_sign_in_manager.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
@@ -94,13 +93,13 @@ class BackupMetadata {
   final BackupFormat format;
 
   Map<String, dynamic> toJson() => {
-        'app_version': appVersion,
-        'database_version': databaseVersion,
-        'backup_timestamp': backupTimestamp.toIso8601String(),
-        'total_records': totalRecords,
-        'device_info': deviceInfo,
-        'format': format.name,
-      };
+    'app_version': appVersion,
+    'database_version': databaseVersion,
+    'backup_timestamp': backupTimestamp.toIso8601String(),
+    'total_records': totalRecords,
+    'device_info': deviceInfo,
+    'format': format.name,
+  };
 }
 
 class GoogleAuthClient extends http.BaseClient {
@@ -168,17 +167,20 @@ class GoogleDriveBackupService {
   void _initializeGoogleSignIn() {
     // In google_sign_in 7.x, initialization is automatic
   }
-  
+
   /// Helper to get Drive API access token from account
   Future<String?> _getAccessToken(GoogleSignInAccount account) async {
     try {
       // Try to get authorization without user interaction first
-      final clientAuth = await account.authorizationClient.authorizationForScopes(_scopes);
+      final clientAuth = await account.authorizationClient
+          .authorizationForScopes(_scopes);
       if (clientAuth != null) {
         return clientAuth.accessToken;
       }
       // If that fails, request interactive authorization
-      final newAuth = await account.authorizationClient.authorizeScopes(_scopes);
+      final newAuth = await account.authorizationClient.authorizeScopes(
+        _scopes,
+      );
       return newAuth.accessToken;
     } catch (e) {
       _log('⚠️ فشل الحصول على رمز الوصول: $e');
@@ -196,7 +198,9 @@ class GoogleDriveBackupService {
           _currentUser = account;
         }
       } catch (e) {
-        _log('⚠️ فشل attemptLightweightAuthentication أثناء تحديث الاعتماديات: $e');
+        _log(
+          '⚠️ فشل attemptLightweightAuthentication أثناء تحديث الاعتماديات: $e',
+        );
       }
     }
 
@@ -208,7 +212,7 @@ class GoogleDriveBackupService {
     if (accessToken == null) {
       throw Exception('فشل الحصول على رمز الوصول لـ Google Drive');
     }
-    
+
     final headers = {
       'Authorization': 'Bearer $accessToken',
       'Content-Type': 'application/json',
@@ -235,40 +239,33 @@ class GoogleDriveBackupService {
 
   Future<GoogleSignInAccount?> signInForDrive() async {
     try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
-      }
-
       _log('🔄 محاولة تسجيل الدخول الصامت...');
       // In google_sign_in 7.x, attemptLightweightAuthentication() returns GoogleSignInAccount?
-      GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
+      GoogleSignInAccount? account = await _googleSignIn
+          .attemptLightweightAuthentication();
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
         account = await _googleSignIn.authenticate(scopeHint: _scopes);
       }
 
-      if (account != null) {
-        _currentUser = account; // Track current user
-        _log('🔑 الحصول على رؤوس المصادقة...');
-        
-        final accessToken = await _getAccessToken(account);
-        if (accessToken == null) {
-          throw Exception('فشل الحصول على رمز الوصول');
-        }
-        
-        final headers = {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        };
-        final client = GoogleAuthClient(headers);
-        _driveApi = drive.DriveApi(client);
+      _currentUser = account; // Track current user
+      _log('🔑 الحصول على رؤوس المصادقة...');
 
-        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
-      } else {
-        _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
+      final accessToken = await _getAccessToken(account);
+      if (accessToken == null) {
+        throw Exception('فشل الحصول على رمز الوصول');
       }
+
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      };
+      final client = GoogleAuthClient(headers);
+      _driveApi = drive.DriveApi(client);
+
+      _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+      _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
 
       return account;
     } catch (e) {
@@ -286,18 +283,19 @@ class GoogleDriveBackupService {
     try {
       _log('🔄 محاولة استعادة جلسة Google Drive...');
       // In google_sign_in 7.x, attemptLightweightAuthentication() replaces signInSilently()
-      final GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
+      final GoogleSignInAccount? account = await _googleSignIn
+          .attemptLightweightAuthentication();
 
       if (account != null) {
         _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
-        
+
         final accessToken = await _getAccessToken(account);
         if (accessToken == null) {
           _log('⚠️ فشل الحصول على رمز الوصول');
           return null;
         }
-        
+
         final headers = {
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
@@ -325,13 +323,13 @@ class GoogleDriveBackupService {
 
       if (account != null) {
         _currentUser = account; // Track current user
-        
+
         final accessToken = await _getAccessToken(account);
         if (accessToken == null) {
           _log('⚠️ فشل الحصول على رمز الوصول');
           return false;
         }
-        
+
         final headers = {
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
@@ -352,7 +350,7 @@ class GoogleDriveBackupService {
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn?.signOut();
+      await _googleSignIn.signOut();
       _currentUser = null; // Clear tracked user
       _driveApi = null;
       _backupFolderId = null;
@@ -423,12 +421,14 @@ class GoogleDriveBackupService {
       final salaryCyclesData = await db.select(db.salaryCycles).get();
       final salaryPaymentsData = await db.select(db.salaryPayments).get();
       final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
-      final bookingPriceAdjData =
-          await db.select(db.bookingPriceAdjustments).get();
+      final bookingPriceAdjData = await db
+          .select(db.bookingPriceAdjustments)
+          .get();
       final auditLogsData = await db.select(db.auditLogs).get();
       final paymentVoidsData = await db.select(db.paymentVoids).get();
 
-      final totalRecords = roomsData.length +
+      final totalRecords =
+          roomsData.length +
           bookingsData.length +
           bookingNotesData.length +
           bookingNightsData.length +
@@ -460,26 +460,32 @@ class GoogleDriveBackupService {
         'rooms': roomsData.map((room) => room.toJson()).toList(),
         'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
         'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
-        'booking_nights':
-            bookingNightsData.map((night) => night.toJson()).toList(),
+        'booking_nights': bookingNightsData
+            .map((night) => night.toJson())
+            .toList(),
         'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
         'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
-        'employees':
-            employeesData.map((employee) => employee.toJson()).toList(),
+        'employees': employeesData
+            .map((employee) => employee.toJson())
+            .toList(),
         'expenses': expensesData.map((expense) => expense.toJson()).toList(),
         'cash_transactions': cashTransactionsData
             .map((transaction) => transaction.toJson())
             .toList(),
         'payments': paymentsData.map((payment) => payment.toJson()).toList(),
         'debts': debtsData.map((debt) => debt.toJson()).toList(),
-        'salary_cycles':
-            salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
-        'salary_payments':
-            salaryPaymentsData.map((payment) => payment.toJson()).toList(),
-        'price_adjustments':
-            priceAdjustmentsData.map((adj) => adj.toJson()).toList(),
-        'booking_price_adjustments':
-            bookingPriceAdjData.map((adj) => adj.toJson()).toList(),
+        'salary_cycles': salaryCyclesData
+            .map((cycle) => cycle.toJson())
+            .toList(),
+        'salary_payments': salaryPaymentsData
+            .map((payment) => payment.toJson())
+            .toList(),
+        'price_adjustments': priceAdjustmentsData
+            .map((adj) => adj.toJson())
+            .toList(),
+        'booking_price_adjustments': bookingPriceAdjData
+            .map((adj) => adj.toJson())
+            .toList(),
         'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
         'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
       };
@@ -631,10 +637,12 @@ class GoogleDriveBackupService {
     int expectedSize,
   ) async {
     try {
-      final file = await _driveApi!.files.get(
-        fileId,
-        $fields: 'id,name,size,appProperties',
-      ) as drive.File;
+      final file =
+          await _driveApi!.files.get(
+                fileId,
+                $fields: 'id,name,size,appProperties',
+              )
+              as drive.File;
 
       final actualSize = file.size != null ? int.tryParse(file.size!) ?? 0 : 0;
 
@@ -735,10 +743,12 @@ class GoogleDriveBackupService {
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
     return _runWithAuth<Map<String, dynamic>>(() async {
-      final media = await _driveApi!.files.get(
-        fileId,
-        downloadOptions: drive.DownloadOptions.fullMedia,
-      ) as drive.Media;
+      final media =
+          await _driveApi!.files.get(
+                fileId,
+                downloadOptions: drive.DownloadOptions.fullMedia,
+              )
+              as drive.Media;
 
       final List<int> dataStore = [];
       await for (final data in media.stream) {
@@ -806,7 +816,7 @@ class GoogleDriveBackupService {
 
       // تعطيل قيود المفتاح الخارجي قبل بدء المعاملة لضمان فاعليتها في SQLite
       await db.customStatement('PRAGMA foreign_keys = OFF');
-      
+
       try {
         await db.transaction(() async {
           // حذف جميع الجداول (الأبناء أولاً لتجنب قيود المفاتيح الأجنبية)
@@ -1116,10 +1126,12 @@ class GoogleDriveBackupService {
 
                 final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
                 final parts = timeStr.split(':');
-                final parsedHour =
-                    parts.isNotEmpty ? int.tryParse(parts[0]) : null;
-                final parsedMinute =
-                    parts.length > 1 ? int.tryParse(parts[1]) : null;
+                final parsedHour = parts.isNotEmpty
+                    ? int.tryParse(parts[0])
+                    : null;
+                final parsedMinute = parts.length > 1
+                    ? int.tryParse(parts[1])
+                    : null;
 
                 final hour = (parsedHour ?? 21).clamp(0, 23);
                 final minute = (parsedMinute ?? 0).clamp(0, 59);

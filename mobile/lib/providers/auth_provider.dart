@@ -42,12 +42,12 @@ class AuthUser {
   bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'full_name': fullName,
-        'user_type': userType,
-        'permissions': permissions,
-      };
+    'id': id,
+    'username': username,
+    'full_name': fullName,
+    'user_type': userType,
+    'permissions': permissions,
+  };
 
   AuthUser copyWith({List<String>? permissions}) {
     return AuthUser(
@@ -83,20 +83,19 @@ class AuthState {
     AuthUser? currentUser,
     bool? rememberMe,
     AuthType? authType,
-  }) =>
-      AuthState(
-        isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-        isRestoring: isRestoring ?? this.isRestoring,
-        error: error,
-        currentUser: currentUser ?? this.currentUser,
-        rememberMe: rememberMe ?? this.rememberMe,
-        authType: authType ?? this.authType,
-      );
+  }) => AuthState(
+    isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+    isRestoring: isRestoring ?? this.isRestoring,
+    error: error,
+    currentUser: currentUser ?? this.currentUser,
+    rememberMe: rememberMe ?? this.rememberMe,
+    authType: authType ?? this.authType,
+  );
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier()
-      : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+    : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
     restoreSession();
   }
 

@@ -38,8 +38,8 @@ final syncConfigurationProvider = Provider<SyncConfiguration>((ref) {
 /// Provider قابل للتعديل لإعدادات المزامنة
 final syncConfigurationNotifierProvider =
     StateNotifierProvider<SyncConfigurationNotifier, SyncConfiguration>((ref) {
-  return SyncConfigurationNotifier(ref.watch(syncConfigurationProvider));
-});
+      return SyncConfigurationNotifier(ref.watch(syncConfigurationProvider));
+    });
 
 class SyncConfigurationNotifier extends StateNotifier<SyncConfiguration> {
   SyncConfigurationNotifier(super.initialConfig);
@@ -127,8 +127,9 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
     outbox: ref.watch(outboxDataSourceProvider),
     inbox: ref.watch(inboxDataSourceProvider),
     remote: ref.watch(remoteDataSourceProvider),
-    conflictResolver:
-        _ConflictResolverAdapter(ref.watch(conflictResolverProvider)),
+    conflictResolver: _ConflictResolverAdapter(
+      ref.watch(conflictResolverProvider),
+    ),
   );
 });
 
@@ -244,10 +245,7 @@ final backgroundSyncInitProvider = Provider<Future<void>>((ref) async {
   final orchestrator = ref.watch(syncOrchestratorProvider);
   final config = ref.watch(syncConfigurationProvider);
 
-  await service.initialize(
-    orchestrator: orchestrator,
-    config: config,
-  );
+  await service.initialize(orchestrator: orchestrator, config: config);
 
   await service.schedulePeriodicSync();
   await service.scheduleCleanup();
@@ -259,38 +257,41 @@ final backgroundSyncInitProvider = Provider<Future<void>>((ref) async {
 
 /// Provider لتنفيذ مزامنة يدوية
 final manualSyncProvider =
-    FutureProvider.family<DeltaSyncResult, SyncDirection?>(
-  (ref, direction) async {
-    final orchestrator = ref.read(syncOrchestratorProvider);
-    return orchestrator.performFullSync(
-      direction: direction ?? SyncDirection.bidirectional,
-    );
-  },
-);
+    FutureProvider.family<DeltaSyncResult, SyncDirection?>((
+      ref,
+      direction,
+    ) async {
+      final orchestrator = ref.read(syncOrchestratorProvider);
+      return orchestrator.performFullSync(
+        direction: direction ?? SyncDirection.bidirectional,
+      );
+    });
 
 /// Provider لإضافة تغيير للمزامنة
-final queueChangeProvider = Provider<
-    Future<String> Function({
-      required String table,
-      required String uuid,
-      required SyncOperation operation,
-      required Map<String, dynamic> data,
-    })>((ref) {
-  return ({
-    required String table,
-    required String uuid,
-    required SyncOperation operation,
-    required Map<String, dynamic> data,
-  }) async {
-    final orchestrator = ref.read(syncOrchestratorProvider);
-    return orchestrator.queueLocalChange(
-      table: table,
-      uuid: uuid,
-      operation: operation,
-      data: data,
-    );
-  };
-});
+final queueChangeProvider =
+    Provider<
+      Future<String> Function({
+        required String table,
+        required String uuid,
+        required SyncOperation operation,
+        required Map<String, dynamic> data,
+      })
+    >((ref) {
+      return ({
+        required String table,
+        required String uuid,
+        required SyncOperation operation,
+        required Map<String, dynamic> data,
+      }) async {
+        final orchestrator = ref.read(syncOrchestratorProvider);
+        return orchestrator.queueLocalChange(
+          table: table,
+          uuid: uuid,
+          operation: operation,
+          data: data,
+        );
+      };
+    });
 
 /// Provider للتحكم في Realtime Sync
 final realtimeSyncControlProvider = Provider<RealtimeSyncControl>((ref) {

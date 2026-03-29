@@ -255,7 +255,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 await ref
                     .read(backupStatusProvider.notifier)
                     .cleanupTempFiles();
-                final message = ref.read(backupStatusProvider).message ??
+                final message =
+                    ref.read(backupStatusProvider).message ??
                     'تم تنظيف البيانات المؤقتة';
                 Navigator.pop(context);
                 ScaffoldMessenger.of(
@@ -303,8 +304,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
               Navigator.pop(context);
               _showProgressDialog(context, 'جاري فحص قاعدة البيانات...');
               try {
-                final checks =
-                    await SyncOrchestrator.instance.verifyDataIntegrity();
+                final checks = await SyncOrchestrator.instance
+                    .verifyDataIntegrity();
                 Navigator.pop(context);
                 showDialog(
                   context: context,
@@ -440,7 +441,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 await ref
                     .read(backupStatusProvider.notifier)
                     .createComprehensiveBackup();
-                final message = ref.read(backupStatusProvider).message ??
+                final message =
+                    ref.read(backupStatusProvider).message ??
                     'تم تصدير البيانات بنجاح';
                 Navigator.pop(context);
                 ScaffoldMessenger.of(
@@ -491,7 +493,8 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
                 await ref
                     .read(backupStatusProvider.notifier)
                     .importAndRestoreBackup(syncToCloud: true);
-                final message = ref.read(backupStatusProvider).message ??
+                final message =
+                    ref.read(backupStatusProvider).message ??
                     'تم استيراد البيانات بنجاح';
                 Navigator.pop(context);
                 ScaffoldMessenger.of(

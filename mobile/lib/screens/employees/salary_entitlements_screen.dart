@@ -12,7 +12,8 @@ import '../../components/app_scaffold.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/enhanced_pdf_utils.dart' show EnhancedPdfUtils, PdfColors, ArabicPdfFonts;
+import '../../utils/enhanced_pdf_utils.dart'
+    show EnhancedPdfUtils, PdfColors, ArabicPdfFonts;
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
@@ -28,7 +29,7 @@ class _SalaryEntitlementsScreenState
   List<SalaryEntitlement> _entitlements = [];
   Map<String, dynamic> _summary = {};
   bool _isLoading = true;
-  
+
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
 
@@ -47,9 +48,9 @@ class _SalaryEntitlementsScreenState
     } catch (e) {
       debugPrint('Error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل تحميل البيانات: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('فشل تحميل البيانات: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -134,11 +135,7 @@ class _SalaryEntitlementsScreenState
               ],
             ),
             if (logoImage != null)
-              pw.Container(
-                height: 50,
-                width: 50,
-                child: pw.Image(logoImage),
-              )
+              pw.Container(height: 50, width: 50, child: pw.Image(logoImage))
             else
               pw.SizedBox(width: 50),
           ],
@@ -367,13 +364,20 @@ class _SalaryEntitlementsScreenState
               pw.SizedBox(height: 8),
               EnhancedPdfUtils.buildProfessionalTable(
                 headers: ['التاريخ', 'النوع', 'الإجراء', 'المبلغ', 'ملاحظة'],
-                data: ent.transactions.map((tx) => [
-                  tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date,
-                  tx.type,
-                  tx.action,
-                  _currencyFmt.format(tx.amount),
-                  tx.note ?? '-',
-                ]).toList(),
+                data: ent.transactions
+                    .map(
+                      (tx) => [
+                        if (tx.date.length > 10)
+                          tx.date.substring(0, 10)
+                        else
+                          tx.date,
+                        tx.type,
+                        tx.action,
+                        _currencyFmt.format(tx.amount),
+                        tx.note ?? '-',
+                      ],
+                    )
+                    .toList(),
                 fonts: fonts,
                 headerColor: PdfColors.indigo,
                 alternateRowColor: PdfColors.grey100,
@@ -413,10 +417,7 @@ class _SalaryEntitlementsScreenState
       debugPrint('Direct save failed: $e');
     }
 
-    await Printing.sharePdf(
-      bytes: pdfBytes,
-      filename: fileName,
-    );
+    await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
   }
 
   pw.Widget _buildPdfSummaryItem(
@@ -427,18 +428,11 @@ class _SalaryEntitlementsScreenState
   ) {
     return pw.Column(
       children: [
-        pw.Text(
-          label,
-          style: pw.TextStyle(font: fonts.regular, fontSize: 9),
-        ),
+        pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: 9)),
         pw.SizedBox(height: 2),
         pw.Text(
           value,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 11,
-            color: color,
-          ),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: color),
         ),
       ],
     );
@@ -459,16 +453,13 @@ class _SalaryEntitlementsScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entitlements.isEmpty
-              ? const Center(
-                  child: Text(
-                    'لا يوجد موظفين نشطين',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: _buildContent(),
-                ),
+          ? const Center(
+              child: Text(
+                'لا يوجد موظفين نشطين',
+                style: TextStyle(fontSize: 14),
+              ),
+            )
+          : RefreshIndicator(onRefresh: _loadData, child: _buildContent()),
     );
   }
 
@@ -521,7 +512,9 @@ class _SalaryEntitlementsScreenState
                 ),
                 _buildSummaryItem(
                   'إجمالي المستحق',
-                  CurrencyFormatter.formatAmount(_summary['totalEntitlements'] ?? 0),
+                  CurrencyFormatter.formatAmount(
+                    _summary['totalEntitlements'] ?? 0,
+                  ),
                   Icons.account_balance_wallet,
                   Colors.green,
                 ),
@@ -532,13 +525,17 @@ class _SalaryEntitlementsScreenState
               children: [
                 _buildSummaryItem(
                   'إجمالي المسحوبات',
-                  CurrencyFormatter.formatAmount(_summary['totalWithdrawals'] ?? 0),
+                  CurrencyFormatter.formatAmount(
+                    _summary['totalWithdrawals'] ?? 0,
+                  ),
                   Icons.money_off,
                   Colors.orange,
                 ),
                 _buildSummaryItem(
                   'إجمالي الخصومات',
-                  CurrencyFormatter.formatAmount(_summary['totalDeductions'] ?? 0),
+                  CurrencyFormatter.formatAmount(
+                    _summary['totalDeductions'] ?? 0,
+                  ),
                   Icons.remove_circle,
                   Colors.red,
                 ),
@@ -828,63 +825,70 @@ class _SalaryEntitlementsScreenState
                   ],
                 ),
                 const SizedBox(height: 8),
-                ...ent.transactions.take(5).map(
-                  (tx) => Container(
-                    margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: tx.type == 'سحب'
-                          ? Colors.orange[50]
-                          : Colors.red[50],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tx.type == 'سحب'
-                                ? Colors.orange[100]
-                                : Colors.red[100],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            tx.type,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: tx.type == 'سحب'
-                                  ? Colors.orange[800]
-                                  : Colors.red[800],
-                              fontWeight: FontWeight.w500,
+                ...ent.transactions
+                    .take(5)
+                    .map(
+                      (tx) => Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: tx.type == 'سحب'
+                              ? Colors.orange[50]
+                              : Colors.red[50],
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tx.type == 'سحب'
+                                    ? Colors.orange[100]
+                                    : Colors.red[100],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                tx.type,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: tx.type == 'سحب'
+                                      ? Colors.orange[800]
+                                      : Colors.red[800],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                tx.action,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                            Text(
+                              CurrencyFormatter.formatAmount(tx.amount),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              tx.date.length > 10
+                                  ? tx.date.substring(0, 10)
+                                  : tx.date,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            tx.action,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ),
-                        Text(
-                          CurrencyFormatter.formatAmount(tx.amount),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date,
-                          style: TextStyle(fontSize: 9, color: Colors.grey[600]),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
               ],
             ],
           ),
@@ -900,10 +904,7 @@ class _SalaryEntitlementsScreenState
           value,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 9, color: Colors.grey[600]),
-        ),
+        Text(label, style: TextStyle(fontSize: 9, color: Colors.grey[600])),
       ],
     );
   }
@@ -933,10 +934,7 @@ class _SalaryEntitlementsScreenState
               color: color,
             ),
           ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 8, color: Colors.grey[600]),
-          ),
+          Text(label, style: TextStyle(fontSize: 8, color: Colors.grey[600])),
         ],
       ),
     );

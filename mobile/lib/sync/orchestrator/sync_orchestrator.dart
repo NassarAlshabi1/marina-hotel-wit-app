@@ -20,11 +20,11 @@ class SyncOrchestrator {
     required VectorClockManager clockManager,
     required SyncConfiguration config,
     List<SyncStrategy>? strategies,
-  })  : _syncEngine = syncEngine,
-        _outbox = outbox,
-        _clockManager = clockManager,
-        _config = config,
-        _strategies = strategies ?? [];
+  }) : _syncEngine = syncEngine,
+       _outbox = outbox,
+       _clockManager = clockManager,
+       _config = config,
+       _strategies = strategies ?? [];
   final DeltaSyncEngine _syncEngine;
   final OutboxProcessor _outbox;
   // ignore: unused_field
@@ -82,8 +82,10 @@ class SyncOrchestrator {
       (_) => syncIfNeeded(),
     );
 
-    developer.log('Auto sync started: ${_config.autoSyncInterval}',
-        name: 'Sync');
+    developer.log(
+      'Auto sync started: ${_config.autoSyncInterval}',
+      name: 'Sync',
+    );
   }
 
   /// إيقاف المزامنة التلقائية
@@ -134,13 +136,16 @@ class SyncOrchestrator {
 
     try {
       // ⬇️ المرحلة 1: Pull - سحب التغييرات من السيرفر
-      _progressController.add(progress.copyWith(
-        phase: SyncPhase.pull,
-        message: 'جاري سحب التغييرات من السيرفر...',
-      ));
+      _progressController.add(
+        progress.copyWith(
+          phase: SyncPhase.pull,
+          message: 'جاري سحب التغييرات من السيرفر...',
+        ),
+      );
 
-      final pullResult =
-          await _syncEngine.sync(direction: SyncDirection.download);
+      final pullResult = await _syncEngine.sync(
+        direction: SyncDirection.download,
+      );
 
       // إشعار بالتعارضات المكتشفة
       for (final conflict in pullResult.conflicts) {
@@ -149,11 +154,13 @@ class SyncOrchestrator {
 
       // ⏸️ المرحلة 2: Resolve - حل التعارضات
       if (pullResult.conflicts.isNotEmpty) {
-        _progressController.add(progress.copyWith(
-          phase: SyncPhase.resolve,
-          message: 'جاري حل ${pullResult.conflicts.length} تعارض...',
-          conflictsFound: pullResult.conflicts.length,
-        ));
+        _progressController.add(
+          progress.copyWith(
+            phase: SyncPhase.resolve,
+            message: 'جاري حل ${pullResult.conflicts.length} تعارض...',
+            conflictsFound: pullResult.conflicts.length,
+          ),
+        );
 
         // التعارضات تم حلها تلقائياً في SyncEngine
         // هنا يمكن إضافة منطق إضافي إذا لزم الأمر
@@ -162,14 +169,17 @@ class SyncOrchestrator {
       // ⬆️ المرحلة 3: Push - رفع التغييرات المحلية
       final pendingCount = await _outbox.pendingCount;
       if (pendingCount > 0) {
-        _progressController.add(progress.copyWith(
-          phase: SyncPhase.push,
-          message: 'جاري رفع $pendingCount تغيير...',
-          pendingToPush: pendingCount,
-        ));
+        _progressController.add(
+          progress.copyWith(
+            phase: SyncPhase.push,
+            message: 'جاري رفع $pendingCount تغيير...',
+            pendingToPush: pendingCount,
+          ),
+        );
 
-        final pushResult =
-            await _syncEngine.sync(direction: SyncDirection.upload);
+        final pushResult = await _syncEngine.sync(
+          direction: SyncDirection.upload,
+        );
 
         // دمج النتائج
         final combinedResult = DeltaSyncResult(
@@ -186,15 +196,17 @@ class SyncOrchestrator {
         _lastSyncAt = DateTime.now();
         stopwatch.stop();
 
-        _progressController.add(progress.copyWith(
-          phase: SyncPhase.completed,
-          message: 'اكتملت المزامنة بنجاح',
-          completed: true,
-          uploaded: combinedResult.uploadedCount,
-          downloaded: combinedResult.downloadedCount,
-          conflicts: combinedResult.conflictCount,
-          durationMs: stopwatch.elapsedMilliseconds,
-        ));
+        _progressController.add(
+          progress.copyWith(
+            phase: SyncPhase.completed,
+            message: 'اكتملت المزامنة بنجاح',
+            completed: true,
+            uploaded: combinedResult.uploadedCount,
+            downloaded: combinedResult.downloadedCount,
+            conflicts: combinedResult.conflictCount,
+            durationMs: stopwatch.elapsedMilliseconds,
+          ),
+        );
 
         _emitState(status: SyncStatus.synced, lastSyncAt: _lastSyncAt);
 
@@ -210,14 +222,16 @@ class SyncOrchestrator {
         _lastSyncAt = DateTime.now();
         stopwatch.stop();
 
-        _progressController.add(progress.copyWith(
-          phase: SyncPhase.completed,
-          message: 'اكتملت المزامنة',
-          completed: true,
-          downloaded: pullResult.downloadedCount,
-          conflicts: pullResult.conflictCount,
-          durationMs: stopwatch.elapsedMilliseconds,
-        ));
+        _progressController.add(
+          progress.copyWith(
+            phase: SyncPhase.completed,
+            message: 'اكتملت المزامنة',
+            completed: true,
+            downloaded: pullResult.downloadedCount,
+            conflicts: pullResult.conflictCount,
+            durationMs: stopwatch.elapsedMilliseconds,
+          ),
+        );
 
         _emitState(status: SyncStatus.synced, lastSyncAt: _lastSyncAt);
 
@@ -226,11 +240,13 @@ class SyncOrchestrator {
     } catch (e, stackTrace) {
       stopwatch.stop();
 
-      _progressController.add(progress.copyWith(
-        phase: SyncPhase.failed,
-        message: 'فشلت المزامنة: $e',
-        error: e.toString(),
-      ));
+      _progressController.add(
+        progress.copyWith(
+          phase: SyncPhase.failed,
+          message: 'فشلت المزامنة: $e',
+          error: e.toString(),
+        ),
+      );
 
       _emitState(status: SyncStatus.failed, error: e.toString());
 
@@ -313,8 +329,11 @@ class SyncOrchestrator {
   }
 
   /// بناء حالة المزامنة الحالية
-  SyncState _buildState(
-      {SyncStatus? status, String? error, DateTime? lastSyncAt}) {
+  SyncState _buildState({
+    SyncStatus? status,
+    String? error,
+    DateTime? lastSyncAt,
+  }) {
     return SyncState(
       status: status ?? (_isSyncing ? SyncStatus.syncing : SyncStatus.pending),
       isSyncing: _isSyncing,
@@ -325,11 +344,9 @@ class SyncOrchestrator {
 
   /// إصدار حالة جديدة
   void _emitState({SyncStatus? status, String? error, DateTime? lastSyncAt}) {
-    _stateController.add(_buildState(
-      status: status,
-      error: error,
-      lastSyncAt: lastSyncAt,
-    ));
+    _stateController.add(
+      _buildState(status: status, error: error, lastSyncAt: lastSyncAt),
+    );
   }
 
   /// التخلص من الموارد
@@ -418,14 +435,7 @@ class SyncProgress {
 }
 
 /// مراحل المزامنة
-enum SyncPhase {
-  idle,
-  pull,
-  resolve,
-  push,
-  completed,
-  failed,
-}
+enum SyncPhase { idle, pull, resolve, push, completed, failed }
 
 /// استراتيجية مزامنة
 abstract class SyncStrategy {
@@ -438,11 +448,7 @@ abstract class SyncStrategy {
 
 /// سياق المزامنة
 class SyncContext {
-  SyncContext({
-    required this.direction,
-    this.since,
-    this.metadata = const {},
-  });
+  SyncContext({required this.direction, this.since, this.metadata = const {}});
   final SyncDirection direction;
   final DateTime? since;
   final Map<String, dynamic> metadata;

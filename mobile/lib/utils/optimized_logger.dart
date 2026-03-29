@@ -9,16 +9,27 @@ void logDebug(String message, {String? tag}) {
 }
 
 /// Optimized debug logging with parameters - only prints in debug mode
-void logDebugParams(String message, Map<String, dynamic> params, {String? tag}) {
+void logDebugParams(
+  String message,
+  Map<String, dynamic> params, {
+  String? tag,
+}) {
   if (kDebugMode) {
     final prefix = tag != null ? '[$tag] ' : '';
-    final paramsStr = params.entries.map((e) => '${e.key}=${e.value}').join(', ');
+    final paramsStr = params.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join(', ');
     debugPrint('$prefix$message: $paramsStr');
   }
 }
 
 /// Optimized error logging
-void logError(String message, Object error, {String? tag, StackTrace? stackTrace}) {
+void logError(
+  String message,
+  Object error, {
+  String? tag,
+  StackTrace? stackTrace,
+}) {
   if (kDebugMode) {
     final prefix = tag != null ? '[$tag] ' : '';
     debugPrint('$prefix$message: $error');

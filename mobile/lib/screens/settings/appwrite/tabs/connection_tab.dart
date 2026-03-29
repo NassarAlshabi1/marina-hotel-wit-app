@@ -215,8 +215,9 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           ListTile(
             title: const Text('مهلة الاتصال'),
             // ⚡ Updated to new constant name
-            subtitle:
-                Text('${AppwriteConfig.connectionTimeout.inSeconds} ثانية'),
+            subtitle: Text(
+              '${AppwriteConfig.connectionTimeout.inSeconds} ثانية',
+            ),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
@@ -228,7 +229,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           ListTile(
             title: const Text('عدد المحاولات'),
             // ⚡ Updated to new constant name
-            subtitle: Text('${AppwriteConfig.fastRetries} محاولات'),
+            subtitle: const Text('${AppwriteConfig.fastRetries} محاولات'),
             leading: const Icon(Icons.replay),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
@@ -306,9 +307,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
     _isChecking = true;
 
     try {
-      await ref
-          .read(ap.connectionStatusProvider.notifier)
-          .checkConnection();
+      await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
     } catch (e) {
       // ✅ Error handling — show error instead of crashing
       if (mounted) {
@@ -345,9 +344,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
 
               try {
                 // ✅ Error handling for initialize()
-                await ref
-                    .read(ap.appwriteServiceProvider)
-                    .initialize();
+                await ref.read(ap.appwriteServiceProvider).initialize();
 
                 // ✅ mounted check before calling _checkConnection
                 if (mounted) {
@@ -396,17 +393,16 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
 /// ✅ Critical fix: InfoRow widget definition
 /// Previously used but never defined/imported — caused compilation error
 class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool isExpandable;
-
   const _InfoRow({
     required this.label,
     required this.value,
     required this.icon,
     this.isExpandable = false,
   });
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool isExpandable;
 
   @override
   Widget build(BuildContext context) {

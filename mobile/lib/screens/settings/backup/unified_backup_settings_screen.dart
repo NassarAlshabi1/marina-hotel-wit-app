@@ -91,7 +91,10 @@ class _UnifiedBackupSettingsScreenState
               icon: Icons.storage,
             ),
             const InfoRow(
-                label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
+              label: 'عدد النسخ',
+              value: '5 نسخ',
+              icon: Icons.layers,
+            ),
           ],
         ),
       ),

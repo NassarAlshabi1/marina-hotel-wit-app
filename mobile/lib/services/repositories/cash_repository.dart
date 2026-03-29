@@ -5,8 +5,8 @@ import '../daos/cash_transactions_dao.dart';
 
 class CashRepository {
   CashRepository(this.db)
-      : outbox = OutboxDao(db),
-        dao = CashTransactionsDao(db, OutboxDao(db));
+    : outbox = OutboxDao(db),
+      dao = CashTransactionsDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final CashTransactionsDao dao;
@@ -18,12 +18,11 @@ class CashRepository {
     required String referenceType,
     required int referenceId,
     bool includeDeleted = false,
-  }) =>
-      dao.listByReference(
-        referenceType: referenceType,
-        referenceId: referenceId,
-        includeDeleted: includeDeleted,
-      );
+  }) => dao.listByReference(
+    referenceType: referenceType,
+    referenceId: referenceId,
+    includeDeleted: includeDeleted,
+  );
 
   Future<int> create({
     int? registerId,
@@ -34,19 +33,18 @@ class CashRepository {
     String? description,
     required String transactionTime,
     int? createdBy,
-  }) =>
-      dao.insertOne(
-        CashTransactionsCompanion(
-          registerId: d.Value(registerId),
-          transactionType: d.Value(type),
-          amount: d.Value(amount),
-          referenceType: d.Value(referenceType),
-          referenceId: d.Value(referenceId),
-          description: d.Value(description),
-          transactionTime: d.Value(transactionTime),
-          createdBy: d.Value(createdBy),
-        ),
-      );
+  }) => dao.insertOne(
+    CashTransactionsCompanion(
+      registerId: d.Value(registerId),
+      transactionType: d.Value(type),
+      amount: d.Value(amount),
+      referenceType: d.Value(referenceType),
+      referenceId: d.Value(referenceId),
+      description: d.Value(description),
+      transactionTime: d.Value(transactionTime),
+      createdBy: d.Value(createdBy),
+    ),
+  );
 
   Future<int> update(
     int id, {
@@ -58,25 +56,23 @@ class CashRepository {
     String? description,
     String? transactionTime,
     int? createdBy,
-  }) =>
-      dao.updateById(
-        id,
-        CashTransactionsCompanion(
-          registerId: d.Value(registerId),
-          transactionType:
-              type != null ? d.Value(type) : const d.Value.absent(),
-          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-          referenceType: d.Value(referenceType),
-          referenceId: d.Value(referenceId),
-          description: description != null
-              ? d.Value(description)
-              : const d.Value.absent(),
-          transactionTime: transactionTime != null
-              ? d.Value(transactionTime)
-              : const d.Value.absent(),
-          createdBy: d.Value(createdBy),
-        ),
-      );
+  }) => dao.updateById(
+    id,
+    CashTransactionsCompanion(
+      registerId: d.Value(registerId),
+      transactionType: type != null ? d.Value(type) : const d.Value.absent(),
+      amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+      referenceType: d.Value(referenceType),
+      referenceId: d.Value(referenceId),
+      description: description != null
+          ? d.Value(description)
+          : const d.Value.absent(),
+      transactionTime: transactionTime != null
+          ? d.Value(transactionTime)
+          : const d.Value.absent(),
+      createdBy: d.Value(createdBy),
+    ),
+  );
 
   Future<int> delete(int id) => dao.softDelete(id);
 

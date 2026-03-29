@@ -47,25 +47,25 @@ class PdfColors {
 /// أنماط النصوص المخصصة
 class PdfTextStyles {
   static pw.TextStyle heading1(pw.Font font) => pw.TextStyle(
-        font: font,
-        fontSize: 24,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.primary,
-      );
+    font: font,
+    fontSize: 24,
+    fontWeight: pw.FontWeight.bold,
+    color: PdfColors.primary,
+  );
 
   static pw.TextStyle heading2(pw.Font font) => pw.TextStyle(
-        font: font,
-        fontSize: 18,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.textDark,
-      );
+    font: font,
+    fontSize: 18,
+    fontWeight: pw.FontWeight.bold,
+    color: PdfColors.textDark,
+  );
 
   static pw.TextStyle heading3(pw.Font font) => pw.TextStyle(
-        font: font,
-        fontSize: 16,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.textDark,
-      );
+    font: font,
+    fontSize: 16,
+    fontWeight: pw.FontWeight.bold,
+    color: PdfColors.textDark,
+  );
 
   static pw.TextStyle body(pw.Font font) =>
       pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textDark);
@@ -74,11 +74,11 @@ class PdfTextStyles {
       pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textLight);
 
   static pw.TextStyle bodyBold(pw.Font font) => pw.TextStyle(
-        font: font,
-        fontSize: 12,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.textDark,
-      );
+    font: font,
+    fontSize: 12,
+    fontWeight: pw.FontWeight.bold,
+    color: PdfColors.textDark,
+  );
 
   static pw.TextStyle caption(pw.Font font) =>
       pw.TextStyle(font: font, fontSize: 9, color: PdfColors.textLight);
@@ -87,18 +87,18 @@ class PdfTextStyles {
       pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textWhite);
 
   static pw.TextStyle price(pw.Font font) => pw.TextStyle(
-        font: font,
-        fontSize: 14,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.secondary,
-      );
+    font: font,
+    fontSize: 14,
+    fontWeight: pw.FontWeight.bold,
+    color: PdfColors.secondary,
+  );
 
   static pw.TextStyle tableHeader(pw.Font font) => pw.TextStyle(
-        font: font,
-        fontSize: 11,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.textWhite,
-      );
+    font: font,
+    fontSize: 11,
+    fontWeight: pw.FontWeight.bold,
+    color: PdfColors.textWhite,
+  );
 
   static pw.TextStyle tableCell(pw.Font font) =>
       pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textDark);
@@ -194,8 +194,9 @@ class EnhancedPdfUtils {
                     horizontal: 12,
                     vertical: 6,
                   ),
-                  decoration:
-                      const pw.BoxDecoration(color: PdfColors.secondary),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.secondary,
+                  ),
                   child: pw.Text(
                     title.isNotEmpty ? title : 'وثيقة رسمية',
                     style: pw.TextStyle(
@@ -556,7 +557,9 @@ class EnhancedPdfUtils {
 
   /// تنسيق الأرقام بالفواصل
   static String formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match match) => '${match[1]},',
         );

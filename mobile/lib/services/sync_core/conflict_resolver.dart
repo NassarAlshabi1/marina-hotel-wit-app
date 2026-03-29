@@ -140,14 +140,20 @@ class ConflictResolver {
   Map<String, dynamic> _selectWinner(DataConflict conflict) {
     // بناءً على طلب المستخدم، "الأحدث يفوز" هي الاستراتيجية الافتراضية والمحسنة
     // نقارن التوقيت الزمني (timestamp) ونختار البيانات ذات التوقيت الأحدث
-    
-    final bool remoteIsNewer = conflict.remoteTimestamp.isAfter(conflict.localTimestamp);
-    
+
+    final bool remoteIsNewer = conflict.remoteTimestamp.isAfter(
+      conflict.localTimestamp,
+    );
+
     if (remoteIsNewer) {
-      debugPrint('🔔 ConflictResolver: البيانات البعيدة أحدث (${conflict.remoteTimestamp}) من المحلية (${conflict.localTimestamp})');
+      debugPrint(
+        '🔔 ConflictResolver: البيانات البعيدة أحدث (${conflict.remoteTimestamp}) من المحلية (${conflict.localTimestamp})',
+      );
       return conflict.remoteData;
     } else {
-      debugPrint('🔔 ConflictResolver: البيانات المحلية أحدث أو مساوية (${conflict.localTimestamp}) للبعيدة (${conflict.remoteTimestamp})');
+      debugPrint(
+        '🔔 ConflictResolver: البيانات المحلية أحدث أو مساوية (${conflict.localTimestamp}) للبعيدة (${conflict.remoteTimestamp})',
+      );
       return conflict.localData;
     }
   }

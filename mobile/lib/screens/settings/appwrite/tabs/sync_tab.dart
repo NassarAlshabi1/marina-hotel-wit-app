@@ -252,8 +252,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 final crossAxisCount = width < 360
                     ? 1
                     : width < 600
-                        ? 2
-                        : 3;
+                    ? 2
+                    : 3;
                 return GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -713,7 +713,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                ...stats.entries.where((e) => e.key != 'errors').map(
+                ...stats.entries
+                    .where((e) => e.key != 'errors')
+                    .map(
                       (e) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Row(
@@ -803,12 +805,18 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final appwriteService = ref.read(ap.appwriteServiceProvider);
 
       // فحص البيانات المحلية
-      final roomsCount =
-          await database.select(database.rooms).get().then((l) => l.length);
-      final bookingsCount =
-          await database.select(database.bookings).get().then((l) => l.length);
-      final paymentsCount =
-          await database.select(database.payments).get().then((l) => l.length);
+      final roomsCount = await database
+          .select(database.rooms)
+          .get()
+          .then((l) => l.length);
+      final bookingsCount = await database
+          .select(database.bookings)
+          .get()
+          .then((l) => l.length);
+      final paymentsCount = await database
+          .select(database.payments)
+          .get()
+          .then((l) => l.length);
 
       debugPrint('📊 البيانات المحلية:');
       debugPrint('   الغرف: $roomsCount');
@@ -829,8 +837,10 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       String? testResult;
       if (roomsCount > 0) {
         try {
-          final room =
-              await database.select(database.rooms).get().then((l) => l.first);
+          final room = await database
+              .select(database.rooms)
+              .get()
+              .then((l) => l.first);
 
           final payload = <String, dynamic>{
             'roomNumber': room.roomNumber,

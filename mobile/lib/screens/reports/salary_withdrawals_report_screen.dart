@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -14,7 +13,6 @@ import 'package:drift/drift.dart' as drift;
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart' as coreProviders;
-import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 
 class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
@@ -70,10 +68,11 @@ class _SalaryWithdrawalsReportScreenState
   Future<void> _loadEmployees() async {
     try {
       final db = ref.read(coreProviders.dbProvider);
-      final employees = await (db.select(db.employees)
-            ..where((t) => t.status.equals('active'))
-            ..orderBy([(t) => drift.OrderingTerm.asc(t.name)]))
-          .get();
+      final employees =
+          await (db.select(db.employees)
+                ..where((t) => t.status.equals('active'))
+                ..orderBy([(t) => drift.OrderingTerm.asc(t.name)]))
+              .get();
 
       setState(() {
         _employees = [
@@ -88,8 +87,9 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate =
-        isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -140,7 +140,7 @@ class _SalaryWithdrawalsReportScreenState
         if (conditions.isEmpty) {
           return const drift.Constant(true);
         }
-        
+
         drift.Expression<bool>? result;
         for (final cond in conditions) {
           if (result == null) {
@@ -161,12 +161,10 @@ class _SalaryWithdrawalsReportScreenState
       Map<int, String> employeeNames = {};
 
       if (employeeIds.isNotEmpty) {
-        final employees = await (db.select(db.employees)
-              ..where((t) => t.id.isIn(employeeIds)))
-            .get();
-        employeeNames = {
-          for (final e in employees) e.id: e.name,
-        };
+        final employees = await (db.select(
+          db.employees,
+        )..where((t) => t.id.isIn(employeeIds))).get();
+        employeeNames = {for (final e in employees) e.id: e.name};
       }
 
       // معالجة البيانات
@@ -256,7 +254,8 @@ class _SalaryWithdrawalsReportScreenState
         decoration: const pw.BoxDecoration(
           color: PdfColors.white,
           border: pw.Border(
-              bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+            bottom: pw.BorderSide(color: PdfColors.grey300, width: 1),
+          ),
         ),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -268,14 +267,21 @@ class _SalaryWithdrawalsReportScreenState
                 pw.Text(
                   hotelName,
                   style: pw.TextStyle(
-                      font: fonts.bold, fontSize: 18, color: PdfColors.blue900),
+                    font: fonts.bold,
+                    fontSize: 18,
+                    color: PdfColors.blue900,
+                  ),
                 ),
                 if (hotelPhone.isNotEmpty)
-                  pw.Text('هاتف: $hotelPhone',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'هاتف: $hotelPhone',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
                 if (hotelAddress.isNotEmpty)
-                  pw.Text('عنوان: $hotelAddress',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
+                  pw.Text(
+                    'عنوان: $hotelAddress',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                  ),
               ],
             ),
             pw.Column(
@@ -289,24 +295,24 @@ class _SalaryWithdrawalsReportScreenState
                 pw.Text(
                   'الموظف: $employeeLabel',
                   style: pw.TextStyle(
-                      font: fonts.bold, fontSize: 11, color: PdfColors.blue700),
+                    font: fonts.bold,
+                    fontSize: 11,
+                    color: PdfColors.blue700,
+                  ),
                 ),
                 pw.SizedBox(height: 2),
                 pw.Text(
                   'من $fromLabel إلى $toLabel',
                   style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.grey700),
+                    font: fonts.regular,
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
                 ),
               ],
             ),
             if (logoImage != null)
-              pw.Container(
-                height: 50,
-                width: 50,
-                child: pw.Image(logoImage),
-              )
+              pw.Container(height: 50, width: 50, child: pw.Image(logoImage))
             else
               pw.SizedBox(width: 50),
           ],
@@ -347,7 +353,10 @@ class _SalaryWithdrawalsReportScreenState
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount} - تاريخ الطباعة: ${DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}',
             style: pw.TextStyle(
-                font: fonts.regular, fontSize: 8, color: PdfColors.grey600),
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.grey600,
+            ),
           ),
         ),
         build: (context) => [
@@ -366,29 +375,50 @@ class _SalaryWithdrawalsReportScreenState
               children: [
                 pw.Column(
                   children: [
-                    pw.Text('إجمالي السحوبات',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
-                    pw.Text(EnhancedPdfUtils.formatNumber(_totalWithdrawals),
-                        style: pw.TextStyle(
-                            font: fonts.bold, fontSize: 12, color: PdfColors.red)),
+                    pw.Text(
+                      'إجمالي السحوبات',
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                    ),
+                    pw.Text(
+                      EnhancedPdfUtils.formatNumber(_totalWithdrawals),
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 12,
+                        color: PdfColors.red,
+                      ),
+                    ),
                   ],
                 ),
                 pw.Column(
                   children: [
-                    pw.Text('إجمالي الخصومات',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
-                    pw.Text(EnhancedPdfUtils.formatNumber(_totalDeductions),
-                        style: pw.TextStyle(
-                            font: fonts.bold, fontSize: 12, color: PdfColors.orange)),
+                    pw.Text(
+                      'إجمالي الخصومات',
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                    ),
+                    pw.Text(
+                      EnhancedPdfUtils.formatNumber(_totalDeductions),
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 12,
+                        color: PdfColors.orange,
+                      ),
+                    ),
                   ],
                 ),
                 pw.Column(
                   children: [
-                    pw.Text('الإجمالي العام',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 10)),
-                    pw.Text(EnhancedPdfUtils.formatNumber(_totalAmount),
-                        style: pw.TextStyle(
-                            font: fonts.bold, fontSize: 14, color: PdfColors.blue800)),
+                    pw.Text(
+                      'الإجمالي العام',
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+                    ),
+                    pw.Text(
+                      EnhancedPdfUtils.formatNumber(_totalAmount),
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 14,
+                        color: PdfColors.blue800,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -438,10 +468,7 @@ class _SalaryWithdrawalsReportScreenState
       debugPrint('Direct save failed: $e');
     }
 
-    await Printing.sharePdf(
-      bytes: pdfBytes,
-      filename: fileName,
-    );
+    await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
   }
 
   @override
@@ -500,7 +527,8 @@ class _SalaryWithdrawalsReportScreenState
                           elevation: 0,
                           backgroundColor: Theme.of(context).primaryColor,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.search, size: 20),
                       ),
@@ -516,7 +544,8 @@ class _SalaryWithdrawalsReportScreenState
                           elevation: 0,
                           backgroundColor: Colors.red[700],
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Icon(Icons.picture_as_pdf, size: 20),
                       ),
@@ -531,19 +560,25 @@ class _SalaryWithdrawalsReportScreenState
                       child: SizedBox(
                         height: inputsHeight,
                         child: DropdownButtonFormField<EmployeeItem?>(
-                          value: _selectedEmployee,
+                          initialValue: _selectedEmployee,
                           decoration: InputDecoration(
                             labelText: 'الموظف',
                             labelStyle: TextStyle(
-                                fontSize: 12, color: Colors.grey[600]),
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 0),
+                              horizontal: 12,
+                              vertical: 0,
+                            ),
                             border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade400),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade400,
+                              ),
                             ),
                           ),
                           items: _employees.map((emp) {
@@ -608,19 +643,20 @@ class _SalaryWithdrawalsReportScreenState
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _rows.isEmpty
-                    ? const EmptyState(
-                        title: 'لا توجد بيانات',
-                        message: 'لم يتم العثور على سحبيات رواتب ضمن النطاق المحدد.',
-                        icon: Icons.money_off,
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _rows.length,
-                        itemBuilder: (context, index) {
-                          final row = _rows[index];
-                          return _buildWithdrawalCard(row);
-                        },
-                      ),
+                ? const EmptyState(
+                    title: 'لا توجد بيانات',
+                    message:
+                        'لم يتم العثور على سحبيات رواتب ضمن النطاق المحدد.',
+                    icon: Icons.money_off,
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _rows.length,
+                    itemBuilder: (context, index) {
+                      final row = _rows[index];
+                      return _buildWithdrawalCard(row);
+                    },
+                  ),
           ),
         ],
       ),
@@ -634,13 +670,7 @@ class _SalaryWithdrawalsReportScreenState
   }) {
     return Column(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
         const SizedBox(height: 4),
         Text(
           value,
@@ -686,7 +716,9 @@ class _SalaryWithdrawalsReportScreenState
                       ? DateFormat('yyyy/MM/dd').format(date)
                       : 'غير محدد',
                   style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w500),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -704,9 +736,7 @@ class _SalaryWithdrawalsReportScreenState
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -729,11 +759,15 @@ class _SalaryWithdrawalsReportScreenState
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: actionColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: actionColor.withOpacity(0.3)),
+                          border: Border.all(
+                            color: actionColor.withOpacity(0.3),
+                          ),
                         ),
                         child: Text(
                           row.action,
@@ -767,10 +801,7 @@ class _SalaryWithdrawalsReportScreenState
                   Expanded(
                     child: Text(
                       row.note!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                   ),
                 ],
@@ -784,10 +815,7 @@ class _SalaryWithdrawalsReportScreenState
                 const SizedBox(width: 4),
                 Text(
                   _dateLabelFormat.format(row.date),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -808,7 +836,9 @@ class EmployeeItem {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is EmployeeItem && runtimeType == other.runtimeType && id == other.id;
+      other is EmployeeItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;

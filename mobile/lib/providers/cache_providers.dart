@@ -18,10 +18,10 @@ class ReportCacheKeys {
   static const debts = 'report_debts';
   static const incomeExpense = 'report_income_expense';
   static const salary = 'report_salary';
-  
-  static String paymentsWithParams(String from, String to, String? room) => 
-    'report_payments_${from}_${to}_$room';
-  
-  static String expensesWithParams(String from, String to, String? category) => 
-    'report_expenses_${from}_${to}_$category';
+
+  static String paymentsWithParams(String from, String to, String? room) =>
+      'report_payments_${from}_${to}_$room';
+
+  static String expensesWithParams(String from, String to, String? category) =>
+      'report_expenses_${from}_${to}_$category';
 }
