@@ -289,16 +289,16 @@ class DeltaSyncService {
           _mirrorCacheTime = DateTime.now();
         }),
         _ensureMirrorTable(),
-        _entityConfigs(),
       ]);
+      // ✅ تحميل configs بشكل متزامن (ليس async)
+      _entityConfigs();
     });
     if (kDebugMode) {
       debugPrint('🚀 DeltaSync warmup completed (${perf.lastMs("warmup")}ms)');
     }
   }
 
-  // ✅ كاش FieldSyncConfig لتجنب إنشاء تكوين جديد في كل استدعاء
-  static final _fieldSyncConfigCache = <String, FieldSyncConfig>{};
+  // ✅ كاش FieldSyncConfig لتجنب إنشاء تكوين جديد في كل استدعاء (منقولة إلى top-level)
 
   // ✅ تحسين 1: استخدام الكاش مع fallback
   Future<Map<String, Map<String, MirrorRow>>> _getMirror() async {
@@ -859,9 +859,10 @@ class DeltaSyncService {
         final int sampleSize =
             (currentRows.length * 0.1).ceil().clamp(1, 50);
         // ✅ إصلاح: نسخ القائمة قبل shuffle لتجنب تعديل الأصلية
-        final sample = List<dynamic>.from(currentRows)..shuffle().take(sampleSize);
+        final sample = List<dynamic>.from(currentRows)..shuffle();
+        final sampledRows = sample.take(sampleSize);
 
-        for (final row in sample) {
+        for (final row in sampledRows) {
           final uuid = config.localUuid(row);
           if (uuid.isEmpty) continue;
 
@@ -965,7 +966,7 @@ class DeltaSyncService {
     try {
       final result = await db.customSelect(
         'SELECT COUNT(*) as cnt FROM sync_mirror WHERE last_seen_at < ?',
-        [cutoff],
+        variables: [cutoff],
       ).getSingle();
       final count = result.read<int>('cnt');
       if (count > 0) {
@@ -1349,6 +1350,9 @@ int? _asInt(dynamic value) {
 // ============================================================================
 // Field-Level Sync Support Classes
 // ============================================================================
+
+/// ✅ كاش FieldSyncConfig على مستوى الملف (يستخدمه _computeFieldLevelDiffOptimized)
+final _fieldSyncConfigCache = <String, FieldSyncConfig>{};
 
 /// ✅ تحسين 3: فحص hash سريع قبل diff مفصل
 /// ✅ حساب الفروقات على مستوى الحقل مع كاش للإعدادات
