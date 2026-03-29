@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/appwrite_config_manager.dart';
@@ -25,6 +28,9 @@ class _AppwriteConnectionSettingsScreenState
   bool _hasChanges = false;
   bool _showApiKey = false;
 
+  /// ✅ Debounce timer لمنع إعادة البناء المتكررة
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
@@ -47,20 +53,25 @@ class _AppwriteConnectionSettingsScreenState
     _apiKeyController.addListener(_onChanged);
   }
 
+  /// ✅ Debounced listener — ينتظر 300ms قبل تحديث حالة التغييرات
   void _onChanged() {
-    final hasChanges =
-        _endpointController.text != AppwriteConfigManager.endpoint ||
-            _projectIdController.text != AppwriteConfigManager.projectId ||
-            _databaseIdController.text != AppwriteConfigManager.databaseId ||
-            _apiKeyController.text != AppwriteConfigManager.apiKey;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      final hasChanges =
+          _endpointController.text != AppwriteConfigManager.endpoint ||
+              _projectIdController.text != AppwriteConfigManager.projectId ||
+              _databaseIdController.text != AppwriteConfigManager.databaseId ||
+              _apiKeyController.text != AppwriteConfigManager.apiKey;
 
-    if (hasChanges != _hasChanges) {
-      setState(() => _hasChanges = hasChanges);
-    }
+      if (hasChanges != _hasChanges) {
+        setState(() => _hasChanges = hasChanges);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _endpointController.dispose();
     _projectIdController.dispose();
     _databaseIdController.dispose();
@@ -86,7 +97,8 @@ class _AppwriteConnectionSettingsScreenState
           SnackBar(
             content: const Text('تم حفظ الإعدادات بنجاح'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
+            // ✅ مدة SnackBar: 2 ثانية للنجاح
+            duration: const Duration(seconds: 2),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
@@ -173,7 +185,8 @@ class _AppwriteConnectionSettingsScreenState
         SnackBar(
           content: const Text('تم إعادة تعيين الإعدادات'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          // ✅ مدة SnackBar: 2 ثانية
+          duration: const Duration(seconds: 2),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
@@ -187,26 +200,85 @@ class _AppwriteConnectionSettingsScreenState
     }
   }
 
+  /// ✅ اختبار اتصال حقيقي باستخدام HTTP HEAD على الـ Endpoint
+  /// يختبر الإعدادات المُدخلة حتى لو لم تُحفظ بعد
   Future<void> _testConnection() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isTesting = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 2));
+      final endpoint = _endpointController.text.trim();
+      final projectId = _projectIdController.text.trim();
+      final databaseId = _databaseIdController.text.trim();
 
+      final uri = Uri.parse('$endpoint/health');
+      final sw = Stopwatch()..start();
+
+      // ✅ محاولة فعلية باستخدام http — GET /health endpoint
+      // Appwrite SDK لا يوفر health check مباشر، لذا نستخدم HTTP
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 10);
+
+      try {
+        final request = await client.getUrl(
+          Uri.parse('$endpoint/health'),
+        );
+        // إضافة headers للتأكد من صحة المشروع
+        request.headers.set('X-Appwrite-Project', projectId);
+        final response = await request.close();
+        sw.stop();
+
+        final latencyMs = sw.elapsedMilliseconds;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response.statusCode == 200
+                    ? '✅ الاتصال ناجح (${latencyMs}ms)'
+                    : '⚠️ الخادم يستجيب (${response.statusCode}) — تأكد من صحة Project ID',
+              ),
+              backgroundColor:
+                  response.statusCode == 200 ? Colors.green : Colors.orange,
+              // ✅ مدة SnackBar: 3 ثوانٍ للنتائج
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } on SocketException {
+        sw.stop();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ فشل الاتصال — تحقق من عنوان Endpoint والإنترنت'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } on HttpException catch (e) {
+        sw.stop();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '❌ خطأ في الاتصال: ${e.message}',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } finally {
+        client.close();
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
+            content: Text('❌ خطأ غير متوقع: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -217,23 +289,84 @@ class _AppwriteConnectionSettingsScreenState
     }
   }
 
+  /// ✅ نسخ قيمة إلى Clipboard
+  Future<void> _copyToClipboard(String value, String label) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم نسخ $label'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'إعدادات الاتصال بـ Appwrite',
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildInfoCard(),
-            const SizedBox(height: 16),
-            _buildConnectionFields(),
-            const SizedBox(height: 16),
-            _buildCurrentConfigCard(),
-            const SizedBox(height: 24),
-            _buildActionButtons(),
-          ],
+    // ✅ WillPopScope — حماية من فقدان التغييرات عند الخروج
+    return PopScope(
+      canPop: !_hasChanges,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (!_hasChanges) {
+          Navigator.of(context).pop();
+          return;
+        }
+
+        final action = await showDialog<_UnsavedAction>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('تغييرات غير محفوظة'),
+            content: const Text(
+              'لديك تغييرات لم تُحفظ بعد. هل تريد حفظها قبل الخروج؟',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, _UnsavedAction.discard),
+                child: const Text('تجاهل'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, _UnsavedAction.cancel),
+                child: const Text('البقاء'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, _UnsavedAction.save),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('حفظ وخروج'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+
+        switch (action) {
+          case _UnsavedAction.save:
+            await _saveConfig();
+            if (mounted) Navigator.of(context).pop();
+          case _UnsavedAction.discard:
+            Navigator.of(context).pop();
+          case _UnsavedAction.cancel:
+          case null:
+            break;
+        }
+      },
+      child: AppScaffold(
+        title: 'إعدادات الاتصال بـ Appwrite',
+        body: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildInfoCard(),
+              const SizedBox(height: 16),
+              _buildConnectionFields(),
+              const SizedBox(height: 16),
+              _buildCurrentConfigCard(),
+              const SizedBox(height: 24),
+              _buildActionButtons(),
+            ],
+          ),
         ),
       ),
     );
@@ -272,22 +405,48 @@ class _AppwriteConnectionSettingsScreenState
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
+
+            // ✅ Endpoint URL مع validation قوي
             TextFormField(
               controller: _endpointController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Endpoint URL',
-                hintText: 'https://cloud.appwrite.io/v1',
-                prefixIcon: Icon(Icons.link),
-                border: OutlineInputBorder(),
+                hintText: 'https://fra.cloud.appwrite.io/v1',
+                prefixIcon: const Icon(Icons.link),
+                border: const OutlineInputBorder(),
+                // ✅ زر لصق القيمة الحالية
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.paste, size: 18),
+                  onPressed: () {
+                    if (AppwriteConfigManager.endpoint.isNotEmpty) {
+                      _endpointController.text =
+                          AppwriteConfigManager.endpoint;
+                    }
+                  },
+                  tooltip: 'استعادة القيمة الحالية',
+                ),
               ),
               keyboardType: TextInputType.url,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'يرجى إدخال عنوان Endpoint';
                 }
-                if (!value.startsWith('http://') &&
-                    !value.startsWith('https://')) {
-                  return 'يجب أن يبدأ العنوان بـ http:// أو https://';
+                final trimmed = value.trim();
+
+                // ✅ التحقق من صيغة URL
+                final uri = Uri.tryParse(trimmed);
+                if (uri == null) {
+                  return 'عنوان URL غير صالح';
+                }
+                if (!uri.hasScheme || (!uri.isScheme('HTTP') && !uri.isScheme('HTTPS'))) {
+                  return 'يجب أن يبدأ بـ http:// أو https://';
+                }
+                if (!uri.hasAuthority) {
+                  return 'يجب أن يحتوي على نطاق (domain)';
+                }
+                // ✅ تنبيه إذا لم يحتوِ /v1 (المسار المعتاد لـ Appwrite)
+                if (!uri.path.contains('/v1')) {
+                  return 'عادة يجب أن يحتوي على /v1 في نهاية العنوان';
                 }
                 return null;
               },
@@ -295,15 +454,28 @@ class _AppwriteConnectionSettingsScreenState
             const SizedBox(height: 16),
             TextFormField(
               controller: _projectIdController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Project ID',
                 hintText: 'معرف المشروع',
-                prefixIcon: Icon(Icons.folder),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.folder),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.paste, size: 18),
+                  onPressed: () {
+                    if (AppwriteConfigManager.projectId.isNotEmpty) {
+                      _projectIdController.text =
+                          AppwriteConfigManager.projectId;
+                    }
+                  },
+                  tooltip: 'استعادة القيمة الحالية',
+                ),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'يرجى إدخال معرف المشروع';
+                }
+                if (value.trim().length < 10) {
+                  return 'معرف المشروع قصير جداً';
                 }
                 return null;
               },
@@ -311,11 +483,21 @@ class _AppwriteConnectionSettingsScreenState
             const SizedBox(height: 16),
             TextFormField(
               controller: _databaseIdController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Database ID',
                 hintText: 'معرف قاعدة البيانات',
-                prefixIcon: Icon(Icons.storage),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.storage),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.paste, size: 18),
+                  onPressed: () {
+                    if (AppwriteConfigManager.databaseId.isNotEmpty) {
+                      _databaseIdController.text =
+                          AppwriteConfigManager.databaseId;
+                    }
+                  },
+                  tooltip: 'استعادة القيمة الحالية',
+                ),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -365,7 +547,7 @@ class _AppwriteConnectionSettingsScreenState
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isCustom ? 'إعدادات مخصصة' : 'الإعدادات الافتراضية',
+                  isCustom ? 'الإعدادات الحالية (مخصصة)' : 'الإعدادات الافتراضية',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -377,9 +559,24 @@ class _AppwriteConnectionSettingsScreenState
               ],
             ),
             const SizedBox(height: 12),
-            _buildConfigRow('Endpoint', AppwriteConfigManager.endpoint),
-            _buildConfigRow('Project ID', AppwriteConfigManager.projectId),
-            _buildConfigRow('Database ID', AppwriteConfigManager.databaseId),
+            _buildConfigRow(
+              'Endpoint',
+              AppwriteConfigManager.endpoint,
+              copyable: true,
+              copyLabel: 'Endpoint',
+            ),
+            _buildConfigRow(
+              'Project ID',
+              AppwriteConfigManager.projectId,
+              copyable: true,
+              copyLabel: 'Project ID',
+            ),
+            _buildConfigRow(
+              'Database ID',
+              AppwriteConfigManager.databaseId,
+              copyable: true,
+              copyLabel: 'Database ID',
+            ),
             _buildConfigRow(
               'API Key',
               _maskApiKey(AppwriteConfigManager.apiKey),
@@ -397,7 +594,13 @@ class _AppwriteConnectionSettingsScreenState
     return '••••••$tail';
   }
 
-  Widget _buildConfigRow(String label, String value) {
+  /// ✅ إضافة زر نسخ مع toast سريع
+  Widget _buildConfigRow(
+    String label,
+    String value, {
+    bool copyable = false,
+    String? copyLabel,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -416,6 +619,19 @@ class _AppwriteConnectionSettingsScreenState
               style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
             ),
           ),
+          // ✅ زر نسخ
+          if (copyable)
+            IconButton(
+              icon: const Icon(Icons.copy, size: 16),
+              onPressed: () =>
+                  _copyToClipboard(value, copyLabel ?? label),
+              tooltip: 'نسخ',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
+            ),
         ],
       ),
     );
@@ -474,3 +690,6 @@ class _AppwriteConnectionSettingsScreenState
     );
   }
 }
+
+/// ✅ Enum لخيارات Dialog التغييرات غير المحفوظة
+enum _UnsavedAction { save, discard, cancel }
