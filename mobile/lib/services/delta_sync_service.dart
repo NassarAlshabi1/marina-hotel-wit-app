@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/sync_models.dart';
@@ -791,7 +792,7 @@ class DeltaSyncService {
         // Approach 1: حذف فردي آمن (للكميات الصغيرة)
         final existing = await db.customSelect(
           'SELECT local_uuid FROM sync_mirror WHERE sync_entity_name = ?',
-          [table],
+          variables: [Variable<String>(table)],
         ).get();
         final currentUuids = rows.keys.toSet();
         for (final row in existing) {
@@ -1016,7 +1017,7 @@ class DeltaSyncService {
     try {
       final result = await db.customSelect(
         'SELECT COUNT(*) as cnt FROM sync_mirror WHERE last_seen_at < ?',
-        [cutoff],
+        variables: [Variable<int>(cutoff)],
       ).getSingle();
       final count = result.read<int>('cnt');
       if (count > 0) {
