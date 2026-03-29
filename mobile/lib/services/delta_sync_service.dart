@@ -655,7 +655,7 @@ class DeltaSyncService {
       // ✅ حذف ذكي: فقط الصفوف غير الموجودة في الـ snapshot الجديد
       if (rows.length > 0) {
         final uuids =
-            rows.keys.map((u) => "'${u.replace("'", "''")}'").join(',');
+            rows.keys.map((u) => "'${u.replaceAll("'", "''")}'").join(',');
         await db.customStatement(
           'DELETE FROM sync_mirror WHERE sync_entity_name = ? AND local_uuid NOT IN ($uuids)',
           [table],
