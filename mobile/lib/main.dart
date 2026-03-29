@@ -99,9 +99,8 @@ Future<void> main() async {
     ),
   );
 
-  // Initialize services lazily - don't block UI startup
-  _initializeCoreServices();
-  _initializeSyncServicesLazy(); // Don't await - run in background
+  // ✅ تهيئة Sync System فوراً في الخلفية بدون تأخير
+  unawaited(_initializeFullyAutomatedSyncSystem());
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
@@ -334,40 +333,8 @@ Future<void> _checkGoogleDriveSignInStatus() async {
   }
 }
 
-/// Core services that must be initialized immediately (lightweight)
-Future<void> _initializeCoreServices() async {
-  try {
-    await DiagnosticsLogger.instance.initialize();
-    await ApiConfigService.instance.initialize();
-    
-    FlutterError.onError = (details) {
-      DiagnosticsLogger.instance.recordFlutterError(details);
-      FlutterError.presentError(details);
-    };
 
-    PlatformDispatcher.instance.onError = (error, stack) {
-      DiagnosticsLogger.instance.recordError(
-        error,
-        stack,
-        tag: 'PLATFORM',
-        level: LogLevel.critical,
-      );
-      return true;
-    };
-  } catch (e) {
-    if (kDebugMode) debugPrint('⚠️ Core services init error: $e');
-  }
-}
 
-/// Lazy initialization - runs in background without blocking UI
-void _initializeSyncServicesLazy() {
-  // Use microtask to allow UI to render first
-  Future.microtask(() async {
-    // Small delay to prioritize UI rendering
-    await Future.delayed(const Duration(milliseconds: 500));
-    await _initializeFullyAutomatedSyncSystem();
-  });
-}
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('⚙️ Configuring Auto Sync Engine...');
