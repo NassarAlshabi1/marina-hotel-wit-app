@@ -385,7 +385,7 @@ Future<void> _clearCache(BuildContext context, WidgetRef ref) async {
   ref.read(_toolsLoadingProvider.notifier).state = 'clearCache';
 
   try {
-    await ref.read(ap.appwriteCacheManagerProvider).clear();
+    ref.read(ap.appwriteCacheManagerProvider).clear();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تم مسح التخزين المؤقت')),
