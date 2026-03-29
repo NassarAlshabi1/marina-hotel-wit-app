@@ -214,26 +214,26 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           const Divider(height: 1),
           ListTile(
             title: const Text('مهلة الاتصال'),
-            // ✅ Removed const — uses string interpolation
+            // ⚡ Updated to new constant name
             subtitle:
-                Text('${AppwriteConfig.defaultTimeout.inSeconds} ثانية'),
+                Text('${AppwriteConfig.connectionTimeout.inSeconds} ثانية'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
               'مهلة الاتصال',
-              '${AppwriteConfig.defaultTimeout.inSeconds} ثانية',
+              '${AppwriteConfig.connectionTimeout.inSeconds} ثانية',
             ),
           ),
           const Divider(height: 1),
           ListTile(
             title: const Text('عدد المحاولات'),
-            // ✅ Fixed: removed const — cannot use string interpolation in const
-            subtitle: Text('${AppwriteConfig.maxRetries} محاولات'),
+            // ⚡ Updated to new constant name
+            subtitle: Text('${AppwriteConfig.fastRetries} محاولات'),
             leading: const Icon(Icons.replay),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
               'عدد المحاولات',
-              '${AppwriteConfig.maxRetries} محاولات',
+              '${AppwriteConfig.fastRetries} محاولات',
             ),
           ),
           const Divider(height: 1),
