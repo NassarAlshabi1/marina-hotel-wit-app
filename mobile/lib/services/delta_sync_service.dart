@@ -54,6 +54,8 @@ class SyncCircuitBreaker {
 /// مراقب أداء المزامنة
 class SyncPerformanceMonitor {
   final _timings = <String, List<int>>{};
+  /// أقصى عدد من القياسات المحفوظة لكل عملية (يمنع النمو بلا حدود)
+  static const _maxEntriesPerLabel = 50;
 
   /// قياس زمن تنفيذ عملية
   Future<T> measure<T>(String label, Future<T> Function() operation) async {
@@ -62,7 +64,12 @@ class SyncPerformanceMonitor {
       return await operation();
     } finally {
       sw.stop();
-      _timings.putIfAbsent(label, () => []).add(sw.elapsedMilliseconds);
+      final list = _timings.putIfAbsent(label, () => []);
+      list.add(sw.elapsedMilliseconds);
+      // حصر الحجم: حذف أقدم القياسات عند تجاوز الحد
+      if (list.length > _maxEntriesPerLabel) {
+        list.removeRange(0, list.length - _maxEntriesPerLabel);
+      }
     }
   }
 
@@ -94,28 +101,43 @@ class SyncPerformanceMonitor {
   void reset() => _timings.clear();
 }
 
-/// LRU Cache بسيط لـ JSON
+/// LRU Cache لـ JSON مع إزالة تدريجية (evict أقدم 25% عند الامتلاء)
 class _JsonCache {
   final _cache = <String, String>{};
+  /// مفاتيح مرتبة حسب وقت الإدخال (الأقدم أولاً)
+  final _accessOrder = <String>[];
   static const _maxSize = 500;
 
   String encode(String key, Map<String, dynamic> payload) {
     final cached = _cache[key];
-    if (cached != null) return cached;
+    if (cached != null) {
+      // نقل المفتاح للنهاية = الأحدث
+      _accessOrder.remove(key);
+      _accessOrder.add(key);
+      return cached;
+    }
 
     final json = jsonEncode(payload);
     if (_cache.length >= _maxSize) {
-      _cache.clear();
+      // حذف أقدم 25% بدلاً من مسح الكل
+      final evictCount = (_maxSize * 0.25).ceil();
+      for (int i = 0; i < evictCount && _accessOrder.isNotEmpty; i++) {
+        _cache.remove(_accessOrder.removeAt(0));
+      }
     }
     _cache[key] = json;
+    _accessOrder.add(key);
     return json;
   }
 
   int get size => _cache.length;
-  void clear() => _cache.clear();
+  void clear() {
+    _cache.clear();
+    _accessOrder.clear();
+  }
 }
 
-/// Semaphore بسيط للتحكم في التزامن
+/// Semaphore بسيط للتحكم في التزامن مع حماية من القيم السالبة
 class _Semaphore {
   _Semaphore(this._maxConcurrent);
   final int _maxConcurrent;
@@ -136,7 +158,8 @@ class _Semaphore {
     if (_waiting.isNotEmpty) {
       final next = _waiting.removeAt(0);
       next.complete();
-    } else {
+    } else if (_current > 0) {
+      // حماية: لا تنقص تحت الصفر
       _current--;
     }
   }
@@ -250,6 +273,10 @@ class DeltaSyncService {
   // ✅ تحسين 9: Performance Monitor
   final perf = SyncPerformanceMonitor();
 
+  // ✅ إصلاح: Lock لمنع استدعاء compute() المتوازي
+  Completer<void>? _computeLock;
+  bool _isComputing = false;
+
   /// ✅ Field-Level: الحصول على deviceId
   String get deviceId => _deviceId;
 
@@ -262,7 +289,7 @@ class DeltaSyncService {
           _mirrorCacheTime = DateTime.now();
         }),
         _ensureMirrorTable(),
-        _preloadEntityConfigs(),
+        _entityConfigs(),
       ]);
     });
     if (kDebugMode) {
@@ -270,10 +297,8 @@ class DeltaSyncService {
     }
   }
 
-  Future<void> _preloadEntityConfigs() async {
-    // Force loading of entity configs to cache them in memory
-    _entityConfigs();
-  }
+  // ✅ كاش FieldSyncConfig لتجنب إنشاء تكوين جديد في كل استدعاء
+  static final _fieldSyncConfigCache = <String, FieldSyncConfig>{};
 
   // ✅ تحسين 1: استخدام الكاش مع fallback
   Future<Map<String, Map<String, MirrorRow>>> _getMirror() async {
@@ -285,7 +310,7 @@ class DeltaSyncService {
     return _loadMirror();
   }
 
-  // ✅ تحسين 8: فحص Circuit Breaker قبل التشغيل
+  // ✅ تحسين 8: فحص Circuit Breaker + Lock قبل التشغيل
   Future<DeltaSyncComputation> compute({int? since}) async {
     if (_circuitBreaker.isOpen) {
       debugPrint('⚠️ Sync circuit breaker is OPEN — skipping compute');
@@ -297,6 +322,13 @@ class DeltaSyncService {
       );
     }
 
+    // Lock: انتظر إذا كان compute آخر قيد التشغيل
+    if (_isComputing) {
+      _computeLock ??= Completer<void>();
+      await _computeLock!.future;
+    }
+    _isComputing = true;
+
     return await perf.measure('compute', () async {
       try {
         final result = await _computeInternal(since: since);
@@ -305,6 +337,11 @@ class DeltaSyncService {
       } catch (e) {
         _circuitBreaker.recordFailure();
         rethrow;
+      } finally {
+        _isComputing = false;
+        final lock = _computeLock;
+        _computeLock = null;
+        lock?.complete();
       }
     });
   }
@@ -538,7 +575,7 @@ class DeltaSyncService {
     return _EntityProcessResult(changes: changes, snapshot: tableSnapshot);
   }
 
-  // ✅ تحسين 7: Stream API للمعالجة الكبيرة
+  // ✅ تحسين 7: Stream API للمعالجة الكبيرة مع تحديث المرآة
   Stream<DeltaSyncChange> computeStream({int? since}) async* {
     final state = await (db.select(db.syncState)
             ..where((t) => t.id.equals(1)))
@@ -549,10 +586,16 @@ class DeltaSyncService {
     final configs = _entityConfigs();
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
 
+    // ✅ إصلاح: بناء snapshot لتحديث المرآة بعد الانتهاء
+    final snapshot = <String, Map<String, MirrorRow>>{};
+    final yieldedChanges = <DeltaSyncChange>[];
+
     for (final config in configs) {
       final rows = await config.fetchAll();
       final existingMirror = previousMirror[config.entity] ?? {};
       final hasMirror = previousMirror.containsKey(config.entity);
+      final tableSnapshot = <String, MirrorRow>{};
+      final seen = <String>{};
 
       for (final row in rows) {
         final localUuid = config.localUuid(row);
@@ -571,7 +614,7 @@ class DeltaSyncService {
           final payload = Map<String, dynamic>.from(sanitized)
             ..['rowHash'] = rowHash
             ..['deletedAt'] = deletedAt;
-          yield DeltaSyncChange(
+          final change = DeltaSyncChange(
             entity: config.entity,
             operation: 'delete',
             data: payload,
@@ -579,11 +622,13 @@ class DeltaSyncService {
             localUuid: localUuid,
             clientTimestamp: nowTs,
           );
+          yield change;
+          yieldedChanges.add(change);
         } else if (previous == null ||
             (createdAt != null && createdAt > normalizedSince)) {
           final payload = Map<String, dynamic>.from(sanitized)
             ..['rowHash'] = rowHash;
-          yield DeltaSyncChange(
+          final change = DeltaSyncChange(
             entity: config.entity,
             operation: 'insert',
             data: payload,
@@ -591,6 +636,8 @@ class DeltaSyncService {
             localUuid: localUuid,
             clientTimestamp: nowTs,
           );
+          yield change;
+          yieldedChanges.add(change);
         } else if (previous != null &&
             lastModified != null &&
             lastModified > normalizedSince &&
@@ -606,7 +653,7 @@ class DeltaSyncService {
             _deviceId,
           );
           if (diff.isNotEmpty) {
-            yield DeltaSyncChange(
+            final change = DeltaSyncChange(
               entity: config.entity,
               operation: 'update',
               data: diff.changedFields,
@@ -614,11 +661,63 @@ class DeltaSyncService {
               localUuid: localUuid,
               clientTimestamp: nowTs,
             );
+            yield change;
+            yieldedChanges.add(change);
           }
         }
 
-        // ✅ Yield control back to event loop
+        // بناء snapshot للمرآة
+        tableSnapshot[localUuid] = MirrorRow(
+          localUuid: localUuid,
+          rowHash: rowHash,
+          payload: Map<String, dynamic>.from(sanitized),
+          lastSeenAt: nowTs,
+          fieldsHash: _hashFieldsOnly(sanitized),
+        );
+        seen.add(localUuid);
+
+        // Yield control back to event loop
         await Future.delayed(Duration.zero);
+      }
+
+      // ✅ اكتشاف السجلات المحذوفة
+      final missing = existingMirror.keys
+          .where((uuid) => !seen.contains(uuid))
+          .toList();
+      for (final uuid in missing) {
+        final prev = existingMirror[uuid];
+        if (prev == null) continue;
+        final payload = Map<String, dynamic>.from(prev.payload);
+        final prevDeletedAt =
+            _asInt(payload['deletedAt'] ?? payload['deleted_at']);
+        final deleteStamp = prevDeletedAt ?? nowTs;
+        payload['deletedAt'] = deleteStamp;
+        payload['rowHash'] = prev.rowHash;
+        final change = DeltaSyncChange(
+          entity: config.entity,
+          operation: 'delete',
+          data: payload,
+          rowHash: prev.rowHash,
+          localUuid: uuid,
+          clientTimestamp: deleteStamp,
+        );
+        yield change;
+        yieldedChanges.add(change);
+      }
+
+      snapshot[config.entity] = tableSnapshot;
+    }
+
+    // ✅ إصلاح: تحديث المرآة بعد الانتهاء لمنع تكرار التغييرات
+    if (yieldedChanges.isNotEmpty && snapshot.isNotEmpty) {
+      final computation = DeltaSyncComputation(
+        changes: yieldedChanges,
+        mirrorSnapshot: snapshot,
+        fallbackTables: {},
+      );
+      await persistMirror(computation);
+      if (kDebugMode) {
+        debugPrint('📊 computeStream: yielded ${yieldedChanges.length} changes, mirror updated');
       }
     }
   }
@@ -759,7 +858,8 @@ class DeltaSyncService {
 
         final int sampleSize =
             (currentRows.length * 0.1).ceil().clamp(1, 50);
-        final sample = (currentRows..shuffle()).take(sampleSize);
+        // ✅ إصلاح: نسخ القائمة قبل shuffle لتجنب تعديل الأصلية
+        final sample = List<dynamic>.from(currentRows)..shuffle().take(sampleSize);
 
         for (final row in sample) {
           final uuid = config.localUuid(row);
@@ -855,6 +955,36 @@ class DeltaSyncService {
     _mirrorCacheTime = null;
 
     debugPrint('✅ Mirror rebuild completed');
+  }
+
+  /// ✅ تنظيف صفوف المرآة القديمة التي لم تُرى منذ فترة
+  /// يُستدعى دورياً لمنع تضخم جدول sync_mirror
+  Future<int> cleanupStaleMirrorRows({Duration maxAge = const Duration(days: 30)}) async {
+    await _ensureMirrorTable();
+    final cutoff = Time.nowEpoch() - maxAge.inMilliseconds;
+    try {
+      final result = await db.customSelect(
+        'SELECT COUNT(*) as cnt FROM sync_mirror WHERE last_seen_at < ?',
+        [cutoff],
+      ).getSingle();
+      final count = result.read<int>('cnt');
+      if (count > 0) {
+        await db.customStatement(
+          'DELETE FROM sync_mirror WHERE last_seen_at < ?',
+          [cutoff],
+        );
+        // إبطال الكاش بعد الحذف
+        _mirrorCache = null;
+        _mirrorCacheTime = null;
+        if (kDebugMode) {
+          debugPrint('🧹 Cleaned up $count stale mirror rows (older than ${maxAge.inDays} days)');
+        }
+      }
+      return count;
+    } catch (e) {
+      debugPrint('❌ Failed to cleanup stale mirror rows: $e');
+      return 0;
+    }
   }
 
   // ✅ تحسين 4: تقليل التكرار باستخدام factory method
@@ -1143,17 +1273,7 @@ String _hashFieldsOnly(Map<String, dynamic> data) {
   return _hashPayload(fields);
 }
 
-/// حساب الفروقات بين الحالة السابقة والحالية
-Map<String, dynamic> _computeDiff(
-    Map<String, dynamic> oldData, Map<String, dynamic> newData) {
-  final diff = <String, dynamic>{};
-  newData.forEach((key, value) {
-    if (!oldData.containsKey(key) || oldData[key] != value) {
-      diff[key] = value;
-    }
-  });
-  return diff;
-}
+// تم حذف _computeDiff (كود ميت — لم يُستدعَ من أي مكان)
 
 const _timestampFields = {
   'createdAt', 'updatedAt', 'deletedAt', 'lastModified',
@@ -1218,14 +1338,7 @@ String _toCamelCase(String input) {
   );
 }
 
-@Deprecated('استخدم _toCamelCase بدلاً من ذلك')
-String _toSnakeCase(String input) {
-  final snake = input.replaceAllMapped(
-    RegExp('([a-z0-9])([A-Z])'),
-    (match) => '${match.group(1)}_${match.group(2)}',
-  );
-  return snake.replaceAll('-', '_').toLowerCase();
-}
+// تم حذف _toSnakeCase (Deprecated وغير مستخدم)
 
 int? _asInt(dynamic value) {
   if (value is int) return value;
@@ -1238,6 +1351,7 @@ int? _asInt(dynamic value) {
 // ============================================================================
 
 /// ✅ تحسين 3: فحص hash سريع قبل diff مفصل
+/// ✅ حساب الفروقات على مستوى الحقل مع كاش للإعدادات
 _FieldLevelDiffResult _computeFieldLevelDiffOptimized(
   String entityName,
   Map<String, dynamic> oldData,
@@ -1248,13 +1362,11 @@ _FieldLevelDiffResult _computeFieldLevelDiffOptimized(
   Map<String, String> oldFieldDevices,
   String deviceId,
 ) {
-  // ✅ فحص hash سريع: إذا متطابق، لا يوجد تغيير
-  // نستخدم rowHash على مستوى الصف كاملاً — إذا لم يتغير فلا حاجة لـ field diff
-  final newFieldsHash = _hashFieldsOnly(newData);
-  // لا نستخدم old fieldsHash هنا لأن rowHash != previous.rowHash
-  // تم التحقق بالفعل قبل استدعاء هذه الدالة
-
-  final config = FieldSyncConfig.forEntity(entityName);
+  // ✅ كاش: تجنب إنشاء FieldSyncConfig في كل مرة
+  final config = _fieldSyncConfigCache.putIfAbsent(
+    entityName,
+    () => FieldSyncConfig.forEntity(entityName),
+  );
   final changedFields = <String, dynamic>{};
   final fieldVersions = <String, int>{};
   final fieldTimestamps = <String, int>{};
@@ -1345,28 +1457,7 @@ class _FieldLevelDiffResult {
   }
 }
 
-/// ✅ kept for backward compatibility (used by legacy code paths)
-_FieldLevelDiffResult _computeFieldLevelDiff(
-  String entityName,
-  Map<String, dynamic> oldData,
-  Map<String, dynamic> newData,
-  Map<String, int> oldFieldVersions,
-  Map<String, int> oldFieldTimestamps,
-  Map<String, String> oldFieldVectorClocks,
-  Map<String, String> oldFieldDevices,
-  String deviceId,
-) {
-  return _computeFieldLevelDiffOptimized(
-    entityName,
-    oldData,
-    newData,
-    oldFieldVersions,
-    oldFieldTimestamps,
-    oldFieldVectorClocks,
-    oldFieldDevices,
-    deviceId,
-  );
-}
+// تم حذف _computeFieldLevelDiff (كان wrapper بلا فائدة يُستدعي _computeFieldLevelDiffOptimized فقط)
 
 bool _valuesEqual(dynamic a, dynamic b) {
   if (identical(a, b)) return true;
