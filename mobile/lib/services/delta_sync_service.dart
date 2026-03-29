@@ -966,7 +966,7 @@ class DeltaSyncService {
     try {
       final result = await db.customSelect(
         'SELECT COUNT(*) as cnt FROM sync_mirror WHERE last_seen_at < ?',
-        variables: [cutoff],
+        [cutoff],
       ).getSingle();
       final count = result.read<int>('cnt');
       if (count > 0) {
