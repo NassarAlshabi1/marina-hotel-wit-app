@@ -1072,8 +1072,8 @@ INSERT INTO sync_mirror
     'id',
     'local_id',
     'rowHash', // حقل محلي للتتبع
-    'lastModifiedEpoch',
-    'createdAtEpoch',
+    // ✅ تمت إزالة createdAtEpoch و lastModifiedEpoch
+    // لأنها موجودة في Appwrite لجميع المجموعات
     'deletedAtEpoch',
   };
 
@@ -1469,25 +1469,29 @@ INSERT INTO sync_mirror
   }
 
   /// تحويل حقول المبالغ إلى أعداد صحيحة
+  /// ⚠️ بعض الحقول في Appwrite من نوع double ولا يجب تحويلها
   void _convertAmountsToInt(Map<String, dynamic> data) {
+    // ✅ حقول يجب تحويلها إلى int (نوعها integer في Appwrite)
     final amountFields = [
-      'amount',
-      'price',
-      'basicSalary',
-      'totalAmount',
-      'paidAmount',
-      'remainingAmount',
-      'discount',
-      'totalDueCached',
-      'totalPaidCached',
-      'remainingBalanceCached',
-      'nightlyRate',
-      'baseRate',
-      'adjustment',
-      'finalRate',
-      'expectedAmount',
-      'actualPaid',
+      'amount',           // integer في salary_withdrawals, payments, debts
+      'price',            // integer في rooms
+      'totalAmount',      // integer في debts
+      'remainingAmount',  // integer في debts
+      'totalDueCached',   // integer في bookings
+      'totalPaidCached',  // integer في bookings
+      'remainingBalanceCached', // integer في bookings
+      'expectedAmount',   // integer في salary_cycles
+      'actualPaid',       // integer في salary_cycles
+      'totalDeductions',  // integer في salary_cycles
+      'totalWithdrawals', // integer في salary_cycles
+      'netSalary',        // integer في salary_cycles
+      'originalAmount',   // integer في payment_voids
+      'voidedAmount',     // integer في payment_voids
     ];
+
+    // ✅ حقول يجب تركها كـ double (نوعها double في Appwrite)
+    // لا تُحوَّل: basicSalary, discount, nightlyRate, baseRate,
+    //             adjustment, finalRate, paidAmount
 
     for (final field in amountFields) {
       if (data.containsKey(field) && data[field] != null) {

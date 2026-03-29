@@ -123,6 +123,14 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      // ✅ ISO timestamps (موجودة في Appwrite)
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      // ✅ Epoch timestamps (موجودة في Appwrite)
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock.isNotEmpty
