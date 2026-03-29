@@ -1785,6 +1785,14 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('الخدمة غير مهيئة — انتظر تحميل التطبيق'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
       final result = await deltaSync.pushDeltaChanges();
       
       if (mounted) {
@@ -1817,6 +1825,14 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final deltaSync = AppwriteDeltaSync.instance;
+      if (!deltaSync.isInitialized) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('الخدمة غير مهيئة — انتظر تحميل التطبيق'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
       final result = await deltaSync.pullDeltaChanges();
       
       if (mounted) {
