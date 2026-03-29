@@ -283,6 +283,18 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'updatedAt'): model.updatedAt,
       _k(src, 'deletedAt'): model.deletedAt,
       _k(src, 'lastModified'): model.lastModified,
+      // ✅ ISO timestamps (موجودة في Appwrite)
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      // ✅ Epoch timestamps (موجودة في Appwrite)
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
+      // ✅ حقول مالية (موجودة في Appwrite)
+      _k(src, 'financialHash'): model.financialHash,
+      // ⚠️ financialFrozenAt: محلياً text لكن Appwrite يتطلب integer
+      // لن يُرسل حتى يتم تعديل نوع العمود محلياً + migration
       _k(src, 'version'): model.version,
       _k(src, 'origin'): model.origin,
       _k(src, 'vectorClock'): jsonEncode(model.vectorClock),

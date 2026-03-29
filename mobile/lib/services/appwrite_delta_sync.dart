@@ -1477,9 +1477,6 @@ INSERT INTO sync_mirror
       'price',            // integer في rooms
       'totalAmount',      // integer في debts
       'remainingAmount',  // integer في debts
-      'totalDueCached',   // integer في bookings
-      'totalPaidCached',  // integer في bookings
-      'remainingBalanceCached', // integer في bookings
       'expectedAmount',   // integer في salary_cycles
       'actualPaid',       // integer في salary_cycles
       'totalDeductions',  // integer في salary_cycles
@@ -1491,7 +1488,8 @@ INSERT INTO sync_mirror
 
     // ✅ حقول يجب تركها كـ double (نوعها double في Appwrite)
     // لا تُحوَّل: basicSalary, discount, nightlyRate, baseRate,
-    //             adjustment, finalRate, paidAmount
+    //             adjustment, finalRate, paidAmount,
+    //             totalDueCached, totalPaidCached, remainingBalanceCached
 
     for (final field in amountFields) {
       if (data.containsKey(field) && data[field] != null) {
