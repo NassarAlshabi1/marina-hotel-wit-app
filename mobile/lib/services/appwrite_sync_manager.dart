@@ -430,11 +430,26 @@ class AppwriteSyncManager {
     _syncController.add(_currentStatus);
 
     final startTime = DateTime.now();
+    final syncId = 'appwrite_${DateTime.now().millisecondsSinceEpoch}';
     int recordsPushed = 0;
     int recordsPulled = 0;
     int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
+
+    // ✅ تسجيل بداية عملية المزامنة في SyncLogDao
+    final syncLogDao = SyncLogDao(database);
+    try {
+      await syncLogDao.logSync(
+        syncId: syncId,
+        direction: push && pull ? 'bidirectional' : (push ? 'push' : 'pull'),
+        deviceId: _currentDeviceId ?? 'unknown',
+        target: 'Appwrite',
+        status: 'in_progress',
+      );
+    } catch (e) {
+      _logger.warning('Failed to log sync start: $e', tag: 'SYNC');
+    }
 
     try {
       _logger.info('Starting Field-Level Delta Sync...', tag: 'SYNC');
@@ -516,6 +531,25 @@ class AppwriteSyncManager {
       );
     } else {
       metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
+    }
+
+    // ✅ تسجيل نتيجة عملية المزامنة في SyncLogDao (للإحصائيات)
+    try {
+      await syncLogDao.logSync(
+        syncId: syncId,
+        direction: push && pull ? 'bidirectional' : (push ? 'push' : 'pull'),
+        deviceId: _currentDeviceId ?? 'unknown',
+        target: 'Appwrite',
+        status: finalStatus == SyncStatus.success
+            ? 'success'
+            : (finalStatus == SyncStatus.failed ? 'failed' : 'partial'),
+        recordsPushed: recordsPushed,
+        recordsPulled: recordsPulled,
+        errorMessage: errorMessage,
+        durationMs: duration.inMilliseconds,
+      );
+    } catch (e) {
+      _logger.warning('Failed to log sync result: $e', tag: 'SYNC');
     }
 
     return SyncResult(
@@ -1402,6 +1436,23 @@ class AppwriteSyncManager {
     }
 
     _isPulling = true;
+    final pullStartTime = DateTime.now();
+    final pullSyncId = 'appwrite_pull_${DateTime.now().millisecondsSinceEpoch}';
+    final syncLogDao = SyncLogDao(database);
+
+    // ✅ تسجيل بداية عملية السحب في SyncLogDao
+    try {
+      await syncLogDao.logSync(
+        syncId: pullSyncId,
+        direction: 'pull',
+        deviceId: _currentDeviceId ?? 'unknown',
+        target: 'Appwrite',
+        status: 'in_progress',
+      );
+    } catch (e) {
+      _logger.warning('Failed to log pull start: $e', tag: 'SYNC');
+    }
+
     try {
       _logger.info('📥 سحب التغييرات من Appwrite (Field-Level Delta Sync)...', tag: 'SYNC');
 
@@ -1417,14 +1468,66 @@ class AppwriteSyncManager {
       _lastSyncTime = DateTime.now();
       await _saveSettings();
 
-      if (result.pulledCount > 0) {
-        _logger.info('✅ تم سحب ${result.pulledCount} سجل من Appwrite (Field-Level)', tag: 'SYNC');
-        return true;
+      final pullDuration = DateTime.now().difference(pullStartTime);
+
+      if (result.success) {
+        // ✅ تسجيل نجاح عملية السحب في SyncLogDao
+        try {
+          await syncLogDao.logSync(
+            syncId: pullSyncId,
+            direction: 'pull',
+            deviceId: _currentDeviceId ?? 'unknown',
+            target: 'Appwrite',
+            status: 'success',
+            recordsPulled: result.pulledCount,
+            durationMs: pullDuration.inMilliseconds,
+          );
+        } catch (e) {
+          _logger.warning('Failed to log pull result: $e', tag: 'SYNC');
+        }
+
+        if (result.pulledCount > 0) {
+          _logger.info('✅ تم سحب ${result.pulledCount} سجل من Appwrite (Field-Level)', tag: 'SYNC');
+          return true;
+        } else {
+          _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
+          return false;
+        }
       } else {
-        _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
+        // ✅ تسجيل فشل عملية السحب في SyncLogDao
+        try {
+          await syncLogDao.logSync(
+            syncId: pullSyncId,
+            direction: 'pull',
+            deviceId: _currentDeviceId ?? 'unknown',
+            target: 'Appwrite',
+            status: 'failed',
+            errorMessage: result.message,
+            durationMs: pullDuration.inMilliseconds,
+          );
+        } catch (e) {
+          _logger.warning('Failed to log pull failure: $e', tag: 'SYNC');
+        }
         return false;
       }
     } catch (e, stackTrace) {
+      final pullDuration = DateTime.now().difference(pullStartTime);
+
+      // ✅ تسجيل فشل عملية السحب في SyncLogDao
+      try {
+        await syncLogDao.logSync(
+          syncId: pullSyncId,
+          direction: 'pull',
+          deviceId: _currentDeviceId ?? 'unknown',
+          target: 'Appwrite',
+          status: 'failed',
+          errorMessage: e.toString(),
+          durationMs: pullDuration.inMilliseconds,
+        );
+      } catch (logError) {
+        _logger.warning('Failed to log pull failure: $logError', tag: 'SYNC');
+      }
+
       _logger.error(
         '❌ خطأ في سحب التغييرات من Appwrite',
         error: e,
