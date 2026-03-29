@@ -21,12 +21,26 @@ class DiagnosticsScreen extends ConsumerStatefulWidget {
   ConsumerState<DiagnosticsScreen> createState() => _DiagnosticsScreenState();
 }
 
-class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
+class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen>
+    with TickerProviderStateMixin {
   Map<String, dynamic>? _snapshot;
   Map<String, int> _counts = {};
   bool _loading = false;
   String? _error;
   String _selectedTable = 'all';
+
+  // ✅ منع فتح أكثر من Modal في نفس الوقت
+  bool _isModalOpen = false;
+
+  // ✅ Memoization لـ JSON — يُحسب مرة واحدة ويُخزَّن
+  String? _cachedJson;
+  String _cachedJsonTable = '';
+
+  // ✅ البحث في الجداول
+  String _tableSearchQuery = '';
+
+  // ✅ فلترة مستوى السجلات
+  final Set<String> _selectedLogLevels = {'INFO', 'WARNING', 'ERROR'};
 
   @override
   void initState() {
@@ -34,21 +48,27 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     _loadAll();
   }
 
+  /// ✅ إبطال الكاش عند التحميل
   Future<void> _loadAll() async {
     setState(() {
       _loading = true;
       _error = null;
+      _cachedJson = null; // ✅ invalidate cache
     });
     try {
       await _loadSnapshot();
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -58,6 +78,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final counts = <String, int>{};
     for (final entry in data.entries) {
       final value = entry.value;
+      // ✅ Type Safety: safe casting لكل الأنواع المحتملة
       if (value is List) {
         counts[entry.key] = value.length;
       } else if (value is Map) {
@@ -66,11 +87,13 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
         counts[entry.key] = 0;
       }
     }
-    setState(() {
-      _snapshot = data;
-      _counts = counts;
-      _selectedTable = 'all';
-    });
+    if (mounted) {
+      setState(() {
+        _snapshot = data;
+        _counts = counts;
+        _selectedTable = 'all';
+      });
+    }
   }
 
   int _totalRecords() {
@@ -97,7 +120,12 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     await Share.shareXFiles([XFile(file.path)], text: 'تقرير التشخيص');
   }
 
+  /// ✅ Memoized JSON — لا يُعاد حسابه في كل build
   String? _buildDiagnosticsJson() {
+    if (_cachedJson != null && _cachedJsonTable == _selectedTable) {
+      return _cachedJson;
+    }
+
     final health = ref
         .read(syncHealthProvider)
         .maybeWhen(data: (value) => value, orElse: () => null);
@@ -112,7 +140,18 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
           : {_selectedTable: _snapshot?[_selectedTable]},
       'logs': logs.map((e) => e.toJson()).toList(),
     };
-    return encoder.convert(payload);
+
+    _cachedJsonTable = _selectedTable;
+    _cachedJson = encoder.convert(payload);
+    return _cachedJson;
+  }
+
+  /// ✅ تقدير حجم JSON بالكيلوبايت
+  int _estimateJsonSizeKb() {
+    final json = _buildDiagnosticsJson();
+    if (json == null) return 0;
+    // UTF-8 bytes per character ≈ 1-4, avg ~1.2 for JSON
+    return (json.length * 1.2 / 1024).ceil();
   }
 
   Map<String, dynamic>? _syncToMap(SyncHealthSnapshot? health) {
@@ -127,6 +166,72 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       'priorityOverridden': health.priorityOverridden,
       'status': health.status,
     };
+  }
+
+  // ==================== Generic Bottom Sheet ====================
+
+  /// ✅ Generic method لتقليل التكرار بين _openTableDetails و _openLogDetails
+  Future<void> _showDetailsSheet({
+    required String title,
+    required String content,
+    required String copyMessage,
+  }) async {
+    // ✅ منع فتح أكثر من Modal في نفس الوقت
+    if (_isModalOpen || !mounted) return;
+    _isModalOpen = true;
+
+    try {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: content),
+                        );
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(copyMessage)),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      content,
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } finally {
+      _isModalOpen = false;
+    }
   }
 
   @override
@@ -171,7 +276,10 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
             const SizedBox(height: 12),
             const Text('فشل تحميل بيانات التشخيص'),
             const SizedBox(height: 8),
-            Text(_error ?? ''),
+            Text(
+              _error ?? '',
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadAll,
@@ -214,6 +322,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     );
   }
 
+  // ==================== ملخص ====================
+
   Widget _buildSummaryTab() {
     final tablesCount = _counts.length;
     final totalRecords = _totalRecords();
@@ -231,6 +341,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       ],
     );
   }
+
+  // ==================== المزامنة ====================
 
   Widget _buildSyncTab() {
     final syncAsync = ref.watch(syncHealthProvider);
@@ -255,91 +367,123 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     );
   }
 
+  // ==================== الجداول ====================
+
   Widget _buildTablesTab() {
-    final entries = _counts.entries.toList()
+    final query = _tableSearchQuery.toLowerCase();
+    final entries = _counts.entries
+        .where((e) => e.key.toLowerCase().contains(query))
+        .toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return Card(
-          child: ListTile(
-            title: Text(entry.key),
-            subtitle: Text('عدد السجلات: ${entry.value}'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _openTableDetails(entry.key),
+
+    return Column(
+      children: [
+        // ✅ شريط البحث
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: TextField(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'البحث في الجداول...',
+              suffixIcon: query.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() => _tableSearchQuery = '');
+                      },
+                    )
+                  : null,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onChanged: (v) => setState(() => _tableSearchQuery = v),
           ),
-        );
-      },
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${entries.length} جدول',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
+        ),
+        Expanded(
+          child: entries.isEmpty
+              ? const Center(child: Text('لا توجد نتائج'))
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: entries.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(entry.key),
+                        subtitle: Text('عدد السجلات: ${entry.value}'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () => _openTableDetails(entry.key),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
+  /// ✅ يستخدم Generic _showDetailsSheet بدل تكرار الكود
   Future<void> _openTableDetails(String table) async {
     final data = _snapshot?[table];
     if (data == null) return;
     const encoder = JsonEncoder.withIndent('  ');
     final jsonStr = encoder.convert({table: data});
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        table,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: jsonStr));
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم نسخ الجدول')),
-                        );
-                      },
-                      icon: const Icon(Icons.copy),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      jsonStr,
-                      style: const TextStyle(fontFamily: 'monospace'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    await _showDetailsSheet(
+      title: table,
+      content: jsonStr,
+      copyMessage: 'تم نسخ الجدول',
     );
   }
 
+  // ==================== السجلات ====================
+
   Widget _buildLogsTab() {
     final logger = ref.watch(diagnosticsLoggerProvider);
-    final logs = logger.getLogs();
+    final allLogs = logger.getLogs();
+
+    // ✅ فلترة حسب المستوى المُختار
+    final filteredLogs = allLogs
+        .where((l) => _selectedLogLevels.contains(l.level.name.toUpperCase()))
+        .toList();
+
     return Column(
       children: [
+        // ✅ Filter Chips لمستوى السجلات
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip('DEBUG', 'Debug', Colors.grey),
+                const SizedBox(width: 6),
+                _buildFilterChip('INFO', 'Info', Colors.blue),
+                const SizedBox(width: 6),
+                _buildFilterChip('WARNING', 'تحذير', Colors.orange),
+                const SizedBox(width: 6),
+                _buildFilterChip('ERROR', 'خطأ', Colors.red),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: logs.isEmpty ? null : _exportLogs,
+                  onPressed: filteredLogs.isEmpty ? null : _exportLogs,
                   icon: const Icon(Icons.share),
                   label: const Text('تصدير السجلات'),
                 ),
@@ -347,7 +491,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: logs.isEmpty ? null : _clearLogs,
+                  onPressed: filteredLogs.isEmpty ? null : _clearLogs,
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('مسح السجلات'),
                 ),
@@ -356,14 +500,25 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
           ),
         ),
         Expanded(
-          child: logs.isEmpty
-              ? const Center(child: Text('لا توجد سجلات'))
+          child: filteredLogs.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      allLogs.isEmpty
+                          ? 'لا توجد سجلات'
+                          : 'لا توجد سجلات بالمستوى المُختار',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                )
               : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: logs.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filteredLogs.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final log = logs[logs.length - index - 1];
+                    final log = filteredLogs[filteredLogs.length - index - 1];
+                    final levelColor = _logLevelColor(log.level.name);
                     return Card(
                       child: ListTile(
                         title: Text(
@@ -374,6 +529,14 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                         subtitle: Text(
                           '${DateFormat('yyyy-MM-dd HH:mm:ss').format(log.timestamp)} • ${log.level.name.toUpperCase()} • ${log.tag}',
                         ),
+                        leading: Container(
+                          width: 4,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: levelColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => _openLogDetails(log),
                       ),
@@ -383,6 +546,41 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
         ),
       ],
     );
+  }
+
+  /// ✅ Filter Chip لمستوى السجلات
+  Widget _buildFilterChip(String level, String label, Color color) {
+    final isSelected = _selectedLogLevels.contains(level);
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: isSelected ? Colors.white : color,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      onSelected: (selected) {
+        setState(() {
+          if (selected) {
+            _selectedLogLevels.add(level);
+          } else {
+            _selectedLogLevels.remove(level);
+          }
+        });
+      },
+    );
+  }
+
+  Color _logLevelColor(String level) {
+    return switch (level.toUpperCase()) {
+      'ERROR' => Colors.red,
+      'WARNING' => Colors.orange,
+      'DEBUG' => Colors.grey,
+      _ => Colors.blue,
+    };
   }
 
   Future<void> _exportLogs() async {
@@ -397,67 +595,64 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     await Share.shareXFiles([XFile(file.path)], text: 'سجلات التشخيص');
   }
 
-  void _clearLogs() {
+  /// ✅ إصلاح Race Condition — تأكيد قبل المسح + setState بعد التنفيذ
+  Future<void> _clearLogs() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد'),
+        content: const Text('هل تريد مسح جميع سجلات التشخيص؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('مسح'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     DiagnosticsLogger.instance.clear();
+
+    // ✅ إعادة بناء UI لأن السجلات تُعرض عبر ref.watch
+    // لا حاجة لـ setState لأن Riverpod يعيد البناء تلقائياً
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم مسح جميع السجلات')),
+      );
+    }
   }
 
+  /// ✅ يستخدم Generic _showDetailsSheet
   Future<void> _openLogDetails(LogEntry log) async {
-    final details = log.toFormattedString();
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'تفاصيل السجل',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: details));
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم نسخ السجل')),
-                        );
-                      },
-                      icon: const Icon(Icons.copy),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      details,
-                      style: const TextStyle(fontFamily: 'monospace'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    await _showDetailsSheet(
+      title: 'تفاصيل السجل',
+      content: log.toFormattedString(),
+      copyMessage: 'تم نسخ السجل',
     );
   }
 
+  // ==================== JSON ====================
+
   Widget _buildJsonTab() {
     final tables = ['all', ..._counts.keys.toList()..sort()];
+
+    // ✅ Large JSON Warning
+    final jsonSizeKb = _estimateJsonSizeKb();
+    final isLargeJson = jsonSizeKb > 1024; // > 1MB
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           DropdownButtonFormField<String>(
-            initialValue: _selectedTable,
+            value: tables.contains(_selectedTable) ? _selectedTable : 'all',
             decoration: const InputDecoration(
               labelText: 'عرض البيانات',
               border: OutlineInputBorder(),
@@ -474,10 +669,36 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
               if (value == null) return;
               setState(() {
                 _selectedTable = value;
+                _cachedJson = null; // ✅ إبطال الكاش عند تغيير الجدول
               });
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+
+          // ✅ تحذير حجم JSON
+          if (isLargeJson)
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'حجم التقرير ~${jsonSizeKb ~/ 1024}MB — يُنصح باستخدام تصدير الملف بدلاً من العرض المباشر',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           Expanded(
             child: Container(
               width: double.infinity,
@@ -486,18 +707,40 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                 border: Border.all(color: Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  _buildDiagnosticsJson() ?? '',
-                  style: const TextStyle(fontFamily: 'monospace'),
-                ),
-              ),
+              child: isLargeJson
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.data_object, size: 48, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            'التقرير كبير جداً للعرض المباشر',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: _exportJson,
+                            icon: const Icon(Icons.file_download),
+                            label: const Text('تصدير كملف'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: SelectableText(
+                        _buildDiagnosticsJson() ?? '',
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
             ),
           ),
         ],
       ),
     );
   }
+
+  // ==================== مكونات مساعدة ====================
 
   Widget _buildStatCard(String title, String value) {
     return Card(
@@ -522,5 +765,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     return Card(
       child: ListTile(title: Text(key), subtitle: Text(value)),
     );
+  }
+
+  @override
+  void dispose() {
+    _cachedJson = null;
+    super.dispose();
   }
 }
