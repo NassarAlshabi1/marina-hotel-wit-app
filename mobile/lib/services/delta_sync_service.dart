@@ -280,21 +280,35 @@ class DeltaSyncService {
   /// ✅ Field-Level: الحصول على deviceId
   String get deviceId => _deviceId;
 
-  // ✅ تحسين 1: Preload غير متزامن (Connection Warm-up)
-  Future<void> warmUp() async {
-    await perf.measure('warmup', () async {
-      await Future.wait([
-        _loadMirror().then((m) {
-          _mirrorCache = m;
-          _mirrorCacheTime = DateTime.now();
-        }),
-        _ensureMirrorTable(),
-      ]);
-      // ✅ تحميل configs بشكل متزامن (ليس async)
-      _entityConfigs();
-    });
-    if (kDebugMode) {
-      debugPrint('🚀 DeltaSync warmup completed (${perf.lastMs("warmup")}ms)');
+  // ✅ تحسين 1: Preload غير متزامن مع Exponential Backoff
+  Future<void> warmUp({int maxRetries = 3}) async {
+    var attempt = 0;
+    while (attempt < maxRetries) {
+      try {
+        await perf.measure('warmup', () async {
+          await Future.wait([
+            _loadMirror().then((m) {
+              _mirrorCache = m;
+              _mirrorCacheTime = DateTime.now();
+            }),
+            _ensureMirrorTable(),
+          ]);
+          _entityConfigs();
+        });
+        if (kDebugMode) {
+          debugPrint('🚀 DeltaSync warmup completed (${perf.lastMs("warmup")}ms)');
+        }
+        return;
+      } catch (e) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          _circuitBreaker.recordFailure();
+          rethrow;
+        }
+        final delay = Duration(milliseconds: 100 * (1 << attempt));
+        debugPrint('⚠️ Warmup attempt $attempt failed, retrying in ${delay.inMilliseconds}ms...');
+        await Future.delayed(delay);
+      }
     }
   }
 
@@ -536,13 +550,17 @@ class DeltaSyncService {
         }
       }
 
+      // ✅ تحسين fieldsHash: إعادة استخدام Hash السابق إذا rowHash لم يتغير
+      final String? computedFieldsHash = (previous != null && previous.rowHash == rowHash)
+          ? previous.fieldsHash
+          : _hashFieldsOnly(sanitized);
+
       tableSnapshot[localUuid] = MirrorRow(
         localUuid: localUuid,
         rowHash: rowHash,
         payload: Map<String, dynamic>.from(sanitized),
         lastSeenAt: nowTs,
-        // ✅ تحسين 3: تخزين fieldsHash في الـ Mirror
-        fieldsHash: _hashFieldsOnly(sanitized),
+        fieldsHash: computedFieldsHash,
       );
       seen.add(localUuid);
     }
@@ -575,8 +593,11 @@ class DeltaSyncService {
     return _EntityProcessResult(changes: changes, snapshot: tableSnapshot);
   }
 
-  // ✅ تحسين 7: Stream API للمعالجة الكبيرة مع تحديث المرآة
-  Stream<DeltaSyncChange> computeStream({int? since}) async* {
+  // ✅ تحسين 7: Stream API مع تحديث المرآة + Backpressure
+  Stream<DeltaSyncChange> computeStream({
+    int? since,
+    int bufferSize = 100,
+  }) async* {
     final state = await (db.select(db.syncState)
             ..where((t) => t.id.equals(1)))
         .getSingleOrNull();
@@ -589,6 +610,7 @@ class DeltaSyncService {
     // ✅ إصلاح: بناء snapshot لتحديث المرآة بعد الانتهاء
     final snapshot = <String, Map<String, MirrorRow>>{};
     final yieldedChanges = <DeltaSyncChange>[];
+    final buffer = <DeltaSyncChange>[];
 
     for (final config in configs) {
       final rows = await config.fetchAll();
@@ -622,7 +644,7 @@ class DeltaSyncService {
             localUuid: localUuid,
             clientTimestamp: nowTs,
           );
-          yield change;
+          buffer.add(change);
           yieldedChanges.add(change);
         } else if (previous == null ||
             (createdAt != null && createdAt > normalizedSince)) {
@@ -636,7 +658,7 @@ class DeltaSyncService {
             localUuid: localUuid,
             clientTimestamp: nowTs,
           );
-          yield change;
+          buffer.add(change);
           yieldedChanges.add(change);
         } else if (previous != null &&
             lastModified != null &&
@@ -661,10 +683,22 @@ class DeltaSyncService {
               localUuid: localUuid,
               clientTimestamp: nowTs,
             );
-            yield change;
+            buffer.add(change);
             yieldedChanges.add(change);
           }
         }
+
+        // ✅ Backpressure: yield batch بدلاً من individual
+        if (buffer.length >= bufferSize) {
+          for (final c in buffer) yield c;
+          buffer.clear();
+          await Future.delayed(Duration(milliseconds: 1));
+        }
+
+        // ✅ تحسين fieldsHash: إعادة استخدام Hash السابق إذا rowHash لم يتغير
+        final String? computedFieldsHash = (previous != null && previous.rowHash == rowHash)
+            ? previous.fieldsHash
+            : _hashFieldsOnly(sanitized);
 
         // بناء snapshot للمرآة
         tableSnapshot[localUuid] = MirrorRow(
@@ -672,12 +706,9 @@ class DeltaSyncService {
           rowHash: rowHash,
           payload: Map<String, dynamic>.from(sanitized),
           lastSeenAt: nowTs,
-          fieldsHash: _hashFieldsOnly(sanitized),
+          fieldsHash: computedFieldsHash,
         );
         seen.add(localUuid);
-
-        // Yield control back to event loop
-        await Future.delayed(Duration.zero);
       }
 
       // ✅ اكتشاف السجلات المحذوفة
@@ -707,6 +738,10 @@ class DeltaSyncService {
 
       snapshot[config.entity] = tableSnapshot;
     }
+
+    // ✅ Backpressure: flush أي عناصر متبقية في buffer
+    for (final c in buffer) yield c;
+    buffer.clear();
 
     // ✅ إصلاح: تحديث المرآة بعد الانتهاء لمنع تكرار التغييرات
     if (yieldedChanges.isNotEmpty && snapshot.isNotEmpty) {
@@ -741,7 +776,7 @@ class DeltaSyncService {
     _mirrorCacheTime = DateTime.now();
   }
 
-  // ✅ تحسين 2: دفعة واحدة بدلاً من loop
+  // ✅ تحسين 2: دفعة واحدة بدلاً من loop — مع parameterized queries فقط (بدون SQL injection)
   Future<void> _persistMirrorSnapshotBatch(
     Map<String, Map<String, MirrorRow>> snapshot,
   ) async {
@@ -751,17 +786,32 @@ class DeltaSyncService {
 
       if (rows.isEmpty) continue;
 
-      // ✅ حذف ذكي: فقط الصفوف غير الموجودة في الـ snapshot الجديد
-      if (rows.length > 0) {
-        final uuids =
-            rows.keys.map((u) => "'${u.replaceAll("'", "''")}'").join(',');
+      // ✅ إصلاح SQL Injection: حذف ذكي باستخدام parameterized queries فقط
+      if (rows.length < 100) {
+        // Approach 1: حذف فردي آمن (للكميات الصغيرة)
+        final existing = await db.customSelect(
+          'SELECT local_uuid FROM sync_mirror WHERE sync_entity_name = ?',
+          [table],
+        ).get();
+        final currentUuids = rows.keys.toSet();
+        for (final row in existing) {
+          final uuid = row.read<String>('local_uuid');
+          if (!currentUuids.contains(uuid)) {
+            await db.customStatement(
+              'DELETE FROM sync_mirror WHERE sync_entity_name = ? AND local_uuid = ?',
+              [table, uuid],
+            );
+          }
+        }
+      } else {
+        // Approach 2: حذف الكل وإعادة الإدراج (أسرع للـ bulk)
         await db.customStatement(
-          'DELETE FROM sync_mirror WHERE sync_entity_name = ? AND local_uuid NOT IN ($uuids)',
+          'DELETE FROM sync_mirror WHERE sync_entity_name = ?',
           [table],
         );
       }
 
-      // ✅ Batch INSERT بدلاً من loop
+      // ✅ Batch INSERT آمن
       final batch = <List<dynamic>>[];
       for (final row in rows.values) {
         final json = _jsonCache.encode(
@@ -988,8 +1038,10 @@ class DeltaSyncService {
     }
   }
 
-  // ✅ تحسين 4: تقليل التكرار باستخدام factory method
-  List<_EntityConfig> _entityConfigs() => [
+  // ✅ تحسين 4: تقليل التكرار باستخدام factory method + Cache القائمة مرة واحدة
+  static List<_EntityConfig>? _cachedConfigs;
+  List<_EntityConfig> _entityConfigs() {
+    return _cachedConfigs ??= [
         _makeConfig<Room>(
           'rooms',
           () => db.select(db.rooms).get(),
@@ -1219,6 +1271,31 @@ class MirrorRow {
 
   /// ✅ تحسين 3: Hash سريع للحقول (بدون حقول النظام)
   final String? fieldsHash;
+
+  /// ✅ copyWith لتحديثات آمنة بدون إنشاء كائن جديد كاملاً
+  MirrorRow copyWith({
+    String? localUuid,
+    String? rowHash,
+    Map<String, dynamic>? payload,
+    int? lastSeenAt,
+    Map<String, int>? fieldVersions,
+    Map<String, int>? fieldTimestamps,
+    Map<String, String>? fieldVectorClocks,
+    Map<String, String>? fieldDevices,
+    String? fieldsHash,
+  }) {
+    return MirrorRow(
+      localUuid: localUuid ?? this.localUuid,
+      rowHash: rowHash ?? this.rowHash,
+      payload: payload ?? this.payload,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      fieldVersions: fieldVersions ?? this.fieldVersions,
+      fieldTimestamps: fieldTimestamps ?? this.fieldTimestamps,
+      fieldVectorClocks: fieldVectorClocks ?? this.fieldVectorClocks,
+      fieldDevices: fieldDevices ?? this.fieldDevices,
+      fieldsHash: fieldsHash ?? this.fieldsHash,
+    );
+  }
 }
 
 class _EntityConfig {
