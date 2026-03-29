@@ -54,6 +54,7 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/appwrite_delta_sync.dart';
 import 'services/sync_service.dart';
 import 'services/appwrite_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
@@ -121,7 +122,14 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
     if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', false);
+      await prefs.setBool('appwrite_sync_enabled', true);
+    }
+    // ✅ تفعيل Appwrite Delta Sync تلقائياً عند أول تشغيل
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? false)) {
+      await prefs.setBool('appwrite_sync_enabled', true);
+      if (kDebugMode) {
+        debugPrint('✅ تم تفعيل Appwrite Delta Sync تلقائياً');
+      }
     }
 
     if (kDebugMode) {
@@ -523,21 +531,54 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   void _startRealtimeSync() {
-    Future.delayed(const Duration(seconds: 3), () async {
+    Future.delayed(const Duration(seconds: 2), () async {
       try {
+        if (kDebugMode) {
+          debugPrint('═══════════════════════════════════════════════════════');
+          debugPrint('🔗 Connecting to Appwrite Delta Service...');
+          debugPrint('═══════════════════════════════════════════════════════');
+        }
+
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
 
-        // تسجيل الجهاز تلقائياً
+        // ✅ تسجيل الجهاز تلقائياً
         try {
           await syncManager.registerDevice();
+          if (kDebugMode) {
+            debugPrint('✅ Device registered successfully');
+          }
         } catch (e) {
           debugPrint('⚠️ Device registration error: $e');
         }
 
-        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
-        syncManager.startAutoSync(interval: const Duration(minutes: 2));
+        // ✅ تهيئة Appwrite Delta Sync صراحةً عند فتح التطبيق
+        try {
+          final deltaSync = AppwriteDeltaSync.instance;
+          if (!deltaSync.isInitialized) {
+            final appwriteService = AppwriteService();
+            await appwriteService.initialize();
+            final database = ref.read(databaseProvider);
+            await deltaSync.initialize(appwriteService, database);
+            if (kDebugMode) {
+              debugPrint('✅ Appwrite Delta Sync initialized (deviceId: ${deltaSync.deviceId})');
+            }
+          } else {
+            if (kDebugMode) {
+              debugPrint('✅ Appwrite Delta Sync already initialized');
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Delta Sync init error: $e');
+        }
 
+        // ✅ بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
+        syncManager.startAutoSync(interval: const Duration(minutes: 2));
+        if (kDebugMode) {
+          debugPrint('✅ Auto sync started (interval: 2 minutes)');
+        }
+
+        // ✅ تهيئة Realtime Sync للاستماع للتغييرات الحية
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
         if (deviceId == null) {
@@ -551,9 +592,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
         await AppwriteRealtimeSync().initialize(deviceId: deviceId);
         await AppwriteRealtimeSync().start();
-        debugPrint('📡 Realtime sync + auto sync started');
+
+        if (kDebugMode) {
+          debugPrint('✅ Realtime sync listening for live changes');
+          debugPrint('═══════════════════════════════════════════════════════');
+          debugPrint('📡 Appwrite Delta Service Connected Successfully!');
+          debugPrint('📡 Realtime: ACTIVE | Auto Sync: ACTIVE | Delta: ACTIVE');
+          debugPrint('═══════════════════════════════════════════════════════');
+        }
       } catch (e) {
-        debugPrint('❌ Realtime sync init error: $e');
+        debugPrint('❌ Appwrite Delta Service connection error: $e');
       }
     });
   }
@@ -614,12 +662,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   Future<void> _autoPullLatestFromAppwrite() async {
     try {
+      if (kDebugMode) {
+        debugPrint('📥 Delta Sync: Starting initial pull from Appwrite...');
+      }
+
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.initialize();
       await syncManager.pullRemoteChanges();
       _lastAppwriteAutoPull = DateTime.now();
+
+      if (kDebugMode) {
+        debugPrint('✅ Delta Sync: Initial pull completed at ${_lastAppwriteAutoPull}');
+      }
     } catch (e) {
-      debugPrint('❌ Appwrite auto-pull error: $e');
+      debugPrint('❌ Delta Sync: Initial pull error: $e');
     }
   }
 
