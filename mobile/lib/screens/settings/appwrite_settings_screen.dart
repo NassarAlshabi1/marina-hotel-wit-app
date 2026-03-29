@@ -35,12 +35,59 @@ class _AppwriteSettingsScreenState
   bool _logConsole = true;
   bool _logFile = false;
   bool _isLoading = false;
+  /// ✅ Cache الـ Future لمنع إعادة إنشائه في كل rebuild
+  late Future<AppwriteDeltaSyncResult> _deltaSyncStatusFuture;
+  /// ✅ تتبع حالة Dialog التحميل للإغلاق الآمن
+  bool _isShowingLoadingDialog = false;
 
   @override
   void initState() {
     super.initState();
+    _deltaSyncStatusFuture = _getDeltaSyncStatus();
     _loadSettings();
     _checkConnection();
+  }
+
+  /// ✅ Helper آمن لـ setState — يمنع Crash بعد dispose
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) setState(fn);
+  }
+
+  /// ✅ تحديث حالة Delta Sync بعد العمليات
+  void _refreshDeltaSyncStatus() {
+    _safeSetState(() {
+      _deltaSyncStatusFuture = _getDeltaSyncStatus();
+    });
+  }
+
+  /// ✅ عرض Dialog تحميل بدلاً من SnackBar الطويل
+  void _showLoadingDialog(String message) {
+    if (!mounted) return;
+    _isShowingLoadingDialog = true;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Expanded(child: Text(message)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ✅ إغلاق Dialog التحميل بشكل آمن
+  void _dismissLoadingDialog() {
+    if (_isShowingLoadingDialog && mounted) {
+      _isShowingLoadingDialog = false;
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -59,24 +106,33 @@ class _AppwriteSettingsScreenState
     });
   }
 
-  Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('appwrite_sync_enabled', _syncEnabled);
-    await prefs.setInt('appwrite_sync_interval', _syncInterval);
-    await prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect);
-    await prefs.setBool('appwrite_cache_enabled', _cacheEnabled);
-    await prefs.setInt('appwrite_cache_ttl', _cacheTTLHours);
-    await prefs.setInt('appwrite_cache_max_size', _cacheMaxSizeMB);
-    await prefs.setString('appwrite_log_level', _logLevel);
-    await prefs.setBool('appwrite_log_console', _logConsole);
-    await prefs.setBool('appwrite_log_file', _logFile);
+  /// ✅ حفظ الإعدادات بشكل batch مع error handling
+  Future<bool> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await Future.wait([
+        prefs.setBool('appwrite_sync_enabled', _syncEnabled),
+        prefs.setInt('appwrite_sync_interval', _syncInterval),
+        prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect),
+        prefs.setBool('appwrite_cache_enabled', _cacheEnabled),
+        prefs.setInt('appwrite_cache_ttl', _cacheTTLHours),
+        prefs.setInt('appwrite_cache_max_size', _cacheMaxSizeMB),
+        prefs.setString('appwrite_log_level', _logLevel),
+        prefs.setBool('appwrite_log_console', _logConsole),
+        prefs.setBool('appwrite_log_file', _logFile),
+      ]);
 
-    // تحديث مدير المزامنة بالإعدادات الجديدة
-    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
-    if (_syncEnabled) {
-      syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
-    } else {
-      syncManager.stopAutoSync();
+      // تحديث مدير المزامنة بالإعدادات الجديدة
+      final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+      if (_syncEnabled) {
+        syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
+      } else {
+        syncManager.stopAutoSync();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('❌ فشل حفظ الإعدادات: $e');
+      return false;
     }
   }
 
@@ -529,9 +585,9 @@ class _AppwriteSettingsScreenState
             ),
             const Divider(height: 24),
             
-            // Current sync status from Delta Sync
+            // ✅ FutureBuilder مع Future مُخزَّن — لا يُعاد إنشاؤه في كل rebuild
             FutureBuilder<AppwriteDeltaSyncResult>(
-              future: _getDeltaSyncStatus(),
+              future: _deltaSyncStatusFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -619,21 +675,42 @@ class _AppwriteSettingsScreenState
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () async {
+                            onPressed: _isLoading ? null : () async {
                               final messenger = ScaffoldMessenger.of(context);
-                              setState(() => _isLoading = true);
+                              _safeSetState(() => _isLoading = true);
                               try {
                                 final deltaSync = AppwriteDeltaSync.instance;
+                                if (!deltaSync.isInitialized) {
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('الخدمة غير مهيئة'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
                                 final retryResult = await deltaSync.pushDeltaChanges();
-                                messenger.showSnackBar(
+                                if (mounted) {
+                                  messenger.showSnackBar(
                                   SnackBar(
                                     content: Text(retryResult.success
                                         ? 'تم إعادة المحاولة'
                                         : 'فشل: ${retryResult.message}'),
                                   ),
                                 );
+                                  _refreshDeltaSyncStatus();
+                                  ref.invalidate(ap.syncStatsProvider);
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+                                  );
+                                }
                               } finally {
-                                setState(() => _isLoading = false);
+                                _safeSetState(() => _isLoading = false);
                               }
                             },
                             icon: const Icon(Icons.refresh),
@@ -643,21 +720,42 @@ class _AppwriteSettingsScreenState
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () async {
+                            onPressed: _isLoading ? null : () async {
                               final messenger = ScaffoldMessenger.of(context);
-                              setState(() => _isLoading = true);
+                              _safeSetState(() => _isLoading = true);
                               try {
                                 final deltaSync = AppwriteDeltaSync.instance;
+                                if (!deltaSync.isInitialized) {
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('الخدمة غير مهيئة'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
                                 final result = await deltaSync.fullSync();
-                                messenger.showSnackBar(
+                                if (mounted) {
+                                  messenger.showSnackBar(
                                   SnackBar(
                                     content: Text(result.success
                                         ? 'تم المزامنة الكاملة'
                                         : 'فشل: ${result.message}'),
                                   ),
                                 );
+                                  _refreshDeltaSyncStatus();
+                                  ref.invalidate(ap.syncStatsProvider);
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+                                  );
+                                }
                               } finally {
-                                setState(() => _isLoading = false);
+                                _safeSetState(() => _isLoading = false);
                               }
                             },
                             icon: const Icon(Icons.sync),
@@ -1361,7 +1459,7 @@ class _AppwriteSettingsScreenState
   // ==================== الأحداث ====================
 
   Future<void> _syncNow() async {
-    setState(() => _isLoading = true);
+    _safeSetState(() => _isLoading = true);
     try {
       final syncManager = ref.read(ap.appwriteSyncManagerProvider);
       final result = await syncManager.sync();
@@ -1386,6 +1484,7 @@ class _AppwriteSettingsScreenState
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
+        _refreshDeltaSyncStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -1394,7 +1493,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1459,7 +1558,7 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _exportLogs() async {
-    setState(() => _isLoading = true);
+    _safeSetState(() => _isLoading = true);
     try {
       final file = await ref.read(ap.appwriteLoggerProvider).exportLogs();
       if (mounted) {
@@ -1479,7 +1578,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1514,16 +1613,11 @@ class _AppwriteSettingsScreenState
 
     if (confirmed != true) return;
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('جاري إنشاء النسخة الاحتياطية الشاملة...'),
-          duration: Duration(minutes: 5),
-        ),
-      );
-    }
+    if (!mounted) return;
+    // ✅ استخدام Dialog بدلاً من SnackBar بمدة 5 دقائق (يمنع أي SnackBar آخر)
+    _showLoadingDialog('جاري إنشاء النسخة الاحتياطية الشاملة...');
 
-    setState(() => _isLoading = true);
+    _safeSetState(() => _isLoading = true);
     try {
       final deviceId = ref.read(ap.appwriteSyncManagerProvider).currentDeviceId;
       final service = AppwriteBackupService(
@@ -1535,7 +1629,7 @@ class _AppwriteSettingsScreenState
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      _dismissLoadingDialog();
 
       final sortedCounts = result.counts.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key));
@@ -1575,7 +1669,7 @@ class _AppwriteSettingsScreenState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      _dismissLoadingDialog();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
@@ -1583,11 +1677,7 @@ class _AppwriteSettingsScreenState
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1622,7 +1712,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed != true) return;
 
-    setState(() => _isLoading = true);
+    _safeSetState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pushAllLocalData();
@@ -1634,6 +1724,7 @@ class _AppwriteSettingsScreenState
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
+        _refreshDeltaSyncStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -1642,11 +1733,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1681,7 +1768,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed != true) return;
 
-    setState(() => _isLoading = true);
+    _safeSetState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pullAllRemoteData();
@@ -1693,6 +1780,7 @@ class _AppwriteSettingsScreenState
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
+        _refreshDeltaSyncStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -1701,11 +1789,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1781,89 +1865,76 @@ class _AppwriteSettingsScreenState
     );
   }
 
-  Future<void> _pushDeltaSync() async {
-    setState(() => _isLoading = true);
+  /// ✅ Generic method لتقليل التكرار بين Push و Pull Delta Sync
+  Future<void> _runDeltaSync({
+    required String operationName,
+    required Future<AppwriteDeltaSyncResult> Function() operation,
+    Future<void> Function(AppwriteDeltaSyncResult)? onSuccess,
+  }) async {
+    _safeSetState(() => _isLoading = true);
     try {
       final deltaSync = AppwriteDeltaSync.instance;
       if (!deltaSync.isInitialized) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('الخدمة غير مهيئة — انتظر تحميل التطبيق'), backgroundColor: Colors.orange),
+            const SnackBar(
+              content: Text('الخدمة غير مهيئة — انتظر تحميل التطبيق'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
         return;
       }
-      final result = await deltaSync.pushDeltaChanges();
-      
+
+      final result = await operation();
+      final count = operationName == 'رفع' ? result.pushedCount : result.pulledCount;
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.success
-                ? 'تم رفع ${result.pushedCount} سجل بنجاح'
-                : 'فشل الرفع: ${result.message}'),
+            content: Text(
+              result.success
+                  ? 'تم $operationName $count سجل بنجاح'
+                  : 'فشل $operationName: ${result.message}',
+            ),
             backgroundColor: result.success ? Colors.green : Colors.red,
           ),
         );
+
+        if (result.success && onSuccess != null) {
+          await onSuccess(result);
+        }
+
+        _refreshDeltaSyncStatus();
         ref.invalidate(ap.syncStatsProvider);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('فشل $operationName: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
-  Future<void> _pullDeltaSync() async {
-    setState(() => _isLoading = true);
-    try {
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (!deltaSync.isInitialized) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('الخدمة غير مهيئة — انتظر تحميل التطبيق'), backgroundColor: Colors.orange),
-          );
-        }
-        return;
+  Future<void> _pushDeltaSync() => _runDeltaSync(
+    operationName: 'رفع',
+    operation: () => AppwriteDeltaSync.instance.pushDeltaChanges(),
+  );
+
+  Future<void> _pullDeltaSync() => _runDeltaSync(
+    operationName: 'سحب',
+    operation: () => AppwriteDeltaSync.instance.pullDeltaChanges(),
+    onSuccess: (result) async {
+      if (result.pulledCount > 0) {
+        final fixService = RestoreFixService(DatabaseManager.instance);
+        await fixService.runAutoFixAfterRestore();
       }
-      final result = await deltaSync.pullDeltaChanges();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.success
-                ? 'تم سحب ${result.pulledCount} سجل بنجاح'
-                : 'فشل السحب: ${result.message}'),
-            backgroundColor: result.success ? Colors.green : Colors.red,
-          ),
-        );
-        
-        if (result.success && result.pulledCount > 0) {
-          final fixService = RestoreFixService(DatabaseManager.instance);
-          await fixService.runAutoFixAfterRestore();
-        }
-        
-        ref.invalidate(ap.syncStatsProvider);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
-    }
-  }
+    },
+  );
 }
