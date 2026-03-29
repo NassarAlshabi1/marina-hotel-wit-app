@@ -5,15 +5,19 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
+import '../../providers/smart_init/delta_sync_init_provider.dart';
+import '../../providers/smart_init/delta_sync_init_state.dart';
 import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
 import '../../services/appwrite_delta_sync.dart';
+import '../../services/smart_initializers/delta_sync_initializer.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'comprehensive_backup_screen.dart';
 import 'sync_history_screen.dart';
+import '../../utils/debug_logs.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -150,6 +154,7 @@ class _AppwriteSettingsScreenState
     final logStats = ref.watch(ap.logStatsProvider);
     final projectInfo = ref.watch(ap.projectInfoProvider);
     final devicesAsync = ref.watch(ap.devicesListProvider);
+    final smartInitState = ref.watch(deltaSyncInitStateProvider);
 
     return AppScaffold(
       title: 'إعدادات Appwrite',
@@ -164,6 +169,10 @@ class _AppwriteSettingsScreenState
           children: [
             // قسم حالة الاتصال
             _buildConnectionSection(context, connectionState, projectInfo),
+            const SizedBox(height: 16),
+
+            // قسم تهيئة Delta Sync الذكية
+            _buildSmartInitCard(context, smartInitState),
             const SizedBox(height: 16),
 
             // قسم المزامنة
@@ -316,6 +325,194 @@ class _AppwriteSettingsScreenState
         ),
       ),
     );
+  }
+
+  // ==================== قسم تهيئة Delta Sync الذكية ====================
+  Widget _buildSmartInitCard(BuildContext context, DeltaSyncInitState state) {
+    final color = _stateColor(state);
+    final icon = _stateIcon(state);
+    final title = _stateTitle(state);
+    final subtitle = _stateSubtitle(state);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'تهيئة المزامنة التفاضلية',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (state == DeltaSyncInitState.ready)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: const Text(
+                      '✅ جاهز',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // مؤشر الحالة
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: color.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  if (state == DeltaSyncInitState.initializing)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  else
+                    Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (state == DeltaSyncInitState.failed)
+                    TextButton.icon(
+                      onPressed: _retrySmartInit,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('إعادة المحاولة'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    ),
+                ],
+              ),
+            ),
+
+            // شريط تقدم خطي لحالة الانتظار
+            if (state == DeltaSyncInitState.waitingNetwork ||
+                state == DeltaSyncInitState.initializing)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: LinearProgressIndicator(
+                  backgroundColor: color.withOpacity(0.1),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// لون حالة التهيئة.
+  Color _stateColor(DeltaSyncInitState state) {
+    switch (state) {
+      case DeltaSyncInitState.idle:
+        return Colors.grey;
+      case DeltaSyncInitState.waitingNetwork:
+        return Colors.orange;
+      case DeltaSyncInitState.initializing:
+        return Colors.blue;
+      case DeltaSyncInitState.ready:
+        return Colors.green;
+      case DeltaSyncInitState.failed:
+        return Colors.red;
+    }
+  }
+
+  /// أيقونة حالة التهيئة.
+  IconData _stateIcon(DeltaSyncInitState state) {
+    switch (state) {
+      case DeltaSyncInitState.idle:
+        return Icons.hourglass_empty;
+      case DeltaSyncInitState.waitingNetwork:
+        return Icons.wifi_off;
+      case DeltaSyncInitState.initializing:
+        return Icons.sync;
+      case DeltaSyncInitState.ready:
+        return Icons.check_circle;
+      case DeltaSyncInitState.failed:
+        return Icons.error_outline;
+    }
+  }
+
+  /// عنوان حالة التهيئة.
+  String _stateTitle(DeltaSyncInitState state) {
+    switch (state) {
+      case DeltaSyncInitState.idle:
+        return 'في انتظار البدء';
+      case DeltaSyncInitState.waitingNetwork:
+        return 'في انتظار الاتصال بالإنترنت';
+      case DeltaSyncInitState.initializing:
+        return 'جاري تهيئة خدمة Delta Sync...';
+      case DeltaSyncInitState.ready:
+        return 'تمت التهيئة بنجاح — المزامنة جاهزة';
+      case DeltaSyncInitState.failed:
+        return 'فشلت التهيئة — سيتم إعادة المحاولة تلقائياً';
+    }
+  }
+
+  /// وصف فرعي لحالة التهيئة.
+  String _stateSubtitle(DeltaSyncInitState state) {
+    switch (state) {
+      case DeltaSyncInitState.idle:
+        return 'سيبدأ المراقب تلقائياً';
+      case DeltaSyncInitState.waitingNetwork:
+        return 'سيتم التهيئة فوراً عند عودة الاتصال';
+      case DeltaSyncInitState.initializing:
+        return 'يُعدّ AppwriteService ويربط DeltaSync بقاعدة البيانات';
+      case DeltaSyncInitState.ready:
+        return 'يمكنك رفع وسحب البيانات الآن';
+      case DeltaSyncInitState.failed:
+        return 'تحقق من الاتصال وحاول مرة أخرى';
+    }
+  }
+
+  /// إعادة محاولة التهيئة يدوياً من UI.
+  Future<void> _retrySmartInit() async {
+    await DeltaSyncInitializer.instance.retryNow();
   }
 
   // ==================== قسم المزامنة ====================

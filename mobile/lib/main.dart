@@ -38,6 +38,7 @@ import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
 import 'services/database_sync_coordinator.dart';
+import 'services/smart_initializers/delta_sync_initializer.dart';
 import 'utils/auto_sync_preferences.dart';
 import 'utils/id.dart';
 
@@ -101,6 +102,9 @@ Future<void> main() async {
 
   // ✅ تهيئة Sync System فوراً في الخلفية بدون تأخير
   unawaited(_initializeFullyAutomatedSyncSystem());
+
+  // ✅ بدء مراقب تهيئة Delta Sync الذكي (non-blocking)
+  DeltaSyncInitializer.instance.start();
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
