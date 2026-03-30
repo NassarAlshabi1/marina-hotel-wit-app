@@ -211,9 +211,6 @@ class _AppwriteConnectionSettingsScreenState
     try {
       final endpoint = _endpointController.text.trim();
       final projectId = _projectIdController.text.trim();
-      final databaseId = _databaseIdController.text.trim();
-
-      final uri = Uri.parse('$endpoint/health');
       final sw = Stopwatch()..start();
 
       // ✅ محاولة فعلية باستخدام http — GET /health endpoint

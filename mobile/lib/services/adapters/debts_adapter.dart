@@ -213,17 +213,17 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version ?? 1,
+      _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
+        model.vectorClock,
       ),
       // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'vector_clock': jsonEncode(model.vectorClock ?? {}), // ✅ string (JSON)
-      'sync_version': model.version ?? 1, // ✅ integer
-      'sync_origin': model.origin ?? 'mobile', // ✅ string
+      'vector_clock': jsonEncode(model.vectorClock), // ✅ string (JSON)
+      'sync_version': model.version, // ✅ integer
+      'sync_origin': model.origin, // ✅ string
       'sync_vector_clock': jsonEncode(
-        model.vectorClock ?? {},
+        model.vectorClock,
       ), // ✅ string (JSON)
     };
   }

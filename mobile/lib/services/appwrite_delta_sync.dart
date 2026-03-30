@@ -59,7 +59,6 @@ class AppwriteDeltaSync {
   static const _prefsLastDeltaPushKey = 'appwrite_last_delta_push';
   static const _prefsLastDeltaPullKey = 'appwrite_last_delta_pull';
   static const _prefsDeviceIdKey = 'appwrite_delta_device_id';
-  static const _prefsDeltaSyncEnabledKey = 'appwrite_delta_sync_enabled';
   static const _prefsPushedCountKey = 'appwrite_delta_pushed_count';
   static const _prefsPulledCountKey = 'appwrite_delta_pulled_count';
   static const _prefsFailedCountKey = 'appwrite_delta_failed_count';
@@ -744,50 +743,6 @@ class AppwriteDeltaSync {
     return totalSuccessCount;
   }
 
-  /// الطريقة القديمة (للتوافق)
-  Future<int> _pullEntityChanges(_SyncEntity entity, int sinceEpoch) async {
-    return _pullEntityChangesWithPagination(entity, sinceEpoch);
-  }
-
-  // ==================== MIRROR INTEGRITY ====================
-
-  /// ✅ التحقق من صحة المرآة وإعادة بنائها إذا لزم الأمر
-  /// هذا يضمن أن Delta Sync يكتشف جميع التغييرات بشكل صحيح
-  Future<void> _ensureMirrorIntegrity() async {
-    try {
-      // الجداول الحرجة التي يجب التحقق منها
-      const criticalTables = [
-        'salary_withdrawals',
-        'expenses',
-        'payments',
-        'bookings',
-      ];
-
-      for (final tableName in criticalTables) {
-        final mirrorCount = await _getMirrorCount(tableName);
-        final dbCount = await _getDbCount(tableName);
-
-        // إذا كانت المرآة فارغة أو أقل من قاعدة البيانات
-        if (mirrorCount == 0 && dbCount > 0) {
-          _logger.warning(
-            '⚠️ المرآة فارغة لـ $tableName ($dbCount سجل) - إعادة بناء...',
-            tag: 'DELTA_SYNC',
-          );
-          await _rebuildTableMirror(tableName);
-        } else if (mirrorCount < dbCount * 0.9) {
-          // إذا كانت المرآة ناقصة بأكثر من 10%
-          _logger.warning(
-            '⚠️ المرآة ناقصة لـ $tableName (مرآة: $mirrorCount, قاعدة: $dbCount) - إعادة بناء...',
-            tag: 'DELTA_SYNC',
-          );
-          await _rebuildTableMirror(tableName);
-        }
-      }
-    } catch (e) {
-      _logger.error('❌ خطأ في التحقق من المرآة: $e', tag: 'DELTA_SYNC');
-    }
-  }
-
   /// الحصول على عدد سجلات المرآة لجدول معين
   Future<int> _getMirrorCount([String? tableName]) async {
     try {
@@ -1418,10 +1373,6 @@ INSERT INTO sync_mirror
             case 'revenueType':
               // revenueType مطلوب لـ payments
               sanitized['revenueType'] = sanitized['revenueType'] ?? 'room';
-            case 'paymentDate':
-              // paymentDate مطلوب لـ payments
-              sanitized['paymentDate'] =
-                  sanitized['paymentDate'] ?? DateTime.now().toIso8601String();
             default:
               // للحقول الأخرى، نستخدم قيمة افتراضية
               if (sanitized[field] == null) {

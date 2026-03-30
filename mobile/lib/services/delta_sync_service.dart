@@ -527,10 +527,10 @@ class DeltaSyncService {
             config.entity,
             previous.payload,
             payload,
-            previous.fieldVersions ?? {},
-            previous.fieldTimestamps ?? {},
-            previous.fieldVectorClocks ?? {},
-            previous.fieldDevices ?? {},
+            previous.fieldVersions,
+            previous.fieldTimestamps,
+            previous.fieldVectorClocks,
+            previous.fieldDevices,
             _deviceId,
           );
 
@@ -638,7 +638,6 @@ class DeltaSyncService {
     for (final config in configs) {
       final rows = await config.fetchAll();
       final existingMirror = previousMirror[config.entity] ?? {};
-      final hasMirror = previousMirror.containsKey(config.entity);
       final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
 
@@ -690,10 +689,10 @@ class DeltaSyncService {
             config.entity,
             previous.payload,
             sanitized,
-            previous.fieldVersions ?? {},
-            previous.fieldTimestamps ?? {},
-            previous.fieldVectorClocks ?? {},
-            previous.fieldDevices ?? {},
+            previous.fieldVersions,
+            previous.fieldTimestamps,
+            previous.fieldVectorClocks,
+            previous.fieldDevices,
             _deviceId,
           );
           if (diff.isNotEmpty) {
@@ -862,13 +861,6 @@ class DeltaSyncService {
         );
       }
     }
-  }
-
-  /// ✅ دعم legacy: المزامنة القديمة صف-by-صف (للتوافق)
-  Future<void> _persistMirrorSnapshot(
-    Map<String, Map<String, MirrorRow>> snapshot,
-  ) async {
-    await _persistMirrorSnapshotBatch(snapshot);
   }
 
   // ✅ تحسين 2: إضافة فهارس للأداء
@@ -1558,15 +1550,6 @@ class _FieldLevelDiffResult {
   final Map<String, String> fieldDevices;
 
   bool get isNotEmpty => changedFields.isNotEmpty;
-
-  /// ✅ Factory للنتيجة الفارغة (تحسين الأداء)
-  static _FieldLevelDiffResult empty() => _FieldLevelDiffResult(
-    changedFields: {},
-    fieldVersions: {},
-    fieldTimestamps: {},
-    fieldVectorClocks: {},
-    fieldDevices: {},
-  );
 
   List<FieldChange> toFieldChanges(String deviceId, String localDeviceId) {
     return changedFields.entries

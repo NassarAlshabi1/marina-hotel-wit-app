@@ -447,9 +447,6 @@ class EnhancedBookingCalculationService {
     // For active bookings, we calculate up to the current moment (today's hotel day)
     // to reflect the balance based on elapsed days as requested by the user.
     if (bookingActive) {
-      final nowHotelDay = Time.hotelDayKey(now: moment);
-      final checkinHotelDay = Time.hotelDayKey(now: checkin);
-
       // If today is after checkin day, we use the current moment to calculate elapsed nights.
       // If it's the same day, we still use the moment which will result in at least 1 night.
       checkout = moment;

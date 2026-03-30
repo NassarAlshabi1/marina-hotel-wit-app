@@ -150,9 +150,9 @@ class SalaryCyclesAdapter
       'updatedAt': model.updatedAt,
       'deletedAt': model.deletedAt,
       'lastModified': model.lastModified,
-      'version': model.version ?? 1, // ✅ integer
+      'version': model.version, // ✅ integer
       'origin': model.origin,
-      'vectorClock': jsonEncode(model.vectorClock ?? {}), // ✅ string (JSON)
+      'vectorClock': jsonEncode(model.vectorClock), // ✅ string (JSON)
     };
   }
 }
@@ -185,20 +185,6 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
 d.Value<Map<String, dynamic>> _vMapJson(
   Map<String, dynamic> json,
   String key,
@@ -211,15 +197,6 @@ d.Value<Map<String, dynamic>> _vMapJson(
       (altKey != null ? _asMap(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
 }
 
 Map<String, dynamic>? _asMap(
@@ -272,9 +249,6 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   if (alt != null && json.containsKey(alt)) return json[alt];
   return null;
 }
-
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;

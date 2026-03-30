@@ -41,7 +41,6 @@ class _IncomeExpenseReportScreenState
   List<_ExpenseEntry> _expenseEntries = [];
   double _incomeTotal = 0;
   double _expenseTotal = 0;
-  double _salaryTotal = 0;
   double _net = 0;
 
   @override
@@ -66,7 +65,6 @@ class _IncomeExpenseReportScreenState
         // We want week starting Saturday.
         // If today is Saturday (6), diff=0. If Sunday (7), diff=1. If Friday (5), diff=6.
         final int currentWeekday = now.weekday; // 1..7
-        final int diff = (currentWeekday + 1) % 7;
         // Logic might vary based on locale, sticking to simple "last 7 days" or "start of week"
         // Let's use: Start of current week (Saturday)
         // Saturday is day 6.

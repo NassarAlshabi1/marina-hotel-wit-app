@@ -635,239 +635,6 @@ class AppwriteSyncManager {
     }
   }
 
-  Future<T> _timePhase<T>(
-    String name,
-    Future<T> Function() operation,
-    Map<String, int> phaseMs,
-  ) async {
-    final stopwatch = Stopwatch()..start();
-    try {
-      return await operation();
-    } finally {
-      stopwatch.stop();
-      phaseMs[name] = stopwatch.elapsedMilliseconds;
-    }
-  }
-
-  Future<int> _syncRooms(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
-        processed++;
-      } catch (e) {
-        _logger.warning('Failed to sync room ${doc.$id}: $e', tag: 'SYNC');
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncBookings(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-
-        // ✅ التحقق من صحة discountStartDate
-        if (data.containsKey('discountStartDate')) {
-          final dateStr = data['discountStartDate']?.toString();
-          if (dateStr != null && dateStr.isNotEmpty) {
-            try {
-              // التحقق من صحة التاريخ
-              DateTime.parse(dateStr);
-              data['discountStartDate'] = dateStr;
-            } catch (_) {
-              data.remove('discountStartDate'); // إزالة إذا كان غير صالح
-            }
-          }
-        }
-
-        await _adapterRegistry.bookings.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-
-        // TRIGGER POST-SYNC PROCESSING
-        // 1. Resolve local ID from UUID
-        final localUuid = data['localUuid'];
-        final booking = await (database.select(
-          database.bookings,
-        )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
-
-        if (booking != null) {
-          // 2. Convert legacy discount to adjustments
-
-          // 3. Recalculate derived fields (nightly rates, total due)
-          await _bookingsRepository.derivedFields.refreshForBookingId(
-            booking.id,
-          );
-        }
-
-        processed++;
-      } catch (e) {
-        _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncEmployees(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.employees.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncExpenses(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.expenses.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncPayments(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    final deferred = <models.Document>[];
-
-    // المرحلة الأولى: معالجة الدفعات
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-
-        await _adapterRegistry.payments.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        // تأجيل الدفعة إذا كان الخطأ FOREIGN KEY constraint
-        if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('constraint failed')) {
-          _logger.debug(
-            'Deferring payment ${doc.$id}: FOREIGN KEY constraint (missing booking)',
-            tag: 'SYNC',
-          );
-          deferred.add(doc);
-        } else {
-          _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
-        }
-      }
-    }
-
-    // المرحلة الثانية: إعادة محاولة الدفعات المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        'Retrying ${deferred.length} deferred payments after all bookings synced',
-        tag: 'SYNC',
-      );
-
-      for (final doc in deferred) {
-        try {
-          final data = Map<String, dynamic>.from(doc.data);
-          data['localUuid'] ??= doc.$id;
-          await _adapterRegistry.payments.upsertFromJson(
-            data,
-            src: Source.appwrite,
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            'Failed to sync deferred payment ${doc.$id} after retry: $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
-
-    return processed;
-  }
-
-  Future<int> _syncDebts(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    final deferred = <models.Document>[];
-
-    // المرحلة الأولى: معالجة الديون
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
-        processed++;
-      } catch (e) {
-        // تأجيل الدين إذا كان الخطأ FOREIGN KEY constraint
-        if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('constraint failed')) {
-          _logger.debug(
-            'Deferring debt ${doc.$id}: FOREIGN KEY constraint (missing booking)',
-            tag: 'SYNC',
-          );
-          deferred.add(doc);
-        } else {
-          _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
-        }
-      }
-    }
-
-    // المرحلة الثانية: إعادة محاولة الديون المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        'Retrying ${deferred.length} deferred debts after all bookings synced',
-        tag: 'SYNC',
-      );
-
-      for (final doc in deferred) {
-        try {
-          final data = Map<String, dynamic>.from(doc.data);
-          data['localUuid'] ??= doc.$id;
-          await _adapterRegistry.debts.upsertFromJson(
-            data,
-            src: Source.appwrite,
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            'Failed to sync deferred debt ${doc.$id} after retry: $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
-
-    return processed;
-  }
-
   int _asInt(dynamic value, {int fallback = 0}) {
     final result = _asIntNullable(value);
     return result ?? fallback;
@@ -894,54 +661,6 @@ class AppwriteSyncManager {
       }
     }
     return null;
-  }
-
-  Future<int> _pushAllEntities() async {
-    const batchSize = 50; // ✅ أصغر حجم لتجنب rate limiting
-    const maxConcurrent = 3; // ✅ تحديد concurrent operations
-    int totalProcessed = 0;
-
-    while (true) {
-      final entries = await outboxDao.takeBatch(batchSize);
-      if (entries.isEmpty) {
-        break;
-      }
-
-      // ✅ معالجة batch بشكل متوازي مع حد
-      final results =
-          await Future.wait(
-            entries.map(
-              (entry) => _processOutboxEntry(entry).then((success) async {
-                if (success) {
-                  await outboxDao.removeById(entry.id);
-                  return true;
-                }
-                return false;
-              }),
-            ),
-            eagerError: false,
-          ).catchError((e) {
-            _logger.warning('Batch failed partially: $e', tag: 'SYNC');
-            return <bool>[];
-          });
-
-      final processedInBatch = results.where((r) => r).length;
-      totalProcessed += processedInBatch;
-
-      // ✅ تأخير بين الـ batches لتجنب rate limiting
-      if (entries.length == batchSize) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      if (entries.length == batchSize && processedInBatch == 0) {
-        _logger.warning(
-          'Push loop stuck on failing entries. Breaking.',
-          tag: 'SYNC',
-        );
-        break;
-      }
-    }
-    return totalProcessed;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -1181,7 +900,7 @@ class AppwriteSyncManager {
       'version': room.version,
       'origin': room.origin,
       // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'basePrice': room.price ?? 0.0,
+      'basePrice': room.price,
       'floor': 1, // قيمة افتراضية للطابق
     };
     _putIfNotNull(data, 'serverId', room.serverId);
@@ -1226,7 +945,7 @@ class AppwriteSyncManager {
       'lastModified': booking.lastModified,
       'version': booking.version,
       'origin': booking.origin,
-      'vectorClock': jsonEncode(booking.vectorClock ?? {}),
+      'vectorClock': jsonEncode(booking.vectorClock),
     };
 
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
@@ -1296,7 +1015,7 @@ class AppwriteSyncManager {
       'version': payment.version,
       'origin': payment.origin,
       // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'sync_version': payment.version ?? 1,
+      'sync_version': payment.version,
       'sync_vector_clock': '{}',
     };
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
@@ -1347,8 +1066,8 @@ class AppwriteSyncManager {
       'settlementConfirmed': debt.settlementConfirmed,
       // ✅ الحقول المطلوبة في Appwrite (required=true)
       'vector_clock': '{}',
-      'sync_version': debt.version ?? 1,
-      'sync_origin': debt.origin ?? 'mobile',
+      'sync_version': debt.version,
+      'sync_origin': debt.origin,
       'sync_vector_clock': '{}',
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
@@ -1952,8 +1671,8 @@ class AppwriteSyncManager {
       'version': note.version,
       'origin': note.origin,
       // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'bookingUuid': note.localUuid ?? '',
-      'note': note.noteText ?? '',
+      'bookingUuid': note.localUuid,
+      'note': note.noteText,
     };
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
@@ -2064,7 +1783,7 @@ class AppwriteSyncManager {
       'origin': payment.origin,
       // ✅ الحقول المطلوبة في Appwrite (required=true) - يجب إرسالها دائماً
       'employeeId': payment.employeeId ?? 0,
-      'paymentDate': payment.paymentDateIso ?? DateTime.now().toIso8601String(),
+      'paymentDate': payment.paymentDateIso,
     };
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
@@ -2101,7 +1820,7 @@ class AppwriteSyncManager {
       'origin': note.origin,
       // ✅ الحقول المطلوبة في Appwrite (required=true)
       'shiftDate': shiftDate,
-      'note': note.content ?? note.title ?? '',
+      'note': note.content,
     };
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
@@ -2471,178 +2190,6 @@ class AppwriteSyncManager {
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get currentDeviceId => _currentDeviceId;
   bool get isSyncing => _currentStatus == SyncStatus.syncing;
-
-  // ---------------------------------------------------------------------------
-  // Sync Helpers for Additional Entities
-  // ---------------------------------------------------------------------------
-
-  Future<int> _syncShiftNotes(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.shiftNotes.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync shift note ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncBookingNotes(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.bookingNotes.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync booking note ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncBookingNights(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.nights.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync booking night ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncCashTransactions(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.cashTransactions.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync cash transaction ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncSalaryCycles(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.salaryCycles.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync salary cycle ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncSalaryPayments(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        await _adapterRegistry.salaryPayments.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync salary payment ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  Future<int> _syncBookingPriceAdjustments(
-    List<models.Document> documents,
-  ) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        final result = await _adapterRegistry.bookingPriceAdjustments
-            .upsertFromJson(data, src: Source.appwrite);
-
-        // Refresh calculations for the affected booking
-        if (result > 0) {
-          final adj = await (database.select(
-            database.bookingPriceAdjustments,
-          )..where((t) => t.id.equals(result))).getSingleOrNull();
-
-          if (adj != null && adj.bookingLocalId != null) {
-            await _bookingsRepository.derivedFields.refreshForBookingId(
-              adj.bookingLocalId!,
-            );
-          }
-        }
-
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync booking price adjustment ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
 
   String _resolveDeviceType() {
     if (kIsWeb) {

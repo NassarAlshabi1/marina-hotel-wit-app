@@ -40,7 +40,6 @@ linter:
     noop_primitive_operations: true
     null_check_on_nullable_type_parameter: true
     only_throw_errors: true
-    package_api_docs: true
     prefer_asserts_in_initializer_lists: true
     prefer_const_constructors: true
     prefer_const_constructors_in_immutables: true
@@ -76,7 +75,6 @@ linter:
     unnecessary_string_escapes: true
     unnecessary_string_interpolations: true
     unnecessary_to_list_in_spreads: true
-    unsafe_html: true
     use_colored_box: true
     use_decorated_box: true
     use_enums: true

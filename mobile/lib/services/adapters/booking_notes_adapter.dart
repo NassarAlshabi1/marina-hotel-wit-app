@@ -131,11 +131,11 @@ class BookingNotesAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
+        model.vectorClock,
       ),
       // ✅ الحقول المطلوبة في Appwrite (required=true) - دائماً string
-      'bookingUuid': model.localUuid ?? '',
-      'note': model.noteText ?? '',
+      'bookingUuid': model.localUuid,
+      'note': model.noteText,
     };
   }
 }
@@ -168,34 +168,6 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
 d.Value<Map<String, dynamic>> _vMapJson(
   Map<String, dynamic> json,
   String key,
@@ -208,27 +180,6 @@ d.Value<Map<String, dynamic>> _vMapJson(
       (altKey != null ? _asMap(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
-bool? _asBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is bool) return v;
-  if (v is num) return v != 0;
-  if (v is String) {
-    final t = v.toLowerCase();
-    if (t == 'true' || t == '1') return true;
-    if (t == 'false' || t == '0') return false;
-  }
-  return null;
 }
 
 Map<String, dynamic>? _asMap(

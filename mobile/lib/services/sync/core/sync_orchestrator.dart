@@ -73,14 +73,14 @@ class SyncOrchestrator {
         }
       }
 
-      final allSuccess = results.values.every((r) => r.isSuccess ?? false);
+      final allSuccess = results.values.every((r) => r.isSuccess);
       final totalPushed = results.values.fold<int>(
         0,
-        (sum, r) => sum + (r.pushedCount ?? 0),
+        (sum, r) => sum + r.pushedCount,
       );
       final totalPulled = results.values.fold<int>(
         0,
-        (sum, r) => sum + (r.pulledCount ?? 0),
+        (sum, r) => sum + r.pulledCount,
       );
 
       final result = SyncResult.success(

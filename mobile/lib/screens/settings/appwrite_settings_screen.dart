@@ -17,7 +17,6 @@ import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'comprehensive_backup_screen.dart';
 import 'sync_history_screen.dart';
-import '../../utils/debug_logs.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});

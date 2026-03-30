@@ -150,7 +150,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
           'expiresAt': model.expiresAt,
         // ✅ الحقول المطلوبة في Appwrite (required=true)
         'shiftDate': shiftDate,
-        'note': model.content ?? model.title ?? '',
+        'note': model.content,
       };
     }
     return {
@@ -174,11 +174,11 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
+        model.vectorClock,
       ),
       // ✅ الحقول المطلوبة في Appwrite (required=true)
       'shiftDate': shiftDate,
-      'note': model.content ?? model.title ?? '',
+      'note': model.content,
     };
   }
 }

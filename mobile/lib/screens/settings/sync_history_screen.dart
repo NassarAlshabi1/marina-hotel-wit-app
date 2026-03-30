@@ -455,21 +455,17 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
     Color statusColor;
     IconData statusIcon;
     String statusText;
-    Color statusBgColor;
 
     if (isSuccess) {
       statusColor = Colors.green.shade700;
-      statusBgColor = Colors.green.shade50;
       statusIcon = Icons.check_circle_rounded;
       statusText = 'نجح';
     } else if (isPartial) {
       statusColor = Colors.orange.shade700;
-      statusBgColor = Colors.orange.shade50;
       statusIcon = Icons.pending_rounded;
       statusText = log.status == 'in_progress' ? 'جاري' : 'جزئي';
     } else {
       statusColor = Colors.red.shade700;
-      statusBgColor = Colors.red.shade50;
       statusIcon = Icons.error_rounded;
       statusText = 'فشل';
     }

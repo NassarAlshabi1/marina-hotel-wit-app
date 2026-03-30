@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart'; // للوصول لـ compute
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfPageFormat, PdfColor;
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,10 +40,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final TextEditingController _roomSearchController = TextEditingController();
 
   bool _loading = false;
-  final bool _hasMore = true;
-  final int _currentPage = 0;
-  final int _totalCount = 0;
-  static const int _pageSize = 50;
 
   final List<_PaymentReportRow> _rows = [];
   double _totalAmount = 0;
