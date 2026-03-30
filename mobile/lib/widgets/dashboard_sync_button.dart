@@ -7,10 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/appwrite_providers.dart' as appwrite_providers;
+import '../providers/backup_provider.dart';
 import '../providers/sync_log_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/google_drive_delta_sync.dart';
+import '../services/google_drive_backup_service.dart';
+import '../services/smart_sync_manager.dart';
 import '../screens/settings/sync_history_screen.dart';
 
 // ============================================================================
@@ -345,13 +348,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // Sync Methods - دوال المزامنة
   // ============================================================================
 
-  /// ✅ تهيئة خدمة Delta Sync
+  /// ✅ تهيئة خدمة Delta Sync (Appwrite + Google Drive)
   Future<bool> _ensureServicesInitialized() async {
     final prefs = await SharedPreferences.getInstance();
     final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
     if (!appwriteEnabled) {
       debugPrint('⚠️ Appwrite sync disabled');
-      return false;
+      // حتى لو Appwrite معطل، نحاول تهيئة Google Drive
+      await _ensureDriveInitialized();
+      return GoogleDriveDeltaSync.instance.isInitialized;
     }
 
     try {
@@ -364,10 +369,37 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (!deltaSync.isInitialized) {
         await deltaSync.initialize(appwriteService, db);
       }
+
+      // ✅ تهيئة Google Drive Delta Sync أيضاً
+      await _ensureDriveInitialized();
+
       return true;
     } catch (e) {
-      debugPrint('❌ Initialization failed: $e');
-      return false;
+      debugPrint('❌ Appwrite init failed: $e');
+      // حتى لو Appwrite فشل، نحاول Google Drive
+      await _ensureDriveInitialized();
+      return GoogleDriveDeltaSync.instance.isInitialized;
+    }
+  }
+
+  /// ✅ تهيئة Google Drive Delta Sync
+  Future<void> _ensureDriveInitialized() async {
+    try {
+      final driveSync = GoogleDriveDeltaSync.instance;
+      if (driveSync.isInitialized) return;
+
+      // استخدام SmartSyncManager للحصول على BackupService
+      final smartSync = SmartSyncManager.instance;
+      if (smartSync.isDriveSignedIn) {
+        final db = ref.read(databaseProvider);
+        final backupService = ref.read(googleDriveBackupServiceProvider);
+        await driveSync.initialize(backupService, db);
+        debugPrint('✅ Google Drive Delta Sync initialized');
+      } else {
+        debugPrint('⚠️ Google Drive not signed in');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Google Drive init failed: $e');
     }
   }
 
@@ -445,7 +477,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       // 1️⃣ سحب من Appwrite
-      if (await _ensureServicesInitialized()) {
+      await _ensureServicesInitialized();
+      {
+        final appwriteSync = AppwriteDeltaSync.instance;
+        if (appwriteSync.isInitialized) {
         try {
           final appwriteResult = await _performPull();
           totalPulled += appwriteResult.recordsPulled;
@@ -458,6 +493,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           messages.add('Appwrite: فشل');
           totalFailed++;
         }
+        } // end if appwriteSync.isInitialized
       }
 
       // 2️⃣ سحب من Google Drive (مع معالجة التعارضات)
@@ -529,7 +565,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       // 1️⃣ رفع إلى Appwrite (Field-Level Delta Push)
-      if (await _ensureServicesInitialized()) {
+      await _ensureServicesInitialized();
+      {
+        final appwriteSync = AppwriteDeltaSync.instance;
+        if (appwriteSync.isInitialized) {
         try {
           final appwriteResult = await _performFieldLevelPush();
           totalPushed += appwriteResult.recordsPushed;
@@ -543,6 +582,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           messages.add('Appwrite: فشل');
           totalFailed++;
         }
+        } // end if appwriteSync.isInitialized
       }
 
       // 2️⃣ رفع إلى Google Drive (Delta Sync)
