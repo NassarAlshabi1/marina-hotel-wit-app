@@ -224,19 +224,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (delete(outbox)..where((t) => t.localUuid.isIn(uuids))).go();
   }
 
-  /// ✅ مسح السجلات المعلقة القديمة (أقدم من X ساعات)
-  /// يُستخدم لتنظيف السجلات التي قد تكون فاتتها المزامنة
-  Future<int> cleanupOldPendingRecords({int maxAgeHours = 1}) async {
+  /// ✅ مسح السجلات المكتملة القديمة فقط (ليس المعلقة!)
+  /// ⚠️ تم تغييرها: لا تحذف السجلات pending القديمة لأنها قد تكون لم تُرفع بعد
+  /// نحذف فقط السجلات completed والفاشلة نهائياً التي تجاوزت حد المحاولات
+  Future<int> cleanupOldRecords({int maxAgeHours = 24}) async {
     final cutoffEpoch =
         DateTime.now()
             .subtract(Duration(hours: maxAgeHours))
             .millisecondsSinceEpoch ~/
         1000;
 
-    // مسح السجلات المعلقة القديمة فقط (ليس الفاشلة أو المتضاربة)
+    // مسح السجلات المكتملة القديمة فقط (ليس المعلقة أو الفاشلة)
     return (delete(outbox)..where(
           (t) =>
-              t.processingStatus.equals('pending') &
+              t.processingStatus.equals('completed') &
               t.clientTs.isSmallerThanValue(cutoffEpoch),
         ))
         .go();

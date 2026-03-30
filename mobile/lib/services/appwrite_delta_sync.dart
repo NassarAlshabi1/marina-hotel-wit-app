@@ -2079,15 +2079,15 @@ INSERT INTO sync_mirror
           .toList();
       await outboxDao.cleanupSuccessfulByUuids(successfulUuids);
 
-      // ✅ تنظيف إضافي: مسح جميع السجلات المعلقة القديمة (أكثر من ساعة)
-      // هذا يضمن عدم تراكم سجلات قديمة بسبب مشاكل في الاكتشاف
-      final oldRecordsDeleted = await outboxDao.cleanupOldPendingRecords(
-        maxAgeHours: 1,
+      // ✅ تنظيف آمن: مسح السجلات المكتملة القديمة فقط (24 ساعة+)
+      // ⚠️ لا نحذف السجلات pending القديمة لأنها قد تكون لم تُرفع بعد
+      final oldRecordsDeleted = await outboxDao.cleanupOldRecords(
+        maxAgeHours: 24,
       );
       totalDeleted += oldRecordsDeleted;
 
       _logger.info(
-        '🧹 تم مسح $totalDeleted سجل من Outbox (${successfulChanges.length} تغيير + $oldRecordsDeleted قديم)',
+        '🧹 تم مسح $totalDeleted سجل من Outbox (${successfulChanges.length} تغيير + $oldRecordsDeleted مكتمل قديم)',
         tag: 'DELTA_SYNC',
       );
     } catch (e) {
