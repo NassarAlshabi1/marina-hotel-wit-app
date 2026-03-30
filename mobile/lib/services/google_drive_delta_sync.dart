@@ -11,6 +11,8 @@ import '../utils/id.dart';
 import 'sync_locks.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'repositories/base_repository.dart';
+import 'conflict_resolver.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -336,6 +338,114 @@ class GoogleDriveDeltaSync {
     return index == -1 ? 999 : index;
   }
 
+  /// محلل تعارضات Google Drive - مطابق لاستراتيجيات Appwrite
+  static final _driveConflictResolver = EnhancedConflictResolver(
+    defaultStrategy: ConflictStrategy.lastWriteWins,
+    tableStrategies: {
+      'bookings': ConflictStrategy.lastWriteWins,
+      'rooms': ConflictStrategy.lastWriteWins,
+      'payments': ConflictStrategy.lastWriteWins,
+      'expenses': ConflictStrategy.lastWriteWins,
+      'debts': ConflictStrategy.fieldLevel,
+      'employees': ConflictStrategy.fieldLevel,
+      'cash_transactions': ConflictStrategy.lastWriteWins,
+      'shift_notes': ConflictStrategy.fieldLevel,
+      'booking_notes': ConflictStrategy.fieldLevel,
+      'booking_nights': ConflictStrategy.lastWriteWins,
+      'salary_cycles': ConflictStrategy.lastWriteWins,
+      'salary_payments': ConflictStrategy.lastWriteWins,
+      'salary_withdrawals': ConflictStrategy.lastWriteWins,
+      'booking_price_adjustments': ConflictStrategy.lastWriteWins,
+      'price_adjustments': ConflictStrategy.lastWriteWins,
+      'audit_logs': ConflictStrategy.lastWriteWins,
+      'payment_voids': ConflictStrategy.lastWriteWins,
+    },
+  );
+
+  /// الحصول على Repository للكيان المحدد
+  BaseRepository _getRepoForEntity(String entity) {
+    final registry = _adapterRegistry!;
+    switch (entity) {
+      case 'rooms': return registry.rooms;
+      case 'bookings': return registry.bookings;
+      case 'payments': return registry.payments;
+      case 'expenses': return registry.expenses;
+      case 'debts': return registry.debts;
+      case 'employees': return registry.employees;
+      case 'booking_notes': return registry.bookingNotes;
+      case 'booking_nights': return registry.nights;
+      case 'salary_cycles': return registry.salaryCycles;
+      case 'salary_payments': return registry.salaryPayments;
+      case 'cash_transactions': return registry.cashTransactions;
+      case 'shift_notes': return registry.shiftNotes;
+      case 'price_adjustments': return registry.priceAdjustments;
+      case 'audit_logs': return registry.auditLogs;
+      case 'payment_voids': return registry.paymentVoids;
+      case 'booking_price_adjustments': return registry.bookingPriceAdjustments;
+      case 'salary_withdrawals': return registry.salaryWithdrawals;
+      default:
+        throw UnimplementedError('لا يوجد repository للكيان: $entity');
+    }
+  }
+
+  /// معالجة التعارضات قبل التطبيق
+  /// ترجع البيانات المراد تطبيقها (أو null لتخطي التطبيق)
+  Future<Map<String, dynamic>?> _resolveConflict(
+    String entity,
+    String localUuid,
+    Map<String, dynamic> remoteData,
+  ) async {
+    final repo = _getRepoForEntity(entity);
+    final localData = await repo.getJsonByUuid(localUuid);
+
+    // لا يوجد سجل محلي → إدراج جديد بدون تعارض
+    if (localData == null) return remoteData;
+
+    // استخراج الطوابع الزمنية
+    final localTs = _asInt(localData['lastModified']) ??
+        _asInt(localData['last_modified']) ??
+        _asInt(localData['updated_at']) ?? 0;
+    final remoteTs = _asInt(remoteData['lastModified']) ??
+        _asInt(remoteData['last_modified']) ??
+        _asInt(remoteData['updated_at']) ?? 0;
+
+    // لا توجد طوابع زمنية صالحة → السماح بالتحديث
+    if (localTs <= 0 || remoteTs <= 0) return remoteData;
+
+    // البعيد أحدث → تحديث بدون تعارض
+    if (remoteTs > localTs) return remoteData;
+
+    // المحلي أحدث أو بنفس الوقت → تعارض!
+    final resolution = _driveConflictResolver.resolve(
+      ConflictContext(
+        table: entity,
+        uuid: localUuid,
+        localData: localData,
+        remoteData: remoteData,
+        localTimestamp: DateTime.fromMillisecondsSinceEpoch(localTs * 1000),
+        remoteTimestamp: DateTime.fromMillisecondsSinceEpoch(remoteTs * 1000),
+        localDeviceId: _deviceId ?? 'local',
+        remoteDeviceId: remoteData['deviceId'] ?? 'remote_drive',
+      ),
+    );
+
+    if (resolution.winner == localData && resolution.mergedData == null) {
+      // المحلي فاز → تخطي التحديث
+      debugPrint('⚖️ تعارض $entity/$localUuid: المحلي أحدث، تخطي التحديث');
+      return null;
+    }
+
+    if (resolution.mergedData != null) {
+      // دمج على مستوى الحقل
+      debugPrint('🔀 تعارض $entity/$localUuid: دمج على مستوى الحقل');
+      return resolution.mergedData;
+    }
+
+    // البعيد فاز
+    debugPrint('⚖️ تعارض $entity/$localUuid: البعيد فاز بالتعارض');
+    return remoteData;
+  }
+
   Future<void> _applyChange(
     String entity,
     String operation,
@@ -358,54 +468,58 @@ class GoogleDriveDeltaSync {
     final payload = Map<String, dynamic>.from(data);
     payload.putIfAbsent('localUuid', () => localUuid);
 
+    // ✅ معالجة التعارضات قبل التطبيق
+    final resolvedData = await _resolveConflict(entity, localUuid, payload);
+    if (resolvedData == null) return; // تخطي: المحلي أحدث
+
     switch (entity) {
       case 'rooms':
-        await registry.rooms.upsertFromJson(payload, src: Source.drive);
+        await registry.rooms.upsertFromJson(resolvedData, src: Source.drive);
       case 'bookings':
-        await registry.bookings.upsertFromJson(payload, src: Source.drive);
+        await registry.bookings.upsertFromJson(resolvedData, src: Source.drive);
       case 'payments':
-        await registry.payments.upsertFromJson(payload, src: Source.drive);
+        await registry.payments.upsertFromJson(resolvedData, src: Source.drive);
       case 'expenses':
-        await registry.expenses.upsertFromJson(payload, src: Source.drive);
+        await registry.expenses.upsertFromJson(resolvedData, src: Source.drive);
       case 'debts':
-        await registry.debts.upsertFromJson(payload, src: Source.drive);
+        await registry.debts.upsertFromJson(resolvedData, src: Source.drive);
       case 'employees':
-        await registry.employees.upsertFromJson(payload, src: Source.drive);
+        await registry.employees.upsertFromJson(resolvedData, src: Source.drive);
       case 'booking_notes':
-        await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
+        await registry.bookingNotes.upsertFromJson(resolvedData, src: Source.drive);
       case 'booking_nights':
-        await registry.nights.upsertFromJson(payload, src: Source.drive);
+        await registry.nights.upsertFromJson(resolvedData, src: Source.drive);
       case 'salary_cycles':
-        await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
+        await registry.salaryCycles.upsertFromJson(resolvedData, src: Source.drive);
       case 'salary_payments':
         await registry.salaryPayments.upsertFromJson(
-          payload,
+          resolvedData,
           src: Source.drive,
         );
       case 'cash_transactions':
         await registry.cashTransactions.upsertFromJson(
-          payload,
+          resolvedData,
           src: Source.drive,
         );
       case 'shift_notes':
-        await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
+        await registry.shiftNotes.upsertFromJson(resolvedData, src: Source.drive);
       case 'price_adjustments':
         await registry.priceAdjustments.upsertFromJson(
-          payload,
+          resolvedData,
           src: Source.drive,
         );
       case 'audit_logs':
-        await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
+        await registry.auditLogs.upsertFromJson(resolvedData, src: Source.drive);
       case 'payment_voids':
-        await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
+        await registry.paymentVoids.upsertFromJson(resolvedData, src: Source.drive);
       case 'booking_price_adjustments':
         await registry.bookingPriceAdjustments.upsertFromJson(
-          payload,
+          resolvedData,
           src: Source.drive,
         );
       case 'salary_withdrawals':
         await registry.salaryWithdrawals.upsertFromJson(
-          payload,
+          resolvedData,
           src: Source.drive,
         );
     }
