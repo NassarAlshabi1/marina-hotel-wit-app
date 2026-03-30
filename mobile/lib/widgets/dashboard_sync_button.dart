@@ -616,22 +616,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     final errorStr = error.toString();
     if (errorStr.isNotEmpty) {
       try {
+        final errorType = errorStr.contains('SocketException') ||
+                errorStr.contains('HttpException')
+            ? 'network'
+            : 'unknown';
+        final fieldError = FieldSyncError(
+          entityName: '',
+          recordUuid: '',
+          fieldName: 'general',
+          errorType: errorType,
+          errorMessage: errorStr,
+          timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          operation: 'push',
+        );
+        // كتابة الخطأ بنفس آلية _saveFieldSyncErrors في AppwriteDeltaSync
         final prefs = await SharedPreferences.getInstance();
         final existingErrors = prefs.getStringList('field_sync_errors') ?? [];
-        final errorJson = jsonEncode({
-          'entityName': '',
-          'recordUuid': '',
-          'fieldName': 'general',
-          'errorType': errorStr.contains('SocketException') ||
-                  errorStr.contains('HttpException')
-              ? 'network'
-              : 'unknown',
-          'errorMessage': errorStr,
-          'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          'operation': 'push',
-        });
-        final allErrors = [errorJson, ...existingErrors].take(50).toList();
+        final allErrors = [jsonEncode(fieldError.toJson()), ...existingErrors].take(50).toList();
         await prefs.setStringList('field_sync_errors', allErrors);
+        final currentCount = prefs.getInt('field_sync_errors_count') ?? 0;
+        await prefs.setInt('field_sync_errors_count', currentCount + 1);
       } catch (_) {}
     }
 
