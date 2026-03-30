@@ -644,6 +644,176 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
+  Future<void> _showCreateRoomDialog(
+    BuildContext context,
+    String roomNumber,
+  ) async {
+    final typeCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    String status = 'شاغرة';
+    final formKey = GlobalKey<FormState>();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.add, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text('إضافة غرفة $roomNumber'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    initialValue: roomNumber,
+                    decoration: InputDecoration(
+                      labelText: 'رقم الغرفة',
+                      prefixIcon: const Icon(Icons.meeting_room),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    readOnly: true,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: typeCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'نوع الغرفة',
+                      prefixIcon: const Icon(Icons.category),
+                      hintText: 'مثال: فردية، مزدوجة، جناح',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'أدخل نوع الغرفة';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: priceCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'السعر لليلة',
+                      prefixIcon: const Icon(Icons.attach_money),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'أدخل السعر';
+                      final price = CurrencyFormatter.parseAmount(v);
+                      if (price == null || price <= 0) {
+                        return 'أدخل سعراً صحيحاً';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  StatefulBuilder(
+                    builder: (context, setLocalState) =>
+                        DropdownButtonFormField<String>(
+                          initialValue: status,
+                          decoration: InputDecoration(
+                            labelText: 'الحالة',
+                            prefixIcon: const Icon(Icons.toggle_on),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'شاغرة',
+                              child: Text('شاغرة'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'محجوزة',
+                              child: Text('محجوزة'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'صيانة',
+                              child: Text('صيانة'),
+                            ),
+                          ],
+                          onChanged: (v) =>
+                              setLocalState(() => status = v ?? status),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() != true) return;
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('إنشاء'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final price = CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0;
+      await roomsRepo.create(
+        roomNumber: roomNumber,
+        type: typeCtrl.text.trim(),
+        price: price,
+        status: status,
+      );
+
+      final appwriteSync = ref.read(appwrite.appwriteSyncManagerProvider);
+      await appwriteSync.sync(push: true, pull: false);
+
+      try {
+        await GoogleDriveUnifiedSyncCoordinator.instance.performSync(
+          trigger: SyncTrigger.localChange,
+          mode: SyncMode.smart,
+        );
+      } catch (_) {}
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم إنشاء الغرفة $roomNumber ومزامنتها'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في إنشاء الغرفة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showRoomDetailsDialog(BuildContext context, Room room) {
     showDialog(
       context: context,

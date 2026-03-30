@@ -280,7 +280,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   /// التحقق مما إذا كان السجل تجاوز حد المحاولات
   bool isPermanentlyFailed(OutboxData entry) {
-    return entry.attempts >= entry.maxAttempts;
+    return entry.attempts >= (entry.maxAttempts ?? 5);
   }
 
   // ==================== الحذف والإزالة ====================
@@ -353,7 +353,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       outbox,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
 
-    if (entry != null && attempts >= entry.maxAttempts) {
+    if (entry != null && attempts >= (entry.maxAttempts ?? 5)) {
       await markAsPermanentlyFailed(id, message);
     } else {
       await scheduleRetry(id, message, attempts);

@@ -31,6 +31,7 @@ class DeltaSyncInitializer {
   bool _isRunning = false;
   bool _isInitializing = false;
   int _retryCount = 0;
+  DateTime? _lastAttemptAt;
 
   /// Stream لنشر حالة التهيئة (idle/waiting/initializing/ready/failed).
   final StreamController<DeltaSyncInitState> _stateController =
@@ -98,6 +99,7 @@ class DeltaSyncInitializer {
     stop();
     _isInitializing = false;
     _retryCount = 0;
+    _lastAttemptAt = null;
     _currentState = DeltaSyncInitState.idle;
   }
 
@@ -134,6 +136,7 @@ class DeltaSyncInitializer {
     // منع المحاولات المتزامنة
     if (_isInitializing) return false;
     _isInitializing = true;
+    _lastAttemptAt = DateTime.now();
     _emitState(DeltaSyncInitState.initializing);
 
     try {

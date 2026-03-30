@@ -303,6 +303,15 @@ class UnifiedSyncOrchestrator {
     await _takeSnapshot();
   }
 
+  Future<void> _snapshotIfNeeded({bool force = false}) async {
+    final now = DateTime.now();
+    if (!force && _state.lastSnapshotAt != null) {
+      final diff = now.difference(_state.lastSnapshotAt!);
+      if (diff.inMinutes < 20) return;
+    }
+    await _takeSnapshot();
+  }
+
   Future<void> _takeSnapshot() async {
     if (_smart == null || _database == null) return;
     _emit(

@@ -323,6 +323,9 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
+
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;
   final buf = StringBuffer();

@@ -8,6 +8,7 @@ import '../providers/appwrite_providers.dart' as appwrite_providers;
 import '../providers/sync_log_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
+import '../services/field_level_sync.dart';
 import '../screens/settings/sync_history_screen.dart';
 
 // ============================================================================
@@ -293,6 +294,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   AnimationController? _pushAnimationController;
   bool _isDisposed = false;
 
+  // Services
+  late final FieldLevelTracker _fieldTracker;
+
   @override
   void initState() {
     super.initState();
@@ -305,6 +309,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       duration: const Duration(milliseconds: 1200),
     );
 
+    // ✅ تهيئة Field-Level Tracker
+    _initFieldLevel();
+  }
+
+  Future<void> _initFieldLevel() async {
+    final deviceId = await _getDeviceId();
+    _fieldTracker = FieldLevelTracker(deviceId: deviceId);
+
+    // الاستماع للتغييرات
+    // TODO: ربط مع الـ DAO للحصول على التغييرات الفعلية
   }
 
   @override
@@ -338,6 +352,40 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     } catch (e) {
       debugPrint('⚠️ Animation error: $e');
     }
+  }
+
+  Future<T> _withRetry<T>(
+    Future<T> Function() operation, {
+    int maxRetries = 3,
+    String operationName = 'operation',
+  }) async {
+    int attempts = 0;
+    Exception? lastError;
+
+    while (attempts < maxRetries) {
+      try {
+        return await operation();
+      } on Exception catch (e) {
+        lastError = e;
+        attempts++;
+        if (attempts < maxRetries) {
+          final delay = Duration(seconds: attempts * 2);
+          debugPrint('⚠️ $operationName فشل ($attempts/$maxRetries): $e');
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw lastError ?? Exception('$operationName فشل');
+  }
+
+  Future<String> _getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    var deviceId = prefs.getString('deviceId');
+    if (deviceId == null) {
+      deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+      await prefs.setString('deviceId', deviceId);
+    }
+    return deviceId;
   }
 
   String _formatLastSyncTime(DateTime? lastSync) {
@@ -381,6 +429,52 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     } catch (e) {
       debugPrint('❌ Initialization failed: $e');
       return false;
+    }
+  }
+
+  /// ✅ مزامنة كاملة مع دعم Field-Level
+  Future<void> _syncDifferential(BuildContext context) async {
+    final syncState = ref.read(syncStateProvider);
+    if (syncState.isSyncing) return;
+
+    final notifier = ref.read(syncStateProvider.notifier);
+    notifier.setPulling(true);
+    notifier.setPushing(true);
+    _safeRepeatAnimation(_pullAnimationController);
+    _safeRepeatAnimation(_pushAnimationController);
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      _showSnackBar(
+        context,
+        '🔄 جاري المزامنة...',
+        Colors.blue,
+        showProgress: true,
+      );
+
+      final useFieldLevel = syncState.fieldLevelEnabled;
+
+      if (!await _ensureServicesInitialized(useFieldLevel: useFieldLevel)) {
+        throw Exception('فشل تهيئة الخدمة');
+      }
+
+      // TODO: استدعاء Field-Level Sync أو Delta Sync حسب الإعداد
+      final result = await _performSync(useFieldLevel: useFieldLevel);
+
+      stopwatch.stop();
+      notifier.setLastSyncTime(DateTime.now());
+      notifier.updateErrorsCount(0);
+
+      _invalidateProviders();
+
+      if (mounted) {
+        _showSuccessSnackBar(context, result, stopwatch.elapsed);
+      }
+    } catch (e) {
+      _handleError(context, e, stopwatch, notifier);
+    } finally {
+      _cleanup(notifier);
     }
   }
 
@@ -472,6 +566,24 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // Placeholder Methods - دوال مؤقتة (للربط لاحقاً)
   // ============================================================================
 
+  Future<SyncResult> _performSync({required bool useFieldLevel}) async {
+    final deltaSync = AppwriteDeltaSync.instance;
+    final result = await deltaSync.fullSync();
+
+    if (!result.success && result.message.contains('غير جاهزة')) {
+      throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
+    }
+
+    return SyncResult(
+      recordsPushed: result.pushedCount,
+      recordsPulled: result.pulledCount,
+      fieldsPushed: useFieldLevel ? result.pushedCount : 0,
+      fieldsPulled: useFieldLevel ? result.pulledCount : 0,
+      conflicts: result.conflictCount,
+      failedCount: result.failedCount,
+    );
+  }
+
   Future<SyncResult> _performPull({required bool useFieldLevel}) async {
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.pullDeltaChanges();
@@ -512,6 +624,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     ref.invalidate(syncHistoryProvider);
   }
 
+  void _cleanup(SyncStateNotifier notifier) {
+    _safeStopAnimation(_pullAnimationController);
+    _safeStopAnimation(_pushAnimationController);
+    notifier.setPulling(false);
+    notifier.setPushing(false);
+  }
+
   void _handleError(
     BuildContext context,
     dynamic error,
@@ -520,7 +639,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   ) {
     debugPrint('❌ Sync error: $error');
     stopwatch.stop();
-    notifier.updateErrorsCount(ref.read(syncStateProvider).syncErrorsCount + 1);
+    notifier.updateErrorsCount(notifier.state.syncErrorsCount + 1);
     _invalidateProviders();
 
     if (mounted) {

@@ -189,15 +189,15 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
+      _k(src, 'version', 'version'): model.version ?? 1,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock,
+        model.vectorClock ?? {},
       ),
       // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'sync_version': model.version, // ✅ integer
+      'sync_version': model.version ?? 1, // ✅ integer
       'sync_vector_clock': jsonEncode(
-        model.vectorClock,
+        model.vectorClock ?? {},
       ), // ✅ string (JSON)
     };
   }

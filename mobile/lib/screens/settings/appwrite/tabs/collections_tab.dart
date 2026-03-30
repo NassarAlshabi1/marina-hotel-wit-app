@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
 import '../../../../services/appwrite_config.dart';
+import '../../../../services/local_db.dart';
 
 /// Appwrite Collections Tab - إدارة الجداول والحقول المزامنة
 class AppwriteCollectionsTab extends ConsumerStatefulWidget {
@@ -14,10 +15,18 @@ class AppwriteCollectionsTab extends ConsumerStatefulWidget {
 
 class _AppwriteCollectionsTabState
     extends ConsumerState<AppwriteCollectionsTab> {
+  late AppDatabase _db;
+  final Map<String, bool> _collectionSyncStatus = {};
+
   @override
   void initState() {
     super.initState();
+    _initializeDatabase();
     _loadSyncStatus();
+  }
+
+  void _initializeDatabase() {
+    _db = AppDatabase();
   }
 
   Future<void> _loadSyncStatus() async {

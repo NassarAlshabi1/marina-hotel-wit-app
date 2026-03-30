@@ -618,6 +618,7 @@ class Outbox extends Table {
   IntColumn get lastSuccessfulPushAt =>
       integer().nullable()(); // وقت آخر رفع ناجح
 
+  @override
   List<Index> get indexes => [
     Index(
       'idx_outbox_status_priority',
@@ -705,6 +706,7 @@ class FieldVersions extends Table {
   @override
   Set<Column> get primaryKey => {syncEntityName, recordUuid, fieldName};
 
+  @override
   List<Index> get indexes => [
     Index(
       'idx_field_versions_entity_record',

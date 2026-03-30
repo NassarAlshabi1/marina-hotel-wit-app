@@ -142,13 +142,13 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version,
+      _k(src, 'version', 'version'): model.version ?? 1,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock,
+        model.vectorClock ?? {},
       ),
       // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'basePrice': model.price, // ✅ double
+      'basePrice': model.price ?? 0.0, // ✅ double
       'floor': 1, // ✅ integer - قيمة افتراضية للطابق
     };
   }

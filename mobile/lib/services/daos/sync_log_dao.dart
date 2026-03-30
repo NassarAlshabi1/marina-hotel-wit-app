@@ -113,7 +113,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
         metadata: Value(metaJson),
       );
 
-      await (update(
+      final count = await (update(
         syncLog,
       )..where((t) => t.syncId.equals(syncId))).write(updateEntry);
 

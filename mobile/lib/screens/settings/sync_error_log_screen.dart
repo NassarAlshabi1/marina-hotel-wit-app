@@ -546,6 +546,9 @@ class SyncErrorLogScreen extends ConsumerWidget {
     );
 
     if (confirmed ?? false) {
+      final db = ref.read(databaseProvider);
+      final outboxDao = OutboxDao(db);
+      // TODO: Add deleteByEntity method to OutboxDao
       ref.invalidate(syncErrorLogProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

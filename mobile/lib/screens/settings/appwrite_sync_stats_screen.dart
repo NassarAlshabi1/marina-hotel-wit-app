@@ -107,6 +107,14 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     return 0;
   }
 
+  double _doubleVal(Map<String, dynamic> map, String key) {
+    final v = map[key];
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is num) return v.toDouble();
+    return 0.0;
+  }
+
   // ==================== قسم Outbox والأزرار ====================
 
   Widget _buildOutboxAndActions(

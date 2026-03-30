@@ -202,6 +202,20 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
 d.Value<Map<String, dynamic>> _vMapJson(
   Map<String, dynamic> json,
   String key,
@@ -214,6 +228,15 @@ d.Value<Map<String, dynamic>> _vMapJson(
       (altKey != null ? _asMap(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+double? _asDouble(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v);
+  return null;
 }
 
 Map<String, dynamic>? _asMap(
