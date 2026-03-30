@@ -21,82 +21,15 @@ import 'repositories/base_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'conflict_resolver.dart';
 // ✅ Field-Level Sync
-import 'field_level_sync.dart';
-
-/// ⭐ نموذج خطأ على مستوى الحقل
-/// يُستخدم لتتبع الأخطاء التفصيلية أثناء المزامنة
-class FieldSyncError {
-  const FieldSyncError({
-    required this.entityName,
-    required this.recordUuid,
-    required this.fieldName,
-    required this.errorType,
-    required this.errorMessage,
-    required this.timestamp,
-    this.operation = 'update',
-  });
-
-  final String entityName;
-  final String recordUuid;
-  final String fieldName;
-  final String errorType;
-  final String errorMessage;
-  final int timestamp;
-  final String operation;
-
-  /// نوع الخطأ بالعربية
-  String get errorTypeAr {
-    switch (errorType) {
-      case 'network':
-        return 'شبكة';
-      case 'validation':
-        return 'تحقق';
-      case 'not_found':
-        return 'غير موجود';
-      case 'permission':
-        return 'صلاحية';
-      case 'timeout':
-        return 'انتهاء المهلة';
-      case 'data_mismatch':
-        return 'تضارب بيانات';
-      case 'unknown':
-        return 'غير معروف';
-      default:
-        return errorType;
-    }
-  }
-
-  Map<String, dynamic> toJson() => {
-    'entityName': entityName,
-    'recordUuid': recordUuid,
-    'fieldName': fieldName,
-    'errorType': errorType,
-    'errorMessage': errorMessage,
-    'timestamp': timestamp,
-    'operation': operation,
-  };
-
-  factory FieldSyncError.fromJson(Map<String, dynamic> json) => FieldSyncError(
-    entityName: json['entityName'] as String? ?? '',
-    recordUuid: json['recordUuid'] as String? ?? '',
-    fieldName: json['fieldName'] as String? ?? '',
-    errorType: json['errorType'] as String? ?? 'unknown',
-    errorMessage: json['errorMessage'] as String? ?? '',
-    timestamp: json['timestamp'] as int? ?? 0,
-    operation: json['operation'] as String? ?? 'update',
-  );
-}
 
 class AppwriteDeltaSyncResult {
-  const AppwriteDeltaSyncResult({
+  AppwriteDeltaSyncResult({
     required this.success,
     required this.message,
     this.pushedCount = 0,
     this.pulledCount = 0,
     this.conflictCount = 0,
     this.failedCount = 0,
-    this.fieldErrors = const [],
-    this.fieldsPushed = 0,
   });
   final bool success;
   final String message;
@@ -105,16 +38,9 @@ class AppwriteDeltaSyncResult {
   final int conflictCount;
   final int failedCount;
 
-  /// ⭐ أخطاء Field-Level التفصيلية
-  final List<FieldSyncError> fieldErrors;
-
-  /// عدد الحقول المرفوعة فعلياً (فقط المتغيرة)
-  final int fieldsPushed;
-
   int get recordsPulled => pulledCount;
   int get recordsPushed => pushedCount;
   bool get hasConflicts => conflictCount > 0;
-  bool get hasFieldErrors => fieldErrors.isNotEmpty;
 }
 
 class AppwriteDeltaSync {
@@ -415,384 +341,6 @@ class AppwriteDeltaSync {
           if (e.code != 404) rethrow;
         }
     }
-  }
-
-  // ==================== FIELD-LEVEL PUSH ====================
-
-  /// ✅ رفع تغييرات على مستوى الحقل (Field-Level Sync)
-  /// يكتشف السجلات المتغيرة عبر DeltaSyncService، ثم يحسب فروقات الحقول
-  /// عبر FieldLevelTracker ويرفع فقط الحقول المتغيرة
-  Future<AppwriteDeltaSyncResult> pushFieldLevelChanges() async {
-    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) return false;
-      _isSyncing = true;
-      return true;
-    });
-
-    if (!canStart) {
-      return const AppwriteDeltaSyncResult(
-        success: false,
-        message: 'الخدمة غير جاهزة أو المزامنة جارية',
-      );
-    }
-
-    final fieldErrors = <FieldSyncError>[];
-    int totalFieldsPushed = 0;
-    final successfulChanges = <DeltaSyncChange>[];
-    final failedChanges = <DeltaSyncChange>[];
-    final fieldTracker = FieldLevelTracker(deviceId: _deviceId ?? '');
-    final fieldVersionsDao = FieldVersionsDao(_database!);
-
-    try {
-      _logger.info(
-        '📤 بدء Field-Level Sync إلى Appwrite...',
-        tag: 'FIELD_SYNC',
-      );
-
-      // 1️⃣ اكتشاف السجلات المتغيرة عبر المرآة
-      final lastPushTs = await _getLastDeltaPushTimestamp();
-      final computation = await _deltaSyncService!.compute(since: lastPushTs);
-
-      if (computation.changes.isEmpty) {
-        _logger.info('✅ لا توجد تغييرات للمزامنة', tag: 'FIELD_SYNC');
-        return const AppwriteDeltaSyncResult(
-          success: true,
-          message: 'لا توجد تغييرات',
-        );
-      }
-
-      _logger.info(
-        '📊 تم اكتشاف ${computation.changes.length} سجل متغير',
-        tag: 'FIELD_SYNC',
-      );
-
-      // 2️⃣ لكل سجل متغير، نحسب الفروقات على مستوى الحقل
-      for (final change in computation.changes) {
-        final collectionId = _getCollectionId(change.entity);
-        if (collectionId == null) {
-          _logger.warning(
-            '⚠️ لا يوجد collectionId لـ ${change.entity}',
-            tag: 'FIELD_SYNC',
-          );
-          continue;
-        }
-
-        try {
-          if (change.operation == 'delete') {
-            // الحذف لا يحتاج field-level diff
-            await _pushSingleChange(change);
-            successfulChanges.add(change);
-            continue;
-          }
-
-          // 3️⃣ الحصول على البيانات القديمة من المرآة والجديدة من التغيير
-          final newData = Map<String, dynamic>.from(change.data);
-          final oldData = <String, dynamic>{};
-
-          // استخراج البيانات القديمة من المرآة
-          final mirrorData = computation.mirrorSnapshot[change.entity];
-          if (mirrorData != null && mirrorData.containsKey(change.localUuid)) {
-            final mirrorRow = mirrorData[change.localUuid]!;
-            try {
-              // payload هو Map<String, dynamic> مباشرة (ليس JSON string)
-              oldData.addAll(mirrorRow.payload);
-            } catch (_) {
-              _logger.debug(
-                '⚠️ فشل قراءة مرآة ${change.entity}/${change.localUuid}',
-                tag: 'FIELD_SYNC',
-              );
-            }
-          }
-
-          // 4️⃣ قراءة نسخ الحقول السابقة
-          final oldFieldVersions = await fieldVersionsDao.getFieldVersions(
-            change.entity,
-            change.localUuid,
-          );
-          final oldFieldTimestamps = await fieldVersionsDao.getFieldTimestamps(
-            change.entity,
-            change.localUuid,
-          );
-          final oldFieldVectorClocks = await fieldVersionsDao
-              .getFieldVectorClocks(change.entity, change.localUuid);
-          final oldFieldDevices = await fieldVersionsDao.getFieldDevices(
-            change.entity,
-            change.localUuid,
-          );
-
-          // 5️⃣ حساب الفروقات على مستوى الحقل
-          final diff = fieldTracker.computeDiff(
-            entityName: change.entity,
-            oldData: oldData,
-            newData: newData,
-            oldFieldVersions: oldFieldVersions,
-            oldFieldTimestamps: oldFieldTimestamps,
-            oldFieldVectorClocks: oldFieldVectorClocks,
-            oldFieldDevices: oldFieldDevices,
-          );
-
-          if (diff.isEmpty) {
-            _logger.debug(
-              '⏭️ لا توجد فروقات حقلية لـ ${change.entity}/${change.localUuid}',
-              tag: 'FIELD_SYNC',
-            );
-            successfulChanges.add(change);
-            continue;
-          }
-
-          _logger.info(
-            '📤 ${change.entity}/${change.localUuid}: ${diff.changedFields.length} حقل متغير [${diff.changedFields.keys.join(', ')}]',
-            tag: 'FIELD_SYNC',
-          );
-
-          // 6️⃣ بناء payload يحتوي فقط على الحقول المتغيرة + حقول التحكم
-          final fieldOnlyPayload = <String, dynamic>{
-            'localUuid': change.localUuid,
-            'deviceId': _deviceId,
-            'syncTimestamp': Time.nowEpoch(),
-            'lastModified': Time.nowEpoch(),
-          };
-          fieldOnlyPayload.addAll(diff.changedFields);
-
-          // 7️⃣ إضافة الحقول المطلوبة للكيان
-          final sanitizedPayload = _sanitizePayload(
-            fieldOnlyPayload,
-            collectionEntity: change.entity,
-          );
-
-          if (sanitizedPayload.isEmpty) {
-            _logger.warning(
-              '⚠️ Payload فارغ بعد التنظيف لـ ${change.entity}/${change.localUuid}',
-              tag: 'FIELD_SYNC',
-            );
-            successfulChanges.add(change);
-            continue;
-          }
-
-          // 8️⃣ رفع التغيير الجزئي
-          final operation = change.operation == 'insert' ? 'insert' : 'update';
-          await _pushFieldLevelToAppwrite(
-            collectionId: collectionId,
-            documentId: change.localUuid,
-            data: sanitizedPayload,
-            operation: operation,
-          );
-
-          totalFieldsPushed += diff.changedFields.length;
-
-          // 9️⃣ حفظ نسخ الحقول المحدثة
-          await fieldVersionsDao.saveFieldVersions(
-            entityName: change.entity,
-            recordUuid: change.localUuid,
-            versions: diff.fieldVersions,
-            timestamps: diff.fieldTimestamps,
-            vectorClocks: diff.fieldVectorClocks,
-            devices: diff.fieldDevices,
-          );
-
-          successfulChanges.add(change);
-        } catch (e) {
-          final errorType = _classifyError(e);
-          final errorMsg = e.toString();
-
-          _logger.warning(
-            '❌ فشل رفع ${change.entity}/${change.localUuid}: $errorMsg',
-            tag: 'FIELD_SYNC',
-          );
-
-          // إضافة خطأ لكل حقل في هذا السجل
-          for (final fieldKey in change.data.keys) {
-            fieldErrors.add(
-              FieldSyncError(
-                entityName: change.entity,
-                recordUuid: change.localUuid,
-                fieldName: fieldKey,
-                errorType: errorType,
-                errorMessage: errorMsg,
-                timestamp: Time.nowEpoch(),
-                operation: change.operation,
-              ),
-            );
-          }
-
-          failedChanges.add(change);
-
-          // التوقف إذا كان خطأ شبكة
-          if (errorType == 'network') {
-            _logger.error(
-              'توقف Field-Level Sync بسبب مشكلة في الاتصال',
-              tag: 'FIELD_SYNC',
-            );
-            break;
-          }
-        }
-      }
-
-      // 🔟 تحديث المرآة والتوقيت بعد النجاح
-      if (successfulChanges.isNotEmpty) {
-        try {
-          await _persistSuccessfulChanges(computation, successfulChanges);
-          await _updateLastDeltaPushTimestamp();
-          await _cleanupOutboxAfterSync(successfulChanges);
-          _logger.info(
-            '✅ Field-Level Sync: ${successfulChanges.length} سجل، $totalFieldsPushed حقل',
-            tag: 'FIELD_SYNC',
-          );
-        } catch (e) {
-          _logger.error('❌ فشل التحديث المحلي: $e', tag: 'FIELD_SYNC');
-          return AppwriteDeltaSyncResult(
-            success: false,
-            message: 'تم الرفع لكن فشل التحديث المحلي: $e',
-            pushedCount: successfulChanges.length,
-            failedCount: failedChanges.length + 1,
-            fieldsPushed: totalFieldsPushed,
-            fieldErrors: fieldErrors,
-          );
-        }
-      }
-
-      // 1️⃣1️⃣ حفظ أخطاء المزامنة لعرضها لاحقاً
-      if (fieldErrors.isNotEmpty) {
-        await _saveFieldSyncErrors(fieldErrors);
-      }
-
-      final hasFailures = failedChanges.isNotEmpty;
-      final message = hasFailures
-          ? 'Field-Level: $totalFieldsPushed حقل (${successfulChanges.length} سجل)، فشل ${failedChanges.length}'
-          : 'Field-Level: $totalFieldsPushed حقل (${successfulChanges.length} سجل) بنجاح';
-
-      _logger.info('✅ $message', tag: 'FIELD_SYNC');
-
-      return AppwriteDeltaSyncResult(
-        success: !hasFailures,
-        message: message,
-        pushedCount: successfulChanges.length,
-        failedCount: failedChanges.length,
-        fieldsPushed: totalFieldsPushed,
-        fieldErrors: fieldErrors,
-      );
-    } catch (e) {
-      _logger.error('❌ خطأ في Field-Level Sync: $e', tag: 'FIELD_SYNC');
-      return AppwriteDeltaSyncResult(
-        success: false,
-        message: e.toString(),
-        fieldErrors: fieldErrors,
-      );
-    } finally {
-      await SyncLocks.appwriteSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
-    }
-  }
-
-  /// ✅ رفع بيانات حقلية جزئية إلى Appwrite
-  Future<void> _pushFieldLevelToAppwrite({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-    required String operation,
-  }) async {
-    switch (operation) {
-      case 'insert':
-        await _appwriteService!.upsertDocument(
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        );
-      case 'update':
-        await _appwriteService!.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        );
-    }
-  }
-
-  /// ✅ تصنيف نوع الخطأ
-  String _classifyError(dynamic error) {
-    final errorStr = error.toString();
-    if (errorStr.contains('SocketException') ||
-        errorStr.contains('HttpException') ||
-        errorStr.contains('Connection refused')) {
-      return 'network';
-    }
-    if (errorStr.contains('TimeoutException') ||
-        errorStr.contains('timed out')) {
-      return 'timeout';
-    }
-    if (errorStr.contains('404') || errorStr.contains('not_found')) {
-      return 'not_found';
-    }
-    if (errorStr.contains('403') ||
-        errorStr.contains('401') ||
-        errorStr.contains('permission')) {
-      return 'permission';
-    }
-    if (errorStr.contains('document_invalid_structure') ||
-        errorStr.contains('invalid') ||
-        errorStr.contains('validation')) {
-      return 'validation';
-    }
-    if (errorStr.contains('data_mismatch') || errorStr.contains('conflict')) {
-      return 'data_mismatch';
-    }
-    return 'unknown';
-  }
-
-  /// ✅ حفظ أخطاء المزامنة في SharedPreferences لعرضها في الإعدادات
-  Future<void> _saveFieldSyncErrors(List<FieldSyncError> errors) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final now = Time.nowEpoch();
-
-      // الاحتفاظ بآخر 50 خطأ فقط
-      final existingJson = prefs.getStringList('field_sync_errors') ?? [];
-      final newErrors = errors.map((e) => jsonEncode(e.toJson())).toList();
-      final allErrors = [...newErrors, ...existingJson].take(50).toList();
-
-      await prefs.setStringList('field_sync_errors', allErrors);
-      await prefs.setInt('field_sync_errors_last_updated', now);
-
-      // تحديث العداد
-      final currentCount = prefs.getInt('field_sync_errors_count') ?? 0;
-      await prefs.setInt(
-        'field_sync_errors_count',
-        currentCount + errors.length,
-      );
-    } catch (e) {
-      _logger.warning('⚠️ فشل حفظ أخطاء المزامنة: $e', tag: 'FIELD_SYNC');
-    }
-  }
-
-  /// ✅ جلب أخطاء المزامنة المحفوظة (للعرض في الإعدادات)
-  static Future<List<FieldSyncError>> getFieldSyncErrors() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final errorsJson = prefs.getStringList('field_sync_errors') ?? [];
-      return errorsJson
-          .map((json) {
-            try {
-              return FieldSyncError.fromJson(
-                jsonDecode(json) as Map<String, dynamic>,
-              );
-            } catch (_) {
-              return null;
-            }
-          })
-          .whereType<FieldSyncError>()
-          .toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  /// ✅ مسح أخطاء المزامنة المحفوظة
-  static Future<void> clearFieldSyncErrors() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('field_sync_errors');
-    await prefs.setInt('field_sync_errors_count', 0);
-    await prefs.remove('field_sync_errors_last_updated');
   }
 
   // ==================== PULL (مع Pagination) ====================
@@ -1925,20 +1473,20 @@ INSERT INTO sync_mirror
   void _convertAmountsToInt(Map<String, dynamic> data) {
     // ✅ حقول يجب تحويلها إلى int (نوعها integer في Appwrite)
     final amountFields = [
-      'amount', // integer في salary_withdrawals, payments, debts
-      'price', // integer في rooms
-      'totalAmount', // integer في debts
-      'remainingAmount', // integer في debts
-      'totalDueCached', // integer في bookings
-      'totalPaidCached', // integer في bookings
+      'amount',           // integer في salary_withdrawals, payments, debts
+      'price',            // integer في rooms
+      'totalAmount',      // integer في debts
+      'remainingAmount',  // integer في debts
+      'totalDueCached',   // integer في bookings
+      'totalPaidCached',  // integer في bookings
       'remainingBalanceCached', // integer في bookings
-      'expectedAmount', // integer في salary_cycles
-      'actualPaid', // integer في salary_cycles
-      'totalDeductions', // integer في salary_cycles
+      'expectedAmount',   // integer في salary_cycles
+      'actualPaid',       // integer في salary_cycles
+      'totalDeductions',  // integer في salary_cycles
       'totalWithdrawals', // integer في salary_cycles
-      'netSalary', // integer في salary_cycles
-      'originalAmount', // integer في payment_voids
-      'voidedAmount', // integer في payment_voids
+      'netSalary',        // integer في salary_cycles
+      'originalAmount',   // integer في payment_voids
+      'voidedAmount',     // integer في payment_voids
     ];
 
     // ✅ حقول يجب تركها كـ double (نوعها double في Appwrite)

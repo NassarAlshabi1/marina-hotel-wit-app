@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 // Color scheme matching PHP Bootstrap admin design
 class AppColors {
-  // Primary colors
-  static const Color primaryColor = Color(0xFF6A1B9A);
-  static const Color primaryDark = Color(0xFF501474);
-  static const Color primaryLight = Color(0xFF9B4FCA);
+  // Primary colors - matching PHP header/sidebar
+  static const Color primaryColor = Color(0xFFCC94FF);
+  static const Color primaryDark = Color(0xFFA36BDD);
+  static const Color primaryLight = Color(0xFFE4C6FF);
 
   // Background colors
   static const Color backgroundColor = Color(0xFFf8f9fa); // Bootstrap bg-light
@@ -209,11 +209,11 @@ ThemeData buildDarkTheme() {
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: Color(0xFF6A1B9A)),
+        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: Color(0xFF6A1B9A)),
+        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),

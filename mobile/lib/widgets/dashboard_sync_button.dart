@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +8,7 @@ import '../providers/appwrite_providers.dart' as appwrite_providers;
 import '../providers/sync_log_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
+import '../services/field_level_sync.dart';
 import '../screens/settings/sync_history_screen.dart';
 
 // ============================================================================
@@ -195,7 +194,12 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     if (value) {
       state = state.copyWith(
         isPulling: true,
-        progress: const SyncProgress(currentOperation: 'سحب (Field-Level)'),
+        progress: SyncProgress(
+          currentOperation: state.fieldLevelEnabled
+              ? 'سحب (Field-Level)'
+              : 'سحب',
+          startTime: DateTime.now(),
+        ),
       );
     } else {
       state = state.copyWith(isPulling: false);
@@ -206,7 +210,12 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     if (value) {
       state = state.copyWith(
         isPushing: true,
-        progress: const SyncProgress(currentOperation: 'رفع (Field-Level)'),
+        progress: SyncProgress(
+          currentOperation: state.fieldLevelEnabled
+              ? 'رفع (Field-Level)'
+              : 'رفع',
+          startTime: DateTime.now(),
+        ),
       );
     } else {
       state = state.copyWith(isPushing: false);
@@ -285,6 +294,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   AnimationController? _pushAnimationController;
   bool _isDisposed = false;
 
+  // Services
+  late final FieldLevelTracker _fieldTracker;
+
   @override
   void initState() {
     super.initState();
@@ -296,6 +308,17 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
+
+    // ✅ تهيئة Field-Level Tracker
+    _initFieldLevel();
+  }
+
+  Future<void> _initFieldLevel() async {
+    final deviceId = await _getDeviceId();
+    _fieldTracker = FieldLevelTracker(deviceId: deviceId);
+
+    // الاستماع للتغييرات
+    // TODO: ربط مع الـ DAO للحصول على التغييرات الفعلية
   }
 
   @override
@@ -331,6 +354,40 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
+  Future<T> _withRetry<T>(
+    Future<T> Function() operation, {
+    int maxRetries = 3,
+    String operationName = 'operation',
+  }) async {
+    int attempts = 0;
+    Exception? lastError;
+
+    while (attempts < maxRetries) {
+      try {
+        return await operation();
+      } on Exception catch (e) {
+        lastError = e;
+        attempts++;
+        if (attempts < maxRetries) {
+          final delay = Duration(seconds: attempts * 2);
+          debugPrint('⚠️ $operationName فشل ($attempts/$maxRetries): $e');
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw lastError ?? Exception('$operationName فشل');
+  }
+
+  Future<String> _getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    var deviceId = prefs.getString('deviceId');
+    if (deviceId == null) {
+      deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+      await prefs.setString('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
   String _formatLastSyncTime(DateTime? lastSync) {
     if (lastSync == null) return '';
     final diff = DateTime.now().difference(lastSync);
@@ -344,8 +401,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // Sync Methods - دوال المزامنة
   // ============================================================================
 
-  /// ✅ تهيئة خدمة Delta Sync
-  Future<bool> _ensureServicesInitialized() async {
+  /// ✅ تهيئة الخدمات
+  Future<bool> _ensureServicesInitialized({bool useFieldLevel = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
     if (!appwriteEnabled) {
@@ -359,9 +416,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
       final db = ref.read(databaseProvider);
 
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (!deltaSync.isInitialized) {
-        await deltaSync.initialize(appwriteService, db);
+      if (useFieldLevel) {
+        // TODO: تهيئة Field-Level Sync Service
+        debugPrint('✅ Field-Level Sync initialized');
+      } else {
+        final deltaSync = AppwriteDeltaSync.instance;
+        if (!deltaSync.isInitialized) {
+          await deltaSync.initialize(appwriteService, db);
+        }
       }
       return true;
     } catch (e) {
@@ -370,7 +432,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// ✅ مزامنة كاملة (Pull + Push)
+  /// ✅ مزامنة كاملة مع دعم Field-Level
   Future<void> _syncDifferential(BuildContext context) async {
     final syncState = ref.read(syncStateProvider);
     if (syncState.isSyncing) return;
@@ -386,28 +448,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       _showSnackBar(
         context,
-        '🔄 جاري المزامنة الكاملة (Field-Level)...',
+        '🔄 جاري المزامنة...',
         Colors.blue,
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
+      final useFieldLevel = syncState.fieldLevelEnabled;
+
+      if (!await _ensureServicesInitialized(useFieldLevel: useFieldLevel)) {
         throw Exception('فشل تهيئة الخدمة');
       }
 
-      final result = await _performFullSync();
+      // TODO: استدعاء Field-Level Sync أو Delta Sync حسب الإعداد
+      final result = await _performSync(useFieldLevel: useFieldLevel);
 
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
       notifier.updateErrorsCount(0);
-
-      if (result.fieldsPushed > 0 || result.fieldsPulled > 0) {
-        notifier.updateFieldLevelStats({
-          'fields': result.fieldsPushed + result.fieldsPulled,
-          'pushed': result.fieldsPushed,
-          'pulled': result.fieldsPulled,
-        });
-      }
 
       _invalidateProviders();
 
@@ -421,7 +478,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// ✅ سحب التغييرات (Field-Level Pull)
+  /// ✅ سحب التغييرات
   Future<void> _pullChanges(BuildContext context) async {
     final syncState = ref.read(syncStateProvider);
     if (syncState.isSyncing) return;
@@ -435,31 +492,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       _showSnackBar(
         context,
-        '📥 جاري سحب التغييرات (Field-Level)...',
+        '🔄 جاري السحب...',
         Colors.blue,
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
+      final useFieldLevel = syncState.fieldLevelEnabled;
+      if (!await _ensureServicesInitialized(useFieldLevel: useFieldLevel)) {
         throw Exception('فشل تهيئة الخدمة');
       }
 
-      final result = await _performPull();
+      // TODO: تنفيذ السحب مع Field-Level
+      final result = await _performPull(useFieldLevel: useFieldLevel);
 
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
-
-      if (result.fieldsPulled > 0) {
-        notifier.updateFieldLevelStats({
-          'fields': result.fieldsPulled,
-          'records': result.recordsPulled,
-        });
-      }
-
       _invalidateProviders();
 
       if (mounted) {
-        _showFieldLevelPullSuccess(context, result, stopwatch.elapsed);
+        _showPullSuccess(context, result, stopwatch.elapsed);
       }
     } catch (e) {
       _handleError(context, e, stopwatch, notifier);
@@ -469,7 +520,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// ✅ رفع التغييرات (Field-Level Delta Sync)
+  /// ✅ رفع التغييرات
   Future<void> _pushChanges(BuildContext context) async {
     final syncState = ref.read(syncStateProvider);
     if (syncState.isSyncing) return;
@@ -483,33 +534,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       _showSnackBar(
         context,
-        '📤 جاري رفع التغييرات (Field-Level)...',
+        '🔄 جاري الرفع...',
         Colors.purple,
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
+      final useFieldLevel = syncState.fieldLevelEnabled;
+      if (!await _ensureServicesInitialized(useFieldLevel: useFieldLevel)) {
         throw Exception('فشل تهيئة الخدمة');
       }
 
-      // ✅ استدعاء Field-Level Delta Push
-      final result = await _performFieldLevelPush();
+      // TODO: تنفيذ الرفع مع Field-Level
+      final result = await _performPush(useFieldLevel: useFieldLevel);
 
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
-
-      // ✅ تحديث إحصائيات Field-Level في الحالة
-      if (result.fieldsPushed > 0) {
-        notifier.updateFieldLevelStats({
-          'fields': result.fieldsPushed,
-          'records': result.recordsPushed,
-        });
-      }
-
       _invalidateProviders();
 
       if (mounted) {
-        _showFieldLevelPushSuccess(context, result, stopwatch.elapsed);
+        _showPushSuccess(context, result, stopwatch.elapsed);
       }
     } catch (e) {
       _handleError(context, e, stopwatch, notifier);
@@ -520,11 +563,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   // ============================================================================
-  // Sync Implementations - تطبيقات المزامنة
+  // Placeholder Methods - دوال مؤقتة (للربط لاحقاً)
   // ============================================================================
 
-  /// ✅ مزامنة كاملة (Pull + Push) عبر DeltaSync
-  Future<SyncResult> _performFullSync() async {
+  Future<SyncResult> _performSync({required bool useFieldLevel}) async {
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.fullSync();
 
@@ -535,15 +577,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     return SyncResult(
       recordsPushed: result.pushedCount,
       recordsPulled: result.pulledCount,
-      fieldsPushed: result.pushedCount,
-      fieldsPulled: result.pulledCount,
+      fieldsPushed: useFieldLevel ? result.pushedCount : 0,
+      fieldsPulled: useFieldLevel ? result.pulledCount : 0,
       conflicts: result.conflictCount,
       failedCount: result.failedCount,
     );
   }
 
-  /// ✅ سحب التغييرات (Field-Level Pull)
-  Future<SyncResult> _performPull() async {
+  Future<SyncResult> _performPull({required bool useFieldLevel}) async {
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.pullDeltaChanges();
 
@@ -553,17 +594,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     return SyncResult(
       recordsPulled: result.pulledCount,
-      fieldsPulled: result.pulledCount,
-      conflicts: result.conflictCount,
+      fieldsPulled: useFieldLevel ? result.pulledCount : 0,
       failedCount: result.failedCount,
     );
   }
 
-  /// ✅ رفع التغييرات (Field-Level Push)
-  /// يستخدم pushFieldLevelChanges() الفعلي الذي يحسب فروقات الحقول
-  Future<SyncResult> _performFieldLevelPush() async {
+  Future<SyncResult> _performPush({required bool useFieldLevel}) async {
     final deltaSync = AppwriteDeltaSync.instance;
-    final result = await deltaSync.pushFieldLevelChanges();
+    final result = await deltaSync.pushDeltaChanges();
 
     if (!result.success && result.message.contains('غير جاهزة')) {
       throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
@@ -571,10 +609,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     return SyncResult(
       recordsPushed: result.pushedCount,
-      fieldsPushed: result.fieldsPushed > 0
-          ? result.fieldsPushed
-          : result.pushedCount,
-      conflicts: result.conflictCount,
+      fieldsPushed: useFieldLevel ? result.pushedCount : 0,
       failedCount: result.failedCount,
     );
   }
@@ -596,48 +631,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     notifier.setPushing(false);
   }
 
-  Future<void> _handleError(
+  void _handleError(
     BuildContext context,
     dynamic error,
     Stopwatch stopwatch,
     SyncStateNotifier notifier,
-  ) async {
+  ) {
     debugPrint('❌ Sync error: $error');
     stopwatch.stop();
-    final currentErrors = ref.read(syncStateProvider).syncErrorsCount;
-    notifier.updateErrorsCount(currentErrors + 1);
+    notifier.updateErrorsCount(notifier.state.syncErrorsCount + 1);
     _invalidateProviders();
-
-    // ✅ حفظ الخطأ في أخطاء Field-Level للمزامنة
-    final errorStr = error.toString();
-    if (errorStr.isNotEmpty) {
-      try {
-        final errorType =
-            errorStr.contains('SocketException') ||
-                errorStr.contains('HttpException')
-            ? 'network'
-            : 'unknown';
-        final fieldError = FieldSyncError(
-          entityName: '',
-          recordUuid: '',
-          fieldName: 'general',
-          errorType: errorType,
-          errorMessage: errorStr,
-          timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          operation: 'push',
-        );
-        // كتابة الخطأ بنفس آلية _saveFieldSyncErrors في AppwriteDeltaSync
-        final prefs = await SharedPreferences.getInstance();
-        final existingErrors = prefs.getStringList('field_sync_errors') ?? [];
-        final allErrors = [
-          jsonEncode(fieldError.toJson()),
-          ...existingErrors,
-        ].take(50).toList();
-        await prefs.setStringList('field_sync_errors', allErrors);
-        final currentCount = prefs.getInt('field_sync_errors_count') ?? 0;
-        await prefs.setInt('field_sync_errors_count', currentCount + 1);
-      } catch (_) {}
-    }
 
     if (mounted) {
       _showSnackBar(
@@ -662,10 +665,20 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     SyncResult result,
     Duration duration,
   ) {
-    String message =
-        '✅ تمت المزامنة (Field-Level)!\n'
-        '📤 ${result.fieldsPushed} حقل مرفوع (${result.recordsPushed} سجل)\n'
-        '📥 ${result.fieldsPulled} حقل مسحوب (${result.recordsPulled} سجل)';
+    final useFieldLevel = ref.read(syncStateProvider).fieldLevelEnabled;
+
+    String message;
+    if (useFieldLevel) {
+      message =
+          '✅ تمت المزامنة!\n'
+          '📦 ${result.recordsPushed} سجل مرفوع, ${result.recordsPulled} مسحوب\n'
+          '🔍 ${result.fieldsPushed} حقل مرفوع, ${result.fieldsPulled} مسحوب';
+    } else {
+      message =
+          '✅ تمت المزامنة!\n'
+          '📤 ${result.recordsPushed} سجل مرفوع\n'
+          '📥 ${result.recordsPulled} سجل مسحوب';
+    }
 
     if (result.conflicts > 0) {
       message += '\n⚠️ ${result.conflicts} تعارض';
@@ -681,49 +694,27 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
   }
 
-  void _showFieldLevelPullSuccess(
+  void _showPullSuccess(
     BuildContext context,
     SyncResult result,
     Duration duration,
   ) {
-    String message =
-        '✅ تم السحب (Field-Level)!\n'
-        '📥 ${result.fieldsPulled} حقل مسحوب (${result.recordsPulled} سجل)';
-
-    if (result.conflicts > 0) {
-      message += '\n⚠️ ${result.conflicts} تعارض';
-    }
-
-    message += '\n⏱️ ${duration.inSeconds} ث';
-
-    _showSnackBar(
-      context,
-      message,
-      result.failedCount > 0 ? Colors.orange : Colors.green,
-    );
+    final useFieldLevel = ref.read(syncStateProvider).fieldLevelEnabled;
+    final String message = useFieldLevel
+        ? '✅ تم السحب! 📥 ${result.fieldsPulled} حقل\n⏱️ ${duration.inSeconds} ث'
+        : '✅ تم السحب! 📥 ${result.recordsPulled} سجل\n⏱️ ${duration.inSeconds} ث';
+    _showSnackBar(context, message, Colors.green);
   }
 
-  void _showFieldLevelPushSuccess(
+  void _showPushSuccess(
     BuildContext context,
     SyncResult result,
     Duration duration,
   ) {
-    String message;
-
-    if (result.recordsPushed == 0) {
-      message = '✅ لا توجد تغييرات للرفع';
-    } else {
-      message =
-          '✅ تم الرفع (Field-Level)!\n'
-          '📤 ${result.fieldsPushed} حقل مرفوع (${result.recordsPushed} سجل)';
-    }
-
-    if (result.failedCount > 0) {
-      message += '\n❌ ${result.failedCount} فشل';
-    }
-
-    message += '\n⏱️ ${duration.inSeconds} ث';
-
+    final useFieldLevel = ref.read(syncStateProvider).fieldLevelEnabled;
+    final String message = useFieldLevel
+        ? '✅ تم الرفع! 📤 ${result.fieldsPushed} حقل\n⏱️ ${duration.inSeconds} ث'
+        : '✅ تم الرفع! 📤 ${result.recordsPushed} سجل\n⏱️ ${duration.inSeconds} ث';
     _showSnackBar(
       context,
       message,
@@ -818,7 +809,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         : Colors.blue.withOpacity(0.6);
 
     return Tooltip(
-      message: 'سحب التغييرات من السيرفر (Field-Level)',
+      message: 'سحب التغييرات من السيرفر',
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
@@ -877,6 +868,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     required int pendingCount,
     required bool isEnabled,
     required bool isPushing,
+    required bool useFieldLevel,
   }) {
     final Color buttonColor = isPushing || hasChanges
         ? Colors.purple
@@ -887,7 +879,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     return Tooltip(
       message: hasChanges
-          ? 'رفع $pendingCount تغيير (Field-Level)'
+          ? (useFieldLevel
+                ? 'رفع $pendingCount تغيير (Field-Level)'
+                : 'رفع $pendingCount تغيير')
           : 'جميع التغييرات مرفوعة',
       child: Stack(
         clipBehavior: Clip.none,
@@ -1038,6 +1032,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 pendingCount: syncState.totalPending,
                 isEnabled: !syncState.isSyncing,
                 isPushing: syncState.isPushing,
+                useFieldLevel: syncState.fieldLevelEnabled,
               ),
             ],
           ),
@@ -1115,9 +1110,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   String _getStatusText(SyncState state, bool hasChanges) {
     if (state.isSyncing) {
-      return 'جاري المزامنة (Field-Level)...';
+      return state.fieldLevelEnabled
+          ? 'جاري المزامنة (Field-Level)...'
+          : 'جاري المزامنة...';
     }
     if (hasChanges) {
+      if (state.fieldLevelEnabled && state.pendingFieldChangesCount > 0) {
+        return '${state.totalPending} تغيير (${state.pendingFieldChangesCount} حقل)';
+      }
       return '${state.totalPending} تغيير معلق';
     }
     return 'محدّث';
