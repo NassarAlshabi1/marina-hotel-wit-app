@@ -209,11 +209,11 @@ ThemeData buildDarkTheme() {
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
+        borderSide: BorderSide(color: Color(0xFF6A1B9A)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
+        borderSide: BorderSide(color: Color(0xFF6A1B9A)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
