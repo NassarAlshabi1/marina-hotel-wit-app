@@ -228,7 +228,8 @@ class SyncOrchestrator {
   static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   late AppDatabase _database;
-  late OutboxDao _outboxDao;
+  OutboxDao? _outboxDao;
+  bool _isInitialized = false;
 
   final _mutex = SyncMutex();
   final _metrics = SyncMetricsData();
@@ -306,6 +307,7 @@ class SyncOrchestrator {
 
     await _loadPersistedMetrics();
 
+    _isInitialized = true;
     _setState(OrchestratorState.idle);
     debugPrint('✅ [Orchestrator] تم التهيئة بنجاح');
   }
@@ -438,7 +440,18 @@ class SyncOrchestrator {
   }
 
   Future<SyncHealth> getHealth() async {
-    final outboxCount = await _outboxDao.count();
+    if (!_isInitialized || _outboxDao == null) {
+      return SyncHealth(
+        isHealthy: false,
+        successRate: 0,
+        consecutiveFailures: 0,
+        avgSyncDuration: Duration.zero,
+        pendingTasks: _taskQueue.length,
+        outboxCount: 0,
+        circuitStates: {},
+      );
+    }
+    final outboxCount = await _outboxDao!.count();
 
     return SyncHealth(
       isHealthy:
