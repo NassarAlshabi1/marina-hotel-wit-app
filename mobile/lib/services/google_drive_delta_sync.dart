@@ -398,6 +398,16 @@ class GoogleDriveDeltaSync {
         await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
       case 'payment_voids':
         await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
+      case 'booking_price_adjustments':
+        await registry.bookingPriceAdjustments.upsertFromJson(
+          payload,
+          src: Source.drive,
+        );
+      case 'salary_withdrawals':
+        await registry.salaryWithdrawals.upsertFromJson(
+          payload,
+          src: Source.drive,
+        );
     }
   }
 
@@ -475,6 +485,21 @@ class GoogleDriveDeltaSync {
       case 'payment_voids':
         await (db.delete(
           db.paymentVoids,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return;
+      case 'audit_logs':
+        await (db.delete(
+          db.auditLogs,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return;
+      case 'booking_price_adjustments':
+        await (db.delete(
+          db.bookingPriceAdjustments,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return;
+      case 'salary_withdrawals':
+        await (db.delete(
+          db.salaryWithdrawals,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
     }
