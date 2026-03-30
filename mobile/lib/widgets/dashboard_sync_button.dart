@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -562,9 +564,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   /// ✅ رفع التغييرات (Field-Level Push)
+  /// يستخدم pushFieldLevelChanges() الفعلي الذي يحسب فروقات الحقول
   Future<SyncResult> _performFieldLevelPush() async {
     final deltaSync = AppwriteDeltaSync.instance;
-    final result = await deltaSync.pushDeltaChanges();
+    final result = await deltaSync.pushFieldLevelChanges();
 
     if (!result.success && result.message.contains('غير جاهزة')) {
       throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
@@ -572,7 +575,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     return SyncResult(
       recordsPushed: result.pushedCount,
-      fieldsPushed: result.pushedCount,
+      fieldsPushed: result.fieldsPushed > 0
+          ? result.fieldsPushed
+          : result.pushedCount,
       conflicts: result.conflictCount,
       failedCount: result.failedCount,
     );
@@ -606,6 +611,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     final currentErrors = ref.read(syncStateProvider).syncErrorsCount;
     notifier.updateErrorsCount(currentErrors + 1);
     _invalidateProviders();
+
+    // ✅ حفظ الخطأ في أخطاء Field-Level للمزامنة
+    final errorStr = error.toString();
+    if (errorStr.isNotEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final existingErrors = prefs.getStringList('field_sync_errors') ?? [];
+        final errorJson = jsonEncode({
+          'entityName': '',
+          'recordUuid': '',
+          'fieldName': 'general',
+          'errorType': errorStr.contains('SocketException') ||
+                  errorStr.contains('HttpException')
+              ? 'network'
+              : 'unknown',
+          'errorMessage': errorStr,
+          'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'operation': 'push',
+        });
+        final allErrors = [errorJson, ...existingErrors].take(50).toList();
+        await prefs.setStringList('field_sync_errors', allErrors);
+      } catch (_) {}
+    }
 
     if (mounted) {
       _showSnackBar(
