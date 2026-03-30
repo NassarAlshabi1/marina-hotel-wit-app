@@ -1041,8 +1041,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     // تجميع الأخطاء حسب الجدول
     final errorsByEntity = <String, int>{};
     for (final e in _fieldErrors) {
-      errorsByEntity[e.entityName] =
-          (errorsByEntity[e.entityName] ?? 0) + 1;
+      errorsByEntity[e.entityName] = (errorsByEntity[e.entityName] ?? 0) + 1;
     }
 
     // تجميع الأخطاء حسب النوع
@@ -1129,9 +1128,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           if (_isLoadingErrors)
             const Padding(
               padding: EdgeInsets.all(UIConstants.spacingLG),
-              child: Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             )
           // لا توجد أخطاء
           else if (_fieldErrors.isEmpty)
@@ -1171,10 +1168,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               ),
               child: Text(
                 '${_fieldErrors.length} خطأ مسجل - عرض ${filteredErrors.length}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
             ),
             const SizedBox(height: 8),
@@ -1247,10 +1241,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                         selectedColor: Colors.teal,
                         onTap: () {
                           setState(() {
-                            _errorFilterEntity =
-                                _errorFilterEntity == entry.key
-                                    ? null
-                                    : entry.key;
+                            _errorFilterEntity = _errorFilterEntity == entry.key
+                                ? null
+                                : entry.key;
                           });
                         },
                       );
@@ -1269,34 +1262,28 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 child: Center(
                   child: Text(
                     'لا توجد أخطاء تطابق الفلتر المحدد',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade500,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                   ),
                 ),
               )
-          else
-            ...filteredErrors.take(20).map((error) {
-              final errorColor =
-                  errorTypeColors[error.errorType] ?? Colors.grey;
-              return _buildErrorItem(error, errorColor);
-            }),
+            else
+              ...filteredErrors.take(20).map((error) {
+                final errorColor =
+                    errorTypeColors[error.errorType] ?? Colors.grey;
+                return _buildErrorItem(error, errorColor);
+              }),
 
-          // عرض \"عرض المزيد\" إذا كان هناك أكثر من 20 خطأ
-          if (filteredErrors.length > 20)
-            Padding(
-              padding: const EdgeInsets.all(UIConstants.spacingSM),
-              child: Center(
-                child: Text(
-                  'وأكثر... (إجمالي ${filteredErrors.length} خطأ)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
+            // عرض \"عرض المزيد\" إذا كان هناك أكثر من 20 خطأ
+            if (filteredErrors.length > 20)
+              Padding(
+                padding: const EdgeInsets.all(UIConstants.spacingSM),
+                child: Center(
+                  child: Text(
+                    'وأكثر... (إجمالي ${filteredErrors.length} خطأ)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
                 ),
               ),
-            ),
           ],
 
           const SizedBox(height: 8),
@@ -1478,11 +1465,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
 
             // سهم التفاصيل
-            Icon(
-              Icons.chevron_left,
-              size: 16,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.chevron_left, size: 16, color: Colors.grey.shade400),
           ],
         ),
       ),
@@ -1532,9 +1515,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   /// عرض تفاصيل خطأ واحد
   void _showErrorDetailDialog(FieldSyncError error) {
     final timeStr = error.timestamp > 0
-        ? DateTime.fromMillisecondsSinceEpoch(error.timestamp * 1000)
-            .toString()
-            .substring(0, 19)
+        ? DateTime.fromMillisecondsSinceEpoch(
+            error.timestamp * 1000,
+          ).toString().substring(0, 19)
         : 'غير معروف';
 
     showDialog(
@@ -1578,10 +1561,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                 ),
                 child: SelectableText(
                   error.errorMessage,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                  ),
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
               ),
             ],
@@ -1615,12 +1595,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
@@ -1662,10 +1637,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              'مسح',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('مسح', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

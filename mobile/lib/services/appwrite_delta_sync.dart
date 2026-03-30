@@ -67,24 +67,24 @@ class FieldSyncError {
   }
 
   Map<String, dynamic> toJson() => {
-        'entityName': entityName,
-        'recordUuid': recordUuid,
-        'fieldName': fieldName,
-        'errorType': errorType,
-        'errorMessage': errorMessage,
-        'timestamp': timestamp,
-        'operation': operation,
-      };
+    'entityName': entityName,
+    'recordUuid': recordUuid,
+    'fieldName': fieldName,
+    'errorType': errorType,
+    'errorMessage': errorMessage,
+    'timestamp': timestamp,
+    'operation': operation,
+  };
 
   factory FieldSyncError.fromJson(Map<String, dynamic> json) => FieldSyncError(
-        entityName: json['entityName'] as String? ?? '',
-        recordUuid: json['recordUuid'] as String? ?? '',
-        fieldName: json['fieldName'] as String? ?? '',
-        errorType: json['errorType'] as String? ?? 'unknown',
-        errorMessage: json['errorMessage'] as String? ?? '',
-        timestamp: json['timestamp'] as int? ?? 0,
-        operation: json['operation'] as String? ?? 'update',
-      );
+    entityName: json['entityName'] as String? ?? '',
+    recordUuid: json['recordUuid'] as String? ?? '',
+    fieldName: json['fieldName'] as String? ?? '',
+    errorType: json['errorType'] as String? ?? 'unknown',
+    errorMessage: json['errorMessage'] as String? ?? '',
+    timestamp: json['timestamp'] as int? ?? 0,
+    operation: json['operation'] as String? ?? 'update',
+  );
 }
 
 class AppwriteDeltaSyncResult {
@@ -494,13 +494,11 @@ class AppwriteDeltaSync {
           if (mirrorData != null && mirrorData.containsKey(change.localUuid)) {
             final mirrorRow = mirrorData[change.localUuid]!;
             try {
-              final decoded = jsonDecode(mirrorRow.payload);
-              if (decoded is Map<String, dynamic>) {
-                oldData.addAll(decoded);
-              }
+              // payload هو Map<String, dynamic> مباشرة (ليس JSON string)
+              oldData.addAll(mirrorRow.payload);
             } catch (_) {
               _logger.debug(
-                '⚠️ فشل فك ترميز مرآة ${change.entity}/${change.localUuid}',
+                '⚠️ فشل قراءة مرآة ${change.entity}/${change.localUuid}',
                 tag: 'FIELD_SYNC',
               );
             }
@@ -515,11 +513,8 @@ class AppwriteDeltaSync {
             change.entity,
             change.localUuid,
           );
-          final oldFieldVectorClocks =
-              await fieldVersionsDao.getFieldVectorClocks(
-            change.entity,
-            change.localUuid,
-          );
+          final oldFieldVectorClocks = await fieldVersionsDao
+              .getFieldVectorClocks(change.entity, change.localUuid);
           final oldFieldDevices = await fieldVersionsDao.getFieldDevices(
             change.entity,
             change.localUuid,
@@ -607,15 +602,17 @@ class AppwriteDeltaSync {
 
           // إضافة خطأ لكل حقل في هذا السجل
           for (final fieldKey in change.data.keys) {
-            fieldErrors.add(FieldSyncError(
-              entityName: change.entity,
-              recordUuid: change.localUuid,
-              fieldName: fieldKey,
-              errorType: errorType,
-              errorMessage: errorMsg,
-              timestamp: Time.nowEpoch(),
-              operation: change.operation,
-            ));
+            fieldErrors.add(
+              FieldSyncError(
+                entityName: change.entity,
+                recordUuid: change.localUuid,
+                fieldName: fieldKey,
+                errorType: errorType,
+                errorMessage: errorMsg,
+                timestamp: Time.nowEpoch(),
+                operation: change.operation,
+              ),
+            );
           }
 
           failedChanges.add(change);
@@ -642,10 +639,7 @@ class AppwriteDeltaSync {
             tag: 'FIELD_SYNC',
           );
         } catch (e) {
-          _logger.error(
-            '❌ فشل التحديث المحلي: $e',
-            tag: 'FIELD_SYNC',
-          );
+          _logger.error('❌ فشل التحديث المحلي: $e', tag: 'FIELD_SYNC');
           return AppwriteDeltaSyncResult(
             success: false,
             message: 'تم الرفع لكن فشل التحديث المحلي: $e',
@@ -730,7 +724,9 @@ class AppwriteDeltaSync {
     if (errorStr.contains('404') || errorStr.contains('not_found')) {
       return 'not_found';
     }
-    if (errorStr.contains('403') || errorStr.contains('401') || errorStr.contains('permission')) {
+    if (errorStr.contains('403') ||
+        errorStr.contains('401') ||
+        errorStr.contains('permission')) {
       return 'permission';
     }
     if (errorStr.contains('document_invalid_structure') ||
@@ -760,7 +756,10 @@ class AppwriteDeltaSync {
 
       // تحديث العداد
       final currentCount = prefs.getInt('field_sync_errors_count') ?? 0;
-      await prefs.setInt('field_sync_errors_count', currentCount + errors.length);
+      await prefs.setInt(
+        'field_sync_errors_count',
+        currentCount + errors.length,
+      );
     } catch (e) {
       _logger.warning('⚠️ فشل حفظ أخطاء المزامنة: $e', tag: 'FIELD_SYNC');
     }
@@ -1926,20 +1925,20 @@ INSERT INTO sync_mirror
   void _convertAmountsToInt(Map<String, dynamic> data) {
     // ✅ حقول يجب تحويلها إلى int (نوعها integer في Appwrite)
     final amountFields = [
-      'amount',           // integer في salary_withdrawals, payments, debts
-      'price',            // integer في rooms
-      'totalAmount',      // integer في debts
-      'remainingAmount',  // integer في debts
-      'totalDueCached',   // integer في bookings
-      'totalPaidCached',  // integer في bookings
+      'amount', // integer في salary_withdrawals, payments, debts
+      'price', // integer في rooms
+      'totalAmount', // integer في debts
+      'remainingAmount', // integer في debts
+      'totalDueCached', // integer في bookings
+      'totalPaidCached', // integer في bookings
       'remainingBalanceCached', // integer في bookings
-      'expectedAmount',   // integer في salary_cycles
-      'actualPaid',       // integer في salary_cycles
-      'totalDeductions',  // integer في salary_cycles
+      'expectedAmount', // integer في salary_cycles
+      'actualPaid', // integer في salary_cycles
+      'totalDeductions', // integer في salary_cycles
       'totalWithdrawals', // integer في salary_cycles
-      'netSalary',        // integer في salary_cycles
-      'originalAmount',   // integer في payment_voids
-      'voidedAmount',     // integer في payment_voids
+      'netSalary', // integer في salary_cycles
+      'originalAmount', // integer في payment_voids
+      'voidedAmount', // integer في payment_voids
     ];
 
     // ✅ حقول يجب تركها كـ double (نوعها double في Appwrite)

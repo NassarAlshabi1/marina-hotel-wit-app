@@ -785,8 +785,7 @@ class _AppwriteSettingsScreenState
                 const Expanded(
                   child: Text(
                     'أخطاء مزامنة الحقول',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 // زر مسح الأخطاء
@@ -844,8 +843,7 @@ class _AppwriteSettingsScreenState
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.check_circle,
-                            color: Colors.green, size: 20),
+                        Icon(Icons.check_circle, color: Colors.green, size: 20),
                         SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -864,8 +862,7 @@ class _AppwriteSettingsScreenState
                 // تجميع الأخطاء حسب الجدول
                 final grouped = <String, List<FieldSyncError>>{};
                 for (final error in errors) {
-                  grouped.putIfAbsent(error.entityName, () => [])
-                      .add(error);
+                  grouped.putIfAbsent(error.entityName, () => []).add(error);
                 }
 
                 return Column(
@@ -884,8 +881,11 @@ class _AppwriteSettingsScreenState
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.warning_amber,
-                              color: Colors.red, size: 20),
+                          const Icon(
+                            Icons.warning_amber,
+                            color: Colors.red,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             '$errors.length خطأ في ${grouped.length} جدول',
@@ -953,10 +953,7 @@ class _AppwriteSettingsScreenState
       ),
       title: Text(
         _getEntityDisplayName(tableName),
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
       ),
       subtitle: Text(
         '${byType.length} نوع خطأ: ${byType.keys.map((t) => errors.first.errorTypeAr).toSet().join(', ')}',
@@ -1055,12 +1052,14 @@ class _AppwriteSettingsScreenState
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: _getErrorTypeColor(error.errorType)
-                            .withOpacity(0.1),
+                        color: _getErrorTypeColor(
+                          error.errorType,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                          color:
-                              _getErrorTypeColor(error.errorType).withOpacity(0.3),
+                          color: _getErrorTypeColor(
+                            error.errorType,
+                          ).withOpacity(0.3),
                         ),
                       ),
                       child: Text(
@@ -1086,10 +1085,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(height: 2),
                 Text(
                   _truncateError(error.errorMessage),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey.shade700,
-                  ),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -195,9 +195,7 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     if (value) {
       state = state.copyWith(
         isPulling: true,
-        progress: const SyncProgress(
-          currentOperation: 'سحب (Field-Level)',
-        ),
+        progress: const SyncProgress(currentOperation: 'سحب (Field-Level)'),
       );
     } else {
       state = state.copyWith(isPulling: false);
@@ -208,9 +206,7 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     if (value) {
       state = state.copyWith(
         isPushing: true,
-        progress: const SyncProgress(
-          currentOperation: 'رفع (Field-Level)',
-        ),
+        progress: const SyncProgress(currentOperation: 'رفع (Field-Level)'),
       );
     } else {
       state = state.copyWith(isPushing: false);
@@ -600,12 +596,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     notifier.setPushing(false);
   }
 
-  void _handleError(
+  Future<void> _handleError(
     BuildContext context,
     dynamic error,
     Stopwatch stopwatch,
     SyncStateNotifier notifier,
-  ) {
+  ) async {
     debugPrint('❌ Sync error: $error');
     stopwatch.stop();
     final currentErrors = ref.read(syncStateProvider).syncErrorsCount;
@@ -616,7 +612,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     final errorStr = error.toString();
     if (errorStr.isNotEmpty) {
       try {
-        final errorType = errorStr.contains('SocketException') ||
+        final errorType =
+            errorStr.contains('SocketException') ||
                 errorStr.contains('HttpException')
             ? 'network'
             : 'unknown';
@@ -632,7 +629,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         // كتابة الخطأ بنفس آلية _saveFieldSyncErrors في AppwriteDeltaSync
         final prefs = await SharedPreferences.getInstance();
         final existingErrors = prefs.getStringList('field_sync_errors') ?? [];
-        final allErrors = [jsonEncode(fieldError.toJson()), ...existingErrors].take(50).toList();
+        final allErrors = [
+          jsonEncode(fieldError.toJson()),
+          ...existingErrors,
+        ].take(50).toList();
         await prefs.setStringList('field_sync_errors', allErrors);
         final currentCount = prefs.getInt('field_sync_errors_count') ?? 0;
         await prefs.setInt('field_sync_errors_count', currentCount + 1);
@@ -1142,13 +1142,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-          'تغييرات مستوى الحقل: ${state.pendingFieldChangesCount}',
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            color: Colors.purple.shade900,
+            'تغييرات مستوى الحقل: ${state.pendingFieldChangesCount}',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: Colors.purple.shade900,
+            ),
           ),
-        ),
           if (state.conflictsResolved > 0)
             Text(
               'تعارضات محلولة: ${state.conflictsResolved}',
