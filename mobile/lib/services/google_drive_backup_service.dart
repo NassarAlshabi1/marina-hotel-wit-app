@@ -158,29 +158,49 @@ class GoogleDriveBackupService {
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
 
-  GoogleSignIn? _googleSignIn;
+  GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
+  GoogleSignInAccount? _currentUser; // Track current user manually
 
   void _initializeGoogleSignIn() {
-    _googleSignIn = GoogleSignIn(
-      scopes: _scopes,
-    );
+    // In google_sign_in 7.x, initialization is automatic
   }
 
-  /// Helper to get Drive API access token from account (v6.x style)
-  Future<Map<String, String>> _getAuthHeaders(GoogleSignInAccount account) async {
-    return await account.authHeaders;
+  /// Helper to get Drive API access token from account
+  Future<String?> _getAccessToken(GoogleSignInAccount account) async {
+    try {
+      // Try to get authorization without user interaction first
+      final clientAuth = await account.authorizationClient
+          .authorizationForScopes(_scopes);
+      if (clientAuth != null) {
+        return clientAuth.accessToken;
+      }
+      // If that fails, request interactive authorization
+      final newAuth = await account.authorizationClient.authorizeScopes(
+        _scopes,
+      );
+      return newAuth.accessToken;
+    } catch (e) {
+      _log('⚠️ فشل الحصول على رمز الوصول: $e');
+      return null;
+    }
   }
 
   Future<void> _ensureDriveClient() async {
-    GoogleSignInAccount? account = _googleSignIn?.currentUser;
+    GoogleSignInAccount? account = _currentUser;
     if (account == null) {
       try {
-        account = await _googleSignIn?.signInSilently();
+        // In google_sign_in 7.x, attemptLightweightAuthentication() replaces signInSilently()
+        account = await _googleSignIn.attemptLightweightAuthentication();
+        if (account != null) {
+          _currentUser = account;
+        }
       } catch (e) {
-        _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
+        _log(
+          '⚠️ فشل attemptLightweightAuthentication أثناء تحديث الاعتماديات: $e',
+        );
       }
     }
 
@@ -188,9 +208,16 @@ class GoogleDriveBackupService {
       throw Exception('يجب إعادة تسجيل الدخول في Google Drive لإكمال العملية');
     }
 
-    final headers = await account.authHeaders;
-    final client = GoogleAuthClient(headers);
-    _driveApi = drive.DriveApi(client);
+    final accessToken = await _getAccessToken(account);
+    if (accessToken == null) {
+      throw Exception('فشل الحصول على رمز الوصول لـ Google Drive');
+    }
+
+    final headers = {
+      'Authorization': 'Bearer $accessToken',
+      'Content-Type': 'application/json',
+    };
+    _driveApi = drive.DriveApi(GoogleAuthClient(headers));
   }
 
   Future<T> _runWithAuth<T>(Future<T> Function() action) async {
@@ -212,35 +239,41 @@ class GoogleDriveBackupService {
 
   Future<GoogleSignInAccount?> signInForDrive() async {
     try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
-      }
-
       _log('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      // In google_sign_in 7.x, attemptLightweightAuthentication() returns GoogleSignInAccount?
+      GoogleSignInAccount? account = await _googleSignIn
+          .attemptLightweightAuthentication();
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
-        account = await _googleSignIn!.signIn();
+        account = await _googleSignIn.authenticate(scopeHint: _scopes);
       }
 
-      if (account != null) {
-        _log('🔑 الحصول على رؤوس المصادقة...');
-        final headers = await account.authHeaders;
-        final client = GoogleAuthClient(headers);
-        _driveApi = drive.DriveApi(client);
+      _currentUser = account; // Track current user
+      _log('🔑 الحصول على رؤوس المصادقة...');
 
-        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
-      } else {
-        _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
+      final accessToken = await _getAccessToken(account);
+      if (accessToken == null) {
+        throw Exception('فشل الحصول على رمز الوصول');
       }
+
+      final headers = {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      };
+      final client = GoogleAuthClient(headers);
+      _driveApi = drive.DriveApi(client);
+
+      _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+      _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
 
       return account;
     } catch (e) {
       final arabicError = _getArabicErrorMessage(e);
       _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
       _log('❌ تفاصيل الخطأ التقنية: $e');
+
+      // رمي الخطأ مع الرسالة العربية
       throw Exception(arabicError);
     }
   }
@@ -248,16 +281,25 @@ class GoogleDriveBackupService {
   /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
   Future<GoogleSignInAccount?> attemptSilentSignIn() async {
     try {
-      if (_googleSignIn == null) {
-        _initializeGoogleSignIn();
-      }
-
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently(suppressErrors: true);
+      // In google_sign_in 7.x, attemptLightweightAuthentication() replaces signInSilently()
+      final GoogleSignInAccount? account = await _googleSignIn
+          .attemptLightweightAuthentication();
 
       if (account != null) {
+        _currentUser = account; // Track current user
         _log('🔑 الحصول على رؤوس المصادقة...');
-        final headers = await account.authHeaders;
+
+        final accessToken = await _getAccessToken(account);
+        if (accessToken == null) {
+          _log('⚠️ فشل الحصول على رمز الوصول');
+          return null;
+        }
+
+        final headers = {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        };
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
 
@@ -276,14 +318,22 @@ class GoogleDriveBackupService {
   /// محاولة تسجيل الدخول بهدوء للاستخدام في الخلفية (Alarm Callback)
   Future<bool> signInSilentlyIfNeeded() async {
     try {
-      if (_googleSignIn == null) {
-        _initializeGoogleSignIn();
-      }
-
-      final account = await _googleSignIn!.signInSilently();
+      // In google_sign_in 7.x, attemptLightweightAuthentication() returns GoogleSignInAccount?
+      final account = await _googleSignIn.attemptLightweightAuthentication();
 
       if (account != null) {
-        final headers = await account.authHeaders;
+        _currentUser = account; // Track current user
+
+        final accessToken = await _getAccessToken(account);
+        if (accessToken == null) {
+          _log('⚠️ فشل الحصول على رمز الوصول');
+          return false;
+        }
+
+        final headers = {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        };
         final client = GoogleAuthClient(headers);
         _driveApi = drive.DriveApi(client);
         _log('✅ تم تسجيل الدخول بهدوء: ${account.email}');
@@ -293,14 +343,15 @@ class GoogleDriveBackupService {
       _log('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
       return false;
     } catch (e) {
-      _log('❌ signInSilently error: $e');
+      _log('❌ attemptLightweightAuthentication error: $e');
       return false;
     }
   }
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn?.signOut();
+      await _googleSignIn.signOut();
+      _currentUser = null; // Clear tracked user
       _driveApi = null;
       _backupFolderId = null;
       _log('✅ تم تسجيل الخروج من Google Drive');
@@ -311,10 +362,10 @@ class GoogleDriveBackupService {
     }
   }
 
-  GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
+  GoogleSignInAccount? get currentUser => _currentUser;
   GoogleSignIn? get googleSignIn => _googleSignIn;
 
-  bool get isSignedIn => _googleSignIn?.currentUser != null;
+  bool get isSignedIn => _currentUser != null;
 
   Future<String> getOrCreateBackupFolder() async {
     if (_backupFolderId != null) {

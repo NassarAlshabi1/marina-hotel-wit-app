@@ -167,10 +167,7 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  }) : _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const [
-           drive.DriveApi.driveFileScope,
-           drive.DriveApi.driveAppdataScope,
-         ]),
+  }) : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
        _driveApi = driveApi,
        _shardSizeBytes = shardSizeBytes;
 
@@ -185,11 +182,18 @@ class GoogleDriveSyncService {
 
   GoogleSignInAccount? get currentUser => _currentUser;
 
-  /// Helper to get Drive API access token from account (v6.x style)
+  /// Helper to get Drive API access token from account
   Future<String?> _getAccessToken(GoogleSignInAccount account) async {
     try {
-      final headers = await account.authHeaders;
-      return headers['Authorization']?.replaceFirst('Bearer ', '');
+      final clientAuth = await account.authorizationClient
+          .authorizationForScopes(const [drive.DriveApi.driveAppdataScope]);
+      if (clientAuth != null) {
+        return clientAuth.accessToken;
+      }
+      final newAuth = await account.authorizationClient.authorizeScopes(const [
+        drive.DriveApi.driveAppdataScope,
+      ]);
+      return newAuth.accessToken;
     } catch (e) {
       debugPrint('⚠️ فشل الحصول على رمز الوصول: $e');
       return null;
@@ -218,12 +222,20 @@ class GoogleDriveSyncService {
   /// تسجيل الدخول إلى Google Drive باستخدام Google Sign-In
   Future<GoogleSignInAccount?> signIn() async {
     try {
+      // In google_sign_in 7.x, use attemptLightweightAuthentication() and authenticate()
       final account =
-          await _googleSignIn.signInSilently() ??
-          await _googleSignIn.signIn();
+          await _googleSignIn.attemptLightweightAuthentication() ??
+          await _googleSignIn.authenticate(
+            scopeHint: const [drive.DriveApi.driveAppdataScope],
+          );
       _currentUser = account;
 
-      final headers = await account.authHeaders;
+      final accessToken = await _getAccessToken(account);
+      if (accessToken == null) {
+        throw StateError('فشل الحصول على رمز الوصول.');
+      }
+
+      final headers = {'Authorization': 'Bearer $accessToken'};
       _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
       return account;
     } catch (error, stack) {
@@ -435,9 +447,12 @@ class GoogleDriveSyncService {
       return _driveApi!;
     }
 
-    var account = await _googleSignIn.signInSilently();
+    // In google_sign_in 7.x, use attemptLightweightAuthentication() and authenticate()
+    var account = await _googleSignIn.attemptLightweightAuthentication();
     if (account == null && _allowInteractiveSignIn) {
-      account = await _googleSignIn.signIn();
+      account = await _googleSignIn.authenticate(
+        scopeHint: const [drive.DriveApi.driveAppdataScope],
+      );
     }
 
     if (account == null) {
@@ -446,7 +461,12 @@ class GoogleDriveSyncService {
 
     _currentUser = account;
 
-    final headers = await account.authHeaders;
+    final accessToken = await _getAccessToken(account);
+    if (accessToken == null) {
+      throw StateError('فشل الحصول على رمز الوصول لـ Google Drive.');
+    }
+
+    final headers = {'Authorization': 'Bearer $accessToken'};
     _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
     return _driveApi!;
   }
