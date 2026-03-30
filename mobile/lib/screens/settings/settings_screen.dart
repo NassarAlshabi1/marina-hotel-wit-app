@@ -18,6 +18,8 @@ import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
+import 'smart_sync_settings_screen.dart';
+import 'auto_backup_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -194,6 +196,30 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DataProtectionScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'المزامنة الذكية',
+              subtitle: 'مزامنة تلقائية ذكية بـ Appwrite',
+              icon: Icons.sync_problem,
+              color: Colors.deepPurple,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SmartSyncSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'النسخ التلقائي',
+              subtitle: 'نسخ احتياطي مجدول تلقائي',
+              icon: Icons.schedule,
+              color: Colors.amber,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AutoBackupSettingsScreen(),
                 ),
               ),
             ),
