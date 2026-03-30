@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'google_drive_sign_in_manager.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -246,7 +247,10 @@ class GoogleDriveBackupService {
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
-        account = await _googleSignIn.authenticate(scopeHint: _scopes);
+        account = await _googleSignIn.authenticate(
+          scopeHint: _scopes,
+          serverClientId: kGoogleDriveServerClientId,
+        );
       }
 
       _currentUser = account; // Track current user

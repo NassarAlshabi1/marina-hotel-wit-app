@@ -9,6 +9,7 @@ import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'google_drive_sign_in_manager.dart';
 import 'package:http/http.dart' as http;
 
 import '../data/sync_models.dart';
@@ -227,6 +228,7 @@ class GoogleDriveSyncService {
           await _googleSignIn.attemptLightweightAuthentication() ??
           await _googleSignIn.authenticate(
             scopeHint: const [drive.DriveApi.driveAppdataScope],
+            serverClientId: kGoogleDriveServerClientId,
           );
       _currentUser = account;
 
@@ -452,6 +454,7 @@ class GoogleDriveSyncService {
     if (account == null && _allowInteractiveSignIn) {
       account = await _googleSignIn.authenticate(
         scopeHint: const [drive.DriveApi.driveAppdataScope],
+        serverClientId: kGoogleDriveServerClientId,
       );
     }
 
