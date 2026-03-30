@@ -21,8 +21,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب للتعريف المحلي والمزامنة
-        {'key': 'id', 'type': 'integer'},
         {
           'key': 'roomNumber',
           'type': 'string',
@@ -56,8 +54,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب لعلاقات FK (booking_notes.bookingId, booking_nights.bookingLocalId, payments.bookingLocalId)
-        {'key': 'id', 'type': 'integer'},
         {'key': 'serverBookingId', 'type': 'integer'},
         {'key': 'roomNumber', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'guestName', 'type': 'string', 'size': 100, 'required': true},
@@ -161,8 +157,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب لعلاقات FK (salary_withdrawals.employeeId, salary_cycles.employeeId)
-        {'key': 'id', 'type': 'integer'},
         {'key': 'name', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'basicSalary', 'type': 'double', 'required': true},
         {'key': 'position', 'type': 'string', 'size': 50, 'default': 'موظف'},
@@ -182,8 +176,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب لعلاقات FK (salary_withdrawals.expenseId)
-        {'key': 'id', 'type': 'integer'},
         {'key': 'expenseType', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'relatedId', 'type': 'integer'},
         {'key': 'description', 'type': 'string', 'size': 500, 'required': true},
@@ -238,8 +230,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب لعلاقات FK (payment_voids.originalPaymentId)
-        {'key': 'id', 'type': 'integer'},
         {'key': 'serverPaymentId', 'type': 'integer'},
         {'key': 'bookingLocalId', 'type': 'integer'},
         {'key': 'serverBookingId', 'type': 'integer'},
@@ -306,8 +296,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب لعلاقات FK (salary_payments.cycleId)
-        {'key': 'id', 'type': 'integer'},
         {'key': 'employeeId', 'type': 'integer', 'required': true},
         {'key': 'cycleKey', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'hotelDayStart', 'type': 'string', 'size': 50},
@@ -329,8 +317,6 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        // ✅ id: مطلوب لعلاقات FK
-        {'key': 'id', 'type': 'integer'},
         {'key': 'cycleId', 'type': 'integer', 'required': true},
         {'key': 'amount', 'type': 'double', 'default': 0},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
