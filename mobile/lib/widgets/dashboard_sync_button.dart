@@ -7,12 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/appwrite_providers.dart' as appwrite_providers;
-import '../providers/backup_provider.dart';
 import '../providers/sync_log_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
-import '../services/google_drive_delta_sync.dart';
-import '../services/google_drive_backup_service.dart';
 import '../services/smart_sync_manager.dart';
 import '../screens/settings/sync_history_screen.dart';
 
@@ -348,17 +345,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // Sync Methods - دوال المزامنة
   // ============================================================================
 
-  /// ✅ تهيئة خدمة Delta Sync (Appwrite + Google Drive)
-  Future<bool> _ensureServicesInitialized() async {
-    final prefs = await SharedPreferences.getInstance();
-    final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
-    if (!appwriteEnabled) {
-      debugPrint('⚠️ Appwrite sync disabled');
-      // حتى لو Appwrite معطل، نحاول تهيئة Google Drive
-      await _ensureDriveInitialized();
-      return GoogleDriveDeltaSync.instance.isInitialized;
-    }
-
+  /// ✅ تهيئة خدمة Appwrite Delta Sync
+  Future<bool> _ensureAppwriteInitialized() async {
     try {
       final appwriteService = ref.read(
         appwrite_providers.appwriteServiceProvider,
@@ -369,37 +357,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (!deltaSync.isInitialized) {
         await deltaSync.initialize(appwriteService, db);
       }
-
-      // ✅ تهيئة Google Drive Delta Sync أيضاً
-      await _ensureDriveInitialized();
-
-      return true;
+      return deltaSync.isInitialized;
     } catch (e) {
       debugPrint('❌ Appwrite init failed: $e');
-      // حتى لو Appwrite فشل، نحاول Google Drive
-      await _ensureDriveInitialized();
-      return GoogleDriveDeltaSync.instance.isInitialized;
-    }
-  }
-
-  /// ✅ تهيئة Google Drive Delta Sync
-  Future<void> _ensureDriveInitialized() async {
-    try {
-      final driveSync = GoogleDriveDeltaSync.instance;
-      if (driveSync.isInitialized) return;
-
-      // استخدام SmartSyncManager للحصول على BackupService
-      final smartSync = SmartSyncManager.instance;
-      if (smartSync.isDriveSignedIn) {
-        final db = ref.read(databaseProvider);
-        final backupService = ref.read(googleDriveBackupServiceProvider);
-        await driveSync.initialize(backupService, db);
-        debugPrint('✅ Google Drive Delta Sync initialized');
-      } else {
-        debugPrint('⚠️ Google Drive not signed in');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Google Drive init failed: $e');
+      return false;
     }
   }
 
@@ -424,9 +385,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
-        throw Exception('فشل تهيئة الخدمة');
-      }
+      await _ensureAppwriteInitialized();
 
       final result = await _performFullSync();
 
@@ -477,10 +436,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       // 1️⃣ سحب من Appwrite
-      await _ensureServicesInitialized();
-      {
-        final appwriteSync = AppwriteDeltaSync.instance;
-        if (appwriteSync.isInitialized) {
+      final appwriteOk = await _ensureAppwriteInitialized();
+      if (appwriteOk) {
         try {
           final appwriteResult = await _performPull();
           totalPulled += appwriteResult.recordsPulled;
@@ -493,22 +450,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           messages.add('Appwrite: فشل');
           totalFailed++;
         }
-        } // end if appwriteSync.isInitialized
       }
 
-      // 2️⃣ سحب من Google Drive (مع معالجة التعارضات)
-      final driveSync = GoogleDriveDeltaSync.instance;
-      if (driveSync.isInitialized) {
-        try {
-          final driveResult = await driveSync.pullDeltaChanges();
-          if (driveResult.success && driveResult.changesCount > 0) {
-            totalPulled += driveResult.changesCount;
-            messages.add('Drive: ${driveResult.changesCount} سجل');
+      // 2️⃣ سحب من Google Drive (عبر SmartSyncManager مع معالجة التعارضات)
+      try {
+        final smartSync = SmartSyncManager.instance;
+        if (smartSync.isDriveSignedIn) {
+          final driveOk = await smartSync.pullRemoteChanges();
+          if (driveOk) {
+            messages.add('Drive: تم');
           }
-        } catch (e) {
-          debugPrint('⚠️ Google Drive pull failed: $e');
-          messages.add('Drive: فشل');
         }
+      } catch (e) {
+        debugPrint('⚠️ Google Drive pull failed: $e');
       }
 
       stopwatch.stop();
@@ -565,10 +519,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       // 1️⃣ رفع إلى Appwrite (Field-Level Delta Push)
-      await _ensureServicesInitialized();
-      {
-        final appwriteSync = AppwriteDeltaSync.instance;
-        if (appwriteSync.isInitialized) {
+      final appwriteOk = await _ensureAppwriteInitialized();
+      if (appwriteOk) {
         try {
           final appwriteResult = await _performFieldLevelPush();
           totalPushed += appwriteResult.recordsPushed;
@@ -582,24 +534,21 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           messages.add('Appwrite: فشل');
           totalFailed++;
         }
-        } // end if appwriteSync.isInitialized
       }
 
-      // 2️⃣ رفع إلى Google Drive (Delta Sync)
-      final driveSync = GoogleDriveDeltaSync.instance;
-      if (driveSync.isInitialized) {
-        try {
-          final driveResult = await driveSync.pushDeltaChanges();
-          if (driveResult.success && driveResult.changesCount > 0) {
-            totalPushed += driveResult.changesCount;
-            messages.add('Drive: ${driveResult.changesCount} سجل');
-          } else if (!driveResult.success) {
-            messages.add('Drive: ${driveResult.message}');
+      // 2️⃣ رفع إلى Google Drive (عبر SmartSyncManager مع signed-in instance)
+      try {
+        final smartSync = SmartSyncManager.instance;
+        if (smartSync.isDriveSignedIn) {
+          final driveOk = await smartSync.pushLocalChanges();
+          if (driveOk) {
+            messages.add('Drive: تم');
+          } else {
+            messages.add('Drive: لا تغييرات');
           }
-        } catch (e) {
-          debugPrint('⚠️ Google Drive push failed: $e');
-          messages.add('Drive: فشل');
         }
+      } catch (e) {
+        debugPrint('⚠️ Google Drive push failed: $e');
       }
 
       stopwatch.stop();
@@ -641,18 +590,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.fullSync();
 
-    // رفع إلى Google Drive أيضاً
-    final driveSync = GoogleDriveDeltaSync.instance;
-    if (driveSync.isInitialized) {
-      try {
-        await driveSync.pushDeltaChanges();
-        await driveSync.pullDeltaChanges();
-      } catch (e) {
-        debugPrint('⚠️ Google Drive sync in fullSync: $e');
+    // رفع/سحب إلى Google Drive عبر SmartSyncManager
+    try {
+      final smartSync = SmartSyncManager.instance;
+      if (smartSync.isDriveSignedIn) {
+        await smartSync.pushLocalChanges();
+        await smartSync.pullRemoteChanges();
       }
+    } catch (e) {
+      debugPrint('⚠️ Google Drive sync in fullSync: $e');
     }
-
-
 
     if (!result.success && result.message.contains('غير جاهزة')) {
       throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
