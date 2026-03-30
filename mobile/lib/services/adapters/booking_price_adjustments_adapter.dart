@@ -160,7 +160,7 @@ class BookingPriceAdjustmentsAdapter
       'bookingLocalId': model.bookingLocalId,
       'adjustmentType': model.adjustmentType,
       'adjustmentMode': model.adjustmentMode,
-      // ❌ تم إزالة amount - غير موجودة في Appwrite
+      'amount': model.amount,
       'effectiveHotelDay': model.effectiveHotelDay,
       'endHotelDay': model.endHotelDay,
       'isActive': model.isActive,
