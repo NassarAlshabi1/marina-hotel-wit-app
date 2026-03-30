@@ -6,6 +6,7 @@ import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/appwrite_config.dart';
 import '../../../../services/appwrite_cache_manager.dart';
+import '../../../../services/appwrite_delta_sync.dart';
 import '../../sync_history_screen.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
@@ -22,10 +23,17 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   bool _autoSyncOnConnect = true;
   bool _cacheEnabled = true;
 
+  // ✅ أخطاء Field-Level Sync
+  List<FieldSyncError> _fieldErrors = [];
+  bool _isLoadingErrors = false;
+  String? _errorFilterType;
+  String? _errorFilterEntity;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadFieldErrors();
   }
 
   Future<void> _loadSettings() async {
@@ -75,6 +83,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         _buildCacheSettingsCard(cacheStats),
         const SizedBox(height: UIConstants.spacingLG),
         _buildSyncActionsCard(statsAsync.isLoading),
+        const SizedBox(height: UIConstants.spacingLG),
+        _buildFieldSyncErrorsCard(),
       ],
     );
   }
@@ -777,7 +787,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       'debts': 'الديون',
       'salary_cycles': 'دورات الرواتب',
       'salary_payments': 'دفعات الرواتب',
+      'salary_withdrawals': 'سحوبات الرواتب',
       'shift_notes': 'ملاحظات الشيفت',
+      'booking_price_adjustments': 'تعديلات الأسعار',
     };
     return translations[entity] ?? entity;
   }
@@ -989,6 +1001,647 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         const SnackBar(content: Text('تم مسح سجل المزامنة على السحابة')),
       );
     }
+  }
+
+  // ==========================================================================
+  // Field-Level Sync Errors - أخطاء مزامنة الحقول
+  // ==========================================================================
+
+  /// تحميل أخطاء مزامنة الحقول من SharedPreferences
+  Future<void> _loadFieldErrors() async {
+    setState(() => _isLoadingErrors = true);
+    try {
+      final errors = await AppwriteDeltaSync.getFieldSyncErrors();
+      if (mounted) {
+        setState(() {
+          _fieldErrors = errors;
+          _isLoadingErrors = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingErrors = false);
+      }
+    }
+  }
+
+  /// بناء بطاقة أخطاء مزامنة الحقول
+  Widget _buildFieldSyncErrorsCard() {
+    // تطبيق الفلاتر
+    final filteredErrors = _fieldErrors.where((e) {
+      if (_errorFilterType != null && e.errorType != _errorFilterType) {
+        return false;
+      }
+      if (_errorFilterEntity != null && e.entityName != _errorFilterEntity) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    // تجميع الأخطاء حسب الجدول
+    final errorsByEntity = <String, int>{};
+    for (final e in _fieldErrors) {
+      errorsByEntity[e.entityName] = (errorsByEntity[e.entityName] ?? 0) + 1;
+    }
+
+    // تجميع الأخطاء حسب النوع
+    final errorsByType = <String, int>{};
+    for (final e in _fieldErrors) {
+      errorsByType[e.errorType] = (errorsByType[e.errorType] ?? 0) + 1;
+    }
+
+    // ألوان أنواع الأخطاء
+    final errorTypeColors = {
+      'network': Colors.orange,
+      'validation': Colors.red,
+      'not_found': Colors.amber,
+      'permission': Colors.purple,
+      'timeout': Colors.deepOrange,
+      'data_mismatch': Colors.redAccent,
+      'unknown': Colors.grey,
+    };
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+        side: BorderSide(
+          color: _fieldErrors.isEmpty
+              ? Colors.green.withOpacity(0.3)
+              : Colors.red.withOpacity(0.5),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header مع عداد وزر تحديث ومسح
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  _fieldErrors.isEmpty
+                      ? Icons.check_circle_outline
+                      : Icons.error_outline,
+                  color: _fieldErrors.isEmpty ? Colors.green : Colors.red,
+                  size: UIConstants.iconSizeMD,
+                ),
+                const SizedBox(width: UIConstants.spacingSM),
+                Expanded(
+                  child: Text(
+                    'أخطاء مزامنة الحقول',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                // زر تحديث
+                if (!_isLoadingErrors)
+                  IconButton(
+                    onPressed: _loadFieldErrors,
+                    icon: const Icon(Icons.refresh, size: 20),
+                    tooltip: 'تحديث',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                if (_fieldErrors.isNotEmpty)
+                  IconButton(
+                    onPressed: _showClearErrorsDialog,
+                    icon: const Icon(Icons.delete_sweep, size: 20),
+                    tooltip: 'مسح الأخطاء',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // حالة التحميل
+          if (_isLoadingErrors)
+            const Padding(
+              padding: EdgeInsets.all(UIConstants.spacingLG),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          // لا توجد أخطاء
+          else if (_fieldErrors.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: UIConstants.spacingMD,
+                vertical: UIConstants.spacingSM,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'لا توجد أخطاء في مزامنة الحقول',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            // ملخص سريع
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: UIConstants.spacingMD,
+              ),
+              child: Text(
+                '${_fieldErrors.length} خطأ مسجل - عرض ${filteredErrors.length}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // أشرطة الفلترة حسب نوع الخطأ
+            SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: UIConstants.spacingSM,
+                ),
+                children: [
+                  // زر \"الكل\"
+                  _buildFilterChip(
+                    label: 'الكل',
+                    count: _fieldErrors.length,
+                    isSelected: _errorFilterType == null,
+                    selectedColor: Colors.blue,
+                    onTap: () {
+                      setState(() => _errorFilterType = null);
+                    },
+                  ),
+                  // أشرطة حسب النوع
+                  ...errorsByType.entries.map((entry) {
+                    final color = errorTypeColors[entry.key] ?? Colors.grey;
+                    return _buildFilterChip(
+                      label: _translateErrorType(entry.key),
+                      count: entry.value,
+                      isSelected: _errorFilterType == entry.key,
+                      selectedColor: color,
+                      onTap: () {
+                        setState(() {
+                          _errorFilterType = _errorFilterType == entry.key
+                              ? null
+                              : entry.key;
+                        });
+                      },
+                    );
+                  }),
+                ],
+              ),
+            ),
+
+            // أشرطة الفلترة حسب الجدول
+            if (errorsByEntity.length > 1) ...[
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: UIConstants.spacingSM,
+                  ),
+                  children: [
+                    _buildFilterChip(
+                      label: 'كل الجداول',
+                      count: _fieldErrors.length,
+                      isSelected: _errorFilterEntity == null,
+                      selectedColor: Colors.teal,
+                      onTap: () {
+                        setState(() => _errorFilterEntity = null);
+                      },
+                    ),
+                    ...errorsByEntity.entries.map((entry) {
+                      return _buildFilterChip(
+                        label: _translateEntity(entry.key),
+                        count: entry.value,
+                        isSelected: _errorFilterEntity == entry.key,
+                        selectedColor: Colors.teal,
+                        onTap: () {
+                          setState(() {
+                            _errorFilterEntity = _errorFilterEntity == entry.key
+                                ? null
+                                : entry.key;
+                          });
+                        },
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
+
+            const Divider(height: 1),
+
+            // قائمة الأخطاء
+            if (filteredErrors.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(UIConstants.spacingLG),
+                child: Center(
+                  child: Text(
+                    'لا توجد أخطاء تطابق الفلتر المحدد',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  ),
+                ),
+              )
+            else
+              ...filteredErrors.take(20).map((error) {
+                final errorColor =
+                    errorTypeColors[error.errorType] ?? Colors.grey;
+                return _buildErrorItem(error, errorColor);
+              }),
+
+            // عرض \"عرض المزيد\" إذا كان هناك أكثر من 20 خطأ
+            if (filteredErrors.length > 20)
+              Padding(
+                padding: const EdgeInsets.all(UIConstants.spacingSM),
+                child: Center(
+                  child: Text(
+                    'وأكثر... (إجمالي ${filteredErrors.length} خطأ)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                ),
+              ),
+          ],
+
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  /// بناء شريحة فلتر
+  Widget _buildFilterChip({
+    required String label,
+    required int count,
+    required bool isSelected,
+    required Color selectedColor,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: ActionChip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 11)),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? selectedColor.withOpacity(0.2)
+                    : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? selectedColor : Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        onPressed: onTap,
+        backgroundColor: isSelected
+            ? selectedColor.withOpacity(0.12)
+            : Colors.grey.shade100,
+        side: BorderSide(
+          color: isSelected ? selectedColor : Colors.grey.shade300,
+          width: 1,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  /// بناء عنصر خطأ واحد
+  Widget _buildErrorItem(FieldSyncError error, Color errorColor) {
+    final timeStr = error.timestamp > 0
+        ? DateTime.fromMillisecondsSinceEpoch(error.timestamp * 1000)
+        : null;
+    final timeLabel = timeStr != null
+        ? '${timeStr.hour.toString().padLeft(2, '0')}:${timeStr.minute.toString().padLeft(2, '0')}'
+        : '';
+
+    return InkWell(
+      onTap: () => _showErrorDetailDialog(error),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: UIConstants.spacingMD,
+          vertical: 6,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // أيقونة نوع الخطأ
+            Container(
+              margin: const EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: errorColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                _getErrorIcon(error.errorType),
+                size: 14,
+                color: errorColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // محتوى الخطأ
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // السطر الأول: الجدول والحقل
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _translateEntity(error.entityName),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      if (error.fieldName.isNotEmpty &&
+                          error.fieldName != 'general')
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            error.fieldName,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.purple.shade800,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+
+                  // السطر الثاني: نوع الخطأ والوقت
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: errorColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          error.errorTypeAr,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: errorColor,
+                          ),
+                        ),
+                      ),
+                      if (timeLabel.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          timeLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // سهم التفاصيل
+            Icon(Icons.chevron_left, size: 16, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// أيقونة نوع الخطأ
+  IconData _getErrorIcon(String errorType) {
+    switch (errorType) {
+      case 'network':
+        return Icons.wifi_off;
+      case 'validation':
+        return Icons.rule;
+      case 'not_found':
+        return Icons.search_off;
+      case 'permission':
+        return Icons.lock;
+      case 'timeout':
+        return Icons.timer_off;
+      case 'data_mismatch':
+        return Icons.compare_arrows;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  /// ترجمة نوع الخطأ
+  String _translateErrorType(String type) {
+    switch (type) {
+      case 'network':
+        return 'شبكة';
+      case 'validation':
+        return 'تحقق';
+      case 'not_found':
+        return 'غير موجود';
+      case 'permission':
+        return 'صلاحية';
+      case 'timeout':
+        return 'مهلة';
+      case 'data_mismatch':
+        return 'تضارب';
+      default:
+        return 'أخرى';
+    }
+  }
+
+  /// عرض تفاصيل خطأ واحد
+  void _showErrorDetailDialog(FieldSyncError error) {
+    final timeStr = error.timestamp > 0
+        ? DateTime.fromMillisecondsSinceEpoch(
+            error.timestamp * 1000,
+          ).toString().substring(0, 19)
+        : 'غير معروف';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('تفاصيل الخطأ'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow('الجدول', _translateEntity(error.entityName)),
+              _buildDetailRow('الحقل', error.fieldName),
+              _buildDetailRow('نوع الخطأ', error.errorTypeAr),
+              _buildDetailRow('العملية', error.operation),
+              _buildDetailRow('الوقت', timeStr),
+              if (error.recordUuid.isNotEmpty)
+                _buildDetailRow(
+                  'رقم السجل',
+                  error.recordUuid.length > 12
+                      ? '${error.recordUuid.substring(0, 12)}...'
+                      : error.recordUuid,
+                ),
+              const Divider(),
+              const Text(
+                'رسالة الخطأ:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(
+                  error.errorMessage,
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// صف تفصيلي في نافذة التفاصيل
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  /// تأكيد مسح الأخطاء
+  void _showClearErrorsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_sweep, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('مسح أخطاء المزامنة'),
+          ],
+        ),
+        content: Text(
+          'سيتم حذف جميع سجلات أخطاء مزامنة الحقول (${_fieldErrors.length} خطأ).'
+          ' هذا الإجراء لا يمكن التراجع عنه.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await AppwriteDeltaSync.clearFieldSyncErrors();
+              _loadFieldErrors();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم مسح أخطاء المزامنة'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('مسح', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _nextSyncLabel(String? lastSyncTime) {
