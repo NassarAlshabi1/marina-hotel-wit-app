@@ -1069,7 +1069,11 @@ INSERT INTO sync_mirror
 
   /// حقول محلية فقط لا يجب إرسالها إلى Appwrite
   static const _localOnlyFields = {
-    'id',
+    // ✅ تمت إزالة 'id' لأنه مطلوب لعلاقات FK في Appwrite
+    // salary_withdrawals.employeeId → employees.id
+    // booking_notes.bookingId → bookings.id
+    // booking_nights.bookingLocalId → bookings.id
+    // salary_cycles.employeeId → employees.id
     'local_id',
     'rowHash', // حقل محلي للتتبع
     // ✅ تمت إزالة createdAtEpoch و lastModifiedEpoch
