@@ -461,8 +461,10 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
 }
 
 /// اختيار اسم المفتاح المناسب عند إنشاء JSON للإرسال.
-/// تم تعديلها لإرجاع camelCase دائماً ليتوافق مع Appwrite.
-String _k(Source src, String camel) => camel;
+/// src == Source.drive → snake_case (للنسخ الاحتياطي)
+/// src == Source.appwrite → camelCase (لـ Appwrite)
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 /// إنشاء مفتاح بديل بصيغة snake_case من camelCase (للبحث في JSON القديم).
 /// يُستخدم فقط عند القراءة من مصدر drive (Appwrite) للتوافق مع البيانات القديمة.
