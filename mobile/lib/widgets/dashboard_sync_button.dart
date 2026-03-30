@@ -10,7 +10,6 @@ import '../providers/appwrite_providers.dart' as appwrite_providers;
 import '../providers/sync_log_providers.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/appwrite_delta_sync.dart';
-import '../services/smart_sync_manager.dart';
 import '../screens/settings/sync_history_screen.dart';
 
 // ============================================================================
@@ -452,19 +451,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      // 2️⃣ سحب من Google Drive (عبر SmartSyncManager مع معالجة التعارضات)
-      try {
-        final smartSync = SmartSyncManager.instance;
-        if (smartSync.isDriveSignedIn) {
-          final driveOk = await smartSync.pullRemoteChanges();
-          if (driveOk) {
-            messages.add('Drive: تم');
-          }
-        }
-      } catch (e) {
-        debugPrint('⚠️ Google Drive pull failed: $e');
-      }
-
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
 
@@ -536,21 +522,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      // 2️⃣ رفع إلى Google Drive (عبر SmartSyncManager مع signed-in instance)
-      try {
-        final smartSync = SmartSyncManager.instance;
-        if (smartSync.isDriveSignedIn) {
-          final driveOk = await smartSync.pushLocalChanges();
-          if (driveOk) {
-            messages.add('Drive: تم');
-          } else {
-            messages.add('Drive: لا تغييرات');
-          }
-        }
-      } catch (e) {
-        debugPrint('⚠️ Google Drive push failed: $e');
-      }
-
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
 
@@ -589,17 +560,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<SyncResult> _performFullSync() async {
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.fullSync();
-
-    // رفع/سحب إلى Google Drive عبر SmartSyncManager
-    try {
-      final smartSync = SmartSyncManager.instance;
-      if (smartSync.isDriveSignedIn) {
-        await smartSync.pushLocalChanges();
-        await smartSync.pullRemoteChanges();
-      }
-    } catch (e) {
-      debugPrint('⚠️ Google Drive sync in fullSync: $e');
-    }
 
     if (!result.success && result.message.contains('غير جاهزة')) {
       throw Exception('خدمة المزامنة غير جاهزة. يرجى التحقق من الإعدادات.');
