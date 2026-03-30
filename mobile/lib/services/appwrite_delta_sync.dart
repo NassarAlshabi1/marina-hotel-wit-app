@@ -115,6 +115,7 @@ class AppwriteDeltaSyncResult {
   int get recordsPushed => pushedCount;
   bool get hasConflicts => conflictCount > 0;
   bool get hasFieldErrors => fieldErrors.isNotEmpty;
+}
 
 class AppwriteDeltaSync {
   AppwriteDeltaSync._();
