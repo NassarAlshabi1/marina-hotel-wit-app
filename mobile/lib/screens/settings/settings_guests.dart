@@ -729,20 +729,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         await bookingsRepo.delete(bookingId);
       }
 
-      // 10. حذف سجلات الضيف من جدول GuestInfos
+      // 10. حذف سجلات الضيف من جدول GuestInfos (local-only, no outbox)
       final guestInfos = await (db.select(
         db.guestInfos,
       )..where((g) => g.guestName.equals(guest.name))).get();
       for (final gi in guestInfos) {
         await (db.delete(db.guestInfos)..where((g) => g.id.equals(gi.id))).go();
-        await db.outboxDao.merge(
-          entity: 'guest_infos',
-          op: 'delete',
-          localUuid: gi.localUuid,
-          serverId: gi.serverId,
-          payload: {'id': gi.id},
-          clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        );
       }
 
       // تشغيل المزامنة فوراً لرفع التغييرات إلى Appwrite Cloud

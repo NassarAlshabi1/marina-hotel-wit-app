@@ -156,6 +156,7 @@ class BookingPriceAdjustmentsAdapter
       'localUuid': model.localUuid,
       'serverId': model.serverId,
       'bookingLocalUuid': model.bookingLocalUuid,
+      'bookingUuid': model.bookingLocalUuid, // Appwrite يتطلب هذا الحقل
       'bookingLocalId': model.bookingLocalId,
       'adjustmentType': model.adjustmentType,
       'adjustmentMode': model.adjustmentMode,
