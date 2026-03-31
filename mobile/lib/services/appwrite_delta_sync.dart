@@ -1554,12 +1554,16 @@ INSERT INTO sync_mirror
 
   /// حقول محلية فقط لا يجب إرسالها إلى Appwrite
   static const _localOnlyFields = {
-    'id',
     'local_id',
     'rowHash', // حقل محلي للتتبع
     // ✅ تمت إزالة createdAtEpoch و lastModifiedEpoch
     // لأنها موجودة في Appwrite لجميع المجموعات
     'deletedAtEpoch',
+  };
+
+  /// المجموعات التي تتطلب حقل id (required=true في Appwrite)
+  static const _entitiesRequiringIdField = {
+    'guest_infos',
   };
 
   /// حقول sync التي يجب إزالتها من المجموعات التي لا تدعمها
@@ -1700,6 +1704,11 @@ INSERT INTO sync_mirror
     // إزالة الحقول المحلية فقط
     for (final field in _localOnlyFields) {
       sanitized.remove(field);
+    }
+
+    // ✅ إزالة حقل id إلا للمجموعات التي تتطلبه (required=true في Appwrite)
+    if (!_entitiesRequiringIdField.contains(collectionEntity)) {
+      sanitized.remove('id');
     }
 
     // ✅ إزالة حقول sync غير المدعومة لهذه المجموعة
