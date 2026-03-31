@@ -95,6 +95,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
   Widget _buildTable(List<GuestInfo> entries) {
     final headers = [
+      '',
       'الغرفة',
       'اسم النزيل',
       'الجنسية',
@@ -103,7 +104,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       'تاريخ الإصدار',
       'مكان الإصدار',
       'المحافظة',
-      'الإجراءات',
+      'الملاحظات',
     ];
 
     return Card(
@@ -128,6 +129,43 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               .map(
                 (info) => DataRow(
                   cells: [
+                    DataCell(
+                      PopupMenuButton<String>(
+                        tooltip: 'إجراءات',
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _openEditor(context, existing: info);
+                          } else if (value == 'delete') {
+                            _confirmDelete(info);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 18),
+                                SizedBox(width: 8),
+                                Text('تعديل'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline, size: 18,
+                                    color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('حذف',
+                                    style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     DataCell(Text(info.roomNumber)),
                     DataCell(Text(info.guestName)),
                     DataCell(Text(info.nationality)),
@@ -136,23 +174,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     DataCell(Text(info.issueDate ?? '-')),
                     DataCell(Text(info.issuePlace ?? '-')),
                     DataCell(Text(info.governorate ?? '-')),
-                    DataCell(
-                      Row(
-                        children: [
-                          IconButton(
-                            tooltip: 'تعديل',
-                            icon: const Icon(Icons.edit, size: 20),
-                            onPressed: () =>
-                                _openEditor(context, existing: info),
-                          ),
-                          IconButton(
-                            tooltip: 'حذف',
-                            icon: const Icon(Icons.delete_outline, size: 20),
-                            onPressed: () => _confirmDelete(info),
-                          ),
-                        ],
-                      ),
-                    ),
+                    DataCell(Text(info.notes ?? '-')),
                   ],
                 ),
               )
@@ -396,28 +418,28 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
-        'المحافظة',
-        'مكان الإصدار',
-        'تاريخ الإصدار',
+        'الملاحظات',
+        'رقم الغرفة',
+        'اسم النزيل',
+        'الجنسية',
         'رقم الهوية',
         'نوع الهوية',
-        'الجنسية',
-        'اسم النزيل',
-        'رقم الغرفة',
-        'الملاحظات',
+        'تاريخ الإصدار',
+        'مكان الإصدار',
+        'المحافظة',
       ];
       final data = entries
           .map(
             (info) => [
-              info.governorate ?? '-',
-              info.issuePlace ?? '-',
-              info.issueDate ?? '-',
+              info.notes ?? '-',
+              info.roomNumber,
+              info.guestName,
+              info.nationality,
               info.idNumber,
               info.idType,
-              info.nationality,
-              info.guestName,
-              info.roomNumber,
-              info.notes ?? '-',
+              info.issueDate ?? '-',
+              info.issuePlace ?? '-',
+              info.governorate ?? '-',
             ],
           )
           .toList();
@@ -426,7 +448,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final doc = pw.Document();
       doc.addPage(
         pw.MultiPage(
-          pageFormat: pdf.PdfPageFormat.a4,
+          pageFormat: pdf.PdfPageFormat.a4.landscape,
           textDirection: pw.TextDirection.rtl,
           margin: const pw.EdgeInsets.only(
             top: 10,
