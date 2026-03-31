@@ -1,24 +1,31 @@
 import 'package:flutter/foundation.dart';
+import 'appwrite_config_manager.dart';
 
 /// إعدادات Appwrite المُحسَّنة للسرعة
 ///
-/// يحتفظ بجميع الثوابت القديمة كـ aliases للتوافق مع الكود الموجود (~160 مرجع عبر 17 ملف).
-/// الثوابت الجديدة مُحسّنة للسرعة مع الحفاظ على التوافق الكامل.
+/// ⚠️ الآن endpoint و projectId و databaseId يستخدمون getters
+/// تُرجع القيم من AppwriteConfigManager، مما يسمح بتغييرها في وقت التشغيل
+/// دون الحاجة لإعادة تشغيل التطبيق.
+///
+/// جميع الثوابت القديمة محفوظة للتوافق (~160 مرجع عبر 17 ملف).
 class AppwriteConfig {
   AppwriteConfig._(); // منع الإنشاء
 
   // ═══════════════════════════════════════════════════════════════════
-  // بيانات الاتصال
+  // بيانات الاتصال - الآن ديناميكية عبر getters
   // ═══════════════════════════════════════════════════════════════════
 
   /// Endpoint مع Keep-Alive وHTTP/2
-  static const String endpoint = 'https://fra.cloud.appwrite.io/v1';
+  /// الآن يقرأ من AppwriteConfigManager (يمكن تغييره في وقت التشغيل)
+  static String get endpoint => AppwriteConfigManager.endpoint;
 
   /// Project ID
-  static const String projectId = '690ff0da0025518570c1';
+  /// الآن يقرأ من AppwriteConfigManager (يمكن تغييره في وقت التشغيل)
+  static String get projectId => AppwriteConfigManager.projectId;
 
   /// Database ID
-  static const String databaseId = 'hotel_db';
+  /// الآن يقرأ من AppwriteConfigManager (يمكن تغييره في وقت التشغيل)
+  static String get databaseId => AppwriteConfigManager.databaseId;
 
   // ═══════════════════════════════════════════════════════════════════
   // معرفات المجموعات — أسماء ثابتة (مُستخدمة عبر 17 ملف، ~160 مرجع)
@@ -314,7 +321,7 @@ class AppwriteConfig {
       '╠════════════════════════════════════════════════════════════╣',
     );
     debugPrint('║ Endpoint: $endpoint');
-    debugPrint('║ Project: ${projectId.substring(0, 8)}...');
+    debugPrint('║ Project: ${projectId.length > 8 ? projectId.substring(0, 8) : projectId}...');
     debugPrint(
       '║ ════════════════════════════════════════════════════════════',
     );
