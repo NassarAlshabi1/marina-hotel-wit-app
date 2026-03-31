@@ -223,7 +223,7 @@ class AppwriteService {
     required String collectionId,
     List<String>? queries,
     bool useCache = true,
-  }) {
+  }) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: collectionId,
@@ -1072,9 +1072,6 @@ class AppwriteService {
 
   /// اختبار الاتصال (alias لـ fullConnectionTest)
   Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
-
-  /// Getter للتحقق من حالة التهيئة
-  bool get isInitialized => _initialized;
 
   /// قراءة مستند واحد
   Future<models.Document> getDocument({
