@@ -576,12 +576,41 @@ class AppwriteDeltaSync {
             continue;
           }
 
-          // 8️⃣ رفع التغيير الجزئي
+          // 8️⃣ رفع التغيير
+          // ✅ لعملية insert: نرسل البيانات الكاملة (change.data)
+          // لأن Appwrite يتطلب جميع الحقول المطلوبة عند إنشاء المستند
+          // ولإصلاح: "Missing required attribute" في guest_infos وغيرها
+          // ✅ لعملية update: نرسل البيانات الجزئية فقط (fieldOnlyPayload)
           final operation = change.operation == 'insert' ? 'insert' : 'update';
+
+          final Map<String, dynamic> payloadToSend;
+          if (operation == 'insert') {
+            // insert → رفع كامل بجميع الحقول المطلوبة
+            payloadToSend = _sanitizePayload(
+              Map<String, dynamic>.from(change.data)
+                ..['deviceId'] = _deviceId
+                ..['syncTimestamp'] = Time.nowEpoch()
+                ..['lastModified'] = Time.nowEpoch(),
+              collectionEntity: change.entity,
+            );
+          } else {
+            // update → رفع جزئي (فقط الحقول المتغيرة + حقول التحكم)
+            payloadToSend = sanitizedPayload;
+          }
+
+          if (payloadToSend.isEmpty) {
+            _logger.warning(
+              '⚠️ Payload فارغ لـ ${change.entity}/${change.localUuid}',
+              tag: 'FIELD_SYNC',
+            );
+            successfulChanges.add(change);
+            continue;
+          }
+
           await _pushFieldLevelToAppwrite(
             collectionId: collectionId,
             documentId: change.localUuid,
-            data: sanitizedPayload,
+            data: payloadToSend,
             operation: operation,
           );
 
