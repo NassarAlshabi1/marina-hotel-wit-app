@@ -160,7 +160,7 @@ class BookingPriceAdjustmentsAdapter
       'bookingLocalId': model.bookingLocalId,
       'adjustmentType': model.adjustmentType,
       'adjustmentMode': model.adjustmentMode,
-      'amount': model.amount.round(), // Appwrite expects integer
+      'amount': model.amount,
       'effectiveHotelDay': model.effectiveHotelDay,
       'endHotelDay': model.endHotelDay,
       'isActive': model.isActive,
