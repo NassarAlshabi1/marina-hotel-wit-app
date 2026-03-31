@@ -14,6 +14,7 @@ import '../utils/system_settings_keys.dart';
 import 'auto_backup_task.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
+import 'booking_derived_fields_service.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
@@ -1171,6 +1172,18 @@ class GoogleDriveBackupService {
           await fixService.runAutoFixAfterRestore(
             backupTimestamp: metadata.backupTimestamp,
           );
+
+          // ✅ إعادة حساب الحقول المشتقة لكل الحجوزات النشطة
+          // بعد الاستعادة قد تحتوي البيانات على ليالي/أسعار قديمة
+          try {
+            final derivedService = BookingDerivedFieldsService(db);
+            final renewed = await derivedService.refreshAllActiveBookings();
+            if (renewed > 0) {
+              _log('🏨 إعادة حساب بعد الاستعادة: $renewed حجز نشط');
+            }
+          } catch (e) {
+            _log('⚠️ خطأ في إعادة حساب الحجوزات بعد الاستعادة: $e');
+          }
         });
       } finally {
         // تفعيل قيود المفتاح الخارجي دائماً بعد الانتهاء، سواء نجحت العملية أو فشلت
