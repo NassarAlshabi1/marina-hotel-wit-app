@@ -537,8 +537,6 @@ class AutoBackupManager {
       }
 
       debugPrint('✅ اكتملت المزامنة التفاضلية');
-
-      await _autoRenewActiveBookings();
     } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
