@@ -19,6 +19,7 @@ import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'repositories/base_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'booking_derived_fields_service.dart';
 import 'conflict_resolver.dart';
 // ✅ Field-Level Sync
 import 'field_level_sync.dart';
@@ -939,6 +940,25 @@ class AppwriteDeltaSync {
           await RoomsRepository(
             _database!,
           ).refreshAllRoomOccupancy(originIsServer: true);
+
+          // ✅ إعادة حساب الحقول المشتقة للحجوزات النشطة بعد السحب
+          // هذا يضمن أن بيانات الليالي والأسعار محسوبة محلياً بشكل صحيح
+          // حتى لو جاءت بيانات قديمة من Appwrite
+          try {
+            final derivedService = BookingDerivedFieldsService(_database!);
+            final renewed = await derivedService.refreshAllActiveBookings();
+            if (renewed > 0) {
+              _logger.info(
+                '🏨 إعادة حساب بعد السحب: $renewed حجز نشط',
+                tag: 'DELTA_SYNC',
+              );
+            }
+          } catch (e) {
+            _logger.warning(
+              '⚠️ خطأ في إعادة حساب الحجوزات بعد السحب: $e',
+              tag: 'DELTA_SYNC',
+            );
+          }
         }
 
         await _updateLastDeltaPullTimestamp();
