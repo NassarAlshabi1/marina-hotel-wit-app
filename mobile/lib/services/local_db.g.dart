@@ -7782,6 +7782,15 @@ class $GuestInfosTable extends GuestInfos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -7807,6 +7816,7 @@ class $GuestInfosTable extends GuestInfos
     issueDate,
     issuePlace,
     governorate,
+    notes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7989,6 +7999,12 @@ class $GuestInfosTable extends GuestInfos
         ),
       );
     }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
     return context;
   }
 
@@ -8092,6 +8108,10 @@ class $GuestInfosTable extends GuestInfos
         DriftSqlType.string,
         data['${effectivePrefix}governorate'],
       ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
     );
   }
 
@@ -8128,6 +8148,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String? issueDate;
   final String? issuePlace;
   final String? governorate;
+  final String? notes;
   const GuestInfo({
     required this.localUuid,
     this.serverId,
@@ -8152,6 +8173,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     this.issueDate,
     this.issuePlace,
     this.governorate,
+    this.notes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8199,6 +8221,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     if (!nullToAbsent || governorate != null) {
       map['governorate'] = Variable<String>(governorate);
     }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
     return map;
   }
 
@@ -8243,6 +8268,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       governorate: governorate == null && nullToAbsent
           ? const Value.absent()
           : Value(governorate),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
     );
   }
 
@@ -8277,6 +8305,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       issueDate: serializer.fromJson<String?>(json['issueDate']),
       issuePlace: serializer.fromJson<String?>(json['issuePlace']),
       governorate: serializer.fromJson<String?>(json['governorate']),
+      notes: serializer.fromJson<String?>(json['notes']),
     );
   }
   @override
@@ -8306,6 +8335,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'issueDate': serializer.toJson<String?>(issueDate),
       'issuePlace': serializer.toJson<String?>(issuePlace),
       'governorate': serializer.toJson<String?>(governorate),
+      'notes': serializer.toJson<String?>(notes),
     };
   }
 
@@ -8333,6 +8363,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     Value<String?> issueDate = const Value.absent(),
     Value<String?> issuePlace = const Value.absent(),
     Value<String?> governorate = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
   }) => GuestInfo(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -8357,6 +8388,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issueDate: issueDate.present ? issueDate.value : this.issueDate,
     issuePlace: issuePlace.present ? issuePlace.value : this.issuePlace,
     governorate: governorate.present ? governorate.value : this.governorate,
+    notes: notes.present ? notes.value : this.notes,
   );
   GuestInfo copyWithCompanion(GuestInfosCompanion data) {
     return GuestInfo(
@@ -8405,6 +8437,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       governorate: data.governorate.present
           ? data.governorate.value
           : this.governorate,
+      notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
 
@@ -8433,7 +8466,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ..write('idType: $idType, ')
           ..write('issueDate: $issueDate, ')
           ..write('issuePlace: $issuePlace, ')
-          ..write('governorate: $governorate')
+          ..write('governorate: $governorate, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
@@ -8463,6 +8497,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issueDate,
     issuePlace,
     governorate,
+    notes,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -8490,7 +8525,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           other.idType == this.idType &&
           other.issueDate == this.issueDate &&
           other.issuePlace == this.issuePlace &&
-          other.governorate == this.governorate);
+          other.governorate == this.governorate &&
+          other.notes == this.notes);
 }
 
 class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
@@ -8517,6 +8553,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<String?> issueDate;
   final Value<String?> issuePlace;
   final Value<String?> governorate;
+  final Value<String?> notes;
   const GuestInfosCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -8541,6 +8578,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issueDate = const Value.absent(),
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
+    this.notes = const Value.absent(),
   });
   GuestInfosCompanion.insert({
     required String localUuid,
@@ -8566,6 +8604,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issueDate = const Value.absent(),
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
+    this.notes = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -8598,6 +8637,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Expression<String>? issueDate,
     Expression<String>? issuePlace,
     Expression<String>? governorate,
+    Expression<String>? notes,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -8623,6 +8663,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       if (issueDate != null) 'issue_date': issueDate,
       if (issuePlace != null) 'issue_place': issuePlace,
       if (governorate != null) 'governorate': governorate,
+      if (notes != null) 'notes': notes,
     });
   }
 
@@ -8650,6 +8691,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<String?>? issueDate,
     Value<String?>? issuePlace,
     Value<String?>? governorate,
+    Value<String?>? notes,
   }) {
     return GuestInfosCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -8675,6 +8717,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       issueDate: issueDate ?? this.issueDate,
       issuePlace: issuePlace ?? this.issuePlace,
       governorate: governorate ?? this.governorate,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -8752,6 +8795,9 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     if (governorate.present) {
       map['governorate'] = Variable<String>(governorate.value);
     }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
     return map;
   }
 
@@ -8780,7 +8826,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
           ..write('idType: $idType, ')
           ..write('issueDate: $issueDate, ')
           ..write('issuePlace: $issuePlace, ')
-          ..write('governorate: $governorate')
+          ..write('governorate: $governorate, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
@@ -38237,6 +38284,7 @@ typedef $$GuestInfosTableCreateCompanionBuilder =
       Value<String?> issueDate,
       Value<String?> issuePlace,
       Value<String?> governorate,
+      Value<String?> notes,
     });
 typedef $$GuestInfosTableUpdateCompanionBuilder =
     GuestInfosCompanion Function({
@@ -38263,6 +38311,7 @@ typedef $$GuestInfosTableUpdateCompanionBuilder =
       Value<String?> issueDate,
       Value<String?> issuePlace,
       Value<String?> governorate,
+      Value<String?> notes,
     });
 
 class $$GuestInfosTableFilterComposer
@@ -38393,6 +38442,11 @@ class $$GuestInfosTableFilterComposer
     column: $table.governorate,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$GuestInfosTableOrderingComposer
@@ -38518,6 +38572,11 @@ class $$GuestInfosTableOrderingComposer
     column: $table.governorate,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GuestInfosTableAnnotationComposer
@@ -38620,6 +38679,9 @@ class $$GuestInfosTableAnnotationComposer
     column: $table.governorate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 }
 
 class $$GuestInfosTableTableManager
@@ -38676,6 +38738,7 @@ class $$GuestInfosTableTableManager
                 Value<String?> issueDate = const Value.absent(),
                 Value<String?> issuePlace = const Value.absent(),
                 Value<String?> governorate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
               }) => GuestInfosCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -38700,6 +38763,7 @@ class $$GuestInfosTableTableManager
                 issueDate: issueDate,
                 issuePlace: issuePlace,
                 governorate: governorate,
+                notes: notes,
               ),
           createCompanionCallback:
               ({
@@ -38726,6 +38790,7 @@ class $$GuestInfosTableTableManager
                 Value<String?> issueDate = const Value.absent(),
                 Value<String?> issuePlace = const Value.absent(),
                 Value<String?> governorate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
               }) => GuestInfosCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -38750,6 +38815,7 @@ class $$GuestInfosTableTableManager
                 issueDate: issueDate,
                 issuePlace: issuePlace,
                 governorate: governorate,
+                notes: notes,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

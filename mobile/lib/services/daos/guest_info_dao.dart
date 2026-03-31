@@ -88,7 +88,7 @@ class GuestInfoDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromCompanion(companion),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
+        await SyncGuardian.instance.notifyLocalChange(
           table: 'guest_infos',
           operation: 'create',
         );
@@ -124,7 +124,7 @@ class GuestInfoDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromCompanion(companion),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
+        await SyncGuardian.instance.notifyLocalChange(
           table: 'guest_infos',
           operation: 'update',
         );
@@ -157,7 +157,7 @@ class GuestInfoDao extends DatabaseAccessor<AppDatabase>
           payload: {'localUuid': existing.localUuid},
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
+        await SyncGuardian.instance.notifyLocalChange(
           table: 'guest_infos',
           operation: 'delete',
         );
@@ -194,7 +194,7 @@ class GuestInfoDao extends DatabaseAccessor<AppDatabase>
     if (comp.origin.present) map['origin'] = comp.origin.value;
     if (comp.vectorClock.present) {
       final vc = comp.vectorClock.value;
-      map['vectorClock'] = vc is String ? vc : jsonEncode(vc ?? {});
+      map['vectorClock'] = vc is String ? vc : jsonEncode(vc);
     }
     return map;
   }
