@@ -532,10 +532,15 @@ class AppwriteDeltaSync {
           );
 
           if (diff.isEmpty) {
-            _logger.debug(
-              '⏭️ لا توجد فروقات حقلية لـ ${change.entity}/${change.localUuid}',
+            // ✅ نظام ذكي: إذا لم نتمكن من اكتشاف الفروق الحقلية
+            // (مثلاً: تغير حقل غير موجود في trackableFields، أو أول مزامنة)
+            // نعود للرفع الكامل حتى لا تضيع التغييرات
+            _logger.info(
+              '🔄 Fallback → رفع كامل: ${change.entity}/${change.localUuid} '
+              '(لم يتم اكتشاف فروق حقلية)',
               tag: 'FIELD_SYNC',
             );
+            await _pushSingleChange(change);
             successfulChanges.add(change);
             continue;
           }
@@ -1531,6 +1536,9 @@ INSERT INTO sync_mirror
 
   /// حقول sync التي يجب إزالتها من المجموعات التي لا تدعمها
   /// هذه الحقول تُرسل من الـ adapters لكن Appwrite لا يدعمها في بعض المجموعات
+  /// ⚠️ ملاحظة: هذه الأسماء لا تتطابق مع أي حقول فعلية حالياً
+  /// لأن الـ adapters ترسل camelCase بينما هذه القائمة تستخدم snake_case
+  /// الإبقاء كما هو لأن التغيير قد يسبب حذف حقول مطلوبة
   static const _unsupportedSyncFields = {
     'bookings': [
       'sync_version',
@@ -1964,11 +1972,11 @@ INSERT INTO sync_mirror
     // حقول يجب تقليصها (القيمة هي عدد الرموز، وليس البايتات)
     final shortStringFields = {
       'stayDurationIso': 50,
-      'roomNumber': 20,
+      'roomNumber': 50, // ✅ تطابق Appwrite schema (string 50)
       'guestName': 50, // ✅ تقليل إلى 50 رمز (100 بايت تقريباً للعربي)
-      'guestPhone': 20,
-      'nationality': 50,
-      'status': 30,
+      'guestPhone': 50, // ✅ تطابق Appwrite schema (string 50)
+      'guestNationality': 50, // ✅ إصلاح: كان 'nationality' (اسم خاطئ)
+      'status': 20, // ✅ تطابق Appwrite schema (string 20)
       'paymentMethod': 30,
       'transactionType': 30,
     };
