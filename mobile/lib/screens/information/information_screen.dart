@@ -438,7 +438,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
         '#',
-        'الملاحظات',
         'رقم الغرفة',
         'اسم النزيل',
         'الجنسية',
@@ -447,12 +446,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         'تاريخ الإصدار',
         'مكان الإصدار',
         'المحافظة',
+        'الملاحظات',
       ];
       final data = List.generate(entries.length, (i) {
         final info = entries[i];
         return [
           '${i + 1}',
-          info.notes ?? '-',
           info.roomNumber,
           info.guestName,
           info.nationality,
@@ -461,6 +460,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           info.issueDate ?? '-',
           info.issuePlace ?? '-',
           info.governorate ?? '-',
+          info.notes ?? '-',
         ];
       });
       final printDate = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
@@ -532,7 +532,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                           'تاريخ التقرير: $printDate',
                           style: pw.TextStyle(
                             font: fonts.bold,
-                            fontSize: 11,
+                            fontSize: 12,
                             color: pdf.PdfColors.grey800,
                           ),
                           textAlign: pw.TextAlign.left,
