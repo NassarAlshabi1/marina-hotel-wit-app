@@ -87,6 +87,9 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // ✅ تهيئة Appwrite Config قبل أي شيء — يضمن أن endpoint/projectId/databaseId
+  // جاهزون قبل DeltaSyncInitializer أو AppwriteService.initialize()
+  await AppwriteConfigManager.init();
   if (kDebugMode) {
     debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   }
@@ -136,10 +139,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     }
 
     if (kDebugMode) {
-      debugPrint('📦 Initializing Appwrite Config Manager...');
-    }
-    await AppwriteConfigManager.init();
-    if (kDebugMode) {
+      debugPrint('📦 Appwrite Config Manager already initialized in main()');
       debugPrint('✅ Appwrite Config loaded');
     }
 

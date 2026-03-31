@@ -23,23 +23,32 @@ class AppwriteService {
   final _networkHelper = AppwriteNetworkHelper();
 
   bool _initialized = false;
+  String _lastEndpoint = '';
+  String _lastProjectId = '';
 
   /// Getter للوصول إلى Client من الخارج إذا لزم الأمر
   Client get client => _client;
   Databases get databases => _databases;
+  bool get isInitialized => _initialized;
 
-  /// التهيئة الأولية
+  /// التهيئة — آمنة للاستدعاء المتعدد
+  /// يعيد بناء الـ Client إذا تغيرت endpoint أو projectId
   Future<void> initialize() async {
-    if (_initialized) return;
-
     final endpoint = AppwriteConfigManager.endpoint;
     final projectId = AppwriteConfigManager.projectId;
     final apiKey = AppwriteConfigManager.apiKey;
+
+    // إعادة بناء الـ Client إذا تغيرت الإعدادات
+    if (_initialized && _lastEndpoint == endpoint && _lastProjectId == projectId) {
+      return;
+    }
 
     _client = Client().setEndpoint(endpoint).setProject(projectId);
     if (apiKey.isNotEmpty) {
       _client.addHeader('X-Appwrite-Key', apiKey);
     }
+    _lastEndpoint = endpoint;
+    _lastProjectId = projectId;
 
     // إزالة selfSigned في الإنتاج، مفيدة للتطوير
     // _client.setSelfSigned(status: true);
