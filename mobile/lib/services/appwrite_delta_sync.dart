@@ -164,6 +164,7 @@ class AppwriteDeltaSync {
     'salary_withdrawals': 'lastModified',
     'shift_notes': 'lastModified',
     'booking_price_adjustments': 'lastModified',
+    'guest_infos': 'lastModified',
   };
 
   Future<void> initialize(
@@ -911,6 +912,11 @@ class AppwriteDeltaSync {
           'booking_price_adjustments',
           AppwriteConfig.bookingPriceAdjustmentsCollectionId,
           _adapterRegistry!.bookingPriceAdjustments,
+        ),
+        _SyncEntity(
+          'guest_infos',
+          AppwriteConfig.guestInfosCollectionId,
+          _adapterRegistry!.guestInfos,
         ),
       ];
 
