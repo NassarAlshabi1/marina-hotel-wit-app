@@ -48,6 +48,7 @@ class AutoBackupManager {
   Timer? _cleanupTimer;
   bool _isBackingUp = false;
   bool _isDeltaSyncing = false;
+  bool _isRenewingBookings = false;
   int _pendingChanges = 0;
   String? _deviceId;
   BackupMode _currentMode = BackupMode.deltaSync;
@@ -556,6 +557,10 @@ class AutoBackupManager {
 
   Future<void> _autoRenewActiveBookings() async {
     try {
+      // Guard against concurrent execution (e.g., app resume + payment screen)
+      if (_isRenewingBookings) return;
+      _isRenewingBookings = true;
+
       final currentHotelDay = Time.hotelDayKey();
       if (_lastRenewedHotelDay == currentHotelDay) return;
 
@@ -570,6 +575,8 @@ class AutoBackupManager {
       }
     } catch (e) {
       debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
+    } finally {
+      _isRenewingBookings = false;
     }
   }
 
