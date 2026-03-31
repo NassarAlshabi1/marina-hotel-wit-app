@@ -20,7 +20,9 @@ import '../services/google_drive_unified_sync_coordinator.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/appwrite_delta_sync.dart';
 import 'bookings/booking_edit.dart';
+import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
+import 'reports/payments_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
@@ -229,6 +231,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     '$rate%',
                     Icons.pie_chart_rounded,
                     Colors.orange,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BookingsListScreen(),
+                      ),
+                    ),
                   );
                 },
               );
@@ -258,6 +266,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   currencyFmt.format(total),
                   Icons.payments_rounded,
                   Colors.green,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PaymentsReportScreen(),
+                    ),
+                  ),
                 ),
               );
             },
