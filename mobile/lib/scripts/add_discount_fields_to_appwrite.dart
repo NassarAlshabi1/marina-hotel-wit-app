@@ -124,7 +124,7 @@ Future<bool> addStringAttribute({
     'key': attributeKey,
     'size': size,
     'required': required,
-    'default': ?defaultValue,
+    if (defaultValue != null) 'default': defaultValue,
   };
 
   try {
