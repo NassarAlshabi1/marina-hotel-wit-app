@@ -1269,7 +1269,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
+          const SnackBar(
+            content: Text('تعذّر إرسال رسالة واتساب'),
+            duration: Duration(seconds: 4),
+          ),
         );
       }
     }
@@ -1578,7 +1581,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
+          const SnackBar(
+            content: Text('تعذّر إرسال رسالة واتساب'),
+            duration: Duration(seconds: 4),
+          ),
         );
       }
     }
@@ -1670,12 +1676,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (parsedAmount == null || parsedAmount <= 0) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('يرجى إدخال مبلغ صحيح')));
+      ).showSnackBar(const SnackBar(
+        content: Text('يرجى إدخال مبلغ صحيح'),
+        duration: Duration(seconds: 4),
+      ));
       return;
     }
     if (parsedAmount % 1 != 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('المبلغ يجب أن يكون بدون كسور')),
+        const SnackBar(
+          content: Text('المبلغ يجب أن يكون بدون كسور'),
+          duration: Duration(seconds: 4),
+        ),
       );
       return;
     }
@@ -1696,6 +1708,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text(
               'المبلغ أكبر من المتبقي (${_currencyFmt.format(totals.remaining)})',
+            ),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
@@ -1786,6 +1803,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text('تعذّر تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              textColor: Colors.white,
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
         );
       }
