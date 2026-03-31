@@ -237,7 +237,14 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    final cleanData = Map<String, dynamic>.from(data)..remove('id');
+    final cleanData = Map<String, dynamic>.from(data);
+
+    // ✅ إزالة حقل id فقط للمجموعات التي لا تتطلبه (required=true في Appwrite)
+    const entitiesRequiringId = {'guest_infos'};
+    if (!entitiesRequiringId.contains(collectionId)) {
+      cleanData.remove('id');
+    }
+
     final localUuid = cleanData['localUuid']?.toString() ?? documentId;
 
     // 1. محاولة جلب المستند الحالي للتحقق من التعارض (Optimistic Concurrency Control)
