@@ -96,6 +96,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   Widget _buildTable(List<GuestInfo> entries) {
     final headers = [
       '',
+      '#',
       'الغرفة',
       'اسم النزيل',
       'الجنسية',
@@ -129,6 +130,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               .map(
                 (info) => DataRow(
                   cells: [
+                    DataCell(
+                      Text('${entries.indexOf(info) + 1}'),
+                    ),
                     DataCell(
                       PopupMenuButton<String>(
                         tooltip: 'إجراءات',
@@ -418,6 +422,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
+        '#',
         'الملاحظات',
         'رقم الغرفة',
         'اسم النزيل',
@@ -428,21 +433,21 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         'مكان الإصدار',
         'المحافظة',
       ];
-      final data = entries
-          .map(
-            (info) => [
-              info.notes ?? '-',
-              info.roomNumber,
-              info.guestName,
-              info.nationality,
-              info.idNumber,
-              info.idType,
-              info.issueDate ?? '-',
-              info.issuePlace ?? '-',
-              info.governorate ?? '-',
-            ],
-          )
-          .toList();
+      final data = List.generate(entries.length, (i) {
+        final info = entries[i];
+        return [
+          '${i + 1}',
+          info.notes ?? '-',
+          info.roomNumber,
+          info.guestName,
+          info.nationality,
+          info.idNumber,
+          info.idType,
+          info.issueDate ?? '-',
+          info.issuePlace ?? '-',
+          info.governorate ?? '-',
+        ];
+      });
       final printDate = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
 
       final doc = pw.Document();
