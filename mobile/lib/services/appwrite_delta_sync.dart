@@ -1539,6 +1539,8 @@ INSERT INTO sync_mirror
         return AppwriteConfig.auditLogsCollectionId;
       case 'payment_voids':
         return AppwriteConfig.paymentVoidsCollectionId;
+      case 'guest_infos':
+        return AppwriteConfig.guestInfosCollectionId;
       default:
         return null;
     }

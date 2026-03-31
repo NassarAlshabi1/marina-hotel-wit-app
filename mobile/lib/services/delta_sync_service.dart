@@ -1232,6 +1232,15 @@ class DeltaSyncService {
         (row) => row.deletedAt,
         (row) => row.toJson(),
       ),
+      makeConfig<GuestInfo>(
+        'guest_infos',
+        () => db.select(db.guestInfos).get(),
+        (row) => row.localUuid,
+        (row) => row.createdAt,
+        (row) => row.lastModified,
+        (row) => row.deletedAt,
+        (row) => row.toJson(),
+      ),
     ];
   }
 

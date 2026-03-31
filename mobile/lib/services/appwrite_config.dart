@@ -58,6 +58,7 @@ class AppwriteConfig {
       'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
+  static const String guestInfosCollectionId = 'guest_infos';
 
   // --- محلي فقط — لا يتم مزامنته مع Appwrite ---
   static const String localOnlyCollection = 'hotel_day_ledger';
@@ -95,6 +96,7 @@ class AppwriteConfig {
     bookingPriceAdjustmentsCollectionId,
     auditLogsCollectionId,
     paymentVoidsCollectionId,
+    guestInfosCollectionId,
   ];
 
   /// جميع المجموعات القابلة للمزامنة
