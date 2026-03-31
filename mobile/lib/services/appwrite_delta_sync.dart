@@ -1924,16 +1924,9 @@ INSERT INTO sync_mirror
   /// ⚠️ بعض الحقول في Appwrite من نوع double ولا يجب تحويلها
   void _convertAmountsToInt(Map<String, dynamic> data) {
     // ✅ حقول يجب تحويلها إلى int (نوعها integer في Appwrite)
-    final amountFields = [
-      'amount', // integer في salary_withdrawals, payments, debts
-      'price', // integer في rooms
-      'totalAmount', // integer في debts
+    final intAmountFields = [
+      'amount', // integer في salary_withdrawals, debts
       'remainingAmount', // integer في debts
-      'totalDueCached', // integer في bookings
-      'totalPaidCached', // integer في bookings
-      'remainingBalanceCached', // integer في bookings
-      'expectedAmount', // integer في salary_cycles
-      'actualPaid', // integer في salary_cycles
       'totalDeductions', // integer في salary_cycles
       'totalWithdrawals', // integer في salary_cycles
       'netSalary', // integer في salary_cycles
@@ -1942,10 +1935,15 @@ INSERT INTO sync_mirror
     ];
 
     // ✅ حقول يجب تركها كـ double (نوعها double في Appwrite)
-    // لا تُحوَّل: basicSalary, discount, nightlyRate, baseRate,
-    //             adjustment, finalRate, paidAmount
+    // تحويلها إلى int يسبب خطأ type mismatch مع Appwrite!
+    // لا تقم بتحويل: payments.amount, expenses.amount, rooms.price,
+    //   debts.totalAmount, debts.paidAmount, bookings.totalDueCached,
+    //   bookings.totalPaidCached, bookings.remainingBalanceCached,
+    //   salary_cycles.expectedAmount, salary_cycles.actualPaid
+    // ملاحظة: الحقول المكررة (مثل 'amount') موجودة في كلا القائمتين.
+    // يتم معالجتها عبر الالتكرار الثاني الذي لا يُغيّر النوع.
 
-    for (final field in amountFields) {
+    for (final field in intAmountFields) {
       if (data.containsKey(field) && data[field] != null) {
         final value = data[field];
         if (value is double) {
