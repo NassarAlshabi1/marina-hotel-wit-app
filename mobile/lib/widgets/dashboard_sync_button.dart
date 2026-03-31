@@ -195,7 +195,7 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     if (value) {
       state = state.copyWith(
         isPulling: true,
-        progress: const SyncProgress(currentOperation: 'سحب (Field-Level)'),
+        progress: const SyncProgress(currentOperation: 'سحب التغييرات من السيرفر'),
       );
     } else {
       state = state.copyWith(isPulling: false);
@@ -206,7 +206,7 @@ class SyncStateNotifier extends StateNotifier<SyncState> {
     if (value) {
       state = state.copyWith(
         isPushing: true,
-        progress: const SyncProgress(currentOperation: 'رفع (Field-Level)'),
+        progress: const SyncProgress(currentOperation: 'رفع التغييرات إلى السيرفر'),
       );
     } else {
       state = state.copyWith(isPushing: false);
@@ -379,7 +379,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       _showSnackBar(
         context,
-        '🔄 جاري المزامنة الكاملة (Field-Level)...',
+        '🔄 جاري مزامنة البيانات مع السيرفر...',
         Colors.blue,
         showProgress: true,
       );
@@ -442,11 +442,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           totalPulled += appwriteResult.recordsPulled;
           totalFailed += appwriteResult.failedCount;
           if (appwriteResult.recordsPulled > 0) {
-            messages.add('Appwrite: ${appwriteResult.recordsPulled} سجل');
+            messages.add('تم سحب ${appwriteResult.recordsPulled} سجل');
           }
         } catch (e) {
           debugPrint('⚠️ Appwrite pull failed: $e');
-          messages.add('Appwrite: فشل');
+          messages.add('فشل السحب من السيرفر');
           totalFailed++;
         }
       }
@@ -513,11 +513,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           totalFailed += appwriteResult.failedCount;
           totalConflicts += appwriteResult.conflicts;
           if (appwriteResult.recordsPushed > 0) {
-            messages.add('Appwrite: ${appwriteResult.recordsPushed} سجل');
+            messages.add('تم رفع ${appwriteResult.recordsPushed} سجل');
           }
         } catch (e) {
           debugPrint('⚠️ Appwrite push failed: $e');
-          messages.add('Appwrite: فشل');
+          messages.add('فشل الرفع إلى السيرفر');
           totalFailed++;
         }
       }
@@ -695,13 +695,20 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     SyncResult result,
     Duration duration,
   ) {
-    String message =
-        '✅ تمت المزامنة (Field-Level)!\n'
-        '📤 ${result.fieldsPushed} حقل مرفوع (${result.recordsPushed} سجل)\n'
-        '📥 ${result.fieldsPulled} حقل مسحوب (${result.recordsPulled} سجل)';
+    String message;
+    final pushed = result.recordsPushed;
+    final pulled = result.recordsPulled;
+
+    if (pushed == 0 && pulled == 0) {
+      message = '✅ البيانات محدّثة - لا توجد تغييرات جديدة';
+    } else {
+      message = '✅ تمت المزامنة بنجاح!';
+      if (pulled > 0) message += '\n📥 تم سحب $pulled سجل من السيرفر';
+      if (pushed > 0) message += '\n📤 تم رفع $pushed سجل إلى السيرفر';
+    }
 
     if (result.conflicts > 0) {
-      message += '\n⚠️ ${result.conflicts} تعارض';
+      message += '\n⚠️ تم حل $result.conflicts تعارض تلقائياً';
     }
 
     message += '\n⏱️ ${duration.inSeconds}.${duration.inMilliseconds % 1000} ث';
@@ -719,12 +726,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     SyncResult result,
     Duration duration,
   ) {
-    String message =
-        '✅ تم السحب (Field-Level)!\n'
-        '📥 ${result.fieldsPulled} حقل مسحوب (${result.recordsPulled} سجل)';
+    String message;
+    if (result.recordsPulled == 0) {
+      message = '✅ لا توجد تغييرات جديدة على السيرفر';
+    } else {
+      message = '✅ تم سحب التغييرات بنجاح!\n📥 تم تحديث $result.recordsPulled سجل';
+    }
 
     if (result.conflicts > 0) {
-      message += '\n⚠️ ${result.conflicts} تعارض';
+      message += '\n⚠️ تم حل ${result.conflicts} تعارض تلقائياً';
     }
 
     message += '\n⏱️ ${duration.inSeconds} ث';
@@ -744,15 +754,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     String message;
 
     if (result.recordsPushed == 0) {
-      message = '✅ لا توجد تغييرات للرفع';
+      message = '✅ جميع البيانات محدّثة - لا توجد تغييرات للرفع';
     } else {
       message =
-          '✅ تم الرفع (Field-Level)!\n'
-          '📤 ${result.fieldsPushed} حقل مرفوع (${result.recordsPushed} سجل)';
+          '✅ تم رفع البيانات بنجاح!\n'
+          '📤 تم تحديث ${result.recordsPushed} سجل على السيرفر';
     }
 
     if (result.failedCount > 0) {
-      message += '\n❌ ${result.failedCount} فشل';
+      message += '\n❌ فشل رفع ${result.failedCount} سجل';
     }
 
     message += '\n⏱️ ${duration.inSeconds} ث';
@@ -807,7 +817,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Widget _buildFieldLevelToggle(bool enabled) {
     return Tooltip(
-      message: enabled ? 'Field-Level: ON' : 'Field-Level: OFF',
+      message: enabled ? 'المزامنة التلقائية: مفعّلة' : 'المزامنة التلقائية: معطّلة',
       child: GestureDetector(
         onTap: () =>
             ref.read(syncStateProvider.notifier).toggleFieldLevel(!enabled),
@@ -831,7 +841,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ),
               const SizedBox(width: 4),
               Text(
-                'Field-Level',
+                'مزامنة تلقائية',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
@@ -851,7 +861,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         : Colors.blue.withOpacity(0.6);
 
     return Tooltip(
-      message: 'سحب التغييرات من السيرفر (Field-Level)',
+      message: 'سحب التغييرات الجديدة من السيرفر',
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
@@ -920,8 +930,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     return Tooltip(
       message: hasChanges
-          ? 'رفع $pendingCount تغيير (Field-Level)'
-          : 'جميع التغييرات مرفوعة',
+          ? 'رفع $pendingCount تغيير إلى السيرفر'
+          : 'جميع البيانات محدّثة على السيرفر',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1148,7 +1158,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   String _getStatusText(SyncState state, bool hasChanges) {
     if (state.isSyncing) {
-      return 'جاري المزامنة (Field-Level)...';
+      return 'جاري مزامنة البيانات...';
     }
     if (hasChanges) {
       return '${state.totalPending} تغيير معلق';
@@ -1175,7 +1185,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'تغييرات مستوى الحقل: ${state.pendingFieldChangesCount}',
+            '${state.pendingFieldChangesCount} تغيير بانتظار الرفع',
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.bold,
@@ -1184,7 +1194,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ),
           if (state.conflictsResolved > 0)
             Text(
-              'تعارضات محلولة: ${state.conflictsResolved}',
+              'تم حل ${state.conflictsResolved} تعارض تلقائياً',
               style: TextStyle(fontSize: 8, color: Colors.orange.shade800),
             ),
         ],
