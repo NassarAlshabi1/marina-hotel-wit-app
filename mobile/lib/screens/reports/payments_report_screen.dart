@@ -37,7 +37,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   // فلاتر
   DateTime? _fromDate;
   DateTime? _toDate;
-  final TextEditingController _roomSearchController = TextEditingController();
+  String? _selectedRoom;
+  List<String> _roomNumbers = [];
 
   bool _loading = false;
   final bool _hasMore = true;
@@ -56,7 +57,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   @override
   void dispose() {
-    _roomSearchController.dispose();
     _searchDebouncer.dispose();
     super.dispose();
   }
@@ -65,9 +65,25 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final now = DateTime.now();
     _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
     _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    await _loadRoomNumbers();
+  }
 
-    // ❌ تم إزالة التحميل التلقائي - المستخدم يضغط زر البحث
-    // await _fetchReport();
+  Future<void> _loadRoomNumbers() async {
+    try {
+      final db = ref.read(coreProviders.dbProvider);
+      final rooms = await db.select(db.rooms).get();
+      final numbers = rooms
+          .map((r) => r.roomNumber)
+          .where((n) => n.isNotEmpty)
+          .toSet()
+          .toList();
+      numbers.sort();
+      if (mounted) {
+        setState(() {
+          _roomNumbers = numbers;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -110,14 +126,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ? DateFormat('yyyy-MM-dd').format(_toDate!)
           : null;
 
-      final roomQuery = _roomSearchController.text.trim();
+      final roomQuery = _selectedRoom;
 
       // 1. جلب البيانات الخام من قاعدة البيانات (سريع)
       final payments = await paymentsDao.listForReport(
         from: fromStr,
         to: toStr,
-        roomNumber: roomQuery.isNotEmpty ? roomQuery : null,
-      );
+        roomNumber: roomQuery,       );
 
       final bookingIds = payments
           .map((p) => p.bookingLocalId)
@@ -182,9 +197,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
 
-    final roomLabel = _roomSearchController.text.isNotEmpty
-        ? _roomSearchController.text
-        : 'الكل';
+    final roomLabel = _selectedRoom ?? 'الكل';
 
     pw.Widget buildReportHeader() {
       return pw.Container(
@@ -476,22 +489,22 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
+                    Icon(
+                      Icons.meeting_room,
+                      size: 18,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: SizedBox(
                         height: inputsHeight,
-                        child: TextField(
-                          controller: _roomSearchController,
-                          style: const TextStyle(fontSize: 12),
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedRoom,
                           decoration: InputDecoration(
                             labelText: 'رقم الغرفة',
                             labelStyle: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.meeting_room,
-                              size: 16,
-                              color: Colors.grey,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -507,10 +520,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 0,
+                              vertical: 8,
                             ),
                           ),
-                          onSubmitted: (_) => _fetchReport(),
+                          items: [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('الكل', style: TextStyle(fontSize: 13)),
+                            ),
+                            ..._roomNumbers.map((number) => DropdownMenuItem(
+                              value: number,
+                              child: Text(number, style: const TextStyle(fontSize: 13)),
+                            )),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _selectedRoom = value);
+                            _fetchReport();
+                          },
                         ),
                       ),
                     ),
