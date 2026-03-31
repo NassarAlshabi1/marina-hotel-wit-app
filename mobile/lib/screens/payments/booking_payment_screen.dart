@@ -132,7 +132,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    // Always force rebuild to ensure stale booking_nights rows
+    // are replaced with fresh calculations based on current moment.
+    // This fixes the issue where opening the payment screen showed
+    // outdated night counts and surcharge amounts.
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      forceRebuild: true,
+    );
   }
 
   DateTime? _parseDateTime(String? value) {

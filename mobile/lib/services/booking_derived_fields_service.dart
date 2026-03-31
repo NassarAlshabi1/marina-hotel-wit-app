@@ -392,24 +392,23 @@ class BookingDerivedFieldsService {
     final segments = <_NightSegment>[];
 
     final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
-    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
-    int days = checkoutDate.difference(checkinDate).inDays;
 
-    if (days == 0) {
-      days = 1;
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: Use hotel day keys for accurate night counting.
+    // See enhanced_booking_calculation_service.dart for details.
+    // ═══════════════════════════════════════════════════════════════
+    final checkinHotelDay = Time.hotelDayKey(now: checkin, cutoffHour: cutoffHour);
+    final checkoutHotelDay = Time.hotelDayKey(now: checkout, cutoffHour: cutoffHour);
 
-    if (checkout.hour > cutoffHour ||
-        (checkout.hour == cutoffHour && checkout.minute > 0) ||
-        (checkout.hour == cutoffHour &&
-            checkout.minute == 0 &&
-            checkout.second > 0)) {
-      days += 1;
-    }
+    final startHotelDay = DateTime.parse(checkinHotelDay);
+    final endHotelDay = DateTime.parse(checkoutHotelDay);
+    int days = endHotelDay.difference(startHotelDay).inDays + 1; // +1 for inclusive count
+    if (days < 1) days = 1;
 
     for (int i = 0; i < days; i++) {
       final dayDate = checkinDate.add(Duration(days: i));
       final dayKey = Time.dateToString(dayDate);
+
       final segStart = i == 0 ? checkin : dayDate;
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1

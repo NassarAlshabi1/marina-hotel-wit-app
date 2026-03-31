@@ -444,14 +444,11 @@ class EnhancedBookingCalculationService {
 
     DateTime checkout = actualCheckout ?? plannedCheckout ?? checkin;
 
-    // For active bookings, we calculate up to the current moment (today's hotel day)
-    // to reflect the balance based on elapsed days as requested by the user.
+    // For active bookings, we calculate up to the current moment.
+    // The _buildNightSegments method now uses hotelDayKey() for counting,
+    // so passing moment directly correctly handles same-hotel-day cases
+    // (e.g., check-in at 19:02, current time 19:02 → 1 night, not 2).
     if (bookingActive) {
-      final nowHotelDay = Time.hotelDayKey(now: moment);
-      final checkinHotelDay = Time.hotelDayKey(now: checkin);
-
-      // If today is after checkin day, we use the current moment to calculate elapsed nights.
-      // If it's the same day, we still use the moment which will result in at least 1 night.
       checkout = moment;
     }
 
@@ -551,24 +548,36 @@ class EnhancedBookingCalculationService {
     final segments = <_NightSegment>[];
 
     final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
-    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
-    int days = checkoutDate.difference(checkinDate).inDays;
 
-    if (days == 0) {
-      days = 1;
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: Use hotel day keys for accurate night counting instead of
+    // raw calendar date difference + cutoff hour logic.
+    //
+    // The old logic (date diff + if hour > 14 add 1) produced wrong
+    // results when check-in and moment are on the same calendar day
+    // but after 14:00 (e.g., check-in at 19:02, refresh called at
+    // 19:02 → days=0→1, hour 19>14→2 nights instead of 1).
+    //
+    // Hotel day key subtracts cutoffHour from the time, so times
+    // after the cutoff belong to the next hotel day.
+    // Example: 31/03 19:02 - 14h = 31/03 05:02 → hotelDay "2026-03-31"
+    //          01/04 10:00 - 14h = 31/03 20:00 → hotelDay "2026-03-31" (same!)
+    //          01/04 15:00 - 14h = 01/04 01:00 → hotelDay "2026-04-01" (new!)
+    // ═══════════════════════════════════════════════════════════════
+    final checkinHotelDay = Time.hotelDayKey(now: checkin, cutoffHour: cutoffHour);
+    final checkoutHotelDay = Time.hotelDayKey(now: checkout, cutoffHour: cutoffHour);
 
-    if (checkout.hour > cutoffHour ||
-        (checkout.hour == cutoffHour && checkout.minute > 0) ||
-        (checkout.hour == cutoffHour &&
-            checkout.minute == 0 &&
-            checkout.second > 0)) {
-      days += 1;
-    }
+    final startHotelDay = DateTime.parse(checkinHotelDay);
+    final endHotelDay = DateTime.parse(checkoutHotelDay);
+    int days = endHotelDay.difference(startHotelDay).inDays + 1; // +1 for inclusive count
+    if (days < 1) days = 1;
 
     for (int i = 0; i < days; i++) {
+      // Use calendar date for segment key to ensure compatibility with
+      // effectiveHotelDay comparisons in price adjustment matching.
       final dayDate = checkinDate.add(Duration(days: i));
       final dayKey = Time.dateToString(dayDate);
+
       final segStart = i == 0 ? checkin : dayDate;
       final nextDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == days - 1

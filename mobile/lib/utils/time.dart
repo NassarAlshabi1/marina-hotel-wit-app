@@ -100,9 +100,15 @@ class Time {
   }
 
   /// حساب عدد الأيام مع قاعدة الساعة 14:00
-  /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
-  /// وحتى الساعة 14:00 من اليوم التالي.
-  /// أي مغادرة بعد الساعة 14:00، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
+  ///
+  /// Uses hotelDayKey() for accurate hotel-day-based counting.
+  /// Times after the cutoff belong to the next hotel day.
+  ///
+  /// Example: check-in at 19:02 on 31/03, checkout at 10:00 on 01/04
+  ///   → both are in hotelDay "2026-03-31" → 1 night
+  ///
+  /// Example: check-in at 19:02 on 31/03, checkout at 15:00 on 01/04
+  ///   → hotelDay "2026-03-31" vs "2026-04-01" → 2 nights
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
@@ -110,19 +116,14 @@ class Time {
   }) {
     final end = checkout ?? DateTime.now();
 
-    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
-    final checkoutDate = DateTime(end.year, end.month, end.day);
-    int days = checkoutDate.difference(checkinDate).inDays;
+    // Use hotel day keys for accurate counting
+    final checkinHotelDay = hotelDayKey(now: checkin, cutoffHour: cutoffHour);
+    final checkoutHotelDay = hotelDayKey(now: end, cutoffHour: cutoffHour);
 
-    if (days == 0) {
-      days = 1;
-    }
-
-    if (end.hour > cutoffHour ||
-        (end.hour == cutoffHour && end.minute > 0) ||
-        (end.hour == cutoffHour && end.minute == 0 && end.second > 0)) {
-      days += 1;
-    }
+    final startDay = DateTime.parse(checkinHotelDay);
+    final endDay = DateTime.parse(checkoutHotelDay);
+    int days = endDay.difference(startDay).inDays + 1; // +1 for inclusive count
+    if (days < 1) days = 1;
 
     return days;
   }
