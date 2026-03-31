@@ -96,6 +96,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   Widget _buildTable(List<GuestInfo> entries) {
     final headers = [
       '#',
+      '',
       'الغرفة',
       'اسم النزيل',
       'الجنسية',
@@ -105,7 +106,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       'مكان الإصدار',
       'المحافظة',
       'الملاحظات',
-      'الإجراءات',
     ];
 
     return Card(
@@ -133,15 +133,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     DataCell(
                       Text('${entries.indexOf(info) + 1}'),
                     ),
-                    DataCell(Text(info.roomNumber)),
-                    DataCell(Text(info.guestName)),
-                    DataCell(Text(info.nationality)),
-                    DataCell(Text(info.idNumber)),
-                    DataCell(Text(info.idType)),
-                    DataCell(Text(info.issueDate ?? '-')),
-                    DataCell(Text(info.issuePlace ?? '-')),
-                    DataCell(Text(info.governorate ?? '-')),
-                    DataCell(Text(info.notes ?? '-')),
                     DataCell(
                       PopupMenuButton<String>(
                         tooltip: 'إجراءات',
@@ -179,6 +170,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                         ],
                       ),
                     ),
+                    DataCell(Text(info.roomNumber)),
+                    DataCell(Text(info.guestName)),
+                    DataCell(Text(info.nationality)),
+                    DataCell(Text(info.idNumber)),
+                    DataCell(Text(info.idType)),
+                    DataCell(Text(info.issueDate ?? '-')),
+                    DataCell(Text(info.issuePlace ?? '-')),
+                    DataCell(Text(info.governorate ?? '-')),
+                    DataCell(Text(info.notes ?? '-')),
                   ],
                 ),
               )
