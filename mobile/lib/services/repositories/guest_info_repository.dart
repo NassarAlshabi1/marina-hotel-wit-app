@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart' as d;
 
 import '../daos/guest_info_dao.dart';
+import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 
 class GuestInfoRepository {
-  GuestInfoRepository(this.db) : dao = GuestInfoDao(db);
+  GuestInfoRepository(this.db)
+      : dao = GuestInfoDao(db, OutboxDao(db));
 
   final AppDatabase db;
   final GuestInfoDao dao;
