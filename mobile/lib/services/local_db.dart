@@ -169,6 +169,7 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issueDate => text().nullable()();
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
+  TextColumn get notes => text().nullable()();
 }
 
 class Expenses extends Table with SyncFields {
@@ -763,7 +764,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 38;
+  int get schemaVersion => 39;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2191,6 +2192,27 @@ class AppDatabase extends _$AppDatabase {
         } catch (e, st) {
           developer.log(
             'Migration 38: failed - $e',
+            name: 'db.migration',
+            error: e,
+            stackTrace: st,
+          );
+        }
+      }
+      if (from < 39) {
+        // Migration 39: إضافة حقل notes لجدول guest_infos
+        developer.log(
+          'Migration 39: Adding notes column to guest_infos',
+          name: 'db.migration',
+        );
+        try {
+          await m.addColumn(guestInfos, guestInfos.notes);
+          developer.log(
+            'Migration 39: notes column added to guest_infos',
+            name: 'db.migration',
+          );
+        } catch (e, st) {
+          developer.log(
+            'Migration 39: failed - $e',
             name: 'db.migration',
             error: e,
             stackTrace: st,

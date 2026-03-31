@@ -23,6 +23,7 @@ class GuestInfoRepository {
     String? issueDate,
     String? issuePlace,
     String? governorate,
+    String? notes,
   }) {
     return dao.insertOne(
       GuestInfosCompanion(
@@ -34,6 +35,7 @@ class GuestInfoRepository {
         issueDate: _nullableValue(issueDate),
         issuePlace: _nullableValue(issuePlace),
         governorate: _nullableValue(governorate),
+        notes: _nullableValue(notes),
       ),
     );
   }
@@ -48,6 +50,7 @@ class GuestInfoRepository {
     String? issueDate,
     String? issuePlace,
     String? governorate,
+    String? notes,
   }) {
     return dao.updateById(
       id,
@@ -70,6 +73,7 @@ class GuestInfoRepository {
         issueDate: _nullableValue(issueDate),
         issuePlace: _nullableValue(issuePlace),
         governorate: _nullableValue(governorate),
+        notes: _nullableValue(notes),
       ),
     );
   }

@@ -185,6 +185,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     final governorateController = TextEditingController(
       text: existing?.governorate ?? '',
     );
+    final notesController = TextEditingController(
+      text: existing?.notes ?? '',
+    );
 
     String selectedIdType = existing?.idType ?? _idTypes.first;
     if (!_idTypes.contains(selectedIdType)) {
@@ -269,6 +272,16 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       controller: governorateController,
                       decoration: const InputDecoration(labelText: 'المحافظة'),
                     ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'الملاحظات',
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 3,
+                      minLines: 1,
+                    ),
                   ],
                 ),
               ),
@@ -307,6 +320,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             : issueDateController.text,
         issuePlace: issuePlaceController.text,
         governorate: governorateController.text,
+        notes: notesController.text,
       );
       _showSnack('تم حفظ السجل بنجاح');
     } else {
@@ -320,6 +334,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         issueDate: issueDateController.text,
         issuePlace: issuePlaceController.text,
         governorate: governorateController.text,
+        notes: notesController.text,
       );
       _showSnack('تم تحديث السجل بنجاح');
     }
@@ -389,6 +404,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         'الجنسية',
         'اسم النزيل',
         'رقم الغرفة',
+        'الملاحظات',
       ];
       final data = entries
           .map(
@@ -401,6 +417,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               info.nationality,
               info.guestName,
               info.roomNumber,
+              info.notes ?? '-',
             ],
           )
           .toList();
@@ -534,6 +551,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 5: pw.Alignment.centerRight,
                 6: pw.Alignment.centerRight,
                 7: pw.Alignment.centerRight,
+                8: pw.Alignment.centerRight,
               },
             ),
           ],
