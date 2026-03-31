@@ -202,7 +202,7 @@ class SalaryWithdrawalsAdapter
         src,
         'vectorClock',
         'vector_clock',
-      ): model.vectorClock.isNotEmpty ?? false
+      ): model.vectorClock?.isNotEmpty ?? false
           ? jsonEncode(model.vectorClock)
           : '{}',
 
