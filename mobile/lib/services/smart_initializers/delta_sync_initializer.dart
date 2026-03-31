@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../appwrite_config_manager.dart';
 import '../appwrite_delta_sync.dart';
 import '../appwrite_service.dart';
 import '../local_db.dart';
@@ -140,6 +141,10 @@ class DeltaSyncInitializer {
     _emitState(DeltaSyncInitState.initializing);
 
     try {
+      // ✅ بوابة أمان — ننتظر حتى تكتمل تحميل إعدادات Appwrite
+      // قبل بناء Client، مما يمنع استخدام القيم الافتراضية الخطأ
+      await AppwriteConfigManager.ready;
+
       // إنشاء AppwriteService جديد (آمن — يحتوي على فحص _initialized)
       final service = AppwriteService();
       await service.initialize();

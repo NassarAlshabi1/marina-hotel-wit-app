@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_defaults.dart';
@@ -13,6 +15,23 @@ class AppwriteConfigManager {
   static const String _projectIdKey = 'appwrite_project_id';
   static const String _databaseIdKey = 'appwrite_database_id';
   static const String _apiKey = 'appwrite_api_key';
+
+  // ═══════════════════════════════════════════════════════════════════
+  // حالة التهيئة — يضمن عدم استخدام الإعدادات قبل تحميلها
+  // ═══════════════════════════════════════════════════════════════════
+
+  static bool _isInitialized = false;
+  static final Completer<void> _readyCompleter = Completer<void>();
+
+  /// هل تم تحميل الإعدادات؟
+  static bool get isInitialized => _isInitialized;
+
+  /// Future يكتمل عند انتهاء تحميل الإعدادات.
+  /// يمكن استخدامه كبوابة أمان (gate) في أي مكان يحتاج التأكد.
+  static Future<void> get ready {
+    if (_isInitialized) return Future.value();
+    return _readyCompleter.future;
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // المتغيرات الداخلية - تبدأ بالقيم الافتراضية
@@ -45,11 +64,16 @@ class AppwriteConfigManager {
   // ═══════════════════════════════════════════════════════════════════
 
   static Future<void> init() async {
+    if (_isInitialized) return;
+
     final prefs = await SharedPreferences.getInstance();
     _endpoint = prefs.getString(_endpointKey) ?? AppwriteDefaults.endpoint;
     _projectId = prefs.getString(_projectIdKey) ?? AppwriteDefaults.projectId;
     _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteDefaults.databaseId;
     _apiKeyValue = prefs.getString(_apiKey) ?? '';
+
+    _isInitialized = true;
+    _readyCompleter.complete();
 
     if (kDebugMode) {
       debugPrint('📱 Appwrite Config Loaded:');
