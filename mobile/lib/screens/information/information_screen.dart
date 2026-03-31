@@ -437,30 +437,32 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
-        '#',
-        'رقم الغرفة',
-        'اسم النزيل',
-        'الجنسية',
+        
+        'الملاحظات',
+        'المحافظة',
+        'مكان الإصدار',
+        'تاريخ الإصدار',
         'رقم الهوية',
         'نوع الهوية',
-        'تاريخ الإصدار',
-        'مكان الإصدار',
-        'المحافظة',
-        'الملاحظات',
+        'الجنسية',
+        'اسم النزيل',
+        'رقم الغرفة',
+        '#',
       ];
       final data = List.generate(entries.length, (i) {
         final info = entries[i];
         return [
-          '${i + 1}',
-          info.roomNumber,
-          info.guestName,
-          info.nationality,
-          info.idNumber,
-          info.idType,
-          info.issueDate ?? '-',
-          info.issuePlace ?? '-',
-          info.governorate ?? '-',
+          
           info.notes ?? '-',
+          info.governorate ?? '-',
+          info.issuePlace ?? '-',
+          info.issueDate ?? '-',
+          info.idNumber,
+          info.idType ?? '-',
+          info.nationality,
+          info.guestName,
+          info.roomNumber,
+          '${i + 1}',
         ];
       });
       final printDate = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
