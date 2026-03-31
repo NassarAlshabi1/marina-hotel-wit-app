@@ -60,6 +60,7 @@ import 'services/sync_service.dart';
 import 'services/appwrite_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
+import 'services/auto_backup_manager.dart';
 import 'components/admin_layout.dart';
 
 Future<void> main() async {
@@ -695,6 +696,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       );
       SyncGuardian.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      );
+      // Auto-renew active bookings when app returns to foreground.
+      // This ensures night counts are recalculated based on current time
+      // even if the payment screen was never opened.
+      AutoBackupManager.instance.renewActiveBookingsIfNeeded().catchError(
+        (e, s) => debugPrint('Error in renewActiveBookings: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||

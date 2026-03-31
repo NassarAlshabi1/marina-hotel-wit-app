@@ -550,6 +550,12 @@ class AutoBackupManager {
     return results;
   }
 
+  /// Public method to trigger active bookings renewal on app resume or
+  /// any other event. Uses hotelDayKey to run at most once per hotel day.
+  Future<void> renewActiveBookingsIfNeeded() async {
+    await _autoRenewActiveBookings();
+  }
+
   Future<void> _autoRenewActiveBookings() async {
     try {
       final currentHotelDay = Time.hotelDayKey();
