@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
 import 'auto_backup_manager.dart';
+import 'daos/outbox_dao.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 
@@ -127,6 +128,28 @@ class BookingPriceAdjustmentService {
   BookingPriceAdjustmentService(this.db, {this.derivedFieldsService});
   final AppDatabase db;
   final BookingDerivedFieldsService? derivedFieldsService;
+
+  /// ✅ إضافة سجل Outbox لضمان رفع التغيير حتى لو فشلت المزامنة التلقائية
+  Future<void> _addToOutbox({
+    required String operation,
+    required String localUuid,
+    required Map<String, dynamic> payload,
+  }) async {
+    try {
+      final outboxDao = OutboxDao(db);
+      await outboxDao.merge(
+        entity: 'booking_price_adjustments',
+        op: operation,
+        localUuid: localUuid,
+        payload: payload,
+        clientTs: Time.nowEpoch(),
+        priority: OutboxPriority.high,
+      );
+      debugPrint('📤 تم إضافة $operation لـ booking_price_adjustments/$localUuid إلى Outbox');
+    } catch (e) {
+      debugPrint('⚠️ فشل إضافة Outbox لـ booking_price_adjustments: $e');
+    }
+  }
 
   Future<AdjustmentPreview> previewAdjustment({
     required int bookingId,
@@ -276,6 +299,27 @@ class BookingPriceAdjustmentService {
 
     await _recalculateBookingNights(booking.id);
 
+    // ✅ إضافة Outbox فوري لضمان رفع التغيير
+    await _addToOutbox(
+      operation: 'insert',
+      localUuid: uuid,
+      payload: {
+        'localUuid': uuid,
+        'bookingLocalUuid': bookingLocalUuid,
+        'bookingLocalId': booking.id,
+        'adjustmentType': type.value,
+        'adjustmentMode': mode.value,
+        'amount': amount.toDouble(),
+        'effectiveHotelDay': effectiveHotelDay,
+        'endHotelDay': endHotelDay,
+        'isActive': true,
+        'reason': reason,
+        'appliedBy': appliedBy,
+        'createdAt': Time.nowEpoch(),
+        'lastModified': Time.nowEpoch(),
+      },
+    );
+
     await AutoBackupManager.instance.onDataChange(
       'booking_price_adjustments',
       'INSERT',
@@ -320,6 +364,21 @@ class BookingPriceAdjustmentService {
     if (adjustment.bookingLocalId != null) {
       await _recalculateBookingNights(adjustment.bookingLocalId!);
     }
+
+    // ✅ إضافة Outbox فوري لضمان رفع الإلغاء
+    await _addToOutbox(
+      operation: 'update',
+      localUuid: adjustmentUuid,
+      payload: {
+        'localUuid': adjustmentUuid,
+        'bookingLocalUuid': adjustment.bookingLocalUuid,
+        'isActive': false,
+        'cancelledAt': nowIso,
+        'cancelledBy': cancelledBy,
+        'updatedAt': now,
+        'lastModified': now,
+      },
+    );
 
     await AutoBackupManager.instance.onDataChange(
       'booking_price_adjustments',

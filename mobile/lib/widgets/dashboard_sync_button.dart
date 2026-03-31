@@ -344,15 +344,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // Sync Methods - دوال المزامنة
   // ============================================================================
 
-  /// ✅ تهيئة خدمة Delta Sync
-  Future<bool> _ensureServicesInitialized() async {
-    final prefs = await SharedPreferences.getInstance();
-    final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
-    if (!appwriteEnabled) {
-      debugPrint('⚠️ Appwrite sync disabled');
-      return false;
-    }
-
+  /// ✅ تهيئة خدمة Appwrite Delta Sync
+  Future<bool> _ensureAppwriteInitialized() async {
     try {
       final appwriteService = ref.read(
         appwrite_providers.appwriteServiceProvider,
@@ -363,9 +356,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (!deltaSync.isInitialized) {
         await deltaSync.initialize(appwriteService, db);
       }
-      return true;
+      return deltaSync.isInitialized;
     } catch (e) {
-      debugPrint('❌ Initialization failed: $e');
+      debugPrint('❌ Appwrite init failed: $e');
       return false;
     }
   }
@@ -391,9 +384,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
-        throw Exception('فشل تهيئة الخدمة');
-      }
+      await _ensureAppwriteInitialized();
 
       final result = await _performFullSync();
 
@@ -421,7 +412,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// ✅ سحب التغييرات (Field-Level Pull)
+  /// ✅ سحب التغييرات (Appwrite + Google Drive)
   Future<void> _pullChanges(BuildContext context) async {
     final syncState = ref.read(syncStateProvider);
     if (syncState.isSyncing) return;
@@ -431,35 +422,56 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _safeRepeatAnimation(_pullAnimationController);
 
     final stopwatch = Stopwatch()..start();
+    int totalPulled = 0;
+    int totalFailed = 0;
+    final messages = <String>[];
 
     try {
       _showSnackBar(
         context,
-        '📥 جاري سحب التغييرات (Field-Level)...',
+        '📥 جاري سحب التغييرات...',
         Colors.blue,
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
-        throw Exception('فشل تهيئة الخدمة');
+      // 1️⃣ سحب من Appwrite
+      final appwriteOk = await _ensureAppwriteInitialized();
+      if (appwriteOk) {
+        try {
+          final appwriteResult = await _performPull();
+          totalPulled += appwriteResult.recordsPulled;
+          totalFailed += appwriteResult.failedCount;
+          if (appwriteResult.recordsPulled > 0) {
+            messages.add('Appwrite: ${appwriteResult.recordsPulled} سجل');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Appwrite pull failed: $e');
+          messages.add('Appwrite: فشل');
+          totalFailed++;
+        }
       }
-
-      final result = await _performPull();
 
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
 
-      if (result.fieldsPulled > 0) {
+      if (totalPulled > 0) {
         notifier.updateFieldLevelStats({
-          'fields': result.fieldsPulled,
-          'records': result.recordsPulled,
+          'fields': totalPulled,
+          'records': totalPulled,
         });
       }
 
       _invalidateProviders();
 
       if (mounted) {
-        _showFieldLevelPullSuccess(context, result, stopwatch.elapsed);
+        final msg = totalPulled > 0
+            ? '✅ تم سحب $totalPulled تغيير!\n${messages.join('\n')}'
+            : '✅ لا توجد تغييرات جديدة';
+        _showSnackBar(
+          context,
+          '$msg\n⏱️ ${stopwatch.elapsed.inSeconds} ث',
+          totalFailed > 0 ? Colors.orange : Colors.green,
+        );
       }
     } catch (e) {
       _handleError(context, e, stopwatch, notifier);
@@ -469,7 +481,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// ✅ رفع التغييرات (Field-Level Delta Sync)
+  /// ✅ رفع التغييرات (Appwrite Delta + Google Drive)
   Future<void> _pushChanges(BuildContext context) async {
     final syncState = ref.read(syncStateProvider);
     if (syncState.isSyncing) return;
@@ -479,37 +491,58 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _safeRepeatAnimation(_pushAnimationController);
 
     final stopwatch = Stopwatch()..start();
+    int totalPushed = 0;
+    int totalFailed = 0;
+    int totalConflicts = 0;
+    final messages = <String>[];
 
     try {
       _showSnackBar(
         context,
-        '📤 جاري رفع التغييرات (Field-Level)...',
+        '📤 جاري رفع التغييرات...',
         Colors.purple,
         showProgress: true,
       );
 
-      if (!await _ensureServicesInitialized()) {
-        throw Exception('فشل تهيئة الخدمة');
+      // 1️⃣ رفع إلى Appwrite (Field-Level Delta Push)
+      final appwriteOk = await _ensureAppwriteInitialized();
+      if (appwriteOk) {
+        try {
+          final appwriteResult = await _performFieldLevelPush();
+          totalPushed += appwriteResult.recordsPushed;
+          totalFailed += appwriteResult.failedCount;
+          totalConflicts += appwriteResult.conflicts;
+          if (appwriteResult.recordsPushed > 0) {
+            messages.add('Appwrite: ${appwriteResult.recordsPushed} سجل');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Appwrite push failed: $e');
+          messages.add('Appwrite: فشل');
+          totalFailed++;
+        }
       }
-
-      // ✅ استدعاء Field-Level Delta Push
-      final result = await _performFieldLevelPush();
 
       stopwatch.stop();
       notifier.setLastSyncTime(DateTime.now());
 
-      // ✅ تحديث إحصائيات Field-Level في الحالة
-      if (result.fieldsPushed > 0) {
+      if (totalPushed > 0) {
         notifier.updateFieldLevelStats({
-          'fields': result.fieldsPushed,
-          'records': result.recordsPushed,
+          'fields': totalPushed,
+          'records': totalPushed,
         });
       }
 
       _invalidateProviders();
 
       if (mounted) {
-        _showFieldLevelPushSuccess(context, result, stopwatch.elapsed);
+        final msg = totalPushed > 0
+            ? '✅ تم رفع $totalPushed تغيير!\n${messages.join('\n')}'
+            : '✅ لا توجد تغييرات للرفع';
+        _showSnackBar(
+          context,
+          '$msg\n⏱️ ${stopwatch.elapsed.inSeconds} ث',
+          totalFailed > 0 ? Colors.orange : Colors.green,
+        );
       }
     } catch (e) {
       _handleError(context, e, stopwatch, notifier);
@@ -523,7 +556,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // Sync Implementations - تطبيقات المزامنة
   // ============================================================================
 
-  /// ✅ مزامنة كاملة (Pull + Push) عبر DeltaSync
+  /// ✅ مزامنة كاملة (Pull + Push) Appwrite + Google Drive
   Future<SyncResult> _performFullSync() async {
     final deltaSync = AppwriteDeltaSync.instance;
     final result = await deltaSync.fullSync();

@@ -2224,6 +2224,10 @@ class AppDatabase extends _$AppDatabase {
     final bookingPriceAdjustmentsData = await select(
       bookingPriceAdjustments,
     ).get();
+    final priceAdjustmentsData = await select(priceAdjustments).get();
+    final auditLogsData = await select(auditLogs).get();
+    final paymentVoidsData = await select(paymentVoids).get();
+    final salaryWithdrawalsData = await select(salaryWithdrawals).get();
 
     // ⭐ تجميع البيانات بصيغة camelCase
     return {
@@ -2245,6 +2249,14 @@ class AppDatabase extends _$AppDatabase {
       'salaryCycles': salaryCyclesData.map((e) => e.toJson()).toList(),
       'salaryPayments': salaryPaymentsData.map((e) => e.toJson()).toList(),
       'bookingPriceAdjustments': bookingPriceAdjustmentsData
+          .map((e) => e.toJson())
+          .toList(),
+      'priceAdjustments': priceAdjustmentsData
+          .map((e) => e.toJson())
+          .toList(),
+      'auditLogs': auditLogsData.map((e) => e.toJson()).toList(),
+      'paymentVoids': paymentVoidsData.map((e) => e.toJson()).toList(),
+      'salaryWithdrawals': salaryWithdrawalsData
           .map((e) => e.toJson())
           .toList(),
       'guests': <Map<String, dynamic>>[],

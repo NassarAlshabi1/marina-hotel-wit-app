@@ -975,6 +975,8 @@ class AppwriteSyncManager {
           return await _processSalaryWithdrawalEntry(entry);
         case 'booking_price_adjustments':
           return await _processBookingPriceAdjustmentEntry(entry);
+        case 'payment_voids':
+          return await _processPaymentVoidEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -2406,6 +2408,45 @@ class AppwriteSyncManager {
     String uuid,
   ) {
     return (database.select(database.bookingPriceAdjustments)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final item = await _getPaymentVoidByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = outboxDao.adapters.paymentVoids.adapter.toJson(
+      item,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      documentId: item.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<PaymentVoid?> _getPaymentVoidByLocalUuid(String uuid) {
+    return (database.select(database.paymentVoids)
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();

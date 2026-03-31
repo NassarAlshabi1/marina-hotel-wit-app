@@ -156,11 +156,11 @@ class BookingPriceAdjustmentsAdapter
       'localUuid': model.localUuid,
       'serverId': model.serverId,
       'bookingLocalUuid': model.bookingLocalUuid,
-      // ❌ تم إزالة bookingUuid - غير موجودة في Appwrite (المطلوب هو bookingLocalUuid)
+      'bookingUuid': model.bookingLocalUuid, // Appwrite يتطلب هذا الحقل
       'bookingLocalId': model.bookingLocalId,
       'adjustmentType': model.adjustmentType,
       'adjustmentMode': model.adjustmentMode,
-      // ❌ تم إزالة amount - غير موجودة في Appwrite
+      'amount': model.amount.round(), // Appwrite expects integer
       'effectiveHotelDay': model.effectiveHotelDay,
       'endHotelDay': model.endHotelDay,
       'isActive': model.isActive,
