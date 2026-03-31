@@ -94,20 +94,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   Widget _buildTable(List<GuestInfo> entries) {
-    final headers = [
-      '#',
-      '',
-      'الغرفة',
-      'اسم النزيل',
-      'الجنسية',
-      'رقم الهوية',
-      'نوع الهوية',
-      'تاريخ الإصدار',
-      'مكان الإصدار',
-      'المحافظة',
-      'الملاحظات',
-    ];
-
     return Card(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -116,73 +102,102 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             Theme.of(context).colorScheme.primary,
           ),
           headingTextStyle: const TextStyle(color: Colors.white),
-          columns: headers
-              .map(
-                (h) => DataColumn(
-                  label: Text(
-                    h,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+          columns: const [
+            DataColumn(
+              label: Text('#', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(label: SizedBox.shrink()),
+            DataColumn(
+              label: Text('الغرفة',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('اسم النزيل',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('الجنسية',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('رقم الهوية',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('نوع الهوية',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('تاريخ الإصدار',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('مكان الإصدار',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('المحافظة',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            DataColumn(
+              label: Text('الملاحظات',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+          rows: List.generate(entries.length, (index) {
+            final info = entries[index];
+            return DataRow(
+              cells: [
+                DataCell(Text('${index + 1}')),
+                DataCell(
+                  PopupMenuButton<String>(
+                    tooltip: 'إجراءات',
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _openEditor(context, existing: info);
+                      } else if (value == 'delete') {
+                        _confirmDelete(info);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 18),
+                            SizedBox(width: 8),
+                            Text('تعديل'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 18,
+                                color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('حذف',
+                                style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              )
-              .toList(),
-          rows: entries
-              .map(
-                (info) => DataRow(
-                  cells: [
-                    DataCell(
-                      Text('${entries.indexOf(info) + 1}'),
-                    ),
-                    DataCell(
-                      PopupMenuButton<String>(
-                        tooltip: 'إجراءات',
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        onSelected: (value) {
-                          if (value == 'edit') {
-                            _openEditor(context, existing: info);
-                          } else if (value == 'delete') {
-                            _confirmDelete(info);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit, size: 18),
-                                SizedBox(width: 8),
-                                Text('تعديل'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete_outline, size: 18,
-                                    color: Colors.red),
-                                SizedBox(width: 8),
-                                Text('حذف',
-                                    style: TextStyle(color: Colors.red)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(Text(info.roomNumber)),
-                    DataCell(Text(info.guestName)),
-                    DataCell(Text(info.nationality)),
-                    DataCell(Text(info.idNumber)),
-                    DataCell(Text(info.idType)),
-                    DataCell(Text(info.issueDate ?? '-')),
-                    DataCell(Text(info.issuePlace ?? '-')),
-                    DataCell(Text(info.governorate ?? '-')),
-                    DataCell(Text(info.notes ?? '-')),
-                  ],
-                ),
-              )
-              .toList(),
+                DataCell(Text(info.roomNumber)),
+                DataCell(Text(info.guestName)),
+                DataCell(Text(info.nationality)),
+                DataCell(Text(info.idNumber)),
+                DataCell(Text(info.idType)),
+                DataCell(Text(info.issueDate ?? '-')),
+                DataCell(Text(info.issuePlace ?? '-')),
+                DataCell(Text(info.governorate ?? '-')),
+                DataCell(Text(info.notes ?? '-')),
+              ],
+            );
+          }),
         ),
       ),
     );
