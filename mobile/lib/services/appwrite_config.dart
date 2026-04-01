@@ -35,6 +35,9 @@ class AppwriteConfig {
   static const String bookingPriceAdjustmentsCollectionId = 'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
+  
+  // جدول معلومات النزلاء
+  static const String guestInfosCollectionId = 'guest_infos';
 
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);

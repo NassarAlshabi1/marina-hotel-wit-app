@@ -526,6 +526,13 @@ class AppwriteSyncManager {
           return debtsSynced;
         }, phaseMs);
 
+        recordsPulled += await _timePhase('syncGuestInfos', () async {
+          final guestInfos = await appwriteService.listGuestInfos(useCache: false);
+          final synced = await _syncGuestInfos(guestInfos);
+          _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
         recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
           final adjustments = await appwriteService.listDocuments(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -1143,6 +1150,8 @@ class AppwriteSyncManager {
           return await _processSalaryCycleEntry(entry);
         case 'booking_price_adjustments':
           return await _processBookingPriceAdjustmentEntry(entry);
+        case 'guest_infos':
+          return await _processGuestInfoEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -1326,6 +1335,62 @@ class AppwriteSyncManager {
   Future<Debt?> _getDebtByLocalUuid(String localUuid) {
     return (database.select(
       database.debts,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  // ─── GuestInfos ──────────────────────────────────────────────────────────
+
+  Future<int> _syncGuestInfos(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.guestInfos.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync guest_info ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<bool> _processGuestInfoEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteGuestInfo(entry.localUuid),
+      );
+      return true;
+    }
+    final info = await _getGuestInfoByLocalUuid(entry.localUuid);
+    if (info == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteGuestInfo(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = _adapterRegistry.guestInfos.adapter.toJson(
+      info,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: info.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<GuestInfo?> _getGuestInfoByLocalUuid(String localUuid) {
+    return (database.select(
+      database.guestInfos,
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
@@ -1549,6 +1614,10 @@ class AppwriteSyncManager {
       final debtsSynced = await _syncDebts(debts);
       recordsPulled += debtsSynced;
 
+      // مزامنة معلومات النزلاء
+      final guestInfos = await appwriteService.listGuestInfos(useCache: false);
+      recordsPulled += await _syncGuestInfos(guestInfos);
+
       // مزامنة ملاحظات الشيفت
       final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
       recordsPulled += await _syncShiftNotes(shiftNotes);
@@ -1633,6 +1702,7 @@ class AppwriteSyncManager {
       'salary_payments': 0,
       'shift_notes': 0,
       'booking_price_adjustments': 0,
+      'guest_infos': 0,
       'errors': 0,
     };
 
@@ -1900,6 +1970,28 @@ class AppwriteSyncManager {
       }
       _logger.info('✅ تم رفع ${stats['booking_price_adjustments']} تعديل سعر حجز', tag: 'SYNC');
 
+      // رفع معلومات النزلاء
+      final guestInfos = await database.select(database.guestInfos).get();
+      for (final info in guestInfos) {
+        if (skipDeleted && info.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.guestInfos.adapter.toJson(
+            info,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.guestInfosCollectionId,
+            documentId: info.localUuid,
+            data: payload,
+          );
+          stats['guest_infos'] = (stats['guest_infos'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع معلومة نزيل: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['guest_infos']} معلومة نزيل', tag: 'SYNC');
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -1913,7 +2005,8 @@ class AppwriteSyncManager {
           stats['salary_cycles']! +
           stats['salary_payments']! +
           stats['shift_notes']! +
-          (stats['booking_price_adjustments'] ?? 0);
+          (stats['booking_price_adjustments'] ?? 0) +
+          (stats['guest_infos'] ?? 0);
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',

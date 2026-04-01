@@ -666,6 +666,39 @@ class AppwriteService {
     );
   }
 
+  // GuestInfos
+  Future<List<models.Document>> listGuestInfos({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertGuestInfo(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteGuestInfo(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+    );
+  }
+
   // Generic methods for delta sync
   Future<List<models.Document>> listDocuments({
     required String collectionId,

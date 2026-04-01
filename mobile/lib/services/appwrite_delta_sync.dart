@@ -398,6 +398,9 @@ class AppwriteDeltaSync {
       case 'payment_voids':
         await _applyPaymentVoidChange(db, documentId, data);
         break;
+      case 'guest_infos':
+        await _applyGuestInfoChange(db, documentId, data);
+        break;
     }
   }
 
@@ -755,6 +758,40 @@ class AppwriteDeltaSync {
     await db.into(db.paymentVoids).insertOnConflictUpdate(companion);
   }
 
+  Future<void> _applyGuestInfoChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final guestName = _asString(data['guestName']);
+    if (guestName == null || guestName.isEmpty) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = GuestInfosCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      roomNumber: d.Value(_asString(data['roomNumber']) ?? ''),
+      guestName: d.Value(guestName),
+      nationality: d.Value(_asString(data['nationality']) ?? ''),
+      idNumber: d.Value(_asString(data['idNumber']) ?? ''),
+      idType: d.Value(_asString(data['idType']) ?? 'بطاقة شخصية'),
+      issueDate: _nullableValue<String>(_asString(data['issueDate'])),
+      issuePlace: _nullableValue<String>(_asString(data['issuePlace'])),
+      governorate: _nullableValue<String>(_asString(data['governorate'])),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    await db.into(db.guestInfos).insertOnConflictUpdate(companion);
+  }
+
   Future<void> _applyBookingNightChange(
     AppDatabase db,
     String localUuid,
@@ -1007,6 +1044,8 @@ class AppwriteDeltaSync {
         return AppwriteConfig.auditLogsCollectionId;
       case 'payment_voids':
         return AppwriteConfig.paymentVoidsCollectionId;
+      case 'guest_infos':
+        return AppwriteConfig.guestInfosCollectionId;
       default:
         return null;
     }
