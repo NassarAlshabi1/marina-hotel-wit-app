@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
 import 'auto_backup_manager.dart';
+import 'daos/outbox_dao.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 
@@ -276,6 +277,28 @@ class BookingPriceAdjustmentService {
 
     await db.into(db.bookingPriceAdjustments).insert(adjustment);
 
+    // إنشاء outbox entry للمزامنة
+    final outboxDao = OutboxDao(db);
+    await outboxDao.merge(
+      entity: 'booking_price_adjustments',
+      op: 'create',
+      localUuid: uuid,
+      serverId: null,
+      payload: {
+        'bookingLocalUuid': bookingLocalUuid,
+        'bookingLocalId': booking.id,
+        'adjustmentType': type.value,
+        'adjustmentMode': mode.value,
+        'amount': amount.toDouble(),
+        'effectiveHotelDay': effectiveHotelDay,
+        'endHotelDay': endHotelDay,
+        'isActive': true,
+        'reason': reason,
+        'appliedBy': appliedBy,
+      },
+      clientTs: now,
+    );
+
     await _recalculateBookingNights(booking.id);
 
     await AutoBackupManager.instance.onDataChange(
@@ -318,6 +341,21 @@ class BookingPriceAdjustmentService {
     await (db.update(db.bookingPriceAdjustments)
           ..where((a) => a.localUuid.equals(adjustmentUuid)))
         .write(update);
+
+    // إنشاء outbox entry للمزامنة
+    final outboxDao = OutboxDao(db);
+    await outboxDao.merge(
+      entity: 'booking_price_adjustments',
+      op: 'update',
+      localUuid: adjustmentUuid,
+      serverId: null,
+      payload: {
+        'isActive': false,
+        'cancelledAt': nowIso,
+        'cancelledBy': cancelledBy,
+      },
+      clientTs: now,
+    );
 
     if (adjustment.bookingLocalId != null) {
       await _recalculateBookingNights(adjustment.bookingLocalId!);
