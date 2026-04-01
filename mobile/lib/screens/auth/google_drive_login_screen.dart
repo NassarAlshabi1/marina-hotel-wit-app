@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
+import '../../services/appwrite_full_pull.dart';
+import '../../services/appwrite_service.dart';
+import '../../services/local_db.dart';
 import '../../utils/theme.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
@@ -125,9 +128,15 @@ class _GoogleDriveLoginScreenState
       if (done) return;
       await prefs.setBool(key, true);
 
-      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await manager.initialize();
-      await manager.pullRemoteChanges();
+      // ✅ استخدام AppwriteFullPull لسحب جميع الجداول بالكامل
+      // pullRemoteChanges يسحب التغييرات الأخيرة فقط (Delta Sync)
+      // بينما FullPull يسحب كل سجل من كل collection
+      final fullPull = AppwriteFullPull();
+      final appwriteService = AppwriteService();
+      final db = AppDatabase();
+      await fullPull.initialize(appwriteService, db);
+      final result = await fullPull.pullAll();
+      debugPrint('✅ Appwrite Full Pull result: ${result.message}');
     } catch (e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
