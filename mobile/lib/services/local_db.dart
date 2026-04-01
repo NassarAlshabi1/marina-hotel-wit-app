@@ -190,6 +190,11 @@ class Payments extends Table with SyncFields {
       boolean().withDefault(const Constant(false))();
   TextColumn get linkedDebtUuid => text().nullable()();
   TextColumn get bookingUuidCache => text().nullable()();
+  RealColumn get discountAmount => real().nullable()();
+  TextColumn get discountStartDate => text().nullable()();
+  BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAt => integer().nullable()();
+  TextColumn get voidedBy => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -653,7 +658,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1340,6 +1345,69 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 28: create salary_withdrawals failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 29) {
+        // إضافة حقول جديدة لجدول payments للمزامنة مع Appwrite
+        try {
+          await m.addColumn(payments, payments.discountAmount);
+          developer.log(
+            'Migration 29: added payments.discountAmount',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.discountAmount failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.discountStartDate);
+          developer.log(
+            'Migration 29: added payments.discountStartDate',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.discountStartDate failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.isVoided);
+          developer.log(
+            'Migration 29: added payments.isVoided',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.isVoided failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.voidedAt);
+          developer.log(
+            'Migration 29: added payments.voidedAt',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.voidedAt failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.voidedBy);
+          developer.log(
+            'Migration 29: added payments.voidedBy',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.voidedBy failed: $e',
             name: 'db.migration',
           );
         }

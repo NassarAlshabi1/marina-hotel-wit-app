@@ -1542,6 +1542,10 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'sync_version': payment.version,
+      'sync_vector_clock': payment.vectorClock,
+      'hotelDayKey': payment.hotelDayKey ?? '',
+      'isPendingBalance': payment.isPendingBalance,
     };
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
@@ -1562,6 +1566,14 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
+    _putIfNotNull(data, 'discountAmount', payment.discountAmount);
+    _putIfStringNotEmpty(data, 'discountStartDate', payment.discountStartDate);
+    if (payment.isVoided) {
+      data['isVoided'] = true;
+      _putIfNotNull(data, 'voidedAt', payment.voidedAt);
+      _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
+    }
     return data;
   }
 
@@ -1577,6 +1589,9 @@ class AppwriteSyncManager {
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
+      'sync_version': debt.version,
+      'sync_vector_clock': debt.vectorClock,
+      'sync_origin': debt.origin,
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
