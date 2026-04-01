@@ -178,3 +178,17 @@ final settledDebtsProvider = StreamProvider.autoDispose(
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
+
+
+// GuestInfos Providers (for information_screen)
+final guestInfoListProvider = StreamProvider.autoDispose(
+  (ref) {
+    final db = ref.read(databaseProvider);
+    return db.select(db.guestInfos).watch();
+  },
+);
+
+// GuestInfo repo helper for CRUD operations
+final guestInfoRepoProvider = Provider<AppDatabase>(
+  (ref) => ref.read(databaseProvider),
+);
