@@ -3030,8 +3030,14 @@ class AppwriteSyncManager {
           updatedAt: drift.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
           deletedAt: drift.Value(_asInt(data['deletedAt'])),
           lastModified: drift.Value(incomingLastModified),
+          createdAtIso: drift.Value(_asString(data['createdAtIso'])),
+          updatedAtIso: drift.Value(_asString(data['updatedAtIso'])),
+          deletedAtIso: drift.Value(_asString(data['deletedAtIso'])),
+          createdAtEpoch: drift.Value(_asInt(data['createdAtEpoch']) ?? 0),
+          lastModifiedEpoch: drift.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
           version: drift.Value(_asInt(data['version']) ?? 1),
-          origin: drift.Value('appwrite'),
+          origin: drift.Value(_asString(data['origin']) ?? 'appwrite'),
+          vectorClock: drift.Value(_asString(data['vectorClock']) ?? '{}'),
           hotelDayKey: drift.Value(_asString(data['hotelDayKey']) ?? ''),
           totalIncome: drift.Value(_asDouble(data['totalIncome']) ?? 0.0),
           totalExpenses: drift.Value(_asDouble(data['totalExpenses']) ?? 0.0),
@@ -3042,7 +3048,6 @@ class AppwriteSyncManager {
           debtsProcessed: drift.Value(_asInt(data['debtsProcessed']) ?? 0),
           expensesProcessed: drift.Value(_asInt(data['expensesProcessed']) ?? 0),
           status: drift.Value(_asString(data['status']) ?? 'draft'),
-          vectorClock: drift.Value(_asString(data['vectorClock']) ?? '{}'),
         );
 
         await database.into(database.hotelDayLedger).insertOnConflictUpdate(companion);
