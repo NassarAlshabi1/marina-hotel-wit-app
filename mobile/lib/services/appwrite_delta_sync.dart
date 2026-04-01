@@ -401,6 +401,9 @@ class AppwriteDeltaSync {
       case 'guest_infos':
         await _applyGuestInfoChange(db, documentId, data);
         break;
+      case 'salary_withdrawals':
+        await _applySalaryWithdrawalChange(db, documentId, data);
+        break;
     }
   }
 
@@ -792,6 +795,36 @@ class AppwriteDeltaSync {
     await db.into(db.guestInfos).insertOnConflictUpdate(companion);
   }
 
+  Future<void> _applySalaryWithdrawalChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final employeeId = _asInt(data['employeeId']);
+    if (employeeId == null) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = SalaryWithdrawalsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      employeeId: d.Value(employeeId),
+      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
+  }
+
   Future<void> _applyBookingNightChange(
     AppDatabase db,
     String localUuid,
@@ -1046,6 +1079,8 @@ class AppwriteDeltaSync {
         return AppwriteConfig.paymentVoidsCollectionId;
       case 'guest_infos':
         return AppwriteConfig.guestInfosCollectionId;
+      case 'salary_withdrawals':
+        return AppwriteConfig.salaryWithdrawalsCollectionId;
       default:
         return null;
     }

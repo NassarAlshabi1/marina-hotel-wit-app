@@ -38,6 +38,9 @@ class AppwriteConfig {
   
   // جدول معلومات النزلاء
   static const String guestInfosCollectionId = 'guest_infos';
+  
+  // جدول سحوبات الرواتب
+  static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);

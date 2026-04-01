@@ -533,6 +533,13 @@ class AppwriteSyncManager {
           return synced;
         }, phaseMs);
 
+        recordsPulled += await _timePhase('syncSalaryWithdrawals', () async {
+          final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(useCache: false);
+          final synced = await _syncSalaryWithdrawals(salaryWithdrawals);
+          _logger.debug('Synced $synced salary_withdrawals', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
         recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
           final adjustments = await appwriteService.listDocuments(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -1152,6 +1159,8 @@ class AppwriteSyncManager {
           return await _processBookingPriceAdjustmentEntry(entry);
         case 'guest_infos':
           return await _processGuestInfoEntry(entry);
+        case 'salary_withdrawals':
+          return await _processSalaryWithdrawalEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -1394,6 +1403,62 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
+  // ─── SalaryWithdrawals ──────────────────────────────────────────────────
+
+  Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.salaryWithdrawals.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync salary_withdrawal ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+      );
+      return true;
+    }
+    final withdrawal = await _getSalaryWithdrawalByLocalUuid(entry.localUuid);
+    if (withdrawal == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+      );
+      return true;
+    }
+    final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
+      withdrawal,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      documentId: withdrawal.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<SalaryWithdrawal?> _getSalaryWithdrawalByLocalUuid(String localUuid) {
+    return (database.select(
+      database.salaryWithdrawals,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
   Map<String, dynamic> _roomToRemote(Room room) {
     final data = <String, dynamic>{
       'roomNumber': room.roomNumber,
@@ -1618,6 +1683,10 @@ class AppwriteSyncManager {
       final guestInfos = await appwriteService.listGuestInfos(useCache: false);
       recordsPulled += await _syncGuestInfos(guestInfos);
 
+      // مزامنة سحوبات الرواتب
+      final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(useCache: false);
+      recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
+
       // مزامنة ملاحظات الشيفت
       final shiftNotes = await appwriteService.listShiftNotes(useCache: false);
       recordsPulled += await _syncShiftNotes(shiftNotes);
@@ -1703,6 +1772,7 @@ class AppwriteSyncManager {
       'shift_notes': 0,
       'booking_price_adjustments': 0,
       'guest_infos': 0,
+      'salary_withdrawals': 0,
       'errors': 0,
     };
 
@@ -1992,6 +2062,28 @@ class AppwriteSyncManager {
       }
       _logger.info('✅ تم رفع ${stats['guest_infos']} معلومة نزيل', tag: 'SYNC');
 
+      // رفع سحوبات الرواتب
+      final salaryWithdrawals = await database.select(database.salaryWithdrawals).get();
+      for (final withdrawal in salaryWithdrawals) {
+        if (skipDeleted && withdrawal.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
+            withdrawal,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+            documentId: withdrawal.localUuid,
+            data: payload,
+          );
+          stats['salary_withdrawals'] = (stats['salary_withdrawals'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سحب راتب: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['salary_withdrawals']} سحب راتب', tag: 'SYNC');
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -2006,7 +2098,8 @@ class AppwriteSyncManager {
           stats['salary_payments']! +
           stats['shift_notes']! +
           (stats['booking_price_adjustments'] ?? 0) +
-          (stats['guest_infos'] ?? 0);
+          (stats['guest_infos'] ?? 0) +
+          (stats['salary_withdrawals'] ?? 0);
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',

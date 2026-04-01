@@ -699,6 +699,39 @@ class AppwriteService {
     );
   }
 
+  // SalaryWithdrawals
+  Future<List<models.Document>> listSalaryWithdrawals({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertSalaryWithdrawal(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteSalaryWithdrawal(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      documentId: documentId,
+    );
+  }
+
   // Generic methods for delta sync
   Future<List<models.Document>> listDocuments({
     required String collectionId,

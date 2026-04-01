@@ -420,6 +420,20 @@ class PaymentVoids extends Table with SyncFields {
   ];
 }
 
+@DataClassName('GuestInfo')
+class GuestInfos extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get roomNumber => text()();
+  TextColumn get guestName => text()();
+  TextColumn get nationality => text()();
+  TextColumn get idNumber => text()();
+  TextColumn get idType => text().withDefault(const Constant('بطاقة شخصية'))();
+  TextColumn get issueDate => text().nullable()();
+  TextColumn get issuePlace => text().nullable()();
+  TextColumn get governorate => text().nullable()();
+  TextColumn get notes => text().nullable()();
+}
+
 @DataClassName('AutoFixRun')
 class AutoFixRuns extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -500,6 +514,23 @@ class SalaryPayments extends Table with SyncFields {
     Index(
       'idx_salary_payments_cycle',
       'CREATE INDEX idx_salary_payments_cycle ON salary_payments (cycle_id, hotel_day_key)',
+    ),
+  ];
+}
+
+@DataClassName('SalaryWithdrawal')
+class SalaryWithdrawals extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get employeeId => integer()();
+  RealColumn get amount => real()();
+  TextColumn get withdrawDate => text()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get hotelDayKey => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_salary_withdrawals_employee',
+      'CREATE INDEX idx_salary_withdrawals_employee ON salary_withdrawals (employee_id)',
     ),
   ];
 }
@@ -610,6 +641,8 @@ class SyncConflicts extends Table {
     BookingPriceAdjustments,
     AuditLogs,
     PaymentVoids,
+    GuestInfos,
+    SalaryWithdrawals,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -620,7 +653,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1277,6 +1310,36 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 26: add adjustmentMode failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 27) {
+        // إنشاء جدول سجل المعلومية
+        try {
+          await m.createTable(guestInfos);
+          developer.log(
+            'Migration 27: created guest_infos table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 27: create guest_infos failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 28) {
+        // إنشاء جدول سحوبات الرواتب
+        try {
+          await m.createTable(salaryWithdrawals);
+          developer.log(
+            'Migration 28: created salary_withdrawals table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 28: create salary_withdrawals failed: $e',
             name: 'db.migration',
           );
         }
