@@ -16,6 +16,8 @@ class SalaryWithdrawalsRepository {
     required double amount,
     required String date,
     String? hotelDayKey,
+    String? withdrawalType,
+    String? description,
   }) async {
     final now = Time.nowEpoch();
     final companion = SalaryWithdrawalsCompanion(
@@ -26,6 +28,8 @@ class SalaryWithdrawalsRepository {
       withdrawDate: d.Value(date),
       reason: d.Value(reason),
       hotelDayKey: d.Value(hotelDayKey ?? ''),
+      withdrawalType: d.Value(withdrawalType),
+      description: d.Value(description),
       createdAt: d.Value(now),
       updatedAt: d.Value(now),
       deletedAt: const d.Value(null),
@@ -40,8 +44,8 @@ class SalaryWithdrawalsRepository {
   }
 
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
-  /// ملاحظة: الجدول الجديد لا يحتوي expense_id مباشرة،
-  /// لذلك نستخدم localUuid كمعرّز مرتبط بالمصروف
+  /// ملاحظة: الجدول لا يحتوي expense_id مباشرة،
+  /// لذلك نستخدم الربط عبر حقل reason الذي يحتوي [exp_ID]
   Future<void> saveFromExpense({
     required int expenseId,
     required int employeeId,
@@ -49,6 +53,7 @@ class SalaryWithdrawalsRepository {
     required double amount,
     required String date,
     String? note,
+    String? hotelDayKey,
   }) async {
     // محاولة البحث عن سجل موجود مرتبط بنفس الموظف والتاريخ والمبلغ
     final existing = await (_db.select(_db.salaryWithdrawals)
@@ -60,9 +65,8 @@ class SalaryWithdrawalsRepository {
         (w.reason?.contains('exp_$expenseId') ?? false)).firstOrNull;
 
     final now = Time.nowEpoch();
-    final reasonText = note != null && note.isNotEmpty
-        ? '${note} [exp_$expenseId]'
-        : 'سحب راتب [exp_$expenseId]';
+    // reason يحتوي فقط على علامة الربط بالمصروف
+    final reasonText = 'exp_$expenseId';
 
     if (matched != null) {
       // تحديث السجل الموجود
@@ -73,6 +77,9 @@ class SalaryWithdrawalsRepository {
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
             reason: d.Value(reasonText),
+            withdrawalType: d.Value(action),
+            description: d.Value(note),
+            hotelDayKey: d.Value(hotelDayKey ?? ''),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
             version: d.Value(matched.version + 1),
@@ -87,7 +94,9 @@ class SalaryWithdrawalsRepository {
           amount: d.Value(amount),
           withdrawDate: d.Value(date),
           reason: d.Value(reasonText),
-          hotelDayKey: d.Value(''),
+          withdrawalType: d.Value(action),
+          description: d.Value(note),
+          hotelDayKey: d.Value(hotelDayKey ?? ''),
           createdAt: d.Value(now),
           updatedAt: d.Value(now),
           deletedAt: const d.Value(null),

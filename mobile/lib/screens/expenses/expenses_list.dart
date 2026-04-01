@@ -554,6 +554,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
+          hotelDayKey: trimmedDate,
         );
       }
     } else {
@@ -574,6 +575,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
+          hotelDayKey: trimmedDate,
         );
       } else {
         await salaryRepo.deleteByExpenseId(existing.id);

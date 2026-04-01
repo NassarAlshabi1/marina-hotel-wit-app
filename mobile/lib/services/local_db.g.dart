@@ -26144,6 +26144,18 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
   late final GeneratedColumn<String> hotelDayKey = GeneratedColumn<String>(
       'hotel_day_key', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _withdrawalTypeMeta =
+      const VerificationMeta('withdrawalType');
+  @override
+  late final GeneratedColumn<String> withdrawalType = GeneratedColumn<String>(
+      'withdrawal_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         localUuid,
@@ -26165,7 +26177,9 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         amount,
         withdrawDate,
         reason,
-        hotelDayKey
+        hotelDayKey,
+        withdrawalType,
+        description
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -26290,6 +26304,18 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
           hotelDayKey.isAcceptableOrUnknown(
               data['hotel_day_key']!, _hotelDayKeyMeta));
     }
+    if (data.containsKey('withdrawal_type')) {
+      context.handle(
+          _withdrawalTypeMeta,
+          withdrawalType.isAcceptableOrUnknown(
+              data['withdrawal_type']!, _withdrawalTypeMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
     return context;
   }
 
@@ -26339,6 +26365,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
           .read(DriftSqlType.string, data['${effectivePrefix}reason']),
       hotelDayKey: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}hotel_day_key']),
+      withdrawalType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}withdrawal_type']),
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
     );
   }
 
@@ -26370,6 +26400,8 @@ class SalaryWithdrawal extends DataClass
   final String withdrawDate;
   final String? reason;
   final String? hotelDayKey;
+  final String? withdrawalType;
+  final String? description;
   const SalaryWithdrawal(
       {required this.localUuid,
       this.serverId,
@@ -26390,7 +26422,9 @@ class SalaryWithdrawal extends DataClass
       required this.amount,
       required this.withdrawDate,
       this.reason,
-      this.hotelDayKey});
+      this.hotelDayKey,
+      this.withdrawalType,
+      this.description});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -26427,6 +26461,12 @@ class SalaryWithdrawal extends DataClass
     }
     if (!nullToAbsent || hotelDayKey != null) {
       map['hotel_day_key'] = Variable<String>(hotelDayKey);
+    }
+    if (!nullToAbsent || withdrawalType != null) {
+      map['withdrawal_type'] = Variable<String>(withdrawalType);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
     }
     return map;
   }
@@ -26466,6 +26506,12 @@ class SalaryWithdrawal extends DataClass
       hotelDayKey: hotelDayKey == null && nullToAbsent
           ? const Value.absent()
           : Value(hotelDayKey),
+      withdrawalType: withdrawalType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(withdrawalType),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
     );
   }
 
@@ -26493,6 +26539,8 @@ class SalaryWithdrawal extends DataClass
       withdrawDate: serializer.fromJson<String>(json['withdrawDate']),
       reason: serializer.fromJson<String?>(json['reason']),
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
+      withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
+      description: serializer.fromJson<String?>(json['description']),
     );
   }
   @override
@@ -26519,6 +26567,8 @@ class SalaryWithdrawal extends DataClass
       'withdrawDate': serializer.toJson<String>(withdrawDate),
       'reason': serializer.toJson<String?>(reason),
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
+      'withdrawalType': serializer.toJson<String?>(withdrawalType),
+      'description': serializer.toJson<String?>(description),
     };
   }
 
@@ -26542,7 +26592,9 @@ class SalaryWithdrawal extends DataClass
           double? amount,
           String? withdrawDate,
           Value<String?> reason = const Value.absent(),
-          Value<String?> hotelDayKey = const Value.absent()}) =>
+          Value<String?> hotelDayKey = const Value.absent(),
+          Value<String?> withdrawalType = const Value.absent(),
+          Value<String?> description = const Value.absent()}) =>
       SalaryWithdrawal(
         localUuid: localUuid ?? this.localUuid,
         serverId: serverId.present ? serverId.value : this.serverId,
@@ -26567,6 +26619,9 @@ class SalaryWithdrawal extends DataClass
         withdrawDate: withdrawDate ?? this.withdrawDate,
         reason: reason.present ? reason.value : this.reason,
         hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
+        withdrawalType:
+            withdrawalType.present ? withdrawalType.value : this.withdrawalType,
+        description: description.present ? description.value : this.description,
       );
   SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
     return SalaryWithdrawal(
@@ -26607,6 +26662,11 @@ class SalaryWithdrawal extends DataClass
       reason: data.reason.present ? data.reason.value : this.reason,
       hotelDayKey:
           data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
+      withdrawalType: data.withdrawalType.present
+          ? data.withdrawalType.value
+          : this.withdrawalType,
+      description:
+          data.description.present ? data.description.value : this.description,
     );
   }
 
@@ -26632,33 +26692,38 @@ class SalaryWithdrawal extends DataClass
           ..write('amount: $amount, ')
           ..write('withdrawDate: $withdrawDate, ')
           ..write('reason: $reason, ')
-          ..write('hotelDayKey: $hotelDayKey')
+          ..write('hotelDayKey: $hotelDayKey, ')
+          ..write('withdrawalType: $withdrawalType, ')
+          ..write('description: $description')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      localUuid,
-      serverId,
-      createdAt,
-      updatedAt,
-      deletedAt,
-      lastModified,
-      createdAtIso,
-      updatedAtIso,
-      deletedAtIso,
-      createdAtEpoch,
-      lastModifiedEpoch,
-      version,
-      origin,
-      vectorClock,
-      id,
-      employeeId,
-      amount,
-      withdrawDate,
-      reason,
-      hotelDayKey);
+  int get hashCode => Object.hashAll([
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        employeeId,
+        amount,
+        withdrawDate,
+        reason,
+        hotelDayKey,
+        withdrawalType,
+        description
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -26682,7 +26747,9 @@ class SalaryWithdrawal extends DataClass
           other.amount == this.amount &&
           other.withdrawDate == this.withdrawDate &&
           other.reason == this.reason &&
-          other.hotelDayKey == this.hotelDayKey);
+          other.hotelDayKey == this.hotelDayKey &&
+          other.withdrawalType == this.withdrawalType &&
+          other.description == this.description);
 }
 
 class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
@@ -26706,6 +26773,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String> withdrawDate;
   final Value<String?> reason;
   final Value<String?> hotelDayKey;
+  final Value<String?> withdrawalType;
+  final Value<String?> description;
   const SalaryWithdrawalsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -26727,6 +26796,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.withdrawDate = const Value.absent(),
     this.reason = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
+    this.withdrawalType = const Value.absent(),
+    this.description = const Value.absent(),
   });
   SalaryWithdrawalsCompanion.insert({
     required String localUuid,
@@ -26749,6 +26820,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     required String withdrawDate,
     this.reason = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
+    this.withdrawalType = const Value.absent(),
+    this.description = const Value.absent(),
   })  : localUuid = Value(localUuid),
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
@@ -26777,6 +26850,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? withdrawDate,
     Expression<String>? reason,
     Expression<String>? hotelDayKey,
+    Expression<String>? withdrawalType,
+    Expression<String>? description,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -26799,6 +26874,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (withdrawDate != null) 'withdraw_date': withdrawDate,
       if (reason != null) 'reason': reason,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
+      if (withdrawalType != null) 'withdrawal_type': withdrawalType,
+      if (description != null) 'description': description,
     });
   }
 
@@ -26822,7 +26899,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       Value<double>? amount,
       Value<String>? withdrawDate,
       Value<String?>? reason,
-      Value<String?>? hotelDayKey}) {
+      Value<String?>? hotelDayKey,
+      Value<String?>? withdrawalType,
+      Value<String?>? description}) {
     return SalaryWithdrawalsCompanion(
       localUuid: localUuid ?? this.localUuid,
       serverId: serverId ?? this.serverId,
@@ -26844,6 +26923,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       withdrawDate: withdrawDate ?? this.withdrawDate,
       reason: reason ?? this.reason,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
+      withdrawalType: withdrawalType ?? this.withdrawalType,
+      description: description ?? this.description,
     );
   }
 
@@ -26910,6 +26991,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (hotelDayKey.present) {
       map['hotel_day_key'] = Variable<String>(hotelDayKey.value);
     }
+    if (withdrawalType.present) {
+      map['withdrawal_type'] = Variable<String>(withdrawalType.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
     return map;
   }
 
@@ -26935,7 +27022,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('amount: $amount, ')
           ..write('withdrawDate: $withdrawDate, ')
           ..write('reason: $reason, ')
-          ..write('hotelDayKey: $hotelDayKey')
+          ..write('hotelDayKey: $hotelDayKey, ')
+          ..write('withdrawalType: $withdrawalType, ')
+          ..write('description: $description')
           ..write(')'))
         .toString();
   }
@@ -40058,6 +40147,8 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder
   required String withdrawDate,
   Value<String?> reason,
   Value<String?> hotelDayKey,
+  Value<String?> withdrawalType,
+  Value<String?> description,
 });
 typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder
     = SalaryWithdrawalsCompanion Function({
@@ -40081,6 +40172,8 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder
   Value<String> withdrawDate,
   Value<String?> reason,
   Value<String?> hotelDayKey,
+  Value<String?> withdrawalType,
+  Value<String?> description,
 });
 
 class $$SalaryWithdrawalsTableFilterComposer
@@ -40153,6 +40246,13 @@ class $$SalaryWithdrawalsTableFilterComposer
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
       column: $table.hotelDayKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get withdrawalType => $composableBuilder(
+      column: $table.withdrawalType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
 }
 
 class $$SalaryWithdrawalsTableOrderingComposer
@@ -40230,6 +40330,13 @@ class $$SalaryWithdrawalsTableOrderingComposer
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
       column: $table.hotelDayKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get withdrawalType => $composableBuilder(
+      column: $table.withdrawalType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SalaryWithdrawalsTableAnnotationComposer
@@ -40300,6 +40407,12 @@ class $$SalaryWithdrawalsTableAnnotationComposer
 
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
       column: $table.hotelDayKey, builder: (column) => column);
+
+  GeneratedColumn<String> get withdrawalType => $composableBuilder(
+      column: $table.withdrawalType, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
 }
 
 class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
@@ -40350,6 +40463,8 @@ class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
             Value<String> withdrawDate = const Value.absent(),
             Value<String?> reason = const Value.absent(),
             Value<String?> hotelDayKey = const Value.absent(),
+            Value<String?> withdrawalType = const Value.absent(),
+            Value<String?> description = const Value.absent(),
           }) =>
               SalaryWithdrawalsCompanion(
             localUuid: localUuid,
@@ -40372,6 +40487,8 @@ class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
             withdrawDate: withdrawDate,
             reason: reason,
             hotelDayKey: hotelDayKey,
+            withdrawalType: withdrawalType,
+            description: description,
           ),
           createCompanionCallback: ({
             required String localUuid,
@@ -40394,6 +40511,8 @@ class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
             required String withdrawDate,
             Value<String?> reason = const Value.absent(),
             Value<String?> hotelDayKey = const Value.absent(),
+            Value<String?> withdrawalType = const Value.absent(),
+            Value<String?> description = const Value.absent(),
           }) =>
               SalaryWithdrawalsCompanion.insert(
             localUuid: localUuid,
@@ -40416,6 +40535,8 @@ class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
             withdrawDate: withdrawDate,
             reason: reason,
             hotelDayKey: hotelDayKey,
+            withdrawalType: withdrawalType,
+            description: description,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -531,6 +531,8 @@ class SalaryWithdrawals extends Table with SyncFields {
   TextColumn get withdrawDate => text()();
   TextColumn get reason => text().nullable()();
   TextColumn get hotelDayKey => text().nullable()();
+  TextColumn get withdrawalType => text().nullable()();
+  TextColumn get description => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -658,7 +660,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 30;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1408,6 +1410,33 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 29: add payments.voidedBy failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 30) {
+        // إضافة حقول withdrawalType و description لجدول salary_withdrawals
+        try {
+          await m.addColumn(salaryWithdrawals, salaryWithdrawals.withdrawalType);
+          developer.log(
+            'Migration 30: added salary_withdrawals.withdrawalType',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 30: add salary_withdrawals.withdrawalType failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(salaryWithdrawals, salaryWithdrawals.description);
+          developer.log(
+            'Migration 30: added salary_withdrawals.description',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 30: add salary_withdrawals.description failed: $e',
             name: 'db.migration',
           );
         }

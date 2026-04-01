@@ -814,6 +814,8 @@ class AppwriteDeltaSync {
       withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
       reason: _nullableValue<String>(_asString(data['reason'])),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      withdrawalType: _nullableValue<String>(_asString(data['withdrawalType'])),
+      description: _nullableValue<String>(_asString(data['description'])),
       createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
