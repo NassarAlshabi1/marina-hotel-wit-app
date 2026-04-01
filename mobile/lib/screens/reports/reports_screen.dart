@@ -31,13 +31,16 @@ class ReportsScreen extends ConsumerWidget {
           }
           final d = snapshot.data!;
           return ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             children: [
-              const Text(
-                'التقارير المالية',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'التقارير المالية',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _ReportShortcut(
                 icon: Icons.receipt_long,
                 label: 'تقرير دفوعات النزلاء',
@@ -49,7 +52,7 @@ class ReportsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               _ReportShortcut(
                 icon: Icons.account_balance_wallet,
                 label: 'تقرير المصروفات',
@@ -61,7 +64,7 @@ class ReportsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               _ReportShortcut(
                 icon: Icons.stacked_line_chart,
                 label: 'تقرير الدخل والخرج',
@@ -73,7 +76,7 @@ class ReportsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               _ReportShortcut(
                 icon: Icons.payments_outlined,
                 label: 'تقرير سحبيات الرواتب',
@@ -85,12 +88,15 @@ class ReportsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'تقارير المخاطر والمتابعة',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              const SizedBox(height: 10),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'تقارير المخاطر والمتابعة',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _ReportShortcut(
                 icon: Icons.pie_chart,
                 label: 'تقرير الديون',
@@ -100,36 +106,48 @@ class ReportsScreen extends ConsumerWidget {
                   MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'مؤشرات سريعة',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              const SizedBox(height: 14),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'مؤشرات سريعة',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'الإشغال اليومي (آخر 7 أيام)',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'الإشغال اليومي (آخر 7 أيام)',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                ),
               ),
               SizedBox(
-                height: 200,
+                height: 150,
                 child: BarChart(BarChartData(barGroups: d['dailyOcc'])),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'الإيرادات مقابل المصروفات (الشهر)',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: 10),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'الإيرادات مقابل المصروفات (الشهر)',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                ),
               ),
               SizedBox(
-                height: 200,
+                height: 150,
                 child: BarChart(BarChartData(barGroups: d['revExp'])),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'أعلى الغرف إشغالاً',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: 10),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'أعلى الغرف إشغالاً',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                ),
               ),
               SizedBox(
-                height: 200,
+                height: 150,
                 child: BarChart(BarChartData(barGroups: d['topRooms'])),
               ),
             ],
@@ -205,15 +223,19 @@ class _ReportShortcut extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 1,
+      elevation: 0.5,
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: ListTile(
         onTap: onTap,
+        dense: true,
         leading: CircleAvatar(
+          radius: 16,
           backgroundColor: color.withOpacity(0.12),
-          child: Icon(icon, color: color),
+          child: Icon(icon, color: color, size: 18),
         ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
       ),
     );
   }
