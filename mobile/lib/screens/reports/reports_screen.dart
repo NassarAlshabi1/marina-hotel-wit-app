@@ -1,0 +1,323 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../components/app_scaffold.dart';
+import '../../providers/core_providers.dart' as coreProviders;
+import '../../utils/status_utils.dart';
+import 'expenses_report_screen.dart';
+import 'payments_report_screen.dart';
+import 'debts_report_screen.dart';
+import 'salary_withdrawals_report_screen.dart';
+import 'income_expense_report_screen.dart';
+
+class ReportsScreen extends ConsumerStatefulWidget {
+  const ReportsScreen({super.key});
+
+  @override
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  bool _chartsLoaded = false;
+  Map<String, dynamic>? _chartsData;
+  bool _isLoadingCharts = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // ❌ لا نحمل الرسوم البيانية تلقائياً - المستخدم يضغط الزر
+  }
+
+  Future<void> _loadCharts() async {
+    if (_isLoadingCharts || _chartsLoaded) return;
+
+    setState(() => _isLoadingCharts = true);
+
+    try {
+      final db = ref.read(coreProviders.dbProvider);
+      final data = await _prepareData(db);
+      if (mounted) {
+        setState(() {
+          _chartsData = data;
+          _chartsLoaded = true;
+          _isLoadingCharts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCharts = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'التقارير',
+      actions: [
+        IconButton(
+          onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+          icon: const Icon(Icons.sync),
+        ),
+      ],
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          const Text(
+            'التقارير المالية',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.receipt_long,
+            label: 'تقرير دفوعات النزلاء',
+            color: Colors.green,
+            onTap: () => _lazyPush(context, const PaymentsReportScreen()),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.account_balance_wallet,
+            label: 'تقرير المصروفات',
+            color: Colors.orange,
+            onTap: () => _lazyPush(context, const ExpensesReportScreen()),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.stacked_line_chart,
+            label: 'تقرير الدخل والخرج',
+            color: Colors.teal,
+            onTap: () => _lazyPush(context, const IncomeExpenseReportScreen()),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.payments_outlined,
+            label: 'تقرير سحبيات الرواتب',
+            color: Colors.blue,
+            onTap: () =>
+                _lazyPush(context, const SalaryWithdrawalsReportScreen()),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'تقارير المخاطر والمتابعة',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          _ReportShortcut(
+            icon: Icons.pie_chart,
+            label: 'تقرير الديون',
+            color: Colors.purple,
+            onTap: () => _lazyPush(context, const DebtsReportScreen()),
+          ),
+          const SizedBox(height: 24),
+          // مؤشرات سريعة - تحميل عند الطلب فقط
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'مؤشرات سريعة',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              if (!_chartsLoaded)
+                TextButton.icon(
+                  onPressed: _isLoadingCharts ? null : _loadCharts,
+                  icon: _isLoadingCharts
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.bar_chart, size: 18),
+                  label: Text(
+                    _isLoadingCharts
+                        ? 'جاري التحميل...'
+                        : 'عرض الرسوم البيانية',
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_chartsLoaded && _chartsData != null) ...[
+            const Text(
+              'الإشغال اليومي (آخر 7 أيام)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200,
+              child: BarChart(
+                BarChartData(barGroups: _chartsData!['dailyOcc']),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'الإيرادات مقابل المصروفات (الشهر)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200,
+              child: BarChart(BarChartData(barGroups: _chartsData!['revExp'])),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'أعلى الغرف إشغالاً',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200,
+              child: BarChart(
+                BarChartData(barGroups: _chartsData!['topRooms']),
+              ),
+            ),
+          ] else if (!_chartsLoaded) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.bar_chart, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'اضغط "عرض الرسوم البيانية" لتحميل المؤشرات',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Lazy push - shows loading indicator while navigating
+  void _lazyPush(BuildContext context, Widget page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => _LazyLoadingWrapper(child: page)),
+    );
+  }
+
+  Future<Map<String, dynamic>> _prepareData(db) async {
+    final rooms = await db.select(db.rooms).get();
+    final total = rooms.length == 0 ? 1 : rooms.length;
+
+    // dummy last 7 days occupancy by current status
+    final daily = List.generate(7, (i) {
+      final busy = rooms
+          .where((r) => StatusUtils.isRoomOccupied(r.status))
+          .length;
+      final occ = (busy * 100 / total).round();
+      return BarChartGroupData(
+        x: i,
+        barRods: [BarChartRodData(toY: occ.toDouble())],
+      );
+    });
+
+    // month revenue vs expense: placeholder from local
+    final incomes = await db.select(db.cashTransactions).get();
+    double income = 0;
+    for (final i in incomes) {
+      income += i.amount;
+    }
+    final expenses = await db.select(db.expenses).get();
+    double expense = 0;
+    for (final e in expenses) {
+      expense += e.amount;
+    }
+    final revExp = [
+      BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: income)]),
+      BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: expense)]),
+    ];
+
+    // top rooms by occupancy (approx by status)
+    final topRooms = rooms.take(5).toList();
+    final topBars = <BarChartGroupData>[];
+    for (var i = 0; i < topRooms.length; i++) {
+      final r = topRooms[i];
+      final v = StatusUtils.isRoomOccupied(r.status) ? 100.0 : 20.0;
+      topBars.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [BarChartRodData(toY: v)],
+        ),
+      );
+    }
+
+    return {'dailyOcc': daily, 'revExp': revExp, 'topRooms': topBars};
+  }
+}
+
+class _ReportShortcut extends StatelessWidget {
+  const _ReportShortcut({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.12),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      ),
+    );
+  }
+}
+
+/// Lazy loading wrapper - shows loading while page initializes
+class _LazyLoadingWrapper extends StatefulWidget {
+  const _LazyLoadingWrapper({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_LazyLoadingWrapper> createState() => _LazyLoadingWrapperState();
+}
+
+class _LazyLoadingWrapperState extends State<_LazyLoadingWrapper> {
+  bool _isReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer child initialization to next frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _isReady = true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isReady) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('جاري التحميل...')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('جاري تحميل الشاشة...'),
+            ],
+          ),
+        ),
+      );
+    }
+    return widget.child;
+  }
+}
