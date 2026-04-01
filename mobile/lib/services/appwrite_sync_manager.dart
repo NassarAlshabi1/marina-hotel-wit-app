@@ -3025,10 +3025,10 @@ class AppwriteSyncManager {
 
         final companion = HotelDayLedgerCompanion(
           localUuid: drift.Value(docLocalUuid),
-          serverId: _nullableValue<int>(_asInt(data['serverId'])),
+          serverId: drift.Value(_asInt(data['serverId'])),
           createdAt: drift.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
           updatedAt: drift.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
-          deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+          deletedAt: drift.Value(_asInt(data['deletedAt'])),
           lastModified: drift.Value(incomingLastModified),
           version: drift.Value(_asInt(data['version']) ?? 1),
           origin: drift.Value('appwrite'),
@@ -3042,7 +3042,7 @@ class AppwriteSyncManager {
           debtsProcessed: drift.Value(_asInt(data['debtsProcessed']) ?? 0),
           expensesProcessed: drift.Value(_asInt(data['expensesProcessed']) ?? 0),
           status: drift.Value(_asString(data['status']) ?? 'draft'),
-          vectorClock: _nullableValue<String>(_asString(data['vectorClock'])),
+          vectorClock: drift.Value(_asString(data['vectorClock']) ?? '{}'),
         );
 
         await database.into(database.hotelDayLedger).insertOnConflictUpdate(companion);
