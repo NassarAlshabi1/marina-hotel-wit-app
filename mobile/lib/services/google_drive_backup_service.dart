@@ -373,6 +373,8 @@ class GoogleDriveBackupService {
       final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
       final auditLogsData = await db.select(db.auditLogs).get();
       final paymentVoidsData = await db.select(db.paymentVoids).get();
+      final guestInfosData = await db.select(db.guestInfos).get();
+      final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
 
       final totalRecords =
           roomsData.length +
@@ -391,7 +393,9 @@ class GoogleDriveBackupService {
           priceAdjustmentsData.length +
           bookingPriceAdjData.length +
           auditLogsData.length +
-          paymentVoidsData.length;
+          paymentVoidsData.length +
+          guestInfosData.length +
+          salaryWithdrawalsData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
@@ -438,6 +442,12 @@ class GoogleDriveBackupService {
             .toList(),
         'payment_voids': paymentVoidsData
             .map((v) => v.toJson())
+            .toList(),
+        'guest_infos': guestInfosData
+            .map((g) => g.toJson())
+            .toList(),
+        'salary_withdrawals': salaryWithdrawalsData
+            .map((s) => s.toJson())
             .toList(),
       };
 
@@ -791,6 +801,10 @@ class GoogleDriveBackupService {
           await db.delete(db.employees).go();
           await db.delete(db.expenses).go();
           await db.delete(db.cashTransactions).go();
+          await db.delete(db.auditLogs).go();
+          await db.delete(db.paymentVoids).go();
+          await db.delete(db.guestInfos).go();
+          await db.delete(db.salaryWithdrawals).go();
 
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
@@ -964,6 +978,66 @@ class GoogleDriveBackupService {
             for (final salaryJson in salaryList) {
               await adapterRegistry.salaryPayments.upsertFromJson(
                 Map<String, dynamic>.from(salaryJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('salary_withdrawals')) {
+            final withdrawalsList = backupData['salary_withdrawals'] as List<dynamic>;
+            for (final wJson in withdrawalsList) {
+              await adapterRegistry.salaryWithdrawals.upsertFromJson(
+                Map<String, dynamic>.from(wJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('price_adjustments')) {
+            final adjList = backupData['price_adjustments'] as List<dynamic>;
+            for (final adjJson in adjList) {
+              await adapterRegistry.priceAdjustments.upsertFromJson(
+                Map<String, dynamic>.from(adjJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('booking_price_adjustments')) {
+            final bpaList = backupData['booking_price_adjustments'] as List<dynamic>;
+            for (final bpaJson in bpaList) {
+              await adapterRegistry.bookingPriceAdjustments.upsertFromJson(
+                Map<String, dynamic>.from(bpaJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('audit_logs')) {
+            final logsList = backupData['audit_logs'] as List<dynamic>;
+            for (final logJson in logsList) {
+              await adapterRegistry.auditLogs.upsertFromJson(
+                Map<String, dynamic>.from(logJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('payment_voids')) {
+            final voidsList = backupData['payment_voids'] as List<dynamic>;
+            for (final voidJson in voidsList) {
+              await adapterRegistry.paymentVoids.upsertFromJson(
+                Map<String, dynamic>.from(voidJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('guest_infos')) {
+            final guestList = backupData['guest_infos'] as List<dynamic>;
+            for (final guestJson in guestList) {
+              await adapterRegistry.guestInfos.upsertFromJson(
+                Map<String, dynamic>.from(guestJson as Map),
                 src: Source.drive,
               );
             }

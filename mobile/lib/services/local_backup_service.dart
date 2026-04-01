@@ -160,6 +160,8 @@ class LocalBackupService {
         final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
         final auditLogsData = await db.select(db.auditLogs).get();
         final paymentVoidsData = await db.select(db.paymentVoids).get();
+        final guestInfosData = await db.select(db.guestInfos).get();
+        final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
 
         final totalRecords =
             roomsData.length +
@@ -178,7 +180,9 @@ class LocalBackupService {
             priceAdjustmentsData.length +
             bookingPriceAdjData.length +
             auditLogsData.length +
-            paymentVoidsData.length;
+            paymentVoidsData.length +
+            guestInfosData.length +
+            salaryWithdrawalsData.length;
 
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
@@ -231,6 +235,12 @@ class LocalBackupService {
               .toList(),
           'payment_voids': paymentVoidsData
               .map((v) => v.toJson())
+              .toList(),
+          'guest_infos': guestInfosData
+              .map((g) => g.toJson())
+              .toList(),
+          'salary_withdrawals': salaryWithdrawalsData
+              .map((s) => s.toJson())
               .toList(),
           'sync_state': syncStateData.isNotEmpty
               ? syncStateData.first.toJson()
