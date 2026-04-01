@@ -59,9 +59,9 @@ ThemeData buildTheme() {
       onError: Colors.white,
     ),
 
-    // AppBar theme - deep purple accent on sidebar base
+    // AppBar theme - main accent color
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF1A0A2E), // Very dark purple matching sidebar
+      backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 1,
       centerTitle: false,
@@ -159,7 +159,7 @@ ThemeData buildDarkTheme() {
   const darkSurface = Color(0xFF1E1E1E);
   const darkBackground = Color(0xFF121212);
   const darkInputBorder = Color(0xFF2C2C2C);
-  const darkAppBar = Color(0xFF0D0518); // Very dark purple for dark AppBar
+  const darkAppBar = Color(0xFF4A1070); // Lighter purple for dark AppBar
 
   final base = ThemeData(
     useMaterial3: false,
@@ -184,7 +184,7 @@ ThemeData buildDarkTheme() {
       onError: Colors.white,
     ),
 
-    // Dark AppBar - very dark purple base
+    // Dark AppBar - lighter shade for contrast
     appBarTheme: const AppBarTheme(
       backgroundColor: darkAppBar,
       foregroundColor: Color(0xFFE0D5F0), // Light purple text/icons
