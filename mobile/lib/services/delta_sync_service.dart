@@ -471,16 +471,7 @@ class DeltaSyncService {
         deletedAt: (dynamic row) => (row as SalaryWithdrawal).deletedAt,
         toJson: (dynamic row) => (row as SalaryWithdrawal).toJson(),
       ),
-      _EntityConfig(
-        entity: 'hotel_day_ledger',
-        fetchAll: () => db.select(db.hotelDayLedger).get(),
-        localUuid: (dynamic row) => (row as HotelDayLedgerEntry).localUuid,
-        createdAt: (dynamic row) => (row as HotelDayLedgerEntry).createdAt,
-        lastModified: (dynamic row) =>
-            (row as HotelDayLedgerEntry).lastModified,
-        deletedAt: (dynamic row) => (row as HotelDayLedgerEntry).deletedAt,
-        toJson: (dynamic row) => (row as HotelDayLedgerEntry).toJson(),
-      ),
+      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
       _EntityConfig(
         entity: 'shift_notes',
         fetchAll: () => db.select(db.shiftNotes).get(),
