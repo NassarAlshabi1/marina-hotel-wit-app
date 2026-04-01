@@ -1527,6 +1527,17 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
     _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
     _putIfStringNotEmpty(data, 'notes', booking.notes);
+    // حقول مالية
+    data['discount'] = booking.discount;
+    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
+    _putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
+    data['totalDueCached'] = booking.totalDueCached;
+    data['totalPaidCached'] = booking.totalPaidCached;
+    data['remainingBalanceCached'] = booking.remainingBalanceCached;
+    // حقول تواريخ ومشتقات
+    data['totalNightsCached'] = booking.totalNightsCached;
+    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
+    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
     return data;
   }
 
