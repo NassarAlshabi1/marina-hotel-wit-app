@@ -1854,6 +1854,13 @@ class AppwriteSyncManager {
       final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
       recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
 
+      // مزامنة تعديلات أسعار الحجوزات
+      final bookingPriceAdjustments = await appwriteService.listDocuments(
+        collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+        queries: deltaQ,
+      );
+      recordsPulled += await _syncBookingPriceAdjustments(bookingPriceAdjustments);
+
       // مزامنة ملاحظات الشيفت
       final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
       recordsPulled += await _syncShiftNotes(shiftNotes);
