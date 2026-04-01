@@ -12,6 +12,7 @@ import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
 import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
+import '../services/repositories/guest_infos_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
@@ -189,6 +190,6 @@ final guestInfoListProvider = StreamProvider.autoDispose(
 );
 
 // GuestInfo repo helper for CRUD operations
-final guestInfoRepoProvider = Provider<AppDatabase>(
-  (ref) => ref.read(databaseProvider),
+final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
 );
