@@ -41,8 +41,10 @@ class AppwriteRealtimeSync {
     AppwriteConfig.employeesCollectionId,
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
+    AppwriteConfig.salaryWithdrawalsCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
-    AppwriteConfig.hotelDayLedgerCollectionId,
+    AppwriteConfig.guestInfosCollectionId,
+    // ❌ hotel_day_ledger - محلي فقط
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
     AppwriteConfig.auditLogsCollectionId,

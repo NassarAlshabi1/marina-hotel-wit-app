@@ -251,6 +251,8 @@ class AppwriteDeltaSync {
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
         'bookings': AppwriteConfig.bookingsCollectionId,
+        // ✅ بعد bookings مباشرة لأنه يعتمد عليها (bookingLocalId)
+        'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         'booking_notes': AppwriteConfig.bookingNotesCollectionId,
         'booking_nights': AppwriteConfig.bookingNightsCollectionId,
         'payments': AppwriteConfig.paymentsCollectionId,
@@ -258,16 +260,15 @@ class AppwriteDeltaSync {
         'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
         'debts': AppwriteConfig.debtsCollectionId,
         'employees': AppwriteConfig.employeesCollectionId,
-        'hotel_day_ledger': AppwriteConfig.hotelDayLedgerCollectionId,
+        // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
         'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
         'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
+        'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
         'shift_notes': AppwriteConfig.shiftNotesCollectionId,
         'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
-        'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         'audit_logs': AppwriteConfig.auditLogsCollectionId,
         'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
         'guest_infos': AppwriteConfig.guestInfosCollectionId,
-        'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
       };
 
       for (final entry in entitiesToPull.entries) {
