@@ -386,9 +386,7 @@ class AppwriteDeltaSync {
       case 'salary_payments':
         await _applySalaryPaymentChange(db, documentId, data);
         break;
-      case 'hotel_day_ledger':
-        await _applyHotelDayLedgerChange(db, documentId, data);
-        break;
+      // ❌ hotel_day_ledger - محلي فقط
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
         break;
@@ -1002,37 +1000,6 @@ class AppwriteDeltaSync {
     await db.into(db.salaryPayments).insertOnConflictUpdate(companion);
   }
 
-  Future<void> _applyHotelDayLedgerChange(
-    AppDatabase db,
-    String localUuid,
-    Map<String, dynamic> data,
-  ) async {
-    final hotelDayKey = _asString(data['hotelDayKey']);
-    if (hotelDayKey == null || hotelDayKey.isEmpty) return;
-
-    final companion = HotelDayLedgerCompanion(
-      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
-      serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
-      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
-      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
-      version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
-      hotelDayKey: d.Value(hotelDayKey),
-      totalIncome: d.Value(_asDouble(data['totalIncome'])),
-      totalExpenses: d.Value(_asDouble(data['totalExpenses'])),
-      pendingBalances: d.Value(_asDouble(data['pendingBalances'])),
-      occupancyRate: d.Value(_asDouble(data['occupancyRate'])),
-      bookingsProcessed: d.Value(_asInt(data['bookingsProcessed']) ?? 0),
-      paymentsProcessed: d.Value(_asInt(data['paymentsProcessed']) ?? 0),
-      debtsProcessed: d.Value(_asInt(data['debtsProcessed']) ?? 0),
-      expensesProcessed: d.Value(_asInt(data['expensesProcessed']) ?? 0),
-      status: d.Value(_asString(data['status']) ?? 'draft'),
-    );
-
-    await db.into(db.hotelDayLedger).insertOnConflictUpdate(companion);
-  }
 
   bool? _asBool(dynamic value) {
     if (value == null) return null;
@@ -1066,8 +1033,7 @@ class AppwriteDeltaSync {
         return AppwriteConfig.debtsCollectionId;
       case 'employees':
         return AppwriteConfig.employeesCollectionId;
-      case 'hotel_day_ledger':
-        return AppwriteConfig.hotelDayLedgerCollectionId;
+      // ❌ hotel_day_ledger - محلي فقط
       case 'salary_cycles':
         return AppwriteConfig.salaryCyclesCollectionId;
       case 'salary_payments':
