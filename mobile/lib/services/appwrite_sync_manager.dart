@@ -638,15 +638,7 @@ class AppwriteSyncManager {
           return synced;
         }, phaseMs);
 
-        recordsPulled += await _timePhase('syncHotelDayLedger', () async {
-          final docs = await appwriteService.listDocuments(
-            collectionId: AppwriteConfig.hotelDayLedgerCollectionId,
-            queries: deltaQ,
-          );
-          final synced = await _syncHotelDayLedger(docs);
-          _logger.debug('Synced $synced hotel day ledger', tag: 'SYNC');
-          return synced;
-        }, phaseMs);
+        // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
         // تحديث lastPullTs بعد نجاح السحب
         await _updateLastPullTs(Time.nowEpoch());
@@ -1921,12 +1913,7 @@ class AppwriteSyncManager {
       );
       recordsPulled += await _syncPaymentVoids(paymentVoids);
 
-      // مزامنة دفتر اليوم الفندقي
-      final hotelDayLedger = await appwriteService.listDocuments(
-        collectionId: AppwriteConfig.hotelDayLedgerCollectionId,
-        queries: deltaQ,
-      );
-      recordsPulled += await _syncHotelDayLedger(hotelDayLedger);
+      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
       // تحديث lastPullTs بعد نجاح السحب
       await _updateLastPullTs(Time.nowEpoch());
@@ -2997,71 +2984,6 @@ class AppwriteSyncManager {
       } catch (e) {
         _logger.warning(
           'Failed to sync payment void ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
-    return processed;
-  }
-
-  // ─── HotelDayLedger ───────────────────────────────────────────────────
-
-  Future<int> _syncHotelDayLedger(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
-    var processed = 0;
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
-        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
-
-        final docLocalUuid = data['localUuid'] as String? ?? doc.$id;
-        final existingByUuid = await (database.select(database.hotelDayLedger)
-              ..where((t) => t.localUuid.equals(docLocalUuid)))
-            .getSingleOrNull();
-
-        // Financial immutability: if local ledger entry exists and is newer, keep it
-        if (existingByUuid != null && existingByUuid.lastModified > incomingLastModified) {
-          _logger.debug(
-            'Skipping hotel_day_ledger ${doc.$id}: local is newer',
-            tag: 'SYNC',
-          );
-          processed++;
-          continue;
-        }
-
-        final companion = HotelDayLedgerCompanion(
-          localUuid: drift.Value(docLocalUuid),
-          serverId: drift.Value(_asInt(data['serverId'])),
-          createdAt: drift.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
-          updatedAt: drift.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
-          deletedAt: drift.Value(_asInt(data['deletedAt'])),
-          lastModified: drift.Value(incomingLastModified),
-          createdAtIso: drift.Value(_asString(data['createdAtIso'])),
-          updatedAtIso: drift.Value(_asString(data['updatedAtIso'])),
-          deletedAtIso: drift.Value(_asString(data['deletedAtIso'])),
-          createdAtEpoch: drift.Value(_asInt(data['createdAtEpoch']) ?? 0),
-          lastModifiedEpoch: drift.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
-          version: drift.Value(_asInt(data['version']) ?? 1),
-          origin: drift.Value(_asString(data['origin']) ?? 'appwrite'),
-          vectorClock: drift.Value(_asString(data['vectorClock']) ?? '{}'),
-          hotelDayKey: drift.Value(_asString(data['hotelDayKey']) ?? ''),
-          totalIncome: drift.Value(_asDouble(data['totalIncome']) ?? 0.0),
-          totalExpenses: drift.Value(_asDouble(data['totalExpenses']) ?? 0.0),
-          pendingBalances: drift.Value(_asDouble(data['pendingBalances']) ?? 0.0),
-          occupancyRate: drift.Value(_asDouble(data['occupancyRate']) ?? 0.0),
-          bookingsProcessed: drift.Value(_asInt(data['bookingsProcessed']) ?? 0),
-          paymentsProcessed: drift.Value(_asInt(data['paymentsProcessed']) ?? 0),
-          debtsProcessed: drift.Value(_asInt(data['debtsProcessed']) ?? 0),
-          expensesProcessed: drift.Value(_asInt(data['expensesProcessed']) ?? 0),
-          status: drift.Value(_asString(data['status']) ?? 'draft'),
-        );
-
-        await database.into(database.hotelDayLedger).insertOnConflictUpdate(companion);
-        processed++;
-      } catch (e) {
-        _logger.warning(
-          'Failed to sync hotel day ledger ${doc.$id}: $e',
           tag: 'SYNC',
         );
       }

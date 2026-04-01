@@ -509,8 +509,7 @@ class AppwriteDeltaSync {
         return null;
       case 'booking_nights':
         return null;
-      case 'hotel_day_ledger':
-        return null;
+      // ❌ hotel_day_ledger - محلي فقط
       default:
         return null;
     }
