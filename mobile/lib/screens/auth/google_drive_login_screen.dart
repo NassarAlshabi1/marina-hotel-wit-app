@@ -7,9 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
-import '../../services/appwrite_full_pull.dart';
-import '../../services/appwrite_service.dart';
-import '../../services/local_db.dart';
 import '../../utils/theme.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
@@ -60,7 +57,7 @@ class _GoogleDriveLoginScreenState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'خطأ في تسجيل الدخول: ${e.toString()}';
+          _errorMessage = 'خطأ في تسجيل الدخول: $e';
           _isSigningIn = false;
         });
       }
@@ -109,7 +106,7 @@ class _GoogleDriveLoginScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(backupStatusProvider.notifier).setSkippedDriveLogin(true);
       unawaited(_pullAppwriteOnceAfterSkip());
       if (mounted) {
@@ -128,15 +125,10 @@ class _GoogleDriveLoginScreenState
       if (done) return;
       await prefs.setBool(key, true);
 
-      // ✅ استخدام AppwriteFullPull لسحب جميع الجداول بالكامل
-      // pullRemoteChanges يسحب التغييرات الأخيرة فقط (Delta Sync)
-      // بينما FullPull يسحب كل سجل من كل collection
-      final fullPull = AppwriteFullPull();
-      final appwriteService = AppwriteService();
-      final db = AppDatabase();
-      await fullPull.initialize(appwriteService, db);
-      final result = await fullPull.pullAll();
-      debugPrint('✅ Appwrite Full Pull result: ${result.message}');
+      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await manager.initialize();
+      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل سحب الديون
+      await manager.pullAllDataWithDisabledFK();
     } catch (e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
@@ -190,9 +182,9 @@ class _GoogleDriveLoginScreenState
                           color: AppColors.infoColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Column(
+                        child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Row(
                               children: [
                                 Icon(
