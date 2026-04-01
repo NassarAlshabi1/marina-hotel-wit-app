@@ -1945,6 +1945,28 @@ class AppwriteSyncManager {
     await pushLocalChanges();
   }
 
+  /// سحب جميع البيانات من Appwrite مع تعطيل Foreign Keys مؤقتاً
+  /// يُستخدم عند التثبيت الأول (المتابعة بدون مزامنة)
+  Future<void> pullAllDataWithDisabledFK() async {
+    if (_currentStatus == SyncStatus.syncing) {
+      _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
+      return;
+    }
+
+    _logger.info('📥 سحب شامل مع تعطيل Foreign Keys...', tag: 'SYNC');
+
+    // تعطيل FOREIGN KEY مؤقتاً
+    await database.customStatement('PRAGMA foreign_keys=OFF');
+
+    try {
+      await pullRemoteChanges();
+      _logger.info('✅ تم السحب الشامل بنجاح', tag: 'SYNC');
+    } finally {
+      // إعادة تفعيل FOREIGN KEY
+      await database.customStatement('PRAGMA foreign_keys=ON');
+    }
+  }
+
   /// رفع جميع البيانات المحلية مباشرة إلى Appwrite (بعد الاستعادة من Google Drive)
   Future<Map<String, int>> pushAllLocalDataToAppwrite({
     bool skipDeleted = false, // تغيير إلى false لرفع كل شيء

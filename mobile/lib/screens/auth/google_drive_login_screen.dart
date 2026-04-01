@@ -125,13 +125,10 @@ class _GoogleDriveLoginScreenState
       if (done) return;
       await prefs.setBool(key, true);
 
-      // ✅ استخدام AppwriteFullPull لسحب جميع الجداول بالكامل
-      final fullPull = AppwriteFullPull();
-      final appwriteService = AppwriteService();
-      final db = AppDatabase();
-      await fullPull.initialize(appwriteService, db);
-      final result = await fullPull.pullAll();
-      debugPrint('✅ Appwrite Full Pull result: ${result.message}');
+      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await manager.initialize();
+      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
+      await manager.pullAllDataWithDisabledFK();
     } catch (e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
