@@ -608,6 +608,46 @@ class AppwriteSyncManager {
           return synced;
         }, phaseMs);
 
+        recordsPulled += await _timePhase('syncPriceAdjustments', () async {
+          final docs = await appwriteService.listDocuments(
+            collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+            queries: deltaQ,
+          );
+          final synced = await _syncPriceAdjustments(docs);
+          _logger.debug('Synced $synced price adjustments', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncAuditLogs', () async {
+          final docs = await appwriteService.listDocuments(
+            collectionId: AppwriteConfig.auditLogsCollectionId,
+            queries: deltaQ,
+          );
+          final synced = await _syncAuditLogs(docs);
+          _logger.debug('Synced $synced audit logs', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncPaymentVoids', () async {
+          final docs = await appwriteService.listDocuments(
+            collectionId: AppwriteConfig.paymentVoidsCollectionId,
+            queries: deltaQ,
+          );
+          final synced = await _syncPaymentVoids(docs);
+          _logger.debug('Synced $synced payment voids', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
+        recordsPulled += await _timePhase('syncHotelDayLedger', () async {
+          final docs = await appwriteService.listDocuments(
+            collectionId: AppwriteConfig.hotelDayLedgerCollectionId,
+            queries: deltaQ,
+          );
+          final synced = await _syncHotelDayLedger(docs);
+          _logger.debug('Synced $synced hotel day ledger', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
         // تحديث lastPullTs بعد نجاح السحب
         await _updateLastPullTs(Time.nowEpoch());
       }
@@ -986,6 +1026,19 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // Financial immutability: if local payment exists and is newer, keep local
+        final localUuid = data['localUuid'];
+        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        final existingPayment = await _getPaymentByLocalUuid(localUuid);
+        if (existingPayment != null && existingPayment.lastModified > incomingLastModified) {
+          _logger.debug(
+            'Skipping payment ${doc.$id}: local is newer (financial immutability)',
+            tag: 'SYNC',
+          );
+          processed++;
+          continue;
+        }
+
         await _adapterRegistry.payments.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -1044,6 +1097,20 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // Financial immutability: if local debt exists and is newer, keep local
+        final localUuid = data['localUuid'];
+        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        final existingDebt = await _getDebtByLocalUuid(localUuid);
+        if (existingDebt != null && existingDebt.lastModified > incomingLastModified) {
+          _logger.debug(
+            'Skipping debt ${doc.$id}: local is newer (financial immutability)',
+            tag: 'SYNC',
+          );
+          processed++;
+          continue;
+        }
+
         await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
@@ -1825,6 +1892,34 @@ class AppwriteSyncManager {
         useCache: false,
       );
       recordsPulled += await _syncSalaryPayments(salaryPayments);
+
+      // مزامنة تعديلات الأسعار
+      final priceAdjustments = await appwriteService.listDocuments(
+        collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+        queries: deltaQ,
+      );
+      recordsPulled += await _syncPriceAdjustments(priceAdjustments);
+
+      // مزامنة سجل المراجعة
+      final auditLogs = await appwriteService.listDocuments(
+        collectionId: AppwriteConfig.auditLogsCollectionId,
+        queries: deltaQ,
+      );
+      recordsPulled += await _syncAuditLogs(auditLogs);
+
+      // مزامنة إبطالات الدفع
+      final paymentVoids = await appwriteService.listDocuments(
+        collectionId: AppwriteConfig.paymentVoidsCollectionId,
+        queries: deltaQ,
+      );
+      recordsPulled += await _syncPaymentVoids(paymentVoids);
+
+      // مزامنة دفتر اليوم الفندقي
+      final hotelDayLedger = await appwriteService.listDocuments(
+        collectionId: AppwriteConfig.hotelDayLedgerCollectionId,
+        queries: deltaQ,
+      );
+      recordsPulled += await _syncHotelDayLedger(hotelDayLedger);
 
       // تحديث lastPullTs بعد نجاح السحب
       await _updateLastPullTs(Time.nowEpoch());
@@ -2829,6 +2924,153 @@ class AppwriteSyncManager {
     }
     return processed;
   }
+
+  // ─── PriceAdjustments ──────────────────────────────────────────────────
+
+  Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.priceAdjustments.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync price adjustment ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  // ─── AuditLogs ────────────────────────────────────────────────────────
+
+  Future<int> _syncAuditLogs(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.auditLogs.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync audit log ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  // ─── PaymentVoids ─────────────────────────────────────────────────────
+
+  Future<int> _syncPaymentVoids(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await _adapterRegistry.paymentVoids.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync payment void ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  // ─── HotelDayLedger ───────────────────────────────────────────────────
+
+  Future<int> _syncHotelDayLedger(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+        final docLocalUuid = data['localUuid'] as String? ?? doc.$id;
+        final existingByUuid = await (database.select(database.hotelDayLedger)
+              ..where((t) => t.localUuid.equals(docLocalUuid)))
+            .getSingleOrNull();
+
+        // Financial immutability: if local ledger entry exists and is newer, keep it
+        if (existingByUuid != null && existingByUuid.lastModified > incomingLastModified) {
+          _logger.debug(
+            'Skipping hotel_day_ledger ${doc.$id}: local is newer',
+            tag: 'SYNC',
+          );
+          processed++;
+          continue;
+        }
+
+        final companion = HotelDayLedgerCompanion(
+          localUuid: drift.Value(docLocalUuid),
+          serverId: _nullableValue<int>(_asInt(data['serverId'])),
+          createdAt: drift.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+          updatedAt: drift.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+          deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+          lastModified: drift.Value(incomingLastModified),
+          version: drift.Value(_asInt(data['version']) ?? 1),
+          origin: drift.Value('appwrite'),
+          hotelDayKey: drift.Value(_asString(data['hotelDayKey']) ?? ''),
+          totalIncome: drift.Value(_asDouble(data['totalIncome']) ?? 0.0),
+          totalExpenses: drift.Value(_asDouble(data['totalExpenses']) ?? 0.0),
+          pendingBalances: drift.Value(_asDouble(data['pendingBalances']) ?? 0.0),
+          occupancyRate: drift.Value(_asDouble(data['occupancyRate']) ?? 0.0),
+          bookingsProcessed: drift.Value(_asInt(data['bookingsProcessed']) ?? 0),
+          paymentsProcessed: drift.Value(_asInt(data['paymentsProcessed']) ?? 0),
+          debtsProcessed: drift.Value(_asInt(data['debtsProcessed']) ?? 0),
+          expensesProcessed: drift.Value(_asInt(data['expensesProcessed']) ?? 0),
+          status: drift.Value(_asString(data['status']) ?? 'draft'),
+          vectorClock: _nullableValue<String>(_asString(data['vectorClock'])),
+        );
+
+        await database.into(database.hotelDayLedger).insertOnConflictUpdate(companion);
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync hotel day ledger ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  String _asString(dynamic value) {
+    if (value is String) return value;
+    if (value != null) return value.toString();
+    return '';
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  T? _nullableValue<T>(T? value) => value;
 
   String _resolveDeviceType() {
     if (kIsWeb) {

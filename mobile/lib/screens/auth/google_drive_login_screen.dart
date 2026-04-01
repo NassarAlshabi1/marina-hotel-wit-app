@@ -1,10 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../utils/theme.dart';
@@ -108,28 +104,11 @@ class _GoogleDriveLoginScreenState
 
     if (confirmed == true) {
       await ref.read(backupStatusProvider.notifier).setSkippedDriveLogin(true);
-      unawaited(_pullAppwriteOnceAfterSkip());
       if (mounted) {
         setState(() {
           _errorMessage = null;
         });
       }
-    }
-  }
-
-  Future<void> _pullAppwriteOnceAfterSkip() async {
-    const key = 'appwrite_pull_after_drive_skip_done';
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final done = prefs.getBool(key) ?? false;
-      if (done) return;
-      await prefs.setBool(key, true);
-
-      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await manager.initialize();
-      await manager.pullRemoteChanges();
-    } catch (e) {
-      debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
   }
 

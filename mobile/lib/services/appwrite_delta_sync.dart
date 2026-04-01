@@ -266,6 +266,8 @@ class AppwriteDeltaSync {
         'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         'audit_logs': AppwriteConfig.auditLogsCollectionId,
         'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
+        'guest_infos': AppwriteConfig.guestInfosCollectionId,
+        'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
       };
 
       for (final entry in entitiesToPull.entries) {
