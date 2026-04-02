@@ -210,7 +210,7 @@ class LarkReportService {
       final debtsQuery = await db.select(db.debts).get();
       int unsettledDebts = 0;
       for (final debt in debtsQuery) {
-        if (!(debt.isSettled ?? false) && debt.deletedAt == null) {
+        if (debt.isSettled == 0 && debt.deletedAt == null) {
           unsettledDebts++;
         }
       }

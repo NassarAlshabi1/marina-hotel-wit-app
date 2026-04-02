@@ -811,7 +811,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
         label,
         style: TextStyle(
           fontSize: 11,
-          color: color.shade700,
+          color: color,
           fontWeight: FontWeight.w500,
         ),
       ),
