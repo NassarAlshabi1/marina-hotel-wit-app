@@ -310,28 +310,41 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('google_drive_sync_enabled', enabled);
 
-      // التحكم في محرك المزامنة
+      // 1. التحكم في SmartSyncManager (يملك مؤقتات دورية مستقلة)
+      try {
+        final smartSync = SmartSyncManager.instance;
+        await smartSync.setEnabled(enabled);
+        debugPrint('🔧 SmartSyncManager: ${enabled ? 'مُفعّل' : 'معطّل'}');
+      } catch (e) {
+        debugPrint('⚠️ خطأ في التحكم بـ SmartSyncManager: $e');
+      }
+
+      // 2. التحكم في محرك المزامنة التلقائية (AutoSyncEngine)
       try {
         final autoSyncEngine = AutoSyncEngine.instance;
         if (enabled) {
           if (!autoSyncEngine.currentState.isRunning && state.isSignedIn) {
             await autoSyncEngine.start();
+            debugPrint('🔧 AutoSyncEngine: تم التشغيل');
           }
         } else {
           autoSyncEngine.stop();
+          debugPrint('🔧 AutoSyncEngine: تم الإيقاف');
         }
       } catch (e) {
         debugPrint('⚠️ خطأ في التحكم بمحرك المزامنة التلقائية: $e');
       }
 
-      // التحكم في منسق المزامنة الموحد
+      // 3. التحكم في منسق المزامنة الموحد (UnifiedSyncCoordinator)
       try {
         final coordinator =
             GoogleDriveUnifiedSyncCoordinator.instance;
         if (enabled && state.isSignedIn && coordinator.isInitialized) {
           await coordinator.onSignInChanged(true);
+          debugPrint('🔧 Coordinator: تم تفعيل المراقبة');
         } else if (!enabled) {
-          coordinator.onSignInChanged(false);
+          await coordinator.onSignInChanged(false);
+          debugPrint('🔧 Coordinator: تم إيقاف المراقبة');
         }
       } catch (e) {
         debugPrint('⚠️ خطأ في التحكم بمنسق المزامنة: $e');
