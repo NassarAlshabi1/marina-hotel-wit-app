@@ -18,6 +18,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
   final _appIdController = TextEditingController();
   final _appSecretController = TextEditingController();
   final _reportTimeController = TextEditingController();
+  final _chatIdController = TextEditingController();
 
   bool _showSecret = false;
   bool _isLoading = true;
@@ -33,6 +34,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
     _webhookController.text = state.webhookUrl;
     _appIdController.text = state.appId;
     _reportTimeController.text = state.dailyReportTime;
+    _chatIdController.text = state.dailyReportChatId;
     setState(() => _isLoading = false);
   }
 
@@ -42,6 +44,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
     _appIdController.dispose();
     _appSecretController.dispose();
     _reportTimeController.dispose();
+    _chatIdController.dispose();
     super.dispose();
   }
 
@@ -592,6 +595,85 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     ),
                   ),
                 ],
+              ),
+
+              // Chat ID لإرسال التقرير عبر Bot API
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.chat, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Chat ID (اختياري):',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _chatIdController,
+                decoration: InputDecoration(
+                  hintText: 'oc_xxxxxxxxxxxxxxxxxxxxxxxx',
+                  prefixIcon: const Icon(Icons.tag, size: 20),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.info_outline, size: 20),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          title: const Text('كيف تحصل على Chat ID؟'),
+                          content: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الطريقة 1: عبر Webhook (بدون Chat ID)',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 4),
+                              Text('إذا وضعت Webhook URL أعلاه، لا تحتاج Chat ID. يكفي لإرسال الإشعارات والتقارير.'),
+                              SizedBox(height: 12),
+                              Text(
+                                'الطريقة 2: عبر Bot API (باستخدام Chat ID)',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 4),
+                              Text('1. افتح مجموعة Lark Suite على الكمبيوتر'),
+                              Text('2. اضغط على اسم المجموعة أعلى الشاشة'),
+                              Text('3. اختر "Copy Link" (نسخ الرابط)'),
+                              Text('4. Chat ID هو الجزء بعد / في الرابط'),
+                              Text('مثال: oc_a0553eda1234xxxxxx'),
+                              SizedBox(height: 12),
+                              Text(
+                                'ملاحظة:',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                              ),
+                              Text('تأكد من إضافة البوت إلى المجموعة أولاً من إعدادات المجموعة ← Bots ← Add Bot'),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('فهمت'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  isDense: true,
+                ),
+                onChanged: (value) {
+                  ref.read(larkProvider.notifier).setReportChatId(value.trim());
+                },
               ),
 
               // آخر تقرير تم إرساله

@@ -27,6 +27,7 @@ class LarkState {
   final String webhookUrl;
   final String appId;
   final String dailyReportTime;
+  final String dailyReportChatId;
   final String? lastReportSent;
   final bool hasValidToken;
 
@@ -40,6 +41,7 @@ class LarkState {
     this.webhookUrl = '',
     this.appId = '',
     this.dailyReportTime = '08:00',
+    this.dailyReportChatId = '',
     this.lastReportSent,
     this.hasValidToken = false,
   });
@@ -54,6 +56,7 @@ class LarkState {
     String? webhookUrl,
     String? appId,
     String? dailyReportTime,
+    String? dailyReportChatId,
     String? lastReportSent,
     bool? hasValidToken,
   }) {
@@ -67,6 +70,7 @@ class LarkState {
       webhookUrl: webhookUrl ?? this.webhookUrl,
       appId: appId ?? this.appId,
       dailyReportTime: dailyReportTime ?? this.dailyReportTime,
+      dailyReportChatId: dailyReportChatId ?? this.dailyReportChatId,
       lastReportSent: lastReportSent ?? this.lastReportSent,
       hasValidToken: hasValidToken ?? this.hasValidToken,
     );
@@ -93,6 +97,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
       final notificationsEnabled = prefs.getBool('lark_notifications_enabled') ?? true;
       final dailyReportEnabled = prefs.getBool('lark_daily_report_enabled') ?? false;
       final reportTime = prefs.getString('lark_daily_report_time') ?? '08:00';
+      final reportChatId = prefs.getString('lark_daily_report_chat_id') ?? '';
       final lastReportSent = prefs.getString('lark_last_report_sent');
       final configured = await LarkConfig.isConfigured();
       final hasToken = await LarkConfig.hasValidToken();
@@ -105,6 +110,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
         isNotificationsEnabled: notificationsEnabled,
         isDailyReportEnabled: dailyReportEnabled,
         dailyReportTime: reportTime,
+        dailyReportChatId: reportChatId,
         lastReportSent: lastReportSent,
         hasValidToken: hasToken,
       );
@@ -203,6 +209,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
   /// تحديث معرف مجموعة التقرير
   Future<void> setReportChatId(String chatId) async {
     await LarkConfig.setDailyReportChatId(chatId);
+    state = state.copyWith(dailyReportChatId: chatId);
   }
 
   /// اختبار الاتصال
