@@ -378,7 +378,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           final dropdownTextColor = Theme.of(ctx).textTheme.bodyMedium?.color;
           final dropdownTextStyle = Theme.of(
             ctx,
-          ).textTheme.bodyMedium?.copyWith(fontSize: 14, color: dropdownTextColor);
+          ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
           return AlertDialog(
             title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
             content: SingleChildScrollView(

@@ -456,33 +456,33 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedMethod,
-                  style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
                     border: OutlineInputBorder(),
                   ),
                   items: [
-                    DropdownMenuItem(value: 'نقدي', child: Text('نقدي', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color))),
-                    DropdownMenuItem(value: 'تحويل', child: Text('تحويل بنكي', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color))),
+                    DropdownMenuItem(value: 'نقدي', child: Text('نقدي', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color))),
+                    DropdownMenuItem(value: 'تحويل', child: Text('تحويل بنكي', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color))),
                   ],
                   onChanged: (value) => selectedMethod = value!,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedType,
-                  style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',
                     border: OutlineInputBorder(),
                   ),
                   items: [
-                    DropdownMenuItem(value: 'room', child: Text('إيراد غرفة', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color))),
+                    DropdownMenuItem(value: 'room', child: Text('إيراد غرفة', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color))),
                     DropdownMenuItem(
                       value: 'service',
-                      child: Text('خدمات إضافية', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color)),
+                      child: Text('خدمات إضافية', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                     ),
-                    DropdownMenuItem(value: 'deposit', child: Text('عربون', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color))),
-                    DropdownMenuItem(value: 'other', child: Text('أخرى', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color))),
+                    DropdownMenuItem(value: 'deposit', child: Text('عربون', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color))),
+                    DropdownMenuItem(value: 'other', child: Text('أخرى', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color))),
                   ],
                   onChanged: (value) => selectedType = value!,
                 ),

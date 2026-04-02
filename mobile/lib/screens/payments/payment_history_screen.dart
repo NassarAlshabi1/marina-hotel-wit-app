@@ -404,7 +404,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 children: [
                   DropdownButtonFormField<String>(
                     value: _selectedRevenueType,
-                    style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
                       border: OutlineInputBorder(),
@@ -412,12 +412,12 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     items: [
                       DropdownMenuItem(
                         value: null,
-                        child: Text('جميع الأنواع', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color)),
+                        child: Text('جميع الأنواع', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                       ),
                       ..._revenueTypes.map(
                         (type) => DropdownMenuItem(
                           value: type,
-                          child: Text(_getRevenueTypeLabel(type), style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color)),
+                          child: Text(_getRevenueTypeLabel(type), style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                         ),
                       ),
                     ],
@@ -427,7 +427,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: _selectedPaymentMethod,
-                    style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',
                       border: OutlineInputBorder(),
@@ -435,12 +435,12 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     items: [
                       DropdownMenuItem(
                         value: null,
-                        child: Text('جميع الطرق', style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color)),
+                        child: Text('جميع الطرق', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                       ),
                       ..._paymentMethods.map(
                         (method) => DropdownMenuItem(
                           value: method,
-                          child: Text(method, style: TextStyle(color: Theme.of(ctx).textTheme.bodyMedium?.color)),
+                          child: Text(method, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                         ),
                       ),
                     ],
