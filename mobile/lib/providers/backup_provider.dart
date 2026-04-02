@@ -14,6 +14,7 @@ import '../services/file_management_service.dart';
 import '../services/auto_backup_task.dart';
 import '../services/smart_sync_manager.dart';
 import '../services/google_drive_auto_sync_engine.dart';
+import '../services/google_drive_unified_sync_coordinator.dart';
 
 import '../services/sqlite_backup_restore.dart';
 import '../services/restore_fix_service.dart';
@@ -107,6 +108,7 @@ class BackupState {
   final Map<String, dynamic>? backupFolderInfo;
   final String? lastSqliteBackupPath;
   final bool driveLoginSkipped;
+  final bool googleDriveSyncEnabled;
 
   BackupState({
     this.status = BackupStatus.idle,
@@ -123,6 +125,7 @@ class BackupState {
     this.backupFolderInfo,
     this.lastSqliteBackupPath,
     this.driveLoginSkipped = false,
+    this.googleDriveSyncEnabled = false,
   });
 
   BackupState copyWith({
@@ -140,6 +143,7 @@ class BackupState {
     Map<String, dynamic>? backupFolderInfo,
     String? lastSqliteBackupPath,
     bool? driveLoginSkipped,
+    bool? googleDriveSyncEnabled,
   }) {
     return BackupState(
       status: status ?? this.status,
@@ -156,6 +160,8 @@ class BackupState {
       backupFolderInfo: backupFolderInfo ?? this.backupFolderInfo,
       lastSqliteBackupPath: lastSqliteBackupPath ?? this.lastSqliteBackupPath,
       driveLoginSkipped: driveLoginSkipped ?? this.driveLoginSkipped,
+      googleDriveSyncEnabled:
+          googleDriveSyncEnabled ?? this.googleDriveSyncEnabled,
     );
   }
 
@@ -260,6 +266,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         await prefs.setBool(_driveLoginSkippedKey, false);
       }
       final driveLoginSkipped = account == null && skipPref;
+      final gdSyncEnabled =
+          prefs.getBool('google_drive_sync_enabled') ?? false;
 
       state = state.copyWith(
         lastBackupTime: lastBackup,
@@ -279,6 +287,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           backupType: resolvedBackupType,
         ),
         driveLoginSkipped: driveLoginSkipped,
+        googleDriveSyncEnabled: gdSyncEnabled,
       );
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة BackupStatusNotifier: $e');
@@ -293,6 +302,63 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_driveLoginSkippedKey, value);
     state = state.copyWith(driveLoginSkipped: value);
+  }
+
+  /// تفعيل/تعطيل مزامنة Google Drive
+  Future<void> setGoogleDriveSyncEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('google_drive_sync_enabled', enabled);
+
+      // التحكم في محرك المزامنة
+      try {
+        final autoSyncEngine = AutoSyncEngine.instance;
+        if (enabled) {
+          if (!autoSyncEngine.currentState.isRunning && state.isSignedIn) {
+            await autoSyncEngine.start();
+          }
+        } else {
+          autoSyncEngine.stop();
+        }
+      } catch (e) {
+        debugPrint('⚠️ خطأ في التحكم بمحرك المزامنة التلقائية: $e');
+      }
+
+      // التحكم في منسق المزامنة الموحد
+      try {
+        final coordinator =
+            GoogleDriveUnifiedSyncCoordinator.instance;
+        if (enabled && state.isSignedIn && coordinator.isInitialized) {
+          await coordinator.onSignInChanged(true);
+        } else if (!enabled) {
+          coordinator.onSignInChanged(false);
+        }
+      } catch (e) {
+        debugPrint('⚠️ خطأ في التحكم بمنسق المزامنة: $e');
+      }
+
+      state = state.copyWith(
+        googleDriveSyncEnabled: enabled,
+        status: BackupStatus.success,
+        message: enabled
+            ? 'تم تفعيل مزامنة Google Drive'
+            : 'تم تعطيل مزامنة Google Drive',
+      );
+
+      // مسح الرسالة بعد 3 ثوانٍ
+      Future.delayed(const Duration(seconds: 3), () {
+        if (state.message == 'تم تفعيل مزامنة Google Drive' ||
+            state.message == 'تم تعطيل مزامنة Google Drive') {
+          clearMessage();
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ خطأ في تغيير حالة مزامنة Google Drive: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'خطأ في تغيير إعداد المزامنة: ${e.toString()}',
+      );
+    }
   }
 
   /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول
