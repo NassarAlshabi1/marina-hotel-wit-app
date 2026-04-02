@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../utils/theme.dart';
@@ -53,7 +57,7 @@ class _GoogleDriveLoginScreenState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'خطأ في تسجيل الدخول: ${e.toString()}';
+          _errorMessage = 'خطأ في تسجيل الدخول: $e';
           _isSigningIn = false;
         });
       }
@@ -102,13 +106,31 @@ class _GoogleDriveLoginScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(backupStatusProvider.notifier).setSkippedDriveLogin(true);
+      unawaited(_pullAppwriteOnceAfterSkip());
       if (mounted) {
         setState(() {
           _errorMessage = null;
         });
       }
+    }
+  }
+
+  Future<void> _pullAppwriteOnceAfterSkip() async {
+    const key = 'appwrite_pull_after_drive_skip_done';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool(key) ?? false;
+      if (done) return;
+      await prefs.setBool(key, true);
+
+      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await manager.initialize();
+      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
+      await manager.pullAllDataWithDisabledFK();
+    } catch (e) {
+      debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
   }
 
@@ -160,9 +182,9 @@ class _GoogleDriveLoginScreenState
                           color: AppColors.infoColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Column(
+                        child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Row(
                               children: [
                                 Icon(

@@ -666,6 +666,72 @@ class AppwriteService {
     );
   }
 
+  // GuestInfos
+  Future<List<models.Document>> listGuestInfos({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertGuestInfo(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteGuestInfo(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // SalaryWithdrawals
+  Future<List<models.Document>> listSalaryWithdrawals({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertSalaryWithdrawal(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteSalaryWithdrawal(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      documentId: documentId,
+    );
+  }
+
   // Generic methods for delta sync
   Future<List<models.Document>> listDocuments({
     required String collectionId,
@@ -739,14 +805,15 @@ class AppwriteService {
 
     _ensureInitialized();
 
+    final testCollection = AppwriteConfig.syncLogsCollectionId;
+    final testDocumentId = ID.unique();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
     try {
       // 1. اختبار الاتصال الأساسي (Ping)
       results['tests']['ping'] = await quickConnectionTest();
 
       // 2. اختبار الكتابة (Create)
-      final testCollection = AppwriteConfig.syncLogsCollectionId;
-      final testDocumentId = 'connection_test_temp';
-      final now = DateTime.now().millisecondsSinceEpoch;
 
       try {
         await _networkHelper.withTimeout(
@@ -845,7 +912,6 @@ class AppwriteService {
           (results['tests'] as Map)['delete'] != true) {
         try {
           final testCollection = AppwriteConfig.syncLogsCollectionId;
-          final testDocumentId = 'connection_test_temp';
           await _databases.deleteDocument(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: testCollection,

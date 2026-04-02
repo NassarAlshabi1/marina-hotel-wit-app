@@ -22,6 +22,7 @@ import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/security/blacklist_screen.dart';
+import 'screens/information/information_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'providers/auth_provider.dart';
@@ -36,6 +37,7 @@ import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
 import 'services/database_sync_coordinator.dart';
 import 'utils/auto_sync_preferences.dart';
+import 'utils/id.dart';
 
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
@@ -45,8 +47,10 @@ import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/logging/log_models.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/sync_queue_service.dart';
+import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/sync_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -54,6 +58,7 @@ import 'components/admin_layout.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DiagnosticsLogger.instance.initialize();
+  await ApiConfigService.instance.initialize();
 
   FlutterError.onError = (details) {
     DiagnosticsLogger.instance.recordFlutterError(details);
@@ -105,7 +110,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
     if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', true);
+      await prefs.setBool('appwrite_sync_enabled', false);
     }
 
     debugPrint('📦 Initializing Appwrite Config Manager...');
@@ -337,6 +342,12 @@ class App extends ConsumerStatefulWidget {
 class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
+  bool _initialLocalSyncDone = false;
+  DateTime? _lastAppwriteAutoPull;
+  StreamSubscription? _localAutoSyncSub;
+  Timer? _localAutoSyncDebounce;
+  DateTime? _lastLocalAutoSync;
+  bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
 
   @override
@@ -381,6 +392,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
+        _startLocalAutoSync(database);
+        if (!_initialLocalSyncDone) {
+          _initialLocalSyncDone = true;
+          unawaited(_runLocalAutoSync());
+        }
+        unawaited(_autoPullLatestFromAppwrite());
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -394,27 +411,121 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     Future.delayed(const Duration(seconds: 3), () async {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-        final deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        await syncManager.initialize();
+
+        // تسجيل الجهاز تلقائياً
+        try {
+          await syncManager.registerDevice();
+        } catch (e) {
+          debugPrint('⚠️ Device registration error: $e');
+        }
+
+        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
+        syncManager.startAutoSync(
+          interval: const Duration(minutes: 2),
+        );
+
+        var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
+        deviceId ??= syncManager.currentDeviceId;
         if (deviceId == null) {
-          debugPrint('⚠️ Device ID not available, skipping realtime sync');
-          return;
+          final prefs = await SharedPreferences.getInstance();
+          deviceId = prefs.getString('appwrite_realtime_device_id');
+          if (deviceId == null) {
+            deviceId = IdGen.uuid();
+            await prefs.setString('appwrite_realtime_device_id', deviceId);
+          }
         }
 
         await AppwriteRealtimeSync().initialize(
-          syncManager: syncManager,
           deviceId: deviceId,
         );
         await AppwriteRealtimeSync().start();
-        debugPrint('📡 Realtime sync started');
+        debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
         debugPrint('❌ Realtime sync init error: $e');
       }
     });
   }
 
+  void _startLocalAutoSync(AppDatabase database) {
+    if (_localAutoSyncSub != null) {
+      return;
+    }
+    final watch = database.customSelect(
+      'SELECT 1',
+      readsFrom: {
+        database.rooms,
+        database.bookings,
+        database.bookingNotes,
+        database.bookingNights,
+        database.employees,
+        database.expenses,
+        database.cashTransactions,
+        database.payments,
+        database.debts,
+        database.hotelDayLedger,
+        database.shiftNotes,
+      },
+    );
+    _localAutoSyncSub = watch.watch().listen((_) => _scheduleLocalAutoSync());
+  }
+
+  void _scheduleLocalAutoSync() {
+    if (_localAutoSyncRunning) {
+      return;
+    }
+    _localAutoSyncDebounce?.cancel();
+    _localAutoSyncDebounce = Timer(
+      const Duration(seconds: 2),
+      () => unawaited(_runLocalAutoSync()),
+    );
+  }
+
+  Future<void> _runLocalAutoSync() async {
+    if (_localAutoSyncRunning) {
+      return;
+    }
+    final now = DateTime.now();
+    final last = _lastLocalAutoSync;
+    if (last != null && now.difference(last) < const Duration(seconds: 5)) {
+      return;
+    }
+    _localAutoSyncRunning = true;
+    try {
+      await ref.read(syncServiceProvider).runSync();
+    } catch (e) {
+      debugPrint('❌ Local auto sync error: $e');
+    } finally {
+      _lastLocalAutoSync = DateTime.now();
+      _localAutoSyncRunning = false;
+    }
+  }
+
+  Future<void> _autoPullLatestFromAppwrite() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await syncManager.initialize();
+      await syncManager.pullRemoteChanges();
+      _lastAppwriteAutoPull = DateTime.now();
+    } catch (e) {
+      debugPrint('❌ Appwrite auto-pull error: $e');
+    }
+  }
+
+  Future<void> _autoPullAppwriteOnResume() async {
+    final last = _lastAppwriteAutoPull;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(seconds: 30)) {
+      return;
+    }
+    await _autoPullLatestFromAppwrite();
+  }
+
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
+    _localAutoSyncSub?.cancel();
+    _localAutoSyncDebounce?.cancel();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
@@ -438,6 +549,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
+      unawaited(_autoPullAppwriteOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
@@ -534,6 +646,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
     '/blacklist': const BlacklistScreen(),
+    '/information': const InformationScreen(),
     '/settings': const SettingsScreen(),
   };
 

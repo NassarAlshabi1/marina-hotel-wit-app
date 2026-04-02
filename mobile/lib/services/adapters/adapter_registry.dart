@@ -17,6 +17,8 @@ import 'price_adjustments_adapter.dart';
 import 'audit_logs_adapter.dart';
 import 'payment_voids_adapter.dart';
 import 'booking_price_adjustments_adapter.dart';
+import 'guest_infos_adapter.dart';
+import 'salary_withdrawals_adapter.dart';
 
 class AdapterRegistry {
   AdapterRegistry(this.db)
@@ -103,7 +105,17 @@ class AdapterRegistry {
             db: db,
             table: db.bookingPriceAdjustments,
             adapter: BookingPriceAdjustmentsAdapter(IdResolver(db)),
-          );
+          ),
+      guestInfos = BaseRepository<GuestInfo, GuestInfosCompanion>(
+        db: db,
+        table: db.guestInfos,
+        adapter: GuestInfosAdapter(IdResolver(db)),
+      ),
+      salaryWithdrawals = BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion>(
+        db: db,
+        table: db.salaryWithdrawals,
+        adapter: SalaryWithdrawalsAdapter(IdResolver(db)),
+      );
 
   final AppDatabase db;
   final IdResolver resolver;
@@ -126,4 +138,6 @@ class AdapterRegistry {
   final BaseRepository<PaymentVoid, PaymentVoidsCompanion> paymentVoids;
   final BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>
       bookingPriceAdjustments;
+  final BaseRepository<GuestInfo, GuestInfosCompanion> guestInfos;
+  final BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion> salaryWithdrawals;
 }

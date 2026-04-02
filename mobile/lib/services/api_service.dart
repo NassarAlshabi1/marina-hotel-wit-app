@@ -1,16 +1,22 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../utils/env.dart';
+import 'api_config_service.dart';
 
 class ApiService {
   ApiService._internal() {
+    _initializeDio();
+    ApiConfigService.instance.configNotifier.addListener(_onConfigChanged);
+  }
+
+  void _initializeDio() {
+    final config = ApiConfigService.instance.currentConfig;
     _dio = Dio(
       BaseOptions(
-        baseUrl: Env.baseApiUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 20),
-        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        baseUrl: config.baseUrl,
+        connectTimeout: Duration(seconds: config.connectTimeout),
+        receiveTimeout: Duration(seconds: config.receiveTimeout),
+        headers: ApiConfigService.instance.getHeaders(),
       ),
     );
 
@@ -39,6 +45,19 @@ class ApiService {
         },
       ),
     );
+
+    if (config.enableLogging) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+        ),
+      );
+    }
+  }
+
+  void _onConfigChanged() {
+    _initializeDio();
   }
   static final ApiService I = ApiService._internal();
 

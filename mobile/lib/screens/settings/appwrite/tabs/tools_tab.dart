@@ -159,13 +159,28 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
+                color: Colors.teal.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+              ),
+              child: const Icon(Icons.cloud_download, color: Colors.teal),
+            ),
+            title: const Text('نسخة احتياطية شاملة من السحابة'),
+            subtitle: const Text('سحب جميع البيانات من Appwrite إلى الجهاز'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _pullFullBackupFromAppwrite(context, ref),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(UIConstants.spacingSM),
+              decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.backup, color: Colors.green),
             ),
-            title: const Text('نسخ احتياطي للبيانات'),
-            subtitle: const Text('نسخ جميع بيانات Appwrite'),
+            title: const Text('تصدير نسخة احتياطية'),
+            subtitle: const Text('تصدير بيانات Appwrite كملف JSON'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _backupAppwrite(context, ref),
           ),
@@ -429,6 +444,98 @@ class AppwriteToolsTab extends ConsumerWidget {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const AppwriteSyncStatsScreen()));
+  }
+
+  Future<void> _pullFullBackupFromAppwrite(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('نسخة احتياطية شاملة'),
+        content: const Text(
+          'سيتم سحب جميع البيانات من Appwrite Cloud وحفظها في قاعدة البيانات المحلية.\n\n'
+          'هذا يشمل: الغرف، الحجوزات، المدفوعات، المصروفات، الموظفين، الديون، '
+          'ملاحظات الشيفت، ملاحظات الحجز، ليالي الحجز، المعاملات النقدية، '
+          'دورات الرواتب، ومدفوعات الرواتب.\n\n'
+          'هل تريد المتابعة؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('سحب البيانات'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('جاري سحب جميع البيانات من Appwrite...'),
+          ],
+        ),
+        duration: Duration(minutes: 5),
+      ),
+    );
+
+    try {
+      final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+      await syncManager.appwriteService.initialize();
+      final result = await syncManager.pullRemoteChanges();
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: Icon(
+            result ? Icons.check_circle : Icons.info,
+            color: result ? Colors.green : Colors.blue,
+            size: 48,
+          ),
+          title: Text(result
+              ? 'تم سحب البيانات بنجاح'
+              : 'لا توجد بيانات جديدة'),
+          content: Text(result
+              ? 'تم سحب جميع البيانات من Appwrite وحفظها محلياً.'
+              : 'البيانات المحلية محدّثة بالفعل.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل سحب البيانات: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showNotAvailable(BuildContext context) {

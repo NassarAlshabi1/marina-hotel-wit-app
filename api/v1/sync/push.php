@@ -119,7 +119,8 @@ function getValidEntities() {
         'cash_transactions',
         'payments',
         'shift_notes',
-        'daily_closures'
+        'daily_closures',
+        'hotel_day_ledger'
     ];
 }
 
@@ -388,7 +389,8 @@ function filterAllowedFields($table, $data) {
         'cash_transactions' => ['local_uuid', 'transaction_type', 'amount', 'reference_type', 'reference_id', 'description', 'transaction_date', 'balance_after'],
         'payments' => ['local_uuid', 'booking_id', 'amount', 'payment_date', 'payment_method', 'revenue_type', 'description', 'notes'],
         'shift_notes' => ['local_uuid', 'hotel_day_key', 'note_text', 'priority', 'category', 'is_completed', 'created_by'],
-        'daily_closures' => ['local_uuid', 'hotel_day_key', 'total_income', 'total_expenses', 'total_bookings', 'total_checkouts', 'opening_balance', 'closing_balance', 'closed_by', 'closed_at', 'notes']
+        'daily_closures' => ['local_uuid', 'hotel_day_key', 'total_income', 'total_expenses', 'total_bookings', 'total_checkouts', 'opening_balance', 'closing_balance', 'closed_by', 'closed_at', 'notes'],
+        'hotel_day_ledger' => ['local_uuid', 'hotel_day_key', 'total_income', 'total_expenses', 'pending_balances', 'occupancy_rate', 'bookings_processed', 'payments_processed', 'debts_processed', 'expenses_processed', 'status']
     ];
     
     if (!isset($allowedFields[$table])) {

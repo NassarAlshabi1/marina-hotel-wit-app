@@ -10,6 +10,7 @@ class GoogleDriveLogger extends ChangeNotifier {
   GoogleDriveLogger._internal();
 
   final List<LogEntry> _logs = [];
+  static const int _maxLogEntries = 100;
   final Map<LogLevel, int> _logCounts = {};
   LogLevel _minLevel = LogLevel.info;
   bool _enableConsole = true;
@@ -68,6 +69,9 @@ class GoogleDriveLogger extends ChangeNotifier {
       stackTrace: stackTrace,
     );
     _logs.add(entry);
+    if (_logs.length > _maxLogEntries) {
+      _logs.removeRange(0, _logs.length - _maxLogEntries);
+    }
     _logCounts[level] = (_logCounts[level] ?? 0) + 1;
     if (_enableConsole && kDebugMode) {
       _printToConsole(entry);

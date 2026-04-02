@@ -200,6 +200,26 @@ $tables = [
             UNIX_TIMESTAMP(deleted_at) as deleted_at
         FROM daily_closures 
         WHERE updated_at > ? AND deleted_at IS NULL
+    ",
+    'hotel_day_ledger' => "
+        SELECT 
+            id as server_id,
+            local_uuid,
+            hotel_day_key,
+            total_income,
+            total_expenses,
+            pending_balances,
+            occupancy_rate,
+            bookings_processed,
+            payments_processed,
+            debts_processed,
+            expenses_processed,
+            status,
+            UNIX_TIMESTAMP(created_at) as created_at,
+            UNIX_TIMESTAMP(updated_at) as updated_at,
+            UNIX_TIMESTAMP(deleted_at) as deleted_at
+        FROM hotel_day_ledger 
+        WHERE updated_at > ? AND deleted_at IS NULL
     "
 ];
 
@@ -217,7 +237,7 @@ try {
         // تحويل القيم الرقمية والمنطقية
         foreach ($records as &$record) {
             // الأرقام العشرية
-            $floatFields = ['price', 'amount', 'budget_limit', 'basic_salary', 'total_income', 'total_expenses', 'opening_balance', 'closing_balance', 'balance_after'];
+            $floatFields = ['price', 'amount', 'budget_limit', 'basic_salary', 'total_income', 'total_expenses', 'opening_balance', 'closing_balance', 'balance_after', 'pending_balances', 'occupancy_rate'];
             foreach ($floatFields as $field) {
                 if (isset($record[$field])) {
                     $record[$field] = (float)$record[$field];
@@ -225,7 +245,7 @@ try {
             }
             
             // الأرقام الصحيحة
-            $intFields = ['server_id', 'expected_nights', 'calculated_nights', 'total_bookings', 'total_checkouts', 'created_by_local_id', 'closed_by_local_id', 'booking_local_id'];
+            $intFields = ['server_id', 'expected_nights', 'calculated_nights', 'total_bookings', 'total_checkouts', 'created_by_local_id', 'closed_by_local_id', 'booking_local_id', 'bookings_processed', 'payments_processed', 'debts_processed', 'expenses_processed'];
             foreach ($intFields as $field) {
                 if (isset($record[$field]) && $record[$field] !== null) {
                     $record[$field] = (int)$record[$field];

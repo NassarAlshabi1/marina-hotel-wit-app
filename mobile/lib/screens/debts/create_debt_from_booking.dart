@@ -100,6 +100,7 @@ class _CreateDebtFromBookingScreenState
             ),
           );
         }
+        final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -111,7 +112,7 @@ class _CreateDebtFromBookingScreenState
                 DropdownButtonFormField<Booking>(
                   value: _selectedBooking,
                   isExpanded: true,
-                  style: _fieldStyle,
+                  style: _fieldStyle.copyWith(color: dropdownColor),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(
@@ -125,7 +126,7 @@ class _CreateDebtFromBookingScreenState
                       child: Text(
                         '${booking.roomNumber} - ${booking.guestName}',
                         overflow: TextOverflow.ellipsis,
-                        style: _fieldStyle,
+                        style: _fieldStyle.copyWith(color: dropdownColor),
                       ),
                     );
                   }).toList(),

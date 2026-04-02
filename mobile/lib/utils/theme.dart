@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 // Color scheme matching PHP Bootstrap admin design
 class AppColors {
-  // Primary colors - matching PHP header/sidebar
-  static const Color primaryColor = Color(0xFFCC94FF);
-  static const Color primaryDark = Color(0xFFA36BDD);
-  static const Color primaryLight = Color(0xFFE4C6FF);
+  // Primary colors - main accent for borders and highlights
+  static const Color primaryColor = Color(0xFF6A1B9A);  // Deep purple - light mode
+  static const Color primaryDark = Color(0xFFB070DB);   // Lighter purple - dark mode accent
+  static const Color primaryLight = Color(0xFF9650BE);  // Intermediate shade
 
   // Background colors
   static const Color backgroundColor = Color(0xFFf8f9fa); // Bootstrap bg-light
@@ -59,9 +59,9 @@ ThemeData buildTheme() {
       onError: Colors.white,
     ),
 
-    // AppBar theme matching PHP header
+    // AppBar theme - main accent color
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.sidebarColor,
+      backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 1,
       centerTitle: false,
@@ -71,6 +71,7 @@ ThemeData buildTheme() {
         color: Colors.white,
         fontFamily: 'Tajawal',
       ),
+      iconTheme: IconThemeData(color: Colors.white),
     ),
 
     // Card theme matching Bootstrap cards
@@ -80,6 +81,7 @@ ThemeData buildTheme() {
       margin: EdgeInsets.all(8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(8)),
+        side: BorderSide(color: Color(0xFFE8D5F0)), // Light purple border
       ),
     ),
 
@@ -105,7 +107,7 @@ ThemeData buildTheme() {
       ),
     ),
 
-    // Input theme matching Bootstrap forms
+    // Input theme - borders use primary purple
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
@@ -144,56 +146,74 @@ ThemeData buildTheme() {
       dense: true,
     ),
 
+    // Divider color
+    dividerColor: const Color(0xFFE0D0EA), // Soft purple divider
+
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 }
 
 ThemeData buildDarkTheme() {
+  // Dark mode uses lighter primary for visibility on dark surfaces
+  const darkPrimary = AppColors.primaryDark; // Lighter purple for dark mode
+  const darkSurface = Color(0xFF1E1E1E);
+  const darkBackground = Color(0xFF121212);
+  const darkInputBorder = Color(0xFF2C2C2C);
+  const darkAppBar = Color(0xFF4A1070); // Lighter purple for dark AppBar
+
   final base = ThemeData(
     useMaterial3: false,
     brightness: Brightness.dark,
-    primarySwatch: _createMaterialColor(AppColors.primaryColor),
+    primarySwatch: _createMaterialColor(darkPrimary),
     fontFamily: 'Tajawal',
-    scaffoldBackgroundColor: const Color(0xFF121212),
+    scaffoldBackgroundColor: darkBackground,
   );
 
   return base.copyWith(
-    primaryColor: AppColors.primaryColor,
+    primaryColor: darkPrimary,
     colorScheme: const ColorScheme.dark(
-      primary: AppColors.primaryColor,
-      secondary: AppColors.infoColor,
-      surface: Color(0xFF1E1E1E),
-      background: Color(0xFF121212),
-      error: AppColors.dangerColor,
+      primary: darkPrimary,
+      secondary: Color(0xFF5BACD4), // Lighter blue for dark mode
+      surface: darkSurface,
+      background: darkBackground,
+      error: Color(0xFFEF5350), // Lighter red for dark mode
       onPrimary: Colors.white,
       onSecondary: Colors.white,
-      onSurface: Colors.white,
-      onBackground: Colors.white,
+      onSurface: Color(0xFFE0E0E0), // Soft white text
+      onBackground: Color(0xFFE0E0E0),
       onError: Colors.white,
     ),
+
+    // Dark AppBar - lighter shade for contrast
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.sidebarColor,
-      foregroundColor: Colors.white,
+      backgroundColor: darkAppBar,
+      foregroundColor: Color(0xFFE0D5F0), // Light purple text/icons
       elevation: 1,
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
-        color: Colors.white,
+        color: Color(0xFFE0D5F0),
         fontFamily: 'Tajawal',
       ),
+      iconTheme: IconThemeData(color: Color(0xFFE0D5F0)),
     ),
-    cardTheme: const CardThemeData(
-      color: Color(0xFF1E1E1E),
+
+    // Dark cards with purple tinted border
+    cardTheme: CardThemeData(
+      color: darkSurface,
       elevation: 1,
-      margin: EdgeInsets.all(8),
-      shape: RoundedRectangleBorder(
+      margin: const EdgeInsets.all(8),
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(8)),
+        side: BorderSide(color: Color(0xFF3D2048)), // Dark purple border for dark mode
       ),
     ),
+
+    // Dark elevated buttons - lighter purple
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryDark,
+        backgroundColor: darkPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -201,36 +221,42 @@ ThemeData buildDarkTheme() {
         textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
+
+    // Dark outlined buttons
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryLight,
-        side: const BorderSide(color: AppColors.primaryLight),
+        foregroundColor: darkPrimary,
+        side: const BorderSide(color: darkPrimary),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
-    inputDecorationTheme: const InputDecorationTheme(
-      border: OutlineInputBorder(
+
+    // Dark inputs - purple tinted focus
+    inputDecorationTheme: InputDecorationTheme(
+      border: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
+        borderSide: BorderSide(color: darkInputBorder),
       ),
-      enabledBorder: OutlineInputBorder(
+      enabledBorder: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: Color(0xFF2C2C2C)),
+        borderSide: BorderSide(color: darkInputBorder),
       ),
-      focusedBorder: OutlineInputBorder(
+      focusedBorder: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: AppColors.primaryLight, width: 2),
+        borderSide: BorderSide(color: darkPrimary, width: 2),
       ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-      labelStyle: TextStyle(color: Colors.white70),
-      hintStyle: TextStyle(color: Colors.white54),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+      labelStyle: const TextStyle(color: Colors.white70),
+      hintStyle: const TextStyle(color: Colors.white54),
     ),
+
+    // Dark table
     dataTableTheme: const DataTableThemeData(
       headingRowColor: MaterialStatePropertyAll(Color(0xFF2C2C2C)),
       headingTextStyle: TextStyle(
-        color: Colors.white,
+        color: Color(0xFFE0D5F0), // Light purple heading text
         fontWeight: FontWeight.w600,
         fontSize: 14,
       ),
@@ -239,12 +265,17 @@ ThemeData buildDarkTheme() {
       horizontalMargin: 16,
       dataRowMinHeight: 44,
     ),
+
     listTileTheme: const ListTileThemeData(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       dense: true,
-      iconColor: Colors.white,
+      iconColor: Color(0xFFD4A0E8), // Light purple icons in dark
       textColor: Colors.white,
     ),
+
+    // Dark divider - subtle purple tint
+    dividerColor: const Color(0xFF3D2048),
+
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 }

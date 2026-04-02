@@ -448,39 +448,45 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         ),
       ],
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _buildDateSelector(
-                  label: 'من تاريخ',
+                  label: 'من',
                   value: _fromDate,
                   onPressed: () => _pickDate(isFrom: true),
                 ),
                 _buildDateSelector(
-                  label: 'إلى تاريخ',
+                  label: 'إلى',
                   value: _toDate,
                   onPressed: () => _pickDate(isFrom: false),
                 ),
                 if (widget.showTypeFilter)
                   SizedBox(
-                    width: 220,
+                    width: 160,
                     child: DropdownButtonFormField<String?>(
                       value: _selectedType,
-                      decoration: InputDecoration(labelText: widget.typeLabel),
+                      isDense: true,
+                      decoration: InputDecoration(
+                        labelText: widget.typeLabel,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      ),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
                       items: [
-                        const DropdownMenuItem<String?>(
+                        DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('الكل'),
+                          child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                         ),
                         ..._availableTypes.map(
                           (type) => DropdownMenuItem<String?>(
                             value: type,
-                            child: Text(type),
+                            child: Text(type, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                           ),
                         ),
                       ],
@@ -492,17 +498,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     ),
                   ),
                 ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    textStyle: const TextStyle(fontSize: 11),
+                  ),
                   onPressed: _loading ? null : _fetchReport,
-                  icon: const Icon(Icons.search),
-                  label: _loading
-                      ? const Text('جارٍ التحميل...')
-                      : const Text('عرض النتائج'),
+                  icon: const Icon(Icons.search, size: 16),
+                  label: Text(_loading ? 'جارٍ...' : 'بحث'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _buildSummary(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -513,43 +521,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       icon: Icons.receipt_long,
                     )
                   : ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 8),
                       itemCount: _rows.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, __) => const SizedBox(height: 5),
                       itemBuilder: (context, index) {
                         final row = _rows[index];
-                        return Card(
-                          elevation: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _dateLabelFormat.format(row.date),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text('${_currencyFmt.format(row.amount)}'),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text('النوع: ${row.type}'),
-                                const SizedBox(height: 4),
-                                Text('الوصف: ${row.description}'),
-                                if (widget.includeEmployeeDetails &&
-                                    row.employee != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text('الموظف: ${row.employee!.name}'),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
+                        return _buildExpenseCard(row);
                       },
                     ),
             ),
@@ -559,36 +536,125 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
   }
 
-  Widget _buildSummary() {
+  Widget _buildExpenseCard(_ExpenseReportRow row) {
     return Card(
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+      elevation: 0.5,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _buildSummaryTile(
-                widget.totalSummaryLabel,
-                _currencyFmt.format(_totalAmount),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _dateLabelFormat.format(row.date),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  _currencyFmt.format(row.amount),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.label, size: 13, color: Colors.orange),
+                const SizedBox(width: 3),
+                Text(
+                  row.type,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            if (row.description.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.notes, size: 13, color: Colors.grey),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      row.description,
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Expanded(
-              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
-            ),
+            ],
+            if (widget.includeEmployeeDetails && row.employee != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 13, color: Colors.blue),
+                  const SizedBox(width: 3),
+                  Text(
+                    row.employee!.name,
+                    style: const TextStyle(fontSize: 10, color: Colors.blue),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryTile(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(value),
-      ],
+  Widget _buildSummary() {
+    return Card(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  Text(
+                    _currencyFmt.format(_totalAmount),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.orange),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.totalSummaryLabel,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Expanded(
+              child: Column(
+                children: [
+                  Text(
+                    _rows.length.toString(),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'عدد السجلات',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -599,13 +665,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }) {
     final text = value != null
         ? DateFormat('yyyy-MM-dd').format(value)
-        : 'غير محدد';
+        : '—';
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        textStyle: const TextStyle(fontSize: 11),
       ),
-      child: Text('$label: $text', style: const TextStyle(fontSize: 12)),
+      child: Text('$label: $text'),
     );
   }
 

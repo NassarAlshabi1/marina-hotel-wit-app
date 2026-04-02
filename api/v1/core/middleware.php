@@ -10,6 +10,18 @@ class ApiMiddleware {
     public static function authenticate($conn) {
         $headers = getallheaders();
         $token = null;
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        
+        if (self::isTrustedLocalIp($ip)) {
+            return [
+                'id' => 0,
+                'username' => 'local',
+                'full_name' => 'Local Device',
+                'role' => 'admin',
+                'status' => 'active',
+                'permissions' => '*'
+            ];
+        }
         
         // البحث عن التوكن في الترويسات
         if (isset($headers['Authorization'])) {
@@ -184,6 +196,27 @@ class ApiMiddleware {
     /**
      * CORS Middleware
      */
+    public static function isTrustedLocalIp($ip) {
+        if (empty($ip)) {
+            return false;
+        }
+        return self::ipInCidr($ip, '10.0.0.0/24');
+    }
+
+    private static function ipInCidr($ip, $cidr) {
+        if (strpos($cidr, '/') === false) {
+            return $ip === $cidr;
+        }
+        [$subnet, $maskBits] = explode('/', $cidr, 2);
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnet);
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
+        $mask = -1 << (32 - (int)$maskBits);
+        return (($ipLong & $mask) === ($subnetLong & $mask));
+    }
+
     public static function cors() {
         // السماح بجميع المصادر في التطوير (غير موصى به في الإنتاج)
         if (isset($_SERVER['HTTP_ORIGIN'])) {

@@ -452,6 +452,7 @@ class _IncomeExpenseReportScreenState
             ),
             const SizedBox(height: 16),
             ListTile(
+              dense: true,
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -468,6 +469,7 @@ class _IncomeExpenseReportScreenState
               },
             ),
             ListTile(
+              dense: true,
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -484,6 +486,7 @@ class _IncomeExpenseReportScreenState
               },
             ),
             ListTile(
+              dense: true,
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -519,41 +522,41 @@ class _IncomeExpenseReportScreenState
         ),
       ],
       body: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
           children: [
             NeuCard(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
                           ).colorScheme.primary.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.date_range_rounded,
                           color: Theme.of(context).colorScheme.primary,
-                          size: 20,
+                          size: 16,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       const Text(
                         'فترة التقرير',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 12,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
@@ -563,7 +566,7 @@ class _IncomeExpenseReportScreenState
                           onTap: () => _pickDate(isFrom: true),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: NeuDateButton(
                           icon: Icons.event_rounded,
@@ -573,7 +576,7 @@ class _IncomeExpenseReportScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -583,25 +586,25 @@ class _IncomeExpenseReportScreenState
                           selected: _isToday(),
                           onTap: () => _setQuickFilter('today'),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         NeuQuickFilterChip(
                           label: 'الأسبوع',
                           selected: _isThisWeek(),
                           onTap: () => _setQuickFilter('week'),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         NeuQuickFilterChip(
                           label: 'الشهر',
                           selected: _isThisMonth(),
                           onTap: () => _setQuickFilter('month'),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         NeuQuickFilterChip(
                           label: 'السنة',
                           selected: _isThisYear(),
                           onTap: () => _setQuickFilter('year'),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         NeuQuickFilterChip(
                           label: _detailedMode ? '📋 تفصيلي' : '📊 ملخص',
                           selected: _detailedMode,
@@ -614,9 +617,9 @@ class _IncomeExpenseReportScreenState
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildSummaryCards(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -636,12 +639,12 @@ class _IncomeExpenseReportScreenState
 
   Widget _buildSummaryCards() {
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 8,
+      runSpacing: 8,
       alignment: WrapAlignment.center,
       children: [
         SizedBox(
-          width: 160,
+          width: 140,
           child: NeuStatCard(
             icon: Icons.trending_down_rounded,
             title: 'إجمالي الدخل',
@@ -651,7 +654,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 160,
+          width: 140,
           child: NeuStatCard(
             icon: Icons.trending_up_rounded,
             title: 'إجمالي المصروفات',
@@ -661,7 +664,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 160,
+          width: 140,
           child: NeuStatCard(
             icon: Icons.people_rounded,
             title: 'مصروفات الرواتب',
@@ -671,7 +674,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         SizedBox(
-          width: 160,
+          width: 140,
           child: NeuStatCard(
             icon: _net >= 0
                 ? Icons.rocket_launch_rounded
@@ -739,23 +742,25 @@ class _IncomeExpenseReportScreenState
             : (entry.isSalary ? Icons.people : Icons.arrow_upward);
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 6),
+          elevation: 0.5,
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: ListTile(
             dense: true,
             leading: CircleAvatar(
               backgroundColor: color.withOpacity(0.1),
-              radius: 18,
-              child: Icon(icon, color: color, size: 18),
+              radius: 14,
+              child: Icon(icon, color: color, size: 14),
             ),
             title: Text(
               entry.description,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 11),
             ),
             subtitle: Row(
               children: [
                 Text(
                   _dateFormat.format(entry.date),
-                  style: const TextStyle(fontSize: 10),
+                  style: const TextStyle(fontSize: 9),
                 ),
                 const SizedBox(width: 4),
                 Container(
@@ -781,7 +786,7 @@ class _IncomeExpenseReportScreenState
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: color,
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
           ),
@@ -792,29 +797,32 @@ class _IncomeExpenseReportScreenState
 
   Widget _buildStatsList() {
     return Card(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: ListView(
         shrinkWrap: true,
         children: [
           ListTile(
             dense: true,
-            leading: const Icon(Icons.arrow_downward, color: Colors.green),
-            title: const Text('عدد معاملات الدخل'),
-            trailing: Text('${_incomeEntries.length}'),
+            leading: const Icon(Icons.arrow_downward, color: Colors.green, size: 18),
+            title: const Text('عدد معاملات الدخل', style: TextStyle(fontSize: 11)),
+            trailing: Text('${_incomeEntries.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           ),
           const Divider(height: 1),
           ListTile(
             dense: true,
-            leading: const Icon(Icons.arrow_upward, color: Colors.red),
-            title: const Text('عدد معاملات المصروفات'),
-            trailing: Text('${_expenseEntries.length}'),
+            leading: const Icon(Icons.arrow_upward, color: Colors.red, size: 18),
+            title: const Text('عدد معاملات المصروفات', style: TextStyle(fontSize: 11)),
+            trailing: Text('${_expenseEntries.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           ),
           const Divider(height: 1),
           ListTile(
             dense: true,
-            leading: const Icon(Icons.people, color: Colors.orange),
-            title: const Text('عدد معاملات الرواتب'),
+            leading: const Icon(Icons.people, color: Colors.orange, size: 18),
+            title: const Text('عدد معاملات الرواتب', style: TextStyle(fontSize: 11)),
             trailing: Text(
               '${_expenseEntries.where((e) => e.isSalary).length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],

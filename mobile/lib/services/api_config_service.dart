@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/env.dart';
 
 class ApiConfig {
   final String baseUrl;
@@ -63,8 +64,8 @@ class ApiConfig {
     );
   }
 
-  static const ApiConfig defaultConfig = ApiConfig(
-    baseUrl: 'http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1',
+  static final ApiConfig defaultConfig = ApiConfig(
+    baseUrl: Env.baseApiUrl,
     connectTimeout: 15,
     receiveTimeout: 20,
   );

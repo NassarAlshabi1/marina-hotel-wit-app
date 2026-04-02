@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 
 import '../utils/id.dart';
+import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
@@ -93,6 +95,46 @@ class BookingDerivedFieldsService {
         ),
       );
     });
+  }
+
+  Future<int> refreshAllActiveBookings({DateTime? now}) async {
+    final moment = now ?? DateTime.now();
+    final activeBookings = await (db.select(db.bookings)
+          ..where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
+          ..where((b) => b.deletedAt.isNull()))
+        .get();
+
+    final active = activeBookings
+        .where((b) => StatusUtils.isBookingActive(b))
+        .toList();
+
+    int refreshed = 0;
+    int promoted = 0;
+    for (final booking in active) {
+      try {
+        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= 14) {
+          await _promoteProvisionalBooking(booking.id);
+          promoted++;
+        }
+        await refreshForBooking(booking, now: moment, forceRebuild: true);
+        refreshed++;
+      } catch (e) {
+        debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+      }
+    }
+
+    if (promoted > 0) {
+      debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
+    }
+    if (refreshed > 0) {
+      debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
+    }
+    return refreshed;
+  }
+
+  Future<void> _promoteProvisionalBooking(int bookingId) async {
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId)))
+        .write(const BookingsCompanion(status: d.Value('محجوزة')));
   }
 
   // ignore: unused_element
@@ -249,8 +291,7 @@ class BookingDerivedFieldsService {
     if (baseRate < 0) baseRate = 0;
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
-      final hotelDay = Time.hotelDayStart(segmentStart);
-      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
+      final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
       if (discountStartDate == null) {
         rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
@@ -259,7 +300,7 @@ class BookingDerivedFieldsService {
           discountStartDate.month,
           discountStartDate.day,
         );
-        if (!hotelDayDate.isBefore(discountDay)) {
+        if (!segDay.isBefore(discountDay)) {
           rate = (baseRate - discount).clamp(0.0, baseRate);
         }
       }
@@ -304,42 +345,45 @@ class BookingDerivedFieldsService {
     DateTime checkin,
     DateTime checkout, {
     int cutoffHour = 14,
-    bool isNewBooking = true,
   }) {
     final segments = <_NightSegment>[];
-    var cursor = checkin;
-    bool isFirstSegment = true;
 
-    while (cursor.isBefore(checkout)) {
-      DateTime dayStart;
-      if (isFirstSegment && isNewBooking) {
-        dayStart = Time.hotelDayStartForNewBooking(cursor, cutoffHour: cutoffHour);
-        isFirstSegment = false;
-      } else {
-        dayStart = Time.hotelDayStart(cursor, cutoffHour: cutoffHour);
-      }
-      final dayEnd = dayStart.add(const Duration(days: 1));
-      final segmentEnd = checkout.isBefore(dayEnd) ? checkout : dayEnd;
-      if (!segmentEnd.isAfter(cursor)) {
-        break;
-      }
+    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
+    int days = checkoutDate.difference(checkinDate).inDays;
+
+    if (days == 0) {
+      days = 1;
+    }
+
+    if (checkout.hour > cutoffHour ||
+        (checkout.hour == cutoffHour && checkout.minute > 0) ||
+        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
+      days += 1;
+    }
+
+    for (int i = 0; i < days; i++) {
+      final dayDate = checkinDate.add(Duration(days: i));
+      final dayKey = Time.dateToString(dayDate);
+      final segStart = i == 0 ? checkin : dayDate;
+      final nextDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == days - 1
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          : nextDay;
+
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(dayStart),
-          start: cursor,
-          end: segmentEnd,
+          hotelDayKey: dayKey,
+          start: segStart,
+          end: segEnd,
         ),
       );
-      cursor = segmentEnd;
     }
 
     if (segments.isEmpty) {
-      final dayStart = isNewBooking
-          ? Time.hotelDayStartForNewBooking(checkin, cutoffHour: cutoffHour)
-          : Time.hotelDayStart(checkin, cutoffHour: cutoffHour);
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(dayStart),
+          hotelDayKey: Time.dateToString(checkin),
           start: checkin,
           end: checkout.isAfter(checkin)
               ? checkout

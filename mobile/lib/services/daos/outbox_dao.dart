@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
-import '../unified_sync_orchestrator.dart';
 import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -18,31 +16,42 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   final AdapterRegistry adapters;
 
   Stream<int> watchCount() {
-    final countExpr = outbox.id.count();
-    final query = selectOnly(outbox)..addColumns([countExpr]);
-    return query.watchSingle().map((row) => row.read(countExpr) ?? 0);
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.isIn(['pending', 'failed']));
+    return query
+        .map((row) => row.read(countExp) ?? 0)
+        .watchSingle();
   }
 
   Future<int> count() async {
-    final countExpr = outbox.id.count();
-    final query = selectOnly(outbox)..addColumns([countExpr]);
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.isIn(['pending', 'failed']));
     final row = await query.getSingle();
-    return row.read(countExpr) ?? 0;
+    return row.read(countExp) ?? 0;
   }
 
   Future<void> resetErrors() async {
-    await (update(outbox)).write(
-      OutboxCompanion(
-        attempts: const Value(0),
-        lastError: const Value.absent(),
-      ),
-    );
+    await (update(outbox)
+          ..where(
+              (t) => t.processingStatus.equals('failed')))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      attempts: Value(0),
+      lastError: Value(null),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
   }
 
   Future<int> clearStale({int attemptsThreshold = 3}) async {
-    return (delete(
-      outbox,
-    )..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold))).go();
+    final rows = await (delete(outbox)
+          ..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold)))
+        .go();
+    return rows;
   }
 
   Future<int> merge({
@@ -53,125 +62,85 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     required Map<String, dynamic> payload,
     required int clientTs,
   }) async {
-    final normalizedPayload = await _payloadWithAdapter(
-      entity,
-      localUuid,
-      payload,
-    );
-    final data = jsonEncode(normalizedPayload);
+    final existing = await (select(outbox)
+          ..where((t) =>
+              t.entity.equals(entity) &
+              t.localUuid.equals(localUuid) &
+              t.processingStatus.equals('pending'))
+          ..limit(1))
+        .getSingleOrNull();
 
-    final id = await transaction(() async {
-      final existing =
-          await (select(outbox)
-                ..where((t) => t.localUuid.equals(localUuid) & t.op.equals(op)))
-              .getSingleOrNull();
+    final payloadJson = jsonEncode(payload);
+    final idempKey = '${entity}:${op}:${localUuid}:$clientTs';
 
-      String idempotencyKey;
-      if (existing != null) {
-        final result = await customSelect(
-          'SELECT idempotency_key FROM ${outbox.actualTableName} WHERE id = ?',
-          variables: [Variable<int>(existing.id)],
-          readsFrom: {outbox},
-        ).getSingleOrNull();
-        idempotencyKey =
-            result?.data['idempotency_key'] as String? ?? _uuid.v4();
-      } else {
-        idempotencyKey = _uuid.v4();
-      }
+    if (existing != null) {
+      await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
+        OutboxCompanion(
+          op: Value(op),
+          payload: Value(payloadJson),
+          clientTs: Value(clientTs),
+          idempotencyKey: Value(idempKey),
+          serverId: Value(serverId),
+        ),
+      );
+      return existing.id;
+    }
 
-      late final int resultId;
-      if (existing != null) {
-        await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
-          OutboxCompanion(
-            payload: Value(data),
-            serverId: Value(serverId),
-            clientTs: Value(clientTs),
-            attempts: const Value(0),
-            lastError: const Value.absent(),
-          ),
-        );
-        resultId = existing.id;
-      } else {
-        resultId = await into(outbox).insert(
-          OutboxCompanion(
-            entity: Value(entity),
-            op: Value(op),
-            localUuid: Value(localUuid),
-            serverId: Value(serverId),
-            payload: Value(data),
-            clientTs: Value(clientTs),
-          ),
-        );
-      }
-
-      if (existing == null) {
-        await customUpdate(
-          'UPDATE ${outbox.actualTableName} SET idempotency_key = ? WHERE id = ?',
-          variables: [
-            Variable<String>(idempotencyKey),
-            Variable<int>(resultId),
-          ],
-          updates: {outbox},
-        );
-      }
-
-      return resultId;
-    });
-
-    UnifiedSyncOrchestrator.instance.notifyLocalChange(
-      table: entity,
-      operation: op,
-    );
-    return id;
+    return into(outbox).insert(OutboxCompanion.insert(
+      entity: entity,
+      op: op,
+      localUuid: localUuid,
+      serverId: Value(serverId),
+      payload: payloadJson,
+      clientTs: clientTs,
+      idempotencyKey: Value(idempKey),
+    ));
   }
 
   Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
-    final worker = workerId ?? const Uuid().v4();
+    final worker = workerId ?? _uuid.v4();
+    final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    return transaction(() async {
-      final entries =
-          await (select(outbox)
-                ..where((t) => t.processingStatus.equals('pending'))
-                ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
-                ..limit(limit))
-              .get();
+    final pending = await (select(outbox)
+          ..where((t) => t.processingStatus.equals('pending'))
+          ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
+          ..limit(limit))
+        .get();
 
-      if (entries.isEmpty) {
-        return [];
-      }
+    if (pending.isEmpty) return [];
 
-      final ids = entries.map((e) => e.id).toList();
+    final ids = pending.map((e) => e.id).toList();
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      OutboxCompanion(
+        processingStatus: const Value('processing'),
+        processingStartedAt: Value(nowEpoch),
+        processingWorker: Value(worker),
+      ),
+    );
 
-      await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-        OutboxCompanion(
-          processingStatus: const Value('processing'),
-          processingStartedAt: Value(DateTime.now().millisecondsSinceEpoch),
-          processingWorker: Value(worker),
-        ),
-      );
-
-      return entries;
-    });
+    return pending;
   }
 
-  Future<void> removeById(int id) =>
-      (delete(outbox)..where((t) => t.id.equals(id))).go();
-
-  Future<void> removeByIds(List<int> ids) {
-    if (ids.isEmpty) {
-      return Future.value();
-    }
-    return (delete(outbox)..where((t) => t.id.isIn(ids))).go();
+  Future<void> removeById(int id) async {
+    await (delete(outbox)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<void> setError(int id, String message, int attempts) =>
-      (update(outbox)..where((t) => t.id.equals(id))).write(
-        OutboxCompanion(
-          lastError: Value(message),
-          attempts: Value(attempts),
-          processingStatus: const Value('failed'),
-        ),
-      );
+  Future<void> removeByIds(List<int> ids) async {
+    if (ids.isEmpty) return;
+    await (delete(outbox)..where((t) => t.id.isIn(ids))).go();
+  }
+
+  Future<void> setError(int id, String message, int attempts) async {
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        lastError: Value(message),
+        attempts: Value(attempts),
+        processingStatus: const Value('failed'),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+      ),
+    );
+  }
 
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
@@ -187,198 +156,119 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-      const OutboxCompanion(processingStatus: Value('failed')),
+      const OutboxCompanion(
+        processingStatus: Value('failed'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
     );
   }
 
   Future<void> retryFailed() async {
-    await (update(
-      outbox,
-    )..where((t) => t.processingStatus.equals('failed'))).write(
-      const OutboxCompanion(
-        processingStatus: Value('pending'),
-        processingStartedAt: Value(null),
-        processingWorker: Value(null),
-        attempts: Value(0),
-      ),
-    );
+    await (update(outbox)
+          ..where((t) => t.processingStatus.equals('failed')))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
   }
 
   Future<int> cleanupStuckEntries({
     Duration timeout = const Duration(minutes: 5),
   }) async {
-    final thresholdTime = DateTime.now()
-        .subtract(timeout)
-        .millisecondsSinceEpoch;
-
-    return await (update(outbox)..where(
-          (t) =>
+    final cutoff =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - timeout.inSeconds;
+    final stuck = await (select(outbox)
+          ..where((t) =>
               t.processingStatus.equals('processing') &
-              t.processingStartedAt.isSmallerThanValue(thresholdTime),
-        ))
-        .write(
-          const OutboxCompanion(
-            processingStatus: Value('pending'),
-            processingStartedAt: Value(null),
-            processingWorker: Value(null),
-          ),
-        );
+              t.processingStartedAt.isSmallerOrEqualValue(cutoff)))
+        .get();
+
+    if (stuck.isEmpty) return 0;
+
+    final ids = stuck.map((e) => e.id).toList();
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
+    return ids.length;
   }
 
   Future<int> cleanupCompleted({
     Duration olderThan = const Duration(days: 7),
   }) async {
-    final thresholdTime = DateTime.now()
-        .subtract(olderThan)
-        .millisecondsSinceEpoch;
-
-    return await (delete(outbox)..where(
-          (t) =>
+    final cutoff =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
+    final rows = await (delete(outbox)
+          ..where((t) =>
               t.processingStatus.equals('completed') &
-              t.processingStartedAt.isSmallerThanValue(thresholdTime),
-        ))
+              t.clientTs.isSmallerOrEqualValue(cutoff)))
         .go();
+    return rows;
   }
 
-  Future<Map<String, dynamic>> _payloadWithAdapter(
-    String entity,
-    String localUuid,
-    Map<String, dynamic> fallback,
-  ) async {
-    switch (entity) {
-      case 'bookings':
-        final row =
-            await (select(db.bookings)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'payments':
-        final row =
-            await (select(db.payments)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.payments.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'expenses':
-        final row =
-            await (select(db.expenses)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'debts':
-        final row =
-            await (select(db.debts)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.debts.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'rooms':
-        final row =
-            await (select(db.rooms)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.rooms.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'employees':
-        final row =
-            await (select(db.employees)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.employees.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'booking_notes':
-        final row =
-            await (select(db.bookingNotes)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.bookingNotes.toJsonForSource(
-            row,
-            src: Source.appwrite,
-          );
-        }
-        break;
-      case 'booking_nights':
-        final row =
-            await (select(db.bookingNights)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.nights.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-      case 'salary_cycles':
-        final row =
-            await (select(db.salaryCycles)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.salaryCycles.toJsonForSource(
-            row,
-            src: Source.appwrite,
-          );
-        }
-        break;
-      case 'salary_payments':
-        final row =
-            await (select(db.salaryPayments)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.salaryPayments.toJsonForSource(
-            row,
-            src: Source.appwrite,
-          );
-        }
-        break;
-      case 'cash_transactions':
-        final row =
-            await (select(db.cashTransactions)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.cashTransactions.toJsonForSource(
-            row,
-            src: Source.appwrite,
-          );
-        }
-        break;
-      case 'shift_notes':
-        final row =
-            await (select(db.shiftNotes)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          return adapters.shiftNotes.toJsonForSource(row, src: Source.appwrite);
-        }
-        break;
-    }
-    return fallback;
+  /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
+  Future<List<ConflictRecord>> getConflicts() async {
+    final failed = await (select(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.lastError.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
+        .get();
+
+    return failed.map((entry) {
+      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      return ConflictRecord(
+        id: entry.id,
+        uuid: entry.localUuid,
+        targetTable: entry.entity,
+        localPayload: payload,
+        remotePayload: payload, // TODO: Fetch actual remote data
+        lastError: entry.lastError ?? 'Unknown conflict',
+        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
+      );
+    }).toList();
   }
+
+  /// حل تعارض محدد
+  Future<void> resolveConflict(
+    int id,
+    Map<String, dynamic> resolvedData, {
+    required String resolution,
+  }) async {
+    // تحديث السجل ليعكس الحل
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        processingStatus: const Value('completed'),
+        lastError: Value(null),
+        attempts: const Value(0),
+        payload: Value(jsonEncode(resolvedData)),
+      ),
+    );
+  }
+}
+
+/// سجل يمثل تعارض في البيانات
+class ConflictRecord {
+  final int id;
+  final String uuid;
+  final String targetTable;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String lastError;
+  final DateTime timestamp;
+
+  ConflictRecord({
+    required this.id,
+    required this.uuid,
+    required this.targetTable,
+    required this.localPayload,
+    required this.remotePayload,
+    required this.lastError,
+    required this.timestamp,
+  });
 }

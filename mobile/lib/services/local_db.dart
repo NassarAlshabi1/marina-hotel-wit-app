@@ -190,6 +190,11 @@ class Payments extends Table with SyncFields {
       boolean().withDefault(const Constant(false))();
   TextColumn get linkedDebtUuid => text().nullable()();
   TextColumn get bookingUuidCache => text().nullable()();
+  RealColumn get discountAmount => real().nullable()();
+  TextColumn get discountStartDate => text().nullable()();
+  BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAt => integer().nullable()();
+  TextColumn get voidedBy => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -420,6 +425,20 @@ class PaymentVoids extends Table with SyncFields {
   ];
 }
 
+@DataClassName('GuestInfo')
+class GuestInfos extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get roomNumber => text()();
+  TextColumn get guestName => text()();
+  TextColumn get nationality => text()();
+  TextColumn get idNumber => text()();
+  TextColumn get idType => text().withDefault(const Constant('بطاقة شخصية'))();
+  TextColumn get issueDate => text().nullable()();
+  TextColumn get issuePlace => text().nullable()();
+  TextColumn get governorate => text().nullable()();
+  TextColumn get notes => text().nullable()();
+}
+
 @DataClassName('AutoFixRun')
 class AutoFixRuns extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -504,6 +523,25 @@ class SalaryPayments extends Table with SyncFields {
   ];
 }
 
+@DataClassName('SalaryWithdrawal')
+class SalaryWithdrawals extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get employeeId => integer()();
+  RealColumn get amount => real()();
+  TextColumn get withdrawDate => text()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get hotelDayKey => text().nullable()();
+  TextColumn get withdrawalType => text().nullable()();
+  TextColumn get description => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_salary_withdrawals_employee',
+      'CREATE INDEX idx_salary_withdrawals_employee ON salary_withdrawals (employee_id)',
+    ),
+  ];
+}
+
 class Outbox extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entity => text()();
@@ -563,7 +601,7 @@ class SyncLog extends Table {
   TextColumn get direction => text()();
   TextColumn get deviceId => text()();
   TextColumn get metadata => text()();
-  TextColumn get operations => text()();
+  TextColumn get operations => text().nullable().withDefault(const Constant('[]'))();
   IntColumn get checksumMatched => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('success'))();
   TextColumn get createdAt => text()();
@@ -610,6 +648,8 @@ class SyncConflicts extends Table {
     BookingPriceAdjustments,
     AuditLogs,
     PaymentVoids,
+    GuestInfos,
+    SalaryWithdrawals,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -620,7 +660,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 30;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1281,6 +1321,126 @@ class AppDatabase extends _$AppDatabase {
           );
         }
       }
+      if (from < 27) {
+        // إنشاء جدول سجل المعلومية
+        try {
+          await m.createTable(guestInfos);
+          developer.log(
+            'Migration 27: created guest_infos table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 27: create guest_infos failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 28) {
+        // إنشاء جدول سحوبات الرواتب
+        try {
+          await m.createTable(salaryWithdrawals);
+          developer.log(
+            'Migration 28: created salary_withdrawals table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 28: create salary_withdrawals failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 29) {
+        // إضافة حقول جديدة لجدول payments للمزامنة مع Appwrite
+        try {
+          await m.addColumn(payments, payments.discountAmount);
+          developer.log(
+            'Migration 29: added payments.discountAmount',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.discountAmount failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.discountStartDate);
+          developer.log(
+            'Migration 29: added payments.discountStartDate',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.discountStartDate failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.isVoided);
+          developer.log(
+            'Migration 29: added payments.isVoided',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.isVoided failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.voidedAt);
+          developer.log(
+            'Migration 29: added payments.voidedAt',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.voidedAt failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(payments, payments.voidedBy);
+          developer.log(
+            'Migration 29: added payments.voidedBy',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 29: add payments.voidedBy failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 30) {
+        // إضافة حقول withdrawalType و description لجدول salary_withdrawals
+        try {
+          await m.addColumn(salaryWithdrawals, salaryWithdrawals.withdrawalType);
+          developer.log(
+            'Migration 30: added salary_withdrawals.withdrawalType',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 30: add salary_withdrawals.withdrawalType failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(salaryWithdrawals, salaryWithdrawals.description);
+          developer.log(
+            'Migration 30: added salary_withdrawals.description',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 30: add salary_withdrawals.description failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
     },
   );
 
@@ -1561,7 +1721,7 @@ class SyncAuditDao {
               direction: direction,
               deviceId: deviceId,
               metadata: jsonEncode(metadata),
-              operations: jsonEncode(
+              operations: Value(jsonEncode(
                 appliedOperations
                     .map(
                       (sync_models.SyncOperation e) => {
@@ -1573,7 +1733,7 @@ class SyncAuditDao {
                       },
                     )
                     .toList(),
-              ),
+              )),
               checksumMatched: Value(checksumMatched ? 1 : 0),
               createdAt: createdAt,
               completedAt: Value(createdAt),

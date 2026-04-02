@@ -6,6 +6,7 @@ import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
+import 'booking_derived_fields_service.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 import 'sync_locks.dart';
@@ -22,6 +23,11 @@ class AppwriteDeltaSyncResult {
     this.pushedCount = 0,
     this.pulledCount = 0,
   });
+
+  /// Alias getters for compatibility
+  int get recordsPulled => pulledCount;
+  int get recordsPushed => pushedCount;
+  bool get hasConflicts => false; // TODO: Implement actual conflict detection
 }
 
 class AppwriteDeltaSync {
@@ -211,11 +217,10 @@ class AppwriteDeltaSync {
             collectionId: collectionId,
             documentId: change.localUuid,
           );
+        } on AppwriteException catch (e) {
+          if (e.code != 404) rethrow;
         } catch (e) {
-          if (!e.toString().contains('404') &&
-              !e.toString().contains('not_found')) {
-            rethrow;
-          }
+          rethrow;
         }
         break;
     }
@@ -246,6 +251,8 @@ class AppwriteDeltaSync {
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
         'bookings': AppwriteConfig.bookingsCollectionId,
+        // ✅ بعد bookings مباشرة لأنه يعتمد عليها (bookingLocalId)
+        'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         'booking_notes': AppwriteConfig.bookingNotesCollectionId,
         'booking_nights': AppwriteConfig.bookingNightsCollectionId,
         'payments': AppwriteConfig.paymentsCollectionId,
@@ -253,14 +260,15 @@ class AppwriteDeltaSync {
         'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
         'debts': AppwriteConfig.debtsCollectionId,
         'employees': AppwriteConfig.employeesCollectionId,
-        'hotel_day_ledger': AppwriteConfig.hotelDayLedgerCollectionId,
+        // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
         'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
         'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
+        'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
         'shift_notes': AppwriteConfig.shiftNotesCollectionId,
         'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
-        'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         'audit_logs': AppwriteConfig.auditLogsCollectionId,
         'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
+        'guest_infos': AppwriteConfig.guestInfosCollectionId,
       };
 
       for (final entry in entitiesToPull.entries) {
@@ -360,6 +368,25 @@ class AppwriteDeltaSync {
       case 'employees':
         await _applyEmployeeChange(db, documentId, data);
         break;
+      case 'booking_nights':
+        await _applyBookingNightChange(db, documentId, data);
+        break;
+      case 'booking_notes':
+        await _applyBookingNoteChange(db, documentId, data);
+        break;
+      case 'cash_transactions':
+        await _applyCashTransactionChange(db, documentId, data);
+        break;
+      case 'shift_notes':
+        await _applyShiftNoteChange(db, documentId, data);
+        break;
+      case 'salary_cycles':
+        await _applySalaryCycleChange(db, documentId, data);
+        break;
+      case 'salary_payments':
+        await _applySalaryPaymentChange(db, documentId, data);
+        break;
+      // ❌ hotel_day_ledger - محلي فقط
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
         break;
@@ -371,6 +398,12 @@ class AppwriteDeltaSync {
         break;
       case 'payment_voids':
         await _applyPaymentVoidChange(db, documentId, data);
+        break;
+      case 'guest_infos':
+        await _applyGuestInfoChange(db, documentId, data);
+        break;
+      case 'salary_withdrawals':
+        await _applySalaryWithdrawalChange(db, documentId, data);
         break;
     }
   }
@@ -647,6 +680,11 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.priceAdjustments).insertOnConflictUpdate(companion);
+    if (targetType == 'room') {
+      await _recalculateBookingsForRoomUuid(db, targetUuid);
+    } else if (targetType == 'booking') {
+      await _recalculateBookingByUuid(db, targetUuid);
+    }
   }
 
   Future<void> _applyAuditLogChange(
@@ -724,6 +762,245 @@ class AppwriteDeltaSync {
     await db.into(db.paymentVoids).insertOnConflictUpdate(companion);
   }
 
+  Future<void> _applyGuestInfoChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final guestName = _asString(data['guestName']);
+    if (guestName == null || guestName.isEmpty) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = GuestInfosCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      roomNumber: d.Value(_asString(data['roomNumber']) ?? ''),
+      guestName: d.Value(guestName),
+      nationality: d.Value(_asString(data['nationality']) ?? ''),
+      idNumber: d.Value(_asString(data['idNumber']) ?? ''),
+      idType: d.Value(_asString(data['idType']) ?? 'بطاقة شخصية'),
+      issueDate: _nullableValue<String>(_asString(data['issueDate'])),
+      issuePlace: _nullableValue<String>(_asString(data['issuePlace'])),
+      governorate: _nullableValue<String>(_asString(data['governorate'])),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    await db.into(db.guestInfos).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryWithdrawalChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final employeeId = _asInt(data['employeeId']);
+    if (employeeId == null) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = SalaryWithdrawalsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      employeeId: d.Value(employeeId),
+      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      withdrawalType: _nullableValue<String>(_asString(data['withdrawalType'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNightChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingLocalId = _asInt(data['bookingLocalId']);
+    if (bookingLocalId == null) return;
+
+    final companion = BookingNightsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingLocalId: d.Value(bookingLocalId),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      nightStart: d.Value(_asString(data['nightStart']) ?? ''),
+      nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
+      nightlyRate: d.Value(_asDouble(data['nightlyRate'])),
+      sequence: d.Value(_asInt(data['sequence']) ?? 0),
+      isProcessedByAutoFix: d.Value(_asBool(data['isProcessedByAutoFix']) ?? false),
+      baseRate: d.Value(_asDouble(data['baseRate'])),
+      adjustment: d.Value(_asDouble(data['adjustment'])),
+      finalRate: d.Value(_asDouble(data['finalRate'])),
+      appliedAdjustmentUuid: _nullableValue<String>(_asString(data['appliedAdjustmentUuid'])),
+      appliedAdjustmentsJson: _nullableValue<String>(_asString(data['appliedAdjustmentsJson'])),
+    );
+
+    await db.into(db.bookingNights).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNoteChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingId = _asInt(data['bookingId']);
+    if (bookingId == null) return;
+
+    final companion = BookingNotesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingId: d.Value(bookingId),
+      noteText: d.Value(_asString(data['noteText']) ?? ''),
+      alertType: d.Value(_asString(data['alertType']) ?? ''),
+      alertUntil: _nullableValue<String>(_asString(data['alertUntil'])),
+      isActive: d.Value(_asInt(data['isActive']) ?? 1),
+    );
+
+    await db.into(db.bookingNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyCashTransactionChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = CashTransactionsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      registerId: _nullableValue<int>(_asInt(data['registerId'])),
+      transactionType: d.Value(_asString(data['transactionType']) ?? ''),
+      amount: d.Value(_asDouble(data['amount'])),
+      referenceType: _nullableValue<String>(_asString(data['referenceType'])),
+      referenceId: _nullableValue<int>(_asInt(data['referenceId'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      transactionTime: d.Value(_asString(data['transactionTime']) ?? ''),
+      createdBy: _nullableValue<int>(_asInt(data['createdBy'])),
+    );
+
+    await db.into(db.cashTransactions).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyShiftNoteChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = ShiftNotesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      title: d.Value(_asString(data['title']) ?? ''),
+      content: d.Value(_asString(data['content']) ?? ''),
+      priority: d.Value(_asString(data['priority']) ?? 'medium'),
+      shiftType: d.Value(_asString(data['shiftType']) ?? 'all'),
+      isRead: d.Value(_asInt(data['isRead']) ?? 0),
+      expiresAt: _nullableValue<String>(_asString(data['expiresAt'])),
+      createdBy: d.Value(_asString(data['createdBy']) ?? 'user'),
+    );
+
+    await db.into(db.shiftNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryCycleChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final employeeId = _asInt(data['employeeId']);
+    if (employeeId == null) return;
+
+    final companion = SalaryCyclesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      employeeId: d.Value(employeeId),
+      cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
+      hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
+      hotelDayEnd: _nullableValue<String>(_asString(data['hotelDayEnd'])),
+      expectedAmount: d.Value(_asInt(data['expectedAmount']) ?? 0),
+      actualPaid: d.Value(_asInt(data['actualPaid']) ?? 0),
+      remainingAmount: d.Value(_asInt(data['remainingAmount']) ?? 0),
+      status: d.Value(_asString(data['status']) ?? 'draft'),
+    );
+
+    await db.into(db.salaryCycles).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryPaymentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final cycleId = _asInt(data['cycleId']);
+    if (cycleId == null) return;
+
+    final companion = SalaryPaymentsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      cycleId: d.Value(cycleId),
+      amount: d.Value(_asInt(data['amount']) ?? 0),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      paymentDateIso: d.Value(_asString(data['paymentDateIso']) ?? ''),
+      method: _nullableValue<String>(_asString(data['method'])),
+      isAutoGenerated: d.Value(_asBool(data['isAutoGenerated']) ?? false),
+    );
+
+    await db.into(db.salaryPayments).insertOnConflictUpdate(companion);
+  }
+
+
   bool? _asBool(dynamic value) {
     if (value == null) return null;
     if (value is bool) return value;
@@ -756,8 +1033,7 @@ class AppwriteDeltaSync {
         return AppwriteConfig.debtsCollectionId;
       case 'employees':
         return AppwriteConfig.employeesCollectionId;
-      case 'hotel_day_ledger':
-        return AppwriteConfig.hotelDayLedgerCollectionId;
+      // ❌ hotel_day_ledger - محلي فقط
       case 'salary_cycles':
         return AppwriteConfig.salaryCyclesCollectionId;
       case 'salary_payments':
@@ -772,6 +1048,10 @@ class AppwriteDeltaSync {
         return AppwriteConfig.auditLogsCollectionId;
       case 'payment_voids':
         return AppwriteConfig.paymentVoidsCollectionId;
+      case 'guest_infos':
+        return AppwriteConfig.guestInfosCollectionId;
+      case 'salary_withdrawals':
+        return AppwriteConfig.salaryWithdrawalsCollectionId;
       default:
         return null;
     }
@@ -877,6 +1157,58 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
+    final bookingId =
+        _asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id']);
+    if (bookingId != null) {
+      await _recalculateBookingById(db, bookingId);
+    } else {
+      await _recalculateBookingByUuid(db, bookingUuid);
+    }
+  }
+
+  Future<void> _recalculateBookingById(AppDatabase db, int bookingId) async {
+    await BookingDerivedFieldsService(db).refreshForBookingId(
+      bookingId,
+      forceRebuild: true,
+    );
+  }
+
+  Future<void> _recalculateBookingByUuid(
+    AppDatabase db,
+    String bookingUuid,
+  ) async {
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(bookingUuid)))
+        .getSingleOrNull();
+    if (booking == null) return;
+    await _recalculateBookingById(db, booking.id);
+  }
+
+  Future<void> _recalculateBookingsForRoomUuid(
+    AppDatabase db,
+    String roomUuid,
+  ) async {
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.localUuid.equals(roomUuid)))
+        .getSingleOrNull();
+    if (room == null) return;
+    final activeStatuses = [
+      'مؤكد',
+      'confirmed',
+      'نشط',
+      'active',
+      'مسجل دخول',
+      'checked_in',
+    ];
+    final bookings = await (db.select(db.bookings)
+          ..where((b) => b.roomNumber.equals(room.roomNumber))
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.actualCheckout.isNull())
+          ..where((b) => b.status.isIn(activeStatuses)))
+        .get();
+    for (final booking in bookings) {
+      await _recalculateBookingById(db, booking.id);
+    }
   }
 
   double _asDouble(dynamic value, {double fallback = 0.0}) {

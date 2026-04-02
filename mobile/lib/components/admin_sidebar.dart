@@ -213,6 +213,15 @@ class AdminSidebar extends ConsumerWidget {
                   ),
                 if (can('settings'))
                   _buildMenuItem(
+                    icon: Icons.badge,
+                    title: 'سجل المعلومية',
+                    route: '/information',
+                    isActive: currentRoute.startsWith('/information'),
+                    onTap: () => onRouteSelected('/information'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
                     icon: Icons.settings,
                     title: 'الإعدادات',
                     route: '/settings',

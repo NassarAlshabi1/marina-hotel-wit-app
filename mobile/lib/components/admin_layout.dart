@@ -40,10 +40,10 @@ class AdminLayout extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    if (title != null || actions != null) _buildTopBar(),
+                    if (title != null || actions != null) _buildTopBar(context),
                     Expanded(
                       child: Container(
-                        color: AppColors.backgroundColor,
+                        color: Theme.of(context).scaffoldBackgroundColor,
                         child: body,
                       ),
                     ),
@@ -65,21 +65,27 @@ class AdminLayout extends StatelessWidget {
             currentRoute: currentRoute,
             onRouteSelected: onRouteSelected ?? (route) {},
           ),
-          body: Container(color: AppColors.backgroundColor, child: body),
+          body: Container(color: Theme.of(context).scaffoldBackgroundColor, child: body),
           floatingActionButton: floatingActionButton,
         ),
       );
     }
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 60,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF3D2048) : const Color(0xFFE0D0EA),
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -93,10 +99,10 @@ class AdminLayout extends StatelessWidget {
               child: title != null
                   ? Text(
                       title!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: isDark ? const Color(0xFFE0D5F0) : AppColors.textPrimary,
                       ),
                     )
                   : const SizedBox.shrink(),
@@ -140,9 +146,10 @@ class AdminCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: elevation ?? 1,
-      color: color ?? Colors.white,
+      color: color ?? (isDark ? const Color(0xFF1E1E1E) : Colors.white),
       margin: const EdgeInsets.all(8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Column(
@@ -152,7 +159,7 @@ class AdminCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.lightGray,
+                color: isDark ? const Color(0xFF2C1E38) : AppColors.lightGray,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(8),
                   topRight: Radius.circular(8),
@@ -343,14 +350,24 @@ class _AdminTableState extends State<AdminTable> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
-            headingRowColor: WidgetStateProperty.all(AppColors.darkGray),
-            headingTextStyle: const TextStyle(
-              color: Colors.white,
+            headingRowColor: WidgetStateProperty.all(
+              Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C1E38)
+                  : AppColors.darkGray,
+            ),
+            headingTextStyle: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFE0D5F0)
+                  : Colors.white,
               fontWeight: FontWeight.w600,
             ),
             decoration: widget.bordered
                 ? BoxDecoration(
-                    border: Border.all(color: AppColors.lightGray),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF3D2048)
+                          : AppColors.lightGray,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   )
                 : null,

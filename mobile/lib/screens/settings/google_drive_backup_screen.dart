@@ -77,6 +77,8 @@ class _GoogleDriveBackupContentState
                 _buildConnectionStatusCard(backupState),
                 const SizedBox(height: 16),
                 if (backupState.isSignedIn) ...[
+                  _buildSyncControlCard(backupState),
+                  const SizedBox(height: 16),
                   _buildSystemInfoCard(backupState),
                   const SizedBox(height: 16),
                   _buildManualBackupCard(backupState),
@@ -518,6 +520,103 @@ class _GoogleDriveBackupContentState
             child: const Text('استعادة', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSyncControlCard(BackupState state) {
+    final syncEnabled = state.googleDriveSyncEnabled;
+    final activeColor = syncEnabled ? Colors.teal : Colors.grey;
+    final statusText = syncEnabled ? 'نشطة' : 'معطّلة';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.sync, color: activeColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'المزامنة التلقائية',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: syncEnabled
+                        ? Colors.teal.withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      color: activeColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'مزامنة تلقائية للتغييرات بين التطبيق و Google Drive. عند التفعيل، يتم رفع التغييرات وسحب التحديثات تلقائياً.',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodySmall?.color,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'تفعيل المزامنة التلقائية',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                syncEnabled
+                    ? 'يتم مزامنة البيانات تلقائياً مع Google Drive'
+                    : 'المزامنة التلقائية معطّلة - لن يتم رفع أو سحب التغييرات تلقائياً',
+              ),
+              value: syncEnabled,
+              onChanged: (value) => ref
+                  .read(backupStatusProvider.notifier)
+                  .setGoogleDriveSyncEnabled(value),
+              activeColor: Colors.teal,
+            ),
+            if (!syncEnabled) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'التغييرات المحلية لن تُرفع تلقائياً. يمكنك استخدام النسخ الاحتياطي اليدوي لرفع البيانات.',
+                        style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

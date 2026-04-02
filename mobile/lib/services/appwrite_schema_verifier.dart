@@ -460,6 +460,8 @@ class AppwriteSchemaVerifier {
     {'key': 'deletedAtIso', 'type': 'string', 'size': 50},
     {'key': 'createdAtEpoch', 'type': 'integer', 'default': 0},
     {'key': 'lastModifiedEpoch', 'type': 'integer', 'default': 0},
+    {'key': 'syncTimestamp', 'type': 'integer', 'default': 0},
+    {'key': 'deviceId', 'type': 'string', 'size': 100, 'default': ''},
     {'key': 'version', 'type': 'integer', 'default': 1},
     {'key': 'origin', 'type': 'string', 'size': 20, 'default': 'local'},
     {'key': 'vectorClock', 'type': 'string', 'size': 500, 'default': '{}'},

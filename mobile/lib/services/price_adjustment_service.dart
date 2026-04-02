@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import 'local_db.dart';
+import 'auto_backup_manager.dart';
 import '../utils/time.dart';
 
 class PriceAdjustmentService {
@@ -84,6 +85,12 @@ class PriceAdjustmentService {
         performedBy: appliedBy,
       );
     }
+
+    await AutoBackupManager.instance.onDataChange(
+      'price_adjustments',
+      'INSERT',
+      recordData: adjustmentRecord.toColumns(false),
+    );
 
     return PriceAdjustmentResult(
       success: true,

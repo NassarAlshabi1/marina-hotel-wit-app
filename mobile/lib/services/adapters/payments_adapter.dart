@@ -157,6 +157,11 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      discountAmount: _vDouble(json, 'discountAmount', src),
+      discountStartDate: _vStr(json, 'discountStartDate', src),
+      isVoided: _vBool(json, 'isVoided', src, fallback: false),
+      voidedAt: _vInt(json, 'voidedAt', src),
+      voidedBy: _vStr(json, 'voidedBy', src),
     );
   }
 
@@ -191,6 +196,11 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'discountAmount', 'discount_amount'): model.discountAmount,
+      _k(src, 'discountStartDate', 'discount_start_date'): model.discountStartDate,
+      _k(src, 'isVoided', 'is_voided'): model.isVoided,
+      _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
+      _k(src, 'voidedBy', 'voided_by'): model.voidedBy,
     };
   }
 }

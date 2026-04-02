@@ -9,9 +9,9 @@ import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
 import '../services/local_db.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
-import '../widgets/smart_sync_widgets.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -41,17 +41,13 @@ const List<String> _dashboardRoomNumbers = [
 
 final todayPaymentsProvider = StreamProvider<double>((ref) {
   final db = ref.watch(dbProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final todayEnd = todayStart.add(const Duration(days: 1));
+  final todayKey = Time.hotelDayKey();
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE payment_date >= ? AND payment_date < ? AND deleted_at IS NULL',
-        variables: [
-          Variable.withString(todayStart.toIso8601String()),
-          Variable.withString(todayEnd.toIso8601String()),
-        ],
+        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        variables: [Variable.withString(todayKey)],
+        readsFrom: {db.payments},
       )
       .watch()
       .map(
@@ -63,17 +59,13 @@ final todayPaymentsProvider = StreamProvider<double>((ref) {
 
 final todayExpensesProvider = StreamProvider<double>((ref) {
   final db = ref.watch(dbProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final todayEnd = todayStart.add(const Duration(days: 1));
+  final todayKey = Time.hotelDayKey();
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE expense_date >= ? AND expense_date < ? AND deleted_at IS NULL',
-        variables: [
-          Variable.withString(todayStart.toIso8601String()),
-          Variable.withString(todayEnd.toIso8601String()),
-        ],
+        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        variables: [Variable.withString(todayKey)],
+        readsFrom: {db.expenses},
       )
       .watch()
       .map(
@@ -103,8 +95,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               _buildHeader(),
               const SizedBox(height: 16),
-              const SmartSyncDashboardCard(),
-              const SizedBox(height: 16),
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
@@ -119,14 +109,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.blue.shade600, Colors.blue.shade400],
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.hotel, color: Colors.white, size: 24),
+          child: const Icon(Icons.hotel, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 12),
         const Expanded(

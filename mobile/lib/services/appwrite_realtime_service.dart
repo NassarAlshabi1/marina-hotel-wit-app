@@ -209,10 +209,16 @@ class AppwriteRealtimeService {
       AppwriteConfig.cashTransactionsCollectionId,
       AppwriteConfig.employeesCollectionId,
       AppwriteConfig.debtsCollectionId,
-      AppwriteConfig.hotelDayLedgerCollectionId,
+      // ❌ hotel_day_ledger - محلي فقط
       AppwriteConfig.salaryCyclesCollectionId,
       AppwriteConfig.salaryPaymentsCollectionId,
+      AppwriteConfig.salaryWithdrawalsCollectionId,
       AppwriteConfig.shiftNotesCollectionId,
+      AppwriteConfig.guestInfosCollectionId,
+      AppwriteConfig.priceAdjustmentsCollectionId,
+      AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      AppwriteConfig.auditLogsCollectionId,
+      AppwriteConfig.paymentVoidsCollectionId,
     ];
 
     for (final collectionId in collections) {

@@ -375,9 +375,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
+          final dropdownTextColor = Theme.of(ctx).textTheme.bodyMedium?.color;
           final dropdownTextStyle = Theme.of(
             ctx,
-          ).textTheme.bodyMedium?.copyWith(fontSize: 14);
+          ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
           return AlertDialog(
             title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
             content: SingleChildScrollView(
@@ -418,6 +419,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
                         value: selectedEmployeeId,
+                        style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
                         ),
@@ -425,7 +427,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             .map(
                               (employee) => DropdownMenuItem<int>(
                                 value: employee.id,
-                                child: Text(employee.name),
+                                child: Text(employee.name, style: dropdownTextStyle),
                               ),
                             )
                             .toList(),
@@ -554,6 +556,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
+          hotelDayKey: trimmedDate,
         );
       }
     } else {
@@ -574,6 +577,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
+          hotelDayKey: trimmedDate,
         );
       } else {
         await salaryRepo.deleteByExpenseId(existing.id);

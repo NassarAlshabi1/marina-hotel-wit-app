@@ -52,20 +52,48 @@ void main() {
     expect(Time.safeIsoToDateString(null), hasLength(10));
   });
 
-  test('nightsWithCutoff counts segments across cutoff boundaries', () {
-    final checkin = DateTime(2024, 1, 1, 13, 0); // before cutoff
-    final checkout = DateTime(2024, 1, 2, 15, 0); // after next-day cutoff
+  test('nightsWithCutoff uses date difference + cutoff rule', () {
+    // checkin 1 يناير 13:00, checkout 2 يناير 15:00
+    // فرق التواريخ = 1 يوم، المغادرة 15:00 > 14:00 → +1 = 2
+    final checkin = DateTime(2024, 1, 1, 13, 0);
+    final checkout = DateTime(2024, 1, 2, 15, 0);
     expect(
       Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14),
-      3,
+      2,
     );
 
-    // checkout before checkin -> minimum 1 night
-    final one = Time.nightsWithCutoff(
+    // نفس اليوم → يوم واحد على الأقل، المغادرة 12:00 < 14:00 → لا إضافة
+    final sameDay = Time.nightsWithCutoff(
       checkin,
       checkout: DateTime(2024, 1, 1, 12, 0),
       cutoffHour: 14,
     );
-    expect(one, 1);
+    expect(sameDay, 1);
+
+    // checkin 10 يناير 20:00, checkout 12 يناير 13:00
+    // فرق التواريخ = 2، المغادرة 13:00 < 14:00 → 2
+    final multi = Time.nightsWithCutoff(
+      DateTime(2024, 1, 10, 20, 0),
+      checkout: DateTime(2024, 1, 12, 13, 0),
+      cutoffHour: 14,
+    );
+    expect(multi, 2);
+
+    // checkin 10 يناير 20:00, checkout 12 يناير 14:01
+    // فرق التواريخ = 2، المغادرة 14:01 > 14:00 → +1 = 3
+    final afterCutoff = Time.nightsWithCutoff(
+      DateTime(2024, 1, 10, 20, 0),
+      checkout: DateTime(2024, 1, 12, 14, 1),
+      cutoffHour: 14,
+    );
+    expect(afterCutoff, 3);
+
+    // المغادرة بالضبط عند 14:00:00 → لا يوم إضافي
+    final exactCutoff = Time.nightsWithCutoff(
+      DateTime(2024, 1, 10, 20, 0),
+      checkout: DateTime(2024, 1, 12, 14, 0, 0),
+      cutoffHour: 14,
+    );
+    expect(exactCutoff, 2);
   });
 }

@@ -435,36 +435,38 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         ),
       ],
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _buildDateSelector(
-                  label: 'من تاريخ',
+                  label: 'من',
                   value: _fromDate,
                   onPressed: () => _pickDate(isFrom: true),
                 ),
                 _buildDateSelector(
-                  label: 'إلى تاريخ',
+                  label: 'إلى',
                   value: _toDate,
                   onPressed: () => _pickDate(isFrom: false),
                 ),
                 ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    textStyle: const TextStyle(fontSize: 11),
+                  ),
                   onPressed: _loading ? null : _fetchReport,
-                  icon: const Icon(Icons.search),
-                  label: _loading
-                      ? const Text('جارٍ التحديث...')
-                      : const Text('تحديث النتائج'),
+                  icon: const Icon(Icons.search, size: 16),
+                  label: Text(_loading ? 'جارٍ...' : 'تحديث'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _buildSummaryRow(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -477,7 +479,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                   : ListView(
                       children: [
                         _buildGuestsTable(),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
                         _buildDebtsTable(),
                       ],
                     ),
@@ -490,31 +492,42 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
   Widget _buildSummaryRow() {
     return Card(
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         child: Row(
           children: [
             Expanded(
-              child: _buildSummaryTile(
+              child: _buildSummaryChip(
                 'إجمالي الديون',
-                '${_currencyFormat.format(_totalDebt)}',
+                _currencyFormat.format(_totalDebt),
+                Colors.red,
               ),
             ),
+            Container(width: 1, height: 28, color: Colors.grey.shade200),
             Expanded(
-              child: _buildSummaryTile(
-                'المبالغ المدفوعة',
-                '${_currencyFormat.format(_totalPaid)}',
+              child: _buildSummaryChip(
+                'المدفوعة',
+                _currencyFormat.format(_totalPaid),
+                Colors.green,
               ),
             ),
+            Container(width: 1, height: 28, color: Colors.grey.shade200),
             Expanded(
-              child: _buildSummaryTile(
-                'المبالغ المتبقية',
-                '${_currencyFormat.format(_totalRemaining)}',
+              child: _buildSummaryChip(
+                'المتبقية',
+                _currencyFormat.format(_totalRemaining),
+                Colors.orange,
               ),
             ),
+            Container(width: 1, height: 28, color: Colors.grey.shade200),
             Expanded(
-              child: _buildSummaryTile('عدد السجلات', _rows.length.toString()),
+              child: _buildSummaryChip(
+                'سجلات',
+                _rows.length.toString(),
+                Colors.blue,
+              ),
             ),
           ],
         ),
@@ -522,29 +535,34 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     );
   }
 
-  Widget _buildSummaryTile(String label, String value) {
+  Widget _buildSummaryChip(String label, String value, Color color) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(value),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 9, color: Colors.grey),
+        ),
       ],
     );
   }
 
   Widget _buildGuestsTable() {
     return AdminCard(
-      title: 'ملخص الديون حسب النزلاء',
+      title: 'ملخص حسب النزلاء',
       child: AdminTable(
-        headers: const ['اسم النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'],
+        headers: const ['النزيل', 'الدين', 'المدفوع', 'المتبقي'],
         rows: _guestSummaries
             .map(
               (guest) => [
-                Text(guest.guestName),
-                Text('${_currencyFormat.format(guest.totalAmount)}'),
-                Text('${_currencyFormat.format(guest.paidAmount)}'),
-                Text('${_currencyFormat.format(guest.remainingAmount)}'),
+                Text(guest.guestName, style: const TextStyle(fontSize: 11)),
+                Text('${_currencyFormat.format(guest.totalAmount)}', style: const TextStyle(fontSize: 11)),
+                Text('${_currencyFormat.format(guest.paidAmount)}', style: const TextStyle(fontSize: 11)),
+                Text('${_currencyFormat.format(guest.remainingAmount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
               ],
             )
             .toList(),
@@ -557,36 +575,24 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       title: 'تفاصيل السجلات',
       child: AdminTable(
         headers: const [
-          'اسم النزيل',
-          'تاريخ التسجيل',
-          'سبب الدين',
-          'تاريخ الدخول',
-          'تاريخ الخروج',
-          'إجمالي الدين',
-          'المدفوع',
-          'المتبقي',
-          'تاريخ الدفع',
-          'حالة السداد',
-          'الرهن',
-          'نوع الرهن',
+          'النزيل', 'التسجيل', 'السبب', 'الدخول', 'الخروج',
+          'الدين', 'المدفوع', 'المتبقي', 'الدفع', 'الحالة', 'الرهن', 'نوع الرهن',
         ],
         rows: _rows
             .map(
               (debt) => [
-                Text(debt.guestName),
-                Text(_formatDisplayDate(debt.dateRecorded)),
-                Text(_formatTextFallback(debt.debtReason)),
-                Text(Time.safeIsoToDateString(debt.checkinDate)),
-                Text(Time.safeIsoToDateString(debt.checkoutDate)),
-                Text('${_currencyFormat.format(debt.totalAmount)}'),
-                Text('${_currencyFormat.format(debt.paidAmount)}'),
-                Text('${_currencyFormat.format(debt.remainingAmount)}'),
-                Text(Time.safeIsoToDateString(debt.paymentDate)),
-                Text(_formatSettlement(debt.isSettled)),
-                Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-'),
-                Text(
-                  debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-',
-                ),
+                Text(debt.guestName, style: const TextStyle(fontSize: 10)),
+                Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 10)),
+                Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 10)),
+                Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 10)),
+                Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 10)),
+                Text('${_currencyFormat.format(debt.totalAmount)}', style: const TextStyle(fontSize: 10)),
+                Text('${_currencyFormat.format(debt.paidAmount)}', style: const TextStyle(fontSize: 10)),
+                Text('${_currencyFormat.format(debt.remainingAmount)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 10)),
+                Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 10)),
+                Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
+                Text(debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
               ],
             )
             .toList(),
@@ -599,13 +605,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     required DateTime? value,
     required VoidCallback onPressed,
   }) {
-    final text = value != null ? _dateFormat.format(value) : 'غير محدد';
+    final text = value != null ? _dateFormat.format(value) : '—';
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        textStyle: const TextStyle(fontSize: 11),
       ),
-      child: Text('$label: $text', style: const TextStyle(fontSize: 12)),
+      child: Text('$label: $text'),
     );
   }
 
@@ -622,16 +629,12 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   String _formatDisplayDate(String value) {
-    if (value.isEmpty) {
-      return '-';
-    }
+    if (value.isEmpty) return '-';
     return Time.safeIsoToDateString(value);
   }
 
   String _formatTextFallback(String value) {
-    if (value.trim().isEmpty) {
-      return '-';
-    }
+    if (value.trim().isEmpty) return '-';
     return value;
   }
 

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
+import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
 import 'appwrite_logs_screen.dart';
@@ -862,6 +864,20 @@ class _AppwriteSettingsScreenState
             ),
             const Divider(height: 24),
             _buildDataActionCard(
+              icon: Icons.backup,
+              color: Colors.purple,
+              title: 'نسخة احتياطية شاملة من السحابة',
+              subtitle: 'سحب كل الجداول والفهارس من Appwrite Cloud',
+              details: const [
+                'يشمل جميع الجداول والفهارس والبيانات',
+                'يتم حفظ النسخة في ملف JSON قابل للمشاركة',
+                'قد يستغرق وقتاً حسب حجم البيانات',
+              ],
+              actionLabel: 'إنشاء النسخة',
+              onPressed: _exportFullCloudBackup,
+            ),
+            const SizedBox(height: 12),
+            _buildDataActionCard(
               icon: Icons.cloud_upload,
               color: Colors.blue,
               title: 'رفع البيانات إلى Appwrite',
@@ -978,7 +994,7 @@ class _AppwriteSettingsScreenState
             ],
           ),
           const SizedBox(height: 6),
-          Text(subtitle, style: const TextStyle(color: Colors.black87)),
+          Text(subtitle, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87)),
           const SizedBox(height: 8),
           ...details.map(
             (detail) => Padding(
@@ -1219,6 +1235,114 @@ class _AppwriteSettingsScreenState
       }
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _exportFullCloudBackup() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('نسخة احتياطية شاملة من Appwrite'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('سيتم سحب كل الجداول والفهارس والبيانات من Appwrite Cloud.'),
+            SizedBox(height: 8),
+            Text('• سيتم إنشاء ملف JSON قابل للمشاركة'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+            Text('• يُفضّل توفر اتصال مستقر بالإنترنت'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('بدء النسخ'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('جاري إنشاء النسخة الاحتياطية الشاملة...'),
+          duration: Duration(minutes: 5),
+        ),
+      );
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final deviceId = ref.read(ap.appwriteSyncManagerProvider).currentDeviceId;
+      final service = AppwriteBackupService(
+        appwriteService: ref.read(ap.appwriteServiceProvider),
+      );
+      final result = await service.exportBackup(
+        deviceId: deviceId,
+        includeSchema: true,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      final sortedCounts = result.counts.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تم إنشاء النسخة الاحتياطية'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('المسار: ${result.file.path}'),
+                const SizedBox(height: 12),
+                Text('إجمالي السجلات: ${result.totalRecords}'),
+                const SizedBox(height: 8),
+                const Text('تفاصيل الجداول:'),
+                const SizedBox(height: 6),
+                ...sortedCounts.map((e) => Text('• ${e.key}: ${e.value}')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await Share.shareXFiles([XFile(result.file.path)]);
+              },
+              child: const Text('مشاركة'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 

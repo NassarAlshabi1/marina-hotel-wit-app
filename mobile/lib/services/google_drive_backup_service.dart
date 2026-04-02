@@ -369,6 +369,12 @@ class GoogleDriveBackupService {
       final debtsData = await db.select(db.debts).get();
       final salaryCyclesData = await db.select(db.salaryCycles).get();
       final salaryPaymentsData = await db.select(db.salaryPayments).get();
+      final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
+      final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
+      final auditLogsData = await db.select(db.auditLogs).get();
+      final paymentVoidsData = await db.select(db.paymentVoids).get();
+      final guestInfosData = await db.select(db.guestInfos).get();
+      final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
 
       final totalRecords =
           roomsData.length +
@@ -383,7 +389,13 @@ class GoogleDriveBackupService {
           paymentsData.length +
           debtsData.length +
           salaryCyclesData.length +
-          salaryPaymentsData.length;
+          salaryPaymentsData.length +
+          priceAdjustmentsData.length +
+          bookingPriceAdjData.length +
+          auditLogsData.length +
+          paymentVoidsData.length +
+          guestInfosData.length +
+          salaryWithdrawalsData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
@@ -418,6 +430,24 @@ class GoogleDriveBackupService {
             .toList(),
         'salary_payments': salaryPaymentsData
             .map((payment) => payment.toJson())
+            .toList(),
+        'price_adjustments': priceAdjustmentsData
+            .map((adj) => adj.toJson())
+            .toList(),
+        'booking_price_adjustments': bookingPriceAdjData
+            .map((adj) => adj.toJson())
+            .toList(),
+        'audit_logs': auditLogsData
+            .map((log) => log.toJson())
+            .toList(),
+        'payment_voids': paymentVoidsData
+            .map((v) => v.toJson())
+            .toList(),
+        'guest_infos': guestInfosData
+            .map((g) => g.toJson())
+            .toList(),
+        'salary_withdrawals': salaryWithdrawalsData
+            .map((s) => s.toJson())
             .toList(),
       };
 
@@ -748,28 +778,33 @@ class GoogleDriveBackupService {
       await db.transaction(() async {
         await db.customStatement('PRAGMA foreign_keys = OFF');
         try {
-          // حذف جميع الجداول
-          await db.delete(db.rooms).go();
-          await db.delete(db.bookings).go();
+          // حذف جميع الجداول (الأبناء أولاً لتجنب قيود المفاتيح الأجنبية)
           await db.delete(db.bookingNotes).go();
           await db.delete(db.bookingNights).go();
+          await db.delete(db.payments).go();
+          await db.delete(db.debts).go();
+          await db.delete(db.bookingPriceAdjustments).go();
+          await db.delete(db.bookings).go();
+          await db.delete(db.rooms).go();
+          await db.delete(db.salaryPayments).go();
+          await db.delete(db.salaryCycles).go();
+          await db.delete(db.integrityViolations).go();
+          await db.delete(db.autoFixRuns).go();
+          await db.delete(db.syncConflicts).go();
+          await db.delete(db.syncLog).go();
+          await db.delete(db.syncQueue).go();
+          await db.delete(db.syncState).go();
+          await db.delete(db.restoreFixLog).go();
+          await db.delete(db.appSessions).go();
           await db.delete(db.hotelDayLedger).go();
           await db.delete(db.shiftNotes).go();
           await db.delete(db.employees).go();
           await db.delete(db.expenses).go();
           await db.delete(db.cashTransactions).go();
-          await db.delete(db.payments).go();
-          await db.delete(db.debts).go();
-          await db.delete(db.autoFixRuns).go();
-          await db.delete(db.integrityViolations).go();
-          await db.delete(db.appSessions).go();
-          await db.delete(db.salaryCycles).go();
-          await db.delete(db.salaryPayments).go();
-          await db.delete(db.restoreFixLog).go();
-          await db.delete(db.syncQueue).go();
-          await db.delete(db.syncLog).go();
-          await db.delete(db.syncConflicts).go();
-          await db.delete(db.syncState).go();
+          await db.delete(db.auditLogs).go();
+          await db.delete(db.paymentVoids).go();
+          await db.delete(db.guestInfos).go();
+          await db.delete(db.salaryWithdrawals).go();
 
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
@@ -943,6 +978,66 @@ class GoogleDriveBackupService {
             for (final salaryJson in salaryList) {
               await adapterRegistry.salaryPayments.upsertFromJson(
                 Map<String, dynamic>.from(salaryJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('salary_withdrawals')) {
+            final withdrawalsList = backupData['salary_withdrawals'] as List<dynamic>;
+            for (final wJson in withdrawalsList) {
+              await adapterRegistry.salaryWithdrawals.upsertFromJson(
+                Map<String, dynamic>.from(wJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('price_adjustments')) {
+            final adjList = backupData['price_adjustments'] as List<dynamic>;
+            for (final adjJson in adjList) {
+              await adapterRegistry.priceAdjustments.upsertFromJson(
+                Map<String, dynamic>.from(adjJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('booking_price_adjustments')) {
+            final bpaList = backupData['booking_price_adjustments'] as List<dynamic>;
+            for (final bpaJson in bpaList) {
+              await adapterRegistry.bookingPriceAdjustments.upsertFromJson(
+                Map<String, dynamic>.from(bpaJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('audit_logs')) {
+            final logsList = backupData['audit_logs'] as List<dynamic>;
+            for (final logJson in logsList) {
+              await adapterRegistry.auditLogs.upsertFromJson(
+                Map<String, dynamic>.from(logJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('payment_voids')) {
+            final voidsList = backupData['payment_voids'] as List<dynamic>;
+            for (final voidJson in voidsList) {
+              await adapterRegistry.paymentVoids.upsertFromJson(
+                Map<String, dynamic>.from(voidJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('guest_infos')) {
+            final guestList = backupData['guest_infos'] as List<dynamic>;
+            for (final guestJson in guestList) {
+              await adapterRegistry.guestInfos.upsertFromJson(
+                Map<String, dynamic>.from(guestJson as Map),
                 src: Source.drive,
               );
             }

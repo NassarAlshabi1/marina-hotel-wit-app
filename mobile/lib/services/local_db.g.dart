@@ -8561,6 +8561,40 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
   late final GeneratedColumn<String> bookingUuidCache = GeneratedColumn<String>(
       'booking_uuid_cache', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _discountAmountMeta =
+      const VerificationMeta('discountAmount');
+  @override
+  late final GeneratedColumn<double> discountAmount = GeneratedColumn<double>(
+      'discount_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _discountStartDateMeta =
+      const VerificationMeta('discountStartDate');
+  @override
+  late final GeneratedColumn<String> discountStartDate =
+      GeneratedColumn<String>('discount_start_date', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isVoidedMeta =
+      const VerificationMeta('isVoided');
+  @override
+  late final GeneratedColumn<bool> isVoided = GeneratedColumn<bool>(
+      'is_voided', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_voided" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _voidedAtMeta =
+      const VerificationMeta('voidedAt');
+  @override
+  late final GeneratedColumn<int> voidedAt = GeneratedColumn<int>(
+      'voided_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _voidedByMeta =
+      const VerificationMeta('voidedBy');
+  @override
+  late final GeneratedColumn<String> voidedBy = GeneratedColumn<String>(
+      'voided_by', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         localUuid,
@@ -8593,7 +8627,12 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         hotelDayKey,
         isPendingBalance,
         linkedDebtUuid,
-        bookingUuidCache
+        bookingUuidCache,
+        discountAmount,
+        discountStartDate,
+        isVoided,
+        voidedAt,
+        voidedBy
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8787,6 +8826,30 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
           bookingUuidCache.isAcceptableOrUnknown(
               data['booking_uuid_cache']!, _bookingUuidCacheMeta));
     }
+    if (data.containsKey('discount_amount')) {
+      context.handle(
+          _discountAmountMeta,
+          discountAmount.isAcceptableOrUnknown(
+              data['discount_amount']!, _discountAmountMeta));
+    }
+    if (data.containsKey('discount_start_date')) {
+      context.handle(
+          _discountStartDateMeta,
+          discountStartDate.isAcceptableOrUnknown(
+              data['discount_start_date']!, _discountStartDateMeta));
+    }
+    if (data.containsKey('is_voided')) {
+      context.handle(_isVoidedMeta,
+          isVoided.isAcceptableOrUnknown(data['is_voided']!, _isVoidedMeta));
+    }
+    if (data.containsKey('voided_at')) {
+      context.handle(_voidedAtMeta,
+          voidedAt.isAcceptableOrUnknown(data['voided_at']!, _voidedAtMeta));
+    }
+    if (data.containsKey('voided_by')) {
+      context.handle(_voidedByMeta,
+          voidedBy.isAcceptableOrUnknown(data['voided_by']!, _voidedByMeta));
+    }
     return context;
   }
 
@@ -8860,6 +8923,16 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
           DriftSqlType.string, data['${effectivePrefix}linked_debt_uuid']),
       bookingUuidCache: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}booking_uuid_cache']),
+      discountAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}discount_amount']),
+      discountStartDate: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}discount_start_date']),
+      isVoided: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_voided'])!,
+      voidedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}voided_at']),
+      voidedBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}voided_by']),
     );
   }
 
@@ -8901,6 +8974,11 @@ class Payment extends DataClass implements Insertable<Payment> {
   final bool isPendingBalance;
   final String? linkedDebtUuid;
   final String? bookingUuidCache;
+  final double? discountAmount;
+  final String? discountStartDate;
+  final bool isVoided;
+  final int? voidedAt;
+  final String? voidedBy;
   const Payment(
       {required this.localUuid,
       this.serverId,
@@ -8932,7 +9010,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       this.hotelDayKey,
       required this.isPendingBalance,
       this.linkedDebtUuid,
-      this.bookingUuidCache});
+      this.bookingUuidCache,
+      this.discountAmount,
+      this.discountStartDate,
+      required this.isVoided,
+      this.voidedAt,
+      this.voidedBy});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -8999,6 +9082,19 @@ class Payment extends DataClass implements Insertable<Payment> {
     }
     if (!nullToAbsent || bookingUuidCache != null) {
       map['booking_uuid_cache'] = Variable<String>(bookingUuidCache);
+    }
+    if (!nullToAbsent || discountAmount != null) {
+      map['discount_amount'] = Variable<double>(discountAmount);
+    }
+    if (!nullToAbsent || discountStartDate != null) {
+      map['discount_start_date'] = Variable<String>(discountStartDate);
+    }
+    map['is_voided'] = Variable<bool>(isVoided);
+    if (!nullToAbsent || voidedAt != null) {
+      map['voided_at'] = Variable<int>(voidedAt);
+    }
+    if (!nullToAbsent || voidedBy != null) {
+      map['voided_by'] = Variable<String>(voidedBy);
     }
     return map;
   }
@@ -9067,6 +9163,19 @@ class Payment extends DataClass implements Insertable<Payment> {
       bookingUuidCache: bookingUuidCache == null && nullToAbsent
           ? const Value.absent()
           : Value(bookingUuidCache),
+      discountAmount: discountAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountAmount),
+      discountStartDate: discountStartDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountStartDate),
+      isVoided: Value(isVoided),
+      voidedAt: voidedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voidedAt),
+      voidedBy: voidedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voidedBy),
     );
   }
 
@@ -9107,6 +9216,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       isPendingBalance: serializer.fromJson<bool>(json['isPendingBalance']),
       linkedDebtUuid: serializer.fromJson<String?>(json['linkedDebtUuid']),
       bookingUuidCache: serializer.fromJson<String?>(json['bookingUuidCache']),
+      discountAmount: serializer.fromJson<double?>(json['discountAmount']),
+      discountStartDate:
+          serializer.fromJson<String?>(json['discountStartDate']),
+      isVoided: serializer.fromJson<bool>(json['isVoided']),
+      voidedAt: serializer.fromJson<int?>(json['voidedAt']),
+      voidedBy: serializer.fromJson<String?>(json['voidedBy']),
     );
   }
   @override
@@ -9145,6 +9260,11 @@ class Payment extends DataClass implements Insertable<Payment> {
       'isPendingBalance': serializer.toJson<bool>(isPendingBalance),
       'linkedDebtUuid': serializer.toJson<String?>(linkedDebtUuid),
       'bookingUuidCache': serializer.toJson<String?>(bookingUuidCache),
+      'discountAmount': serializer.toJson<double?>(discountAmount),
+      'discountStartDate': serializer.toJson<String?>(discountStartDate),
+      'isVoided': serializer.toJson<bool>(isVoided),
+      'voidedAt': serializer.toJson<int?>(voidedAt),
+      'voidedBy': serializer.toJson<String?>(voidedBy),
     };
   }
 
@@ -9179,7 +9299,12 @@ class Payment extends DataClass implements Insertable<Payment> {
           Value<String?> hotelDayKey = const Value.absent(),
           bool? isPendingBalance,
           Value<String?> linkedDebtUuid = const Value.absent(),
-          Value<String?> bookingUuidCache = const Value.absent()}) =>
+          Value<String?> bookingUuidCache = const Value.absent(),
+          Value<double?> discountAmount = const Value.absent(),
+          Value<String?> discountStartDate = const Value.absent(),
+          bool? isVoided,
+          Value<int?> voidedAt = const Value.absent(),
+          Value<String?> voidedBy = const Value.absent()}) =>
       Payment(
         localUuid: localUuid ?? this.localUuid,
         serverId: serverId.present ? serverId.value : this.serverId,
@@ -9229,6 +9354,14 @@ class Payment extends DataClass implements Insertable<Payment> {
         bookingUuidCache: bookingUuidCache.present
             ? bookingUuidCache.value
             : this.bookingUuidCache,
+        discountAmount:
+            discountAmount.present ? discountAmount.value : this.discountAmount,
+        discountStartDate: discountStartDate.present
+            ? discountStartDate.value
+            : this.discountStartDate,
+        isVoided: isVoided ?? this.isVoided,
+        voidedAt: voidedAt.present ? voidedAt.value : this.voidedAt,
+        voidedBy: voidedBy.present ? voidedBy.value : this.voidedBy,
       );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -9300,6 +9433,15 @@ class Payment extends DataClass implements Insertable<Payment> {
       bookingUuidCache: data.bookingUuidCache.present
           ? data.bookingUuidCache.value
           : this.bookingUuidCache,
+      discountAmount: data.discountAmount.present
+          ? data.discountAmount.value
+          : this.discountAmount,
+      discountStartDate: data.discountStartDate.present
+          ? data.discountStartDate.value
+          : this.discountStartDate,
+      isVoided: data.isVoided.present ? data.isVoided.value : this.isVoided,
+      voidedAt: data.voidedAt.present ? data.voidedAt.value : this.voidedAt,
+      voidedBy: data.voidedBy.present ? data.voidedBy.value : this.voidedBy,
     );
   }
 
@@ -9336,7 +9478,12 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('isPendingBalance: $isPendingBalance, ')
           ..write('linkedDebtUuid: $linkedDebtUuid, ')
-          ..write('bookingUuidCache: $bookingUuidCache')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('discountAmount: $discountAmount, ')
+          ..write('discountStartDate: $discountStartDate, ')
+          ..write('isVoided: $isVoided, ')
+          ..write('voidedAt: $voidedAt, ')
+          ..write('voidedBy: $voidedBy')
           ..write(')'))
         .toString();
   }
@@ -9373,7 +9520,12 @@ class Payment extends DataClass implements Insertable<Payment> {
         hotelDayKey,
         isPendingBalance,
         linkedDebtUuid,
-        bookingUuidCache
+        bookingUuidCache,
+        discountAmount,
+        discountStartDate,
+        isVoided,
+        voidedAt,
+        voidedBy
       ]);
   @override
   bool operator ==(Object other) =>
@@ -9409,7 +9561,12 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.hotelDayKey == this.hotelDayKey &&
           other.isPendingBalance == this.isPendingBalance &&
           other.linkedDebtUuid == this.linkedDebtUuid &&
-          other.bookingUuidCache == this.bookingUuidCache);
+          other.bookingUuidCache == this.bookingUuidCache &&
+          other.discountAmount == this.discountAmount &&
+          other.discountStartDate == this.discountStartDate &&
+          other.isVoided == this.isVoided &&
+          other.voidedAt == this.voidedAt &&
+          other.voidedBy == this.voidedBy);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -9444,6 +9601,11 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<bool> isPendingBalance;
   final Value<String?> linkedDebtUuid;
   final Value<String?> bookingUuidCache;
+  final Value<double?> discountAmount;
+  final Value<String?> discountStartDate;
+  final Value<bool> isVoided;
+  final Value<int?> voidedAt;
+  final Value<String?> voidedBy;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -9476,6 +9638,11 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isPendingBalance = const Value.absent(),
     this.linkedDebtUuid = const Value.absent(),
     this.bookingUuidCache = const Value.absent(),
+    this.discountAmount = const Value.absent(),
+    this.discountStartDate = const Value.absent(),
+    this.isVoided = const Value.absent(),
+    this.voidedAt = const Value.absent(),
+    this.voidedBy = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -9509,6 +9676,11 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isPendingBalance = const Value.absent(),
     this.linkedDebtUuid = const Value.absent(),
     this.bookingUuidCache = const Value.absent(),
+    this.discountAmount = const Value.absent(),
+    this.discountStartDate = const Value.absent(),
+    this.isVoided = const Value.absent(),
+    this.voidedAt = const Value.absent(),
+    this.voidedBy = const Value.absent(),
   })  : localUuid = Value(localUuid),
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
@@ -9549,6 +9721,11 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<bool>? isPendingBalance,
     Expression<String>? linkedDebtUuid,
     Expression<String>? bookingUuidCache,
+    Expression<double>? discountAmount,
+    Expression<String>? discountStartDate,
+    Expression<bool>? isVoided,
+    Expression<int>? voidedAt,
+    Expression<String>? voidedBy,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -9584,6 +9761,11 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (isPendingBalance != null) 'is_pending_balance': isPendingBalance,
       if (linkedDebtUuid != null) 'linked_debt_uuid': linkedDebtUuid,
       if (bookingUuidCache != null) 'booking_uuid_cache': bookingUuidCache,
+      if (discountAmount != null) 'discount_amount': discountAmount,
+      if (discountStartDate != null) 'discount_start_date': discountStartDate,
+      if (isVoided != null) 'is_voided': isVoided,
+      if (voidedAt != null) 'voided_at': voidedAt,
+      if (voidedBy != null) 'voided_by': voidedBy,
     });
   }
 
@@ -9618,7 +9800,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       Value<String?>? hotelDayKey,
       Value<bool>? isPendingBalance,
       Value<String?>? linkedDebtUuid,
-      Value<String?>? bookingUuidCache}) {
+      Value<String?>? bookingUuidCache,
+      Value<double?>? discountAmount,
+      Value<String?>? discountStartDate,
+      Value<bool>? isVoided,
+      Value<int?>? voidedAt,
+      Value<String?>? voidedBy}) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
       serverId: serverId ?? this.serverId,
@@ -9653,6 +9840,11 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       isPendingBalance: isPendingBalance ?? this.isPendingBalance,
       linkedDebtUuid: linkedDebtUuid ?? this.linkedDebtUuid,
       bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountStartDate: discountStartDate ?? this.discountStartDate,
+      isVoided: isVoided ?? this.isVoided,
+      voidedAt: voidedAt ?? this.voidedAt,
+      voidedBy: voidedBy ?? this.voidedBy,
     );
   }
 
@@ -9754,6 +9946,21 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (bookingUuidCache.present) {
       map['booking_uuid_cache'] = Variable<String>(bookingUuidCache.value);
     }
+    if (discountAmount.present) {
+      map['discount_amount'] = Variable<double>(discountAmount.value);
+    }
+    if (discountStartDate.present) {
+      map['discount_start_date'] = Variable<String>(discountStartDate.value);
+    }
+    if (isVoided.present) {
+      map['is_voided'] = Variable<bool>(isVoided.value);
+    }
+    if (voidedAt.present) {
+      map['voided_at'] = Variable<int>(voidedAt.value);
+    }
+    if (voidedBy.present) {
+      map['voided_by'] = Variable<String>(voidedBy.value);
+    }
     return map;
   }
 
@@ -9790,7 +9997,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('isPendingBalance: $isPendingBalance, ')
           ..write('linkedDebtUuid: $linkedDebtUuid, ')
-          ..write('bookingUuidCache: $bookingUuidCache')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('discountAmount: $discountAmount, ')
+          ..write('discountStartDate: $discountStartDate, ')
+          ..write('isVoided: $isVoided, ')
+          ..write('voidedAt: $voidedAt, ')
+          ..write('voidedBy: $voidedBy')
           ..write(')'))
         .toString();
   }
@@ -19268,8 +19480,10 @@ class $SyncLogTable extends SyncLog with TableInfo<$SyncLogTable, SyncLogData> {
       const VerificationMeta('operations');
   @override
   late final GeneratedColumn<String> operations = GeneratedColumn<String>(
-      'operations', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+      'operations', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
   static const VerificationMeta _checksumMatchedMeta =
       const VerificationMeta('checksumMatched');
   @override
@@ -19352,8 +19566,6 @@ class $SyncLogTable extends SyncLog with TableInfo<$SyncLogTable, SyncLogData> {
           _operationsMeta,
           operations.isAcceptableOrUnknown(
               data['operations']!, _operationsMeta));
-    } else if (isInserting) {
-      context.missing(_operationsMeta);
     }
     if (data.containsKey('checksum_matched')) {
       context.handle(
@@ -19397,7 +19609,7 @@ class $SyncLogTable extends SyncLog with TableInfo<$SyncLogTable, SyncLogData> {
       metadata: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}metadata'])!,
       operations: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}operations'])!,
+          .read(DriftSqlType.string, data['${effectivePrefix}operations']),
       checksumMatched: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}checksum_matched'])!,
       status: attachedDatabase.typeMapping
@@ -19421,7 +19633,7 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
   final String direction;
   final String deviceId;
   final String metadata;
-  final String operations;
+  final String? operations;
   final int checksumMatched;
   final String status;
   final String createdAt;
@@ -19432,7 +19644,7 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
       required this.direction,
       required this.deviceId,
       required this.metadata,
-      required this.operations,
+      this.operations,
       required this.checksumMatched,
       required this.status,
       required this.createdAt,
@@ -19445,7 +19657,9 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
     map['direction'] = Variable<String>(direction);
     map['device_id'] = Variable<String>(deviceId);
     map['metadata'] = Variable<String>(metadata);
-    map['operations'] = Variable<String>(operations);
+    if (!nullToAbsent || operations != null) {
+      map['operations'] = Variable<String>(operations);
+    }
     map['checksum_matched'] = Variable<int>(checksumMatched);
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<String>(createdAt);
@@ -19462,7 +19676,9 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
       direction: Value(direction),
       deviceId: Value(deviceId),
       metadata: Value(metadata),
-      operations: Value(operations),
+      operations: operations == null && nullToAbsent
+          ? const Value.absent()
+          : Value(operations),
       checksumMatched: Value(checksumMatched),
       status: Value(status),
       createdAt: Value(createdAt),
@@ -19481,7 +19697,7 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
       direction: serializer.fromJson<String>(json['direction']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
       metadata: serializer.fromJson<String>(json['metadata']),
-      operations: serializer.fromJson<String>(json['operations']),
+      operations: serializer.fromJson<String?>(json['operations']),
       checksumMatched: serializer.fromJson<int>(json['checksumMatched']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
@@ -19497,7 +19713,7 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
       'direction': serializer.toJson<String>(direction),
       'deviceId': serializer.toJson<String>(deviceId),
       'metadata': serializer.toJson<String>(metadata),
-      'operations': serializer.toJson<String>(operations),
+      'operations': serializer.toJson<String?>(operations),
       'checksumMatched': serializer.toJson<int>(checksumMatched),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<String>(createdAt),
@@ -19511,7 +19727,7 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
           String? direction,
           String? deviceId,
           String? metadata,
-          String? operations,
+          Value<String?> operations = const Value.absent(),
           int? checksumMatched,
           String? status,
           String? createdAt,
@@ -19522,7 +19738,7 @@ class SyncLogData extends DataClass implements Insertable<SyncLogData> {
         direction: direction ?? this.direction,
         deviceId: deviceId ?? this.deviceId,
         metadata: metadata ?? this.metadata,
-        operations: operations ?? this.operations,
+        operations: operations.present ? operations.value : this.operations,
         checksumMatched: checksumMatched ?? this.checksumMatched,
         status: status ?? this.status,
         createdAt: createdAt ?? this.createdAt,
@@ -19589,7 +19805,7 @@ class SyncLogCompanion extends UpdateCompanion<SyncLogData> {
   final Value<String> direction;
   final Value<String> deviceId;
   final Value<String> metadata;
-  final Value<String> operations;
+  final Value<String?> operations;
   final Value<int> checksumMatched;
   final Value<String> status;
   final Value<String> createdAt;
@@ -19612,7 +19828,7 @@ class SyncLogCompanion extends UpdateCompanion<SyncLogData> {
     required String direction,
     required String deviceId,
     required String metadata,
-    required String operations,
+    this.operations = const Value.absent(),
     this.checksumMatched = const Value.absent(),
     this.status = const Value.absent(),
     required String createdAt,
@@ -19621,7 +19837,6 @@ class SyncLogCompanion extends UpdateCompanion<SyncLogData> {
         direction = Value(direction),
         deviceId = Value(deviceId),
         metadata = Value(metadata),
-        operations = Value(operations),
         createdAt = Value(createdAt);
   static Insertable<SyncLogData> custom({
     Expression<int>? id,
@@ -19655,7 +19870,7 @@ class SyncLogCompanion extends UpdateCompanion<SyncLogData> {
       Value<String>? direction,
       Value<String>? deviceId,
       Value<String>? metadata,
-      Value<String>? operations,
+      Value<String?>? operations,
       Value<int>? checksumMatched,
       Value<String>? status,
       Value<String>? createdAt,
@@ -21821,8 +22036,8 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
           .read(DriftSqlType.int, data['${effectivePrefix}booking_local_id']),
       adjustmentType: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}adjustment_type'])!,
-      adjustmentMode: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}adjustment_mode'])!,
+      adjustmentMode: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}adjustment_mode'])!,
       amount: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
       effectiveHotelDay: attachedDatabase.typeMapping.read(
@@ -24697,6 +24912,2124 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   }
 }
 
+class $GuestInfosTable extends GuestInfos
+    with TableInfo<$GuestInfosTable, GuestInfo> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GuestInfosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta =
+      const VerificationMeta('localUuid');
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+      'local_uuid', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtIsoMeta =
+      const VerificationMeta('createdAtIso');
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+      'created_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtIsoMeta =
+      const VerificationMeta('updatedAtIso');
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+      'updated_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtIsoMeta =
+      const VerificationMeta('deletedAtIso');
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+      'deleted_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtEpochMeta =
+      const VerificationMeta('createdAtEpoch');
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+      'created_at_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastModifiedEpochMeta =
+      const VerificationMeta('lastModifiedEpoch');
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+      'last_modified_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
+  static const VerificationMeta _vectorClockMeta =
+      const VerificationMeta('vectorClock');
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+      'vector_clock', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _roomNumberMeta =
+      const VerificationMeta('roomNumber');
+  @override
+  late final GeneratedColumn<String> roomNumber = GeneratedColumn<String>(
+      'room_number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _guestNameMeta =
+      const VerificationMeta('guestName');
+  @override
+  late final GeneratedColumn<String> guestName = GeneratedColumn<String>(
+      'guest_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nationalityMeta =
+      const VerificationMeta('nationality');
+  @override
+  late final GeneratedColumn<String> nationality = GeneratedColumn<String>(
+      'nationality', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _idNumberMeta =
+      const VerificationMeta('idNumber');
+  @override
+  late final GeneratedColumn<String> idNumber = GeneratedColumn<String>(
+      'id_number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _idTypeMeta = const VerificationMeta('idType');
+  @override
+  late final GeneratedColumn<String> idType = GeneratedColumn<String>(
+      'id_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('بطاقة شخصية'));
+  static const VerificationMeta _issueDateMeta =
+      const VerificationMeta('issueDate');
+  @override
+  late final GeneratedColumn<String> issueDate = GeneratedColumn<String>(
+      'issue_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _issuePlaceMeta =
+      const VerificationMeta('issuePlace');
+  @override
+  late final GeneratedColumn<String> issuePlace = GeneratedColumn<String>(
+      'issue_place', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _governorateMeta =
+      const VerificationMeta('governorate');
+  @override
+  late final GeneratedColumn<String> governorate = GeneratedColumn<String>(
+      'governorate', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        roomNumber,
+        guestName,
+        nationality,
+        idNumber,
+        idType,
+        issueDate,
+        issuePlace,
+        governorate,
+        notes
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'guest_infos';
+  @override
+  VerificationContext validateIntegrity(Insertable<GuestInfo> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(_localUuidMeta,
+          localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta));
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+          _createdAtIsoMeta,
+          createdAtIso.isAcceptableOrUnknown(
+              data['created_at_iso']!, _createdAtIsoMeta));
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+          _updatedAtIsoMeta,
+          updatedAtIso.isAcceptableOrUnknown(
+              data['updated_at_iso']!, _updatedAtIsoMeta));
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+          _deletedAtIsoMeta,
+          deletedAtIso.isAcceptableOrUnknown(
+              data['deleted_at_iso']!, _deletedAtIsoMeta));
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+          _createdAtEpochMeta,
+          createdAtEpoch.isAcceptableOrUnknown(
+              data['created_at_epoch']!, _createdAtEpochMeta));
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+          _lastModifiedEpochMeta,
+          lastModifiedEpoch.isAcceptableOrUnknown(
+              data['last_modified_epoch']!, _lastModifiedEpochMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+          _vectorClockMeta,
+          vectorClock.isAcceptableOrUnknown(
+              data['vector_clock']!, _vectorClockMeta));
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('room_number')) {
+      context.handle(
+          _roomNumberMeta,
+          roomNumber.isAcceptableOrUnknown(
+              data['room_number']!, _roomNumberMeta));
+    } else if (isInserting) {
+      context.missing(_roomNumberMeta);
+    }
+    if (data.containsKey('guest_name')) {
+      context.handle(_guestNameMeta,
+          guestName.isAcceptableOrUnknown(data['guest_name']!, _guestNameMeta));
+    } else if (isInserting) {
+      context.missing(_guestNameMeta);
+    }
+    if (data.containsKey('nationality')) {
+      context.handle(
+          _nationalityMeta,
+          nationality.isAcceptableOrUnknown(
+              data['nationality']!, _nationalityMeta));
+    } else if (isInserting) {
+      context.missing(_nationalityMeta);
+    }
+    if (data.containsKey('id_number')) {
+      context.handle(_idNumberMeta,
+          idNumber.isAcceptableOrUnknown(data['id_number']!, _idNumberMeta));
+    } else if (isInserting) {
+      context.missing(_idNumberMeta);
+    }
+    if (data.containsKey('id_type')) {
+      context.handle(_idTypeMeta,
+          idType.isAcceptableOrUnknown(data['id_type']!, _idTypeMeta));
+    }
+    if (data.containsKey('issue_date')) {
+      context.handle(_issueDateMeta,
+          issueDate.isAcceptableOrUnknown(data['issue_date']!, _issueDateMeta));
+    }
+    if (data.containsKey('issue_place')) {
+      context.handle(
+          _issuePlaceMeta,
+          issuePlace.isAcceptableOrUnknown(
+              data['issue_place']!, _issuePlaceMeta));
+    }
+    if (data.containsKey('governorate')) {
+      context.handle(
+          _governorateMeta,
+          governorate.isAcceptableOrUnknown(
+              data['governorate']!, _governorateMeta));
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GuestInfo map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GuestInfo(
+      localUuid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uuid'])!,
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}server_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deleted_at']),
+      lastModified: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_modified'])!,
+      createdAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at_iso']),
+      updatedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at_iso']),
+      deletedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at_iso']),
+      createdAtEpoch: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_epoch'])!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}last_modified_epoch'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      vectorClock: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}vector_clock'])!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      roomNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}room_number'])!,
+      guestName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}guest_name'])!,
+      nationality: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}nationality'])!,
+      idNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id_number'])!,
+      idType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id_type'])!,
+      issueDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}issue_date']),
+      issuePlace: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}issue_place']),
+      governorate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}governorate']),
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+    );
+  }
+
+  @override
+  $GuestInfosTable createAlias(String alias) {
+    return $GuestInfosTable(attachedDatabase, alias);
+  }
+}
+
+class GuestInfo extends DataClass implements Insertable<GuestInfo> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final int id;
+  final String roomNumber;
+  final String guestName;
+  final String nationality;
+  final String idNumber;
+  final String idType;
+  final String? issueDate;
+  final String? issuePlace;
+  final String? governorate;
+  final String? notes;
+  const GuestInfo(
+      {required this.localUuid,
+      this.serverId,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt,
+      required this.lastModified,
+      this.createdAtIso,
+      this.updatedAtIso,
+      this.deletedAtIso,
+      required this.createdAtEpoch,
+      required this.lastModifiedEpoch,
+      required this.version,
+      required this.origin,
+      required this.vectorClock,
+      required this.id,
+      required this.roomNumber,
+      required this.guestName,
+      required this.nationality,
+      required this.idNumber,
+      required this.idType,
+      this.issueDate,
+      this.issuePlace,
+      this.governorate,
+      this.notes});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['id'] = Variable<int>(id);
+    map['room_number'] = Variable<String>(roomNumber);
+    map['guest_name'] = Variable<String>(guestName);
+    map['nationality'] = Variable<String>(nationality);
+    map['id_number'] = Variable<String>(idNumber);
+    map['id_type'] = Variable<String>(idType);
+    if (!nullToAbsent || issueDate != null) {
+      map['issue_date'] = Variable<String>(issueDate);
+    }
+    if (!nullToAbsent || issuePlace != null) {
+      map['issue_place'] = Variable<String>(issuePlace);
+    }
+    if (!nullToAbsent || governorate != null) {
+      map['governorate'] = Variable<String>(governorate);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  GuestInfosCompanion toCompanion(bool nullToAbsent) {
+    return GuestInfosCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      id: Value(id),
+      roomNumber: Value(roomNumber),
+      guestName: Value(guestName),
+      nationality: Value(nationality),
+      idNumber: Value(idNumber),
+      idType: Value(idType),
+      issueDate: issueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueDate),
+      issuePlace: issuePlace == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issuePlace),
+      governorate: governorate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(governorate),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+    );
+  }
+
+  factory GuestInfo.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GuestInfo(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      id: serializer.fromJson<int>(json['id']),
+      roomNumber: serializer.fromJson<String>(json['roomNumber']),
+      guestName: serializer.fromJson<String>(json['guestName']),
+      nationality: serializer.fromJson<String>(json['nationality']),
+      idNumber: serializer.fromJson<String>(json['idNumber']),
+      idType: serializer.fromJson<String>(json['idType']),
+      issueDate: serializer.fromJson<String?>(json['issueDate']),
+      issuePlace: serializer.fromJson<String?>(json['issuePlace']),
+      governorate: serializer.fromJson<String?>(json['governorate']),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'id': serializer.toJson<int>(id),
+      'roomNumber': serializer.toJson<String>(roomNumber),
+      'guestName': serializer.toJson<String>(guestName),
+      'nationality': serializer.toJson<String>(nationality),
+      'idNumber': serializer.toJson<String>(idNumber),
+      'idType': serializer.toJson<String>(idType),
+      'issueDate': serializer.toJson<String?>(issueDate),
+      'issuePlace': serializer.toJson<String?>(issuePlace),
+      'governorate': serializer.toJson<String?>(governorate),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  GuestInfo copyWith(
+          {String? localUuid,
+          Value<int?> serverId = const Value.absent(),
+          int? createdAt,
+          int? updatedAt,
+          Value<int?> deletedAt = const Value.absent(),
+          int? lastModified,
+          Value<String?> createdAtIso = const Value.absent(),
+          Value<String?> updatedAtIso = const Value.absent(),
+          Value<String?> deletedAtIso = const Value.absent(),
+          int? createdAtEpoch,
+          int? lastModifiedEpoch,
+          int? version,
+          String? origin,
+          String? vectorClock,
+          int? id,
+          String? roomNumber,
+          String? guestName,
+          String? nationality,
+          String? idNumber,
+          String? idType,
+          Value<String?> issueDate = const Value.absent(),
+          Value<String?> issuePlace = const Value.absent(),
+          Value<String?> governorate = const Value.absent(),
+          Value<String?> notes = const Value.absent()}) =>
+      GuestInfo(
+        localUuid: localUuid ?? this.localUuid,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        lastModified: lastModified ?? this.lastModified,
+        createdAtIso:
+            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+        updatedAtIso:
+            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+        deletedAtIso:
+            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+        version: version ?? this.version,
+        origin: origin ?? this.origin,
+        vectorClock: vectorClock ?? this.vectorClock,
+        id: id ?? this.id,
+        roomNumber: roomNumber ?? this.roomNumber,
+        guestName: guestName ?? this.guestName,
+        nationality: nationality ?? this.nationality,
+        idNumber: idNumber ?? this.idNumber,
+        idType: idType ?? this.idType,
+        issueDate: issueDate.present ? issueDate.value : this.issueDate,
+        issuePlace: issuePlace.present ? issuePlace.value : this.issuePlace,
+        governorate: governorate.present ? governorate.value : this.governorate,
+        notes: notes.present ? notes.value : this.notes,
+      );
+  GuestInfo copyWithCompanion(GuestInfosCompanion data) {
+    return GuestInfo(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock:
+          data.vectorClock.present ? data.vectorClock.value : this.vectorClock,
+      id: data.id.present ? data.id.value : this.id,
+      roomNumber:
+          data.roomNumber.present ? data.roomNumber.value : this.roomNumber,
+      guestName: data.guestName.present ? data.guestName.value : this.guestName,
+      nationality:
+          data.nationality.present ? data.nationality.value : this.nationality,
+      idNumber: data.idNumber.present ? data.idNumber.value : this.idNumber,
+      idType: data.idType.present ? data.idType.value : this.idType,
+      issueDate: data.issueDate.present ? data.issueDate.value : this.issueDate,
+      issuePlace:
+          data.issuePlace.present ? data.issuePlace.value : this.issuePlace,
+      governorate:
+          data.governorate.present ? data.governorate.value : this.governorate,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuestInfo(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('roomNumber: $roomNumber, ')
+          ..write('guestName: $guestName, ')
+          ..write('nationality: $nationality, ')
+          ..write('idNumber: $idNumber, ')
+          ..write('idType: $idType, ')
+          ..write('issueDate: $issueDate, ')
+          ..write('issuePlace: $issuePlace, ')
+          ..write('governorate: $governorate, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        roomNumber,
+        guestName,
+        nationality,
+        idNumber,
+        idType,
+        issueDate,
+        issuePlace,
+        governorate,
+        notes
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GuestInfo &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.id == this.id &&
+          other.roomNumber == this.roomNumber &&
+          other.guestName == this.guestName &&
+          other.nationality == this.nationality &&
+          other.idNumber == this.idNumber &&
+          other.idType == this.idType &&
+          other.issueDate == this.issueDate &&
+          other.issuePlace == this.issuePlace &&
+          other.governorate == this.governorate &&
+          other.notes == this.notes);
+}
+
+class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<int> id;
+  final Value<String> roomNumber;
+  final Value<String> guestName;
+  final Value<String> nationality;
+  final Value<String> idNumber;
+  final Value<String> idType;
+  final Value<String?> issueDate;
+  final Value<String?> issuePlace;
+  final Value<String?> governorate;
+  final Value<String?> notes;
+  const GuestInfosCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    this.roomNumber = const Value.absent(),
+    this.guestName = const Value.absent(),
+    this.nationality = const Value.absent(),
+    this.idNumber = const Value.absent(),
+    this.idType = const Value.absent(),
+    this.issueDate = const Value.absent(),
+    this.issuePlace = const Value.absent(),
+    this.governorate = const Value.absent(),
+    this.notes = const Value.absent(),
+  });
+  GuestInfosCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    required String roomNumber,
+    required String guestName,
+    required String nationality,
+    required String idNumber,
+    this.idType = const Value.absent(),
+    this.issueDate = const Value.absent(),
+    this.issuePlace = const Value.absent(),
+    this.governorate = const Value.absent(),
+    this.notes = const Value.absent(),
+  })  : localUuid = Value(localUuid),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt),
+        lastModified = Value(lastModified),
+        roomNumber = Value(roomNumber),
+        guestName = Value(guestName),
+        nationality = Value(nationality),
+        idNumber = Value(idNumber);
+  static Insertable<GuestInfo> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<int>? id,
+    Expression<String>? roomNumber,
+    Expression<String>? guestName,
+    Expression<String>? nationality,
+    Expression<String>? idNumber,
+    Expression<String>? idType,
+    Expression<String>? issueDate,
+    Expression<String>? issuePlace,
+    Expression<String>? governorate,
+    Expression<String>? notes,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (id != null) 'id': id,
+      if (roomNumber != null) 'room_number': roomNumber,
+      if (guestName != null) 'guest_name': guestName,
+      if (nationality != null) 'nationality': nationality,
+      if (idNumber != null) 'id_number': idNumber,
+      if (idType != null) 'id_type': idType,
+      if (issueDate != null) 'issue_date': issueDate,
+      if (issuePlace != null) 'issue_place': issuePlace,
+      if (governorate != null) 'governorate': governorate,
+      if (notes != null) 'notes': notes,
+    });
+  }
+
+  GuestInfosCompanion copyWith(
+      {Value<String>? localUuid,
+      Value<int?>? serverId,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int?>? deletedAt,
+      Value<int>? lastModified,
+      Value<String?>? createdAtIso,
+      Value<String?>? updatedAtIso,
+      Value<String?>? deletedAtIso,
+      Value<int>? createdAtEpoch,
+      Value<int>? lastModifiedEpoch,
+      Value<int>? version,
+      Value<String>? origin,
+      Value<String>? vectorClock,
+      Value<int>? id,
+      Value<String>? roomNumber,
+      Value<String>? guestName,
+      Value<String>? nationality,
+      Value<String>? idNumber,
+      Value<String>? idType,
+      Value<String?>? issueDate,
+      Value<String?>? issuePlace,
+      Value<String?>? governorate,
+      Value<String?>? notes}) {
+    return GuestInfosCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      id: id ?? this.id,
+      roomNumber: roomNumber ?? this.roomNumber,
+      guestName: guestName ?? this.guestName,
+      nationality: nationality ?? this.nationality,
+      idNumber: idNumber ?? this.idNumber,
+      idType: idType ?? this.idType,
+      issueDate: issueDate ?? this.issueDate,
+      issuePlace: issuePlace ?? this.issuePlace,
+      governorate: governorate ?? this.governorate,
+      notes: notes ?? this.notes,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (roomNumber.present) {
+      map['room_number'] = Variable<String>(roomNumber.value);
+    }
+    if (guestName.present) {
+      map['guest_name'] = Variable<String>(guestName.value);
+    }
+    if (nationality.present) {
+      map['nationality'] = Variable<String>(nationality.value);
+    }
+    if (idNumber.present) {
+      map['id_number'] = Variable<String>(idNumber.value);
+    }
+    if (idType.present) {
+      map['id_type'] = Variable<String>(idType.value);
+    }
+    if (issueDate.present) {
+      map['issue_date'] = Variable<String>(issueDate.value);
+    }
+    if (issuePlace.present) {
+      map['issue_place'] = Variable<String>(issuePlace.value);
+    }
+    if (governorate.present) {
+      map['governorate'] = Variable<String>(governorate.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GuestInfosCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('roomNumber: $roomNumber, ')
+          ..write('guestName: $guestName, ')
+          ..write('nationality: $nationality, ')
+          ..write('idNumber: $idNumber, ')
+          ..write('idType: $idType, ')
+          ..write('issueDate: $issueDate, ')
+          ..write('issuePlace: $issuePlace, ')
+          ..write('governorate: $governorate, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SalaryWithdrawalsTable extends SalaryWithdrawals
+    with TableInfo<$SalaryWithdrawalsTable, SalaryWithdrawal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SalaryWithdrawalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta =
+      const VerificationMeta('localUuid');
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+      'local_uuid', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtIsoMeta =
+      const VerificationMeta('createdAtIso');
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+      'created_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtIsoMeta =
+      const VerificationMeta('updatedAtIso');
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+      'updated_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtIsoMeta =
+      const VerificationMeta('deletedAtIso');
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+      'deleted_at_iso', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtEpochMeta =
+      const VerificationMeta('createdAtEpoch');
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+      'created_at_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastModifiedEpochMeta =
+      const VerificationMeta('lastModifiedEpoch');
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+      'last_modified_epoch', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
+  static const VerificationMeta _vectorClockMeta =
+      const VerificationMeta('vectorClock');
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+      'vector_clock', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _employeeIdMeta =
+      const VerificationMeta('employeeId');
+  @override
+  late final GeneratedColumn<int> employeeId = GeneratedColumn<int>(
+      'employee_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _withdrawDateMeta =
+      const VerificationMeta('withdrawDate');
+  @override
+  late final GeneratedColumn<String> withdrawDate = GeneratedColumn<String>(
+      'withdraw_date', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+      'reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _hotelDayKeyMeta =
+      const VerificationMeta('hotelDayKey');
+  @override
+  late final GeneratedColumn<String> hotelDayKey = GeneratedColumn<String>(
+      'hotel_day_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _withdrawalTypeMeta =
+      const VerificationMeta('withdrawalType');
+  @override
+  late final GeneratedColumn<String> withdrawalType = GeneratedColumn<String>(
+      'withdrawal_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        employeeId,
+        amount,
+        withdrawDate,
+        reason,
+        hotelDayKey,
+        withdrawalType,
+        description
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'salary_withdrawals';
+  @override
+  VerificationContext validateIntegrity(Insertable<SalaryWithdrawal> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(_localUuidMeta,
+          localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta));
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+          _createdAtIsoMeta,
+          createdAtIso.isAcceptableOrUnknown(
+              data['created_at_iso']!, _createdAtIsoMeta));
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+          _updatedAtIsoMeta,
+          updatedAtIso.isAcceptableOrUnknown(
+              data['updated_at_iso']!, _updatedAtIsoMeta));
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+          _deletedAtIsoMeta,
+          deletedAtIso.isAcceptableOrUnknown(
+              data['deleted_at_iso']!, _deletedAtIsoMeta));
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+          _createdAtEpochMeta,
+          createdAtEpoch.isAcceptableOrUnknown(
+              data['created_at_epoch']!, _createdAtEpochMeta));
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+          _lastModifiedEpochMeta,
+          lastModifiedEpoch.isAcceptableOrUnknown(
+              data['last_modified_epoch']!, _lastModifiedEpochMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+          _vectorClockMeta,
+          vectorClock.isAcceptableOrUnknown(
+              data['vector_clock']!, _vectorClockMeta));
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+          _employeeIdMeta,
+          employeeId.isAcceptableOrUnknown(
+              data['employee_id']!, _employeeIdMeta));
+    } else if (isInserting) {
+      context.missing(_employeeIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('withdraw_date')) {
+      context.handle(
+          _withdrawDateMeta,
+          withdrawDate.isAcceptableOrUnknown(
+              data['withdraw_date']!, _withdrawDateMeta));
+    } else if (isInserting) {
+      context.missing(_withdrawDateMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(_reasonMeta,
+          reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta));
+    }
+    if (data.containsKey('hotel_day_key')) {
+      context.handle(
+          _hotelDayKeyMeta,
+          hotelDayKey.isAcceptableOrUnknown(
+              data['hotel_day_key']!, _hotelDayKeyMeta));
+    }
+    if (data.containsKey('withdrawal_type')) {
+      context.handle(
+          _withdrawalTypeMeta,
+          withdrawalType.isAcceptableOrUnknown(
+              data['withdrawal_type']!, _withdrawalTypeMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SalaryWithdrawal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SalaryWithdrawal(
+      localUuid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uuid'])!,
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}server_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deleted_at']),
+      lastModified: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_modified'])!,
+      createdAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at_iso']),
+      updatedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at_iso']),
+      deletedAtIso: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at_iso']),
+      createdAtEpoch: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at_epoch'])!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}last_modified_epoch'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      vectorClock: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}vector_clock'])!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      employeeId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}employee_id'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      withdrawDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}withdraw_date'])!,
+      reason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}reason']),
+      hotelDayKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}hotel_day_key']),
+      withdrawalType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}withdrawal_type']),
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+    );
+  }
+
+  @override
+  $SalaryWithdrawalsTable createAlias(String alias) {
+    return $SalaryWithdrawalsTable(attachedDatabase, alias);
+  }
+}
+
+class SalaryWithdrawal extends DataClass
+    implements Insertable<SalaryWithdrawal> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final int id;
+  final int employeeId;
+  final double amount;
+  final String withdrawDate;
+  final String? reason;
+  final String? hotelDayKey;
+  final String? withdrawalType;
+  final String? description;
+  const SalaryWithdrawal(
+      {required this.localUuid,
+      this.serverId,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt,
+      required this.lastModified,
+      this.createdAtIso,
+      this.updatedAtIso,
+      this.deletedAtIso,
+      required this.createdAtEpoch,
+      required this.lastModifiedEpoch,
+      required this.version,
+      required this.origin,
+      required this.vectorClock,
+      required this.id,
+      required this.employeeId,
+      required this.amount,
+      required this.withdrawDate,
+      this.reason,
+      this.hotelDayKey,
+      this.withdrawalType,
+      this.description});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['id'] = Variable<int>(id);
+    map['employee_id'] = Variable<int>(employeeId);
+    map['amount'] = Variable<double>(amount);
+    map['withdraw_date'] = Variable<String>(withdrawDate);
+    if (!nullToAbsent || reason != null) {
+      map['reason'] = Variable<String>(reason);
+    }
+    if (!nullToAbsent || hotelDayKey != null) {
+      map['hotel_day_key'] = Variable<String>(hotelDayKey);
+    }
+    if (!nullToAbsent || withdrawalType != null) {
+      map['withdrawal_type'] = Variable<String>(withdrawalType);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    return map;
+  }
+
+  SalaryWithdrawalsCompanion toCompanion(bool nullToAbsent) {
+    return SalaryWithdrawalsCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      id: Value(id),
+      employeeId: Value(employeeId),
+      amount: Value(amount),
+      withdrawDate: Value(withdrawDate),
+      reason:
+          reason == null && nullToAbsent ? const Value.absent() : Value(reason),
+      hotelDayKey: hotelDayKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hotelDayKey),
+      withdrawalType: withdrawalType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(withdrawalType),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+    );
+  }
+
+  factory SalaryWithdrawal.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SalaryWithdrawal(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      id: serializer.fromJson<int>(json['id']),
+      employeeId: serializer.fromJson<int>(json['employeeId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      withdrawDate: serializer.fromJson<String>(json['withdrawDate']),
+      reason: serializer.fromJson<String?>(json['reason']),
+      hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
+      withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
+      description: serializer.fromJson<String?>(json['description']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'id': serializer.toJson<int>(id),
+      'employeeId': serializer.toJson<int>(employeeId),
+      'amount': serializer.toJson<double>(amount),
+      'withdrawDate': serializer.toJson<String>(withdrawDate),
+      'reason': serializer.toJson<String?>(reason),
+      'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
+      'withdrawalType': serializer.toJson<String?>(withdrawalType),
+      'description': serializer.toJson<String?>(description),
+    };
+  }
+
+  SalaryWithdrawal copyWith(
+          {String? localUuid,
+          Value<int?> serverId = const Value.absent(),
+          int? createdAt,
+          int? updatedAt,
+          Value<int?> deletedAt = const Value.absent(),
+          int? lastModified,
+          Value<String?> createdAtIso = const Value.absent(),
+          Value<String?> updatedAtIso = const Value.absent(),
+          Value<String?> deletedAtIso = const Value.absent(),
+          int? createdAtEpoch,
+          int? lastModifiedEpoch,
+          int? version,
+          String? origin,
+          String? vectorClock,
+          int? id,
+          int? employeeId,
+          double? amount,
+          String? withdrawDate,
+          Value<String?> reason = const Value.absent(),
+          Value<String?> hotelDayKey = const Value.absent(),
+          Value<String?> withdrawalType = const Value.absent(),
+          Value<String?> description = const Value.absent()}) =>
+      SalaryWithdrawal(
+        localUuid: localUuid ?? this.localUuid,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        lastModified: lastModified ?? this.lastModified,
+        createdAtIso:
+            createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+        updatedAtIso:
+            updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+        deletedAtIso:
+            deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+        createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+        lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+        version: version ?? this.version,
+        origin: origin ?? this.origin,
+        vectorClock: vectorClock ?? this.vectorClock,
+        id: id ?? this.id,
+        employeeId: employeeId ?? this.employeeId,
+        amount: amount ?? this.amount,
+        withdrawDate: withdrawDate ?? this.withdrawDate,
+        reason: reason.present ? reason.value : this.reason,
+        hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
+        withdrawalType:
+            withdrawalType.present ? withdrawalType.value : this.withdrawalType,
+        description: description.present ? description.value : this.description,
+      );
+  SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
+    return SalaryWithdrawal(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock:
+          data.vectorClock.present ? data.vectorClock.value : this.vectorClock,
+      id: data.id.present ? data.id.value : this.id,
+      employeeId:
+          data.employeeId.present ? data.employeeId.value : this.employeeId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      withdrawDate: data.withdrawDate.present
+          ? data.withdrawDate.value
+          : this.withdrawDate,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      hotelDayKey:
+          data.hotelDayKey.present ? data.hotelDayKey.value : this.hotelDayKey,
+      withdrawalType: data.withdrawalType.present
+          ? data.withdrawalType.value
+          : this.withdrawalType,
+      description:
+          data.description.present ? data.description.value : this.description,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalaryWithdrawal(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('amount: $amount, ')
+          ..write('withdrawDate: $withdrawDate, ')
+          ..write('reason: $reason, ')
+          ..write('hotelDayKey: $hotelDayKey, ')
+          ..write('withdrawalType: $withdrawalType, ')
+          ..write('description: $description')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        localUuid,
+        serverId,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        lastModified,
+        createdAtIso,
+        updatedAtIso,
+        deletedAtIso,
+        createdAtEpoch,
+        lastModifiedEpoch,
+        version,
+        origin,
+        vectorClock,
+        id,
+        employeeId,
+        amount,
+        withdrawDate,
+        reason,
+        hotelDayKey,
+        withdrawalType,
+        description
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SalaryWithdrawal &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.id == this.id &&
+          other.employeeId == this.employeeId &&
+          other.amount == this.amount &&
+          other.withdrawDate == this.withdrawDate &&
+          other.reason == this.reason &&
+          other.hotelDayKey == this.hotelDayKey &&
+          other.withdrawalType == this.withdrawalType &&
+          other.description == this.description);
+}
+
+class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<int> id;
+  final Value<int> employeeId;
+  final Value<double> amount;
+  final Value<String> withdrawDate;
+  final Value<String?> reason;
+  final Value<String?> hotelDayKey;
+  final Value<String?> withdrawalType;
+  final Value<String?> description;
+  const SalaryWithdrawalsCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.withdrawDate = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.hotelDayKey = const Value.absent(),
+    this.withdrawalType = const Value.absent(),
+    this.description = const Value.absent(),
+  });
+  SalaryWithdrawalsCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.id = const Value.absent(),
+    required int employeeId,
+    required double amount,
+    required String withdrawDate,
+    this.reason = const Value.absent(),
+    this.hotelDayKey = const Value.absent(),
+    this.withdrawalType = const Value.absent(),
+    this.description = const Value.absent(),
+  })  : localUuid = Value(localUuid),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt),
+        lastModified = Value(lastModified),
+        employeeId = Value(employeeId),
+        amount = Value(amount),
+        withdrawDate = Value(withdrawDate);
+  static Insertable<SalaryWithdrawal> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<int>? id,
+    Expression<int>? employeeId,
+    Expression<double>? amount,
+    Expression<String>? withdrawDate,
+    Expression<String>? reason,
+    Expression<String>? hotelDayKey,
+    Expression<String>? withdrawalType,
+    Expression<String>? description,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (id != null) 'id': id,
+      if (employeeId != null) 'employee_id': employeeId,
+      if (amount != null) 'amount': amount,
+      if (withdrawDate != null) 'withdraw_date': withdrawDate,
+      if (reason != null) 'reason': reason,
+      if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
+      if (withdrawalType != null) 'withdrawal_type': withdrawalType,
+      if (description != null) 'description': description,
+    });
+  }
+
+  SalaryWithdrawalsCompanion copyWith(
+      {Value<String>? localUuid,
+      Value<int?>? serverId,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int?>? deletedAt,
+      Value<int>? lastModified,
+      Value<String?>? createdAtIso,
+      Value<String?>? updatedAtIso,
+      Value<String?>? deletedAtIso,
+      Value<int>? createdAtEpoch,
+      Value<int>? lastModifiedEpoch,
+      Value<int>? version,
+      Value<String>? origin,
+      Value<String>? vectorClock,
+      Value<int>? id,
+      Value<int>? employeeId,
+      Value<double>? amount,
+      Value<String>? withdrawDate,
+      Value<String?>? reason,
+      Value<String?>? hotelDayKey,
+      Value<String?>? withdrawalType,
+      Value<String?>? description}) {
+    return SalaryWithdrawalsCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      id: id ?? this.id,
+      employeeId: employeeId ?? this.employeeId,
+      amount: amount ?? this.amount,
+      withdrawDate: withdrawDate ?? this.withdrawDate,
+      reason: reason ?? this.reason,
+      hotelDayKey: hotelDayKey ?? this.hotelDayKey,
+      withdrawalType: withdrawalType ?? this.withdrawalType,
+      description: description ?? this.description,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<int>(employeeId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (withdrawDate.present) {
+      map['withdraw_date'] = Variable<String>(withdrawDate.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (hotelDayKey.present) {
+      map['hotel_day_key'] = Variable<String>(hotelDayKey.value);
+    }
+    if (withdrawalType.present) {
+      map['withdrawal_type'] = Variable<String>(withdrawalType.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalaryWithdrawalsCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('id: $id, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('amount: $amount, ')
+          ..write('withdrawDate: $withdrawDate, ')
+          ..write('reason: $reason, ')
+          ..write('hotelDayKey: $hotelDayKey, ')
+          ..write('withdrawalType: $withdrawalType, ')
+          ..write('description: $description')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -24730,6 +27063,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $BookingPriceAdjustmentsTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
   late final $PaymentVoidsTable paymentVoids = $PaymentVoidsTable(this);
+  late final $GuestInfosTable guestInfos = $GuestInfosTable(this);
+  late final $SalaryWithdrawalsTable salaryWithdrawals =
+      $SalaryWithdrawalsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -24760,7 +27096,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         priceAdjustments,
         bookingPriceAdjustments,
         auditLogs,
-        paymentVoids
+        paymentVoids,
+        guestInfos,
+        salaryWithdrawals
       ];
 }
 
@@ -29087,6 +31425,11 @@ typedef $$PaymentsTableCreateCompanionBuilder = PaymentsCompanion Function({
   Value<bool> isPendingBalance,
   Value<String?> linkedDebtUuid,
   Value<String?> bookingUuidCache,
+  Value<double?> discountAmount,
+  Value<String?> discountStartDate,
+  Value<bool> isVoided,
+  Value<int?> voidedAt,
+  Value<String?> voidedBy,
 });
 typedef $$PaymentsTableUpdateCompanionBuilder = PaymentsCompanion Function({
   Value<String> localUuid,
@@ -29120,6 +31463,11 @@ typedef $$PaymentsTableUpdateCompanionBuilder = PaymentsCompanion Function({
   Value<bool> isPendingBalance,
   Value<String?> linkedDebtUuid,
   Value<String?> bookingUuidCache,
+  Value<double?> discountAmount,
+  Value<String?> discountStartDate,
+  Value<bool> isVoided,
+  Value<int?> voidedAt,
+  Value<String?> voidedBy,
 });
 
 final class $$PaymentsTableReferences
@@ -29264,6 +31612,23 @@ class $$PaymentsTableFilterComposer
   ColumnFilters<String> get bookingUuidCache => $composableBuilder(
       column: $table.bookingUuidCache,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get discountStartDate => $composableBuilder(
+      column: $table.discountStartDate,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isVoided => $composableBuilder(
+      column: $table.isVoided, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get voidedAt => $composableBuilder(
+      column: $table.voidedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get voidedBy => $composableBuilder(
+      column: $table.voidedBy, builder: (column) => ColumnFilters(column));
 
   $$BookingsTableFilterComposer get bookingLocalId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
@@ -29416,6 +31781,23 @@ class $$PaymentsTableOrderingComposer
       column: $table.bookingUuidCache,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get discountStartDate => $composableBuilder(
+      column: $table.discountStartDate,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isVoided => $composableBuilder(
+      column: $table.isVoided, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get voidedAt => $composableBuilder(
+      column: $table.voidedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get voidedBy => $composableBuilder(
+      column: $table.voidedBy, builder: (column) => ColumnOrderings(column));
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -29553,6 +31935,21 @@ class $$PaymentsTableAnnotationComposer
   GeneratedColumn<String> get bookingUuidCache => $composableBuilder(
       column: $table.bookingUuidCache, builder: (column) => column);
 
+  GeneratedColumn<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get discountStartDate => $composableBuilder(
+      column: $table.discountStartDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isVoided =>
+      $composableBuilder(column: $table.isVoided, builder: (column) => column);
+
+  GeneratedColumn<int> get voidedAt =>
+      $composableBuilder(column: $table.voidedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get voidedBy =>
+      $composableBuilder(column: $table.voidedBy, builder: (column) => column);
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -29649,6 +32046,11 @@ class $$PaymentsTableTableManager extends RootTableManager<
             Value<bool> isPendingBalance = const Value.absent(),
             Value<String?> linkedDebtUuid = const Value.absent(),
             Value<String?> bookingUuidCache = const Value.absent(),
+            Value<double?> discountAmount = const Value.absent(),
+            Value<String?> discountStartDate = const Value.absent(),
+            Value<bool> isVoided = const Value.absent(),
+            Value<int?> voidedAt = const Value.absent(),
+            Value<String?> voidedBy = const Value.absent(),
           }) =>
               PaymentsCompanion(
             localUuid: localUuid,
@@ -29682,6 +32084,11 @@ class $$PaymentsTableTableManager extends RootTableManager<
             isPendingBalance: isPendingBalance,
             linkedDebtUuid: linkedDebtUuid,
             bookingUuidCache: bookingUuidCache,
+            discountAmount: discountAmount,
+            discountStartDate: discountStartDate,
+            isVoided: isVoided,
+            voidedAt: voidedAt,
+            voidedBy: voidedBy,
           ),
           createCompanionCallback: ({
             required String localUuid,
@@ -29715,6 +32122,11 @@ class $$PaymentsTableTableManager extends RootTableManager<
             Value<bool> isPendingBalance = const Value.absent(),
             Value<String?> linkedDebtUuid = const Value.absent(),
             Value<String?> bookingUuidCache = const Value.absent(),
+            Value<double?> discountAmount = const Value.absent(),
+            Value<String?> discountStartDate = const Value.absent(),
+            Value<bool> isVoided = const Value.absent(),
+            Value<int?> voidedAt = const Value.absent(),
+            Value<String?> voidedBy = const Value.absent(),
           }) =>
               PaymentsCompanion.insert(
             localUuid: localUuid,
@@ -29748,6 +32160,11 @@ class $$PaymentsTableTableManager extends RootTableManager<
             isPendingBalance: isPendingBalance,
             linkedDebtUuid: linkedDebtUuid,
             bookingUuidCache: bookingUuidCache,
+            discountAmount: discountAmount,
+            discountStartDate: discountStartDate,
+            isVoided: isVoided,
+            voidedAt: voidedAt,
+            voidedBy: voidedBy,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) =>
@@ -34634,7 +37051,7 @@ typedef $$SyncLogTableCreateCompanionBuilder = SyncLogCompanion Function({
   required String direction,
   required String deviceId,
   required String metadata,
-  required String operations,
+  Value<String?> operations,
   Value<int> checksumMatched,
   Value<String> status,
   required String createdAt,
@@ -34646,7 +37063,7 @@ typedef $$SyncLogTableUpdateCompanionBuilder = SyncLogCompanion Function({
   Value<String> direction,
   Value<String> deviceId,
   Value<String> metadata,
-  Value<String> operations,
+  Value<String?> operations,
   Value<int> checksumMatched,
   Value<String> status,
   Value<String> createdAt,
@@ -34865,7 +37282,7 @@ class $$SyncLogTableTableManager extends RootTableManager<
             Value<String> direction = const Value.absent(),
             Value<String> deviceId = const Value.absent(),
             Value<String> metadata = const Value.absent(),
-            Value<String> operations = const Value.absent(),
+            Value<String?> operations = const Value.absent(),
             Value<int> checksumMatched = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
@@ -34889,7 +37306,7 @@ class $$SyncLogTableTableManager extends RootTableManager<
             required String direction,
             required String deviceId,
             required String metadata,
-            required String operations,
+            Value<String?> operations = const Value.absent(),
             Value<int> checksumMatched = const Value.absent(),
             Value<String> status = const Value.absent(),
             required String createdAt,
@@ -35798,6 +38215,7 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder
   required String bookingLocalUuid,
   Value<int?> bookingLocalId,
   Value<int> adjustmentType,
+  Value<String> adjustmentMode,
   Value<double> amount,
   required String effectiveHotelDay,
   Value<String?> endHotelDay,
@@ -35827,6 +38245,7 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder
   Value<String> bookingLocalUuid,
   Value<int?> bookingLocalId,
   Value<int> adjustmentType,
+  Value<String> adjustmentMode,
   Value<double> amount,
   Value<String> effectiveHotelDay,
   Value<String?> endHotelDay,
@@ -35920,6 +38339,10 @@ class $$BookingPriceAdjustmentsTableFilterComposer
 
   ColumnFilters<int> get adjustmentType => $composableBuilder(
       column: $table.adjustmentType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get adjustmentMode => $composableBuilder(
+      column: $table.adjustmentMode,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get amount => $composableBuilder(
@@ -36036,6 +38459,10 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
       column: $table.adjustmentType,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get adjustmentMode => $composableBuilder(
+      column: $table.adjustmentMode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnOrderings(column));
 
@@ -36142,6 +38569,9 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
   GeneratedColumn<int> get adjustmentType => $composableBuilder(
       column: $table.adjustmentType, builder: (column) => column);
 
+  GeneratedColumn<String> get adjustmentMode => $composableBuilder(
+      column: $table.adjustmentMode, builder: (column) => column);
+
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
@@ -36232,6 +38662,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             Value<String> bookingLocalUuid = const Value.absent(),
             Value<int?> bookingLocalId = const Value.absent(),
             Value<int> adjustmentType = const Value.absent(),
+            Value<String> adjustmentMode = const Value.absent(),
             Value<double> amount = const Value.absent(),
             Value<String> effectiveHotelDay = const Value.absent(),
             Value<String?> endHotelDay = const Value.absent(),
@@ -36260,6 +38691,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             bookingLocalUuid: bookingLocalUuid,
             bookingLocalId: bookingLocalId,
             adjustmentType: adjustmentType,
+            adjustmentMode: adjustmentMode,
             amount: amount,
             effectiveHotelDay: effectiveHotelDay,
             endHotelDay: endHotelDay,
@@ -36288,6 +38720,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             required String bookingLocalUuid,
             Value<int?> bookingLocalId = const Value.absent(),
             Value<int> adjustmentType = const Value.absent(),
+            Value<String> adjustmentMode = const Value.absent(),
             Value<double> amount = const Value.absent(),
             required String effectiveHotelDay,
             Value<String?> endHotelDay = const Value.absent(),
@@ -36316,6 +38749,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             bookingLocalUuid: bookingLocalUuid,
             bookingLocalId: bookingLocalId,
             adjustmentType: adjustmentType,
+            adjustmentMode: adjustmentMode,
             amount: amount,
             effectiveHotelDay: effectiveHotelDay,
             endHotelDay: endHotelDay,
@@ -37239,6 +39673,893 @@ typedef $$PaymentVoidsTableProcessedTableManager = ProcessedTableManager<
     ),
     PaymentVoid,
     PrefetchHooks Function()>;
+typedef $$GuestInfosTableCreateCompanionBuilder = GuestInfosCompanion Function({
+  required String localUuid,
+  Value<int?> serverId,
+  required int createdAt,
+  required int updatedAt,
+  Value<int?> deletedAt,
+  required int lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  required String roomNumber,
+  required String guestName,
+  required String nationality,
+  required String idNumber,
+  Value<String> idType,
+  Value<String?> issueDate,
+  Value<String?> issuePlace,
+  Value<String?> governorate,
+  Value<String?> notes,
+});
+typedef $$GuestInfosTableUpdateCompanionBuilder = GuestInfosCompanion Function({
+  Value<String> localUuid,
+  Value<int?> serverId,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int?> deletedAt,
+  Value<int> lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  Value<String> roomNumber,
+  Value<String> guestName,
+  Value<String> nationality,
+  Value<String> idNumber,
+  Value<String> idType,
+  Value<String?> issueDate,
+  Value<String?> issuePlace,
+  Value<String?> governorate,
+  Value<String?> notes,
+});
+
+class $$GuestInfosTableFilterComposer
+    extends Composer<_$AppDatabase, $GuestInfosTable> {
+  $$GuestInfosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get guestName => $composableBuilder(
+      column: $table.guestName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get nationality => $composableBuilder(
+      column: $table.nationality, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get idNumber => $composableBuilder(
+      column: $table.idNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get idType => $composableBuilder(
+      column: $table.idType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get issueDate => $composableBuilder(
+      column: $table.issueDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get issuePlace => $composableBuilder(
+      column: $table.issuePlace, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get governorate => $composableBuilder(
+      column: $table.governorate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
+}
+
+class $$GuestInfosTableOrderingComposer
+    extends Composer<_$AppDatabase, $GuestInfosTable> {
+  $$GuestInfosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+      column: $table.lastModified,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get guestName => $composableBuilder(
+      column: $table.guestName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get nationality => $composableBuilder(
+      column: $table.nationality, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get idNumber => $composableBuilder(
+      column: $table.idNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get idType => $composableBuilder(
+      column: $table.idType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get issueDate => $composableBuilder(
+      column: $table.issueDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get issuePlace => $composableBuilder(
+      column: $table.issuePlace, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get governorate => $composableBuilder(
+      column: $table.governorate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
+}
+
+class $$GuestInfosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GuestInfosTable> {
+  $$GuestInfosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => column);
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get guestName =>
+      $composableBuilder(column: $table.guestName, builder: (column) => column);
+
+  GeneratedColumn<String> get nationality => $composableBuilder(
+      column: $table.nationality, builder: (column) => column);
+
+  GeneratedColumn<String> get idNumber =>
+      $composableBuilder(column: $table.idNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get idType =>
+      $composableBuilder(column: $table.idType, builder: (column) => column);
+
+  GeneratedColumn<String> get issueDate =>
+      $composableBuilder(column: $table.issueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get issuePlace => $composableBuilder(
+      column: $table.issuePlace, builder: (column) => column);
+
+  GeneratedColumn<String> get governorate => $composableBuilder(
+      column: $table.governorate, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+}
+
+class $$GuestInfosTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $GuestInfosTable,
+    GuestInfo,
+    $$GuestInfosTableFilterComposer,
+    $$GuestInfosTableOrderingComposer,
+    $$GuestInfosTableAnnotationComposer,
+    $$GuestInfosTableCreateCompanionBuilder,
+    $$GuestInfosTableUpdateCompanionBuilder,
+    (GuestInfo, BaseReferences<_$AppDatabase, $GuestInfosTable, GuestInfo>),
+    GuestInfo,
+    PrefetchHooks Function()> {
+  $$GuestInfosTableTableManager(_$AppDatabase db, $GuestInfosTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GuestInfosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GuestInfosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GuestInfosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> localUuid = const Value.absent(),
+            Value<int?> serverId = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int?> deletedAt = const Value.absent(),
+            Value<int> lastModified = const Value.absent(),
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            Value<String> roomNumber = const Value.absent(),
+            Value<String> guestName = const Value.absent(),
+            Value<String> nationality = const Value.absent(),
+            Value<String> idNumber = const Value.absent(),
+            Value<String> idType = const Value.absent(),
+            Value<String?> issueDate = const Value.absent(),
+            Value<String?> issuePlace = const Value.absent(),
+            Value<String?> governorate = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+          }) =>
+              GuestInfosCompanion(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            roomNumber: roomNumber,
+            guestName: guestName,
+            nationality: nationality,
+            idNumber: idNumber,
+            idType: idType,
+            issueDate: issueDate,
+            issuePlace: issuePlace,
+            governorate: governorate,
+            notes: notes,
+          ),
+          createCompanionCallback: ({
+            required String localUuid,
+            Value<int?> serverId = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int?> deletedAt = const Value.absent(),
+            required int lastModified,
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            required String roomNumber,
+            required String guestName,
+            required String nationality,
+            required String idNumber,
+            Value<String> idType = const Value.absent(),
+            Value<String?> issueDate = const Value.absent(),
+            Value<String?> issuePlace = const Value.absent(),
+            Value<String?> governorate = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+          }) =>
+              GuestInfosCompanion.insert(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            roomNumber: roomNumber,
+            guestName: guestName,
+            nationality: nationality,
+            idNumber: idNumber,
+            idType: idType,
+            issueDate: issueDate,
+            issuePlace: issuePlace,
+            governorate: governorate,
+            notes: notes,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$GuestInfosTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $GuestInfosTable,
+    GuestInfo,
+    $$GuestInfosTableFilterComposer,
+    $$GuestInfosTableOrderingComposer,
+    $$GuestInfosTableAnnotationComposer,
+    $$GuestInfosTableCreateCompanionBuilder,
+    $$GuestInfosTableUpdateCompanionBuilder,
+    (GuestInfo, BaseReferences<_$AppDatabase, $GuestInfosTable, GuestInfo>),
+    GuestInfo,
+    PrefetchHooks Function()>;
+typedef $$SalaryWithdrawalsTableCreateCompanionBuilder
+    = SalaryWithdrawalsCompanion Function({
+  required String localUuid,
+  Value<int?> serverId,
+  required int createdAt,
+  required int updatedAt,
+  Value<int?> deletedAt,
+  required int lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  required int employeeId,
+  required double amount,
+  required String withdrawDate,
+  Value<String?> reason,
+  Value<String?> hotelDayKey,
+  Value<String?> withdrawalType,
+  Value<String?> description,
+});
+typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder
+    = SalaryWithdrawalsCompanion Function({
+  Value<String> localUuid,
+  Value<int?> serverId,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int?> deletedAt,
+  Value<int> lastModified,
+  Value<String?> createdAtIso,
+  Value<String?> updatedAtIso,
+  Value<String?> deletedAtIso,
+  Value<int> createdAtEpoch,
+  Value<int> lastModifiedEpoch,
+  Value<int> version,
+  Value<String> origin,
+  Value<String> vectorClock,
+  Value<int> id,
+  Value<int> employeeId,
+  Value<double> amount,
+  Value<String> withdrawDate,
+  Value<String?> reason,
+  Value<String?> hotelDayKey,
+  Value<String?> withdrawalType,
+  Value<String?> description,
+});
+
+class $$SalaryWithdrawalsTableFilterComposer
+    extends Composer<_$AppDatabase, $SalaryWithdrawalsTable> {
+  $$SalaryWithdrawalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get employeeId => $composableBuilder(
+      column: $table.employeeId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get withdrawDate => $composableBuilder(
+      column: $table.withdrawDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get reason => $composableBuilder(
+      column: $table.reason, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get hotelDayKey => $composableBuilder(
+      column: $table.hotelDayKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get withdrawalType => $composableBuilder(
+      column: $table.withdrawalType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+}
+
+class $$SalaryWithdrawalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SalaryWithdrawalsTable> {
+  $$SalaryWithdrawalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+      column: $table.localUuid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+      column: $table.lastModified,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get employeeId => $composableBuilder(
+      column: $table.employeeId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get withdrawDate => $composableBuilder(
+      column: $table.withdrawDate,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+      column: $table.reason, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get hotelDayKey => $composableBuilder(
+      column: $table.hotelDayKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get withdrawalType => $composableBuilder(
+      column: $table.withdrawalType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SalaryWithdrawalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SalaryWithdrawalsTable> {
+  $$SalaryWithdrawalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+      column: $table.lastModified, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+      column: $table.createdAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+      column: $table.updatedAtIso, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+      column: $table.deletedAtIso, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+      column: $table.createdAtEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+      column: $table.lastModifiedEpoch, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+      column: $table.vectorClock, builder: (column) => column);
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get employeeId => $composableBuilder(
+      column: $table.employeeId, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get withdrawDate => $composableBuilder(
+      column: $table.withdrawDate, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get hotelDayKey => $composableBuilder(
+      column: $table.hotelDayKey, builder: (column) => column);
+
+  GeneratedColumn<String> get withdrawalType => $composableBuilder(
+      column: $table.withdrawalType, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+}
+
+class $$SalaryWithdrawalsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SalaryWithdrawalsTable,
+    SalaryWithdrawal,
+    $$SalaryWithdrawalsTableFilterComposer,
+    $$SalaryWithdrawalsTableOrderingComposer,
+    $$SalaryWithdrawalsTableAnnotationComposer,
+    $$SalaryWithdrawalsTableCreateCompanionBuilder,
+    $$SalaryWithdrawalsTableUpdateCompanionBuilder,
+    (
+      SalaryWithdrawal,
+      BaseReferences<_$AppDatabase, $SalaryWithdrawalsTable, SalaryWithdrawal>
+    ),
+    SalaryWithdrawal,
+    PrefetchHooks Function()> {
+  $$SalaryWithdrawalsTableTableManager(
+      _$AppDatabase db, $SalaryWithdrawalsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalaryWithdrawalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalaryWithdrawalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SalaryWithdrawalsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> localUuid = const Value.absent(),
+            Value<int?> serverId = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int?> deletedAt = const Value.absent(),
+            Value<int> lastModified = const Value.absent(),
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            Value<int> employeeId = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String> withdrawDate = const Value.absent(),
+            Value<String?> reason = const Value.absent(),
+            Value<String?> hotelDayKey = const Value.absent(),
+            Value<String?> withdrawalType = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+          }) =>
+              SalaryWithdrawalsCompanion(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            employeeId: employeeId,
+            amount: amount,
+            withdrawDate: withdrawDate,
+            reason: reason,
+            hotelDayKey: hotelDayKey,
+            withdrawalType: withdrawalType,
+            description: description,
+          ),
+          createCompanionCallback: ({
+            required String localUuid,
+            Value<int?> serverId = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int?> deletedAt = const Value.absent(),
+            required int lastModified,
+            Value<String?> createdAtIso = const Value.absent(),
+            Value<String?> updatedAtIso = const Value.absent(),
+            Value<String?> deletedAtIso = const Value.absent(),
+            Value<int> createdAtEpoch = const Value.absent(),
+            Value<int> lastModifiedEpoch = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<String> vectorClock = const Value.absent(),
+            Value<int> id = const Value.absent(),
+            required int employeeId,
+            required double amount,
+            required String withdrawDate,
+            Value<String?> reason = const Value.absent(),
+            Value<String?> hotelDayKey = const Value.absent(),
+            Value<String?> withdrawalType = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+          }) =>
+              SalaryWithdrawalsCompanion.insert(
+            localUuid: localUuid,
+            serverId: serverId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            lastModified: lastModified,
+            createdAtIso: createdAtIso,
+            updatedAtIso: updatedAtIso,
+            deletedAtIso: deletedAtIso,
+            createdAtEpoch: createdAtEpoch,
+            lastModifiedEpoch: lastModifiedEpoch,
+            version: version,
+            origin: origin,
+            vectorClock: vectorClock,
+            id: id,
+            employeeId: employeeId,
+            amount: amount,
+            withdrawDate: withdrawDate,
+            reason: reason,
+            hotelDayKey: hotelDayKey,
+            withdrawalType: withdrawalType,
+            description: description,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SalaryWithdrawalsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SalaryWithdrawalsTable,
+    SalaryWithdrawal,
+    $$SalaryWithdrawalsTableFilterComposer,
+    $$SalaryWithdrawalsTableOrderingComposer,
+    $$SalaryWithdrawalsTableAnnotationComposer,
+    $$SalaryWithdrawalsTableCreateCompanionBuilder,
+    $$SalaryWithdrawalsTableUpdateCompanionBuilder,
+    (
+      SalaryWithdrawal,
+      BaseReferences<_$AppDatabase, $SalaryWithdrawalsTable, SalaryWithdrawal>
+    ),
+    SalaryWithdrawal,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -37296,4 +40617,8 @@ class $AppDatabaseManager {
       $$AuditLogsTableTableManager(_db, _db.auditLogs);
   $$PaymentVoidsTableTableManager get paymentVoids =>
       $$PaymentVoidsTableTableManager(_db, _db.paymentVoids);
+  $$GuestInfosTableTableManager get guestInfos =>
+      $$GuestInfosTableTableManager(_db, _db.guestInfos);
+  $$SalaryWithdrawalsTableTableManager get salaryWithdrawals =>
+      $$SalaryWithdrawalsTableTableManager(_db, _db.salaryWithdrawals);
 }

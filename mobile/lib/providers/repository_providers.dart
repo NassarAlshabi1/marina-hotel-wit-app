@@ -12,6 +12,7 @@ import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
 import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
+import '../services/repositories/guest_infos_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
@@ -178,3 +179,17 @@ final settledDebtsProvider = StreamProvider.autoDispose(
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
+
+
+// GuestInfos Providers (for information_screen)
+final guestInfoListProvider = StreamProvider.autoDispose(
+  (ref) {
+    final db = ref.read(databaseProvider);
+    return db.select(db.guestInfos).watch();
+  },
+);
+
+// GuestInfo repo helper for CRUD operations
+final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
+);

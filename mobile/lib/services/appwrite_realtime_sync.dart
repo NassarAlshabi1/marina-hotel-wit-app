@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
-import 'appwrite_sync_manager.dart';
 
 class AppwriteRealtimeSync {
   static final AppwriteRealtimeSync _instance =
@@ -14,26 +13,47 @@ class AppwriteRealtimeSync {
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
-  AppwriteSyncManager? _syncManager;
   String? _currentDeviceId;
   bool _isListening = false;
   Timer? _debounceTimer;
 
+  // ✅ تحسين: عداد التغييرات المعلقة من السيرفر (للـ Badge)
+  final pendingRemoteChangesCount = ValueNotifier<int>(0);
+
+  // ✅ تحسين: ValueNotifier لإشعار الـ UI بوجود تغييرات جديدة من السيرفر
+  final hasRemoteChanges = ValueNotifier<bool>(false);
+
+  // ✅ تححسين: تتبع آخر وقت تحديث من السيرفر (للـ Delta Sync Safety)
+  DateTime? _lastServerUpdate;
+
+  // ✅ تحسين: حماية من الفيضان (Flood Protection)
+  bool _hasPendingChanges = false;
+
   static const _collections = [
-    'rooms',
-    'bookings',
-    'employees',
-    'expenses',
-    'payments',
-    'debts',
-    'notes',
+    AppwriteConfig.roomsCollectionId,
+    AppwriteConfig.bookingsCollectionId,
+    AppwriteConfig.bookingNotesCollectionId,
+    AppwriteConfig.bookingNightsCollectionId,
+    AppwriteConfig.paymentsCollectionId,
+    AppwriteConfig.expensesCollectionId,
+    AppwriteConfig.cashTransactionsCollectionId,
+    AppwriteConfig.debtsCollectionId,
+    AppwriteConfig.employeesCollectionId,
+    AppwriteConfig.salaryCyclesCollectionId,
+    AppwriteConfig.salaryPaymentsCollectionId,
+    AppwriteConfig.salaryWithdrawalsCollectionId,
+    AppwriteConfig.shiftNotesCollectionId,
+    AppwriteConfig.guestInfosCollectionId,
+    // ❌ hotel_day_ledger - محلي فقط
+    AppwriteConfig.priceAdjustmentsCollectionId,
+    AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    AppwriteConfig.auditLogsCollectionId,
+    AppwriteConfig.paymentVoidsCollectionId,
   ];
 
   Future<void> initialize({
-    required AppwriteSyncManager syncManager,
     required String deviceId,
   }) async {
-    _syncManager = syncManager;
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
     debugPrint('📡 AppwriteRealtimeSync initialized');
@@ -43,7 +63,7 @@ class AppwriteRealtimeSync {
     if (_isListening || _realtime == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? false)) return;
 
     final channels = _collections
         .map(
@@ -74,17 +94,69 @@ class AppwriteRealtimeSync {
     final payload = message.payload;
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
 
+    // تجاهل التغييرات من نفس الجهاز (لأنها محلية بالفعل)
     if (sourceDevice == _currentDeviceId) return;
 
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+    // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
+    // لا نهتم بـ permissions.update أو أحداث النظام
+    final eventTypes = message.events;
+    final isDataChange = eventTypes.any((e) =>
+        e.endsWith('.create') ||
+        e.endsWith('.update') ||
+        e.endsWith('.delete'));
+
+    if (!isDataChange) {
+      debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
+      return;
+    }
+
+    // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
+    final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
+    if (updatedAt != null) {
       try {
-        await _syncManager?.sync(push: false, pull: true);
-        debugPrint('✅ Realtime sync done');
+        final serverTime = DateTime.parse(updatedAt);
+        if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
+          _lastServerUpdate = serverTime;
+        }
       } catch (e) {
-        debugPrint('❌ Realtime sync error: $e');
+        debugPrint('⚠️ Realtime: could not parse update timestamp');
       }
+    }
+
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      // ✅ تحسين: حماية من الفيضان (Flood Protection)
+      // إذا كانت هناك تغييرات معلقة بالفعل، نزيد العداد فقط
+      if (!_hasPendingChanges) {
+        hasRemoteChanges.value = true;
+        _hasPendingChanges = true;
+        debugPrint('📡 Realtime: detected remote changes - UI activated');
+      }
+
+      // ✅ تحسين: زيادة عداد التغييرات
+      pendingRemoteChangesCount.value++;
+      debugPrint('📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
     });
+  }
+
+  /// ✅ تحسين: الحصول على آخر وقت تحديث معروف من السيرفر
+  DateTime? get lastKnownServerUpdate => _lastServerUpdate;
+
+  /// ✅ تحسين: تعيين آخر وقت تحديث يدوياً (مفيد للـ Delta Sync)
+  void updateLastServerTimestamp(DateTime timestamp) {
+    if (_lastServerUpdate == null || timestamp.isAfter(_lastServerUpdate!)) {
+      _lastServerUpdate = timestamp;
+      debugPrint('📡 Realtime: updated last server timestamp to $timestamp');
+    }
+  }
+
+  /// إعادة تعيين حالة "توجد تغييرات من السيرفر"
+  /// يُستدعى بعد انتهاء عملية السحب اليدوي بنجاح
+  void resetRemoteChangesFlag() {
+    hasRemoteChanges.value = false;
+    _hasPendingChanges = false;
+    pendingRemoteChangesCount.value = 0;
+    debugPrint('📡 Realtime: remote changes flag reset - count cleared');
   }
 
   void _reconnect() {
@@ -98,6 +170,10 @@ class AppwriteRealtimeSync {
     _subscription = null;
     _isListening = false;
     _debounceTimer?.cancel();
+    // عند التوقف، نعيد تعيين الحالة
+    hasRemoteChanges.value = false;
+    _hasPendingChanges = false;
+    pendingRemoteChangesCount.value = 0;
   }
 
   void dispose() => stop();

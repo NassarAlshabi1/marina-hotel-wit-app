@@ -71,7 +71,7 @@ class BookingsRepository {
         discountStartDate: d.Value(discountStartDate),
       ),
     );
-    await _syncLegacyDiscountToAdjustments(result);
+    await syncLegacyDiscountToAdjustments(result);
     await derivedFields.refreshForBookingId(result);
     AutoBackupManager.instance.onDataChange(
       'bookings',
@@ -164,7 +164,7 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
-      await _syncLegacyDiscountToAdjustments(id);
+      await syncLegacyDiscountToAdjustments(id);
       await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange(
         'bookings',
@@ -217,7 +217,7 @@ class BookingsRepository {
     return await dao.getRecordCount();
   }
 
-  Future<void> _syncLegacyDiscountToAdjustments(int bookingId) async {
+  Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
         .getSingleOrNull();

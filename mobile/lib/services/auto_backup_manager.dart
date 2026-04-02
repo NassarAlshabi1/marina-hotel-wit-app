@@ -9,8 +9,10 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
+import 'booking_derived_fields_service.dart';
 import 'smart_sync_manager.dart';
 import 'local_db.dart';
+import '../utils/time.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
 /// يراقب التغييرات في قاعدة البيانات ويقوم بعمل نسخ احتياطية تلقائية
@@ -49,13 +51,14 @@ class AutoBackupManager {
   bool _isDeltaSyncing = false;
   int _pendingChanges = 0;
   String? _deviceId;
-  BackupMode _currentMode = BackupMode.both;
+  BackupMode _currentMode = BackupMode.deltaSync;
+  String? _lastRenewedHotelDay;
 
   /// مدة انتظار قبل النسخ التلقائي (بالثواني) - قللناها للاستجابة السريعة
   static const int _debounceSeconds = 5;
 
-  /// مدة انتظار قبل المزامنة الفورية (بالثواني)
-  static const int _instantSyncDebounceSeconds = 2;
+  /// مدة انتظار قبل المزامنة الفورية (بالملي ثانية)
+  static const int _instantSyncDebounceMilliseconds = 500;
 
   /// عدد النسخ الاحتياطية الافتراضي المراد الاحتفاظ به
   static const int _defaultMaxBackups = 10;
@@ -95,8 +98,9 @@ class AutoBackupManager {
 
   Future<void> _loadBackupMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final modeIndex = prefs.getInt(_backupModeKey) ?? BackupMode.both.index;
-    _currentMode = BackupMode.values[modeIndex];
+    _currentMode = BackupMode.deltaSync;
+    await prefs.setInt(_backupModeKey, _currentMode.index);
+    await prefs.setBool(_deltaSyncEnabledKey, true);
   }
 
   Future<void> _startDeltaSyncTimer() async {
@@ -154,7 +158,7 @@ class AutoBackupManager {
         _currentMode == BackupMode.both) {
       _deltaSyncDebounceTimer?.cancel();
       _deltaSyncDebounceTimer = Timer(
-        const Duration(seconds: _instantSyncDebounceSeconds),
+        const Duration(milliseconds: _instantSyncDebounceMilliseconds),
         () async {
           await performDeltaSync();
           if (_currentMode == BackupMode.deltaSync) {
@@ -534,6 +538,8 @@ class AutoBackupManager {
       }
 
       debugPrint('✅ اكتملت المزامنة التفاضلية');
+
+      await _autoRenewActiveBookings();
     } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
@@ -545,10 +551,27 @@ class AutoBackupManager {
     return results;
   }
 
+  Future<void> _autoRenewActiveBookings() async {
+    try {
+      final currentHotelDay = Time.hotelDayKey();
+      if (_lastRenewedHotelDay == currentHotelDay) return;
+
+      if (_database == null) return;
+      final service = BookingDerivedFieldsService(_database!);
+      final count = await service.refreshAllActiveBookings();
+      _lastRenewedHotelDay = currentHotelDay;
+      if (count > 0) {
+        debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
+    }
+  }
+
   /// إعدادات المزامنة التفاضلية
   Future<bool> isDeltaSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_deltaSyncEnabledKey) ?? false;
+    return prefs.getBool(_deltaSyncEnabledKey) ?? true;
   }
 
   Future<void> setDeltaSyncEnabled(bool enabled) async {
@@ -564,7 +587,7 @@ class AutoBackupManager {
 
   Future<bool> isGoogleDriveDeltaSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? true;
+    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? false;
   }
 
   Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {
@@ -577,7 +600,7 @@ class AutoBackupManager {
 
   Future<bool> isAppwriteDeltaSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_appwriteDeltaSyncEnabledKey) ?? false;
+    return prefs.getBool(_appwriteDeltaSyncEnabledKey) ?? true;
   }
 
   Future<void> setAppwriteDeltaSyncEnabled(bool enabled) async {
@@ -589,9 +612,10 @@ class AutoBackupManager {
   /// تعيين وضع النسخ الاحتياطي
   Future<void> setBackupMode(BackupMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_backupModeKey, mode.index);
-    _currentMode = mode;
-    debugPrint('🔧 وضع النسخ الاحتياطي: ${mode.name}');
+    _currentMode = BackupMode.deltaSync;
+    await prefs.setInt(_backupModeKey, _currentMode.index);
+    await prefs.setBool(_deltaSyncEnabledKey, true);
+    debugPrint('🔧 وضع النسخ الاحتياطي: ${_currentMode.name}');
   }
 
   BackupMode get currentBackupMode => _currentMode;
