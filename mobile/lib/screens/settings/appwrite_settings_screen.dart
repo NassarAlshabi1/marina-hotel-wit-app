@@ -994,7 +994,7 @@ class _AppwriteSettingsScreenState
             ],
           ),
           const SizedBox(height: 6),
-          Text(subtitle, style: const TextStyle(color: Colors.black87)),
+          Text(subtitle, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87)),
           const SizedBox(height: 8),
           ...details.map(
             (detail) => Padding(

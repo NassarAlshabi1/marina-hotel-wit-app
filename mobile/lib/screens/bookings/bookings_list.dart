@@ -68,7 +68,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
         body: bookingsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
-            child: Text('خطأ: $e', style: const TextStyle(color: Colors.black)),
+            child: Text('خطأ: $e', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black)),
           ),
           data: (bookings) {
             final roomsList = roomsAsync.maybeWhen(
@@ -447,7 +447,7 @@ class _BookingRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
-    final baseTextStyle = const TextStyle(color: Colors.black);
+    final baseTextStyle = TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
     final nightsLabel = actualNights != expectedNights

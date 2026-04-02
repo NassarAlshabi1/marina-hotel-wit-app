@@ -740,7 +740,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final roomTextStyle = TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.bold,
-      color: Colors.black87,
+      color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87,
     );
     return roomsAsync.when(
       loading: () => const Padding(

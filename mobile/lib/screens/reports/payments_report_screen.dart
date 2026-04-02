@@ -448,16 +448,16 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     ),
-                    style: const TextStyle(fontSize: 11),
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('الكل', style: TextStyle(fontSize: 11)),
+                        child: Text('الكل', style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ),
                       ..._availableRooms.map(
                         (room) => DropdownMenuItem<String?>(
                           value: room,
-                          child: Text(room, style: const TextStyle(fontSize: 11)),
+                          child: Text(room, style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodyMedium?.color)),
                         ),
                       ),
                     ],
