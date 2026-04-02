@@ -3,10 +3,14 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
+import 'lark/lark_config.dart';
+import 'lark/lark_api_client.dart';
+import 'lark/lark_report_service.dart';
 import 'package:flutter/widgets.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
+  static const int larkReportAlarmId = 1;
 
   static final FlutterLocalNotificationsPlugin _notif =
       FlutterLocalNotificationsPlugin();
@@ -31,9 +35,10 @@ class AlarmBackup {
       await prefs.setString('auto_backup_time', '21:00');
       await scheduleDailyAlarm(21, 0);
     }
-  }
 
-  /// جدولة إنذار يومي وقت محدد (hour, minute)
+    // جدولة تقرير Lark اليومي إذا كان مفعّلاً
+    await _scheduleLarkReportIfNeeded(prefs);
+  }
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
@@ -138,5 +143,84 @@ class AlarmBackup {
   static Future<void> cancelAlarm() async {
     await AndroidAlarmManager.cancel(alarmId);
     debugPrint('🚫 Alarm cancelled');
+  }
+
+  /// جدولة تقرير Lark اليومي إذا كان مفعّلاً
+  static Future<void> _scheduleLarkReportIfNeeded(SharedPreferences prefs) async {
+    final larkEnabled = prefs.getBool('lark_enabled') ?? false;
+    final reportEnabled = prefs.getBool('lark_daily_report_enabled') ?? false;
+
+    if (larkEnabled && reportEnabled) {
+      final timeString = prefs.getString('lark_daily_report_time') ?? '08:00';
+      final parts = timeString.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      await scheduleLarkReportAlarm(hour, minute);
+    } else {
+      await AndroidAlarmManager.cancel(larkReportAlarmId);
+    }
+  }
+
+  /// جدولة إنذار يومي لإرسال تقرير Lark
+  static Future<void> scheduleLarkReportAlarm(int hour, int minute) async {
+    final now = DateTime.now();
+    var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    await AndroidAlarmManager.oneShotAt(
+      scheduled,
+      larkReportAlarmId,
+      _larkReportCallback,
+      exact: true,
+      wakeup: true,
+      rescheduleOnReboot: true,
+      allowWhileIdle: true,
+    );
+
+    debugPrint('✅ Lark report alarm scheduled at $scheduled');
+  }
+
+  /// إعادة جدولة تقرير Lark
+  static Future<void> rescheduleLarkReport(int hour, int minute) async {
+    await AndroidAlarmManager.cancel(larkReportAlarmId);
+    await Future.delayed(const Duration(milliseconds: 300));
+    await scheduleLarkReportAlarm(hour, minute);
+    debugPrint('♻️ Lark report alarm rescheduled to $hour:$minute');
+  }
+
+  /// Callback لإرسال تقرير Lark اليومي
+  @pragma('vm:entry-point')
+  static Future<void> _larkReportCallback() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    debugPrint('🔔 Lark report alarm fired');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final larkEnabled = prefs.getBool('lark_enabled') ?? false;
+      final reportEnabled = prefs.getBool('lark_daily_report_enabled') ?? false;
+
+      if (larkEnabled && reportEnabled) {
+        final webhookUrl = prefs.getString('lark_webhook_url') ?? '';
+        if (webhookUrl.isNotEmpty) {
+          final reportService = LarkReportService.instance;
+          await reportService.sendDailyReport();
+          debugPrint('✅ Lark daily report sent from alarm');
+        } else {
+          debugPrint('⚠️ Lark report skipped: no webhook URL configured');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Lark report alarm error: $e');
+    } finally {
+      // أعد جدولة لليوم التالي
+      final prefs = await SharedPreferences.getInstance();
+      final timeString = prefs.getString('lark_daily_report_time') ?? '08:00';
+      final parts = timeString.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      await scheduleLarkReportAlarm(hour, minute);
+    }
   }
 }
