@@ -5,6 +5,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 
@@ -84,7 +85,7 @@ class BookingsRepository {
     return result;
   }
 
-  /// إرسال إشعار Lark لحجز جديد (fire-and-forget)
+  /// إرسال إشعار Lark و Telegram لحجز جديد (fire-and-forget)
   void _notifyLarkNewBooking(
     String roomNumber,
     String guestName,
@@ -94,6 +95,14 @@ class BookingsRepository {
     int expectedNights,
   ) {
     LarkNotificationService.instance.notifyNewBooking(
+      roomNumber: roomNumber,
+      guestName: guestName,
+      guestPhone: guestPhone,
+      checkinDate: checkinDate,
+      checkoutDate: checkoutDate,
+      nights: expectedNights,
+    );
+    TelegramNotificationService.instance.notifyNewBooking(
       roomNumber: roomNumber,
       guestName: guestName,
       guestPhone: guestPhone,
@@ -199,7 +208,7 @@ class BookingsRepository {
     return result;
   }
 
-  /// إرسال إشعار Lark عند تحديث حالة الحجز
+  /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
   void _notifyLarkBookingUpdate(int bookingId, String? newStatus) {
     if (newStatus == null) return;
     // الحصول على بيانات الحجز بشكل غير متزامن
@@ -213,10 +222,23 @@ class BookingsRepository {
             guestPhone: booking.guestPhone,
             expectedNights: booking.expectedNights,
           );
+          TelegramNotificationService.instance.notifyCheckIn(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          );
           break;
         case 'شاغرة':
           if (booking.actualCheckout != null) {
             LarkNotificationService.instance.notifyCheckOut(
+              roomNumber: booking.roomNumber,
+              guestName: booking.guestName,
+              actualNights: booking.calculatedNights,
+              totalPaid: booking.totalPaidCached,
+              remaining: booking.remainingBalanceCached,
+            );
+            TelegramNotificationService.instance.notifyCheckOut(
               roomNumber: booking.roomNumber,
               guestName: booking.guestName,
               actualNights: booking.calculatedNights,
