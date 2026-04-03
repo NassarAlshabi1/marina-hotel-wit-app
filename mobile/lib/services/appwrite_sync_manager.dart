@@ -484,21 +484,26 @@ class AppwriteSyncManager {
       }
 
       if (pull) {
-        // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
-        final lastPullTs = await _getLastPullTs();
-        final deltaQ = _deltaQueries(lastPullTs);
-        final isDelta = deltaQ.isNotEmpty;
-        if (isDelta) {
-          _logger.info(
-            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
-            tag: 'SYNC',
-          );
-        } else {
-          _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
-        }
+        // تعطيل Foreign Keys مؤقتاً أثناء السحب لمنع خطأ constraint failed
+        await database.customStatement('PRAGMA foreign_keys=OFF');
+        try {
+          _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
-        recordsPulled += await _timePhase('syncRooms', () async {
-          final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
+          // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
+          final lastPullTs = await _getLastPullTs();
+          final deltaQ = _deltaQueries(lastPullTs);
+          final isDelta = deltaQ.isNotEmpty;
+          if (isDelta) {
+            _logger.info(
+              '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+              tag: 'SYNC',
+            );
+          } else {
+            _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
+          }
+
+          recordsPulled += await _timePhase('syncRooms', () async {
+            final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
           final roomsSynced = await _syncRooms(rooms);
           _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
           return roomsSynced;
@@ -642,6 +647,10 @@ class AppwriteSyncManager {
 
         // تحديث lastPullTs بعد نجاح السحب
         await _updateLastPullTs(Time.nowEpoch());
+        } finally {
+          // إعادة تفعيل Foreign Keys بعد انتهاء السحب
+          await database.customStatement('PRAGMA foreign_keys=ON');
+        }
       }
 
       // تحديث سجل المزامنة
