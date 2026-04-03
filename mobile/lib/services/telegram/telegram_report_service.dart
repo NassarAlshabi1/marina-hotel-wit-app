@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 
-import '../../local_db.dart';
+import '../local_db.dart';
 import 'telegram_config.dart';
 import 'telegram_service.dart';
+import '../../utils/time.dart';
 
 /// بيانات التقرير اليومي
 class TelegramDailyReportData {
@@ -60,10 +61,9 @@ class TelegramReportService {
       if (!await TelegramConfig.isDailyReportEnabled()) return false;
 
       // منع الإرسال المتكرر
-      final today = DateTime.now();
-      final dateKey = '${today.year}-${today.month}-${today.day}';
+      final hotelDayKey = Time.hotelDayKey();
       final lastSent = await TelegramConfig.getLastReportSent();
-      if (lastSent == dateKey) {
+      if (lastSent == hotelDayKey) {
         debugPrint('⏭️ Telegram: تم إرسال تقرير اليوم بالفعل');
         return true;
       }
@@ -75,7 +75,7 @@ class TelegramReportService {
       final success = await _api.sendToDefaultChat(text: message);
 
       if (success) {
-        await TelegramConfig.setLastReportSent(dateKey);
+        await TelegramConfig.setLastReportSent(hotelDayKey);
         debugPrint('✅ Telegram: تم إرسال التقرير اليومي بنجاح');
       }
 
@@ -98,9 +98,8 @@ class TelegramReportService {
       final success = await _api.sendToDefaultChat(text: message);
 
       if (success) {
-        final today = DateTime.now();
-        final dateKey = '${today.year}-${today.month}-${today.day}';
-        await TelegramConfig.setLastReportSent(dateKey);
+        final hotelDayKey = Time.hotelDayKey();
+        await TelegramConfig.setLastReportSent(hotelDayKey);
       }
 
       return success;
@@ -113,9 +112,9 @@ class TelegramReportService {
   /// تجميع بيانات التقرير من قاعدة البيانات
   Future<TelegramDailyReportData?> _gatherReportData() async {
     try {
-      final db = AppDatabase.instance;
+      final db = DatabaseManager.instance;
+      final hotelDayKey = Time.hotelDayKey();
       final now = DateTime.now();
-      final hotelDayKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
       // ── حالة الغرف ──
       final roomsQuery = await db.select(db.rooms).get();
@@ -126,24 +125,21 @@ class TelegramReportService {
       int maintenanceRooms = 0;
 
       for (final room in roomsQuery) {
-        switch (room.status) {
-          case 'occupied':
-            occupiedRooms++;
-            break;
-          case 'available':
-          case 'vacant':
-            availableRooms++;
-            break;
-          case 'cleaning':
-            cleaningRooms++;
-            break;
-          case 'maintenance':
-            maintenanceRooms++;
-            break;
+        final status = room.status?.toLowerCase() ?? '';
+        if (status == 'محجوزة' || status == 'مشغولة') {
+          occupiedRooms++;
+        } else if (status == 'شاغرة' || status == 'متاحة') {
+          availableRooms++;
+        } else if (status == 'تنظيف') {
+          cleaningRooms++;
+        } else if (status == 'صيانة') {
+          maintenanceRooms++;
         }
       }
 
-      final occupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
+      final occupancyRate = totalRooms > 0
+          ? (occupiedRooms / totalRooms * 100).toDouble()
+          : 0.0;
 
       // ── حجوزات اليوم ──
       final bookingsQuery = await db.select(db.bookings).get();
@@ -154,13 +150,28 @@ class TelegramReportService {
 
       for (final booking in bookingsQuery) {
         if (booking.deletedAt != null) continue;
-        final status = booking.status ?? '';
-        if (status == 'active' || status == 'checked_in') activeBookings++;
-        if (booking.checkIn != null && booking.checkIn!.startsWith(hotelDayKey)) {
+
+        final status = booking.status?.toLowerCase() ?? '';
+
+        // حجوزات نشطة
+        if (status == 'نشط' || status == 'محجوزة') {
+          activeBookings++;
+        }
+
+        // حجوزات جديدة اليوم
+        if (booking.checkinDate == hotelDayKey ||
+            booking.createdAtIso?.substring(0, 10) == hotelDayKey) {
           newBookingsToday++;
+        }
+
+        // تسجيلات دخول اليوم
+        if (booking.hotelDayCheckin == hotelDayKey) {
           checkInsToday++;
         }
-        if (booking.checkOut != null && booking.checkOut!.startsWith(hotelDayKey)) {
+
+        // تسجيلات خروج اليوم
+        if (booking.hotelDayCheckout == hotelDayKey ||
+            booking.actualCheckout?.substring(0, 10) == hotelDayKey) {
           checkOutsToday++;
         }
       }
@@ -169,8 +180,8 @@ class TelegramReportService {
       final paymentsQuery = await db.select(db.payments).get();
       double todayRevenue = 0;
       for (final payment in paymentsQuery) {
-        if (payment.createdAt != null && payment.createdAt!.startsWith(hotelDayKey)) {
-          todayRevenue += payment.amount ?? 0;
+        if (payment.hotelDayKey == hotelDayKey && !payment.isVoided) {
+          todayRevenue += payment.amount;
         }
       }
 
@@ -178,7 +189,7 @@ class TelegramReportService {
       double todayExpenses = 0;
       for (final expense in expensesQuery) {
         if (expense.hotelDayKey == hotelDayKey) {
-          todayExpenses += expense.amount ?? 0;
+          todayExpenses += expense.amount;
         }
       }
 
@@ -199,14 +210,16 @@ class TelegramReportService {
       // تأخير مغادرة
       for (final booking in bookingsQuery) {
         if (booking.deletedAt != null) continue;
-        final status = booking.status ?? '';
-        if (status == 'active' || status == 'checked_in') {
-          if (booking.checkOut != null) {
-            final checkoutDate = DateTime.tryParse(booking.checkOut!);
-            if (checkoutDate != null && checkoutDate.isBefore(now) && status == 'checked_in') {
-              final room = roomsQuery.where((r) => r.id == booking.roomId).firstOrNull;
-              alerts.add('⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName ?? 'غير معروف'})');
-            }
+        final status = booking.status?.toLowerCase() ?? '';
+        if (status == 'نشط' || status == 'محجوزة') {
+          if (booking.checkoutDate != null &&
+              booking.actualCheckout == null &&
+              booking.checkoutDate!.compareTo(hotelDayKey) < 0) {
+            final room = roomsQuery
+                .where((r) => r.roomNumber == booking.roomNumber)
+                .firstOrNull;
+            alerts.add(
+                '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName ?? 'غير معروف'})');
           }
         }
       }
@@ -260,7 +273,8 @@ class TelegramReportService {
     buffer.writeln('├ 🟢 متاحة: <b>${data.availableRooms}</b>');
     buffer.writeln('├ 🟡 تنظيف: <b>${data.cleaningRooms}</b>');
     buffer.writeln('└ 🔧 صيانة: <b>${data.maintenanceRooms}</b>');
-    buffer.writeln('📈 نسبة الإشغال: <b>${data.occupancyRate.toStringAsFixed(1)}%</b>');
+    buffer.writeln(
+        '📈 نسبة الإشغال: <b>${data.occupancyRate.toStringAsFixed(1)}%</b>');
 
     // حجوزات اليوم
     buffer.writeln('');
@@ -273,9 +287,12 @@ class TelegramReportService {
     // ملخص مالي
     buffer.writeln('');
     buffer.writeln('💰 <b>ملخص مالي</b>');
-    buffer.writeln('┌ الإيرادات: <b>\$${data.todayRevenue.toStringAsFixed(2)}</b>');
-    buffer.writeln('├ المصروفات: <b>\$${data.todayExpenses.toStringAsFixed(2)}</b>');
-    buffer.writeln('└ صافي الربح: <b>\$${data.netProfit.toStringAsFixed(2)}</b>');
+    buffer.writeln(
+        '┌ الإيرادات: <b>\$${data.todayRevenue.toStringAsFixed(2)}</b>');
+    buffer.writeln(
+        '├ المصروفات: <b>\$${data.todayExpenses.toStringAsFixed(2)}</b>');
+    buffer.writeln(
+        '└ صافي الربح: <b>\$${data.netProfit.toStringAsFixed(2)}</b>');
 
     // الديون
     buffer.writeln('');
