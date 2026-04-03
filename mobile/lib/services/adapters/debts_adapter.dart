@@ -196,7 +196,7 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'debtReason', 'debt_reason'): model.debtReason,
       _k(src, 'totalAmount', 'total_amount'): model.totalAmount,
       _k(src, 'paidAmount', 'paid_amount'): model.paidAmount,
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount,
+      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount.round(), // Appwrite: integer
       _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
       _k(src, 'isSettled', 'is_settled'): model.isSettled,
       _k(src, 'pledge', 'pledge'): model.pledge,

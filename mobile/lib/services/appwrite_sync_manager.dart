@@ -1678,7 +1678,7 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
-      'amount': debt.totalAmount,
+      'amount': debt.totalAmount.round(), // Appwrite: integer
       'debtorName': debt.guestName,
       'dueDate': _resolveDebtDueDate(debt),
       'status': debt.isSettled == 1 ? 'settled' : 'pending',
@@ -2409,7 +2409,7 @@ class AppwriteSyncManager {
   Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
-      'amount': transaction.amount,
+      'amount': transaction.amount.round(), // Appwrite: integer
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,

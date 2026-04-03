@@ -149,7 +149,7 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
       _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
       _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
-      _k(src, 'amount', 'amount'): model.amount,
+      _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'effectiveHotelDay', 'effective_hotel_day'): model.effectiveHotelDay,
       _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
       _k(src, 'isActive', 'is_active'): model.isActive,
