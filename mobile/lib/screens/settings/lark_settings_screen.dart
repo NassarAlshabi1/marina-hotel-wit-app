@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/lark_provider.dart';
@@ -22,6 +23,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
 
   bool _showSecret = false;
   bool _isLoading = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -30,12 +32,20 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
+    // انتظار حتى ينهي Provider التهيئة من SharedPreferences
+    await Future.delayed(const Duration(milliseconds: 500));
     final state = ref.read(larkProvider);
     _webhookController.text = state.webhookUrl;
     _appIdController.text = state.appId;
     _reportTimeController.text = state.dailyReportTime;
     _chatIdController.text = state.dailyReportChatId;
+    _appSecretController.text = await _getAppSecret();
     setState(() => _isLoading = false);
+  }
+
+  Future<String> _getAppSecret() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('lark_app_secret') ?? '';
   }
 
   @override
@@ -228,12 +238,6 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
               decoration: InputDecoration(
                 hintText: 'https://open.larksuite.com/open-apis/bot/v2/hook/...',
                 prefixIcon: const Icon(Icons.link, size: 20),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.paste, size: 20),
-                  onPressed: () {
-                    // يمكن إضافة لصق من الحافظة لاحقاً
-                  },
-                ),
                 border: const OutlineInputBorder(),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -241,9 +245,6 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                 ),
                 isDense: true,
               ),
-              onChanged: (value) {
-                ref.read(larkProvider.notifier).setWebhookUrl(value.trim());
-              },
             ),
 
             const SizedBox(height: 16),
@@ -269,9 +270,6 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                 ),
                 isDense: true,
               ),
-              onChanged: (value) {
-                ref.read(larkProvider.notifier).setAppId(value.trim());
-              },
             ),
 
             const SizedBox(height: 16),
@@ -303,9 +301,6 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                 ),
                 isDense: true,
               ),
-              onChanged: (value) {
-                ref.read(larkProvider.notifier).setAppSecret(value.trim());
-              },
             ),
 
             // مؤشر حالة الاتصال
@@ -386,10 +381,92 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                 ],
               ],
             ),
+
+            // زر حفظ الإعدادات
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isSaving ? null : _saveSettings,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.save),
+                label: Text(_isSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  // ─────────────────────────────────────────────────
+  // حفظ الإعدادات
+  // ─────────────────────────────────────────────────
+  Future<void> _saveSettings() async {
+    setState(() => _isSaving = true);
+
+    try {
+      final notifier = ref.read(larkProvider.notifier);
+
+      // حفظ جميع البيانات
+      await notifier.setWebhookUrl(_webhookController.text.trim());
+      await notifier.setAppId(_appIdController.text.trim());
+      await notifier.setAppSecret(_appSecretController.text.trim());
+      await notifier.setReportChatId(_chatIdController.text.trim());
+
+      setState(() => _isSaving = false);
+
+      if (!mounted) return;
+
+      // رسالة نجاح
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('تم حفظ الإعدادات بنجاح ✅'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() => _isSaving = false);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Text('خطأ في الحفظ: $e'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   // ─────────────────────────────────────────────────
@@ -671,9 +748,6 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   ),
                   isDense: true,
                 ),
-                onChanged: (value) {
-                  ref.read(larkProvider.notifier).setReportChatId(value.trim());
-                },
               ),
 
               // آخر تقرير تم إرساله
