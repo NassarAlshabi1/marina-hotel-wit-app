@@ -205,10 +205,12 @@ class AppwriteDeltaSync {
     switch (change.operation) {
       case 'insert':
       case 'update':
+        final sanitized = _sanitizePayload(payload);
+        final converted = _convertAmountTypesForAppwrite(collectionId, sanitized);
         await _appwriteService!.upsertDocument(
           collectionId: collectionId,
           documentId: change.localUuid,
-          data: _sanitizePayload(payload),
+          data: converted,
         );
         break;
       case 'delete':
@@ -1065,6 +1067,30 @@ class AppwriteDeltaSync {
         result[camelKey] = value;
       }
     });
+    return result;
+  }
+
+  /// تحويل حقول amount من double إلى int للمجموعات التي تتطلب integer في Appwrite
+  static const _intAmountFields = <String, Set<String>>{
+    'booking_price_adjustments': {'amount'},
+    'cash_transactions': {'amount'},
+    'salary_withdrawals': {'amount'},
+    'debts': {'amount', 'remainingAmount'},
+  };
+
+  Map<String, dynamic> _convertAmountTypesForAppwrite(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
+    final intFields = _intAmountFields[collectionId];
+    if (intFields == null || intFields.isEmpty) return payload;
+
+    final result = Map<String, dynamic>.from(payload);
+    for (final field in intFields) {
+      if (result.containsKey(field) && result[field] is num) {
+        result[field] = (result[field] as num).round();
+      }
+    }
     return result;
   }
 
