@@ -80,7 +80,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Future<bool> _isAppwriteSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('appwrite_sync_enabled') ?? false;
+    return prefs.getBool('appwrite_sync_enabled') ?? true;
   }
 
   Future<void> _loadAppwriteEnabled() async {
@@ -185,36 +185,31 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
 
+      int pulledCount = 0;
       final deltaSync = AppwriteDeltaSync.instance;
-      if (!deltaSync.isInitialized) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('خدمة المزامنة غير مهيأة'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
+      if (deltaSync.isInitialized) {
+        // 1️⃣ سحب عبر DeltaSync
+        final pullResult = await deltaSync.pullDeltaChanges();
+        pulledCount = pullResult.recordsPulled;
 
-      // 1️⃣ سحب التغييرات من السيرفر
-      final pullResult = await deltaSync.pullDeltaChanges();
-      final pulledCount = pullResult.recordsPulled;
-
-      // 2️⃣ حل التعارضات إن وجدت
-      int conflictsResolved = 0;
-      if (pullResult.hasConflicts) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚖️ جاري حل التعارضات...'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
-          );
+        // 2️⃣ حل التعارضات إن وجدت
+        if (pullResult.hasConflicts) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚖️ جاري حل التعارضات...'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+          await _resolveConflicts();
         }
-        conflictsResolved = await _resolveConflicts();
+      } else {
+        // 2️⃣ بديل: سحب عبر appwriteSyncManager
+        final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+        final pullResult = await appwriteSyncManager.sync(push: false, pull: true);
+        pulledCount = pullResult.recordsPulled;
       }
 
       // إعادة تعيين علامة "توجد تغييرات من السيرفر"
@@ -254,7 +249,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '⬇️ استُلِم: $pulledCount ${conflictsResolved > 0 ? '  ⚖️ تعارضات محلولة: $conflictsResolved' : ''}',
+                  '⬇️ استُلِم: $pulledCount سجل',
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -758,8 +753,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
   Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
-    // زر السحب متاح فقط إذا كان يوجد تغييرات جديدة في Appwrite
-    final bool pullEnabled = hasRemoteChanges && _appwriteEnabled && !_isPulling && !_isPushing;
+    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -774,15 +769,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonIcon = Icons.cloud_download;
       buttonText = 'سحب التغييرات';
     } else {
-      buttonColor = Colors.grey.shade400;
+      buttonColor = Colors.blue;
       buttonIcon = Icons.cloud_download;
-      buttonText = 'لا توجد تحديثات';
+      buttonText = 'سحب التغييرات';
     }
 
     return Tooltip(
       message: hasRemoteChanges
-          ? 'اضغط لسحب التغييرات الجديدة من السيرفر'
-          : 'لا توجد تغييرات جديدة في السحابة',
+          ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب'
+          : 'اضغط لسحب التغييرات من السيرفر',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
