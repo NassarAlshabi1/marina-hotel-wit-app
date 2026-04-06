@@ -639,6 +639,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                       fontSize: 10,
                                     ),
                                   ),
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
@@ -661,6 +662,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                       ),
                                     ],
                                   ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
