@@ -126,20 +126,30 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 ? DateTime.tryParse(booking.actualCheckout!)
                                 : null;
                             final price = room?.price ?? 0;
-                            final expectedNights = booking.expectedNights > 0
-                                ? booking.expectedNights
-                                : (checkin == null
-                                      ? 1
-                                      : Time.nightsWithCutoff(
-                                          checkin,
-                                          checkout: plannedCheckout,
-                                        ));
-                            final actualNights = checkin == null
-                                ? expectedNights
-                                : Time.nightsWithCutoff(
-                                    checkin,
-                                    checkout: actualCheckout ?? plannedCheckout,
-                                  );
+                            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
+                            final hasNoCheckout = plannedCheckout == null &&
+                                actualCheckout == null;
+                            final dynamicNights =
+                                hasNoCheckout && checkin != null
+                                    ? Time.nightsWithCutoff(checkin)
+                                    : null;
+                            final expectedNights = dynamicNights ??
+                                (booking.expectedNights > 0
+                                    ? booking.expectedNights
+                                    : (checkin == null
+                                          ? 1
+                                          : Time.nightsWithCutoff(
+                                              checkin,
+                                              checkout: plannedCheckout,
+                                            )));
+                            final actualNights = dynamicNights ??
+                                (checkin == null
+                                    ? expectedNights
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout:
+                                            actualCheckout ?? plannedCheckout,
+                                      ));
                             final totalAmount = (actualNights * price)
                                 .toDouble();
                             return _BookingRow(
@@ -178,20 +188,30 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           ? DateTime.tryParse(booking.actualCheckout!)
                           : null;
                       final price = room?.price ?? 0;
-                      final expectedNights = booking.expectedNights > 0
-                          ? booking.expectedNights
-                          : (checkin == null
-                                ? 1
-                                : Time.nightsWithCutoff(
-                                    checkin,
-                                    checkout: plannedCheckout,
-                                  ));
-                      final actualNights = checkin == null
-                          ? expectedNights
-                          : Time.nightsWithCutoff(
-                              checkin,
-                              checkout: actualCheckout ?? plannedCheckout,
-                            );
+                      // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
+                      final hasNoCheckout = plannedCheckout == null &&
+                          actualCheckout == null;
+                      final dynamicNights =
+                          hasNoCheckout && checkin != null
+                              ? Time.nightsWithCutoff(checkin)
+                              : null;
+                      final expectedNights = dynamicNights ??
+                          (booking.expectedNights > 0
+                              ? booking.expectedNights
+                              : (checkin == null
+                                    ? 1
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout: plannedCheckout,
+                                      )));
+                      final actualNights = dynamicNights ??
+                          (checkin == null
+                              ? expectedNights
+                              : Time.nightsWithCutoff(
+                                  checkin,
+                                  checkout:
+                                      actualCheckout ?? plannedCheckout,
+                                ));
                       final totalAmount = (actualNights * price).toDouble();
                       return _BookingRow(
                         index: index + 1,
