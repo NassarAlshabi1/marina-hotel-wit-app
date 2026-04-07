@@ -24,7 +24,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     with SingleTickerProviderStateMixin {
   bool _isPulling = false;
   bool _isPushing = false;
-  bool _appwriteEnabled = true;
+  bool _appwriteEnabled = false;
   Timer? _pendingChangesTimer;
   late AnimationController _pullAnimationController;
   late AnimationController _pushAnimationController;
@@ -80,7 +80,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Future<bool> _isAppwriteSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('appwrite_sync_enabled') ?? true;
+    return prefs.getBool('appwrite_sync_enabled') ?? false;
   }
 
   Future<void> _loadAppwriteEnabled() async {
@@ -93,10 +93,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
     } catch (e) {
       debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
+      // في حالة الخطأ — نُعطّل المزامنة احتياطياً (أأمن)
       if (mounted) {
-        setState(() => _appwriteEnabled = true);
+        setState(() => _appwriteEnabled = false);
       } else {
-        _appwriteEnabled = true;
+        _appwriteEnabled = false;
       }
     }
   }

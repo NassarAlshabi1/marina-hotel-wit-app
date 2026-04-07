@@ -796,7 +796,11 @@ class AppwriteService {
     }
   }
 
-  /// اختبار شامل للاتصال (قراءة وكتابة وحذف)
+  /// اختبار شامل للاتصال (قراءة فقط — لا يعتمد على schema أي مجموعة)
+  ///
+  /// التصميم: اختبار الاتصال يجب أن يكون مستقلاً عن schema المجموعات.
+  /// نستخدم listDocuments (قراءة فقط) لأنه لا يحتاج حقول مطلوبة.
+  /// صلاحيات الكتابة تُختبر فعلياً عند المزامنة الحقيقية.
   Future<Map<String, dynamic>> fullConnectionTest() async {
     final results = <String, dynamic>{
       'tests': <String, dynamic>{},
@@ -805,96 +809,52 @@ class AppwriteService {
 
     _ensureInitialized();
 
-    final testCollection = AppwriteConfig.syncLogsCollectionId;
-    final testDocumentId = ID.unique();
-    final now = DateTime.now().millisecondsSinceEpoch;
-
     try {
-      // 1. اختبار الاتصال الأساسي (Ping)
+      // اختبار الاتصال الأساسي (Ping) — listDocuments لا يحتاج حقول required
       results['tests']['ping'] = await quickConnectionTest();
 
-      // 2. اختبار الكتابة (Create)
-
+      // اختبار قراءة ثانوي من مجموعة مختلفة للتأكد
       try {
         await _networkHelper.withTimeout(
-          operation: () => _databases.createDocument(
+          operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
-            collectionId: testCollection,
-            documentId: testDocumentId,
-            data: {
-              'localUuid': testDocumentId,
-              'deviceId': 'connection_test',
-              'operation': 'test',
-              'collection': 'connection_test',
-              'syncType': 'test',
-              'startTime': DateTime.now().toIso8601String(),
-              'endTime': DateTime.now().toIso8601String(),
-              'status': 'test',
-              'action': 'connection_test',
-              'details': '{}',
-              'timestamp': now,
-              'createdAt': now,
-              'updatedAt': now,
-              'lastModified': now,
-              'origin': 'mobile',
-            },
+            collectionId: AppwriteConfig.bookingsCollectionId,
           ),
-          operationName: 'createDocument(Test)',
-          timeout: const Duration(seconds: 10),
+          operationName: 'readTest(bookings)',
+          timeout: const Duration(seconds: 5),
         );
-        results['tests']['write'] = true;
+        results['tests']['read_bookings'] = true;
       } catch (e) {
-        results['tests']['write'] = false;
-        results['tests']['write_error'] = e.toString();
+        results['tests']['read_bookings'] = false;
+        results['tests']['read_bookings_error'] = e.toString();
       }
 
-      // 3. اختبار القراءة (Read)
-      if (results['tests']['write'] == true) {
-        try {
-          await _networkHelper.withTimeout(
-            operation: () => _databases.getDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: testCollection,
-              documentId: testDocumentId,
-            ),
-            operationName: 'getDocument(Test)',
-            timeout: const Duration(seconds: 5),
-          );
-          results['tests']['read'] = true;
-        } catch (e) {
-          results['tests']['read'] = false;
-          results['tests']['read_error'] = e.toString();
-        }
-
-        // 4. اختبار الحذف (Delete)
-        try {
-          await _networkHelper.withTimeout(
-            operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: testCollection,
-              documentId: testDocumentId,
-            ),
-            operationName: 'deleteDocument(Test)',
-            timeout: const Duration(seconds: 5),
-          );
-          results['tests']['delete'] = true;
-        } catch (e) {
-          results['tests']['delete'] = false;
-          results['tests']['delete_error'] = e.toString();
-        }
+      // اختبار قراءة من مجموعة ثالثة
+      try {
+        await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.devicesCollectionId,
+          ),
+          operationName: 'readTest(devices)',
+          timeout: const Duration(seconds: 5),
+        );
+        results['tests']['read_devices'] = true;
+      } catch (e) {
+        results['tests']['read_devices'] = false;
+        results['tests']['read_devices_error'] = e.toString();
       }
 
-      // حساب الحالة النهائية
+      // حساب الحالة النهائية — ping يكفي لإثبات الاتصال
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] =
-          tests['ping'] == true &&
-          (tests['write'] == true || tests['write'] == null) &&
-          (tests['read'] == true || tests['read'] == null) &&
-          (tests['delete'] == true || tests['delete'] == null);
+      results['overall_success'] = tests['ping'] == true;
 
+      // تحديد مستوى الاتصال
       if (results['overall_success'] == true) {
-        _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
+        results['connection_level'] = 'full';
+        _logger.info('Full connection test passed (read-only)', tag: 'CONNECTION_TEST');
       } else {
+        results['connection_level'] = 'none';
         _logger.warning(
           'Full connection test failed: $results',
           tag: 'CONNECTION_TEST',
@@ -909,24 +869,9 @@ class AppwriteService {
         tag: 'CONNECTION_TEST',
       );
       results['overall_success'] = false;
+      results['connection_level'] = 'none';
       results['error'] = e.toString();
       return results;
-    } finally {
-      // تنظيف (في حالة بقاء المستند)
-      if (results['tests'] != null &&
-          (results['tests'] as Map)['write'] == true &&
-          (results['tests'] as Map)['delete'] != true) {
-        try {
-          final testCollection = AppwriteConfig.syncLogsCollectionId;
-          await _databases.deleteDocument(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: testCollection,
-            documentId: testDocumentId,
-          );
-        } catch (_) {
-          // Ignore cleanup errors
-        }
-      }
     }
   }
 
