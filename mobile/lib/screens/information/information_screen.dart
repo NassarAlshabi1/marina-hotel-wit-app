@@ -10,6 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
 
@@ -381,6 +382,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     }
 
     markDataChanged();
+    _pushToAppwrite();
   }
 
   Future<void> _confirmDelete(GuestInfo info) async {
@@ -408,6 +410,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     await ref.read(guestInfoRepoProvider).delete(info.id);
     markDataChanged();
     _showSnack('تم حذف السجل');
+    _pushToAppwrite();
   }
 
   Future<void> _pickIssueDate(TextEditingController controller) async {
@@ -626,5 +629,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD
+  Future<void> _pushToAppwrite() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await syncManager.sync(push: true, pull: false);
+    } catch (e) {
+      debugPrint('⚠️ فشلت المزامنة الفورية: $e');
+    }
   }
 }
