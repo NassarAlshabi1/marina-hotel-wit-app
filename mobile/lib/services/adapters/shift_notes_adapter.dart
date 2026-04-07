@@ -109,6 +109,11 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
           DateTime.fromMillisecondsSinceEpoch(
             model.createdAt * 1000,
           ).toIso8601String();
+      final updatedAtIso =
+          model.updatedAtIso ??
+          DateTime.fromMillisecondsSinceEpoch(
+            model.updatedAt * 1000,
+          ).toIso8601String();
       return {
         'localUuid': model.localUuid,
         'title': model.title,
@@ -117,6 +122,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'shiftType': model.shiftType,
         'isRead': model.isRead,
         'createdAt': createdAtIso,
+        'updatedAt': updatedAtIso,
         'createdBy': model.createdBy,
         if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
           'expiresAt': model.expiresAt,

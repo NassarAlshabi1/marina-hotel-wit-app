@@ -216,23 +216,22 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    // نحاول التحديث أولاً (Optimistic)
+    final dbId = AppwriteConfigManager.databaseId;
+
+    // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
     try {
-      return await _networkHelper.withRetryAndTimeout(
-        operation: () => _databases.updateDocument(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        ),
-        operationName: 'updateDocument',
+      return await _databases.updateDocument(
+        databaseId: dbId,
+        collectionId: collectionId,
+        documentId: documentId,
+        data: data,
       );
     } on AppwriteException catch (e) {
-      // 404 Not Found -> Create
-      if (e.code == 404) {
+      // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
+      if (e.code == 404 || e.toString().contains('document_not_found')) {
         return await _networkHelper.withRetryAndTimeout(
           operation: () => _databases.createDocument(
-            databaseId: AppwriteConfigManager.databaseId,
+            databaseId: dbId,
             collectionId: collectionId,
             documentId: documentId,
             data: data,
