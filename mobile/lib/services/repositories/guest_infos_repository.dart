@@ -1,23 +1,32 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/id.dart';
+import '../../utils/time.dart';
 import '../local_db.dart';
+import '../daos/outbox_dao.dart';
 
 class GuestInfosRepository {
-  GuestInfosRepository(this._db);
+  GuestInfosRepository(this._db)
+      : _outboxDao = OutboxDao(_db);
 
   final AppDatabase _db;
+  final OutboxDao _outboxDao;
 
-  /// جلب كل السجلات
+  /// جلب كل السجلات (بدون المحذوفة)
   Future<List<GuestInfo>> listAll() async {
-    return _db.select(_db.guestInfos).get();
+    return (_db.select(_db.guestInfos)
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
   }
 
-  /// مراقبة التغييرات
+  /// مراقبة التغييرات (بدون المحذوفة)
   Stream<List<GuestInfo>> watchAll() {
-    return _db.select(_db.guestInfos).watch();
+    return (_db.select(_db.guestInfos)
+          ..where((t) => t.deletedAt.isNull()))
+        .watch();
   }
 
-  /// إنشاء سجل جديد
+  /// إنشاء سجل جديد + كتابة outbox للمزامنة
   Future<int> create({
     required String roomNumber,
     required String guestName,
@@ -28,34 +37,62 @@ class GuestInfosRepository {
     String? issuePlace,
     String? governorate,
     String? notes,
+    bool originIsServer = false,
   }) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final nowIso = DateTime.now().toIso8601String();
-    return _db.into(_db.guestInfos).insert(
-      GuestInfosCompanion(
-        roomNumber: d.Value(roomNumber),
-        guestName: d.Value(guestName),
-        nationality: d.Value(nationality),
-        idNumber: d.Value(idNumber),
-        idType: d.Value(idType),
-        issueDate: d.Value(issueDate),
-        issuePlace: d.Value(issuePlace),
-        governorate: d.Value(governorate),
-        notes: d.Value(notes),
-        localUuid: d.Value(_uuid()),
-        createdAt: d.Value(now),
-        updatedAt: d.Value(now),
-        lastModified: d.Value(now),
-        createdAtIso: d.Value(nowIso),
-        updatedAtIso: d.Value(nowIso),
-        version: const d.Value(1),
-        origin: const d.Value('local'),
-        vectorClock: const d.Value('{}'),
-      ),
-    );
+    return _db.transaction(() async {
+      final now = Time.nowEpoch();
+      final nowIso = Time.nowIso();
+      final uuid = IdGen.uuid();
+
+      final id = await _db.into(_db.guestInfos).insert(
+            GuestInfosCompanion(
+              roomNumber: d.Value(roomNumber),
+              guestName: d.Value(guestName),
+              nationality: d.Value(nationality),
+              idNumber: d.Value(idNumber),
+              idType: d.Value(idType),
+              issueDate: d.Value(issueDate),
+              issuePlace: d.Value(issuePlace),
+              governorate: d.Value(governorate),
+              notes: d.Value(notes),
+              localUuid: d.Value(uuid),
+              createdAt: d.Value(now),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              createdAtIso: d.Value(nowIso),
+              updatedAtIso: d.Value(nowIso),
+              version: const d.Value(1),
+              origin: d.Value(originIsServer ? 'server' : 'local'),
+              vectorClock: const d.Value('{}'),
+            ),
+          );
+
+      if (!originIsServer) {
+        await _outboxDao.merge(
+          entity: 'guest_infos',
+          op: 'create',
+          localUuid: uuid,
+          serverId: null,
+          payload: {
+            'roomNumber': roomNumber,
+            'guestName': guestName,
+            'nationality': nationality,
+            'idNumber': idNumber,
+            'idType': idType,
+            'issueDate': issueDate,
+            'issuePlace': issuePlace,
+            'governorate': governorate,
+            'notes': notes,
+          },
+          clientTs: now,
+        );
+      }
+
+      return id;
+    });
   }
 
-  /// تحديث سجل موجود
+  /// تحديث سجل موجود + كتابة outbox للمزامنة
   Future<void> update(
     int id, {
     required String roomNumber,
@@ -67,40 +104,92 @@ class GuestInfosRepository {
     String issuePlace = '',
     String governorate = '',
     String notes = '',
+    bool originIsServer = false,
   }) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final nowIso = DateTime.now().toIso8601String();
-    await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id))).write(
-      GuestInfosCompanion(
-        roomNumber: d.Value(roomNumber),
-        guestName: d.Value(guestName),
-        nationality: d.Value(nationality),
-        idNumber: d.Value(idNumber),
-        idType: d.Value(idType),
-        issueDate: d.Value(issueDate.isEmpty ? null : issueDate),
-        issuePlace: d.Value(issuePlace.isEmpty ? null : issuePlace),
-        governorate: d.Value(governorate.isEmpty ? null : governorate),
-        notes: d.Value(notes.isEmpty ? null : notes),
-        updatedAt: d.Value(now),
-        lastModified: d.Value(now),
-        updatedAtIso: d.Value(nowIso),
-      ),
-    );
+    await _db.transaction(() async {
+      final now = Time.nowEpoch();
+      final nowIso = Time.nowIso();
+
+      // جلب السجل الحالي
+      final existing = await (_db.select(_db.guestInfos)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
+      if (existing == null) return;
+
+      await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))
+          .write(
+        GuestInfosCompanion(
+          roomNumber: d.Value(roomNumber),
+          guestName: d.Value(guestName),
+          nationality: d.Value(nationality),
+          idNumber: d.Value(idNumber),
+          idType: d.Value(idType),
+          issueDate: d.Value(issueDate.isEmpty ? null : issueDate),
+          issuePlace: d.Value(issuePlace.isEmpty ? null : issuePlace),
+          governorate: d.Value(governorate.isEmpty ? null : governorate),
+          notes: d.Value(notes.isEmpty ? null : notes),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+          updatedAtIso: d.Value(nowIso),
+        ),
+      );
+
+      if (!originIsServer) {
+        await _outboxDao.merge(
+          entity: 'guest_infos',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {
+            'roomNumber': roomNumber,
+            'guestName': guestName,
+            'nationality': nationality,
+            'idNumber': idNumber,
+            'idType': idType,
+            'issueDate': issueDate.isEmpty ? null : issueDate,
+            'issuePlace': issuePlace.isEmpty ? null : issuePlace,
+            'governorate': governorate.isEmpty ? null : governorate,
+            'notes': notes.isEmpty ? null : notes,
+          },
+          clientTs: now,
+        );
+      }
+    });
   }
 
-  /// حذف سجل
+  /// حذف ناعم (soft delete) + كتابة outbox للمزامنة
   Future<void> delete(int id) async {
-    await (_db.delete(_db.guestInfos)..where((t) => t.id.equals(id))).go();
-  }
+    await _db.transaction(() async {
+      final now = Time.nowEpoch();
+      final nowIso = Time.nowIso();
 
-  String _uuid() {
-    // Simple UUID v4-like generator without external dependency
-    const hexChars = '0123456789abcdef';
-    final now = DateTime.now().microsecondsSinceEpoch;
-    final rng = now & 0xFFFFFFFF;
-    return '${hexChars[(rng >> 28) & 0xF]}${hexChars[(rng >> 24) & 0xF]}${hexChars[(rng >> 20) & 0xF]}${hexChars[(rng >> 16) & 0xF]}-'
-        '${hexChars[(rng >> 12) & 0xF]}${hexChars[(rng >> 8) & 0xF]}${hexChars[(rng >> 4) & 0xF]}${hexChars[rng & 0xF]}-'
-        '${hexChars[(now >> 60) & 0xF]}${hexChars[(now >> 56) & 0xF]}${hexChars[(now >> 52) & 0xF]}${hexChars[(now >> 48) & 0xF]}-'
-        '${hexChars[(now >> 44) & 0xF]}${hexChars[(now >> 40) & 0xF]}${hexChars[(now >> 36) & 0xF]}${hexChars[(now >> 32) & 0xF]}';
+      final existing = await (_db.select(_db.guestInfos)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
+      if (existing == null) return;
+
+      // soft delete: تعيين deletedAt بدلاً من حذف فعلي
+      await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))
+          .write(
+        GuestInfosCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+          updatedAtIso: d.Value(nowIso),
+          deletedAtIso: d.Value(nowIso),
+        ),
+      );
+
+      await _outboxDao.merge(
+        entity: 'guest_infos',
+        op: 'delete',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        payload: {'guestName': existing.guestName},
+        clientTs: now,
+      );
+    });
   }
 }
