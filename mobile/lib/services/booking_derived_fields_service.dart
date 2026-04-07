@@ -48,10 +48,16 @@ class BookingDerivedFieldsService {
 
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
+    
+    // For active bookings (no actual checkout), expectedNights should dynamically 
+    // grow with the current time (totalNights from calculation which uses moment).
+    // This ensures payment screens show the correct number of nights if they stay past 14:00.
     final expectedNightsValue =
-        plannedCheckout != null && actualCheckout == null
+        (actualCheckout == null && StatusUtils.isBookingActive(booking))
         ? calculation.financialSummary.totalNights
-        : booking.expectedNights;
+        : (plannedCheckout != null && actualCheckout == null
+            ? calculation.financialSummary.totalNights
+            : booking.expectedNights);
 
     final isOverdue =
         calculation.bookingActive &&

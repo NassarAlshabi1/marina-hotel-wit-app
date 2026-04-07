@@ -449,16 +449,17 @@ class EnhancedBookingCalculationService {
         actualCheckout == null && StatusUtils.isBookingActive(booking);
 
     // Resolve effective checkout:
-    // 1. Actual checkout in the past → use it
-    // 2. Planned checkout in the past (no actual) → use it
-    // 3. Active booking or future checkout → use NOW
-    //    This prevents pre-set future dates from inflating night count
+    // 1. Actual checkout exists → use it (unless it's in the future, then use moment)
+    // 2. Active booking (no actual checkout) → ALWAYS use moment to ensure dynamic calculation
+    // 3. Otherwise (e.g. cancelled/provisional) → use planned checkout if in the past, else moment
     DateTime checkout;
-    if (actualCheckout != null && actualCheckout.isBefore(moment)) {
-      checkout = actualCheckout;
-    } else if (plannedCheckout != null &&
-        plannedCheckout.isBefore(moment) &&
-        actualCheckout == null) {
+    if (actualCheckout != null) {
+      checkout = actualCheckout.isBefore(moment) ? actualCheckout : moment;
+    } else if (bookingActive) {
+      // For active guests, always calculate up to the current moment
+      // This ensures that if they stay past 14:00, a new night is added automatically
+      checkout = moment;
+    } else if (plannedCheckout != null && plannedCheckout.isBefore(moment)) {
       checkout = plannedCheckout;
     } else {
       checkout = moment;

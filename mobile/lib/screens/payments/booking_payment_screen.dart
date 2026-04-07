@@ -235,18 +235,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final actualCheckout = booking.actualCheckout != null
                   ? DateTime.tryParse(booking.actualCheckout!)
                   : null;
-              final expectedNights = booking.expectedNights > 0
-                  ? booking.expectedNights
-                  : Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
-              // إذا لم يسجل النزيل خروج، نستخدم الوقت الحالي لحساب الليالي
-              // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
-              final effectiveCheckout = actualCheckout ?? DateTime.now();
+              // Use the pre-calculated expectedNights from the database, which is now dynamic 
+              // for active bookings via BookingDerivedFieldsService.
+              final expectedNights = booking.expectedNights;
+              
+              // actualNights represents the current stay duration including the 14:00 cutoff logic
+              final actualNights = booking.calculatedNights;
               final hasNotCheckedOut = actualCheckout == null;
-              final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
-              final actualNights = Time.nightsWithCutoff(
-                checkin,
-                checkout: effectiveCheckout,
-              );
 
               final dbInstance = ref.watch(databaseProvider);
               final discount = booking.discount;
