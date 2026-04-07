@@ -549,6 +549,32 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     await _autoPullLatestFromAppwrite();
   }
 
+  /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
+  Future<void> _syncOnResume() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      // push: رفع أي تغييرات معلقة في الـ outbox
+      // pull: سحب أي تغييرات جديدة من السيرفر
+      await syncManager.sync(push: true, pull: true);
+      _lastAppwriteAutoPull = DateTime.now();
+      debugPrint('✅ Sync on resume completed (push + pull)');
+    } catch (e) {
+      debugPrint('⚠️ Sync on resume error: $e');
+    }
+  }
+
+  /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
+  Future<void> _pushPendingChangesOnPause() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
+      await syncManager.sync(push: true, pull: false);
+      debugPrint('✅ Push on pause completed');
+    } catch (e) {
+      debugPrint('⚠️ Push on pause error: $e');
+    }
+  }
+
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
@@ -577,7 +603,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
-      unawaited(_autoPullAppwriteOnResume());
+      // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
+      unawaited(_syncOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
@@ -588,6 +615,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
+      // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
+      unawaited(_pushPendingChangesOnPause());
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         () => AppSessionManager.onAppCloseOrBackground(),
