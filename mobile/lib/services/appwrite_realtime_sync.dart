@@ -63,7 +63,7 @@ class AppwriteRealtimeSync {
     if (_isListening || _realtime == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool('appwrite_sync_enabled') ?? false)) return;
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
 
     final channels = _collections
         .map(

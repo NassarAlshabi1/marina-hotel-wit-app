@@ -909,7 +909,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           // رفع إلى Appwrite إذا كان مفعّلاً
           final prefs = await SharedPreferences.getInstance();
           final appwriteEnabled =
-              prefs.getBool('appwrite_sync_enabled') ?? false;
+              prefs.getBool('appwrite_sync_enabled') ?? true;
           if (appwriteEnabled) {
             state = state.copyWith(
               message: 'رفع البيانات إلى Appwrite...',
