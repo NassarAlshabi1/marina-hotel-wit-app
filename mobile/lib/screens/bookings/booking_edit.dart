@@ -396,6 +396,50 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             labelText: 'حالة الحجز',
                           ),
                         ),
+                        // ── صف عدد الليالي المحسوبة ──
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.nights_stay,
+                                    size: 20,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'عدد الليالي:',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '${_expectedNights.text} ليالي',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         if (widget.existing?.actualCheckout != null) ...[
                           const SizedBox(height: 6),
                           TextFormField(
@@ -730,7 +774,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final checkinDt = _parseDateTime(_checkin.text.trim());
     if (checkinDt == null) return;
     final checkoutDt = _parseDateTime(_checkout.text.trim());
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+
+    int nights;
+    if (checkoutDt == null && widget.existing == null) {
+      // حجز جديد بدون تاريخ خروج = ليلة واحدة كحد أدنى
+      nights = 1;
+    } else {
+      nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+    }
+
     setState(() {
       _expectedNights.text = nights.toString();
     });
