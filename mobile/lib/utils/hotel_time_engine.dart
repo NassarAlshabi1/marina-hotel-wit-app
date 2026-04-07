@@ -30,15 +30,20 @@ class HotelTimeEngine {
   /// تحويل أي DateTime إلى "يوم فندقي" (Date فقط، بدون وقت).
   ///
   /// القاعدة:
-  /// - `dt.hour >= 14` → اليوم = نفس اليوم
-  /// - `dt.hour < 14`  → اليوم = اليوم السابق
+  /// - الوقت > 14:00:00 (حتى ثانية واحدة) → نفس اليوم
+  /// - الوقت <= 14:00:00 → اليوم السابق
+  ///
+  /// 14:00:00 بالضبط = نهاية اليوم الفندقي الحالي (يعود لليوم السابق).
+  /// 14:00:01 = بداية اليوم الفندقي الجديد.
   ///
   /// مثال:
   /// - 2025-01-15 13:59 → 2025-01-14 (يوم فندقي سابق)
-  /// - 2025-01-15 14:00 → 2025-01-15 (يوم فندقي جديد)
-  /// - 2025-01-15 14:01 → 2025-01-15 (يوم فندقي جديد)
+  /// - 2025-01-15 14:00 → 2025-01-14 (نهاية اليوم الفندقي 14)
+  /// - 2025-01-15 14:01 → 2025-01-15 (بداية يوم فندقي جديد)
   static DateTime getHotelDay(DateTime dt) {
-    if (dt.hour >= boundaryHour) {
+    final isAfterBoundary = dt.hour > boundaryHour ||
+        (dt.hour == boundaryHour && (dt.minute > 0 || dt.second > 0));
+    if (isAfterBoundary) {
       return DateTime(dt.year, dt.month, dt.day);
     } else {
       final prev = dt.subtract(const Duration(days: 1));

@@ -7,11 +7,12 @@
 /// | Time            | Classification      |
 /// |-----------------|---------------------|
 /// | Before 14:00:00 | Previous hotel day  |
-/// | Exactly 14:00:00| Current hotel day   |
-/// | After 14:00:00  | Next hotel day      |
+/// | Exactly 14:00:00| Previous hotel day  |
+/// | After 14:00:00  | Current hotel day   |
 ///
-/// The boundary check uses **strictly greater than** (`>`) so that
-/// 14:00:00 exactly is *not* considered "after the cutoff".
+/// 14:00:00 exactly marks the **end** of the current hotel day.
+/// Only times strictly after 14:00:00 (even by 1 second) belong
+/// to the next hotel day.
 class HotelTimeEngine {
   // ---------------------------------------------------------------------------
   // Constants
@@ -26,24 +27,23 @@ class HotelTimeEngine {
 
   /// Determines the hotel day (date-only) for a given [dt].
   ///
-  /// Uses a three-way classification relative to [boundaryHour]:
-  /// - **Before** 14:00:00  -> previous calendar day
-  /// - **Exactly** 14:00:00 -> same calendar day
-  /// - **After**  14:00:00  -> next calendar day
+  /// The hotel day boundary works as follows:
+  /// - **At or before** 14:00:00  -> previous hotel day
+  /// - **Strictly after** 14:00:00 -> current hotel day
+  ///
+  /// 14:00:00 exactly is the **end** of the hotel day, so it maps to
+  /// the previous day. Only 14:00:01+ starts the next hotel day.
   ///
   /// Returns a [DateTime] with time set to midnight (00:00:00).
   static DateTime getHotelDay(DateTime dt) {
     final dateOnly = DateTime(dt.year, dt.month, dt.day);
 
-    if (dt.hour < boundaryHour) {
-      // Before 14:00 -> belongs to the previous hotel day
-      return dateOnly.subtract(const Duration(days: 1));
-    } else if (isAfterCutoff(dt)) {
-      // After 14:00:00 (even by 1 second) -> belongs to the next hotel day
-      return dateOnly.add(const Duration(days: 1));
-    } else {
-      // Exactly at 14:00:00 -> current hotel day
+    if (isAfterCutoff(dt)) {
+      // Strictly after 14:00:00 -> current hotel day
       return dateOnly;
+    } else {
+      // At or before 14:00:00 -> previous hotel day
+      return dateOnly.subtract(const Duration(days: 1));
     }
   }
 

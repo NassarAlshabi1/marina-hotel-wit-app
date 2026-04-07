@@ -136,16 +136,32 @@ class BookingComputedStreamService {
   Future<BookingWithPayments> _buildBookingWithPayments(
     Booking booking,
   ) async {
-    final checkIn = _parseDate(booking.checkinDate) ?? DateTime.now();
+    final now = DateTime.now();
+    final checkIn = _parseDate(booking.checkinDate) ?? now;
     final plannedCheckOut = _parseDate(booking.checkoutDate);
     final actualCheckOut = _parseDate(booking.actualCheckout);
     final isActive = actualCheckOut == null &&
         StatusUtils.isBookingActive(booking);
 
-    final effectiveCheckOut = actualCheckOut ?? plannedCheckOut;
+    // Effective checkout logic:
+    // - If guest is active (no actual checkout), always use NOW
+    // - If guest checked out, use actual checkout only if it's in the past
+    // - If a planned checkout exists but is in the future, treat as null (use NOW)
+    //   This prevents pre-set future dates from inflating the day count
+    final DateTime? effectiveCheckOut;
+    if (isActive) {
+      effectiveCheckOut = null; // Guest still present → use NOW
+    } else if (actualCheckOut != null && actualCheckOut.isBefore(now)) {
+      effectiveCheckOut = actualCheckOut;
+    } else if (plannedCheckOut != null && plannedCheckOut.isBefore(now)) {
+      effectiveCheckOut = plannedCheckOut;
+    } else {
+      effectiveCheckOut = null; // Future date or unknown → use NOW
+    }
+
     final days = HotelTimeEngine.calculateDays(
       checkIn,
-      checkOut: isActive ? null : effectiveCheckOut,
+      checkOut: effectiveCheckOut,
     );
 
     // Get room price
