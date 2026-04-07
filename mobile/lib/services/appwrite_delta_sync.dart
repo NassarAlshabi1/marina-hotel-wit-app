@@ -9,6 +9,7 @@ import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import '../utils/hotel_date_helper.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
@@ -207,7 +208,12 @@ class AppwriteDeltaSync {
     switch (change.operation) {
       case 'insert':
       case 'update':
-        final sanitized = _sanitizePayload(payload);
+        var sanitized = _sanitizePayload(payload);
+        // إزالة الحقول المحسوبة قبل الرفع (لا تُزامن إلى Appwrite)
+        sanitized = HotelDateHelper.stripComputedFieldsForEntity(
+          change.entity,
+          sanitized,
+        );
         final converted = _convertAmountTypesForAppwrite(collectionId, sanitized);
         await _appwriteService!.upsertDocument(
           collectionId: collectionId,
@@ -532,6 +538,27 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
+
+    // إعادة حساب الحقول المحسوبة محلياً بعد السحب من السيرفر
+    try {
+      await BookingDerivedFieldsService(db).refreshForBookingId(
+        await _getBookingLocalId(db, localUuid),
+        forceRebuild: true,
+      );
+    } catch (e) {
+      _logger.warning(
+        'فشل إعادة حساب الحقول المحسوبة للحجز $localUuid: $e',
+        tag: 'DELTA_SYNC',
+      );
+    }
+  }
+
+  /// استخراج localId (int) للحجز من localUuid (String).
+  Future<int> _getBookingLocalId(AppDatabase db, String localUuid) async {
+    final row = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    return row?.id ?? 0;
   }
 
   Future<void> _applyPaymentChange(

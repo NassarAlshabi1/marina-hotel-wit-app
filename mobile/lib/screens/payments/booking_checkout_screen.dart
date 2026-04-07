@@ -9,6 +9,7 @@ import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_date_helper.dart';
+import '../../utils/hotel_day_ticker.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   String get screenId => 'booking_checkout';
   bool _isProcessing = false;
-  Timer? _hotelDayRefreshTimer;
+  StreamSubscription? _hotelDayTickerSub;
 
   @override
   void initState() {
@@ -35,9 +36,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     _startHotelDayAutoRefresh();
   }
 
-  /// بدء مؤقت التحديث التلقائي عند عبور ساعة 14:00
+  /// بدء الاستماع للتيار العالمي لبداية اليوم الفندقي الجديد
   void _startHotelDayAutoRefresh() {
-    _hotelDayRefreshTimer = HotelDateHelper.createAutoRefreshTimer(() {
+    _hotelDayTickerSub = HotelDayTicker.instance.stream.listen((_) {
       if (mounted) {
         setState(() {});
         _refreshBookingNights();
@@ -68,7 +69,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
   @override
   void dispose() {
-    _hotelDayRefreshTimer?.cancel();
+    _hotelDayTickerSub?.cancel();
     super.dispose();
   }
 

@@ -6,6 +6,10 @@ import 'time.dart';
 /// نظام احتساب الأيام الفندقية يعتمد على ساعة بداية اليوم (14:00).
 /// اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي.
 /// أي تجاوز لساعة 14:00 = يبدأ يوم فندقي جديد.
+///
+/// يحتوي أيضاً على قائمة الحقول المحسوبة التي يجب:
+/// - عدم مزامنتها إلى Appwrite (مصدر حقيقة محلي فقط)
+/// - إعادة حسابها محلياً بعد كل عملية سحب من السيرفر
 class HotelDateHelper {
   /// ساعة بداية اليوم الفندقي
   static const int hotelStartHour = 14;
@@ -172,5 +176,48 @@ class HotelDateHelper {
       const Duration(seconds: 30),
       (_) => onTick(),
     );
+  }
+
+  // ─── الحقول المحسوبة (لا تُزامن إلى Appwrite) ───────────────
+
+  /// الحقول المحسوبة في جدول الحجوزات (bookings).
+  ///
+  /// هذه الحقول تُحسب محلياً من البيانات الأساسية (checkin, checkout, rate...)
+  /// ويجب **ألا تُدفع إلى Appwrite** لأنها تختلف من جهاز لآخر.
+  /// بعد كل عملية سحب (pull)، يجب إعادة حسابها محلياً.
+  static const bookingComputedFields = <String>{
+    'calculatedNights',
+    'totalNightsCached',
+    'stayDurationIso',
+    'lastNightEpoch',
+    'isOverdue',
+    'needsCheckoutReview',
+    'totalDueCached',
+    'totalPaidCached',
+    'remainingBalanceCached',
+    'isFullyPaid',
+    'hotelDayCheckin',
+    'hotelDayCheckout',
+  };
+
+  /// فحص هل حقل معين في الحجوزات هو حقل محسوب (لا يُزامن).
+  static bool isBookingComputedField(String fieldName) {
+    return bookingComputedFields.contains(fieldName);
+  }
+
+  /// تصفية بيانات الحجز من الحقول المحسوبة قبل الرفع إلى Appwrite.
+  ///
+  /// يُستدعى من `_sanitizePayload` في Delta Sync.
+  static Map<String, dynamic> stripComputedFieldsForEntity(
+    String entity,
+    Map<String, dynamic> payload,
+  ) {
+    if (entity != 'bookings') return payload;
+
+    final result = Map<String, dynamic>.from(payload);
+    for (final field in bookingComputedFields) {
+      result.remove(field);
+    }
+    return result;
   }
 }

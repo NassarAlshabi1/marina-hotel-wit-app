@@ -17,6 +17,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_date_helper.dart';
+import '../../utils/hotel_day_ticker.dart';
 import '../../providers/repository_providers.dart';
 import 'payment_history_screen.dart';
 
@@ -39,7 +40,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
-  Timer? _hotelDayRefreshTimer;
+  StreamSubscription? _hotelDayTickerSub;
 
 
   Payment _mapDbPaymentToUi(db.Payment p) {
@@ -118,9 +119,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _startHotelDayAutoRefresh();
   }
 
-  /// بدء مؤقت التحديث التلقائي عند عبور ساعة 14:00
+  /// بدء الاستماع للتيار العالمي لبداية اليوم الفندقي الجديد
   void _startHotelDayAutoRefresh() {
-    _hotelDayRefreshTimer = HotelDateHelper.createAutoRefreshTimer(() {
+    _hotelDayTickerSub = HotelDayTicker.instance.stream.listen((_) {
       if (mounted) {
         setState(() {});
         _refreshBookingNights();
@@ -188,7 +189,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   @override
   void dispose() {
-    _hotelDayRefreshTimer?.cancel();
+    _hotelDayTickerSub?.cancel();
     _tabController.dispose();
     _phoneController.dispose();
     super.dispose();
