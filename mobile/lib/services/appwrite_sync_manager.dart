@@ -97,6 +97,7 @@ class AppwriteSyncManager {
   String? _deviceLocalUuid;
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
+  String? _fcmToken; // توكن FCM للإشعارات بين الأجهزة
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
@@ -178,6 +179,30 @@ class AppwriteSyncManager {
     _deviceLocalUuid = prefs.getString('appwrite_device_local_uuid');
     _deviceVersion = prefs.getInt('appwrite_device_version');
     _deviceCreatedAtEpoch = prefs.getInt('appwrite_device_created_at');
+    _fcmToken = prefs.getString('fcm_token');
+  }
+
+  /// تعيين توكن FCM (يُستدعى من FcmService بعد الحصول على التوكن)
+  Future<void> setFcmToken(String token) async {
+    _fcmToken = token;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fcm_token', token);
+
+    // إذا كان الجهاز مسجلاً، نحدث التوكن على السيرفر
+    if (_currentDeviceId != null) {
+      try {
+        await appwriteService.updateDocument(
+          collectionId: AppwriteConfig.devicesCollectionId,
+          documentId: _currentDeviceId!,
+          data: {
+            'fcmToken': token,
+            'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          },
+        );
+      } catch (e) {
+        debugPrint('⚠️ Failed to update FCM token: $e');
+      }
+    }
   }
 
   /// حفظ الإعدادات
@@ -270,6 +295,8 @@ class AppwriteSyncManager {
               'lastModified': nowEpoch,
               'version': _deviceVersion,
               'origin': 'mobile',
+              // FCM token
+              if (_fcmToken != null) 'fcmToken': _fcmToken,
             },
           );
         });
@@ -295,6 +322,8 @@ class AppwriteSyncManager {
           'lastModified': nowEpoch,
           'version': _deviceVersion,
           'origin': 'mobile',
+          // FCM token
+          if (_fcmToken != null) 'fcmToken': _fcmToken,
         });
 
         _currentDeviceId = device.$id;

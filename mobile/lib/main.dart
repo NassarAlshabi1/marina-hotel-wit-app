@@ -50,6 +50,7 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/fcm_service.dart';
 import 'services/sync_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
@@ -420,6 +421,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('⚠️ Device registration error: $e');
         }
 
+        // تهيئة FCM للإشعارات بين الأجهزة
+        try {
+          await _initializeFcm(syncManager);
+        } catch (e) {
+          debugPrint('⚠️ FCM initialization error: $e');
+        }
+
         // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
         syncManager.startAutoSync(
           interval: const Duration(minutes: 2),
@@ -510,6 +518,26 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('❌ Appwrite auto-pull error: $e');
     }
+  }
+
+  /// تهيئة FCM للإشعارات بين الأجهزة
+  Future<void> _initializeFcm(dynamic syncManager) async {
+    final fcm = FcmService();
+
+    // حقن الاعتمادات لتجنب import دائري
+    FcmService.injectDependencies(
+      syncManager: syncManager,
+      realtimeSync: AppwriteRealtimeSync(),
+    );
+
+    await fcm.initialize();
+
+    // تسجيل التوكن في SyncManager
+    if (fcm.currentToken != null) {
+      await syncManager.setFcmToken(fcm.currentToken!);
+    }
+
+    debugPrint('✅ FCM ready — cross-device notifications enabled');
   }
 
   Future<void> _autoPullAppwriteOnResume() async {
