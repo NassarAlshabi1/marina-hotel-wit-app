@@ -325,9 +325,9 @@ class AppwriteDeltaSync {
       const int limit = 100;
 
       while (true) {
-        final queries = <Query>[
-          Query.limit(limit),
-          Query.offset(offset),
+        final queries = <String>[
+          'limit($limit)',
+          'offset($offset)',
           if (lastPullTs > 0) Query.greaterThan('syncTimestamp', lastPullTs),
           Query.orderAsc('\$createdAt'),
         ];
