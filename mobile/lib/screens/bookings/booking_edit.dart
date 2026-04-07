@@ -556,10 +556,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           : null;
                       final calculatedNights = checkinDt == null
                           ? expectedNights
-                          : Time.nightsWithCutoff(
-                              checkinDt,
-                              checkout: checkoutDt,
-                            );
+                          : (checkoutDt == null && widget.existing == null)
+                              ? 1
+                              : Time.nightsWithCutoff(
+                                  checkinDt,
+                                  checkout: checkoutDt,
+                                );
                       final notes = _optionalText(_notes.text);
                       const String? email = null;
 
