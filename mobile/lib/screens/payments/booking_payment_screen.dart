@@ -242,6 +242,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               // actualNights represents the current stay duration including the 14:00 cutoff logic
               final actualNights = booking.calculatedNights;
               final hasNotCheckedOut = actualCheckout == null;
+              final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
 
               final dbInstance = ref.watch(databaseProvider);
               final discount = booking.discount;

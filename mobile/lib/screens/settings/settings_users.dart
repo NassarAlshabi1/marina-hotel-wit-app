@@ -544,6 +544,8 @@ String _permLabel(String key) {
       return 'التقارير';
     case 'notes':
       return 'الملاحظات';
+    case 'information':
+      return 'المعلومية';
     case 'settings':
       return 'الإعدادات';
     default:
