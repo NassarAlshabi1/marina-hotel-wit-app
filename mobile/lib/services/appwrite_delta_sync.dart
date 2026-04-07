@@ -42,7 +42,9 @@ class AppwriteDeltaSync {
 
   final _logger = AppwriteLogger();
 
-  static const _prefsLastDeltaSyncKey = 'appwrite_last_delta_sync';
+  static const _prefsLastPushSyncKey = 'appwrite_last_push_delta_sync';
+  static const _prefsLastPullSyncKey = 'appwrite_last_pull_delta_sync';
+  static const _prefsLastDeltaSyncKey = 'appwrite_last_delta_sync'; // للتوافق العكسي
   static const _prefsDeviceIdKey = 'appwrite_delta_device_id';
   static const _prefsDeltaSyncEnabledKey = 'appwrite_delta_sync_enabled';
 
@@ -138,7 +140,7 @@ class AppwriteDeltaSync {
 
       if (successfulChanges.isNotEmpty) {
         await _persistSuccessfulChanges(computation, successfulChanges);
-        await _updateLastDeltaSyncTimestamp();
+        await _updateLastPushSyncTimestamp();
       }
 
       final hasFailures = failedChanges.isNotEmpty;
@@ -247,7 +249,7 @@ class AppwriteDeltaSync {
     try {
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
 
-      final lastPullTs = await _getLastDeltaSyncTimestamp();
+      final lastPullTs = await _getLastPullSyncTimestamp();
       int pulledCount = 0;
 
       final entitiesToPull = {
@@ -282,7 +284,7 @@ class AppwriteDeltaSync {
       }
 
       if (pulledCount > 0) {
-        await _updateLastDeltaSyncTimestamp();
+        await _updateLastPullSyncTimestamp();
       }
 
       _logger.info(
@@ -311,30 +313,47 @@ class AppwriteDeltaSync {
     int lastPullTs,
   ) async {
     try {
-      final documents = await _appwriteService!.listDocuments(
-        collectionId: collectionId,
-        queries: lastPullTs > 0
-            ? [Query.greaterThan('syncTimestamp', lastPullTs)]
-            : null,
-        useCache: false,
-      );
-
+      // Pagination: جلب النتائج على دفعات (كل دفعة 100 سجل كحد أقصى)
       int applied = 0;
-      for (final doc in documents) {
-        final data = Map<String, dynamic>.from(doc.data);
-        final sourceDeviceId = data['deviceId'] as String?;
+      int offset = 0;
+      const int limit = 100;
 
-        if (sourceDeviceId == _deviceId) continue;
+      while (true) {
+        final queries = <Query>[
+          Query.limit(limit),
+          Query.offset(offset),
+          if (lastPullTs > 0) Query.greaterThan('syncTimestamp', lastPullTs),
+          Query.orderAsc('\$createdAt'),
+        ];
 
-        try {
-          await _applyRemoteChange(entity, doc.$id, data);
-          applied++;
-        } catch (e) {
-          _logger.warning(
-            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
-            tag: 'DELTA_SYNC',
-          );
+        final documents = await _appwriteService!.listDocuments(
+          collectionId: collectionId,
+          queries: queries,
+          useCache: false,
+        );
+
+        if (documents.isEmpty) break;
+
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final sourceDeviceId = data['deviceId'] as String?;
+
+          if (sourceDeviceId == _deviceId) continue;
+
+          try {
+            await _applyRemoteChange(entity, doc.$id, data);
+            applied++;
+          } catch (e) {
+            _logger.warning(
+              'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+              tag: 'DELTA_SYNC',
+            );
+          }
         }
+
+        // إذا عدد النتائج أقل من الحد، لا يوجد المزيد
+        if (documents.length < limit) break;
+        offset += limit;
       }
 
       return applied;
@@ -1105,13 +1124,31 @@ class AppwriteDeltaSync {
   }
 
   Future<int> _getLastDeltaSyncTimestamp() async {
+    // للتوافق العكسي: يُرجع القيمة القديمة الموحدة
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
-  Future<void> _updateLastDeltaSyncTimestamp() async {
+  Future<int> _getLastPushSyncTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDeltaSyncKey, Time.nowEpoch());
+    return prefs.getInt(_prefsLastPushSyncKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+  }
+
+  Future<void> _updateLastPushSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastPushSyncKey, Time.nowEpoch());
+  }
+
+  Future<int> _getLastPullSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_prefsLastPullSyncKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+  }
+
+  Future<void> _updateLastPullSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastPullSyncKey, Time.nowEpoch());
   }
 
   Future<Map<String, dynamic>> getStatus() async {

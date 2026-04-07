@@ -526,6 +526,15 @@ class DeltaSyncService {
         deletedAt: (dynamic row) => (row as PaymentVoid).deletedAt,
         toJson: (dynamic row) => (row as PaymentVoid).toJson(),
       ),
+      _EntityConfig(
+        entity: 'booking_price_adjustments',
+        fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
+        localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
+        createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
+        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
+        deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
+        toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
+      ),
     ];
   }
 }
