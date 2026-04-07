@@ -453,6 +453,13 @@ class AppwriteSyncManager {
 
       final syncLog = await appwriteService.createSyncLog({
         'deviceId': _currentDeviceId ?? 'unknown',
+        'operation': push && pull
+            ? 'full'
+            : push
+            ? 'push'
+            : pull
+            ? 'pull'
+            : 'noop',
         'syncType': push && pull
             ? 'full'
             : push
@@ -2923,6 +2930,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        // إزالة id عند السحب من Appwrite لتجنب تعارض autoIncrement
+        data.remove('id');
         final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,

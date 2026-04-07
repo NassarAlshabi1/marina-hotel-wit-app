@@ -824,9 +824,11 @@ class AppwriteService {
             data: {
               'localUuid': testDocumentId,
               'deviceId': 'connection_test',
+              'operation': 'test',
               'syncType': 'test',
               'startTime': DateTime.now().toIso8601String(),
               'status': 'test',
+              'action': 'connection_test',
               'timestamp': now,
               'createdAt': now,
               'updatedAt': now,
