@@ -448,8 +448,19 @@ class EnhancedBookingCalculationService {
     final bookingActive =
         actualCheckout == null && StatusUtils.isBookingActive(booking);
 
-    DateTime checkout = actualCheckout ?? plannedCheckout ?? checkin;
-    if (bookingActive) {
+    // Resolve effective checkout:
+    // 1. Actual checkout in the past → use it
+    // 2. Planned checkout in the past (no actual) → use it
+    // 3. Active booking or future checkout → use NOW
+    //    This prevents pre-set future dates from inflating night count
+    DateTime checkout;
+    if (actualCheckout != null && actualCheckout.isBefore(moment)) {
+      checkout = actualCheckout;
+    } else if (plannedCheckout != null &&
+        plannedCheckout.isBefore(moment) &&
+        actualCheckout == null) {
+      checkout = plannedCheckout;
+    } else {
       checkout = moment;
     }
 
