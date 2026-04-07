@@ -1,550 +1,216 @@
 import 'dart:async';
-import '../../utils/hotel_time_engine.dart';
-import '../../utils/hotel_day_ticker.dart';
+
+import 'package:drift/drift.dart' as d;
+import 'hotel_time_engine.dart';
 import 'local_db.dart';
+import 'status_utils.dart';
 
-// ═══════════════════════════════════════════════════════════════════
-// النماذج المحسوبة (لا تُخزن في قاعدة البيانات)
-// ═══════════════════════════════════════════════════════════════════
-
-/// بيانات حجز مع تجميع المدفوعات وكل الحقول المالية المحسوبة.
+/// Reactive model combining raw booking data with computed financial values.
 ///
-/// **مبدأ التصميم:**
-/// - لا يُخزن أي قيمة محسوبة — كل شيء يُحسب في الوقت الحقيقي
-/// - المصدر الوحيد للحقيقة: Booking + Payments + Rooms.price
-/// - HotelTimeEngine هو المحرك الوحيد للحسابات
-/// - يتحدث تلقائياً عند: تغيير بيانات، عبور 14:00، مزامنة
-///
-/// **لا يستخدم أبداً:** booking.hotelDayKey، booking.totalDueCached، إلخ
+/// All computed fields (days, total, paid, remaining) are derived at read time
+/// from raw stored data. They are NEVER persisted to the database.
 class BookingWithPayments {
-  /// بيانات الحجز الخام من قاعدة البيانات
   final Booking booking;
-
-  /// عدد الليالي المحسوب ديناميكياً (HotelTimeEngine.calculateDays)
   final int days;
-
-  /// المبلغ الإجمالي = days × roomPrice (مع الخصم إن وُجد)
-  final double total;
-
-  /// مجموع المدفوعات الفعلي (بدون الملغاة)
-  final double paid;
-
-  /// الرصيد المتبقي = total - paid
-  final double remaining;
-
-  /// هل دُفع المبلغ كاملاً؟
+  final int pricePerNight;
+  final int totalDue;
+  final int totalPaid;
+  final int remainingBalance;
   final bool isFullyPaid;
+  final bool isActive;
+  final DateTime computedCheckIn;
+  final DateTime? computedCheckOut;
 
-  /// هل الحجز متأخر عن الخروج؟
-  final bool isOverdue;
-
-  /// هل يحتاج مراجعة الخروج؟
-  final bool needsCheckoutReview;
-
-  /// سعر الغرفة (من جدول rooms.price)
-  final double roomPrice;
-
-  /// يوم الدخول الفندقي YYYY-MM-DD
-  final String hotelDayCheckin;
-
-  /// يوم الخروج الفندقي YYYY-MM-DD (أو null)
-  final String? hotelDayCheckout;
-
-  /// اليوم الفندقي الحالي YYYY-MM-DD
-  final String currentHotelDay;
-
-  /// هل الوقت الحالي بعد 14:00؟
-  final bool isAfterCutoff;
-
-  /// قائمة المدفوعات الفعلية (غير الملغاة)
-  final List<Payment> payments;
-
-  BookingWithPayments({
+  const BookingWithPayments({
     required this.booking,
     required this.days,
-    required this.total,
-    required this.paid,
-    required this.remaining,
+    required this.pricePerNight,
+    required this.totalDue,
+    required this.totalPaid,
+    required this.remainingBalance,
     required this.isFullyPaid,
-    required this.isOverdue,
-    required this.needsCheckoutReview,
-    required this.roomPrice,
-    required this.hotelDayCheckin,
-    this.hotelDayCheckout,
-    required this.currentHotelDay,
-    required this.isAfterCutoff,
-    this.payments = const [],
+    required this.isActive,
+    required this.computedCheckIn,
+    this.computedCheckOut,
   });
 
-  /// حساب سريع لليلة الواحدة (متوسط)
-  double get averageNightlyRate => days > 0 ? total / days : 0;
-
-  /// نسبة الدفع (0.0 إلى 1.0)
-  double get paymentProgress => total > 0 ? (paid / total).clamp(0.0, 1.0) : 0.0;
+  /// Is the booking overdue (past expected checkout with remaining balance)?
+  bool get isOverdue {
+    if (!isActive) return false;
+    if (remainingBalance <= 0) return false;
+    final now = DateTime.now();
+    final plannedCheckout = _parseDate(booking.checkoutDate);
+    if (plannedCheckout == null) return false;
+    return now.isAfter(plannedCheckout);
+  }
 }
 
-/// نموذج خفيف لحجز مع حقول محسوبة أساسية (بدون مدفوعات).
+/// Service that provides reactive streams for bookings with computed payments.
 ///
-/// يُستخدم للقوائم السريعة التي لا تحتاج تفاصيل المدفوعات.
-class BookingWithComputed {
-  final Booking booking;
-  final int dynamicNights;
-  final double dynamicTotal;
-  final bool isAfterCutoff;
-  final String currentHotelDay;
-
-  BookingWithComputed({
-    required this.booking,
-    required this.dynamicNights,
-    required this.dynamicTotal,
-    required this.isAfterCutoff,
-    required this.currentHotelDay,
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// خدمة التيارات التفاعلية
-// ═══════════════════════════════════════════════════════════════════
-
-/// خدمة التيارات التفاعلية للحجوزات مع حقول محسوبة ديناميكياً.
-///
-/// **مبدأ التصميم:**
-/// - مصدر الحقيقة: checkinDate + actualCheckout + rooms.price + payments
-/// - كل القيم تُحسب ديناميكياً في الوقت الحقيقي عبر [HotelTimeEngine]
-/// - UI يتحدث تلقائياً عند 3 أحداث:
-///   1. تغيير بيانات الحجز في DB
-///   2. عبور الساعة 14:00 (HotelDayTicker)
-///   3. إضافة/تعديل/إلغاء دفعة
-///
-/// **لا يعتمد على أي حقل محسوب في قاعدة البيانات.**
-///
-/// ## الاستخدام في UI
-/// ```dart
-/// final service = ref.read(bookingComputedStreamProvider(db));
-///
-/// // عرض كل حجوزات غرفة مع الحقول المالية
-/// StreamBuilder<List<BookingWithPayments>>(
-///   stream: service.watchBookingsWithPaymentsByRoom('101'),
-///   builder: (_, snap) {
-///     final data = snap.data ?? [];
-///     return ListView.builder(
-///       itemCount: data.length,
-///       itemBuilder: (_, i) {
-///         final b = data[i];
-///         return ListTile(
-///           title: Text('أيام: ${b.days} | الإجمالي: ${b.total}'),
-///           subtitle: Text(
-///             'المدفوع: ${b.paid} | المتبقي: ${b.remaining}',
-///           ),
-///         );
-///       },
-///     );
-///   },
-/// )
-/// ```
+/// All financial values are computed client-side from raw data.
+/// This service does NOT store any computed values.
 class BookingComputedStreamService {
-  final AppDatabase db;
-
   BookingComputedStreamService(this.db);
 
-  // ─── تجميع المدفوعات ───────────────────────────────────────
+  final AppDatabase db;
 
-  /// جلب سعر الغرفة من جدول rooms.
+  /// Watches a single booking by local ID and emits updated [BookingWithPayments].
   ///
-  /// يبحث عن طريق roomNumber. إذا لم يجد الغرفة يُرجع 0.
-  Future<double> _getRoomPrice(String roomNumber) async {
-    try {
-      final room = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))
-            ..where((r) => r.deletedAt.isNull()))
-          .getSingleOrNull();
-      return (room?.price ?? 0).toDouble();
-    } catch (_) {
-      return 0;
+  /// The stream re-emits whenever the booking row or any related payment changes.
+  Stream<BookingWithPayments?> watchBookingWithPayments(int bookingId) {
+    // Use a combined query approach - watch the booking directly
+    final bookingQuery = (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId)))
+        .watchSingleOrNull();
+
+    return bookingQuery.asyncMap((booking) async {
+      if (booking == null) return null;
+      return await _buildBookingWithPayments(booking);
+    });
+  }
+
+  /// Watches a single booking by UUID and emits updated [BookingWithPayments].
+  Stream<BookingWithPayments?> watchBookingByUuid(String uuid) {
+    final bookingQuery = (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(uuid)))
+        .watchSingleOrNull();
+
+    return bookingQuery.asyncMap((booking) async {
+      if (booking == null) return null;
+      return await _buildBookingWithPayments(booking);
+    });
+  }
+
+  /// Watches all active bookings with computed payments.
+  ///
+  /// Active = checked-in and not checked out.
+  Stream<List<BookingWithPayments>> watchActiveBookingsWithPayments() {
+    final activeQuery = (db.select(db.bookings)
+          ..where((b) => b.status.equals('checked_in'))
+          ..where((b) => b.actualCheckout.isNull())
+          ..where((b) => b.deletedAt.isNull())
+          ..orderBy([(b) => d.OrderingTerm.asc(b.id)]))
+        .watch();
+
+    return activeQuery.asyncMap((bookings) async {
+      final results = <BookingWithPayments>[];
+      for (final booking in bookings) {
+        final computed = await _buildBookingWithPayments(booking);
+        if (computed != null) results.add(computed);
+      }
+      return results;
+    });
+  }
+
+  /// Watches all bookings for a specific room number.
+  Stream<List<BookingWithPayments>> watchBookingsByRoom(String roomNumber) {
+    final query = (db.select(db.bookings)
+          ..where((b) => b.roomNumber.equals(roomNumber))
+          ..where((b) => b.deletedAt.isNull())
+          ..orderBy([(b) => d.OrderingTerm.desc(b.id)]))
+        .watch();
+
+    return query.asyncMap((bookings) async {
+      final results = <BookingWithPayments>[];
+      for (final booking in bookings) {
+        final computed = await _buildBookingWithPayments(booking);
+        if (computed != null) results.add(computed);
+      }
+      return results;
+    });
+  }
+
+  /// Builds a [BookingWithPayments] from raw data (non-streaming, one-shot).
+  Future<BookingWithPayments?> buildBookingWithPayments(int bookingId) async {
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId)))
+        .getSingleOrNull();
+    if (booking == null) return null;
+    return _buildBookingWithPayments(booking);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal helpers
+  // ---------------------------------------------------------------------------
+
+  Future<BookingWithPayments> _buildBookingWithPayments(
+    Booking booking,
+  ) async {
+    final checkIn = _parseDate(booking.checkinDate) ?? DateTime.now();
+    final plannedCheckOut = _parseDate(booking.checkoutDate);
+    final actualCheckOut = _parseDate(booking.actualCheckout);
+    final isActive = actualCheckOut == null &&
+        StatusUtils.isBookingActive(booking);
+
+    final effectiveCheckOut = actualCheckOut ?? plannedCheckOut;
+    final days = HotelTimeEngine.calculateDays(
+      checkIn,
+      checkOut: isActive ? null : effectiveCheckOut,
+    );
+
+    // Get room price
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.roomNumber.equals(booking.roomNumber))
+          ..where((r) => r.deletedAt.isNull()))
+        .getSingleOrNull();
+    final pricePerNight = (room?.price ?? 0).round();
+
+    // Calculate total due (days * price, minus total-type discount)
+    int totalDue = days * pricePerNight;
+    final discount = (booking.discount ?? 0).round();
+    if (booking.discountType == 'total' && discount > 0) {
+      totalDue = (totalDue - discount).clamp(0, totalDue);
     }
-  }
 
-  /// جلب مدفوعات حجز معينة (الفعالة فقط).
-  ///
-  /// يبحث بـ bookingLocalId. يُستثنى المدفوعات الملغاة (isVoided)
-  /// والمدفوعات المعلقة (isPendingBalance).
-  Future<List<Payment>> _getPaymentsForBooking(int bookingId) async {
-    return (db.select(db.payments)
-          ..where((p) => p.bookingLocalId.equals(bookingId))
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
-        .get();
-  }
-
-  /// تجميع المدفوعات الفعالية = مجموع المبالغ غير الملغاة.
-  double _sumPayments(List<Payment> payments) {
-    return payments
-        .where((p) => !p.isVoided)
-        .fold<double>(0, (sum, p) => sum + p.amount);
-  }
-
-  // ─── حساب BookingWithPayments كامل ────────────────────────
-
-  /// حساب كل الحقول المحسوبة لحجز واحد (مع المدفوعات).
-  ///
-  /// هذا هو المحرك المركزي — كل القراءات تمر من هنا.
-  /// يستخدم [HotelTimeEngine] حصرياً.
-  Future<BookingWithPayments> _computeWithPayments(Booking booking) async {
-    final checkin = DateTime.tryParse(booking.checkinDate);
-    final checkoutDate = booking.actualCheckout ?? booking.checkoutDate;
-    final checkout = checkoutDate != null && checkoutDate.isNotEmpty
-        ? DateTime.tryParse(checkoutDate)
-        : null;
-
-    // 1. حساب الليالي (HotelTimeEngine)
-    final days = checkin != null
-        ? HotelTimeEngine.calculateDays(
-            checkin,
-            checkOut: checkout,
-          )
-        : 1;
-
-    // 2. سعر الغرفة (من جدول rooms)
-    final roomPrice = await _getRoomPrice(booking.roomNumber);
-
-    // 3. المدفوعات (من جدول payments)
-    final payments = await _getPaymentsForBooking(booking.id);
-    final paid = _sumPayments(payments);
-
-    // 4. حساب الإجمالي مع الخصم
-    final total = HotelTimeEngine.calculateTotal(
-      days: days,
-      roomPrice: roomPrice,
-      discount: booking.discount,
-      discountType: booking.discountType,
-    );
-
-    // 5. الرصيد المتبقي
-    final remaining = total - paid;
-
-    // 6. حالة الدفع
-    final isFullyPaid = remaining <= 0;
-
-    // 7. حالة التأخير
-    final isOverdue = HotelTimeEngine.isOverdue(
-      status: booking.status,
-      checkoutDate: booking.checkoutDate,
-    );
-
-    // 8. مراجعة الخروج
-    final needsCheckoutReview = HotelTimeEngine.needsCheckoutReview(
-      isOverdue: isOverdue,
-      remainingBalance: remaining,
-    );
-
-    // 9. أيام فندقية
-    final hotelDayCheckin = checkin != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: checkin)
-        : '';
-    final hotelDayCheckout = checkout != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: checkout)
-        : null;
+    // Sum payments
+    final totalPaid = await _sumPaymentsForBooking(booking);
+    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return BookingWithPayments(
       booking: booking,
       days: days,
-      total: total,
-      paid: paid,
-      remaining: remaining,
-      isFullyPaid: isFullyPaid,
-      isOverdue: isOverdue,
-      needsCheckoutReview: needsCheckoutReview,
-      roomPrice: roomPrice,
-      hotelDayCheckin: hotelDayCheckin,
-      hotelDayCheckout: hotelDayCheckout,
-      currentHotelDay: HotelTimeEngine.getHotelDayKey(),
-      isAfterCutoff: HotelTimeEngine.isNowAfterCutoff(),
-      payments: payments,
+      pricePerNight: pricePerNight,
+      totalDue: totalDue,
+      totalPaid: totalPaid,
+      remainingBalance: remaining,
+      isFullyPaid: remaining <= 0,
+      isActive: isActive,
+      computedCheckIn: checkIn,
+      computedCheckOut: effectiveCheckOut,
     );
   }
 
-  /// حساب خفيف بدون مدفوعات.
-  BookingWithComputed _computeLight(Booking booking, double roomRate) {
-    final checkin = DateTime.tryParse(booking.checkinDate);
-    final actualCheckout = booking.actualCheckout != null
-        ? DateTime.tryParse(booking.actualCheckout!)
-        : null;
-
-    final effectiveCheckout = actualCheckout ?? DateTime.now();
-    final dynamicNights = checkin != null
-        ? HotelTimeEngine.calculateDays(
-            checkin,
-            checkOut: effectiveCheckout,
+  Future<int> _sumPaymentsForBooking(Booking booking) async {
+    final payments = await (db.select(db.payments)
+          ..where(
+            (p) =>
+                (p.bookingLocalId.equals(booking.id) |
+                p.bookingUuidCache.equals(booking.localUuid)),
           )
-        : 1;
+          ..where((p) => p.deletedAt.isNull())
+          ..where((p) => p.isVoided.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false))
+          ..where(
+            (p) =>
+                p.revenueType.equals('room') |
+                p.revenueType.equals('') |
+                p.revenueType.isNull(),
+          ))
+        .get();
 
-    return BookingWithComputed(
-      booking: booking,
-      dynamicNights: dynamicNights,
-      dynamicTotal: dynamicNights * roomRate,
-      isAfterCutoff: HotelTimeEngine.isNowAfterCutoff(),
-      currentHotelDay: HotelTimeEngine.getHotelDayKey(),
-    );
+    return payments.fold<int>(0, (sum, p) => sum + p.amount.round());
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // تيارات BookingWithPayments (مع المدفوعات)
-  // ═══════════════════════════════════════════════════════════════
-
-  /// تيار تفاعلي لحجز واحد مع كل البيانات المالية.
-  ///
-  /// يتحدث تلقائياً عند:
-  /// - تغيير بيانات الحجز
-  /// - إضافة/تعديل/إلغاء دفعة
-  /// - عبور الساعة 14:00
-  Stream<BookingWithPayments?> watchBookingWithPayments(int bookingId) {
-    final controller = StreamController<BookingWithPayments?>.broadcast();
-    StreamSubscription<Booking?>? bookingSub;
-    StreamSubscription<List<Payment>>? paymentSub;
-    StreamSubscription<void>? tickerSub;
-
-    void emit() async {
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(bookingId)))
-          .getSingleOrNull();
-      if (booking != null && !controller.isClosed) {
-        final result = await _computeWithPayments(booking);
-        if (!controller.isClosed) {
-          controller.add(result);
-        }
-      }
+  DateTime? _parseDate(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final v = value.trim();
+    final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
+    final withSeconds =
+        normalized.length == 16 ? '${normalized}:00' : normalized;
+    try {
+      return DateTime.parse(withSeconds);
+    } catch (_) {
+      return null;
     }
-
-    // الاستماع لتغييرات الحجز
-    bookingSub = (db.select(db.bookings)
-          ..where((b) => b.id.equals(bookingId)))
-        .watchSingleOrNull()
-        .listen(
-      (_) => emit(),
-      onError: controller.addError,
-    );
-
-    // الاستماع لتغييرات المدفوعات
-    paymentSub = (db.select(db.payments)
-          ..where((p) => p.bookingLocalId.equals(bookingId))
-          ..where((p) => p.deletedAt.isNull()))
-        .watch()
-        .listen(
-      (_) => emit(),
-      onError: controller.addError,
-    );
-
-    // الاستماع لعبور 14:00
-    tickerSub = HotelDayTicker.instance.stream.listen((_) => emit());
-
-    controller.onCancel = () {
-      bookingSub?.cancel();
-      paymentSub?.cancel();
-      tickerSub?.cancel();
-    };
-
-    return controller.stream;
-  }
-
-  /// تيار تفاعلي لجميع الحجوزات النشطة مع المدفوعات.
-  ///
-  /// هذا هو التيار الرئيسي للوحة التحكم.
-  Stream<List<BookingWithPayments>> watchActiveBookingsWithPayments() {
-    final bookingsStream = (db.select(db.bookings)
-          ..where((b) => b.status.equals('نشط'))
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListWithPayments(bookingsStream);
-  }
-
-  /// تيار تفاعلي لحجوزات غرفة معينة مع المدفوعات.
-  Stream<List<BookingWithPayments>> watchBookingsWithPaymentsByRoom(
-    String roomNumber,
-  ) {
-    final bookingsStream = (db.select(db.bookings)
-          ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListWithPayments(bookingsStream);
-  }
-
-  /// تيار تفاعلي لحجوزات بحالة معينة مع المدفوعات.
-  Stream<List<BookingWithPayments>> watchBookingsWithPaymentsByStatus(
-    String status,
-  ) {
-    final bookingsStream = (db.select(db.bookings)
-          ..where((b) => b.status.equals(status))
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListWithPayments(bookingsStream);
-  }
-
-  /// تيار تفاعلي لكل الحجوزات (بكل الحالات) مع المدفوعات.
-  Stream<List<BookingWithPayments>> watchAllBookingsWithPayments() {
-    final bookingsStream = (db.select(db.bookings)
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListWithPayments(bookingsStream);
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // تيارات BookingWithComputed (بدون مدفوعات — خفيف)
-  // ═══════════════════════════════════════════════════════════════
-
-  /// تيار تفاعلي لحجز واحد مع حساب الليالي فقط.
-  Stream<BookingWithComputed?> watchBookingWithComputed(
-    int bookingId, {
-    double roomRate = 0,
-  }) {
-    final controller = StreamController<BookingWithComputed?>.broadcast();
-    Booking? lastBooking;
-    StreamSubscription<Booking?>? dbSub;
-    StreamSubscription<void>? tickerSub;
-
-    void emit() {
-      if (lastBooking != null && !controller.isClosed) {
-        controller.add(_computeLight(lastBooking!, roomRate));
-      }
-    }
-
-    dbSub = (db.select(db.bookings)
-          ..where((b) => b.id.equals(bookingId)))
-        .watchSingleOrNull()
-        .listen(
-      (booking) {
-        lastBooking = booking;
-        emit();
-      },
-      onError: controller.addError,
-    );
-
-    tickerSub = HotelDayTicker.instance.stream.listen((_) => emit());
-
-    controller.onCancel = () {
-      dbSub?.cancel();
-      tickerSub?.cancel();
-    };
-
-    return controller.stream;
-  }
-
-  /// تيار تفاعلي لجميع الحجوزات النشطة (خفيف).
-  Stream<List<BookingWithComputed>> watchActiveBookings({
-    double defaultRoomRate = 0,
-  }) {
-    final dbStream = (db.select(db.bookings)
-          ..where((b) => b.status.equals('نشط'))
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListLight(dbStream, defaultRoomRate: defaultRoomRate);
-  }
-
-  /// تيار تفاعلي لحجوزات غرفة معينة (خفيف).
-  Stream<List<BookingWithComputed>> watchBookingsByRoom(
-    String roomNumber, {
-    double defaultRoomRate = 0,
-  }) {
-    final dbStream = (db.select(db.bookings)
-          ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListLight(dbStream, defaultRoomRate: defaultRoomRate);
-  }
-
-  /// تيار تفاعلي لحجوزات بحالة معينة (خفيف).
-  Stream<List<BookingWithComputed>> watchBookingsByStatus(
-    String status, {
-    double defaultRoomRate = 0,
-  }) {
-    final dbStream = (db.select(db.bookings)
-          ..where((b) => b.status.equals(status))
-          ..where((b) => b.deletedAt.isNull()))
-        .watch();
-
-    return _mergeListLight(dbStream, defaultRoomRate: defaultRoomRate);
-  }
-
-  // ─── دمج مع HotelDayTicker ──────────────────────────────────
-
-  /// دمج تيار قائمة حجوزات مع المدفوعات وتيار 14:00.
-  Stream<List<BookingWithPayments>> _mergeListWithPayments(
-    Stream<List<Booking>> dbStream,
-  ) {
-    final controller =
-        StreamController<List<BookingWithPayments>>.broadcast();
-    List<Booking>? lastData;
-    StreamSubscription<List<Booking>>? dbSub;
-    StreamSubscription<void>? tickerSub;
-
-    void emit() async {
-      if (lastData != null && !controller.isClosed) {
-        final results = await Future.wait(
-          lastData!.map((b) => _computeWithPayments(b)),
-        );
-        if (!controller.isClosed) {
-          controller.add(results);
-        }
-      }
-    }
-
-    dbSub = dbStream.listen(
-      (data) {
-        lastData = data;
-        emit();
-      },
-      onError: controller.addError,
-    );
-
-    tickerSub = HotelDayTicker.instance.stream.listen((_) => emit());
-
-    controller.onCancel = () {
-      dbSub?.cancel();
-      tickerSub?.cancel();
-    };
-
-    return controller.stream;
-  }
-
-  /// دمج تيار قائمة حجوزات (خفيف — بدون مدفوعات).
-  Stream<List<BookingWithComputed>> _mergeListLight(
-    Stream<List<Booking>> dbStream, {
-    required double defaultRoomRate,
-  }) {
-    final controller =
-        StreamController<List<BookingWithComputed>>.broadcast();
-    List<Booking>? lastData;
-    StreamSubscription<List<Booking>>? dbSub;
-    StreamSubscription<void>? tickerSub;
-
-    void emit() {
-      if (lastData != null && !controller.isClosed) {
-        final computed =
-            lastData!.map((b) => _computeLight(b, defaultRoomRate)).toList();
-        controller.add(computed);
-      }
-    }
-
-    dbSub = dbStream.listen(
-      (data) {
-        lastData = data;
-        emit();
-      },
-      onError: controller.addError,
-    );
-
-    tickerSub = HotelDayTicker.instance.stream.listen((_) => emit());
-
-    controller.onCancel = () {
-      dbSub?.cancel();
-      tickerSub?.cancel();
-    };
-
-    return controller.stream;
   }
 }

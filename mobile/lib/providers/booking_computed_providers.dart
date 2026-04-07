@@ -1,89 +1,92 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'repository_providers.dart';
+
+import '../providers/repository_providers.dart';
 import '../services/booking_computed_stream_service.dart';
-import '../utils/hotel_day_ticker.dart';
+import '../services/hotel_time_engine.dart';
 
-// ═══════════════════════════════════════════════════════════════════
-// Providers لخدمة الحساب التفاعلي
-// ═══════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
+// Service Provider
+// ---------------------------------------------------------------------------
 
-/// مزود خدمة الحساب التفاعلي للحجوزات.
-///
-/// ## الاستخدام
-/// ```dart
-/// // في ConsumerWidget:
-/// final computedService = ref.watch(bookingComputedStreamProvider);
-///
-/// // في StreamBuilder:
-/// StreamBuilder<List<BookingWithPayments>>(
-///   stream: computedService.watchActiveBookingsWithPayments(),
-///   builder: (_, snap) => YourWidget(snap.data),
-/// )
-/// ```
-final bookingComputedStreamProvider = Provider<BookingComputedStreamService>(
-  (ref) {
-    final db = ref.watch(databaseProvider);
-    return BookingComputedStreamService(db);
-  },
-  dependencies: [databaseProvider],
-);
+/// Singleton provider for [BookingComputedStreamService].
+final bookingComputedServiceProvider =
+    Provider<BookingComputedStreamService>((ref) {
+  final db = ref.watch(databaseProvider);
+  return BookingComputedStreamService(db);
+});
 
-// ═══════════════════════════════════════════════════════════════════
-// Providers للتيارات التفاعلية (جاهزة للاستخدام المباشر)
-// ═══════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
+// Booking Streams
+// ---------------------------------------------------------------------------
 
-/// تيار تفاعلي لكل الحجوزات النشطة مع البيانات المالية الكاملة.
+/// Watches all active (checked-in) bookings with computed financial values.
 ///
-/// يتحدث تلقائياً عند:
-/// - تغيير بيانات أي حجز
-/// - إضافة/تعديل/إلغاء أي دفعة
-/// - عبور الساعة 14:00
-///
-/// **هذا هو التيار الرئيسي للوحة التحكم وشاشة الحجوزات.**
-final activeBookingsWithPaymentsProvider = StreamProvider<
-    List<BookingWithPayments>>((ref) {
-  final service = ref.watch(bookingComputedStreamProvider);
+/// Emits a new list whenever any booking or payment changes.
+/// All financial values are computed client-side.
+final activeBookingsWithPaymentsProvider =
+    StreamProvider<List<BookingWithPayments>>((ref) {
+  final service = ref.watch(bookingComputedServiceProvider);
   return service.watchActiveBookingsWithPayments();
 });
 
-/// تيار تفاعلي لحجوزات غرفة معينة مع البيانات المالية.
+/// Watches bookings for a specific room number.
 ///
-/// [roomNumber] رقم الغرفة.
+/// Usage:
+/// ```dart
+/// final bookings = ref.watch(bookingsWithPaymentsByRoomProvider('101'));
+/// ```
 final bookingsWithPaymentsByRoomProvider =
-    StreamProvider.autoDispose.family<List<BookingWithPayments>, String>(
-  (ref, roomNumber) {
-    final service = ref.watch(bookingComputedStreamProvider);
-    return service.watchBookingsWithPaymentsByRoom(roomNumber);
-  },
-);
+    StreamProvider.family<List<BookingWithPayments>, String>((ref, roomNumber) {
+  final service = ref.watch(bookingComputedServiceProvider);
+  return service.watchBookingsByRoom(roomNumber);
+});
 
-/// تيار تفاعلي لحجز واحد مع البيانات المالية الكاملة.
-///
-/// [bookingId] المعرف المحلي للحجز.
-final singleBookingWithPaymentsProvider = StreamProvider.autoDispose
-    .family<BookingWithPayments?, int>((ref, bookingId) {
-  final service = ref.watch(bookingComputedStreamProvider);
+/// Watches a single booking by local ID with computed financial values.
+final bookingWithPaymentsProvider =
+    StreamProvider.family<BookingWithPayments?, int>((ref, bookingId) {
+  final service = ref.watch(bookingComputedServiceProvider);
   return service.watchBookingWithPayments(bookingId);
 });
 
-// ═══════════════════════════════════════════════════════════════════
-// Provider لتيار HotelDayTicker
-// ═══════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
+// Hotel Day Ticker
+// ---------------------------------------------------------------------------
 
-/// تيار يُصدر حدث عند عبور الساعة 14:00.
+/// A stream provider that emits the current hotel day every time the clock
+/// crosses the 14:00 boundary.
 ///
-/// يُستخدم كطبقة خارجية لـ StreamBuilder لتحديث UI ديناميكياً
-/// عند بداية اليوم الفندقي الجديد.
+/// This allows the UI to react when a new hotel day starts (e.g., increment
+/// the displayed day count for active bookings automatically).
 ///
+/// Example:
 /// ```dart
-/// StreamBuilder(
-///   stream: ref.watch(hotelDayTickerProvider),
-///   builder: (_, __) {
-///     // إعادة بناء Widget عند عبور 14:00
-///     return const MyWidget();
-///   },
-/// )
+/// final hotelDay = ref.watch(hotelDayTickerProvider);
+/// // emits '2022-01-05' then '2022-01-06' when clock passes 14:00
 /// ```
-final hotelDayTickerProvider = Provider<Stream<void>>((ref) {
-  return HotelDayTicker.instance.stream;
+final hotelDayTickerProvider = StreamProvider<String>((ref) {
+  final controller = StreamController<String>.broadcast();
+
+  // Emit immediately
+  controller.add(HotelTimeEngine.formatHotelDay(DateTime.now()));
+
+  // Check every 30 seconds
+  const checkInterval = Duration(seconds: 30);
+  String lastEmitted = HotelTimeEngine.formatHotelDay(DateTime.now());
+
+  final timer = Timer.periodic(checkInterval, (_) {
+    final current = HotelTimeEngine.formatHotelDay(DateTime.now());
+    if (current != lastEmitted) {
+      lastEmitted = current;
+      controller.add(current);
+    }
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });

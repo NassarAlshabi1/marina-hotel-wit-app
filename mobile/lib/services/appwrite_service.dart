@@ -796,11 +796,7 @@ class AppwriteService {
     }
   }
 
-  /// اختبار شامل للاتصال (قراءة فقط — لا يعتمد على schema أي مجموعة)
-  ///
-  /// التصميم: اختبار الاتصال يجب أن يكون مستقلاً عن schema المجموعات.
-  /// نستخدم listDocuments (قراءة فقط) لأنه لا يحتاج حقول مطلوبة.
-  /// صلاحيات الكتابة تُختبر فعلياً عند المزامنة الحقيقية.
+  /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
   Future<Map<String, dynamic>> fullConnectionTest() async {
     final results = <String, dynamic>{
       'tests': <String, dynamic>{},
@@ -810,51 +806,65 @@ class AppwriteService {
     _ensureInitialized();
 
     try {
-      // اختبار الاتصال الأساسي (Ping) — listDocuments لا يحتاج حقول required
-      results['tests']['ping'] = await quickConnectionTest();
+      // 1. اختبار الاتصال الأساسي (Ping) - listDocuments على rooms
+      try {
+        await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.roomsCollectionId,
+            queries: [Query.limit(1)],
+          ),
+          operationName: 'listDocuments(rooms)',
+          timeout: const Duration(seconds: 10),
+        );
+        results['tests']['rooms'] = true;
+      } catch (e) {
+        results['tests']['rooms'] = false;
+        results['tests']['rooms_error'] = e.toString();
+      }
 
-      // اختبار قراءة ثانوي من مجموعة مختلفة للتأكد
+      // 2. اختبار القراءة من bookings
       try {
         await _networkHelper.withTimeout(
           operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.bookingsCollectionId,
+            queries: [Query.limit(1)],
           ),
-          operationName: 'readTest(bookings)',
+          operationName: 'listDocuments(bookings)',
           timeout: const Duration(seconds: 5),
         );
-        results['tests']['read_bookings'] = true;
+        results['tests']['bookings'] = true;
       } catch (e) {
-        results['tests']['read_bookings'] = false;
-        results['tests']['read_bookings_error'] = e.toString();
+        results['tests']['bookings'] = false;
+        results['tests']['bookings_error'] = e.toString();
       }
 
-      // اختبار قراءة من مجموعة ثالثة
+      // 3. اختبار القراءة من devices
       try {
         await _networkHelper.withTimeout(
           operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.devicesCollectionId,
+            queries: [Query.limit(1)],
           ),
-          operationName: 'readTest(devices)',
+          operationName: 'listDocuments(devices)',
           timeout: const Duration(seconds: 5),
         );
-        results['tests']['read_devices'] = true;
+        results['tests']['devices'] = true;
       } catch (e) {
-        results['tests']['read_devices'] = false;
-        results['tests']['read_devices_error'] = e.toString();
+        results['tests']['devices'] = false;
+        results['tests']['devices_error'] = e.toString();
       }
 
-      // حساب الحالة النهائية — ping يكفي لإثبات الاتصال
+      // حساب الحالة النهائية - ping يعتمد على rooms فقط
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] = tests['ping'] == true;
+      results['overall_success'] = tests['rooms'] == true;
+      results['tests']['ping'] = tests['rooms'];
 
-      // تحديد مستوى الاتصال
       if (results['overall_success'] == true) {
-        results['connection_level'] = 'full';
-        _logger.info('Full connection test passed (read-only)', tag: 'CONNECTION_TEST');
+        _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
       } else {
-        results['connection_level'] = 'none';
         _logger.warning(
           'Full connection test failed: $results',
           tag: 'CONNECTION_TEST',
@@ -869,7 +879,6 @@ class AppwriteService {
         tag: 'CONNECTION_TEST',
       );
       results['overall_success'] = false;
-      results['connection_level'] = 'none';
       results['error'] = e.toString();
       return results;
     }
