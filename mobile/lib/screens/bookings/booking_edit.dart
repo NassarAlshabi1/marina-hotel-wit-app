@@ -744,13 +744,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (checkinDt == null) return;
     final checkoutDt = _parseDateTime(_checkout.text.trim());
 
-    int nights;
-    if (checkoutDt == null && widget.existing == null) {
-      // حجز جديد بدون تاريخ خروج = ليلة واحدة كحد أدنى
-      nights = 1;
-    } else {
-      nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
-    }
+    // استخدام الوقت الحالي كمرجع للمغادرة إذا لم يتم تحديد موعد خروج مخطط له
+    // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
+    final effectiveCheckout = checkoutDt ?? DateTime.now();
+
+    final nights = Time.nightsWithCutoff(checkinDt, checkout: effectiveCheckout);
 
     setState(() {
       _expectedNights.text = nights.toString();
