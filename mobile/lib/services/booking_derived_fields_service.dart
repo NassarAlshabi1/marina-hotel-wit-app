@@ -348,46 +348,38 @@ class BookingDerivedFieldsService {
   }) {
     final segments = <_NightSegment>[];
 
-    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
-    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
-    int days = checkoutDate.difference(checkinDate).inDays;
+    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
+    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
 
-    if (days == 0) {
-      days = 1;
+    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      cutoffHour,
+    );
+    if (checkin.isBefore(startOfCheckinHotelDay)) {
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
     }
 
-    if (checkout.hour > cutoffHour ||
-        (checkout.hour == cutoffHour && checkout.minute > 0) ||
-        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
-      days += 1;
-    }
-
-    for (int i = 0; i < days; i++) {
-      final dayDate = checkinDate.add(Duration(days: i));
+    for (int i = 0; i < totalNights; i++) {
+      final dayDate = startOfCheckinHotelDay.add(Duration(days: i));
       final dayKey = Time.dateToString(dayDate);
+      
+      // بداية الشريحة: وقت الوصول الفعلي لأول شريحة، أو بداية يوم الفندق للشرائح التالية
       final segStart = i == 0 ? checkin : dayDate;
-      final nextDay = dayDate.add(const Duration(days: 1));
-      final segEnd = i == days - 1
+      
+      // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
+      final nextHotelDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == totalNights - 1
           ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
-          : nextDay;
+          : nextHotelDay;
 
       segments.add(
         _NightSegment(
           hotelDayKey: dayKey,
           start: segStart,
           end: segEnd,
-        ),
-      );
-    }
-
-    if (segments.isEmpty) {
-      segments.add(
-        _NightSegment(
-          hotelDayKey: Time.dateToString(checkin),
-          start: checkin,
-          end: checkout.isAfter(checkin)
-              ? checkout
-              : checkin.add(const Duration(minutes: 1)),
         ),
       );
     }

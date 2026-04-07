@@ -99,20 +99,35 @@ class Time {
   }) {
     final end = checkout ?? DateTime.now();
 
-    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
-    final checkoutDate = DateTime(end.year, end.month, end.day);
-    int days = checkoutDate.difference(checkinDate).inDays;
-
-    if (days == 0) {
-      days = 1;
+    // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      cutoffHour,
+    );
+    if (checkin.isBefore(startOfCheckinHotelDay)) {
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
     }
 
-    if (end.hour > cutoffHour ||
-        (end.hour == cutoffHour && end.minute > 0) ||
-        (end.hour == cutoffHour && end.minute == 0 && end.second > 0)) {
-      days += 1;
+    // حساب الفرق الزمني بين الوقت الحالي (أو وقت المغادرة) وبداية يوم الفندق للحجز
+    final duration = end.difference(startOfCheckinHotelDay);
+    final totalSeconds = duration.inSeconds;
+
+    if (totalSeconds <= 0) {
+      return 1;
     }
 
-    return days;
+    const int secondsInDay = 24 * 3600;
+    
+    // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1
+    // إذا كان الوقت بالضبط 14:00 (أي مضاعفات 24 ساعة)، لا يتم احتساب يوم جديد
+    int nights = (totalSeconds ~/ secondsInDay) + 1;
+    
+    if (totalSeconds > 0 && totalSeconds % secondsInDay == 0) {
+      nights -= 1;
+    }
+
+    return nights > 0 ? nights : 1;
   }
 }
