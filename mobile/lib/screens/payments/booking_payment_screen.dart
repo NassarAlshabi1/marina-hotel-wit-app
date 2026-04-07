@@ -1,5 +1,6 @@
 // ignore_for_file: unused_element
 
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show OrderingTerm;
@@ -15,6 +16,7 @@ import '../../services/booking_derived_fields_service.dart';
 
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_date_helper.dart';
 import '../../providers/repository_providers.dart';
 import 'payment_history_screen.dart';
 
@@ -37,6 +39,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
+  Timer? _hotelDayRefreshTimer;
 
 
   Payment _mapDbPaymentToUi(db.Payment p) {
@@ -112,6 +115,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _currentGuestPhone = widget.booking.guestPhone;
     _checkForDebts();
     _refreshBookingNights();
+    _startHotelDayAutoRefresh();
+  }
+
+  /// بدء مؤقت التحديث التلقائي عند عبور ساعة 14:00
+  void _startHotelDayAutoRefresh() {
+    _hotelDayRefreshTimer = HotelDateHelper.createAutoRefreshTimer(() {
+      if (mounted) {
+        setState(() {});
+        _refreshBookingNights();
+      }
+    });
   }
 
   Future<void> _checkForDebts() async {
@@ -174,6 +188,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   @override
   void dispose() {
+    _hotelDayRefreshTimer?.cancel();
     _tabController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -226,8 +241,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
               final effectiveCheckout = actualCheckout ?? DateTime.now();
               final hasNotCheckedOut = actualCheckout == null;
-              final nowIsAfterCutoff = DateTime.now().hour > 14 ||
-                  (DateTime.now().hour == 14 && DateTime.now().minute > 0);
+              final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
               final actualNights = Time.nightsWithCutoff(
                 checkin,
                 checkout: effectiveCheckout,

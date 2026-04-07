@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_date_helper.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
@@ -24,11 +26,23 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   String get screenId => 'booking_checkout';
   bool _isProcessing = false;
+  Timer? _hotelDayRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _refreshBookingNights();
+    _startHotelDayAutoRefresh();
+  }
+
+  /// بدء مؤقت التحديث التلقائي عند عبور ساعة 14:00
+  void _startHotelDayAutoRefresh() {
+    _hotelDayRefreshTimer = HotelDateHelper.createAutoRefreshTimer(() {
+      if (mounted) {
+        setState(() {});
+        _refreshBookingNights();
+      }
+    });
   }
 
   Future<void> _refreshBookingNights() async {
@@ -50,6 +64,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    _hotelDayRefreshTimer?.cancel();
+    super.dispose();
   }
 
   int _countNightsWithDiscount(
@@ -104,8 +124,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
             final effectiveCheckout = actualCheckout ?? DateTime.now();
             final hasNotCheckedOut = actualCheckout == null;
-            final nowIsAfterCutoff = DateTime.now().hour > 14 ||
-                (DateTime.now().hour == 14 && DateTime.now().minute > 0);
+            final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
             final actualNights = checkin != null
                 ? Time.nightsWithCutoff(
                     checkin,
