@@ -460,6 +460,13 @@ class AppwriteSyncManager {
             : pull
             ? 'pull'
             : 'noop',
+        'collection': push && pull
+            ? 'all'
+            : push
+            ? 'bookings'
+            : pull
+            ? 'all'
+            : 'none',
         'syncType': push && pull
             ? 'full'
             : push
