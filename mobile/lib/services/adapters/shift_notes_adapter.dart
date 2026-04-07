@@ -124,6 +124,9 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'createdAt': createdAtIso,
         'updatedAt': updatedAtIso,
         'createdBy': model.createdBy,
+        'lastModified': model.lastModified,
+        'version': model.version,
+        'origin': model.origin,
         if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
           'expiresAt': model.expiresAt,
       };
