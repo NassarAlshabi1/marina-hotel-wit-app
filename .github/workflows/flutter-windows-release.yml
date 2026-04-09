@@ -51,6 +51,9 @@ jobs:
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
+      - name: Add Windows platform support
+        run: flutter create --platforms=windows .
+
       - name: Flutter doctor
         run: flutter doctor -v
 
@@ -69,51 +72,10 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}
 
-      - name: Copy DLL files to Release folder
-        run: |
-          $releaseDir = "build/windows/x64/runner/Release"
-          $vcRedistDir = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\14.40.33807\x64"
-          
-          # نسخ ملفات DLL المهمة إذا وجدت
-          if (Test-Path $vcRedistDir) {
-            Copy-Item "$vcRedistDir\*.dll" $releaseDir -ErrorAction SilentlyContinue
-          }
-          
-          # نسخ من System32 كاحتياطي
-          $dlls = @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
-          foreach ($dll in $dlls) {
-            $source = "C:\Windows\System32\$dll"
-            if (Test-Path $source) {
-              Copy-Item $source $releaseDir -ErrorAction SilentlyContinue
-            }
-          }
-
-      - name: Create portable ZIP archive
-        run: |
-          $releaseDir = "build/windows/x64/runner/Release"
-          $zipName = "marina-hotel-windows-portable.zip"
-          
-          # إنشاء ملف ZIP قابل للنقل
-          Compress-Archive -Path "$releaseDir\*" -DestinationPath $zipName -Force
-          
-          # عرض محتويات الملف
-          Write-Host "=== محتويات ملف ZIP ==="
-          Expand-Archive -Path $zipName -DestinationPath "temp_check" -Force
-          Get-ChildItem "temp_check" | Select-Object Name, Length
-          Remove-Item "temp_check" -Recurse -Force
-
-      - name: Upload Windows artifact (Folder)
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: marina-hotel-windows-${{ github.run_number }}
           path: |
             mobile/build/windows/x64/runner/Release/**
-          if-no-files-found: error
-
-      - name: Upload Windows artifact (ZIP)
-        uses: actions/upload-artifact@v4
-        with:
-          name: marina-hotel-windows-portable-${{ github.run_number }}
-          path: |
-            mobile/marina-hotel-windows-portable.zip
           if-no-files-found: error
