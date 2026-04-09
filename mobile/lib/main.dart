@@ -394,7 +394,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           _initialLocalSyncDone = true;
           unawaited(_runLocalAutoSync());
         }
-        unawaited(_autoPullLatestFromAppwrite());
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -428,6 +427,15 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         syncManager.startAutoSync(
           interval: const Duration(minutes: 2),
         );
+
+        // سحب البيانات فوراً عند فتح التطبيق (Delta Sync)
+        try {
+          debugPrint('📥 Pulling latest data from Appwrite on app start...');
+          await syncManager.sync(push: true, pull: true);
+          debugPrint('✅ Initial sync on app start completed');
+        } catch (e) {
+          debugPrint('⚠️ Initial sync on app start failed: $e');
+ }
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
