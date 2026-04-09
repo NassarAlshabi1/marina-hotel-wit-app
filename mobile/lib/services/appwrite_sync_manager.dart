@@ -97,6 +97,7 @@ class AppwriteSyncManager {
   String? _deviceLocalUuid;
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
+  String? _fcmToken; // توكن FCM للإشعارات بين الأجهزة
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
@@ -178,6 +179,30 @@ class AppwriteSyncManager {
     _deviceLocalUuid = prefs.getString('appwrite_device_local_uuid');
     _deviceVersion = prefs.getInt('appwrite_device_version');
     _deviceCreatedAtEpoch = prefs.getInt('appwrite_device_created_at');
+    _fcmToken = prefs.getString('fcm_token');
+  }
+
+  /// تعيين توكن FCM (يُستدعى من FcmService بعد الحصول على التوكن)
+  Future<void> setFcmToken(String token) async {
+    _fcmToken = token;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fcm_token', token);
+
+    // إذا كان الجهاز مسجلاً، نحدث التوكن على السيرفر
+    if (_currentDeviceId != null) {
+      try {
+        await appwriteService.updateDocument(
+          collectionId: AppwriteConfig.devicesCollectionId,
+          documentId: _currentDeviceId!,
+          data: {
+            'fcmToken': token,
+            'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          },
+        );
+      } catch (e) {
+        debugPrint('⚠️ Failed to update FCM token: $e');
+      }
+    }
   }
 
   /// حفظ الإعدادات
@@ -270,6 +295,8 @@ class AppwriteSyncManager {
               'lastModified': nowEpoch,
               'version': _deviceVersion,
               'origin': 'mobile',
+              // FCM token
+              if (_fcmToken != null) 'fcmToken': _fcmToken,
             },
           );
         });
@@ -295,6 +322,8 @@ class AppwriteSyncManager {
           'lastModified': nowEpoch,
           'version': _deviceVersion,
           'origin': 'mobile',
+          // FCM token
+          if (_fcmToken != null) 'fcmToken': _fcmToken,
         });
 
         _currentDeviceId = device.$id;
@@ -453,6 +482,20 @@ class AppwriteSyncManager {
 
       final syncLog = await appwriteService.createSyncLog({
         'deviceId': _currentDeviceId ?? 'unknown',
+        'operation': push && pull
+            ? 'full'
+            : push
+            ? 'push'
+            : pull
+            ? 'pull'
+            : 'noop',
+        'collection': push && pull
+            ? 'all'
+            : push
+            ? 'bookings'
+            : pull
+            ? 'all'
+            : 'none',
         'syncType': push && pull
             ? 'full'
             : push
@@ -484,21 +527,26 @@ class AppwriteSyncManager {
       }
 
       if (pull) {
-        // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
-        final lastPullTs = await _getLastPullTs();
-        final deltaQ = _deltaQueries(lastPullTs);
-        final isDelta = deltaQ.isNotEmpty;
-        if (isDelta) {
-          _logger.info(
-            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
-            tag: 'SYNC',
-          );
-        } else {
-          _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
-        }
+        // تعطيل Foreign Keys مؤقتاً أثناء السحب لمنع خطأ constraint failed
+        await database.customStatement('PRAGMA foreign_keys=OFF');
+        try {
+          _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
-        recordsPulled += await _timePhase('syncRooms', () async {
-          final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
+          // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
+          final lastPullTs = await _getLastPullTs();
+          final deltaQ = _deltaQueries(lastPullTs);
+          final isDelta = deltaQ.isNotEmpty;
+          if (isDelta) {
+            _logger.info(
+              '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+              tag: 'SYNC',
+            );
+          } else {
+            _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
+          }
+
+          recordsPulled += await _timePhase('syncRooms', () async {
+            final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
           final roomsSynced = await _syncRooms(rooms);
           _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
           return roomsSynced;
@@ -642,6 +690,10 @@ class AppwriteSyncManager {
 
         // تحديث lastPullTs بعد نجاح السحب
         await _updateLastPullTs(Time.nowEpoch());
+        } finally {
+          // إعادة تفعيل Foreign Keys بعد انتهاء السحب
+          await database.customStatement('PRAGMA foreign_keys=ON');
+        }
       }
 
       // تحديث سجل المزامنة
@@ -1669,7 +1721,7 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
-      'amount': debt.totalAmount,
+      'amount': debt.totalAmount.round(), // Appwrite: integer
       'debtorName': debt.guestName,
       'dueDate': _resolveDebtDueDate(debt),
       'status': debt.isSettled == 1 ? 'settled' : 'pending',
@@ -2400,7 +2452,7 @@ class AppwriteSyncManager {
   Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
-      'amount': transaction.amount,
+      'amount': transaction.amount.round(), // Appwrite: integer
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,
@@ -2462,20 +2514,22 @@ class AppwriteSyncManager {
   }
 
   Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
-    final createdAtIso =
-        note.createdAtIso ??
-        DateTime.fromMillisecondsSinceEpoch(
-          note.createdAt * 1000,
-        ).toIso8601String();
+    final createdDate = DateTime.fromMillisecondsSinceEpoch(
+      note.createdAt * 1000,
+    );
+    final shiftDate = createdDate.toIso8601String().substring(0, 10);
     final data = <String, dynamic>{
       'localUuid': note.localUuid,
       'title': note.title,
       'content': note.content,
       'priority': note.priority,
       'shiftType': note.shiftType,
-      'isRead': note.isRead,
-      'createdAt': createdAtIso,
+      'isRead': note.isRead == 1, // Appwrite يتوقع boolean
+      'createdAt': note.createdAt, // Appwrite يتوقع integer epoch
+      'updatedAt': note.updatedAt, // integer epoch — مطلوب
       'createdBy': note.createdBy,
+      'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
+      'note': note.content ?? note.title ?? '', // مطلوب — يوازي content
     };
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     return data;
@@ -2914,6 +2968,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        // إزالة id عند السحب من Appwrite لتجنب تعارض autoIncrement
+        data.remove('id');
         final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,

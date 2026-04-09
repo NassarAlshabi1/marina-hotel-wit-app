@@ -9,6 +9,7 @@ import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import '../utils/hotel_date_helper.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
@@ -42,7 +43,9 @@ class AppwriteDeltaSync {
 
   final _logger = AppwriteLogger();
 
-  static const _prefsLastDeltaSyncKey = 'appwrite_last_delta_sync';
+  static const _prefsLastPushSyncKey = 'appwrite_last_push_delta_sync';
+  static const _prefsLastPullSyncKey = 'appwrite_last_pull_delta_sync';
+  static const _prefsLastDeltaSyncKey = 'appwrite_last_delta_sync'; // للتوافق العكسي
   static const _prefsDeviceIdKey = 'appwrite_delta_device_id';
   static const _prefsDeltaSyncEnabledKey = 'appwrite_delta_sync_enabled';
 
@@ -138,7 +141,7 @@ class AppwriteDeltaSync {
 
       if (successfulChanges.isNotEmpty) {
         await _persistSuccessfulChanges(computation, successfulChanges);
-        await _updateLastDeltaSyncTimestamp();
+        await _updateLastPushSyncTimestamp();
       }
 
       final hasFailures = failedChanges.isNotEmpty;
@@ -205,10 +208,17 @@ class AppwriteDeltaSync {
     switch (change.operation) {
       case 'insert':
       case 'update':
+        var sanitized = _sanitizePayload(payload);
+        // إزالة الحقول المحسوبة قبل الرفع (لا تُزامن إلى Appwrite)
+        sanitized = HotelDateHelper.stripComputedFieldsForEntity(
+          change.entity,
+          sanitized,
+        );
+        final converted = _convertAmountTypesForAppwrite(collectionId, sanitized);
         await _appwriteService!.upsertDocument(
           collectionId: collectionId,
           documentId: change.localUuid,
-          data: _sanitizePayload(payload),
+          data: converted,
         );
         break;
       case 'delete':
@@ -245,7 +255,7 @@ class AppwriteDeltaSync {
     try {
       _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
 
-      final lastPullTs = await _getLastDeltaSyncTimestamp();
+      final lastPullTs = await _getLastPullSyncTimestamp();
       int pulledCount = 0;
 
       final entitiesToPull = {
@@ -280,7 +290,7 @@ class AppwriteDeltaSync {
       }
 
       if (pulledCount > 0) {
-        await _updateLastDeltaSyncTimestamp();
+        await _updateLastPullSyncTimestamp();
       }
 
       _logger.info(
@@ -309,30 +319,47 @@ class AppwriteDeltaSync {
     int lastPullTs,
   ) async {
     try {
-      final documents = await _appwriteService!.listDocuments(
-        collectionId: collectionId,
-        queries: lastPullTs > 0
-            ? [Query.greaterThan('syncTimestamp', lastPullTs)]
-            : null,
-        useCache: false,
-      );
-
+      // Pagination: جلب النتائج على دفعات (كل دفعة 100 سجل كحد أقصى)
       int applied = 0;
-      for (final doc in documents) {
-        final data = Map<String, dynamic>.from(doc.data);
-        final sourceDeviceId = data['deviceId'] as String?;
+      int offset = 0;
+      const int limit = 100;
 
-        if (sourceDeviceId == _deviceId) continue;
+      while (true) {
+        final queries = <String>[
+          'limit($limit)',
+          'offset($offset)',
+          if (lastPullTs > 0) Query.greaterThan('syncTimestamp', lastPullTs),
+          Query.orderAsc('\$createdAt'),
+        ];
 
-        try {
-          await _applyRemoteChange(entity, doc.$id, data);
-          applied++;
-        } catch (e) {
-          _logger.warning(
-            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
-            tag: 'DELTA_SYNC',
-          );
+        final documents = await _appwriteService!.listDocuments(
+          collectionId: collectionId,
+          queries: queries,
+          useCache: false,
+        );
+
+        if (documents.isEmpty) break;
+
+        for (final doc in documents) {
+          final data = Map<String, dynamic>.from(doc.data);
+          final sourceDeviceId = data['deviceId'] as String?;
+
+          if (sourceDeviceId == _deviceId) continue;
+
+          try {
+            await _applyRemoteChange(entity, doc.$id, data);
+            applied++;
+          } catch (e) {
+            _logger.warning(
+              'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+              tag: 'DELTA_SYNC',
+            );
+          }
         }
+
+        // إذا عدد النتائج أقل من الحد، لا يوجد المزيد
+        if (documents.length < limit) break;
+        offset += limit;
       }
 
       return applied;
@@ -511,6 +538,27 @@ class AppwriteDeltaSync {
     );
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
+
+    // إعادة حساب الحقول المحسوبة محلياً بعد السحب من السيرفر
+    try {
+      await BookingDerivedFieldsService(db).refreshForBookingId(
+        await _getBookingLocalId(db, localUuid),
+        forceRebuild: true,
+      );
+    } catch (e) {
+      _logger.warning(
+        'فشل إعادة حساب الحقول المحسوبة للحجز $localUuid: $e',
+        tag: 'DELTA_SYNC',
+      );
+    }
+  }
+
+  /// استخراج localId (int) للحجز من localUuid (String).
+  Future<int> _getBookingLocalId(AppDatabase db, String localUuid) async {
+    final row = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    return row?.id ?? 0;
   }
 
   Future<void> _applyPaymentChange(
@@ -1068,6 +1116,30 @@ class AppwriteDeltaSync {
     return result;
   }
 
+  /// تحويل حقول amount من double إلى int للمجموعات التي تتطلب integer في Appwrite
+  static const _intAmountFields = <String, Set<String>>{
+    'booking_price_adjustments': {'amount'},
+    'cash_transactions': {'amount'},
+    'salary_withdrawals': {'amount'},
+    'debts': {'amount', 'remainingAmount'},
+  };
+
+  Map<String, dynamic> _convertAmountTypesForAppwrite(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
+    final intFields = _intAmountFields[collectionId];
+    if (intFields == null || intFields.isEmpty) return payload;
+
+    final result = Map<String, dynamic>.from(payload);
+    for (final field in intFields) {
+      if (result.containsKey(field) && result[field] is num) {
+        result[field] = (result[field] as num).round();
+      }
+    }
+    return result;
+  }
+
   String _toCamelCase(String input) {
     if (!input.contains('_')) return input;
     final parts = input.split('_');
@@ -1079,13 +1151,31 @@ class AppwriteDeltaSync {
   }
 
   Future<int> _getLastDeltaSyncTimestamp() async {
+    // للتوافق العكسي: يُرجع القيمة القديمة الموحدة
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
-  Future<void> _updateLastDeltaSyncTimestamp() async {
+  Future<int> _getLastPushSyncTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDeltaSyncKey, Time.nowEpoch());
+    return prefs.getInt(_prefsLastPushSyncKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+  }
+
+  Future<void> _updateLastPushSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastPushSyncKey, Time.nowEpoch());
+  }
+
+  Future<int> _getLastPullSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_prefsLastPullSyncKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+  }
+
+  Future<void> _updateLastPullSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsLastPullSyncKey, Time.nowEpoch());
   }
 
   Future<Map<String, dynamic>> getStatus() async {

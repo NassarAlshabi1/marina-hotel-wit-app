@@ -104,20 +104,23 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
     if (src == Source.appwrite) {
-      final createdAtIso =
-          model.createdAtIso ??
-          DateTime.fromMillisecondsSinceEpoch(
-            model.createdAt * 1000,
-          ).toIso8601String();
+      final createdDate = DateTime.fromMillisecondsSinceEpoch(
+        model.createdAt * 1000,
+      );
+      // shiftDate مطلوب في Appwrite — نأخذه من تاريخ الإنشاء
+      final shiftDate = createdDate.toIso8601String().substring(0, 10);
       return {
         'localUuid': model.localUuid,
         'title': model.title,
         'content': model.content,
         'priority': model.priority,
         'shiftType': model.shiftType,
-        'isRead': model.isRead,
-        'createdAt': createdAtIso,
+        'isRead': model.isRead == 1, // Appwrite يتوقع boolean
+        'createdAt': model.createdAt, // Appwrite يتوقع integer epoch
+        'updatedAt': model.updatedAt, // integer epoch — مطلوب
         'createdBy': model.createdBy,
+        'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
+        'note': model.content ?? model.title ?? '', // مطلوب — يوازي content
         if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
           'expiresAt': model.expiresAt,
       };

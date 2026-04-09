@@ -1185,7 +1185,7 @@ class GoogleDriveBackupService {
       try {
         _log('🔄 بدء مزامنة البيانات مع Appwrite...');
         final prefs = await SharedPreferences.getInstance();
-        final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+        final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
         if (syncEnabled) {
           final appwriteService = AppwriteService();

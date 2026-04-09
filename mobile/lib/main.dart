@@ -50,6 +50,7 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/fcm_service.dart';
 import 'services/sync_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
@@ -110,7 +111,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
     if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', false);
+      await prefs.setBool('appwrite_sync_enabled', true);
     }
 
     debugPrint('📦 Initializing Appwrite Config Manager...');
@@ -420,6 +421,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('⚠️ Device registration error: $e');
         }
 
+        // تهيئة FCM للإشعارات بين الأجهزة
+        try {
+          await _initializeFcm(syncManager);
+        } catch (e) {
+          debugPrint('⚠️ FCM initialization error: $e');
+        }
+
         // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
         syncManager.startAutoSync(
           interval: const Duration(minutes: 2),
@@ -512,6 +520,26 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
   }
 
+  /// تهيئة FCM للإشعارات بين الأجهزة
+  Future<void> _initializeFcm(dynamic syncManager) async {
+    final fcm = FcmService();
+
+    // حقن الاعتمادات لتجنب import دائري
+    FcmService.injectDependencies(
+      syncManager: syncManager,
+      realtimeSync: AppwriteRealtimeSync(),
+    );
+
+    await fcm.initialize();
+
+    // تسجيل التوكن في SyncManager
+    if (fcm.currentToken != null) {
+      await syncManager.setFcmToken(fcm.currentToken!);
+    }
+
+    debugPrint('✅ FCM ready — cross-device notifications enabled');
+  }
+
   Future<void> _autoPullAppwriteOnResume() async {
     final last = _lastAppwriteAutoPull;
     if (last != null &&
@@ -519,6 +547,32 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     await _autoPullLatestFromAppwrite();
+  }
+
+  /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
+  Future<void> _syncOnResume() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      // push: رفع أي تغييرات معلقة في الـ outbox
+      // pull: سحب أي تغييرات جديدة من السيرفر
+      await syncManager.sync(push: true, pull: true);
+      _lastAppwriteAutoPull = DateTime.now();
+      debugPrint('✅ Sync on resume completed (push + pull)');
+    } catch (e) {
+      debugPrint('⚠️ Sync on resume error: $e');
+    }
+  }
+
+  /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
+  Future<void> _pushPendingChangesOnPause() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
+      await syncManager.sync(push: true, pull: false);
+      debugPrint('✅ Push on pause completed');
+    } catch (e) {
+      debugPrint('⚠️ Push on pause error: $e');
+    }
   }
 
   @override
@@ -549,7 +603,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
-      unawaited(_autoPullAppwriteOnResume());
+      // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
+      unawaited(_syncOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
@@ -560,6 +615,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
+      // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
+      unawaited(_pushPendingChangesOnPause());
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         () => AppSessionManager.onAppCloseOrBackground(),

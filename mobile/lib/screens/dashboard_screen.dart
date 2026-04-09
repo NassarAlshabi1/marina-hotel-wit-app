@@ -388,21 +388,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bool isAvailable =
         room != null && StatusUtils.isRoomAvailable(room.status);
     final bool isMaintenance = room != null && room.status == 'صيانة';
-    final bool isNewRoom = roomNumber == '503' || roomNumber == '504';
-
     final Color bgColor = isOccupied
         ? Colors.red.shade600
         : (isAvailable
               ? Colors.green.shade600
               : (isMaintenance
                     ? Colors.orange.shade600
-                    : (isNewRoom
-                          ? Colors.blue.shade400
-                          : Colors.grey.shade400)));
+                    : Colors.grey.shade400));
 
-    final String tooltipText = room != null
-        ? room.status
-        : (isNewRoom ? 'غرفة جديدة' : 'غير مسجلة');
+    final String tooltipText = room != null ? room.status : 'غير مسجلة';
 
     return Tooltip(
       message: tooltipText,
@@ -526,9 +520,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     String roomNumber,
     Room? room,
   ) async {
-    if (roomNumber == '503' || roomNumber == '504') {
-      _showNewRoomDialog(context, roomNumber);
-    } else if (room != null) {
+    if (room != null) {
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
 
@@ -593,29 +585,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
     }
-  }
-
-  void _showNewRoomDialog(BuildContext context, String roomNumber) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.blue),
-            const SizedBox(width: 8),
-            Text('غرفة $roomNumber'),
-          ],
-        ),
-        content: const Text('هذه الغرفة جديدة وقيد التجهيز.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showRoomDetailsDialog(BuildContext context, Room room) {

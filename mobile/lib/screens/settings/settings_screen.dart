@@ -16,6 +16,8 @@ import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
+import 'lark_settings_screen.dart';
+import 'telegram_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -175,6 +177,30 @@ class SettingsScreen extends ConsumerWidget {
           // قسم إعدادات عامة
           _buildSectionTitle('إعدادات عامة', Icons.settings),
           _buildSettingsGrid(context, [
+            _SettingsItem(
+              title: 'Telegram Bot',
+              subtitle: 'إشعارات فورية وتقارير يومية',
+              icon: Icons.telegram,
+              color: const Color(0xFF0088cc),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TelegramSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'Lark Suite',
+              subtitle: 'الإشعارات الفورية والتقارير اليومية',
+              icon: Icons.integration_instructions,
+              color: Colors.blueAccent,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LarkSettingsScreen(),
+                ),
+              ),
+            ),
             _SettingsItem(
               title: 'رسالة الواتساب',
               subtitle: 'تخصيص نص رسالة الدفع',

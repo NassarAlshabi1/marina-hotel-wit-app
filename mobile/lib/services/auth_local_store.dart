@@ -21,6 +21,7 @@ class AuthLocalStore {
     'finance',
     'reports',
     'notes',
+    'information',
     'settings',
   ];
 
@@ -62,6 +63,7 @@ class AuthLocalStore {
       'finance',
       'reports',
       'notes',
+          'information',
     ],
   };
 

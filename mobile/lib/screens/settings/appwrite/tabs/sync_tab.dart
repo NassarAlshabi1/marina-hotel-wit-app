@@ -30,7 +30,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
       _autoSyncOnConnect =
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;

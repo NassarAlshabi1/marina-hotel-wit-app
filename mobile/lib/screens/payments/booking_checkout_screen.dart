@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_date_helper.dart';
+import '../../utils/hotel_day_ticker.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
@@ -24,11 +27,23 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   String get screenId => 'booking_checkout';
   bool _isProcessing = false;
+  StreamSubscription? _hotelDayTickerSub;
 
   @override
   void initState() {
     super.initState();
     _refreshBookingNights();
+    _startHotelDayAutoRefresh();
+  }
+
+  /// بدء الاستماع للتيار العالمي لبداية اليوم الفندقي الجديد
+  void _startHotelDayAutoRefresh() {
+    _hotelDayTickerSub = HotelDayTicker.instance.stream.listen((_) {
+      if (mounted) {
+        setState(() {});
+        _refreshBookingNights();
+      }
+    });
   }
 
   Future<void> _refreshBookingNights() async {
@@ -50,6 +65,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    _hotelDayTickerSub?.cancel();
+    super.dispose();
   }
 
   int _countNightsWithDiscount(
@@ -100,10 +121,15 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                           checkout: plannedCheckout,
                         )
                       : 1);
+            // إذا لم يسجل النزيل خروج، نستخدم الوقت الحالي لحساب الليالي
+            // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
+            final effectiveCheckout = actualCheckout ?? DateTime.now();
+            final hasNotCheckedOut = actualCheckout == null;
+            final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
             final actualNights = checkin != null
                 ? Time.nightsWithCutoff(
                     checkin,
-                    checkout: actualCheckout ?? plannedCheckout,
+                    checkout: effectiveCheckout,
                   )
                 : expectedNights;
 
@@ -130,10 +156,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 final nightTotal = nights.isNotEmpty
                     ? nights.fold<double>(0, (sum, n) => sum + n.nightlyRate)
                     : (() {
-                        final checkout = actualCheckout ?? plannedCheckout;
-                        if (checkout == null) {
-                          return actualNights * roomPrice;
-                        }
+                        final checkout = actualCheckout ?? DateTime.now();
                         if (discount > 0 && discountType == 'per_night' && checkin != null) {
                           final discountedNights = _countNightsWithDiscount(
                             checkin,
@@ -199,6 +222,35 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               Text('الليالي المتوقعة: $expectedNights'),
                               if (actualCheckout != null)
                                 Text('الليالي الفعلية: $nightsCount'),
+                              // مؤشر إضافة ليالي بعد الساعة 14:00 للنزلاء الذين لم يسجلوا خروج
+                              if (hasNotCheckedOut && nowIsAfterCutoff && actualNights > expectedNights)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.orange.shade400),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.schedule, size: 16, color: Colors.orange.shade700),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'تمت إضافة ${actualNights - expectedNights} ليلة بعد الساعة 14:00 (لم يسجل النزيل خروج)',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.orange.shade700,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               Text(
                                 'سعر الليلة: ${CurrencyFormatter.formatAmount(roomPrice)}',
                               ),

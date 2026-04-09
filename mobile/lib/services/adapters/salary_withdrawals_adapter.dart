@@ -113,7 +113,7 @@ class SalaryWithdrawalsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
-      _k(src, 'amount', 'amount'): model.amount,
+      _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'withdrawDate', 'withdraw_date'): model.withdrawDate,
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,

@@ -4,6 +4,8 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
+import '../lark/lark_notification_service.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 
@@ -78,7 +80,36 @@ class BookingsRepository {
       'INSERT',
       recordData: {'id': result},
     );
+    // إشعار Lark (غير متزامن — لا يبطئ العملية)
+    _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
     return result;
+  }
+
+  /// إرسال إشعار Lark و Telegram لحجز جديد (fire-and-forget)
+  void _notifyLarkNewBooking(
+    String roomNumber,
+    String guestName,
+    String? guestPhone,
+    String? checkinDate,
+    String? checkoutDate,
+    int expectedNights,
+  ) {
+    LarkNotificationService.instance.notifyNewBooking(
+      roomNumber: roomNumber,
+      guestName: guestName,
+      guestPhone: guestPhone,
+      checkinDate: checkinDate,
+      checkoutDate: checkoutDate,
+      nights: expectedNights,
+    );
+    TelegramNotificationService.instance.notifyNewBooking(
+      roomNumber: roomNumber,
+      guestName: guestName,
+      guestPhone: guestPhone,
+      checkinDate: checkinDate,
+      checkoutDate: checkoutDate,
+      nights: expectedNights,
+    );
   }
 
   Future<int> update(
@@ -171,8 +202,53 @@ class BookingsRepository {
         'UPDATE',
         recordData: {'id': id},
       );
+      // إشعار Lark عند تغيير حالة الحجز (fire-and-forget)
+      _notifyLarkBookingUpdate(id, status);
     }
     return result;
+  }
+
+  /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
+  void _notifyLarkBookingUpdate(int bookingId, String? newStatus) {
+    if (newStatus == null) return;
+    // الحصول على بيانات الحجز بشكل غير متزامن
+    dao.getById(bookingId).then((booking) {
+      if (booking == null) return;
+      switch (newStatus) {
+        case 'نشط':
+          LarkNotificationService.instance.notifyCheckIn(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          );
+          TelegramNotificationService.instance.notifyCheckIn(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          );
+          break;
+        case 'شاغرة':
+          if (booking.actualCheckout != null) {
+            LarkNotificationService.instance.notifyCheckOut(
+              roomNumber: booking.roomNumber,
+              guestName: booking.guestName,
+              actualNights: booking.calculatedNights,
+              totalPaid: booking.totalPaidCached,
+              remaining: booking.remainingBalanceCached,
+            );
+            TelegramNotificationService.instance.notifyCheckOut(
+              roomNumber: booking.roomNumber,
+              guestName: booking.guestName,
+              actualNights: booking.calculatedNights,
+              totalPaid: booking.totalPaidCached,
+              remaining: booking.remainingBalanceCached,
+            );
+          }
+          break;
+      }
+    });
   }
 
   Future<int> delete(int id) async {

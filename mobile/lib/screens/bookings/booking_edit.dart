@@ -396,6 +396,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             labelText: 'حالة الحجز',
                           ),
                         ),
+                        TextFormField(
+                          controller: _expectedNights,
+                          readOnly: true,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'عدد الليالي',
+                          ),
+                        ),
                         if (widget.existing?.actualCheckout != null) ...[
                           const SizedBox(height: 6),
                           TextFormField(
@@ -545,10 +556,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           : null;
                       final calculatedNights = checkinDt == null
                           ? expectedNights
-                          : Time.nightsWithCutoff(
-                              checkinDt,
-                              checkout: checkoutDt,
-                            );
+                          : (checkoutDt == null && widget.existing == null)
+                              ? 1
+                              : Time.nightsWithCutoff(
+                                  checkinDt,
+                                  checkout: checkoutDt,
+                                );
                       final notes = _optionalText(_notes.text);
                       const String? email = null;
 
@@ -730,7 +743,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final checkinDt = _parseDateTime(_checkin.text.trim());
     if (checkinDt == null) return;
     final checkoutDt = _parseDateTime(_checkout.text.trim());
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+
+    // استخدام الوقت الحالي كمرجع للمغادرة إذا لم يتم تحديد موعد خروج مخطط له
+    // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
+    final effectiveCheckout = checkoutDt ?? DateTime.now();
+
+    final nights = Time.nightsWithCutoff(checkinDt, checkout: effectiveCheckout);
+
     setState(() {
       _expectedNights.text = nights.toString();
     });

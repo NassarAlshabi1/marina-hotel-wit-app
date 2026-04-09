@@ -216,23 +216,22 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    // نحاول التحديث أولاً (Optimistic)
+    final dbId = AppwriteConfigManager.databaseId;
+
+    // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
     try {
-      return await _networkHelper.withRetryAndTimeout(
-        operation: () => _databases.updateDocument(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        ),
-        operationName: 'updateDocument',
+      return await _databases.updateDocument(
+        databaseId: dbId,
+        collectionId: collectionId,
+        documentId: documentId,
+        data: data,
       );
     } on AppwriteException catch (e) {
-      // 404 Not Found -> Create
-      if (e.code == 404) {
+      // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
+      if (e.code == 404 || e.toString().contains('document_not_found')) {
         return await _networkHelper.withRetryAndTimeout(
           operation: () => _databases.createDocument(
-            databaseId: AppwriteConfigManager.databaseId,
+            databaseId: dbId,
             collectionId: collectionId,
             documentId: documentId,
             data: data,
@@ -796,7 +795,7 @@ class AppwriteService {
     }
   }
 
-  /// اختبار شامل للاتصال (قراءة وكتابة وحذف)
+  /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
   Future<Map<String, dynamic>> fullConnectionTest() async {
     final results = <String, dynamic>{
       'tests': <String, dynamic>{},
@@ -805,86 +804,62 @@ class AppwriteService {
 
     _ensureInitialized();
 
-    final testCollection = AppwriteConfig.syncLogsCollectionId;
-    final testDocumentId = ID.unique();
-    final now = DateTime.now().millisecondsSinceEpoch;
-
     try {
-      // 1. اختبار الاتصال الأساسي (Ping)
-      results['tests']['ping'] = await quickConnectionTest();
-
-      // 2. اختبار الكتابة (Create)
-
+      // 1. اختبار الاتصال الأساسي (Ping) - listDocuments على rooms
       try {
         await _networkHelper.withTimeout(
-          operation: () => _databases.createDocument(
+          operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
-            collectionId: testCollection,
-            documentId: testDocumentId,
-            data: {
-              'localUuid': testDocumentId,
-              'deviceId': 'connection_test',
-              'syncType': 'test',
-              'startTime': DateTime.now().toIso8601String(),
-              'status': 'test',
-              'timestamp': now,
-              'createdAt': now,
-              'updatedAt': now,
-              'lastModified': now,
-            },
+            collectionId: AppwriteConfig.roomsCollectionId,
+            queries: [Query.limit(1)],
           ),
-          operationName: 'createDocument(Test)',
+          operationName: 'listDocuments(rooms)',
           timeout: const Duration(seconds: 10),
         );
-        results['tests']['write'] = true;
+        results['tests']['rooms'] = true;
       } catch (e) {
-        results['tests']['write'] = false;
-        results['tests']['write_error'] = e.toString();
+        results['tests']['rooms'] = false;
+        results['tests']['rooms_error'] = e.toString();
       }
 
-      // 3. اختبار القراءة (Read)
-      if (results['tests']['write'] == true) {
-        try {
-          await _networkHelper.withTimeout(
-            operation: () => _databases.getDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: testCollection,
-              documentId: testDocumentId,
-            ),
-            operationName: 'getDocument(Test)',
-            timeout: const Duration(seconds: 5),
-          );
-          results['tests']['read'] = true;
-        } catch (e) {
-          results['tests']['read'] = false;
-          results['tests']['read_error'] = e.toString();
-        }
-
-        // 4. اختبار الحذف (Delete)
-        try {
-          await _networkHelper.withTimeout(
-            operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: testCollection,
-              documentId: testDocumentId,
-            ),
-            operationName: 'deleteDocument(Test)',
-            timeout: const Duration(seconds: 5),
-          );
-          results['tests']['delete'] = true;
-        } catch (e) {
-          results['tests']['delete'] = false;
-          results['tests']['delete_error'] = e.toString();
-        }
+      // 2. اختبار القراءة من bookings
+      try {
+        await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.bookingsCollectionId,
+            queries: [Query.limit(1)],
+          ),
+          operationName: 'listDocuments(bookings)',
+          timeout: const Duration(seconds: 5),
+        );
+        results['tests']['bookings'] = true;
+      } catch (e) {
+        results['tests']['bookings'] = false;
+        results['tests']['bookings_error'] = e.toString();
       }
 
-      // حساب الحالة النهائية
+      // 3. اختبار القراءة من devices
+      try {
+        await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.devicesCollectionId,
+            queries: [Query.limit(1)],
+          ),
+          operationName: 'listDocuments(devices)',
+          timeout: const Duration(seconds: 5),
+        );
+        results['tests']['devices'] = true;
+      } catch (e) {
+        results['tests']['devices'] = false;
+        results['tests']['devices_error'] = e.toString();
+      }
+
+      // حساب الحالة النهائية - ping يعتمد على rooms فقط
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] =
-          tests['ping'] == true &&
-          (tests['write'] == true || tests['write'] == null) &&
-          (tests['read'] == true || tests['read'] == null) &&
-          (tests['delete'] == true || tests['delete'] == null);
+      results['overall_success'] = tests['rooms'] == true;
+      results['tests']['ping'] = tests['rooms'];
 
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
@@ -905,22 +880,6 @@ class AppwriteService {
       results['overall_success'] = false;
       results['error'] = e.toString();
       return results;
-    } finally {
-      // تنظيف (في حالة بقاء المستند)
-      if (results['tests'] != null &&
-          (results['tests'] as Map)['write'] == true &&
-          (results['tests'] as Map)['delete'] != true) {
-        try {
-          final testCollection = AppwriteConfig.syncLogsCollectionId;
-          await _databases.deleteDocument(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: testCollection,
-            documentId: testDocumentId,
-          );
-        } catch (_) {
-          // Ignore cleanup errors
-        }
-      }
     }
   }
 
