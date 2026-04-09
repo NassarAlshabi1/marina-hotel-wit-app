@@ -642,6 +642,13 @@ class AppwriteSyncManager {
           return synced;
         }, phaseMs);
 
+        recordsPulled += await _timePhase('syncBlacklist', () async {
+          final blacklistDocs = await appwriteService.listBlacklist(queries: deltaQ, useCache: false);
+          final synced = await _syncBlacklist(blacklistDocs);
+          _logger.debug('Synced $synced blacklist entries', tag: 'SYNC');
+          return synced;
+        }, phaseMs);
+
         recordsPulled += await _timePhase('syncSalaryCycles', () async {
           final salaryCycles = await appwriteService.listSalaryCycles(queries: deltaQ, useCache: false);
           final synced = await _syncSalaryCycles(salaryCycles);
@@ -1292,6 +1299,8 @@ class AppwriteSyncManager {
           return await _processGuestInfoEntry(entry);
         case 'salary_withdrawals':
           return await _processSalaryWithdrawalEntry(entry);
+        case 'blacklist':
+          return await _processBlacklistEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -1908,6 +1917,10 @@ class AppwriteSyncManager {
       // مزامنة ملاحظات الشيفت
       final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
       recordsPulled += await _syncShiftNotes(shiftNotes);
+
+      // مزامنة القائمة السوداء
+      final blacklistDocs = await appwriteService.listBlacklist(queries: deltaQ, useCache: false);
+      recordsPulled += await _syncBlacklist(blacklistDocs);
 
       // مزامنة ملاحظات الحجز
       final bookingNotes = await appwriteService.listBookingNotes(
@@ -2633,6 +2646,139 @@ class AppwriteSyncManager {
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  // ─── Blacklist ──────────────────────────────────────────────────────────
+
+  Future<bool> _processBlacklistEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteBlacklist(entry.localUuid),
+      );
+      return true;
+    }
+    final item = await _getBlacklistShiftNoteByLocalUuid(entry.localUuid);
+    if (item == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteBlacklist(entry.localUuid),
+      );
+      return true;
+    }
+
+    final payload = _blacklistToRemote(item);
+    await appwriteService.upsertBlacklist(
+      item.localUuid,
+      _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Future<ShiftNote?> _getBlacklistShiftNoteByLocalUuid(String uuid) {
+    return (database.select(database.shiftNotes)
+          ..where((t) =>
+              t.localUuid.equals(uuid) &
+              t.createdBy.equals('blacklist'))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
+    Map<String, dynamic> extra = {};
+    try {
+      extra = jsonDecode(item.content) as Map<String, dynamic>;
+    } catch (_) {}
+
+    final now = Time.nowEpoch();
+    return {
+      'name': item.title,
+      'nationality': (extra['nationality'] as String?) ?? '',
+      'nationalId': (extra['nationalId'] as String?) ?? '',
+      'phone': (extra['phone'] as String?) ?? '',
+      'reason': (extra['reason'] as String?) ?? '',
+      'notes': (extra['notes'] as String?) ?? '',
+      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
+      'active': (extra['active'] as bool?) ?? true,
+      'localUuid': item.localUuid,
+      'createdAt': item.createdAt,
+      'createdAtIso': item.createdAtIso ?? '',
+      'updatedAt': item.updatedAt,
+      'updatedAtIso': DateTime.now().toIso8601String(),
+      'lastModified': item.lastModified,
+      'origin': 'mobile',
+      'syncTimestamp': now,
+      if (item.serverId != null) 'serverId': item.serverId,
+      if (item.deletedAt != null) 'deletedAt': item.deletedAt,
+    };
+  }
+
+  Future<int> _syncBlacklist(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        final localUuid = data['localUuid'] ?? doc.$id;
+        final name = (data['name'] as String?) ?? '';
+
+        // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية
+        final content = jsonEncode({
+          'nationality': (data['nationality'] as String?) ?? '',
+          'nationalId': (data['nationalId'] as String?) ?? '',
+          'phone': (data['phone'] as String?) ?? '',
+          'reason': (data['reason'] as String?) ?? '',
+          'notes': (data['notes'] as String?) ?? '',
+          'reportedBy': (data['reportedBy'] as String?) ?? 'police',
+          'active': (data['active'] as bool?) ?? true,
+        });
+
+        final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
+        final lastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        final serverId = _asIntNullable(data['serverId']);
+
+        final companion = ShiftNotesCompanion(
+          title: drift.Value(name),
+          content: drift.Value(content),
+          priority: const drift.Value('high'),
+          shiftType: const drift.Value('all'),
+          createdAt: drift.Value(createdAt),
+          createdAtIso: drift.Value(
+            (data['createdAtIso'] as String?) ??
+                DateTime.fromMillisecondsSinceEpoch(createdAt * 1000)
+                    .toIso8601String(),
+          ),
+          updatedAt: drift.Value(lastModified),
+          lastModified: drift.Value(lastModified),
+          expiresAt: const drift.Value(null),
+          isRead: const drift.Value(0),
+          createdBy: const drift.Value('blacklist'),
+          localUuid: drift.Value(localUuid),
+          if (serverId != null) serverId: drift.Value(serverId),
+          if (data['deletedAt'] != null)
+            deletedAt: drift.Value(_asInt(data['deletedAt']) ?? 0),
+        );
+
+        // upsert: البحث عن سجل موجود بنفس localUuid
+        final existing = await (database.select(database.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+
+        if (existing != null) {
+          await (database.update(database.shiftNotes)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .write(companion);
+        } else {
+          await database.into(database.shiftNotes).insert(companion);
+        }
+
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync blacklist ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
   }
 
   Future<bool> _processEmployeeEntry(OutboxData entry) async {

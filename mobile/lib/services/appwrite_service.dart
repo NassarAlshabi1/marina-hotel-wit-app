@@ -731,6 +731,39 @@ class AppwriteService {
     );
   }
 
+  // Blacklist
+  Future<List<models.Document>> listBlacklist({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.blacklistCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertBlacklist(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.blacklistCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteBlacklist(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.blacklistCollectionId,
+      documentId: documentId,
+    );
+  }
+
   // Generic methods for delta sync
   Future<List<models.Document>> listDocuments({
     required String collectionId,
