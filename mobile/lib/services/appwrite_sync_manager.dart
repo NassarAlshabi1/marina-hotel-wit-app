@@ -2940,7 +2940,9 @@ class AppwriteSyncManager {
           isRead: const drift.Value(0),
           createdBy: const drift.Value('blacklist'),
           localUuid: drift.Value(localUuid),
-          if (serverId != null) serverId: drift.Value(serverId),
+          serverId: serverId != null
+              ? drift.Value(serverId)
+              : const drift.Value(null),
         );
 
         // upsert: البحث عن سجل موجود بنفس localUuid
