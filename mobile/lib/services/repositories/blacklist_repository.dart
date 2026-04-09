@@ -220,6 +220,12 @@ class BlacklistRepository {
   }
 
   Future<bool> isNameBlacklisted(String name) async {
+    return await findBlacklistMatch(name) != null;
+  }
+
+  /// فحص هل الاسم مطابق لشخص في القائمة السوداء وارجاع بياناته
+  /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
+  Future<BlacklistEntry?> findBlacklistMatch(String name) async {
     final rows = await (db.select(
       db.shiftNotes,
     )..where((t) => t.createdBy.equals(_createdByTag))).get();
@@ -233,12 +239,13 @@ class BlacklistRepository {
       if (fullEq || tripleEq) {
         try {
           final payload = jsonDecode(row.content) as Map<String, dynamic>;
-          if ((payload['active'] as bool?) ?? true) return true;
+          final active = (payload['active'] as bool?) ?? true;
+          if (active) return _fromRow(row);
         } catch (_) {
-          return true; // malformed payload -> treat as active match
+          return _fromRow(row);
         }
       }
     }
-    return false;
+    return null;
   }
 }

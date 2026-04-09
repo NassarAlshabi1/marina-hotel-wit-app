@@ -565,33 +565,58 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       final notes = _optionalText(_notes.text);
                       const String? email = null;
 
+                      // فحص القائمة السوداء (مطابقة أول 3 أسماء)
                       final blacklist = ref.read(blacklistRepoProvider);
-                      final isBlacklisted = await blacklist.isNameBlacklisted(
-                        name,
-                      );
-                      if (isBlacklisted && mounted) {
-                        final proceed = await showDialog<bool>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => AlertDialog(
-                            title: const Text('تحذير أمني'),
-                            content: Text(
-                              'الاسم "$name" موجود في القائمة السوداء ومطلوب أمنياً. هل ترغب بمتابعة تسجيل الحجز؟',
-                            ),
-                            icon: const Icon(Icons.warning, color: Colors.red),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('إلغاء'),
+                      final blacklistedMatch = await blacklist.findBlacklistMatch(name);
+                      if (blacklistedMatch != null && mounted) {
+                        final e = blacklistedMatch;
+                        final snackBar = SnackBar(
+                          duration: const Duration(seconds: 6),
+                          backgroundColor: Colors.red.shade900,
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.gavel, color: Colors.white, size: 22),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                      'تحذير أمني — اسم في القائمة السوداء',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              ElevatedButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text('متابعة'),
+                              const SizedBox(height: 6),
+                              Text(
+                                '${e.name}',
+                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                               ),
+                              if (e.nationality != null && e.nationality!.isNotEmpty)
+                                Text('الجنسية: ${e.nationality}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              if (e.nationalId != null && e.nationalId!.isNotEmpty)
+                                Text('الهوية: ${e.nationalId}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              if (e.phone != null && e.phone!.isNotEmpty)
+                                Text('الهاتف: ${e.phone}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              if (e.reason != null && e.reason!.isNotEmpty)
+                                Text('السبب: ${e.reason}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                             ],
                           ),
+                          action: SnackBarAction(
+                            label: 'متابعة الحجز',
+                            textColor: Colors.yellow,
+                            onPressed: () {/* يكمل التنفيذ تلقائياً */},
+                          ),
                         );
-                        if (proceed != true) return;
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                        // لا نوقف الحجز — نعرض التحذير فقط
                       }
 
                       if (widget.existing == null) {
