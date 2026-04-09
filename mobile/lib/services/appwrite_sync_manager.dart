@@ -2689,6 +2689,13 @@ class AppwriteSyncManager {
     } catch (_) {}
 
     final now = Time.nowEpoch();
+    // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)
+    final createdAtIso = item.createdAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(item.createdAt * 1000)
+            .toIso8601String();
+    final updatedAtIso = DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000)
+        .toIso8601String();
+
     return {
       'name': item.title,
       'nationality': (extra['nationality'] as String?) ?? '',
@@ -2699,15 +2706,18 @@ class AppwriteSyncManager {
       'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
       'active': (extra['active'] as bool?) ?? true,
       'localUuid': item.localUuid,
-      'createdAt': item.createdAt,
-      'createdAtIso': item.createdAtIso ?? '',
-      'updatedAt': item.updatedAt,
-      'updatedAtIso': DateTime.now().toIso8601String(),
+      'createdAt': createdAtIso,
+      'createdAtIso': createdAtIso,
+      'updatedAt': updatedAtIso,
+      'updatedAtIso': updatedAtIso,
+      'deletedAt': item.deletedAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000)
+              .toIso8601String()
+          : null,
       'lastModified': item.lastModified,
       'origin': 'mobile',
       'syncTimestamp': now,
       if (item.serverId != null) 'serverId': item.serverId,
-      if (item.deletedAt != null) 'deletedAt': item.deletedAt,
     };
   }
 
@@ -2731,30 +2741,75 @@ class AppwriteSyncManager {
           'active': (data['active'] as bool?) ?? true,
         });
 
-        final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
-        final lastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
+        final createdAtIso = (data['createdAt'] as String?) ??
+            (data['createdAtIso'] as String?) ??
+            DateTime.now().toIso8601String();
+        final updatedAtIso = (data['updatedAt'] as String?) ??
+            (data['updatedAtIso'] as String?) ??
+            createdAtIso;
+
+        // تحويل ISO إلى epoch seconds لقاعدة البيانات المحلية
+        int? createdAtEpoch;
+        try {
+          createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
+        } catch (_) {
+          createdAtEpoch = Time.nowEpoch();
+        }
+        int? updatedAtEpoch;
+        try {
+          updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
+        } catch (_) {
+          updatedAtEpoch = Time.nowEpoch();
+        }
+
+        final lastModified = _asInt(data['lastModified']) ?? updatedAtEpoch;
         final serverId = _asIntNullable(data['serverId']);
+
+        // معالجة الحذف الناعم
+        final deletedAtVal = data['deletedAt'];
+        int? deletedAtEpoch;
+        if (deletedAtVal != null) {
+          final deletedAtStr = deletedAtVal as String?;
+          if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
+            try {
+              deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
+            } catch (_) {
+              deletedAtEpoch = _asIntNullable(deletedAtVal);
+            }
+          } else {
+            deletedAtEpoch = _asIntNullable(deletedAtVal);
+          }
+        }
+
+        // إذا كان السجل محذوفاً، نحذفه محلياً
+        if (deletedAtEpoch != null && deletedAtEpoch > 0) {
+          final existing = await (database.select(database.shiftNotes)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .getSingleOrNull();
+          if (existing != null) {
+            await (database.delete(database.shiftNotes)
+                  ..where((t) => t.localUuid.equals(localUuid)))
+                .go();
+          }
+          processed++;
+          continue;
+        }
 
         final companion = ShiftNotesCompanion(
           title: drift.Value(name),
           content: drift.Value(content),
           priority: const drift.Value('high'),
           shiftType: const drift.Value('all'),
-          createdAt: drift.Value(createdAt),
-          createdAtIso: drift.Value(
-            (data['createdAtIso'] as String?) ??
-                DateTime.fromMillisecondsSinceEpoch(createdAt * 1000)
-                    .toIso8601String(),
-          ),
-          updatedAt: drift.Value(lastModified),
+          createdAt: drift.Value(createdAtEpoch),
+          createdAtIso: drift.Value(createdAtIso),
+          updatedAt: drift.Value(updatedAtEpoch),
           lastModified: drift.Value(lastModified),
           expiresAt: const drift.Value(null),
           isRead: const drift.Value(0),
           createdBy: const drift.Value('blacklist'),
           localUuid: drift.Value(localUuid),
           if (serverId != null) serverId: drift.Value(serverId),
-          if (data['deletedAt'] != null)
-            deletedAt: drift.Value(_asInt(data['deletedAt']) ?? 0),
         );
 
         // upsert: البحث عن سجل موجود بنفس localUuid
