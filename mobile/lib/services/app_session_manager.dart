@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/id.dart';
+import 'appwrite_service.dart';
+import 'appwrite_sync_manager.dart';
 import 'local_db.dart';
 
 /// يتتبع جلسات التطبيق ويسجّلها في قاعدة البيانات،
@@ -28,6 +33,9 @@ class AppSessionManager {
 
   /// استدعاء عند تشغيل التطبيق أو عودته إلى الواجهة.
   static Future<void> onAppOpen() async {
+    // تشغيل سحب البيانات من Appwrite تلقائياً
+    unawaited(_triggerAppOpenAppwritePull());
+
     if (_sessionStart != null) {
       return;
     }
@@ -108,5 +116,42 @@ class AppSessionManager {
       }
     }
     return null;
+  }
+
+  /// تنفيذ سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+  static Future<void> _triggerAppOpenAppwritePull() async {
+    try {
+      debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+
+      if (!appwriteEnabled) {
+        debugPrint(
+          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
+        );
+        return;
+      }
+
+      // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
+      await Future.delayed(const Duration(seconds: 3));
+
+      debugPrint('📥 [AppOpen] Starting automatic Appwrite pull...');
+      final syncManager = AppwriteSyncManager(
+        appwriteService: AppwriteService(),
+        database: DatabaseManager.instance,
+      );
+
+      // تهيئة الخدمة إذا لم تكن مهيأة
+      await syncManager.initialize();
+
+      // تنفيذ المزامنة (سحب فقط)
+      final result = await syncManager.sync(push: false, pull: true);
+
+      debugPrint(
+        '✅ [AppOpen] Automatic pull completed: ${result.recordsPulled} records pulled.',
+      );
+    } catch (e) {
+      debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
+    }
   }
 }
