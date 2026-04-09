@@ -175,6 +175,43 @@ class BlacklistRepository {
     return updated > 0;
   }
 
+  Future<bool> updateEntry({
+    required int id,
+    required String name,
+    String? nationality,
+    String? nationalId,
+    String? phone,
+    String? reason,
+    String? notes,
+    String? reportedBy,
+  }) async {
+    final row = await (db.select(
+      db.shiftNotes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (row == null) return false;
+    final oldPayload = (jsonDecode(row.content) as Map<String, dynamic>);
+    final updated =
+        await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
+          ShiftNotesCompanion(
+            title: d.Value(name.trim()),
+            content: d.Value(
+              jsonEncode(
+                _toPayload(
+                  nationality: nationality?.trim(),
+                  nationalId: nationalId?.trim(),
+                  phone: phone?.trim(),
+                  reason: reason?.trim(),
+                  notes: notes?.trim(),
+                  reportedBy: reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
+                  active: (oldPayload['active'] as bool?) ?? true,
+                ),
+              ),
+            ),
+          ),
+        );
+    return updated > 0;
+  }
+
   Future<bool> delete(int id) async {
     final rows = await (db.delete(
       db.shiftNotes,

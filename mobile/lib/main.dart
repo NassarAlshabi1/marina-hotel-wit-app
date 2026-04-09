@@ -102,11 +102,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
   try {
     final prefs = await SharedPreferences.getInstance();
-    final disableGoogleDriveSyncOnStart =
-        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
-    if (disableGoogleDriveSyncOnStart) {
-      await prefs.setBool('google_drive_sync_enabled', false);
-    }
     if (!prefs.containsKey('google_drive_sync_enabled')) {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
@@ -189,16 +184,17 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
-    // لا يتم بدء المزامنة تلقائياً عند فتح التطبيق
-    // await autoSyncEngine.start();
-
-    // if (backupService.isSignedIn) {
-    //   debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
-    //   await autoSyncEngine.onSignInChanged(true);
-    //   await smartSync.onGoogleDriveSignInChanged(true);
-    //   debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
-    // }
-    debugPrint('ℹ️ المزامنة التلقائية معطلة عند بدء التطبيق');
+    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
+    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (backupService.isSignedIn && driveSyncEnabled) {
+      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
+      await autoSyncEngine.start();
+      await autoSyncEngine.onSignInChanged(true);
+      await smartSync.onGoogleDriveSignInChanged(true);
+      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
+    } else {
+      debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
+    }
 
     await SyncQueueService.instance.initialize();
 

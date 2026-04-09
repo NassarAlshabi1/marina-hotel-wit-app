@@ -14,7 +14,6 @@ import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
-import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
 import 'lark_settings_screen.dart';
 import 'telegram_settings_screen.dart';
@@ -100,18 +99,6 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const SettingsMaintenanceScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'القائمة السوداء',
-              subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
-              icon: Icons.gavel,
-              color: Colors.red,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BlacklistScreen(),
                 ),
               ),
             ),

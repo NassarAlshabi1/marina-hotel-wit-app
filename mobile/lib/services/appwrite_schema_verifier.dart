@@ -368,6 +368,21 @@ class AppwriteSchemaVerifier {
         {'key': 'createdBy', 'type': 'string', 'size': 50, 'default': 'user'},
       ],
     },
+    'blacklist': {
+      'name': 'Blacklist',
+      'includeSyncFields': true,
+      'attributes': [
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {'key': 'name', 'type': 'string', 'size': 200, 'required': true},
+        {'key': 'nationality', 'type': 'string', 'size': 100},
+        {'key': 'nationalId', 'type': 'string', 'size': 100},
+        {'key': 'phone', 'type': 'string', 'size': 30},
+        {'key': 'reason', 'type': 'string', 'size': 500},
+        {'key': 'notes', 'type': 'string', 'size': 1000},
+        {'key': 'reportedBy', 'type': 'string', 'size': 50, 'default': 'police'},
+        {'key': 'active', 'type': 'boolean', 'default': true},
+      ],
+    },
     'price_adjustments': {
       'name': 'Price Adjustments',
       'includeSyncFields': true,
