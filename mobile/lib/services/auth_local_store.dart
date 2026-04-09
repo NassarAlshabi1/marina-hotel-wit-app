@@ -63,6 +63,7 @@ class AuthLocalStore {
       'finance',
       'reports',
       'notes',
+          'information',
     ],
   };
 
