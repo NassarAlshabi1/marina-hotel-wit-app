@@ -571,7 +571,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       if (blacklistedMatch != null && mounted) {
                         final e = blacklistedMatch;
                         final snackBar = SnackBar(
-                          duration: const Duration(seconds: 6),
+                          duration: const Duration(seconds: 30),
                           backgroundColor: Colors.red.shade900,
                           content: Column(
                             mainAxisSize: MainAxisSize.min,
