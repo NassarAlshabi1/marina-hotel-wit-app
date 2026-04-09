@@ -13,18 +13,19 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
   final OutboxDao outboxDao;
 
-  // جلب جميع الملاحظات (غير المحذوفة)
-  Future<List<ShiftNote>> getAllNotes() =>
-      (select(shiftNotes)..where((t) => t.deletedAt.isNull())).get();
-
-  // جلب الملاحظات غير المقروءة فقط (غير المحذوفة)
-  Future<List<ShiftNote>> getUnreadNotes() => (select(shiftNotes)
-    ..where((t) => t.isRead.equals(0) & t.deletedAt.isNull()))
+  // جلب جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getAllNotes() => (select(shiftNotes)
+    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
       .get();
 
-  // جلب الملاحظات عالية الأولوية (غير المحذوفة)
+  // جلب الملاحظات غير المقروءة فقط (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getUnreadNotes() => (select(shiftNotes)
+    ..where((t) => t.isRead.equals(0) & t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
+
+  // جلب الملاحظات عالية الأولوية (غير المحذوفة، غير القائمة السوداء)
   Future<List<ShiftNote>> getHighPriorityNotes() => (select(shiftNotes)
-    ..where((t) => t.priority.equals('high') & t.deletedAt.isNull()))
+    ..where((t) => t.priority.equals('high') & t.deletedAt.isNull() & t.createdBy.equals('user')))
       .get();
 
   // إضافة ملاحظة جديدة
@@ -235,25 +236,25 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  // عدد الملاحظات غير المقروءة (غير المحذوفة)
+  // عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Future<int> getUnreadCount() async {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull());
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
     final result = await query.getSingle();
     return result.read(shiftNotes.id.count()) ?? 0;
   }
 
-  // مراقبة التغييرات على جميع الملاحظات (غير المحذوفة)
+  // مراقبة التغييرات على جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
   Stream<List<ShiftNote>> watchAllNotes() => (select(shiftNotes)
-    ..where((t) => t.deletedAt.isNull()))
+    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
       .watch();
 
-  // مراقبة عدد الملاحظات غير المقروءة (غير المحذوفة)
+  // مراقبة عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Stream<int> watchUnreadCount() {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull());
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
     return query.watchSingle().map(
       (row) => row.read(shiftNotes.id.count()) ?? 0,
     );
