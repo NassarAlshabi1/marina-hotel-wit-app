@@ -397,7 +397,7 @@ class AppwriteSyncManager {
         _logger.error(
           'Outbox watch stream failed',
           error: e,
-          stackTrace: stackTrace,
+          stackTrace: stackTrace as StackTrace,
           tag: 'SYNC',
         );
       },
@@ -1085,7 +1085,7 @@ class AppwriteSyncManager {
 
         // TRIGGER POST-SYNC PROCESSING
         // 1. Resolve local ID from UUID
-        final localUuid = data['localUuid'];
+        final localUuid = (data['localUuid'] as String?) ?? '';
         final booking = await (database.select(database.bookings)
               ..where((b) => b.localUuid.equals(localUuid)))
             .getSingleOrNull();
@@ -1156,7 +1156,7 @@ class AppwriteSyncManager {
         data['localUuid'] ??= doc.$id;
 
         // Financial immutability: if local payment exists and is newer, keep local
-        final localUuid = data['localUuid'];
+        final localUuid = (data['localUuid'] as String?) ?? '';
         final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
         final existingPayment = await _getPaymentByLocalUuid(localUuid);
         if (existingPayment != null && existingPayment.lastModified > incomingLastModified) {
@@ -1228,7 +1228,7 @@ class AppwriteSyncManager {
         data['localUuid'] ??= doc.$id;
 
         // Financial immutability: if local debt exists and is newer, keep local
-        final localUuid = data['localUuid'];
+        final localUuid = (data['localUuid'] as String?) ?? '';
         final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
         final existingDebt = await _getDebtByLocalUuid(localUuid);
         if (existingDebt != null && existingDebt.lastModified > incomingLastModified) {
@@ -2673,7 +2673,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified, // مطلوب للـ Delta Sync
       'createdBy': note.createdBy,
       'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
-      'note': note.content ?? note.title ?? '', // مطلوب — يوازي content
+      'note': note.content, // مطلوب — يوازي content
     };
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     return data;
@@ -2858,7 +2858,7 @@ class AppwriteSyncManager {
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
-        final localUuid = data['localUuid'] ?? doc.$id;
+        final localUuid = (data['localUuid'] as String?) ?? doc.$id;
         final name = (data['name'] as String?) ?? '';
 
         // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية

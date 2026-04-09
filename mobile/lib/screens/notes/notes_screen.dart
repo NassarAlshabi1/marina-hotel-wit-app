@@ -98,7 +98,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -111,7 +111,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -124,7 +124,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -155,11 +155,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   }
 
   Widget _buildNoteCard(ShiftNote note) {
-    final priorityColor = note.priority == 'high'
-        ? Colors.red
-        : note.priority == 'medium'
-        ? Colors.orange
-        : Colors.green;
+    final priorityColor = switch (note.priority) {
+      NotePriority.high => Colors.red,
+      NotePriority.medium => Colors.orange,
+      NotePriority.low => Colors.green,
+    };
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -220,13 +220,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       case 'read':
         await repo.markAsRead(note.id);
         _refreshData();
-        break;
       case 'edit':
         _editNote(note);
-        break;
       case 'delete':
         _deleteNote(note);
-        break;
     }
   }
 
@@ -258,7 +255,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
       _refreshData();
     }
@@ -267,10 +264,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
-    // ignore: prefer_final_locals
-    String priority = note?.priority.name ?? 'medium';
-    // ignore: prefer_final_locals
-    String shiftType = note?.shiftType.name ?? 'all';
+    var priority = note?.priority.name ?? 'medium';
+    final shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(
       context: context,
@@ -299,7 +294,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: priority,
+                initialValue: priority,
                 decoration: const InputDecoration(
                   labelText: 'الأولوية',
                   border: OutlineInputBorder(),

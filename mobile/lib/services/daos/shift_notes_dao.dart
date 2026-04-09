@@ -13,16 +13,19 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
   final OutboxDao outboxDao;
 
-  // جلب جميع الملاحظات
-  Future<List<ShiftNote>> getAllNotes() => select(shiftNotes).get();
+  // جلب جميع الملاحظات (غير المحذوفة)
+  Future<List<ShiftNote>> getAllNotes() =>
+      (select(shiftNotes)..where((t) => t.deletedAt.isNull())).get();
 
-  // جلب الملاحظات غير المقروءة فقط
-  Future<List<ShiftNote>> getUnreadNotes() =>
-      (select(shiftNotes)..where((t) => t.isRead.equals(0))).get();
+  // جلب الملاحظات غير المقروءة فقط (غير المحذوفة)
+  Future<List<ShiftNote>> getUnreadNotes() => (select(shiftNotes)
+    ..where((t) => t.isRead.equals(0) & t.deletedAt.isNull()))
+      .get();
 
-  // جلب الملاحظات عالية الأولوية
-  Future<List<ShiftNote>> getHighPriorityNotes() =>
-      (select(shiftNotes)..where((t) => t.priority.equals('high'))).get();
+  // جلب الملاحظات عالية الأولوية (غير المحذوفة)
+  Future<List<ShiftNote>> getHighPriorityNotes() => (select(shiftNotes)
+    ..where((t) => t.priority.equals('high') & t.deletedAt.isNull()))
+      .get();
 
   // إضافة ملاحظة جديدة
   Future<int> addNote({
@@ -232,23 +235,25 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  // عدد الملاحظات غير المقروءة
+  // عدد الملاحظات غير المقروءة (غير المحذوفة)
   Future<int> getUnreadCount() async {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0));
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull());
     final result = await query.getSingle();
     return result.read(shiftNotes.id.count()) ?? 0;
   }
 
-  // مراقبة التغييرات على جميع الملاحظات
-  Stream<List<ShiftNote>> watchAllNotes() => select(shiftNotes).watch();
+  // مراقبة التغييرات على جميع الملاحظات (غير المحذوفة)
+  Stream<List<ShiftNote>> watchAllNotes() => (select(shiftNotes)
+    ..where((t) => t.deletedAt.isNull()))
+      .watch();
 
-  // مراقبة عدد الملاحظات غير المقروءة
+  // مراقبة عدد الملاحظات غير المقروءة (غير المحذوفة)
   Stream<int> watchUnreadCount() {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0));
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull());
     return query.watchSingle().map(
       (row) => row.read(shiftNotes.id.count()) ?? 0,
     );
