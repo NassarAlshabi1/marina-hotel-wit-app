@@ -2670,6 +2670,7 @@ class AppwriteSyncManager {
       'isRead': note.isRead == 1, // Appwrite يتوقع boolean
       'createdAt': note.createdAt, // Appwrite يتوقع integer epoch
       'updatedAt': note.updatedAt, // integer epoch — مطلوب
+      'lastModified': note.lastModified, // مطلوب للـ Delta Sync
       'createdBy': note.createdBy,
       'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
       'note': note.content ?? note.title ?? '', // مطلوب — يوازي content
