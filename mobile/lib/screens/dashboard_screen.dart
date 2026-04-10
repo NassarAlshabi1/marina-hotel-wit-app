@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
@@ -12,6 +13,9 @@ import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
+import '../services/appwrite_delta_sync.dart';
+import '../services/appwrite_realtime_sync.dart';
+import '../providers/appwrite_providers.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -83,6 +87,69 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoPullFromAppwrite();
+    });
+  }
+
+  Future<void> _autoPullFromAppwrite() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+
+      if (!appwriteEnabled) return;
+
+      // التأكد من الاتصال
+      await ref.read(connectionStatusProvider.notifier).checkConnection();
+      final isConnected = ref.read(connectionStatusProvider).isConnected;
+      if (!isConnected) return;
+
+      final deltaSync = AppwriteDeltaSync.instance;
+      int pulledCount = 0;
+
+      if (deltaSync.isInitialized) {
+        final result = await deltaSync.pullDeltaChanges();
+        pulledCount = result.recordsPulled;
+      } else {
+        final syncManager = ref.read(appwriteSyncManagerProvider);
+        final result = await syncManager.sync(push: false, pull: true);
+        pulledCount = result.recordsPulled;
+      }
+
+      // إعادة تعيين علامة التغييرات عن بعد
+      AppwriteRealtimeSync().resetRemoteChangesFlag();
+
+      if (mounted && pulledCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.cloud_download, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '✅ تم سحب $pulledCount سجل جديد من Appwrite تلقائياً',
+                    style: const TextStyle(fontFamily: 'Tajawal'),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
