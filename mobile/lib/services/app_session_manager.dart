@@ -134,18 +134,28 @@ class AppSessionManager {
       }
 
       // --- بداية منطق الذكاء (مرة كل ساعة) ---
+      // مفتاح التخزين الموحد لضمان القراءة الصحيحة
       const String lastPullKey = 'last_appwrite_pull_on_open_timestamp';
-      final lastPullMs = prefs.getInt(lastPullKey) ?? 0;
-      final now = DateTime.now();
-      final lastPullTime = DateTime.fromMillisecondsSinceEpoch(lastPullMs);
       
-      // إذا كان الفارق أقل من ساعة، نتخطى السحب
-      if (now.difference(lastPullTime).inHours < 1 && lastPullMs != 0) {
-        final minutesPassed = now.difference(lastPullTime).inMinutes;
-        debugPrint(
-          'ℹ️ [AppOpen] Skipping pull. Last pull was $minutesPassed minutes ago (minimum 60 required).',
-        );
-        return;
+      // الحصول على الوقت الحالي
+      final now = DateTime.now();
+      final nowMs = now.millisecondsSinceEpoch;
+      
+      // قراءة آخر وقت سحب (0 إذا لم يوجد)
+      final lastPullMs = prefs.getInt(lastPullKey) ?? 0;
+      
+      if (lastPullMs > 0) {
+        final lastPullTime = DateTime.fromMillisecondsSinceEpoch(lastPullMs);
+        final difference = now.difference(lastPullTime);
+        
+        // التحقق مما إذا كان الفارق أقل من 60 دقيقة
+        if (difference.inMinutes < 60) {
+          final remainingMinutes = 60 - difference.inMinutes;
+          debugPrint(
+            'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
+          );
+          return;
+        }
       }
       // --- نهاية منطق الذكاء ---
 
