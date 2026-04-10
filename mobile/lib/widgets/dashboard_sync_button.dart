@@ -1098,13 +1098,21 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (!_isPulling && !_isPushing && _lastSyncTime != null)
-                        Text(
-                          _formatLastSyncTime(_lastSyncTime),
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: Colors.grey.shade600,
-                          ),
+                      if (!_isPulling && !_isPushing)
+                        FutureBuilder<SyncLogEntry?>(
+                          future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
+                          builder: (context, snapshot) {
+                            final lastSync = snapshot.data?.createdAt ?? _lastSyncTime;
+                            if (lastSync == null) return const SizedBox.shrink();
+                            return Text(
+                              'آخر مزامنة: ${_formatLastSyncTime(lastSync)}',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
