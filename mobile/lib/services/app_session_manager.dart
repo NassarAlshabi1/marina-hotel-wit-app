@@ -119,6 +119,7 @@ class AppSessionManager {
   }
 
   /// تنفيذ سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+  /// تم تحسينها لتكون "ذكية": يتم السحب مرة واحدة فقط كل ساعة كحد أقصى عند الفتح.
   static Future<void> _triggerAppOpenAppwritePull() async {
     try {
       debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
@@ -132,10 +133,26 @@ class AppSessionManager {
         return;
       }
 
+      // --- بداية منطق الذكاء (مرة كل ساعة) ---
+      const String lastPullKey = 'last_appwrite_pull_on_open_timestamp';
+      final lastPullMs = prefs.getInt(lastPullKey) ?? 0;
+      final now = DateTime.now();
+      final lastPullTime = DateTime.fromMillisecondsSinceEpoch(lastPullMs);
+      
+      // إذا كان الفارق أقل من ساعة، نتخطى السحب
+      if (now.difference(lastPullTime).inHours < 1 && lastPullMs != 0) {
+        final minutesPassed = now.difference(lastPullTime).inMinutes;
+        debugPrint(
+          'ℹ️ [AppOpen] Skipping pull. Last pull was $minutesPassed minutes ago (minimum 60 required).',
+        );
+        return;
+      }
+      // --- نهاية منطق الذكاء ---
+
       // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
       await Future.delayed(const Duration(seconds: 3));
 
-      debugPrint('📥 [AppOpen] Starting automatic Appwrite pull...');
+      debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
       final syncManager = AppwriteSyncManager(
         appwriteService: AppwriteService(),
         database: DatabaseManager.instance,
@@ -147,8 +164,11 @@ class AppSessionManager {
       // تنفيذ المزامنة (سحب فقط)
       final result = await syncManager.sync(push: false, pull: true);
 
+      // تحديث وقت آخر سحب ناجح
+      await prefs.setInt(lastPullKey, now.millisecondsSinceEpoch);
+
       debugPrint(
-        '✅ [AppOpen] Automatic pull completed: ${result.recordsPulled} records pulled.',
+        '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
       );
     } catch (e) {
       debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
