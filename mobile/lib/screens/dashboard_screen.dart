@@ -108,6 +108,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final isConnected = ref.read(connectionStatusProvider).isConnected;
       if (!isConnected) return;
 
+      // إظهار إشعار "جاري السحب"
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '📥 جاري سحب البيانات من Appwrite...',
+                    style: TextStyle(fontFamily: 'Tajawal'),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.blue.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
       final deltaSync = AppwriteDeltaSync.instance;
       int pulledCount = 0;
 
