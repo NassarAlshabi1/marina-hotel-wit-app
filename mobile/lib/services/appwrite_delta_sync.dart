@@ -112,8 +112,8 @@ class AppwriteDeltaSync {
         tag: 'DELTA_SYNC',
       );
 
-      final lastSyncTs = await _getLastDeltaSyncTimestamp();
-      final computation = await _deltaSyncService!.compute(since: lastSyncTs);
+      final lastPushTs = await _getLastPushSyncTimestamp();
+      final computation = await _deltaSyncService!.compute(since: lastPushTs);
 
       if (computation.changes.isEmpty) {
         _logger.info('✅ لا توجد تغييرات للمزامنة', tag: 'DELTA_SYNC');
