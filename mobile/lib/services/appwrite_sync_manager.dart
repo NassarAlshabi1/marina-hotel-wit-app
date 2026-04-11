@@ -89,6 +89,7 @@ class AppwriteSyncManager {
 
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
+  Timer? _failedRetryTimer;
   StreamSubscription? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -121,6 +122,9 @@ class AppwriteSyncManager {
       }
 
       _enableDebouncedPush();
+
+      // ─── مؤقت إعادة محاولة العناصر الفاشلة كل 5 دقائق ───
+      _startFailedRetryTimer();
 
       // رفع البيانات الحالية مرة واحدة (للبيانات التي أُنشئت قبل تفعيل Outbox)
       unawaited(_runInitialSeedIfNeeded());
@@ -364,6 +368,36 @@ class AppwriteSyncManager {
     _logger.info('Auto sync stopped', tag: 'SYNC');
   }
 
+  /// مؤقت إعادة محاولة العناصر الفاشلة — كل 5 دقائق يفحص ويعيد المحاولة
+  void _startFailedRetryTimer() {
+    _failedRetryTimer?.cancel();
+    _failedRetryTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) async {
+        try {
+          final failedCount = await outboxDao.count();
+          if (failedCount == 0) return;
+
+          // إعادة تعيين العناصر الفاشلة إلى pending
+          await outboxDao.retryFailed();
+
+          debugPrint(
+            '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
+          );
+
+          // محاولة رفعها فوراً
+          final result = await sync(push: true, pull: false);
+          if (result.status == SyncStatus.success) {
+            debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+          }
+        } catch (e) {
+          debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+        }
+      },
+    );
+    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+  }
+
   /// تمكين الدفع المؤجل بعد تغييرات outbox
   void _enableDebouncedPush({Duration? window}) {
     if (window != null) {
@@ -412,6 +446,7 @@ class AppwriteSyncManager {
   void dispose() {
     _syncTimer?.cancel();
     _debouncePushTimer?.cancel();
+    _failedRetryTimer?.cancel();
     _outboxSubscription?.cancel();
     stopAutoSync();
     _syncController.close();

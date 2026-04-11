@@ -594,14 +594,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
+  /// البيانات محفوظة في SQLite (outbox) حتى لو قُتل التطبيق قبل الاكتمال
+  /// عند العودة للتطبيق ستتم إعادة المحاولة تلقائياً
   Future<void> _pushPendingChangesOnPause() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
-      await syncManager.sync(push: true, pull: false);
+      // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
+      await syncManager.sync(push: true, pull: false).timeout(
+        const Duration(seconds: 10),
+      );
       debugPrint('✅ Push on pause completed');
     } catch (e) {
-      debugPrint('⚠️ Push on pause error: $e');
+      // البيانات محفوظة في outbox — لن تُفقد أبداً
+      debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
     }
   }
 

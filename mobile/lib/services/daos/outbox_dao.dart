@@ -47,10 +47,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     ));
   }
 
+  /// إعادة تعيين العناصر القديمة بدلاً من حذفها — لا نفقد بيانات outbox أبداً
+  /// العناصر التي فشلت عدة مرات تُعاد إلى حالة pending لمحاولة رفعها لاحقاً
   Future<int> clearStale({int attemptsThreshold = 3}) async {
-    final rows = await (delete(outbox)
-          ..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold)))
-        .go();
+    final rows = await (update(outbox)
+          ..where((t) =>
+              t.attempts.isBiggerOrEqualValue(attemptsThreshold) &
+              t.processingStatus.equals('failed')))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      attempts: Value(0),
+      lastError: Value(null),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
     return rows;
   }
 
@@ -234,19 +244,21 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     }).toList();
   }
 
-  /// حل تعارض محدد
+  /// حل تعارض محدد — يُعيد العنصر إلى pending لرفعه فعلياً لاحقاً
   Future<void> resolveConflict(
     int id,
     Map<String, dynamic> resolvedData, {
     required String resolution,
   }) async {
-    // تحديث السجل ليعكس الحل
+    // تحديث السجل ليعكس الحل وإعادته إلى pending ليُرفع فعلياً
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
-        processingStatus: const Value('completed'),
+        processingStatus: const Value('pending'),
         lastError: Value(null),
         attempts: const Value(0),
         payload: Value(jsonEncode(resolvedData)),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
       ),
     );
   }
