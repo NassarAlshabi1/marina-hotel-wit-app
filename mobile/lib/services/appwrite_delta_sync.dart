@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
@@ -319,48 +320,110 @@ class AppwriteDeltaSync {
     int lastPullTs,
   ) async {
     try {
-      // Pagination: جلب النتائج على دفعات (كل دفعة 100 سجل كحد أقصى)
       int applied = 0;
-      int offset = 0;
-      const int limit = 100;
 
-      while (true) {
-        final queries = <String>[
-          'limit($limit)',
-          'offset($offset)',
-          if (lastPullTs > 0) Query.greaterThan('syncTimestamp', lastPullTs),
-          Query.orderAsc('\$createdAt'),
-        ];
+      // ✅ بناء استعلامات الفلترة فقط - بدون limit/offset
+      // لأن listDocuments → _listAllDocumentsInternal يتعامل مع Pagination داخلياً
+      final filterQueries = <String>[
+        Query.orderAsc('\$createdAt'),
+      ];
 
-        final documents = await _appwriteService!.listDocuments(
-          collectionId: collectionId,
-          queries: queries,
-          useCache: false,
-        );
+      // تحويل lastPullTs من ثوانٍ إلى مللي ثانية للمقارنة مع $updatedAt (Appwrite يستخدم مللي)
+      final lastPullMs = lastPullTs > 0 ? lastPullTs * 1000 : 0;
 
-        if (documents.isEmpty) break;
+      List<models.Document> documents;
 
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final sourceDeviceId = data['deviceId'] as String?;
-
-          if (sourceDeviceId == _deviceId) continue;
-
+      if (lastPullTs > 0) {
+        // محاولة الفلترة بـ syncTimestamp أولاً
+        try {
+          final syncQueries = [
+            ...filterQueries,
+            Query.greaterThan('syncTimestamp', lastPullTs),
+          ];
+          documents = await _appwriteService!.listDocuments(
+            collectionId: collectionId,
+            queries: syncQueries,
+            useCache: false,
+          );
+        } catch (e) {
+          // ✅ fallback: إذا syncTimestamp غير معرّف كـ attribute، استخدم $updatedAt
+          _logger.warning(
+            'فشل فلترة $entity بـ syncTimestamp، استخدام \$updatedAt: $e',
+            tag: 'DELTA_SYNC',
+          );
           try {
-            await _applyRemoteChange(entity, doc.$id, data);
-            applied++;
-          } catch (e) {
+            final fallbackQueries = [
+              Query.greaterThan('\$updatedAt', lastPullMs.toString()),
+              ...filterQueries,
+            ];
+            documents = await _appwriteService!.listDocuments(
+              collectionId: collectionId,
+              queries: fallbackQueries,
+              useCache: false,
+            );
+          } catch (e2) {
+            // ✅ fallback أخير: جلب كل شيء وفلترة يدوية
             _logger.warning(
-              'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+              'فشل فلترة $entity بـ \$updatedAt، جلب كامل: $e2',
               tag: 'DELTA_SYNC',
+            );
+            documents = await _appwriteService!.listDocuments(
+              collectionId: collectionId,
+              queries: filterQueries,
+              useCache: false,
             );
           }
         }
-
-        // إذا عدد النتائج أقل من الحد، لا يوجد المزيد
-        if (documents.length < limit) break;
-        offset += limit;
+      } else {
+        // أول سحب: جلب كل شيء بدون فلترة زمنية
+        documents = await _appwriteService!.listDocuments(
+          collectionId: collectionId,
+          queries: filterQueries,
+          useCache: false,
+        );
       }
+
+      // ✅ معالجة المستندات المسحوبة
+      for (final doc in documents) {
+        final data = Map<String, dynamic>.from(doc.data);
+        final sourceDeviceId = data['deviceId'] as String?;
+
+        // تخطي المستندات التي أرسلها هذا الجهاز نفسه
+        if (sourceDeviceId == _deviceId) continue;
+
+        // ✅ فلترة يدوية إضافية بالوقت (safety net)
+        if (lastPullTs > 0) {
+          final syncTs = _asInt(data['syncTimestamp']);
+          if (syncTs != null && syncTs <= lastPullTs) {
+            continue;
+          }
+          // فحص $updatedAt أيضاً (مللي ثانية)
+          final updatedAtMs = data['\$updatedAt'];
+          if (updatedAtMs is String) {
+            try {
+              final updatedAt = DateTime.parse(updatedAtMs);
+              if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
+                continue;
+              }
+            } catch (_) {}
+          }
+        }
+
+        try {
+          await _applyRemoteChange(entity, doc.$id, data);
+          applied++;
+        } catch (e) {
+          _logger.warning(
+            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+            tag: 'DELTA_SYNC',
+          );
+        }
+      }
+
+      _logger.info(
+        '📥 سحب $entity: $applied سجل من ${documents.length} مستند',
+        tag: 'DELTA_SYNC',
+      );
 
       return applied;
     } catch (e) {
