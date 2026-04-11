@@ -52,6 +52,7 @@ import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/fcm_service.dart';
 import 'services/sync_service.dart';
+import 'services/sync_constants.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -428,11 +429,36 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           interval: const Duration(minutes: 2),
         );
 
-        // سحب البيانات فوراً عند فتح التطبيق (Delta Sync)
+        // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
-          debugPrint('📥 Pulling latest data from Appwrite on app start...');
-          await syncManager.sync(push: true, pull: true);
-          debugPrint('✅ Initial sync on app start completed');
+          final prefs = await SharedPreferences.getInstance();
+          final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+          bool shouldSync = true;
+
+          if (lastPullEpochMs != null) {
+            final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+            final elapsed = DateTime.now().difference(lastPull);
+            if (elapsed < SyncConstants.appOpenSyncInterval) {
+              final remaining = SyncConstants.appOpenSyncInterval - elapsed;
+              debugPrint(
+                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                '(متبقي ${remaining.inMinutes} دقيقة)',
+              );
+              shouldSync = false;
+            }
+          }
+
+          if (shouldSync) {
+            debugPrint('📥 Pulling latest data from Appwrite on app start...');
+            // push + pull معاً — لا نرفع بدون سحب
+            await syncManager.sync(push: true, pull: true);
+            // تسجيل وقت هذا السحب
+            await prefs.setInt(
+              SyncConstants.lastAppOpenPullKey,
+              DateTime.now().millisecondsSinceEpoch,
+            );
+            debugPrint('✅ Initial sync on app start completed');
+          }
         } catch (e) {
           debugPrint('⚠️ Initial sync on app start failed: $e');
  }

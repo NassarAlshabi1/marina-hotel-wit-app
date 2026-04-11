@@ -15,6 +15,7 @@ import '../utils/time.dart';
 import '../widgets/dashboard_sync_button.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
+import '../services/sync_constants.dart';
 import '../providers/appwrite_providers.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
@@ -103,6 +104,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (!appwriteEnabled) return;
 
+      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+      if (lastPullEpochMs != null) {
+        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+        final elapsed = DateTime.now().difference(lastPull);
+        if (elapsed < SyncConstants.appOpenSyncInterval) {
+          final remaining = SyncConstants.appOpenSyncInterval - elapsed;
+          debugPrint(
+            '⏭️ تخطي السحب التلقائي — مرت ${elapsed.inMinutes} دقيقة فقط '
+            '(متبقي ${remaining.inMinutes} دقيقة)',
+          );
+          return;
+        }
+      }
+
       // التأكد من الاتصال
       await ref.read(connectionStatusProvider.notifier).checkConnection();
       final isConnected = ref.read(connectionStatusProvider).isConnected;
@@ -154,6 +170,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // إعادة تعيين علامة التغييرات عن بعد
       AppwriteRealtimeSync().resetRemoteChangesFlag();
 
+      // ─── تسجيل وقت هذا السحب التلقائي ───
+      await prefs.setInt(
+        SyncConstants.lastAppOpenPullKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+
       if (mounted && pulledCount > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,6 +197,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             duration: const Duration(seconds: 4),
           ),
         );
+      } else if (mounted) {
+        // إشعار صامت بأن البيانات محدثة
+        debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
     } catch (e) {
       debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
