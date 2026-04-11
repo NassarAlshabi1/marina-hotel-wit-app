@@ -739,6 +739,31 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showPaymentDialog(
+                PaymentMethod.cash,
+                null,
+                'رصيد تراكمي للنزيل',
+                true,
+              ),
+              icon: const Icon(Icons.account_balance_wallet),
+              label: const Text(
+                'إضافة دفعة رصيد تراكمي',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1179,7 +1204,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  void _showPaymentDialog(PaymentMethod method, [int? presetAmount, String? presetNotes]) {
+  void _showPaymentDialog(PaymentMethod method, [int? presetAmount, String? presetNotes, bool isPendingBalance = false]) {
     final amountController = TextEditingController(
       text: presetAmount != null ? presetAmount.toString() : '',
     );
@@ -1287,6 +1312,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       referenceController.text,
                       cardDigitsController.text,
                       bankController.text,
+                      isPendingBalance: isPendingBalance,
                     ),
               child: _isSavingPayment
                   ? const SizedBox(
@@ -1724,8 +1750,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String notes,
     String reference,
     String cardDigits,
-    String bank,
-  ) async {
+    String bank, {
+    bool isPendingBalance = false,
+  }) async {
     if (_isSavingPayment) return;
 
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
@@ -1753,7 +1780,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     try {
       final totals = await _calculateCurrentTotals();
 
-      if (amount > totals.remaining) {
+      if (!isPendingBalance && amount > totals.remaining) {
         // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
         final surplus = amount - totals.remaining;
         final roomsRepo = ref.read(roomsRepoProvider);
@@ -1874,7 +1901,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         paymentDate: Time.nowIso(),
         notes: notes.isEmpty ? null : notes,
         paymentMethod: _mapUiMethodToDb(method),
-        revenueType: 'room',
+        revenueType: isPendingBalance ? 'other' : 'room',
+        isPendingBalance: isPendingBalance,
       );
 
       double newRemaining = totals.remaining - amount;

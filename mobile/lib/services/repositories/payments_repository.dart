@@ -54,6 +54,7 @@ class PaymentsRepository {
     String? notes,
     required String paymentMethod,
     required String revenueType,
+    bool isPendingBalance = false,
   }) async {
     final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
 
@@ -77,6 +78,7 @@ class PaymentsRepository {
         revenueType: d.Value(revenueType),
         hotelDayKey: d.Value(hotelDayKey),
         bookingUuidCache: d.Value(bookingUuidCache),
+        isPendingBalance: d.Value(isPendingBalance),
       ),
     );
     if (bookingLocalId != null) {
@@ -132,6 +134,7 @@ class PaymentsRepository {
     String? notes,
     String? paymentMethod,
     String? revenueType,
+    bool? isPendingBalance,
   }) async {
     final before = await (db.select(
       db.payments,
@@ -166,6 +169,9 @@ class PaymentsRepository {
             : const d.Value.absent(),
         hotelDayKey: hotelDayKey != null
             ? d.Value(hotelDayKey)
+            : const d.Value.absent(),
+        isPendingBalance: isPendingBalance != null
+            ? d.Value(isPendingBalance)
             : const d.Value.absent(),
       ),
     );
