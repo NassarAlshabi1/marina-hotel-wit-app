@@ -334,6 +334,11 @@ class AppwriteDeltaSync {
       List<models.Document> documents;
 
       if (lastPullTs > 0) {
+        // ✅ تحويل epoch ثوانٍ إلى ISO 8601 لاستعلام $updatedAt في Appwrite
+        final lastPullIso = DateTime.fromMillisecondsSinceEpoch(lastPullMs)
+            .toUtc()
+            .toIso8601String();
+
         // محاولة الفلترة بـ syncTimestamp أولاً
         try {
           final syncQueries = [
@@ -353,7 +358,8 @@ class AppwriteDeltaSync {
           );
           try {
             final fallbackQueries = [
-              Query.greaterThan('\$updatedAt', lastPullMs.toString()),
+              // Appwrite يتطلب ISO 8601 لحقول التاريخ/الوقت
+              Query.greaterThan('\$updatedAt', lastPullIso),
               ...filterQueries,
             ];
             documents = await _appwriteService!.listDocuments(
@@ -397,16 +403,14 @@ class AppwriteDeltaSync {
           if (syncTs != null && syncTs <= lastPullTs) {
             continue;
           }
-          // فحص $updatedAt أيضاً (مللي ثانية)
-          final updatedAtMs = data['\$updatedAt'];
-          if (updatedAtMs is String) {
-            try {
-              final updatedAt = DateTime.parse(updatedAtMs);
-              if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
-                continue;
-              }
-            } catch (_) {}
-          }
+          // ✅ فحص $updatedAt من كائن Document مباشرة (ليس من doc.data)
+          // لأن $updatedAt حقل نظامي لا يظهر في doc.data
+          try {
+            final updatedAt = DateTime.parse(doc.$updatedAt);
+            if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
+              continue;
+            }
+          } catch (_) {}
         }
 
         try {
