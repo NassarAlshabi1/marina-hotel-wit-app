@@ -157,6 +157,7 @@ $rooms = $conn->query("SELECT id, room_number, type FROM rooms
                             <option value="بطاقة شخصية" <?= $booking['identity_type'] == 'بطاقة شخصية' ? 'selected' : '' ?>>بطاقة شخصية</option>
                             <option value="رخصة قيادة" <?= $booking['identity_type'] == 'رخصة قيادة' ? 'selected' : '' ?>>رخصة قيادة</option>
                             <option value="جواز سفر" <?= $booking['identity_type'] == 'جواز سفر' ? 'selected' : '' ?>>جواز سفر</option>
+                            <option value="شهادة ميلاد" <?= $booking['identity_type'] == 'شهادة ميلاد' ? 'selected' : '' ?>>شهادة ميلاد</option>
                             <option value="أخرى" <?= $booking['identity_type'] == 'أخرى' ? 'selected' : '' ?>>أخرى</option>
                         </select>
                     </div>

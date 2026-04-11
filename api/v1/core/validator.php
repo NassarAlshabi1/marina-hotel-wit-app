@@ -386,7 +386,7 @@ class ValidationRules {
         }
         
         if (isset($data['guest_id_type'])) {
-            $validator->in('guest_id_type', ['بطاقة شخصية', 'رخصة قيادة', 'جواز سفر']);
+            $validator->in('guest_id_type', ['بطاقة شخصية', 'رخصة قيادة', 'جواز سفر', 'شهادة ميلاد']);
         }
         
         if (isset($data['guest_nationality'])) {
