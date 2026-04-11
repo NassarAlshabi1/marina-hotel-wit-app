@@ -1519,113 +1519,115 @@ class AppDatabase extends _$AppDatabase {
       // تعطيل foreign key constraints مؤقتاً لتجنب مشاكل الحذف
       await customStatement('PRAGMA foreign_keys = OFF');
 
-      Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
-        TableInfo<Table, dynamic> table,
-        String key,
-        T Function(Map<String, dynamic> json) fromJson,
-      ) async {
-        final rows = asListIfPresent(key);
-        if (rows == null) {
-          return;
+      try {
+        Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
+          TableInfo<Table, dynamic> table,
+          String key,
+          T Function(Map<String, dynamic> json) fromJson,
+        ) async {
+          final rows = asListIfPresent(key);
+          if (rows == null) {
+            return;
+          }
+          await delete(table).go();
+          await batch((batch) {
+            batch.insertAll(
+              table,
+              rows.map(fromJson).toList(),
+              mode: InsertMode.insertOrReplace,
+            );
+          });
         }
-        await delete(table).go();
-        await batch((batch) {
-          batch.insertAll(
-            table,
-            rows.map(fromJson).toList(),
-            mode: InsertMode.insertOrReplace,
-          );
-        });
+
+        await replaceTableIfNonEmpty<Room>(
+          rooms,
+          'rooms',
+          (row) => Room.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<Booking>(
+          bookings,
+          'bookings',
+          (row) => Booking.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<BookingNote>(
+          bookingNotes,
+          'booking_notes',
+          (row) => BookingNote.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<ShiftNote>(
+          shiftNotes,
+          'shift_notes',
+          (row) => ShiftNote.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<Employee>(
+          employees,
+          'employees',
+          (row) => Employee.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<Expense>(
+          expenses,
+          'expenses',
+          (row) => Expense.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<CashTransaction>(
+          cashTransactions,
+          'cash_transactions',
+          (row) => CashTransaction.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<Payment>(
+          payments,
+          'payments',
+          (row) => Payment.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<Debt>(
+          debts,
+          'debts',
+          (row) => Debt.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<BookingNight>(
+          bookingNights,
+          'booking_nights',
+          (row) => BookingNight.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<HotelDayLedgerEntry>(
+          hotelDayLedger,
+          'hotel_day_ledger',
+          (row) => HotelDayLedgerEntry.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<AutoFixRun>(
+          autoFixRuns,
+          'auto_fix_runs',
+          (row) => AutoFixRun.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<IntegrityViolation>(
+          integrityViolations,
+          'integrity_violations',
+          (row) => IntegrityViolation.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<AppSession>(
+          appSessions,
+          'app_sessions',
+          (row) => AppSession.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<SalaryCycle>(
+          salaryCycles,
+          'salary_cycles',
+          (row) => SalaryCycle.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<SalaryPayment>(
+          salaryPayments,
+          'salary_payments',
+          (row) => SalaryPayment.fromJson(row),
+        );
+        await replaceTableIfNonEmpty<BookingPriceAdjustment>(
+          bookingPriceAdjustments,
+          'booking_price_adjustments',
+          (row) => BookingPriceAdjustment.fromJson(row),
+        );
+      } finally {
+        // إعادة تفعيل foreign key constraints — دائماً حتى عند فشل الإدراج
+        await customStatement('PRAGMA foreign_keys = ON');
       }
-
-      await replaceTableIfNonEmpty<Room>(
-        rooms,
-        'rooms',
-        (row) => Room.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<Booking>(
-        bookings,
-        'bookings',
-        (row) => Booking.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<BookingNote>(
-        bookingNotes,
-        'booking_notes',
-        (row) => BookingNote.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<ShiftNote>(
-        shiftNotes,
-        'shift_notes',
-        (row) => ShiftNote.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<Employee>(
-        employees,
-        'employees',
-        (row) => Employee.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<Expense>(
-        expenses,
-        'expenses',
-        (row) => Expense.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<CashTransaction>(
-        cashTransactions,
-        'cash_transactions',
-        (row) => CashTransaction.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<Payment>(
-        payments,
-        'payments',
-        (row) => Payment.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<Debt>(
-        debts,
-        'debts',
-        (row) => Debt.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<BookingNight>(
-        bookingNights,
-        'booking_nights',
-        (row) => BookingNight.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<HotelDayLedgerEntry>(
-        hotelDayLedger,
-        'hotel_day_ledger',
-        (row) => HotelDayLedgerEntry.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<AutoFixRun>(
-        autoFixRuns,
-        'auto_fix_runs',
-        (row) => AutoFixRun.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<IntegrityViolation>(
-        integrityViolations,
-        'integrity_violations',
-        (row) => IntegrityViolation.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<AppSession>(
-        appSessions,
-        'app_sessions',
-        (row) => AppSession.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<SalaryCycle>(
-        salaryCycles,
-        'salary_cycles',
-        (row) => SalaryCycle.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<SalaryPayment>(
-        salaryPayments,
-        'salary_payments',
-        (row) => SalaryPayment.fromJson(row),
-      );
-      await replaceTableIfNonEmpty<BookingPriceAdjustment>(
-        bookingPriceAdjustments,
-        'booking_price_adjustments',
-        (row) => BookingPriceAdjustment.fromJson(row),
-      );
-
-      // إعادة تفعيل foreign key constraints
-      await customStatement('PRAGMA foreign_keys = ON');
     });
   }
 }

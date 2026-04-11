@@ -1178,6 +1178,23 @@ class GoogleDriveBackupService {
         } finally {
           await db.customStatement('PRAGMA foreign_keys = ON');
           _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
+
+          // التحقق من سلامة Foreign Keys بعد الاستعادة
+          try {
+            final violations = await db.customSelect(
+              'PRAGMA foreign_key_check',
+            ).get();
+            if (violations.isNotEmpty) {
+              _log('⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة');
+              for (final v in violations) {
+                _log('  ↳ FK violation: $v');
+              }
+            } else {
+              _log('✅ التحقق من FK: لا توجد انتهاكات');
+            }
+          } catch (e) {
+            _log('⚠️ تعذر التحقق من سلامة FK: $e');
+          }
         }
       });
 
