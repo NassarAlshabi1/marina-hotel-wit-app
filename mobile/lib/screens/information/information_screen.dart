@@ -99,6 +99,17 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     final scrollCtrl = _verticalScrollController;
 
+    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
+    final sorted = List<GuestInfo>.from(entries);
+    sorted.sort((a, b) {
+      final aNum = int.tryParse(a.roomNumber);
+      final bNum = int.tryParse(b.roomNumber);
+      if (aNum != null && bNum != null) return aNum.compareTo(bNum);
+      if (aNum != null) return -1;
+      if (bNum != null) return 1;
+      return a.roomNumber.compareTo(b.roomNumber);
+    });
+
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Scrollbar(
@@ -107,7 +118,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         child: SingleChildScrollView(
           controller: scrollCtrl,
           scrollDirection: Axis.vertical,
-          child: _buildTable(entries),
+          child: _buildTable(sorted),
         ),
       ),
     );
