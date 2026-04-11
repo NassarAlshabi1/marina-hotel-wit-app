@@ -54,7 +54,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     'بطاقة عسكرية',
     'استبيان',
     'شهادة ميلاد',
-    'بطاقة رقم جلوس',
   ];
 
   @override
