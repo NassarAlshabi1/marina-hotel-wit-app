@@ -24,6 +24,13 @@ class InformationScreen extends ConsumerStatefulWidget {
 class _InformationScreenState extends ConsumerState<InformationScreen>
     with SyncOnExitMixin {
   bool _exportingPdf = false;
+  final _verticalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    super.dispose();
+  }
 
   static final List<String> _idTypes = [
     'بطاقة شخصية',
@@ -90,9 +97,19 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       );
     }
 
+    final scrollCtrl = _verticalScrollController;
+
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: _buildTable(entries),
+      child: Scrollbar(
+        controller: scrollCtrl,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: scrollCtrl,
+          scrollDirection: Axis.vertical,
+          child: _buildTable(entries),
+        ),
+      ),
     );
   }
 
