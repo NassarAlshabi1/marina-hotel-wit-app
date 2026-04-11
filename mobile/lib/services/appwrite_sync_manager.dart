@@ -507,7 +507,7 @@ class AppwriteSyncManager {
 
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         throw Exception('No internet connection');
       }
 
@@ -566,6 +566,7 @@ class AppwriteSyncManager {
         await database.customStatement('PRAGMA foreign_keys=OFF');
         try {
           _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
+          final _failedCollections = <String>[];
 
           // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
           final lastPullTs = await _getLastPullTs();
@@ -589,6 +590,7 @@ class AppwriteSyncManager {
               return roomsSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('rooms');
             _logger.error('❌ فشل سحب rooms', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -600,6 +602,7 @@ class AppwriteSyncManager {
               return bookingsSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('bookings');
             _logger.error('❌ فشل سحب bookings', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -614,6 +617,7 @@ class AppwriteSyncManager {
               return employeesSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('employees');
             _logger.error('❌ فشل سحب employees', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -625,6 +629,7 @@ class AppwriteSyncManager {
               return expensesSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('expenses');
             _logger.error('❌ فشل سحب expenses', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -636,6 +641,7 @@ class AppwriteSyncManager {
               return paymentsSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('payments');
             _logger.error('❌ فشل سحب payments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -647,6 +653,7 @@ class AppwriteSyncManager {
               return debtsSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('debts');
             _logger.error('❌ فشل سحب debts', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -658,6 +665,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('guest_infos');
             _logger.error('❌ فشل سحب guest_infos', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -669,6 +677,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('salary_withdrawals');
             _logger.error('❌ فشل سحب salary_withdrawals', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -683,6 +692,7 @@ class AppwriteSyncManager {
               return adjustmentsSynced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('booking_price_adjustments');
             _logger.error('❌ فشل سحب booking_price_adjustments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -694,6 +704,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('booking_nights');
             _logger.error('❌ فشل سحب booking_nights', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -705,6 +716,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('booking_notes');
             _logger.error('❌ فشل سحب booking_notes', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -716,6 +728,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('cash_transactions');
             _logger.error('❌ فشل سحب cash_transactions', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -727,6 +740,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('shift_notes');
             _logger.error('❌ فشل سحب shift_notes', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -738,6 +752,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('blacklist');
             _logger.error('❌ فشل سحب blacklist', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -749,6 +764,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('salary_cycles');
             _logger.error('❌ فشل سحب salary_cycles', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -760,6 +776,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('salary_payments');
             _logger.error('❌ فشل سحب salary_payments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -774,6 +791,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('price_adjustments');
             _logger.error('❌ فشل سحب price_adjustments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -788,6 +806,7 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('audit_logs');
             _logger.error('❌ فشل سحب audit_logs', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -802,14 +821,22 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
+            _failedCollections.add('payment_voids');
             _logger.error('❌ فشل سحب payment_voids', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
-          // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
-          // حتى لو فشل بعضها، نحدّث الـ timestamp لعدم تكرار السحب
-          await _updateLastPullTs(Time.nowEpoch());
+          // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
+          // إذا فشل بعضها، لا نحدّث timestamp حتى نتمكن من سحبها في المرة القادمة
+          if (_failedCollections.isEmpty) {
+            await _updateLastPullTs(Time.nowEpoch());
+          } else {
+            _logger.warning(
+              '⚠️ ${_failedCollections.length} collections فشل سحبها: ${_failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
+              tag: 'SYNC',
+            );
+          }
         } finally {
           // إعادة تفعيل Foreign Keys بعد انتهاء السحب
           await database.customStatement('PRAGMA foreign_keys=ON');

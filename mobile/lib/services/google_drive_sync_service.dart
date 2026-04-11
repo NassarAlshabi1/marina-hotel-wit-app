@@ -522,17 +522,7 @@ class GoogleDriveSyncService {
     SyncMetadata metadata,
     String deviceId,
   ) async {
-    final cleanup = await api.files.list(
-      spaces: 'appDataFolder',
-      q: 'name contains "sync_data" and trashed=false',
-      $fields: 'files(id,name)',
-    );
-    for (final file in cleanup.files ?? []) {
-      if (file.id != null && (file.name?.startsWith('sync_data') ?? false)) {
-        await api.files.delete(file.id!);
-      }
-    }
-
+    // ✅ الإصلاح: الرفع أولاً ثم الحذف — لمنع فقدان البيانات إذا فشل الرفع
     final uploaded = <DriveSyncShard>[];
     for (var index = 0; index < shards.length; index++) {
       final isPrimary = index == 0;
@@ -574,6 +564,15 @@ class GoogleDriveSyncService {
         ),
       );
     }
+
+    // ✅ حذف الملفات القديمة فقط بعد نجاح الرفع الكامل
+    final keepIds = uploaded.map((s) => s.fileId).toSet();
+    try {
+      await _cleanupLegacySnapshot(api, keepShardIds: keepIds.toList());
+    } catch (e) {
+      debugPrint('⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e');
+    }
+
     return uploaded;
   }
 

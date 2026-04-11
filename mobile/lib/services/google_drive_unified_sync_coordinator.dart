@@ -227,10 +227,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     _fullBackupIntervalHours =
         prefs.getInt(_prefsFullBackupIntervalKey) ?? _defaultFullBackupHours;
 
-    if (_pullEnabled) {
-      _pullEnabled = false;
-      await prefs.setBool(_prefsPullEnabledKey, false);
-    }
+    // ✅ إصلاح: لا نلغي تفعيل Pull — نحترم إعداد المستخدم
+    // الكود القديم كان يعطل pull في كل تشغيل للتطبيق
   }
 
   Future<void> onSignInChanged(bool isSignedIn) async {

@@ -149,13 +149,10 @@ class SyncSafetyLayer {
       return false;
     }
 
-    Map<String, dynamic>? tables;
-
     try {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final localTables = Map<String, dynamic>.from(decoded['tables'] as Map);
-      tables = localTables;
 
       try {
         await db.transaction(() async {
@@ -167,58 +164,50 @@ class SyncSafetyLayer {
             }
           }
         });
+
+        await _appendLog({
+          'event': 'rollback-success',
+          'syncId': snapshot.syncId,
+          'phase': snapshot.phase,
+          'timestamp': rollbackAt.toIso8601String(),
+        });
+
+        debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
+        _activeSnapshots.remove(snapshot.key);
+        return true;
+      } catch (rollbackError, stack) {
+        debugPrint('❌ CRITICAL: فشل التراجع — transaction تم التراجع عنها تلقائياً');
+        await _appendLog({
+          'event': 'rollback-error',
+          'syncId': snapshot.syncId,
+          'phase': snapshot.phase,
+          'timestamp': rollbackAt.toIso8601String(),
+          'error': rollbackError.toString(),
+          'stack': stack.toString(),
+        });
+        // ✅ إصلاح: لا نحاول استعادة يدوية ثانية خارج transaction
+        // لأن الحذف تم داخل transaction والـ rollback التلقائي يعيد البيانات
+        return false;
       } finally {
-        // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الحذف والاستعادة
-        await db.customStatement('PRAGMA foreign_keys = ON');
-        debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+        // ✅ ضمان إعادة تشغيل FK في كل حالة
+        try {
+          await db.customStatement('PRAGMA foreign_keys = ON');
+          debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+        } catch (e) {
+          debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
+        }
       }
-
-      await _appendLog({
-        'event': 'rollback-success',
-        'syncId': snapshot.syncId,
-        'phase': snapshot.phase,
-        'timestamp': rollbackAt.toIso8601String(),
-      });
-
-      debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
-      _activeSnapshots.remove(snapshot.key);
-      return true;
-    } catch (rollbackError, stack) {
-      debugPrint(
-        '❌ CRITICAL: Rollback failed - attempting SQLite file restore',
-      );
+    } catch (readError, stack) {
+      debugPrint('❌ فشل قراءة ملف النسخة الاحتياطية: $readError');
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
         'phase': snapshot.phase,
         'timestamp': rollbackAt.toIso8601String(),
-        'error': rollbackError.toString(),
+        'error': readError.toString(),
         'stack': stack.toString(),
       });
-
-      // محاولة استعادة الجداول مباشرة قبل اللجوء لنسخة SQLite
-      if (tables != null) {
-        try {
-          await _clearAllTables(db);
-        } catch (_) {}
-        var restored = false;
-        for (final tableName in SyncConstants.allTablesInOrder) {
-          if (tables.containsKey(tableName)) {
-            try {
-              await _restoreTable(db, tableName, tables[tableName]);
-              restored = true;
-            } catch (e) {
-              debugPrint('⚠️ تعذر استعادة جدول $tableName: $e');
-            }
-          }
-        }
-        if (restored) {
-          _activeSnapshots.remove(snapshot.key);
-          return true;
-        }
-      }
-
-      return await _attemptFileRestore(db, file.path);
+      return false;
     }
   }
 

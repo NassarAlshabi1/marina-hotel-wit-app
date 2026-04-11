@@ -794,11 +794,7 @@ class SmartSyncManager {
     });
 
     if (!canStart) {
-      return await _attemptSilentSignInAndRetry(
-            'رفع التغييرات',
-            pushLocalChanges,
-          ) ??
-          false;
+      return false;
     }
 
     try {
@@ -854,11 +850,7 @@ class SmartSyncManager {
     });
 
     if (!canStart) {
-      return await _attemptSilentSignInAndRetry(
-            'سحب التغييرات',
-            pullRemoteChanges,
-          ) ??
-          false;
+      return false;
     }
 
     try {

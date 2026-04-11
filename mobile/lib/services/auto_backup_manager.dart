@@ -98,9 +98,12 @@ class AutoBackupManager {
 
   Future<void> _loadBackupMode() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentMode = BackupMode.deltaSync;
-    await prefs.setInt(_backupModeKey, _currentMode.index);
-    await prefs.setBool(_deltaSyncEnabledKey, true);
+    final savedIndex = prefs.getInt(_backupModeKey);
+    if (savedIndex != null && savedIndex >= 0 && savedIndex < BackupMode.values.length) {
+      _currentMode = BackupMode.values[savedIndex];
+    } else {
+      _currentMode = BackupMode.deltaSync;
+    }
   }
 
   Future<void> _startDeltaSyncTimer() async {
@@ -612,7 +615,7 @@ class AutoBackupManager {
   /// تعيين وضع النسخ الاحتياطي
   Future<void> setBackupMode(BackupMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    _currentMode = BackupMode.deltaSync;
+    _currentMode = mode;
     await prefs.setInt(_backupModeKey, _currentMode.index);
     await prefs.setBool(_deltaSyncEnabledKey, true);
     debugPrint('🔧 وضع النسخ الاحتياطي: ${_currentMode.name}');

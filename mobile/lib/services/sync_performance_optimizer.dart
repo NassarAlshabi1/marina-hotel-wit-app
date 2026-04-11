@@ -190,7 +190,15 @@ class SyncPerformanceOptimizer {
     // التحقق من عدد المحاولات الفاشلة
     final settings = getCurrentPerformanceSettings();
     if (_syncAttempts >= settings['retryAttempts']) {
-      debugPrint('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات');
+      // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
+      final cooldownMinutes = 30;
+      if (_lastSyncTime != null &&
+          DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
+        debugPrint('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
+        _syncAttempts = 0;
+        return false;
+      }
+      debugPrint('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)');
       return true;
     }
 

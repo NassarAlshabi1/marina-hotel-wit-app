@@ -161,6 +161,7 @@ class ConflictResolver {
   }
 
   /// تحويل timestamp إلى DateTime
+  /// يدعم الثواني والمللي ثانية تلقائياً
   DateTime? _parseTimestamp(dynamic timestamp) {
     if (timestamp == null) return null;
 
@@ -168,6 +169,12 @@ class ConflictResolver {
       if (timestamp is String) {
         return DateTime.parse(timestamp);
       } else if (timestamp is int) {
+        // ✅ كشف تلقائي: إذا كانت القيمة < 10^10 فهي بالثواني، وإلا بالمللي ثانية
+        // Time.nowEpoch() يعيد ثوانٍ (مثال: 1713000000)
+        // DateTime.now().millisecondsSinceEpoch يعيد مللي ثانية (مثال: 1713000000000)
+        if (timestamp < 10000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        }
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {

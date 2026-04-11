@@ -468,13 +468,8 @@ class RestoreFixService {
           }
         }
         
-        double finalTotal = totalNightAmount;
-        if (booking.discount > 0 && booking.discountType == 'total') {
-          finalTotal = (totalNightAmount - booking.discount)
-              .clamp(0, totalNightAmount)
-              .toDouble();
-        }
-        expectedTotal = finalTotal;
+        // ✅ إصلاح الخصم المزدوج: الخصم تم حسابه بالفعل في totalNightAmount أعلاه
+        expectedTotal = totalNightAmount;
 
         final remainingBalance = (expectedTotal - totalPaid)
             .clamp(0, expectedTotal)
