@@ -1,14 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
 import 'booking_derived_fields_service.dart';
-import 'adapters/id_resolver.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
 import '../utils/hotel_date_helper.dart';
@@ -883,26 +881,8 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    // ─── حل المرجع الأجنبي: البحث عن bookingLocalId المحلي ───
-    // القيمة القادمة من Appwrite قد تكون ID من جهاز آخر لا يتطابق محلياً
-    final resolver = IdResolver(db);
-    final resolvedBookingId = await resolver.resolveBooking(
-      localId: _asInt(data['bookingLocalId']),
-      serverId: _asInt(data['serverBookingId']) ?? _asInt(data['bookingId']),
-      uuid: _asString(data['bookingUuidCache']) ??
-          _asString(data['booking_uuid_cache']) ??
-          _asString(data['bookingUuid']) ??
-          _asString(data['booking_uuid']),
-    );
-
-    if (resolvedBookingId == null) {
-      debugPrint(
-        '⚠️ booking_nights: لا يوجد حجز محلي مطابق لـ '
-        'bookingLocalId=${data['bookingLocalId']}, uuid=${data['bookingUuidCache'] ?? data['booking_uuid']} '
-        '— تخطي هذا السجل حتى يتم سحب الحجز الأب',
-      );
-      return;
-    }
+    final bookingLocalId = _asInt(data['bookingLocalId']);
+    if (bookingLocalId == null) return;
 
     final companion = BookingNightsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -913,7 +893,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
-      bookingLocalId: d.Value(resolvedBookingId),
+      bookingLocalId: d.Value(bookingLocalId),
       hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
       nightStart: d.Value(_asString(data['nightStart']) ?? ''),
       nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
@@ -935,25 +915,8 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    // ─── حل المرجع الأجنبي: البحث عن bookingId المحلي ───
-    final resolver = IdResolver(db);
-    final resolvedBookingId = await resolver.resolveBooking(
-      localId: _asInt(data['bookingId']),
-      serverId: _asInt(data['serverBookingId']),
-      uuid: _asString(data['bookingUuidCache']) ??
-          _asString(data['booking_uuid_cache']) ??
-          _asString(data['bookingUuid']) ??
-          _asString(data['booking_uuid']),
-    );
-
-    if (resolvedBookingId == null) {
-      debugPrint(
-        '⚠️ booking_notes: لا يوجد حجز محلي مطابق لـ '
-        'bookingId=${data['bookingId']}, uuid=${data['bookingUuidCache'] ?? data['booking_uuid']} '
-        '— تخطي هذا السجل حتى يتم سحب الحجز الأب',
-      );
-      return;
-    }
+    final bookingId = _asInt(data['bookingId']);
+    if (bookingId == null) return;
 
     final companion = BookingNotesCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -964,7 +927,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
-      bookingId: d.Value(resolvedBookingId),
+      bookingId: d.Value(bookingId),
       noteText: d.Value(_asString(data['noteText']) ?? ''),
       alertType: d.Value(_asString(data['alertType']) ?? ''),
       alertUntil: _nullableValue<String>(_asString(data['alertUntil'])),
