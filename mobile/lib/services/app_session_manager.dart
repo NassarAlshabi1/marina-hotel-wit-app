@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/id.dart';
-import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';
 import 'local_db.dart';
 
@@ -22,13 +21,18 @@ class AppSessionManager {
   static int _accumulatedSeconds = 0;
   static Future<String?> Function()? _deviceIdResolver;
 
+  /// مرجع مشترك لمدير المزامنة — يُعيَّن عبر configure()
+  static AppwriteSyncManager? _sharedSyncManager;
+
   /// تهيئة المدير بقاعدة البيانات والدوال المساعدة (مثل الحصول على معرف الجهاز).
   static void configure({
     required AppDatabase database,
     Future<String?> Function()? deviceIdResolver,
+    AppwriteSyncManager? syncManager,
   }) {
     _database = database;
     _deviceIdResolver = deviceIdResolver;
+    _sharedSyncManager = syncManager;
   }
 
   /// استدعاء عند تشغيل التطبيق أو عودته إلى الواجهة.
@@ -163,19 +167,19 @@ class AppSessionManager {
       await Future.delayed(const Duration(seconds: 3));
 
       debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
-      final syncManager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: DatabaseManager.instance,
-      );
 
-      // تهيئة الخدمة إذا لم تكن مهيأة
-      await syncManager.initialize();
+      // استخدام SyncManager المشترك لتجنب مزامنة مزدوجة ومصادمات mutex
+      final syncManager = _sharedSyncManager;
+      if (syncManager == null) {
+        debugPrint('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
+        return;
+      }
 
       // تنفيذ المزامنة (سحب فقط)
       final result = await syncManager.sync(push: false, pull: true);
 
       // تحديث وقت آخر سحب ناجح
-      await prefs.setInt(lastPullKey, now.millisecondsSinceEpoch);
+      await prefs.setInt(lastPullKey, nowMs);
 
       debugPrint(
         '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',

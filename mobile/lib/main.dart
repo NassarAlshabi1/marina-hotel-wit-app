@@ -385,6 +385,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           database: database,
           deviceIdResolver: () async =>
               GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
