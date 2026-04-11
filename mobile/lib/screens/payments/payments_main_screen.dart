@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/local_db.dart';
+import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -84,7 +84,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   Widget _buildOverviewTab() {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
-    return StreamBuilder<List<Payment>>(
+    return StreamBuilder<List<db.Payment>>(
       stream: paymentsRepo.watchAll(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -127,7 +127,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
   }
 
-  Widget _buildQuickStats(List<Payment> payments) {
+  Widget _buildQuickStats(List<db.Payment> payments) {
     final today = DateTime.now();
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
     final startOfMonth = DateTime(today.year, today.month, 1);
@@ -278,7 +278,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
   }
 
-  Widget _buildRecentPayments(List<Payment> payments) {
+  Widget _buildRecentPayments(List<db.Payment> payments) {
     final recentPayments = payments.take(5).toList();
 
     return Card(
@@ -332,7 +332,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   Widget _buildActiveBookingsTab() {
     final bookingsRepo = ref.watch(bookingsRepoProvider);
 
-    return StreamBuilder<List<Booking>>(
+    return StreamBuilder<List<db.Booking>>(
       stream: bookingsRepo.watchList(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -531,8 +531,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           avatar: Icon(method.icon,
                               size: 16,
                               color: isSelected
-                                  ? WidgetStatePropertyAll(Colors.white)
-                                  : WidgetStatePropertyAll(method.color)),
+                                  ? Colors.white
+                                  : method.color),
                           label: Text(
                             method.displayName,
                             style: TextStyle(
