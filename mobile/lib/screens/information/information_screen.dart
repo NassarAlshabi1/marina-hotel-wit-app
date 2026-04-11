@@ -215,7 +215,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       text: existing?.guestName ?? '',
     );
     final nationalityController = TextEditingController(
-      text: existing?.nationality ?? '',
+      text: existing?.nationality.isNotEmpty == true
+          ? existing!.nationality
+          : 'يمني',
     );
     final idNumberController = TextEditingController(
       text: existing?.idNumber ?? '',
