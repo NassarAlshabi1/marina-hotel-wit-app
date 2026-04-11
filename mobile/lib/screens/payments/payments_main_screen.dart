@@ -225,7 +225,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   }
 
   // ignore: unused_element
-  Widget _buildPaymentMethodChart(List<Payment> payments) {
+  Widget _buildPaymentMethodChart(List<db.Payment> payments) {
     final methodCounts = <String, double>{};
 
     for (final payment in payments) {
