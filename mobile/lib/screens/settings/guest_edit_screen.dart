@@ -63,7 +63,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _phoneController = TextEditingController(text: widget.guest.phone);
     _emailController = TextEditingController(text: widget.guest.email);
     _nationalityController = TextEditingController(
-      text: widget.guest.nationality,
+      text: widget.guest.nationality.isNotEmpty
+          ? widget.guest.nationality
+          : 'يمني',
     );
     _idType = widget.guest.idType;
     _idNumberController = TextEditingController(text: widget.guest.idNumber);
