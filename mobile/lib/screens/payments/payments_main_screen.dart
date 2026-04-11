@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
@@ -6,6 +7,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
+import '../../models/payment_models.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -22,6 +25,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   @override
   String get screenId => 'payments_main';
   late TabController _tabController;
+  bool _isSavingPayment = false;
 
   @override
   void initState() {
@@ -40,6 +44,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'إدارة المدفوعات',
+        fab: FloatingActionButton.extended(
+          onPressed: _isSavingPayment ? null : _showNewPaymentDialog,
+          icon: const Icon(Icons.add_card),
+          label: const Text('دفعة جديدة'),
+          backgroundColor: Colors.green,
+        ),
         body: Column(
           children: [
             TabBar(
@@ -472,6 +482,227 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return Icons.receipt_long;
       default:
         return Icons.payment;
+    }
+  }
+
+  // ─── إضافة دفعة جديدة تراكمية ───
+
+  void _showNewPaymentDialog() {
+    final amountController = TextEditingController();
+    final notesController = TextEditingController();
+    final referenceController = TextEditingController();
+    PaymentMethod selectedMethod = PaymentMethod.cash;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.add_card, color: Colors.green),
+                SizedBox(width: 8),
+                Text('دفعة جديدة تراكمية'),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // اختيار طريقة الدفع
+                    const Text(
+                      'طريقة الدفع',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: PaymentMethod.values.map((method) {
+                        final isSelected = selectedMethod == method;
+                        return ChoiceChip(
+                          avatar: Icon(method.icon,
+                              size: 16,
+                              color: isSelected
+                                  ? WidgetStatePropertyAll(Colors.white)
+                                  : WidgetStatePropertyAll(method.color)),
+                          label: Text(
+                            method.displayName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isSelected ? Colors.white : method.color,
+                              fontWeight:
+                                  isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: method.color,
+                          onSelected: (_) {
+                            setDialogState(() {
+                              selectedMethod = method;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // حقل المبلغ
+                    TextField(
+                      controller: amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'المبلغ *',
+                        prefixText: 'ر.ي ',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // رقم المرجع (للتحويل والشيك)
+                    if (selectedMethod == PaymentMethod.transfer ||
+                        selectedMethod == PaymentMethod.check) ...[
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'رقم المرجع / الشيك',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // ملاحظات
+                    TextField(
+                      controller: notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'ملاحظات (اختياري)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: _isSavingPayment
+                    ? null
+                    : () => _saveStandalonePayment(
+                          ctx,
+                          amountController.text,
+                          notesController.text,
+                          referenceController.text,
+                          selectedMethod,
+                        ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: _isSavingPayment
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('تسجيل الدفعة'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveStandalonePayment(
+    BuildContext dialogContext,
+    String amountText,
+    String notes,
+    String reference,
+    PaymentMethod method,
+  ) async {
+    final parsedAmount = CurrencyFormatter.parseAmount(amountText);
+    if (parsedAmount == null || parsedAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى إدخال مبلغ صحيح'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSavingPayment = true);
+
+    try {
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+
+      String dbMethod;
+      switch (method) {
+        case PaymentMethod.cash:
+          dbMethod = 'نقدي';
+          break;
+        case PaymentMethod.card:
+          dbMethod = 'بطاقة';
+          break;
+        case PaymentMethod.transfer:
+          dbMethod = 'تحويل';
+          break;
+        case PaymentMethod.check:
+          dbMethod = 'شيك';
+          break;
+        case PaymentMethod.installment:
+          dbMethod = 'تقسيط';
+          break;
+      }
+
+      await paymentsRepo.create(
+        bookingLocalId: null,
+        amount: parsedAmount.toDouble(),
+        paymentDate: Time.nowIso(),
+        notes: notes.trim().isEmpty ? null : notes.trim(),
+        paymentMethod: dbMethod,
+        revenueType: 'other',
+      );
+
+      if (mounted) {
+        Navigator.pop(dialogContext);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount.toDouble())} بنجاح',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(dialogContext);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تسجيل الدفعة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingPayment = false);
+      }
     }
   }
 }
