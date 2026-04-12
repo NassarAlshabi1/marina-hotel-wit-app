@@ -109,6 +109,10 @@ class Bookings extends Table with SyncFields {
       'idx_bookings_guest',
       'CREATE INDEX idx_bookings_guest ON bookings (guest_name)',
     ),
+    Index(
+      'idx_bookings_deleted',
+      'CREATE INDEX idx_bookings_deleted ON bookings (deleted_at)',
+    ),
   ];
 }
 
@@ -119,6 +123,13 @@ class BookingNotes extends Table with SyncFields {
   TextColumn get alertType => text()();
   TextColumn get alertUntil => text().nullable()();
   IntColumn get isActive => integer().withDefault(const Constant(1))();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_booking_notes_booking',
+      'CREATE INDEX idx_booking_notes_booking ON booking_notes (booking_id)',
+    ),
+  ];
 }
 
 class Employees extends Table with SyncFields {
@@ -205,6 +216,18 @@ class Payments extends Table with SyncFields {
       'idx_payments_room_day',
       'CREATE INDEX idx_payments_room_day ON payments (room_number, hotel_day_key)',
     ),
+    Index(
+      'idx_payments_date',
+      'CREATE INDEX idx_payments_date ON payments (payment_date)',
+    ),
+    Index(
+      'idx_payments_revenue',
+      'CREATE INDEX idx_payments_revenue ON payments (revenue_type, hotel_day_key)',
+    ),
+    Index(
+      'idx_payments_void',
+      'CREATE INDEX idx_payments_void ON payments (is_voided)',
+    ),
   ];
 }
 
@@ -241,6 +264,10 @@ class Debts extends Table with SyncFields {
     Index(
       'idx_debts_guest',
       'CREATE INDEX idx_debts_guest ON debts (guest_name)',
+    ),
+    Index(
+      'idx_debts_booking',
+      'CREATE INDEX idx_debts_booking ON debts (booking_local_id)',
     ),
   ];
 }
@@ -557,6 +584,29 @@ class Outbox extends Table {
       text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_outbox_status',
+      'CREATE INDEX idx_outbox_status ON outbox (processing_status)',
+    ),
+    Index(
+      'idx_outbox_entity_status',
+      'CREATE INDEX idx_outbox_entity_status ON outbox (entity, op, processing_status)',
+    ),
+    Index(
+      'idx_outbox_uuid_pending',
+      'CREATE INDEX idx_outbox_uuid_pending ON outbox (entity, local_uuid, processing_status)',
+    ),
+    Index(
+      'idx_outbox_client_ts',
+      'CREATE INDEX idx_outbox_client_ts ON outbox (client_ts)',
+    ),
+    Index(
+      'idx_outbox_processing_started',
+      'CREATE INDEX idx_outbox_processing_started ON outbox (processing_status, processing_started_at)',
+    ),
+  ];
 }
 
 class SyncState extends Table {
@@ -660,12 +710,20 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 31;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      // تحسينات الأداء: WAL mode للقراءة والكتابة المتوازية
+      await customStatement('PRAGMA journal_mode = WAL');
+      await customStatement('PRAGMA synchronous = NORMAL');
+      await customStatement('PRAGMA cache_size = -8192');
+      await customStatement('PRAGMA temp_store = MEMORY');
+      await customStatement('PRAGMA mmap_size = 268435456');
+      await customStatement('PRAGMA page_size = 4096');
+      await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
@@ -1441,6 +1499,42 @@ class AppDatabase extends _$AppDatabase {
           );
         }
       }
+
+      // === Migration 31: Performance indexes ===
+      if (from < 31) {
+        const perfIndexes = [
+          // Outbox: تسريع الاستعلامات الأساسية
+          'CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox (processing_status)',
+          'CREATE INDEX IF NOT EXISTS idx_outbox_entity_status ON outbox (entity, op, processing_status)',
+          'CREATE INDEX IF NOT EXISTS idx_outbox_uuid_pending ON outbox (entity, local_uuid, processing_status)',
+          'CREATE INDEX IF NOT EXISTS idx_outbox_client_ts ON outbox (client_ts)',
+          'CREATE INDEX IF NOT EXISTS idx_outbox_processing_started ON outbox (processing_status, processing_started_at)',
+          // Debts: تسريع البحث بالحجز
+          'CREATE INDEX IF NOT EXISTS idx_debts_booking ON debts (booking_local_id)',
+          // Payments: تسريع البحث بالتاريخ والنوع
+          'CREATE INDEX IF NOT EXISTS idx_payments_date ON payments (payment_date)',
+          'CREATE INDEX IF NOT EXISTS idx_payments_revenue ON payments (revenue_type, hotel_day_key)',
+          'CREATE INDEX IF NOT EXISTS idx_payments_void ON payments (is_voided)',
+          // Bookings: تسريع فلترة المحذوفات
+          'CREATE INDEX IF NOT EXISTS idx_bookings_deleted ON bookings (deleted_at)',
+          // BookingNotes: تسريع البحث بالحجز
+          'CREATE INDEX IF NOT EXISTS idx_booking_notes_booking ON booking_notes (booking_id)',
+        ];
+        for (final sql in perfIndexes) {
+          try {
+            await m.database.customStatement(sql);
+          } catch (e) {
+            developer.log(
+              'Migration 31: $sql failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 31: performance indexes created successfully',
+          name: 'db.migration',
+        );
+      }
     },
   );
 
@@ -1636,7 +1730,10 @@ LazyDatabase _open() {
   return LazyDatabase(() async {
     final dbDir = await sqflite.getDatabasesPath();
     final file = File(p.join(dbDir, _dbFileName));
-    return NativeDatabase.createInBackground(file, logStatements: false);
+    return NativeDatabase.createInBackground(
+      file,
+      logStatements: false,
+    );
   });
 }
 

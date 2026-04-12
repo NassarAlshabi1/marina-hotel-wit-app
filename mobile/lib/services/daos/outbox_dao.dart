@@ -61,6 +61,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       processingStartedAt: Value(null),
       processingWorker: Value(null),
     ));
+    // تحديث إحصائيات الاستعلام بعد إعادة تعيين جماعي
+    if (rows > 20) {
+      await customSelect('ANALYZE outbox').get();
+    }
     return rows;
   }
 
@@ -218,6 +222,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               t.processingStatus.equals('completed') &
               t.clientTs.isSmallerOrEqualValue(cutoff)))
         .go();
+    // تحديث إحصائيات الاستعلام بعد الحذف الجماعي
+    if (rows > 50) {
+      await customSelect('ANALYZE outbox').get();
+    }
     return rows;
   }
 
