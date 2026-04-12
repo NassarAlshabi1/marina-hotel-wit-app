@@ -11,6 +11,8 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
+import '../../models/enhanced_payment_models.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 import '../../services/providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 
@@ -1944,14 +1946,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
         SnackBar(
           content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'إغلاق',
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            onPressed: () => messenger.hideCurrentSnackBar(),
           ),
         ),
       );
@@ -2008,45 +2010,67 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   void _generateReceipt(Payment payment) async {
-    final receipt = Receipt(
-      receiptNumber: 'REC${DateTime.now().millisecondsSinceEpoch}',
-      payment: payment,
-      guestName: widget.booking.guestName,
-      guestPhone: _currentGuestPhone,
-      roomNumber: widget.booking.roomNumber,
-      generatedAt: DateTime.now(),
-    );
-    await receipt.generatePDF();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    try {
+      final receipt = Receipt(
+        receiptNumber: 'REC${DateTime.now().millisecondsSinceEpoch}',
+        payment: payment,
+        guestName: widget.booking.guestName,
+        guestPhone: _currentGuestPhone,
+        roomNumber: widget.booking.roomNumber,
+        generatedAt: DateTime.now(),
+      );
+      await receipt.generatePDF();
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('خطأ في إنشاء الإيصال: $e')),
+        );
+      }
+    }
   }
 
   void _generateInvoice(BookingPaymentSummary summary) async {
-    final checkin =
-        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null
-        ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : null;
-    final actualCheckout = widget.booking.actualCheckout != null
-        ? DateTime.tryParse(widget.booking.actualCheckout!)
-        : null;
-    final checkout = actualCheckout ?? plannedCheckout ?? checkin;
-    final roomsRepo = ref.read(roomsRepoProvider);
-    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    final invoice = Invoice(
-      invoiceNumber: 'INV${DateTime.now().millisecondsSinceEpoch}',
-      bookingId: widget.booking.localUuid,
-      guestName: widget.booking.guestName,
-      guestPhone: _currentGuestPhone,
-      roomNumber: widget.booking.roomNumber,
-      checkinDate: checkin,
-      checkoutDate: checkout,
-      nights: Time.nightsWithCutoff(checkin, checkout: checkout),
-      roomRate: room?.price ?? 0,
-      totalAmount: summary.totalAmount,
-      payments: summary.payments,
-      remainingAmount: summary.remainingAmount,
-      generatedAt: DateTime.now(),
-    );
-    await invoice.generatePDF();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final checkin =
+          DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final plannedCheckout = widget.booking.checkoutDate != null
+          ? DateTime.tryParse(widget.booking.checkoutDate!)
+          : null;
+      final actualCheckout = widget.booking.actualCheckout != null
+          ? DateTime.tryParse(widget.booking.actualCheckout!)
+          : null;
+      final checkout = actualCheckout ?? plannedCheckout ?? checkin;
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final room =
+          await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      final invoice = Invoice(
+        invoiceNumber: 'INV${DateTime.now().millisecondsSinceEpoch}',
+        bookingId: widget.booking.localUuid,
+        guestName: widget.booking.guestName,
+        guestPhone: _currentGuestPhone,
+        roomNumber: widget.booking.roomNumber,
+        checkinDate: checkin,
+        checkoutDate: checkout,
+        nights: Time.nightsWithCutoff(checkin, checkout: checkout),
+        roomRate: room?.price ?? 0,
+        totalAmount: summary.totalAmount,
+        payments: summary.payments,
+        remainingAmount: summary.remainingAmount,
+        generatedAt: DateTime.now(),
+      );
+      await invoice.generatePDF();
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('خطأ في إنشاء الفاتورة: $e')),
+        );
+      }
+    }
   }
 
   /// نافذة تأكيد المغادرة العادية
@@ -2432,7 +2456,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       await roomsRepo.update(room.id, status: 'شاغرة');
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
       SnackBar(
         content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
         backgroundColor: Colors.green,
@@ -2440,7 +2465,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         action: SnackBarAction(
           label: 'إغلاق',
           textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          onPressed: () => messenger.hideCurrentSnackBar(),
         ),
       ),
     );

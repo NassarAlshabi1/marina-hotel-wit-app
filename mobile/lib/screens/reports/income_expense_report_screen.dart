@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
@@ -216,6 +217,104 @@ class _IncomeExpenseReportScreenState
     _fetchReport();
   }
 
+  // ===== أسماء الأيام والشهور بالعربي =====
+  static const _arabicDays = [
+    'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس',
+    'الجمعة', 'السبت', 'الأحد',
+  ];
+  static const _arabicMonths = [
+    '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  ];
+
+  String _arabicDayName(DateTime date) {
+    return _arabicDays[date.weekday - 1];
+  }
+
+  // ===== تجميع البيانات =====
+  String _getGroupKey(DateTime date, String groupBy) {
+    switch (groupBy) {
+      case 'daily':
+        return DateFormat('yyyy-MM-dd').format(date);
+      case 'monthly':
+        return DateFormat('yyyy-MM').format(date);
+      case 'yearly':
+        return DateFormat('yyyy').format(date);
+      default:
+        return 'all';
+    }
+  }
+
+  String _getGroupLabel(String key, String groupBy) {
+    switch (groupBy) {
+      case 'daily':
+        final dt = DateTime.parse(key);
+        return '${dt.day} ${_arabicMonths[dt.month]} ${dt.year} (${_arabicDayName(dt)})';
+      case 'monthly':
+        final parts = key.split('-');
+        return '${_arabicMonths[int.parse(parts[1])]} ${parts[0]}';
+      case 'yearly':
+        return '$key م';
+      default:
+        return '';
+    }
+  }
+
+  String _getGroupTypeLabel(String groupBy) {
+    switch (groupBy) {
+      case 'daily':
+        return 'يومي';
+      case 'monthly':
+        return 'شهري';
+      case 'yearly':
+        return 'سنوي';
+      default:
+        return 'عام';
+    }
+  }
+
+  List<_GroupedData> _buildGroupedData(String groupBy) {
+    final incomeMap = <String, List<_IncomeEntry>>{};
+    final expenseMap = <String, List<_ExpenseEntry>>{};
+
+    for (final e in _incomeEntries) {
+      final key = _getGroupKey(e.date, groupBy);
+      incomeMap.putIfAbsent(key, () => []).add(e);
+    }
+    for (final e in _expenseEntries) {
+      final key = _getGroupKey(e.date, groupBy);
+      expenseMap.putIfAbsent(key, () => []).add(e);
+    }
+
+    final allKeys = <String>{...incomeMap.keys, ...expenseMap.keys}.toList()
+      ..sort();
+
+    return allKeys.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final key = entry.value;
+      final inc = incomeMap[key] ?? [];
+      final exp = expenseMap[key] ?? [];
+      final incTotal = inc.fold<double>(0, (s, e) => s + e.amount);
+      final expTotal = exp.fold<double>(0, (s, e) => s + e.amount);
+      final salTotal =
+          exp.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
+      return _GroupedData(
+        index: idx + 1,
+        key: key,
+        label: _getGroupLabel(key, groupBy),
+        incomeEntries: inc,
+        expenseEntries: exp,
+        incomeTotal: incTotal,
+        expenseTotal: expTotal,
+        salaryTotal: salTotal,
+        net: incTotal - expTotal,
+        incomeCount: inc.length,
+        expenseCount: exp.length,
+      );
+    }).toList();
+  }
+
+  // ===== بناء PDF التقرير العادي =====
   Future<pw.Document> _buildPdfDocument() async {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
@@ -380,14 +479,652 @@ class _IncomeExpenseReportScreenState
     return doc;
   }
 
-  String _getFilename() {
-    return 'تقرير-الدخل-والمصروفات-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+  // ===== بناء PDF التقرير التفصيلي المجمع =====
+  Future<pw.Document> _buildDetailedGroupedPdf(String groupBy) async {
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final doc = pw.Document();
+    final groupedData = _buildGroupedData(groupBy);
+    final groupTypeLabel = _getGroupTypeLabel(groupBy);
+    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate);
+    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate);
+
+    /// بناء صندوق ملخص ملون
+    pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          border: pw.Border.all(color: color, width: 0.8),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
+        child: pw.Column(
+          children: [
+            pw.Text(
+              title,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 10,
+                color: PdfColors.textLight,
+              ),
+            ),
+            pw.SizedBox(height: 3),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 15,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    /// بناء بطاقة فترة مرقمة
+    pw.Widget buildPeriodCard(_GroupedData group) {
+      final isProfit = group.net >= 0;
+      return pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 10),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(
+            color: isProfit ? PdfColors.success : PdfColors.danger,
+            width: 0.8,
+          ),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // عنوان الفترة المرقم
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.primary,
+                borderRadius: const pw.BorderRadius.only(
+                  topLeft: pw.Radius.circular(7),
+                  topRight: pw.Radius.circular(7),
+                ),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    '$group.index. ${group.label}',
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 13,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: pw.BoxDecoration(
+                      color: isProfit
+                          ? PdfColors.success
+                          : PdfColors.danger,
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(10),
+                      ),
+                    ),
+                    child: pw.Text(
+                      isProfit ? 'ربح' : 'خسارة',
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 9,
+                        color: PdfColors.textWhite,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              child: pw.Column(
+                children: [
+                  // 4 صناديق ملخص مصغرة
+                  pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(6),
+                          margin: const pw.EdgeInsets.only(left: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.success,
+                            borderRadius: const pw.BorderRadius.all(
+                              pw.Radius.circular(4),
+                            ),
+                          ),
+                          child: pw.Column(
+                            children: [
+                              pw.Text(
+                                'الدخل',
+                                style: pw.TextStyle(
+                                  font: fonts.regular,
+                                  fontSize: 9,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                EnhancedPdfUtils.formatNumber(group.incomeTotal),
+                                style: pw.TextStyle(
+                                  font: fonts.bold,
+                                  fontSize: 12,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                              pw.Text(
+                                '${group.incomeCount} معاملة',
+                                style: pw.TextStyle(
+                                  font: fonts.regular,
+                                  fontSize: 8,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.Expanded(
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(6),
+                          margin: const pw.EdgeInsets.only(left: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.danger,
+                            borderRadius: const pw.BorderRadius.all(
+                              pw.Radius.circular(4),
+                            ),
+                          ),
+                          child: pw.Column(
+                            children: [
+                              pw.Text(
+                                'المصروفات',
+                                style: pw.TextStyle(
+                                  font: fonts.regular,
+                                  fontSize: 9,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                EnhancedPdfUtils.formatNumber(group.expenseTotal),
+                                style: pw.TextStyle(
+                                  font: fonts.bold,
+                                  fontSize: 12,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                              pw.Text(
+                                '${group.expenseCount} معاملة',
+                                style: pw.TextStyle(
+                                  font: fonts.regular,
+                                  fontSize: 8,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.Expanded(
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(6),
+                          decoration: pw.BoxDecoration(
+                            color: group.salaryTotal > 0
+                                ? PdfColors.warning
+                                : PdfColors.backgroundCard,
+                            borderRadius: const pw.BorderRadius.all(
+                              pw.Radius.circular(4),
+                            ),
+                          ),
+                          child: pw.Column(
+                            children: [
+                              pw.Text(
+                                'الرواتب',
+                                style: pw.TextStyle(
+                                  font: fonts.regular,
+                                  fontSize: 9,
+                                  color: group.salaryTotal > 0
+                                      ? PdfColors.textWhite
+                                      : PdfColors.textLight,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                EnhancedPdfUtils.formatNumber(group.salaryTotal),
+                                style: pw.TextStyle(
+                                  font: fonts.bold,
+                                  fontSize: 12,
+                                  color: group.salaryTotal > 0
+                                      ? PdfColors.textWhite
+                                      : PdfColors.textLight,
+                                ),
+                              ),
+                              const pw.SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.Expanded(
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(6),
+                          decoration: pw.BoxDecoration(
+                            color: isProfit
+                                ? PdfColors.success
+                                : PdfColors.danger,
+                            borderRadius: const pw.BorderRadius.all(
+                              pw.Radius.circular(4),
+                            ),
+                          ),
+                          child: pw.Column(
+                            children: [
+                              pw.Text(
+                                'الصافي',
+                                style: pw.TextStyle(
+                                  font: fonts.regular,
+                                  fontSize: 9,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                EnhancedPdfUtils.formatNumber(group.net),
+                                style: pw.TextStyle(
+                                  font: fonts.bold,
+                                  fontSize: 12,
+                                  color: PdfColors.textWhite,
+                                ),
+                              ),
+                              const pw.SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // جداول تفصيلية مضغوطة
+                  pw.SizedBox(height: 8),
+                  _buildMiniTable(
+                    fonts,
+                    'الدخل',
+                    group.incomeEntries
+                        .map(
+                          (e) => [
+                            DateFormat('dd/MM').format(e.date),
+                            e.description,
+                            EnhancedPdfUtils.formatNumber(e.amount),
+                          ],
+                        )
+                        .toList(),
+                    PdfColors.success,
+                  ),
+                  pw.SizedBox(height: 4),
+                  _buildMiniTable(
+                    fonts,
+                    'المصروفات',
+                    group.expenseEntries
+                        .map(
+                          (e) => [
+                            DateFormat('dd/MM').format(e.date),
+                            e.description.isNotEmpty ? e.description : e.type,
+                            EnhancedPdfUtils.formatNumber(e.amount),
+                          ],
+                        )
+                        .toList(),
+                    PdfColors.danger,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    doc.addPage(
+      pw.MultiPage(
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.center,
+          child: pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount}',
+            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+          ),
+        ),
+        build: (context) {
+          final widgets = <pw.Widget>[
+            // رأس التقرير
+            pw.Container(
+              width: double.infinity,
+              decoration: const pw.BoxDecoration(color: PdfColors.primary),
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Column(
+                children: [
+                  pw.Text(
+                    'تقرير الدخل والمصروفات التفصيلي',
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 20,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: const pw.BoxDecoration(color: PdfColors.secondary),
+                    child: pw.Text(
+                      'تجميع $groupTypeLabel',
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 12,
+                        color: PdfColors.textWhite,
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'الفترة من $fromLabel إلى $toLabel',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 12,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'عدد الفترات: ${groupedData.length}',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 10,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 16),
+
+            // 4 صناديق الملخص العام
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'إجمالي الدخل',
+                    EnhancedPdfUtils.formatNumber(_incomeTotal),
+                    PdfColors.success,
+                  ),
+                ),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'إجمالي المصروفات',
+                    EnhancedPdfUtils.formatNumber(_expenseTotal),
+                    PdfColors.danger,
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 6),
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'مصروفات الرواتب',
+                    EnhancedPdfUtils.formatNumber(_salaryTotal),
+                    PdfColors.warning,
+                  ),
+                ),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'صافي الربح / الخسارة',
+                    EnhancedPdfUtils.formatNumber(_net),
+                    _net >= 0 ? PdfColors.success : PdfColors.danger,
+                  ),
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 16),
+
+            // عنوان الأقسام
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(vertical: 8),
+              decoration: const pw.BoxDecoration(
+                color: PdfColors.accent,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
+              ),
+              child: pw.Text(
+                'التفاصيل حسب الفترة ($groupTypeLabel)',
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 14,
+                  color: PdfColors.textWhite,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+            ),
+
+            pw.SizedBox(height: 12),
+          ];
+
+          // بطاقات الفترات
+          for (final group in groupedData) {
+            widgets.add(buildPeriodCard(group));
+          }
+
+          // ملخص نهائي شامل
+          widgets.add(pw.SizedBox(height: 16));
+          widgets.add(_buildFinalSummarySection(fonts, groupedData));
+
+          return widgets;
+        },
+      ),
+    );
+
+    return doc;
+  }
+
+  /// جدول مصغر مضغوط
+  pw.Widget _buildMiniTable(
+    ArabicPdfFonts fonts,
+    String title,
+    List<List<String>> rows,
+    PdfColor headerColor,
+  ) {
+    if (rows.isEmpty) return pw.Container();
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          title,
+          style: pw.TextStyle(
+            font: fonts.bold,
+            fontSize: 10,
+            color: headerColor,
+          ),
+        ),
+        pw.SizedBox(height: 3),
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
+          ),
+          child: pw.Table(
+            children: [
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: headerColor),
+                children: [
+                  _miniCell('التاريخ', fonts.bold, PdfColors.textWhite),
+                  _miniCell('الوصف', fonts.bold, PdfColors.textWhite),
+                  _miniCell('المبلغ', fonts.bold, PdfColors.textWhite),
+                ],
+              ),
+              ...rows.asMap().entries.map((entry) {
+                final isEven = entry.key % 2 == 0;
+                return pw.TableRow(
+                  decoration: isEven
+                      ? const pw.BoxDecoration(
+                          color: PdfColors.backgroundLight,
+                        )
+                      : null,
+                  children: [
+                    _miniCell(entry.value[0], fonts.regular, PdfColors.textDark),
+                    _miniCell(entry.value[1], fonts.regular, PdfColors.textDark),
+                    _miniCell(
+                      entry.value[2],
+                      fonts.bold,
+                      PdfColors.textDark,
+                      align: pw.TextAlign.left,
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _miniCell(
+    String text,
+    pw.Font font,
+    PdfColor color, {
+    pw.TextAlign align = pw.TextAlign.center,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(font: font, fontSize: 8, color: color),
+        textAlign: align,
+      ),
+    );
+  }
+
+  /// ملخص نهائي شامل في آخر التقرير
+  pw.Widget _buildFinalSummarySection(
+    ArabicPdfFonts fonts,
+    List<_GroupedData> groups,
+  ) {
+    // أطول فترة ربحية وخاسرة
+    _GroupedData? bestPeriod;
+    _GroupedData? worstPeriod;
+    double maxProfit = double.negativeInfinity;
+    double maxLoss = double.infinity;
+
+    for (final g in groups) {
+      if (g.net > maxProfit) {
+        maxProfit = g.net;
+        bestPeriod = g;
+      }
+      if (g.net < maxLoss) {
+        maxLoss = g.net;
+        worstPeriod = g;
+      }
+    }
+
+    // إجمالي المعاملات
+    final totalTx = _incomeEntries.length + _expenseEntries.length;
+    final avgDaily = groups.isEmpty
+        ? 0
+        : _net / groups.length;
+
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.backgroundCard,
+        border: pw.Border.all(color: PdfColors.primary, width: 1),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 6),
+            child: pw.Text(
+              'الملخص النهائي الشامل',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 14,
+                color: PdfColors.primary,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+
+          // جدول الملخص النهائي
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: ['البيان', 'القيمة'],
+            fonts: fonts,
+            headerColor: PdfColors.primary,
+            alternateRowColor: PdfColors.backgroundLight,
+            columnWidths: [180, 150],
+            data: [
+              ['إجمالي المعاملات', '$totalTx معاملة'],
+              ['عدد الفترات', '${groups.length} فترة'],
+              ['متوسط الصافي لكل فترة',
+                EnhancedPdfUtils.formatNumber(avgDaily)],
+              ['إجمالي الدخل',
+                EnhancedPdfUtils.formatNumber(_incomeTotal)],
+              ['إجمالي المصروفات',
+                EnhancedPdfUtils.formatNumber(_expenseTotal)],
+              ['مصروفات الرواتب',
+                EnhancedPdfUtils.formatNumber(_salaryTotal)],
+              ['الصافي النهائي',
+                EnhancedPdfUtils.formatNumber(_net)],
+              if (bestPeriod != null)
+                ['أفضل فترة (أعلى ربح)',
+                  '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}'],
+              if (worstPeriod != null && worstPeriod.net < 0)
+                ['أسوأ فترة (أعلى خسارة)',
+                  '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}'],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== تصدير =====
+  String _getFilename({String suffix = ''}) {
+    final s = suffix.isNotEmpty ? '-$suffix' : '';
+    return 'تقرير-الدخل-والمصروفات$s-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
   }
 
   Future<void> _exportPdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
     final doc = await _buildPdfDocument();
     await Printing.sharePdf(bytes: await doc.save(), filename: _getFilename());
+  }
+
+  Future<void> _exportDetailedGroupedPdf(String groupBy) async {
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    final doc = await _buildDetailedGroupedPdf(groupBy);
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
+    );
   }
 
   Future<void> _printPdf() async {
@@ -398,6 +1135,7 @@ class _IncomeExpenseReportScreenState
 
   Future<void> _savePdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final doc = await _buildPdfDocument();
       final bytes = await doc.save();
@@ -405,7 +1143,7 @@ class _IncomeExpenseReportScreenState
       final file = File('${dir.path}/${_getFilename()}');
       await file.writeAsBytes(bytes);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('تم حفظ الملف: ${file.path}'),
             duration: const Duration(seconds: 5),
@@ -415,7 +1153,7 @@ class _IncomeExpenseReportScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('خطأ في الحفظ: $e'),
             duration: const Duration(seconds: 5),
@@ -426,86 +1164,262 @@ class _IncomeExpenseReportScreenState
     }
   }
 
+  Future<void> _exportCsv() async {
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final buffer = StringBuffer();
+      buffer.writeln('\uFEFF');
+      buffer.writeln('النوع,التاريخ,الوصف,المبلغ,التصنيف');
+
+      final allEntries = <Map<String, dynamic>>[];
+      for (final e in _incomeEntries) {
+        allEntries.add({
+          'type': 'دخل',
+          'date': _dateFormat.format(e.date),
+          'desc': e.description,
+          'amount': e.amount,
+          'category': 'دفعة',
+        });
+      }
+      for (final e in _expenseEntries) {
+        allEntries.add({
+          'type': e.isSalary ? 'راتب' : 'مصروف',
+          'date': _dateFormat.format(e.date),
+          'desc': e.description.isNotEmpty ? e.description : e.type,
+          'amount': e.amount,
+          'category': e.type,
+        });
+      }
+      allEntries.sort((a, b) =>
+          DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+
+      for (final entry in allEntries) {
+        buffer.writeln(
+          '${entry["type"]},${entry["date"]},"${entry["desc"]}",${entry["amount"]},${entry["category"]}',
+        );
+      }
+
+      buffer.writeln();
+      buffer.writeln('الملخص');
+      buffer.writeln('إجمالي الدخل,$_incomeTotal');
+      buffer.writeln('إجمالي المصروفات,$_expenseTotal');
+      buffer.writeln('مصروفات الرواتب,$_salaryTotal');
+      buffer.writeln('صافي الربح,$_net');
+
+      final csvBytes = buffer.toString().codeUnits;
+      final dir = await getTemporaryDirectory();
+      final filename =
+          'تقرير-${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(csvBytes);
+
+      if (mounted) {
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'تقرير الدخل والمصروفات',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تصدير CSV: $e'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== نافذة خيارات التصدير =====
   void _showExportOptions() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Text(
-              'تصدير التقرير',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              dense: true,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              // مقبض السحب
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                child: const Icon(Icons.share, color: Colors.blue),
               ),
-              title: const Text('مشاركة PDF'),
-              subtitle: const Text('إرسال عبر التطبيقات'),
-              onTap: () {
-                Navigator.pop(context);
-                _exportPdf();
-              },
-            ),
-            ListTile(
-              dense: true,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
+              const Text(
+                'تصدير التقرير',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+
+              // ===== قسم التقرير التفصيلي =====
+              Container(
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  ),
                 ),
-                child: const Icon(Icons.print, color: Colors.green),
-              ),
-              title: const Text('طباعة'),
-              subtitle: const Text('طباعة مباشرة'),
-              onTap: () {
-                Navigator.pop(context);
-                _printPdf();
-              },
-            ),
-            ListTile(
-              dense: true,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.summarize_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'تقرير تفصيلي',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'تقرير PDF مفصل مع تجميع حسب الفترة وملخص نهائي شامل',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildExportOption(
+                      icon: Icons.calendar_today_rounded,
+                      iconColor: Colors.blue,
+                      iconBg: Colors.blue.withOpacity(0.1),
+                      title: 'تقرير يومي',
+                      subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _exportDetailedGroupedPdf('daily');
+                      },
+                    ),
+                    _buildExportOption(
+                      icon: Icons.calendar_month_rounded,
+                      iconColor: Colors.teal,
+                      iconBg: Colors.teal.withOpacity(0.1),
+                      title: 'تقرير شهري',
+                      subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _exportDetailedGroupedPdf('monthly');
+                      },
+                    ),
+                    _buildExportOption(
+                      icon: Icons.date_range_rounded,
+                      iconColor: Colors.purple,
+                      iconBg: Colors.purple.withOpacity(0.1),
+                      title: 'تقرير سنوي',
+                      subtitle: 'تجميع حسب كل سنة',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _exportDetailedGroupedPdf('yearly');
+                      },
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.save_alt, color: Colors.orange),
               ),
-              title: const Text('حفظ في الجهاز'),
-              subtitle: const Text('حفظ كملف PDF'),
-              onTap: () {
-                Navigator.pop(context);
-                _savePdf();
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+
+              const SizedBox(height: 12),
+
+              // ===== قسم التصدير العام =====
+              _buildExportOption(
+                icon: Icons.share,
+                iconColor: Colors.blue,
+                iconBg: Colors.blue.withOpacity(0.1),
+                title: 'مشاركة PDF',
+                subtitle: 'إرسال التقرير العام عبر التطبيقات',
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportPdf();
+                },
+              ),
+              _buildExportOption(
+                icon: Icons.print,
+                iconColor: Colors.green,
+                iconBg: Colors.green.withOpacity(0.1),
+                title: 'طباعة',
+                subtitle: 'طباعة التقرير مباشرة',
+                onTap: () {
+                  Navigator.pop(context);
+                  _printPdf();
+                },
+              ),
+              _buildExportOption(
+                icon: Icons.save_alt,
+                iconColor: Colors.orange,
+                iconBg: Colors.orange.withOpacity(0.1),
+                title: 'حفظ في الجهاز',
+                subtitle: 'حفظ كملف PDF',
+                onTap: () {
+                  Navigator.pop(context);
+                  _savePdf();
+                },
+              ),
+              _buildExportOption(
+                icon: Icons.table_chart,
+                iconColor: Colors.indigo,
+                iconBg: Colors.indigo.withOpacity(0.1),
+                title: 'تصدير CSV',
+                subtitle: 'ملف جدول بيانات لفتحه في Excel',
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportCsv();
+                },
+              ),
+
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildExportOption({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      dense: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconBg,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
+      onTap: onTap,
     );
   }
 
@@ -606,7 +1520,7 @@ class _IncomeExpenseReportScreenState
                         ),
                         const SizedBox(width: 10),
                         NeuQuickFilterChip(
-                          label: _detailedMode ? '📋 تفصيلي' : '📊 ملخص',
+                          label: _detailedMode ? 'تفصيلي' : 'ملخص',
                           selected: _detailedMode,
                           onTap: () =>
                               setState(() => _detailedMode = !_detailedMode),
@@ -829,6 +1743,36 @@ class _IncomeExpenseReportScreenState
       ),
     );
   }
+}
+
+// ===== نماذج البيانات =====
+
+class _GroupedData {
+  final int index;
+  final String key;
+  final String label;
+  final List<_IncomeEntry> incomeEntries;
+  final List<_ExpenseEntry> expenseEntries;
+  final double incomeTotal;
+  final double expenseTotal;
+  final double salaryTotal;
+  final double net;
+  final int incomeCount;
+  final int expenseCount;
+
+  _GroupedData({
+    required this.index,
+    required this.key,
+    required this.label,
+    required this.incomeEntries,
+    required this.expenseEntries,
+    required this.incomeTotal,
+    required this.expenseTotal,
+    required this.salaryTotal,
+    required this.net,
+    required this.incomeCount,
+    required this.expenseCount,
+  });
 }
 
 class _IncomeEntry {
