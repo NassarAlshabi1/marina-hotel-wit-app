@@ -710,7 +710,7 @@ class _IncomeExpenseReportScreenState
                                       : PdfColors.textLight,
                                 ),
                               ),
-                              const pw.SizedBox(height: 10),
+                              pw.SizedBox(height: 10),
                             ],
                           ),
                         ),
@@ -745,7 +745,7 @@ class _IncomeExpenseReportScreenState
                                   color: PdfColors.textWhite,
                                 ),
                               ),
-                              const pw.SizedBox(height: 10),
+                              pw.SizedBox(height: 10),
                             ],
                           ),
                         ),
@@ -1044,7 +1044,7 @@ class _IncomeExpenseReportScreenState
     // إجمالي المعاملات
     final totalTx = _incomeEntries.length + _expenseEntries.length;
     final avgDaily = groups.isEmpty
-        ? 0
+        ? 0.0
         : _net / groups.length;
 
     return pw.Container(
