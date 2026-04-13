@@ -76,6 +76,7 @@ class _IncomeExpenseReportScreenState
               .map(
                 (p) => {
                   'date': p.paymentDate,
+                  'roomNumber': p.roomNumber ?? '',
                   'guestName': '',
                   'amount': p.amount,
                 },
@@ -1883,10 +1884,20 @@ _ReportResult _processReportData(_ReportParams params) {
       continue;
     }
     if (!isWithinRange(dt)) continue;
+    final room = (p['roomNumber'] ?? '').toString().trim();
+    final guest = (p['guestName'] ?? '').toString().trim();
+    String desc;
+    if (room.isNotEmpty && guest.isNotEmpty) {
+      desc = 'دفعة حجز غرفة $room - $guest';
+    } else if (room.isNotEmpty) {
+      desc = 'دفعة حجز غرفة $room';
+    } else {
+      desc = 'دفعة حجز';
+    }
     incomeList.add(
       _IncomeEntry(
         date: dt,
-        description: 'دفعة حجز - ${p['guestName'] ?? ''}',
+        description: desc,
         amount: ((p['amount'] ?? 0) as num).toDouble(),
       ),
     );
