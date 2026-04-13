@@ -183,8 +183,8 @@ class Receipt {
 
   /// إنشاء PDF للإيصال
   Future<void> generatePDF() async {
-    final fonts = await PdfUtils.loadArabicFonts();
-    final logo = await PdfUtils.loadLogoImage();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -192,7 +192,7 @@ class Receipt {
         pageFormat: PdfPageFormat.a5,
         margin: const pw.EdgeInsets.all(16),
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         build: (context) => _buildReceiptContent(fonts, logo),
       ),
     );
@@ -273,7 +273,7 @@ class Receipt {
                     pw.Text(
                       'MARINA PLAZA HOTEL',
                       style: pw.TextStyle(
-                        font: fonts.base,
+                        font: fonts.regular,
                         fontSize: 10,
                         color: PdfColor(0.7, 0.85, 1.0),
                       ),
@@ -282,7 +282,7 @@ class Receipt {
                     pw.Text(
                       hotelAddress,
                       style: pw.TextStyle(
-                        font: fonts.base,
+                        font: fonts.regular,
                         fontSize: 9,
                         color: PdfColor(0.8, 0.9, 1.0),
                       ),
@@ -290,7 +290,7 @@ class Receipt {
                     pw.Text(
                       hotelPhone,
                       style: pw.TextStyle(
-                        font: fonts.base,
+                        font: fonts.regular,
                         fontSize: 9,
                         color: PdfColor(0.8, 0.9, 1.0),
                       ),
@@ -346,7 +346,7 @@ class Receipt {
               pw.Text(
                 'رقم: $receiptNumber',
                 style: pw.TextStyle(
-                  font: fonts.base,
+                  font: fonts.regular,
                   fontSize: 10,
                   color: PdfColors.textLight,
                 ),
@@ -425,7 +425,7 @@ class Receipt {
               pw.Text(
                 'المبلغ المدفوع',
                 style: pw.TextStyle(
-                  font: fonts.base,
+                  font: fonts.regular,
                   fontSize: 11,
                   color: PdfColor(0.8, 0.9, 1.0),
                 ),
@@ -443,7 +443,7 @@ class Receipt {
               pw.Text(
                 amountInWords,
                 style: pw.TextStyle(
-                  font: fonts.base,
+                  font: fonts.regular,
                   fontSize: 9,
                   color: PdfColor(0.85, 0.92, 1.0),
                 ),
@@ -475,7 +475,7 @@ class Receipt {
                   pw.Text(
                     guestName,
                     style: pw.TextStyle(
-                      font: fonts.base,
+                      font: fonts.regular,
                       fontSize: 10,
                       color: PdfColors.textLight,
                     ),
@@ -516,7 +516,7 @@ class Receipt {
                       child: pw.Text(
                         'ختم',
                         style: pw.TextStyle(
-                          font: fonts.base,
+                          font: fonts.regular,
                           fontSize: 9,
                           color: PdfColors.textLight,
                         ),
@@ -543,7 +543,7 @@ class Receipt {
             child: pw.Text(
               'شكراً لتعاملكم معنا - نتطلع لخدمتكم مرة أخرى',
               style: pw.TextStyle(
-                font: fonts.base,
+                font: fonts.regular,
                 fontSize: 9,
                 color: PdfColors.textLight,
               ),
@@ -577,7 +577,7 @@ class Receipt {
             child: pw.Text(
               value,
               style: pw.TextStyle(
-                font: fonts.base,
+                font: fonts.regular,
                 fontSize: 11,
                 color: PdfColors.textDark,
               ),
@@ -639,8 +639,8 @@ class Invoice {
 
   /// إنشاء PDF للفاتورة
   Future<void> generatePDF() async {
-    final fonts = await PdfUtils.loadArabicFonts();
-    final logo = await PdfUtils.loadLogoImage();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -648,7 +648,7 @@ class Invoice {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         build: (context) => _buildInvoiceContent(fonts, logo),
       ),
     );
@@ -720,7 +720,7 @@ class Invoice {
                     pw.Text(
                       'MARINA PLAZA HOTEL',
                       style: pw.TextStyle(
-                        font: fonts.base,
+                        font: fonts.regular,
                         fontSize: 11,
                         color: PdfColor(0.7, 0.85, 1.0),
                       ),
@@ -729,7 +729,7 @@ class Invoice {
                     pw.Text(
                       'عدن - اليمن - شارع أحمد قاسم',
                       style: pw.TextStyle(
-                        font: fonts.base,
+                        font: fonts.regular,
                         fontSize: 10,
                         color: PdfColor(0.8, 0.9, 1.0),
                       ),
@@ -763,7 +763,7 @@ class Invoice {
                   pw.Text(
                     'رقم: $invoiceNumber',
                     style: pw.TextStyle(
-                      font: fonts.base,
+                      font: fonts.regular,
                       fontSize: 11,
                       color: PdfColor(0.8, 0.9, 1.0),
                     ),
@@ -771,7 +771,7 @@ class Invoice {
                   pw.Text(
                     _formatDate(generatedAt),
                     style: pw.TextStyle(
-                      font: fonts.base,
+                      font: fonts.regular,
                       fontSize: 10,
                       color: PdfColor(0.7, 0.85, 1.0),
                     ),
@@ -1057,7 +1057,7 @@ class Invoice {
                 pw.Text(
                   'نتطلع لخدمتكم مرة أخرى',
                   style: pw.TextStyle(
-                    font: fonts.base,
+                    font: fonts.regular,
                     fontSize: 10,
                     color: PdfColors.textLight,
                   ),
@@ -1070,7 +1070,7 @@ class Invoice {
                 pw.Text(
                   'تاريخ الإصدار: ${_formatDate(generatedAt)}',
                   style: pw.TextStyle(
-                    font: fonts.base,
+                    font: fonts.regular,
                     fontSize: 10,
                     color: PdfColors.textLight,
                   ),
@@ -1084,7 +1084,7 @@ class Invoice {
                 pw.Text(
                   'ختم وتوقيع الفندق',
                   style: pw.TextStyle(
-                    font: fonts.base,
+                    font: fonts.regular,
                     fontSize: 9,
                     color: PdfColors.textLight,
                   ),
@@ -1117,7 +1117,7 @@ class Invoice {
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          font: fonts.base,
+          font: fonts.regular,
           fontSize: 10,
           color: PdfColors.textDark,
         ),
@@ -1150,7 +1150,7 @@ class Invoice {
           child: pw.Text(
             value,
             style: pw.TextStyle(
-              font: fonts.base,
+              font: fonts.regular,
               fontSize: 11,
               color: PdfColors.textDark,
             ),
@@ -1173,7 +1173,7 @@ class Invoice {
         pw.Text(
           label,
           style: pw.TextStyle(
-            font: isBold ? fonts.bold : fonts.base,
+            font: isBold ? fonts.bold : fonts.regular,
             fontSize: isBold ? 15 : 13,
             color: PdfColors.textDark,
           ),
@@ -1181,7 +1181,7 @@ class Invoice {
         pw.Text(
           value,
           style: pw.TextStyle(
-            font: isBold ? fonts.bold : fonts.base,
+            font: isBold ? fonts.bold : fonts.regular,
             fontSize: isBold ? 16 : 13,
             color: valueColor ?? PdfColors.textDark,
           ),
