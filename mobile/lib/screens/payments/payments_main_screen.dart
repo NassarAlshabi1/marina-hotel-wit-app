@@ -129,25 +129,23 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   Widget _buildQuickStats(List<db.Payment> payments) {
     final today = DateTime.now();
-    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+    final hotelDay = Time.hotelDayKey();
     final startOfMonth = DateTime(today.year, today.month, 1);
 
     // حساب المبالغ
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
 
-    final weeklyPayments = payments.where((p) {
-      try {
-        final date = DateTime.parse(p.paymentDate);
-        return date.isAfter(startOfWeek);
-      } catch (e) {
-        return false;
-      }
+    // مدفوعات اليوم الفندقي الحالي (من 14:00 أمس إلى 14:00 اليوم)
+    final todayPayments = payments.where((p) {
+      final paymentDay = Time.hotelDayKeyFromIso(p.paymentDate);
+      return paymentDay == hotelDay;
     }).toList();
-    final weeklyAmount = weeklyPayments.fold<double>(
+    final todayAmount = todayPayments.fold<double>(
       0,
       (sum, p) => sum + p.amount,
     );
 
+    // مدفوعات هذا الشهر
     final monthlyPayments = payments.where((p) {
       try {
         final date = DateTime.parse(p.paymentDate);
@@ -165,6 +163,15 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       children: [
         Expanded(
           child: _buildStatCard(
+            'اليوم الفندقي',
+            CurrencyFormatter.formatAmount(todayAmount),
+            Icons.today,
+            Colors.amber.shade700,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
             'الإجمالي',
             CurrencyFormatter.formatAmount(totalAmount),
             Icons.account_balance_wallet,
@@ -178,15 +185,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             CurrencyFormatter.formatAmount(monthlyAmount),
             Icons.calendar_month,
             Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildStatCard(
-            'هذا الأسبوع',
-            CurrencyFormatter.formatAmount(weeklyAmount),
-            Icons.date_range,
-            Colors.orange,
           ),
         ),
       ],
@@ -279,7 +277,23 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   }
 
   Widget _buildRecentPayments(List<db.Payment> payments) {
-    final recentPayments = payments.take(5).toList();
+    // عرض مدفوعات اليوم الفندقي الحالي
+    final hotelDay = Time.hotelDayKey();
+    final todayPayments = payments.where((p) {
+      final paymentDay = Time.hotelDayKeyFromIso(p.paymentDate);
+      return paymentDay == hotelDay;
+    }).toList();
+
+    // ترتيب تنازلي حسب التاريخ
+    todayPayments.sort((a, b) {
+      try {
+        return DateTime.parse(b.paymentDate).compareTo(DateTime.parse(a.paymentDate));
+      } catch (_) {
+        return 0;
+      }
+    });
+
+    final recentPayments = todayPayments.take(10).toList();
 
     return Card(
       child: Padding(
@@ -291,7 +305,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'المدفوعات الأخيرة',
+                  'مدفوعات اليوم الفندقي',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 TextButton(
