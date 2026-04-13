@@ -151,6 +151,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                       children: [
                         // ─── شريط الإحصائيات ───
                         _buildStatsBar(filtered),
+                        // ─── عداد النتائج ───
+                        _buildResultsCount(filtered),
                         const Divider(height: 1),
                         // ─── القائمة ───
                         Expanded(
@@ -341,6 +343,13 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
           end: Alignment.centerLeft,
         ),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFB74D).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -379,6 +388,39 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   }
 
   // ═══════════════════════════════════════════
+  //  عداد النتائج
+  // ═══════════════════════════════════════════
+
+  Widget _buildResultsCount(List payments) {
+    final hasFilters = _filterMethod != null || _filterType != null || _searchQuery.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$payments دفعة',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (hasFilters)
+            Text(
+              'نتائج مفلترة',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.amber.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
   //  بطاقة الدفعة
   // ═══════════════════════════════════════════
 
@@ -387,175 +429,174 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     final methodIcon = _getMethodIcon(payment.paymentMethod);
     final revenueLabel = _getRevenueLabel(payment.revenueType);
     final formattedDate = _formatDate(payment.paymentDate);
+    final isToday = _isToday(payment.paymentDate);
 
-    return Dismissible(
-      key: ValueKey(payment.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.delete_outline, color: Colors.red.shade400, size: 20),
-            const SizedBox(height: 2),
-            Text(
-              'حذف',
-              style: TextStyle(color: Colors.red.shade400, fontSize: 10),
-            ),
-          ],
-        ),
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200, width: 0.5),
       ),
-      confirmDismiss: (_) => _confirmDeletePayment(payment),
-      onDismissed: (_) => _deletePayment(payment),
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey.shade200, width: 0.5),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _showPaymentDetails(payment),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                // أيقونة طريقة الدفع
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: methodColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(methodIcon, color: methodColor, size: 20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showPaymentDetails(payment),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              // أيقونة طريقة الدفع
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: methodColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 12),
-                // التفاصيل
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // الصف الأول: المبلغ + نوع الإيراد
-                      Row(
-                        children: [
-                          Text(
-                            CurrencyFormatter.formatAmount(payment.amount),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                child: Icon(methodIcon, color: methodColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              // التفاصيل
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // الصف الأول: المبلغ + نوع الإيراد
+                    Row(
+                      children: [
+                        Text(
+                          CurrencyFormatter.formatAmount(payment.amount),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFCC80).withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            revenueLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.amber.shade800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                        ),
+                        if (isToday) ...[
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                                horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFCC80).withOpacity(0.3),
+                              color: Colors.green.shade100,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              revenueLabel,
+                              'اليوم',
                               style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.amber.shade800,
+                                fontSize: 9,
+                                color: Colors.green.shade700,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      // الصف الثاني: طريقة الدفع + التاريخ
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // الصف الثاني: طريقة الدفع + التاريخ
+                    Row(
+                      children: [
+                        Icon(Icons.payment, size: 13, color: Colors.grey.shade500),
+                        const SizedBox(width: 3),
+                        Text(
+                          payment.paymentMethod,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Icon(Icons.calendar_today,
+                            size: 12, color: Colors.grey.shade400),
+                        const SizedBox(width: 3),
+                        Text(
+                          formattedDate,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isToday ? Colors.green.shade600 : Colors.grey.shade500,
+                            fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // الصف الثالث: ملاحظات
+                    if (payment.notes != null &&
+                        payment.notes!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(Icons.payment, size: 13, color: Colors.grey.shade500),
-                          const SizedBox(width: 3),
-                          Text(
-                            payment.paymentMethod,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Icon(Icons.calendar_today,
+                          Icon(Icons.notes,
                               size: 12, color: Colors.grey.shade400),
                           const SizedBox(width: 3),
-                          Text(
-                            formattedDate,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
+                          Expanded(
+                            child: Text(
+                              payment.notes!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade500,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      // الصف الثالث: ملاحظات
-                      if (payment.notes != null &&
-                          payment.notes!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Icon(Icons.notes,
-                                size: 12, color: Colors.grey.shade400),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: Text(
-                                payment.notes!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade500,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          ],
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // رقم الغرفة
+              if (payment.roomNumber != null &&
+                  payment.roomNumber!.trim().isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.hotel,
+                          size: 12, color: Colors.blue.shade400),
+                      const SizedBox(height: 1),
+                      Text(
+                        payment.roomNumber!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                // رقم الغرفة
-                if (payment.roomNumber != null &&
-                    payment.roomNumber!.trim().isNotEmpty)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.hotel,
-                            size: 12, color: Colors.blue.shade400),
-                        const SizedBox(height: 1),
-                        Text(
-                          payment.roomNumber!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+              // سهم التنقل
+              if (payment.roomNumber == null ||
+                  payment.roomNumber!.trim().isEmpty)
+                Icon(Icons.chevron_left, color: Colors.grey.shade400, size: 20),
+            ],
           ),
         ),
       ),
@@ -569,6 +610,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   void _showPaymentDetails(dynamic payment) {
     final methodColor = _getMethodColor(payment.paymentMethod);
     final revenueLabel = _getRevenueLabel(payment.revenueType);
+    final formattedDate = _formatDate(payment.paymentDate);
+    final isToday = _isToday(payment.paymentDate);
 
     showDialog(
       context: context,
@@ -608,8 +651,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                   color: methodColor),
               _detailDivider('نوع الإيراد', revenueLabel,
                   icon: Icons.category, color: Colors.amber.shade700),
-              _detailDivider('التاريخ', _formatDate(payment.paymentDate),
-                  icon: Icons.event, color: Colors.blue),
+              _detailDivider('التاريخ', isToday ? '$formattedDate (اليوم)' : formattedDate,
+                  icon: Icons.event, color: isToday ? Colors.green : Colors.blue),
               if (payment.roomNumber != null &&
                   payment.roomNumber!.trim().isNotEmpty)
                 _detailDivider('رقم الغرفة', payment.roomNumber!,
@@ -627,19 +670,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('إغلاق'),
-            ),
-            FilledButton.tonalIcon(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                _confirmDeletePayment(payment).then((confirmed) {
-                  if (confirmed == true) _deletePayment(payment);
-                });
-              },
-              icon: const Icon(Icons.delete_outline, size: 16),
-              label: const Text('حذف'),
-              style: FilledButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
             ),
           ],
         ),
@@ -675,77 +705,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
         ],
       ),
     );
-  }
-
-  // ═══════════════════════════════════════════
-  //  حذف دفعة
-  // ═══════════════════════════════════════════
-
-  Future<bool?> _confirmDeletePayment(dynamic payment) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
-              SizedBox(width: 8),
-              Text('تأكيد الحذف'),
-            ],
-          ),
-          content: Text(
-            'هل أنت متأكد من حذف الدفعة بقيمة ${CurrencyFormatter.formatAmount(payment.amount)}؟\nلا يمكن التراجع عن هذا الإجراء.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('حذف', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deletePayment(dynamic payment) async {
-    try {
-      final repo = ref.read(paymentsRepoProvider);
-      await repo.delete(payment.id);
-      markDataChanged();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('تم حذف الدفعة بنجاح'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(12),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل حذف الدفعة: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(12),
-          ),
-        );
-      }
-    }
   }
 
   // ═══════════════════════════════════════════
@@ -894,6 +853,16 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
       return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
     } catch (_) {
       return dateStr;
+    }
+  }
+
+  bool _isToday(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      return date.year == now.year && date.month == now.month && date.day == now.day;
+    } catch (_) {
+      return false;
     }
   }
 }
