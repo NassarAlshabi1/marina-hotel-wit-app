@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 /// ألوان مخصصة للـ PDF
 class PdfColors {
-  static const primary = PdfColor(0.02, 0.33, 0.66);
+  static const primary = PdfColor(1.0, 0.8, 0.502);
   static const secondary = PdfColor(0.85, 0.65, 0.13);
   static const accent = PdfColor(0.0, 0.48, 0.65);
   static const textDark = PdfColor(0.15, 0.15, 0.15);
