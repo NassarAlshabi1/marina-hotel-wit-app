@@ -649,7 +649,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
 
     if (apply == true) {
-      await service.applyPriceChange(roomNumber: roomNumber, newPrice: newPrice);
+      await service.applyRoomPriceChange(roomNumber: roomNumber, oldPrice: room.price, newPrice: newPrice, appliedBy: 'user');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تحديث أسعار الحجوزات بنجاح'), backgroundColor: AppColors.successColor),
