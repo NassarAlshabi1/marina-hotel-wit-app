@@ -1885,15 +1885,9 @@ _ReportResult _processReportData(_ReportParams params) {
     }
     if (!isWithinRange(dt)) continue;
     final room = (p['roomNumber'] ?? '').toString().trim();
-    final guest = (p['guestName'] ?? '').toString().trim();
-    String desc;
-    if (room.isNotEmpty && guest.isNotEmpty) {
-      desc = 'دفعة حجز غرفة $room - $guest';
-    } else if (room.isNotEmpty) {
-      desc = 'دفعة حجز غرفة $room';
-    } else {
-      desc = 'دفعة حجز';
-    }
+    final desc = room.isNotEmpty
+        ? 'دفعة من حجز غرفة $room'
+        : 'دفعة من حجز';
     incomeList.add(
       _IncomeEntry(
         date: dt,
