@@ -1886,7 +1886,7 @@ _ReportResult _processReportData(_ReportParams params) {
     if (!isWithinRange(dt)) continue;
     final room = (p['roomNumber'] ?? '').toString().trim();
     final desc = room.isNotEmpty
-        ? 'دفعة من حجز غرفة $room'
+        ? 'دفعة من حجز رقم $room'
         : 'دفعة من حجز';
     incomeList.add(
       _IncomeEntry(
