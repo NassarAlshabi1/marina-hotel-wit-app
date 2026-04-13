@@ -54,20 +54,22 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
 
       // إذا كانت الغرفة محجوزة، نبحث عن الحجز النشط لها
       if (!StatusUtils.isRoomAvailable(room.status)) {
-        final activeBooking = bookings.firstWhere(
-          (b) => b.roomNumber == room.roomNumber && StatusUtils.isActiveBooking(b.status),
-          orElse: () => null as dynamic,
+        // البحث عن الحجز النشط للغرفة
+        final activeBooking = bookings.cast<Booking?>().firstWhere(
+          (b) => b != null && b.roomNumber == room.roomNumber && StatusUtils.isActiveBooking(b.status),
+          orElse: () => null,
         );
 
         if (activeBooking != null) {
-          // التحقق من حالة السداد (إذا كان هناك رصيد متبقي)
-          final hasRemainingBalance = activeBooking.remainingBalanceCached > 0;
+          // التحقق من وجود مبلغ متبقي (لم يسدد بالكامل)
+          final hasRemainingBalance = activeBooking.remainingBalanceCached > 0.01;
           
           if (hasRemainingBalance) {
             final hour = currentTime.hour;
             
             // المنطق المطلوب:
-            // من الساعة 23:00 مساءً حتى الساعة 06:00 صباحاً يتحول للون البني إذا لم يسدد
+            // يتحول للون البني فقط من الساعة 23:00 (11 مساءً) حتى الساعة 06:00 صباحاً
+            // في حال عدم السداد. وبمجرد السداد أو خارج هذا الوقت يعود للأحمر.
             if (hour >= 23 || hour < 6) {
               isPaymentOverdue = true;
             }
