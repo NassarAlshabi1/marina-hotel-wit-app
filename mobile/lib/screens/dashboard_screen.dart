@@ -1,5 +1,4 @@
 import 'dart:ui' as ui;
-
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +16,7 @@ import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_constants.dart';
 import '../providers/appwrite_providers.dart';
+import '../providers/room_payment_status_provider.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -417,19 +417,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildRoomsSection() {
     return Consumer(
       builder: (context, ref, _) {
-        final roomsAsync = ref.watch(roomsListProvider);
-        return roomsAsync.when(
+        final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
+        return roomsWithStatusAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('خطأ: $e')),
-          data: (rooms) => _buildRoomsCard(rooms),
+          data: (roomsWithStatus) => _buildRoomsCard(roomsWithStatus),
         );
       },
     );
   }
 
-  Widget _buildRoomsCard(List<Room> rooms) {
-    final Map<String, Room> roomsMap = {
-      for (final room in rooms) room.roomNumber: room,
+  Widget _buildRoomsCard(List<RoomWithPaymentStatus> roomsWithStatus) {
+    final Map<String, RoomWithPaymentStatus> roomsMap = {
+      for (final rws in roomsWithStatus) rws.room.roomNumber: rws,
     };
 
     return Container(
@@ -457,9 +457,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendItem('شاغرة', Colors.green.shade600),
+              _buildLegendItem('متأخر', const Color(0xFF795548)),
               const SizedBox(width: 8),
-              _buildLegendItem('صيانة', Colors.orange.shade600),
+              _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
           ),
           const SizedBox(height: 16),
@@ -475,8 +475,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             itemCount: _dashboardRoomNumbers.length,
             itemBuilder: (context, index) {
               final roomNumber = _dashboardRoomNumbers[index];
-              final room = roomsMap[roomNumber];
-              return _buildRoomButton(context, roomNumber, room);
+              final rws = roomsMap[roomNumber];
+              return _buildRoomButton(context, roomNumber, rws);
             },
           ),
         ],
@@ -505,34 +505,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildRoomButton(BuildContext context, String roomNumber, Room? room) {
-    final bool isOccupied =
-        room != null && StatusUtils.isRoomOccupied(room.status);
-    final bool isAvailable =
-        room != null && StatusUtils.isRoomAvailable(room.status);
-    final bool isMaintenance = room != null && room.status == 'صيانة';
-    final Color bgColor = isOccupied
-        ? Colors.red.shade600
-        : (isAvailable
-              ? Colors.green.shade600
-              : (isMaintenance
-                    ? Colors.orange.shade600
-                    : Colors.grey.shade400));
-
-    final String tooltipText = room != null ? room.status : 'غير مسجلة';
+  Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
+    final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
+    final String tooltipText = rws != null ? rws.room.status : 'غير مسجلة';
 
     return Tooltip(
       message: tooltipText,
       child: GestureDetector(
-        onLongPress: room != null
-            ? () => _showRoomOptionsDialog(context, room)
+        onLongPress: rws != null
+            ? () => _showRoomOptionsDialog(context, rws.room)
             : null,
         child: Material(
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            onTap: () => _handleRoomTap(context, roomNumber, room),
+            onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
             child: Center(
               child: Text(
                 roomNumber,
