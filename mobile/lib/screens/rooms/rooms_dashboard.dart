@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../components/widgets/room_widgets.dart';
@@ -14,7 +15,8 @@ class RoomsDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final roomsAsync = ref.watch(roomsListProvider);
+    // استخدام البروفايدر الجديد الذي يدمج الغرف مع حالة السداد
+    final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
 
     return AppScaffold(
       title: 'حالة الغرف',
@@ -25,7 +27,7 @@ class RoomsDashboard extends ConsumerWidget {
           tooltip: 'مزامنة',
         ),
       ],
-      body: roomsAsync.when(
+      body: roomsWithStatusAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(
           child: Column(
@@ -37,8 +39,8 @@ class RoomsDashboard extends ConsumerWidget {
             ],
           ),
         ),
-        data: (rooms) {
-          if (rooms.isEmpty) {
+        data: (roomsWithStatus) {
+          if (roomsWithStatus.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -51,7 +53,7 @@ class RoomsDashboard extends ConsumerWidget {
             );
           }
 
-          return _buildFloorsView(context, ref, rooms);
+          return _buildFloorsView(context, ref, roomsWithStatus);
         },
       ),
     );
@@ -60,12 +62,13 @@ class RoomsDashboard extends ConsumerWidget {
   Widget _buildFloorsView(
     BuildContext context,
     WidgetRef ref,
-    List<Room> rooms,
+    List<RoomWithPaymentStatus> roomsWithStatus,
   ) {
     // تنظيم الغرف حسب الطوابق
-    final Map<String, List<Room>> floorMap = {};
+    final Map<String, List<RoomWithPaymentStatus>> floorMap = {};
 
-    for (final room in rooms) {
+    for (final roomData in roomsWithStatus) {
+      final room = roomData.room;
       // استخراج رقم الطابق من رقم الغرفة (الرقم الأول)
       String floorNumber;
       if (room.roomNumber.isNotEmpty) {
@@ -77,14 +80,14 @@ class RoomsDashboard extends ConsumerWidget {
       if (!floorMap.containsKey(floorNumber)) {
         floorMap[floorNumber] = [];
       }
-      floorMap[floorNumber]!.add(room);
+      floorMap[floorNumber]!.add(roomData);
     }
 
     // ترتيب الطوابق والغرف
     final sortedFloors = floorMap.keys.toList()..sort();
     for (final floor in sortedFloors) {
       floorMap[floor]!.sort(
-        (a, b) => _compareRoomNumbers(a.roomNumber, b.roomNumber),
+        (a, b) => _compareRoomNumbers(a.room.roomNumber, b.room.roomNumber),
       );
     }
 

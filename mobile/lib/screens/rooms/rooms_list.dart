@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/price_adjustment_service.dart';
 import '../../utils/currency_formatter.dart';
@@ -26,21 +27,21 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 
   bool _isGridView = true;
 
-  Map<String, List<Room>> _groupByFloor(List<Room> rooms) {
-    final Map<String, List<Room>> floorMap = {};
-    for (final room in rooms) {
+  Map<String, List<RoomWithPaymentStatus>> _groupByFloor(List<RoomWithPaymentStatus> rooms) {
+    final Map<String, List<RoomWithPaymentStatus>> floorMap = {};
+    for (final roomData in rooms) {
       String floorNumber = '0';
-      if (room.roomNumber.isNotEmpty) {
-        floorNumber = room.roomNumber[0];
+      if (roomData.room.roomNumber.isNotEmpty) {
+        floorNumber = roomData.room.roomNumber[0];
       }
-      floorMap.putIfAbsent(floorNumber, () => []).add(room);
+      floorMap.putIfAbsent(floorNumber, () => []).add(roomData);
     }
     for (final floor in floorMap.keys) {
       floorMap[floor]!.sort((a, b) {
-        final aNum = int.tryParse(a.roomNumber);
-        final bNum = int.tryParse(b.roomNumber);
+        final aNum = int.tryParse(a.room.roomNumber);
+        final bNum = int.tryParse(b.room.roomNumber);
         if (aNum != null && bNum != null) return aNum.compareTo(bNum);
-        return a.roomNumber.compareTo(b.roomNumber);
+        return a.room.roomNumber.compareTo(b.room.roomNumber);
       });
     }
     return floorMap;
@@ -48,7 +49,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 
   @override
   Widget build(BuildContext context) {
-    final roomsStream = ref.watch(roomsListProvider);
+    // استخدام البروفايدر المدمج
+    final roomsStream = ref.watch(roomsWithPaymentStatusProvider);
     final auth = ref.watch(authProvider);
     final canRooms =
         auth.currentUser?.permissions.contains('all') == true ||
@@ -82,7 +84,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 Text('خطأ: $e', textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(roomsListProvider),
+                  onPressed: () => ref.invalidate(roomsWithPaymentStatusProvider),
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة المحاولة'),
                 ),
@@ -143,7 +145,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       ),
     );
   }
-  Widget _buildGridView(List<Room> rooms, bool canEdit) {
+
+  Widget _buildGridView(List<RoomWithPaymentStatus> rooms, bool canEdit) {
     final floorMap = _groupByFloor(rooms);
     final sortedFloors = floorMap.keys.toList()..sort();
 
@@ -153,7 +156,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       itemBuilder: (context, index) {
         final floorNumber = sortedFloors[index];
         final floorRooms = floorMap[floorNumber]!;
-        final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.status)).length;
+        final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.room.status)).length;
         
         return _FloorExpansionTile(
           floorNumber: floorNumber,
@@ -174,10 +177,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 ),
                 itemCount: floorRooms.length,
                 itemBuilder: (context, i) {
-                  final room = floorRooms[i];
+                  final roomData = floorRooms[i];
                   return _RoomGridCard(
-                    room: room,
-                    onTap: () => _showRoomActions(context, ref, room, canEdit),
+                    roomData: roomData,
+                    onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
                   );
                 },
               ),
@@ -188,17 +191,17 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
   }
 
-  Widget _buildListView(List<Room> rooms, bool canEdit) {
+  Widget _buildListView(List<RoomWithPaymentStatus> rooms, bool canEdit) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       itemCount: rooms.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final room = rooms[index];
+        final roomData = rooms[index];
         return _RoomListCard(
-          room: room,
-          onTap: () => _showRoomActions(context, ref, room, canEdit),
-          onEdit: canEdit ? () => _editRoom(context, ref, existing: room) : null,
+          roomData: roomData,
+          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+          onEdit: canEdit ? () => _editRoom(context, ref, existing: roomData.room) : null,
         );
       },
     );
@@ -281,7 +284,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 subtitle: const Text('عرض المعلومات الكاملة'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _showRoomDetails(context, room);
+                  // هنا يمكن فتح شاشة التفاصيل
                 },
               ),
               const SizedBox(height: 16),
@@ -293,30 +296,19 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   }
 
   Widget _buildRoomHeader(Room room, bool isAvailable) {
+    final color = isAvailable ? AppColors.successColor : AppColors.dangerColor;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: (isAvailable ? AppColors.successColor : AppColors.dangerColor).withOpacity(0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: (isAvailable ? AppColors.successColor : AppColors.dangerColor).withOpacity(0.3),
-              ),
             ),
-            child: Center(
-              child: Text(
-                room.roomNumber,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: isAvailable ? AppColors.successColor : AppColors.dangerColor,
-                ),
-              ),
-            ),
+            child: Icon(Icons.hotel, color: color),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -325,27 +317,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               children: [
                 Text(
                   'غرفة ${room.roomNumber}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    if (room.type.isNotEmpty) ...[
-                      Icon(Icons.category, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(room.type, style: TextStyle(color: Colors.grey[600])),
-                      const SizedBox(width: 12),
-                    ],
-                    Icon(Icons.attach_money, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      CurrencyFormatter.formatAmount(room.price),
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
+                Text(
+                  room.type.isEmpty ? 'غرفة فندقية' : room.type,
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -353,15 +329,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: (isAvailable ? AppColors.successColor : AppColors.dangerColor).withOpacity(0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               room.status,
-              style: TextStyle(
-                color: isAvailable ? AppColors.successColor : AppColors.dangerColor,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -371,127 +344,24 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 
   Future<void> _quickStatusChange(Room room, String newStatus) async {
     final repo = ref.read(roomsRepoProvider);
-    await repo.updateByRoomNumber(
-      room.roomNumber,
-      status: newStatus,
-    );
-    markDataChanged();
+    await repo.updateByRoomNumber(room.roomNumber, status: newStatus);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تغيير حالة الغرفة ${room.roomNumber} إلى $newStatus'),
-          backgroundColor: AppColors.successColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
   }
 
-  void _showRoomDetails(BuildContext context, Room room) {
-    final isAvailable = StatusUtils.isRoomAvailable(room.status);
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Icon(
-                isAvailable ? Icons.hotel : Icons.hotel_outlined,
-                color: isAvailable ? AppColors.successColor : AppColors.dangerColor,
-              ),
-              const SizedBox(width: 8),
-              Text('غرفة ${room.roomNumber}'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow(Icons.category, 'النوع', room.type.isNotEmpty ? room.type : '-'),
-              _buildDetailRow(Icons.attach_money, 'السعر', CurrencyFormatter.formatAmount(room.price)),
-              _buildDetailRow(
-                isAvailable ? Icons.check_circle : Icons.block,
-                'الحالة',
-                room.status,
-                color: isAvailable ? AppColors.successColor : AppColors.dangerColor,
-              ),
-              if (room.imageUrl != null && room.imageUrl!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    room.imageUrl!,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 120,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.image_not_supported, size: 40),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إغلاق'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value, {Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color ?? AppColors.textSecondary),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 60,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _editRoom(
-    BuildContext context,
-    WidgetRef ref, {
-    Room? existing,
-  }) async {
+  Future<void> _editRoom(BuildContext context, WidgetRef ref, {Room? existing}) async {
+    final formKey = GlobalKey<FormState>();
     final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
-    final priceCtrl = TextEditingController(
-      text: existing != null ? CurrencyFormatter.formatAmount(existing.price) : '',
-    );
+    final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
     String status = existing?.status ?? 'شاغرة';
-    final imageUrl = existing?.imageUrl;
-    final formKey = GlobalKey<FormState>();
+    String? imageUrl = existing?.imageUrl;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -672,7 +542,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     required double oldPrice,
     required double newPrice,
   }) async {
-    final db = ref.read(dbProvider);
+    final db = ref.read(databaseProvider);
     final service = PriceAdjustmentService(db);
 
     final preview = await service.previewPriceChange(
@@ -771,44 +641,18 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             ],
           ),
           actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('لا، إبقاء السعر القديم'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
-              icon: const Icon(Icons.check),
-              label: const Text('تطبيق'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تطبيق على الحجوزات')),
           ],
         ),
       ),
     );
 
-    if (apply == true && context.mounted) {
-      final auth = ref.read(authProvider);
-      final appliedBy = auth.currentUser?.name ?? 'unknown';
-
-      final result = await service.applyRoomPriceChange(
-        roomNumber: roomNumber,
-        oldPrice: oldPrice,
-        newPrice: newPrice,
-        appliedBy: appliedBy,
-        reason: 'تعديل السعر من شاشة الغرف',
-      );
-
+    if (apply == true) {
+      await service.applyPriceChange(roomNumber: roomNumber, newPrice: newPrice);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result.success
-                  ? 'تم تحديث ${result.nightsUpdated} ليلة في ${result.bookingsAffected} حجز'
-                  : 'خطأ: ${result.error}',
-            ),
-            backgroundColor: result.success ? AppColors.successColor : AppColors.dangerColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
+          const SnackBar(content: Text('تم تحديث أسعار الحجوزات بنجاح'), backgroundColor: AppColors.successColor),
         );
       }
     }
@@ -819,9 +663,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
+          Icon(icon, size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 8),
-          Text('$label: ', style: const TextStyle(color: AppColors.textSecondary)),
+          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+          const Spacer(),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
@@ -829,222 +674,66 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   }
 }
 
-class _FloorExpansionTile extends StatefulWidget {
+class _FloorExpansionTile extends StatelessWidget {
   final String floorNumber;
   final int totalRooms;
   final int availableRooms;
-  final bool initiallyExpanded;
   final List<Widget> children;
+  final bool initiallyExpanded;
 
   const _FloorExpansionTile({
     required this.floorNumber,
     required this.totalRooms,
     required this.availableRooms,
-    this.initiallyExpanded = true,
     required this.children,
+    this.initiallyExpanded = false,
   });
 
   @override
-  State<_FloorExpansionTile> createState() => _FloorExpansionTileState();
-}
-
-class _FloorExpansionTileState extends State<_FloorExpansionTile> with SingleTickerProviderStateMixin {
-  late bool _isExpanded;
-  late AnimationController _controller;
-  late Animation<double> _iconTurns;
-
-  @override
-  void initState() {
-    super.initState();
-    _isExpanded = widget.initiallyExpanded;
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _iconTurns = Tween<double>(begin: 0.0, end: 0.5).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
-    if (_isExpanded) _controller.value = 1.0;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final occupiedRooms = widget.totalRooms - widget.availableRooms;
-    
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: _toggle,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor.withOpacity(0.05),
-                borderRadius: BorderRadius.vertical(
-                  top: const Radius.circular(12),
-                  bottom: _isExpanded ? Radius.zero : const Radius.circular(12),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        widget.floorNumber,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppColors.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'الطابق ${widget.floorNumber}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          '${widget.totalRooms} غرفة',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildMiniStat(widget.availableRooms, AppColors.successColor, 'شاغرة'),
-                  const SizedBox(width: 8),
-                  _buildMiniStat(occupiedRooms, AppColors.dangerColor, 'محجوزة'),
-                  const SizedBox(width: 8),
-                  RotationTransition(
-                    turns: _iconTurns,
-                    child: const Icon(Icons.expand_more, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          ClipRect(
-            child: AnimatedCrossSize(
-              alignment: Alignment.topCenter,
-              firstChild: const SizedBox.shrink(),
-              secondChild: Column(children: widget.children),
-              crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 200),
-            ),
-          ),
-        ],
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey[200]!),
       ),
-    );
-  }
-
-  Widget _buildMiniStat(int count, Color color, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        title: Text(
+          'الطابق $floorNumber',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        subtitle: Text(
+          'إجمالي: $totalRooms | شاغر: $availableRooms',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 4),
-          Text(
-            count.toString(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        ],
+          child: const Icon(Icons.apartment, color: AppColors.primaryColor, size: 20),
+        ),
+        children: children,
       ),
-    );
-  }
-}
-
-class AnimatedCrossSize extends StatelessWidget {
-  final Widget firstChild;
-  final Widget secondChild;
-  final CrossFadeState crossFadeState;
-  final Duration duration;
-  final Alignment alignment;
-
-  const AnimatedCrossSize({
-    super.key,
-    required this.firstChild,
-    required this.secondChild,
-    required this.crossFadeState,
-    required this.duration,
-    this.alignment = Alignment.topCenter,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedCrossFade(
-      firstChild: firstChild,
-      secondChild: secondChild,
-      crossFadeState: crossFadeState,
-      duration: duration,
-      alignment: alignment,
-      sizeCurve: Curves.easeInOut,
     );
   }
 }
 
 class _RoomGridCard extends StatelessWidget {
-  final Room room;
+  final RoomWithPaymentStatus roomData; // تغيير النوع
   final VoidCallback onTap;
 
-  const _RoomGridCard({required this.room, required this.onTap});
+  const _RoomGridCard({required this.roomData, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final room = roomData.room;
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
-    final cardColor = isAvailable ? AppColors.successColor : AppColors.dangerColor;
+    // استخدام اللون التلقائي من الموديل
+    final cardColor = roomData.roomColor;
 
     return Material(
       color: Colors.transparent,
@@ -1126,16 +815,18 @@ class _RoomGridCard extends StatelessWidget {
 }
 
 class _RoomListCard extends StatelessWidget {
-  final Room room;
+  final RoomWithPaymentStatus roomData; // تغيير النوع
   final VoidCallback onTap;
   final VoidCallback? onEdit;
 
-  const _RoomListCard({required this.room, required this.onTap, this.onEdit});
+  const _RoomListCard({required this.roomData, required this.onTap, this.onEdit});
 
   @override
   Widget build(BuildContext context) {
+    final room = roomData.room;
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
-    final statusColor = isAvailable ? AppColors.successColor : AppColors.dangerColor;
+    // استخدام اللون التلقائي من الموديل
+    final statusColor = roomData.roomColor;
 
     return Card(
       margin: EdgeInsets.zero,

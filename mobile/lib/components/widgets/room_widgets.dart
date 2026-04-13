@@ -8,18 +8,21 @@ class RoomCard extends StatelessWidget {
   final Room room;
   final VoidCallback? onTap;
   final bool compact;
+  final Color? customColor; // إضافة لون مخصص
 
   const RoomCard({
     super.key,
     required this.room,
     this.onTap,
     this.compact = false,
+    this.customColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
-    final cardColor = isAvailable ? Colors.green : Colors.red;
+    // استخدام اللون المخصص إذا وجد، وإلا استخدام الألوان الافتراضية
+    final cardColor = customColor ?? (isAvailable ? Colors.green : Colors.red);
 
     return GestureDetector(
       onTap: onTap,
@@ -258,7 +261,7 @@ class FloorStats extends StatelessWidget {
 
 /// Widget لعرض شبكة الغرف
 class RoomsGrid extends StatelessWidget {
-  final List<Room> rooms;
+  final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
   final Function(Room) onRoomTap;
   final int crossAxisCount;
   final double childAspectRatio;
@@ -284,11 +287,25 @@ class RoomsGrid extends StatelessWidget {
       ),
       itemCount: rooms.length,
       itemBuilder: (context, index) {
-        final room = rooms[index];
+        final roomData = rooms[index];
+        final Room room;
+        Color? customColor;
+
+        // التحقق مما إذا كانت البيانات مدمجة مع حالة الدفع
+        try {
+          // محاولة التعامل معها كـ RoomWithPaymentStatus (التي سنعرفها لاحقاً أو نمررها)
+          // بما أننا لا نستطيع استيراد البروفايدر هنا لتجنب التعارض الدائري، سنستخدم dynamic
+          room = roomData.room;
+          customColor = roomData.roomColor;
+        } catch (_) {
+          room = roomData as Room;
+        }
+
         return RoomCard(
           room: room,
           onTap: () => onRoomTap(room),
           compact: true,
+          customColor: customColor,
         );
       },
     );
@@ -298,7 +315,7 @@ class RoomsGrid extends StatelessWidget {
 /// Widget لعرض قسم طابق كامل
 class FloorSection extends StatefulWidget {
   final String floorNumber;
-  final List<Room> rooms;
+  final List<dynamic> rooms; // تغيير النوع
   final Function(Room) onRoomTap;
   final bool isCollapsible;
   final bool initiallyExpanded;
@@ -359,158 +376,48 @@ class _FloorSectionState extends State<FloorSection>
 
   @override
   Widget build(BuildContext context) {
-    final availableCount = widget.rooms
-        .where((r) => StatusUtils.isRoomAvailable(r.status))
-        .length;
-    final occupiedCount = widget.rooms.length - availableCount;
+    // حساب الإحصائيات
+    int total = widget.rooms.length;
+    int occupied = 0;
+    int available = 0;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FloorHeader(
-            floorNumber: widget.floorNumber,
-            totalRooms: widget.rooms.length,
-            occupiedRooms: occupiedCount,
-            availableRooms: availableCount,
-            isCollapsible: widget.isCollapsible,
-            isExpanded: _isExpanded,
-            onToggle: widget.isCollapsible ? _toggle : null,
-          ),
-          if (widget.isCollapsible)
-            SizeTransition(sizeFactor: _animation, child: _buildRoomsContent())
-          else
-            _buildRoomsContent(),
-        ],
-      ),
-    );
-  }
+    for (final roomData in widget.rooms) {
+      final Room room;
+      try {
+        room = roomData.room;
+      } catch (_) {
+        room = roomData as Room;
+      }
+      if (StatusUtils.isRoomAvailable(room.status)) {
+        available++;
+      } else {
+        occupied++;
+      }
+    }
 
-  Widget _buildRoomsContent() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: RoomsGrid(rooms: widget.rooms, onRoomTap: widget.onRoomTap),
-    );
-  }
-}
-
-/// Widget لعرض تفاصيل الغرفة في حوار
-class RoomDetailsDialog extends StatelessWidget {
-  final Room room;
-  final VoidCallback? onBookRoom;
-  final VoidCallback? onViewBookings;
-
-  const RoomDetailsDialog({
-    super.key,
-    required this.room,
-    this.onBookRoom,
-    this.onViewBookings,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isAvailable = StatusUtils.isRoomAvailable(room.status);
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              isAvailable ? Icons.hotel : Icons.hotel_outlined,
-              color: isAvailable ? Colors.green : Colors.red,
-              size: 28,
-            ),
-            const SizedBox(width: 8),
-            Text('غرفة ${room.roomNumber}'),
-          ],
+    return Column(
+      children: [
+        FloorHeader(
+          floorNumber: widget.floorNumber,
+          totalRooms: total,
+          occupiedRooms: occupied,
+          availableRooms: available,
+          isCollapsible: widget.isCollapsible,
+          isExpanded: _isExpanded,
+          onToggle: _toggle,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailRow('النوع', room.type),
-            _buildDetailRow(
-              'السعر',
-              CurrencyFormatter.formatAmount(room.price),
+        SizeTransition(
+          sizeFactor: _animation,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: RoomsGrid(
+              rooms: widget.rooms,
+              onRoomTap: widget.onRoomTap,
             ),
-            _buildDetailRow('الحالة', room.status),
-            if (room.imageUrl != null && room.imageUrl!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  room.imageUrl!,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 120,
-                    width: double.infinity,
-                    color: Colors.grey.withOpacity(0.3),
-                    child: const Icon(Icons.image_not_supported),
-                  ),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
-        actions: [
-          if (isAvailable && onBookRoom != null)
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                onBookRoom!();
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('حجز جديد'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          if (!isAvailable && onViewBookings != null)
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                onViewBookings!();
-              },
-              icon: const Icon(Icons.visibility),
-              label: const Text('عرض الحجوزات'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }
