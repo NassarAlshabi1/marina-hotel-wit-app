@@ -6,7 +6,6 @@ import 'package:printing/printing.dart';
 
 import '../utils/arabic_amount_formatter.dart';
 import '../utils/enhanced_pdf_utils.dart';
-import '../utils/pdf_utils.dart';
 
 /// أنواع طرق الدفع المتاحة
 enum PaymentMethod {
