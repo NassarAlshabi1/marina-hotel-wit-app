@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -894,13 +894,8 @@ class Invoice {
             borderRadius: pw.BorderRadius.circular(8),
             border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
           ),
-          child: pw.ClipRRect(
-            borderRadius: pw.BorderRadius.circular(8),
-            child: pw.Table(
-              border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(color: PdfColor(0.92, 0.92, 0.92)),
-                verticalInside: pw.BorderSide(color: PdfColor(0.92, 0.92, 0.92)),
-              ),
+          child: pw.Table(
+              border: pw.TableBorder.all(color: PdfColor(0.88, 0.88, 0.88)),
               columnWidths: {
                 0: const pw.FlexColumnWidth(3),
                 1: const pw.FlexColumnWidth(2),
@@ -936,7 +931,6 @@ class Invoice {
               ],
             ),
           ),
-        ),
 
         // === سجل المدفوعات ===
         if (payments.isNotEmpty) ...[
@@ -956,15 +950,8 @@ class Invoice {
               borderRadius: pw.BorderRadius.circular(8),
               border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
             ),
-            child: pw.ClipRRect(
-              borderRadius: pw.BorderRadius.circular(8),
-              child: pw.Table(
-                border: pw.TableBorder(
-                  horizontalInside:
-                      pw.BorderSide(color: PdfColor(0.92, 0.92, 0.92)),
-                  verticalInside:
-                      pw.BorderSide(color: PdfColor(0.92, 0.92, 0.92)),
-                ),
+            child: pw.Table(
+                border: pw.TableBorder.all(color: PdfColor(0.88, 0.88, 0.88)),
                 columnWidths: {
                   0: const pw.FlexColumnWidth(3),
                   1: const pw.FlexColumnWidth(3),
@@ -996,7 +983,6 @@ class Invoice {
                   ),
                 ],
               ),
-            ),
           ),
         ],
 
