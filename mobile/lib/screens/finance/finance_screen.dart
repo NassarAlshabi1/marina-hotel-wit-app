@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
@@ -89,12 +88,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 _buildCashDeskCard(income, expenses, balance),
 
                 const SizedBox(height: 12),
-
-                // ─── توزيع طرق الدفع ───
-                if (payments.isNotEmpty) ...[
-                  _buildMethodChart(payments),
-                  const SizedBox(height: 12),
-                ],
 
                 // ─── مدفوعات اليوم ───
                 _buildTodayPayments(payments),
@@ -357,91 +350,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── توزيع طرق الدفع ───
-  Widget _buildMethodChart(List<db.Payment> payments) {
-    final methodAmounts = <String, double>{};
-    for (final p in payments) {
-      methodAmounts[p.paymentMethod] =
-          (methodAmounts[p.paymentMethod] ?? 0) + p.amount;
-    }
-
-    if (methodAmounts.isEmpty) return const SizedBox.shrink();
-
-    final total = methodAmounts.values.fold<double>(0, (a, b) => a + b);
-    final entries = methodAmounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'توزيع المدفوعات حسب الطريقة',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          // Chart
-          SizedBox(
-            height: 140,
-            child: PieChart(
-              PieChartData(
-                sections: entries.map((e) {
-                  final pct = total > 0 ? (e.value / total * 100) : 0;
-                  return PieChartSectionData(
-                    value: e.value,
-                    title: '${pct.toStringAsFixed(0)}%',
-                    color: _getMethodColor(e.key),
-                    radius: 55,
-                    titleStyle: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }).toList(),
-                centerSpaceRadius: 30,
-                sectionsSpace: 2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Legend
-          Wrap(
-            spacing: 12,
-            runSpacing: 6,
-            children: entries.map((e) {
-              final pct = total > 0 ? (e.value / total * 100) : 0;
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: _getMethodColor(e.key),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${e.key} ${pct.toStringAsFixed(0)}%',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                  ),
-                ],
-              );
-            }).toList(),
           ),
         ],
       ),
