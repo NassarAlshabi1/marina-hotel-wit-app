@@ -570,24 +570,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
               ),
-            if (room.status != 'شاغرة') ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _updateRoomStatus(room, 'شاغرة');
-                  },
-                  icon: const Icon(Icons.check_circle, color: Colors.white),
-                  label: const Text('إعادة إلى شاغرة'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
         actions: [
