@@ -199,6 +199,34 @@ final todayExpensesProvider = StreamProvider<double>((ref) {
             : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
       );
 });
+
+/// عدد + إجمالي مصروفات اليوم الفندقي الحالي
+final todayExpensesSummaryProvider = StreamProvider<({int count, double total})>((ref) {
+  final db = ref.watch(dbProvider);
+  final todayKey = Time.hotelDayKey();
+  return db
+      .customSelect(
+        'SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total FROM expenses '
+        'WHERE deleted_at IS NULL AND ('
+        '  hotel_day_key = ? '
+        '  OR (hotel_day_key IS NULL AND date = ?)'
+        ')',
+        variables: [
+          Variable.withString(todayKey),
+          Variable.withString(todayKey),
+        ],
+        readsFrom: {db.expenses},
+      )
+      .watch()
+      .map((rows) {
+        final r = rows.isEmpty ? <String, Object?>{} : rows.first.data;
+        return (
+          count: (r['cnt'] as num? ?? 0).toInt(),
+          total: (r['total'] as num? ?? 0.0).toDouble(),
+        );
+  });
+});
+
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );

@@ -56,6 +56,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   Widget build(BuildContext context) {
     final employeesAsync = ref.watch(employeesListProvider);
 
+    final todaySummary = ref.watch(todayExpensesSummaryProvider);
+    final todayData = todaySummary.valueOrNull ?? (count: 0, total: 0.0);
+
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'المصروفات',
@@ -86,10 +89,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   return const Center(child: CircularProgressIndicator());
                 }
                 final filteredExpenses = snapshot.data!;
-                final totalAmount = filteredExpenses.fold<double>(
-                  0,
-                  (sum, e) => sum + e.amount,
-                );
 
                 return ListView(
                   padding: const EdgeInsets.all(12),
@@ -97,8 +96,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     _buildCompactFiltersCard(),
                     const SizedBox(height: 8),
                     _buildCompactSummaryCard(
-                      totalAmount: totalAmount,
-                      count: filteredExpenses.length,
+                      totalAmount: todayData.total,
+                      count: todayData.count,
                     ),
                     const SizedBox(height: 10),
                     if (filteredExpenses.isEmpty)
