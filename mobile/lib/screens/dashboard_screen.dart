@@ -707,16 +707,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildColorInstructions() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildInstructionDot(Colors.red.shade600, 'الغرفة محجوزة'),
-          const SizedBox(width: 12),
-          _buildInstructionDot(Colors.green.shade600, 'الغرفة متاحة'),
-          const SizedBox(width: 12),
-          _buildInstructionDot(const Color(0xFF795548), 'تأخر في السداد'),
-        ],
+    return Align(
+      alignment: Alignment.center,
+      child: Directionality(
+        textDirection: ui.TextDirection.ltr,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildInstructionDot(Colors.red.shade600, 'الغرفة محجوزة'),
+            const SizedBox(width: 12),
+            _buildInstructionDot(Colors.green.shade600, 'الغرفة متاحة'),
+            const SizedBox(width: 12),
+            _buildInstructionDot(const Color(0xFF795548), 'تأخر في السداد'),
+          ],
+        ),
       ),
     );
   }
