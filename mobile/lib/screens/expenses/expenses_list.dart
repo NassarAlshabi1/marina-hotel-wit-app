@@ -92,15 +92,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 );
 
                 return ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   children: [
-                    _buildFiltersCard(),
-                    const SizedBox(height: 12),
-                    _buildSummaryCard(
+                    _buildCompactFiltersCard(),
+                    const SizedBox(height: 8),
+                    _buildCompactSummaryCard(
                       totalAmount: totalAmount,
                       count: filteredExpenses.length,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     if (filteredExpenses.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 48),
@@ -176,111 +176,128 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     });
   }
 
-  Widget _buildFiltersCard() {
+  Widget _buildCompactFiltersCard() {
     final fromLabel = _fromDate != null
         ? _dateFormat.format(_fromDate!)
         : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: const [
-                Icon(Icons.date_range, color: Colors.blue),
-                SizedBox(width: 8),
-                Text(
-                  'الفترة الزمنية',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickDate(isFrom: true),
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text('من: $fromLabel'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickDate(isFrom: false),
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text('إلى: $toLabel'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-    );
-  }
-
-  Widget _buildSummaryCard({required double totalAmount, required int count}) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildSummaryItem(
-                label: 'عدد العمليات',
-                value: '$count',
-                icon: Icons.receipt_long,
-                color: Colors.indigo,
+      child: Row(
+        children: [
+          Icon(Icons.date_range, size: 14, color: Colors.blue.shade700),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _pickDate(isFrom: true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                'من $fromLabel',
+                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
               ),
             ),
-            Expanded(
-              child: _buildSummaryItem(
-                label: 'إجمالي المصروفات',
-                value: CurrencyFormatter.formatAmount(totalAmount),
-                icon: Icons.payments,
-                color: Colors.red,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryItem({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        CircleAvatar(
-          backgroundColor: color.withOpacity(0.15),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              Text(
-                value,
-                style: TextStyle(fontWeight: FontWeight.bold, color: color),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _pickDate(isFrom: false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                'إلى $toLabel',
+                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'يوم فندقي: ${Time.hotelDayKey()}',
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactSummaryCard({
+    required double totalAmount,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long, size: 12, color: Colors.indigo.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo.shade700,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  'عملية',
+                  style: TextStyle(fontSize: 9, color: Colors.indigo.shade400),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.payments, size: 12, color: Colors.red.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  CurrencyFormatter.formatAmount(totalAmount),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
