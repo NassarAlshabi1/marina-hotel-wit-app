@@ -37,26 +37,32 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           label: const Text('دفعة جديدة'),
           backgroundColor: Colors.green,
         ),
-        body: RefreshIndicator(
-          color: Colors.indigo,
-          onRefresh: () async => setState(() {}),
-          child: Consumer(
-            builder: (context, ref, _) {
-              final paymentsAsync = ref.watch(paymentsRepoProvider);
-              return paymentsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('خطأ: $e')),
-                data: (paymentsRepo) =>
-                    _buildBody(paymentsRepo),
-              );
-            },
-          ),
+        body: Consumer(
+          builder: (context, ref, _) {
+            final todayIncome = ref.watch(todayPaymentsProvider);
+            final todayExpenses = ref.watch(todayExpensesProvider);
+
+            final income = todayIncome.valueOrNull ?? 0.0;
+            final expenses = todayExpenses.valueOrNull ?? 0.0;
+            final balance = income - expenses;
+
+            final paymentsAsync = ref.watch(paymentsRepoProvider);
+            return paymentsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ: $e')),
+              data: (paymentsRepo) => RefreshIndicator(
+                color: Colors.indigo,
+                onRefresh: () async => setState(() {}),
+                child: _buildBody(paymentsRepo, income, expenses, balance),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildBody(dynamic paymentsRepo) {
+  Widget _buildBody(dynamic paymentsRepo, double income, double expenses, double balance) {
     return StreamBuilder<List<db.Payment>>(
       stream: paymentsRepo.watchAll(),
       builder: (context, snapshot) {
@@ -83,8 +89,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
                 const SizedBox(height: 12),
 
-                // ─── بطاقات الإحصائيات ───
-                _buildStatsCards(payments),
+                // ─── بطاقة الصندوق: الايراد / المصروفات / المتبقي ───
+                _buildCashDeskCard(income, expenses, balance),
 
                 const SizedBox(height: 12),
 
@@ -194,134 +200,167 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  // ─── بطاقات الإحصائيات ───
-  Widget _buildStatsCards(List<db.Payment> payments) {
-    final hotelDay = Time.hotelDayKey();
-    final today = DateTime.now();
-    final startOfMonth = DateTime(today.year, today.month, 1);
-
-    final todayAmount = payments
-        .where((p) => Time.hotelDayKeyFromIso(p.paymentDate) == hotelDay)
-        .fold<double>(0, (s, p) => s + p.amount);
-
-    final monthAmount = payments.where((p) {
-      try {
-        return DateTime.parse(p.paymentDate).isAfter(startOfMonth);
-      } catch (_) {
-        return false;
-      }
-    }).fold<double>(0, (s, p) => s + p.amount);
-
-    final todayCount = payments
-        .where((p) => Time.hotelDayKeyFromIso(p.paymentDate) == hotelDay)
-        .length;
-
-    final totalAmount = payments.fold<double>(0, (s, p) => s + p.amount);
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'مدخول اليوم',
-                CurrencyFormatter.formatAmount(todayAmount),
-                '$todayCount عملية',
-                Icons.today,
-                Colors.amber.shade700,
-                Colors.amber.shade50,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildStatCard(
-                'مدخول الشهر',
-                CurrencyFormatter.formatAmount(monthAmount),
-                '${today.month}/${today.year}',
-                Icons.calendar_month,
-                Colors.blue.shade700,
-                Colors.blue.shade50,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'إجمالي المدفوعات',
-                CurrencyFormatter.formatAmount(totalAmount),
-                '${payments.length} عملية',
-                Icons.account_balance_wallet,
-                Colors.green.shade700,
-                Colors.green.shade50,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    String subtitle,
-    IconData icon,
-    Color iconColor,
-    Color bgColor,
-  ) {
+  // ─── بطاقة الصندوق: الايراد / المصروفات / المتبقي ───
+  Widget _buildCashDeskCard(double income, double expenses, double balance) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: iconColor.withOpacity(0.15)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor.shade900,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                child: Icon(Icons.account_balance_wallet, size: 20, color: Colors.indigo.shade700),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'حالة الصندوق',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              // الايراد
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.green.shade50, Colors.green.shade100],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.trending_up, color: Colors.green.shade700, size: 20),
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyFormatter.formatAmount(income),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'الايراد',
+                        style: TextStyle(fontSize: 11, color: Colors.green.shade600, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey.shade500,
+              ),
+              const SizedBox(width: 8),
+              // المصروفات
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.red.shade50, Colors.red.shade100],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.trending_down, color: Colors.red.shade700, size: 20),
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyFormatter.formatAmount(expenses),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'المصروفات',
+                        style: TextStyle(fontSize: 11, color: Colors.red.shade600, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              // المتبقي
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: balance >= 0
+                          ? [Colors.indigo.shade50, Colors.indigo.shade100]
+                          : [Colors.orange.shade50, Colors.orange.shade100],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: balance >= 0 ? Colors.indigo.shade200 : Colors.orange.shade300,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        balance >= 0 ? Icons.savings : Icons.warning_amber,
+                        color: balance >= 0 ? Colors.indigo.shade700 : Colors.orange.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyFormatter.formatAmount(balance.abs()),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: balance >= 0 ? Colors.indigo.shade800 : Colors.orange.shade800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        balance >= 0 ? 'المتبقي' : 'عجز',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: balance >= 0 ? Colors.indigo.shade600 : Colors.orange.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
