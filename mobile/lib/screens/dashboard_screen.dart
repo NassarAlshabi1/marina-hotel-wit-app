@@ -708,7 +708,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildColorInstructions() {
     return Align(
-      alignment: Alignment.center,
+      alignment: Alignment.centerRight,
       child: Directionality(
         textDirection: ui.TextDirection.ltr,
         child: Row(
