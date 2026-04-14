@@ -216,7 +216,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               ),
               child: Text(
                 'من $fromDisplay',
-                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
               ),
             ),
           ),
@@ -232,7 +232,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               ),
               child: Text(
                 'إلى $toDisplay',
-                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
               ),
             ),
           ),
