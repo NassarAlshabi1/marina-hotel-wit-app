@@ -221,6 +221,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
+              const SizedBox(height: 12),
+              _buildColorInstructions(),
             ],
           ),
         ),
@@ -701,6 +703,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildColorInstructions() {
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildInstructionDot(Colors.red.shade600, 'الغرفة محجوزة'),
+          const SizedBox(width: 12),
+          _buildInstructionDot(Colors.green.shade600, 'الغرفة متاحة'),
+          const SizedBox(width: 12),
+          _buildInstructionDot(const Color(0xFF795548), 'تأخر في السداد'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 8,
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ],
     );
   }
 
