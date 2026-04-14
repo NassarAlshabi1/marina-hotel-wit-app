@@ -169,12 +169,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       _filterActive = true;
       if (isFrom) {
         _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
-        if (_toDate != null && _fromDate!.isAfter(_toDate!)) {
+        // إذا لم يكن "إلى" محدد، اجعله نفس تاريخ "من"
+        _toDate ??= DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        if (_fromDate!.isAfter(_toDate!)) {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
       } else {
         _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        if (_fromDate != null && _toDate!.isBefore(_fromDate!)) {
+        // إذا لم يكن "من" محدد، اجعله نفس تاريخ "إلى"
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        if (_toDate!.isBefore(_fromDate!)) {
           _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
         }
       }
@@ -184,8 +188,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   Widget _buildCompactFiltersCard() {
     final hotelDay = Time.hotelDayKey();
-    final fromDisplay = _filterActive ? _dateFormat.format(_fromDate!) : hotelDay;
-    final toDisplay = _filterActive ? _dateFormat.format(_toDate!) : hotelDay;
+    final fromDisplay = (_filterActive && _fromDate != null)
+        ? _dateFormat.format(_fromDate!)
+        : hotelDay;
+    final toDisplay = (_filterActive && _toDate != null)
+        ? _dateFormat.format(_toDate!)
+        : hotelDay;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
