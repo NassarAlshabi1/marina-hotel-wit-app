@@ -184,6 +184,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   Widget _buildCompactFiltersCard() {
     final hotelDay = Time.hotelDayKey();
+    final fromDisplay = _filterActive ? _dateFormat.format(_fromDate!) : hotelDay;
+    final toDisplay = _filterActive ? _dateFormat.format(_toDate!) : hotelDay;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -195,51 +197,38 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         children: [
           Icon(Icons.date_range, size: 14, color: Colors.blue.shade700),
           const SizedBox(width: 6),
-          if (!_filterActive) ...[
-            Container(
+          GestureDetector(
+            onTap: () => _pickDate(isFrom: true),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
+                color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.indigo.shade200),
+                border: Border.all(color: Colors.blue.shade200),
               ),
               child: Text(
-                'يوم فندقي: $hotelDay',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.indigo.shade700),
+                'من $fromDisplay',
+                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
               ),
             ),
-          ] else ...[
-            GestureDetector(
-              onTap: () => _pickDate(isFrom: true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Text(
-                  'من ${_dateFormat.format(_fromDate!)}',
-                  style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
-                ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _pickDate(isFrom: false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                'إلى $toDisplay',
+                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
               ),
             ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: () => _pickDate(isFrom: false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Text(
-                  'إلى ${_dateFormat.format(_toDate!)}',
-                  style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
-                ),
-              ),
-            ),
+          ),
+          if (_filterActive) ...[
             const SizedBox(width: 6),
             GestureDetector(
               onTap: () => setState(() {
