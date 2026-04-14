@@ -46,9 +46,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, 1);
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     _expensesStream = _buildExpensesStream();
   }
 
@@ -128,8 +125,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
+  bool _filterActive = false;
+
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
+    if (!_filterActive) {
+      // الافتراضي: عرض مصروفات اليوم الفندقي فقط
+      final hotelDay = Time.hotelDayKey();
+      return Stream.fromFuture(
+        repo.listFiltered(from: hotelDay, to: hotelDay),
+      );
+    }
     final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
     final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
     return Stream.fromFuture(repo.listFiltered(from: fromStr, to: toStr));
@@ -160,6 +166,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
     if (picked == null) return;
     setState(() {
+      _filterActive = true;
       if (isFrom) {
         _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
         if (_toDate != null && _fromDate!.isAfter(_toDate!)) {
@@ -176,10 +183,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildCompactFiltersCard() {
-    final fromLabel = _fromDate != null
-        ? _dateFormat.format(_fromDate!)
-        : 'غير محدد';
-    final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
+    final hotelDay = Time.hotelDayKey();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -191,42 +195,68 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         children: [
           Icon(Icons.date_range, size: 14, color: Colors.blue.shade700),
           const SizedBox(width: 6),
-          GestureDetector(
-            onTap: () => _pickDate(isFrom: true),
-            child: Container(
+          if (!_filterActive) ...[
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Colors.indigo.shade50,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(color: Colors.indigo.shade200),
               ),
               child: Text(
-                'من $fromLabel',
-                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                'يوم فندقي: $hotelDay',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.indigo.shade700),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: () => _pickDate(isFrom: false),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Text(
-                'إلى $toLabel',
-                style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+          ] else ...[
+            GestureDetector(
+              onTap: () => _pickDate(isFrom: true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Text(
+                  'من ${_dateFormat.format(_fromDate!)}',
+                  style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                ),
               ),
             ),
-          ),
-          const Spacer(),
-          Text(
-            'يوم فندقي: ${Time.hotelDayKey()}',
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-          ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => _pickDate(isFrom: false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Text(
+                  'إلى ${_dateFormat.format(_toDate!)}',
+                  style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => setState(() {
+                _filterActive = false;
+                _refreshExpensesStream();
+              }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Icon(Icons.close, size: 12, color: Colors.red.shade700),
+              ),
+            ),
+          ],
         ],
       ),
     );
