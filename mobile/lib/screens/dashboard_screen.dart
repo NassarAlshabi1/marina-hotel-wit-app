@@ -72,11 +72,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
         final elapsed = DateTime.now().difference(lastPull);
         if (elapsed < SyncConstants.appOpenSyncInterval) {
-          final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-          debugPrint(
-            '⏭️ تخطي السحب التلقائي — مرت ${elapsed.inMinutes} دقيقة فقط '
-            '(متبقي ${remaining.inMinutes} دقيقة)',
-          );
           return;
         }
       }
@@ -85,37 +80,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       await ref.read(connectionStatusProvider.notifier).checkConnection();
       final isConnected = ref.read(connectionStatusProvider).isConnected;
       if (!isConnected) return;
-
-      // إظهار إشعار "جاري السحب"
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '📥 جاري سحب البيانات من Appwrite...',
-                    style: TextStyle(fontFamily: 'Tajawal'),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
 
       final deltaSync = AppwriteDeltaSync.instance;
       int pulledCount = 0;
@@ -139,6 +103,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
 
       if (mounted && pulledCount > 0) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -238,15 +203,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               final income = incomeAsync.valueOrNull ?? 0.0;
               final expenses = expensesAsync.valueOrNull ?? 0.0;
               final balance = income - expenses;
-
-              if (incomeAsync.isLoading || expensesAsync.isLoading) {
-                return _buildStatCard(
-                  'المتبقي',
-                  '...',
-                  Icons.savings,
-                  Colors.indigo,
-                );
-              }
 
               return _buildStatCard(
                 balance >= 0 ? 'المتبقي' : 'عجز',
