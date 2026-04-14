@@ -1903,8 +1903,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         paymentDate: Time.nowIso(),
         notes: notes.isEmpty ? null : notes,
         paymentMethod: _mapUiMethodToDb(method),
-        revenueType: isPendingBalance ? 'other' : 'room',
-        isPendingBalance: isPendingBalance,
+        revenueType: 'room',
+        isPendingBalance: false,
       );
 
       double newRemaining = totals.remaining - amount;
