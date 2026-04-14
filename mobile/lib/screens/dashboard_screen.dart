@@ -264,247 +264,98 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildStatisticsCards() {
     final currencyFmt = NumberFormat('#,##0', 'en_US');
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final roomsAsync = ref.watch(roomsListProvider);
-                  return roomsAsync.when(
-                    loading: () => _buildStatCard(
-                      'الإشغال',
-                      '...',
-                      Icons.pie_chart_rounded,
-                      Colors.orange,
-                    ),
-                    error: (e, _) => _buildStatCard(
-                      'الإشغال',
-                      '--',
-                      Icons.pie_chart_rounded,
-                      Colors.orange,
-                    ),
-                    data: (rooms) {
-                      final total = rooms.length;
-                      final occupied = rooms
-                          .where((r) => StatusUtils.isRoomOccupied(r.status))
-                          .length;
-                      final rate = total > 0
-                          ? ((occupied / total) * 100).round()
-                          : 0;
-                      return _buildStatCard(
-                        'الإشغال',
-                        '$rate%',
-                        Icons.pie_chart_rounded,
-                        Colors.orange,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final paymentsAsync = ref.watch(todayPaymentsProvider);
-                  return paymentsAsync.when(
-                    loading: () => _buildStatCard(
-                      'مدفوعات اليوم',
-                      '...',
-                      Icons.payments_rounded,
-                      Colors.green,
-                    ),
-                    error: (e, _) => _buildStatCard(
-                      'مدفوعات اليوم',
-                      '--',
-                      Icons.payments_rounded,
-                      Colors.green,
-                    ),
-                    data: (total) => _buildStatCard(
-                      'مدفوعات اليوم',
-                      currencyFmt.format(total),
-                      Icons.payments_rounded,
-                      Colors.green,
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final expensesAsync = ref.watch(todayExpensesProvider);
-                  return expensesAsync.when(
-                    loading: () => _buildStatCard(
-                      'المصروفات',
-                      '...',
-                      Icons.money_off_rounded,
-                      Colors.red,
-                    ),
-                    error: (e, _) => _buildStatCard(
-                      'المصروفات',
-                      '--',
-                      Icons.money_off_rounded,
-                      Colors.red,
-                    ),
-                    data: (total) => _buildStatCard(
-                      'المصروفات',
-                      currencyFmt.format(total),
-                      Icons.money_off_rounded,
-                      Colors.red,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ExpensesReportScreen(),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final incomeAsync = ref.watch(todayPaymentsProvider);
+              final expensesAsync = ref.watch(todayExpensesProvider);
+              final income = incomeAsync.valueOrNull ?? 0.0;
+              final expenses = expensesAsync.valueOrNull ?? 0.0;
+              final balance = income - expenses;
+
+              if (incomeAsync.isLoading || expensesAsync.isLoading) {
+                return _buildStatCard(
+                  'المتبقي',
+                  '...',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
+              return _buildStatCard(
+                balance >= 0 ? 'المتبقي' : 'عجز',
+                '${currencyFmt.format(balance.abs())}',
+                balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
+                balance >= 0 ? Colors.indigo : Colors.orange,
+              );
+            },
+          ),
         ),
-        const SizedBox(height: 10),
-        // بطاقة المتبقي = الايراد - المصروفات
-        Consumer(
-          builder: (context, ref, _) {
-            final incomeAsync = ref.watch(todayPaymentsProvider);
-            final expensesAsync = ref.watch(todayExpensesProvider);
-            final income = incomeAsync.valueOrNull ?? 0.0;
-            final expenses = expensesAsync.valueOrNull ?? 0.0;
-            final balance = income - expenses;
-
-            if (incomeAsync.isLoading || expensesAsync.isLoading) {
-              return _buildBalanceCard(currencyFmt, 0, 0, 0, isLoading: true);
-            }
-
-            return _buildBalanceCard(currencyFmt, income, expenses, balance);
-          },
+        const SizedBox(width: 10),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final paymentsAsync = ref.watch(todayPaymentsProvider);
+              return paymentsAsync.when(
+                loading: () => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '...',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '--',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                data: (total) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  currencyFmt.format(total),
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final expensesAsync = ref.watch(todayExpensesProvider);
+              return expensesAsync.when(
+                loading: () => _buildStatCard(
+                  'المصروفات',
+                  '...',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'المصروفات',
+                  '--',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
+                data: (total) => _buildStatCard(
+                  'المصروفات',
+                  currencyFmt.format(total),
+                  Icons.money_off_rounded,
+                  Colors.red,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ExpensesReportScreen(),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildBalanceCard(
-    NumberFormat currencyFmt,
-    double income,
-    double expenses,
-    double balance, {
-    bool isLoading = false,
-  }) {
-    final isPositive = balance >= 0;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isPositive
-              ? [Colors.indigo.shade50, Colors.indigo.shade100]
-              : [Colors.orange.shade50, Colors.orange.shade100],
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isPositive ? Colors.indigo.shade200 : Colors.orange.shade300,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isPositive
-                  ? Colors.indigo.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isPositive ? Icons.savings : Icons.warning_amber_rounded,
-              size: 24,
-              color: isPositive ? Colors.indigo.shade700 : Colors.orange.shade700,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isPositive ? 'المتبقي' : 'عجز في الصندوق',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isPositive
-                        ? Colors.indigo.shade600
-                        : Colors.orange.shade600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isLoading
-                      ? '...'
-                      : '${currencyFmt.format(balance.abs())} ر.ي',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isPositive
-                        ? Colors.indigo.shade800
-                        : Colors.orange.shade800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!isLoading)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.trending_up, size: 12, color: Colors.green.shade700),
-                      const SizedBox(width: 4),
-                      Text(
-                        currencyFmt.format(income),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.trending_down, size: 12, color: Colors.red.shade700),
-                      const SizedBox(width: 4),
-                      Text(
-                        currencyFmt.format(expenses),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
     );
   }
 
