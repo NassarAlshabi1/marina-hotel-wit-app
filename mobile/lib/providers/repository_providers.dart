@@ -1,9 +1,11 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/local_db.dart';
 import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/bookings_repository.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
+import '../utils/time.dart';
 import '../services/repositories/cash_repository.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/repositories/debts_repository.dart';
@@ -16,10 +18,10 @@ import '../services/repositories/guest_infos_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
+import 'core_providers.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
-import '../utils/time.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
@@ -143,15 +145,41 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
-// Daily Statistics Providers
-final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
-  final hotelDay = Time.hotelDayKey();
-  return ref.watch(paymentsRepoProvider).getTotalByHotelDayKey(hotelDay);
+// Daily Statistics Providers — StreamProvider لتحديث لحظي
+final todayPaymentsProvider = StreamProvider<double>((ref) {
+  final db = ref.watch(dbProvider);
+  final todayKey = Time.hotelDayKey();
+  return db
+      .customSelect(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
+        'WHERE hotel_day_key = ? AND deleted_at IS NULL AND is_voided = 0',
+        variables: [Variable.withString(todayKey)],
+        readsFrom: {db.payments},
+      )
+      .watch()
+      .map(
+        (rows) => rows.isEmpty
+            ? 0.0
+            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
+      );
 });
 
-final todayExpensesProvider = FutureProvider.autoDispose((ref) {
-  final hotelDay = Time.hotelDayKey();
-  return ref.watch(expensesRepoProvider).getTotalByHotelDayKey(hotelDay);
+final todayExpensesProvider = StreamProvider<double>((ref) {
+  final db = ref.watch(dbProvider);
+  final todayKey = Time.hotelDayKey();
+  return db
+      .customSelect(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
+        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
+        variables: [Variable.withString(todayKey)],
+        readsFrom: {db.expenses},
+      )
+      .watch()
+      .map(
+        (rows) => rows.isEmpty
+            ? 0.0
+            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
+      );
 });
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
