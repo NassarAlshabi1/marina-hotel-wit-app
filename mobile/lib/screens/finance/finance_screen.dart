@@ -46,15 +46,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             final expenses = todayExpenses.valueOrNull ?? 0.0;
             final balance = income - expenses;
 
-            final paymentsAsync = ref.watch(paymentsRepoProvider);
-            return paymentsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('خطأ: $e')),
-              data: (paymentsRepo) => RefreshIndicator(
-                color: Colors.indigo,
-                onRefresh: () async => setState(() {}),
-                child: _buildBody(paymentsRepo, income, expenses, balance),
-              ),
+            final paymentsRepo = ref.read(paymentsRepoProvider);
+            return RefreshIndicator(
+              color: Colors.indigo,
+              onRefresh: () async => setState(() {}),
+              child: _buildBody(paymentsRepo, income, expenses, balance),
             );
           },
         ),
@@ -768,7 +764,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       case 'شيك':
         return Icons.receipt_long;
       case 'تقسيط':
-        return Icons.installment;
+        return Icons.calendar_view_month;
       default:
         return Icons.payment;
     }
