@@ -1,5 +1,4 @@
 import 'dart:ui' as ui;
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
-import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
@@ -43,42 +41,6 @@ const List<String> _dashboardRoomNumbers = [
   '503',
   '504',
 ];
-
-final todayPaymentsProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
-        readsFrom: {db.payments},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
-});
-
-final todayExpensesProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
-        readsFrom: {db.expenses},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
-});
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});

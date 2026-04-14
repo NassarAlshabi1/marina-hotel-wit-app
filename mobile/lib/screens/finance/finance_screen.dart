@@ -69,7 +69,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         final payments = snapshot.data!;
 
         return StreamBuilder<List<db.Booking>>(
-          stream: ref.watch(bookingsRepoProvider).watchList(),
+          stream: ref.read(bookingsRepoProvider).watchList(),
           builder: (context, bookingsSnapshot) {
             final activeBookings = bookingsSnapshot.hasData
                 ? bookingsSnapshot.data!
@@ -909,6 +909,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   ) async {
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
     if (parsedAmount == null || parsedAmount <= 0) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال مبلغ صحيح'),

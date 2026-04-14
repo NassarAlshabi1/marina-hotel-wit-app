@@ -82,7 +82,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   }
 
   Widget _buildOverviewTab() {
-    final paymentsRepo = ref.watch(paymentsRepoProvider);
+    final paymentsRepo = ref.read(paymentsRepoProvider);
 
     return StreamBuilder<List<db.Payment>>(
       stream: paymentsRepo.watchAll(),
@@ -344,7 +344,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   }
 
   Widget _buildActiveBookingsTab() {
-    final bookingsRepo = ref.watch(bookingsRepoProvider);
+    final bookingsRepo = ref.read(bookingsRepoProvider);
 
     return StreamBuilder<List<db.Booking>>(
       stream: bookingsRepo.watchList(),
