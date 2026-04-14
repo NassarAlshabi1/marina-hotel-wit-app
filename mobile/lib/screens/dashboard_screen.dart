@@ -15,6 +15,7 @@ import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_constants.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/room_payment_status_provider.dart';
+import '../services/local_db.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -231,6 +232,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final incomeAsync = ref.watch(todayPaymentsProvider);
               final expensesAsync = ref.watch(todayExpensesProvider);
+
+              // التعامل مع حالة التحميل
+              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final hasError = incomeAsync.hasError || expensesAsync.hasError;
+
+              if (isLoading) {
+                return _buildStatCard(
+                  'المتبقي',
+                  '...',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
+              if (hasError) {
+                return _buildStatCard(
+                  'المتبقي',
+                  '--',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
               final income = incomeAsync.valueOrNull ?? 0.0;
               final expenses = expensesAsync.valueOrNull ?? 0.0;
               final balance = income - expenses;

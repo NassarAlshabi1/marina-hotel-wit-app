@@ -146,14 +146,26 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 });
 
 // Daily Statistics Providers — StreamProvider لتحديث لحظي
+// ──────────────────────────────────────────────────────────────────
+// الاستعلام يشمل:
+//   1. السجلات ذات hotel_day_key مطابق لليوم الفندقي الحالي
+//   2. السجلات ذات hotel_day_key = NULL مع تاريخ مطابق (fallback
+//      للمصروفات/المدفوعات القادمة من المزامنة بدون hotel_day_key)
+// ──────────────────────────────────────────────────────────────────
 final todayPaymentsProvider = StreamProvider<double>((ref) {
   final db = ref.watch(dbProvider);
   final todayKey = Time.hotelDayKey();
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL AND is_voided = 0',
-        variables: [Variable.withString(todayKey)],
+        'WHERE deleted_at IS NULL AND is_voided = 0 AND ('
+        '  hotel_day_key = ? '
+        '  OR (hotel_day_key IS NULL AND substr(payment_date, 1, 10) = ?)'
+        ')',
+        variables: [
+          Variable.withString(todayKey),
+          Variable.withString(todayKey),
+        ],
         readsFrom: {db.payments},
       )
       .watch()
@@ -170,8 +182,14 @@ final todayExpensesProvider = StreamProvider<double>((ref) {
   return db
       .customSelect(
         'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
+        'WHERE deleted_at IS NULL AND ('
+        '  hotel_day_key = ? '
+        '  OR (hotel_day_key IS NULL AND date = ?)'
+        ')',
+        variables: [
+          Variable.withString(todayKey),
+          Variable.withString(todayKey),
+        ],
         readsFrom: {db.expenses},
       )
       .watch()
