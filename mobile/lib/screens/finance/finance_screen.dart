@@ -356,7 +356,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  // ─── مدفوعات اليوم (مجمّعة حسب الغرفة) ───
+  // ─── مدفوعات اليوم (جميعها مفصّلة حسب الغرفة) ───
   Widget _buildTodayPayments(List<db.Payment> payments) {
     final hotelDay = Time.hotelDayKey();
     final todayPayments = payments
@@ -431,10 +431,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 0, (s, p) => s + p.amount,
               );
               final isOther = key == '__other__';
-              return _buildRoomPaymentTile(
+              return _buildRoomPaymentsExpanded(
                 roomNumber: isOther ? null : key,
                 totalAmount: total,
-                paymentsCount: groupPayments.length,
+                payments: groupPayments,
               );
             }),
           Padding(
@@ -459,134 +459,134 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  Widget _buildRoomPaymentTile({
+  Widget _buildRoomPaymentsExpanded({
     required String? roomNumber,
     required double totalAmount,
-    required int paymentsCount,
+    required List<db.Payment> payments,
   }) {
     final isRoom = roomNumber != null;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: isRoom ? Colors.grey.shade50 : Colors.amber.shade50,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // أيقونة الغرفة أو المدفوعات العامة
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: isRoom
-                  ? Colors.indigo.shade50
-                  : Colors.amber.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isRoom ? Icons.hotel : Icons.payments_outlined,
-              size: 16,
-              color: isRoom ? Colors.indigo.shade700 : Colors.amber.shade700,
-            ),
-          ),
-          const SizedBox(width: 10),
-          // رقم الغرفة + عدد العمليات
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // رأس المجموعة: اسم الغرفة + المجموع
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
               children: [
-                Text(
-                  isRoom ? 'غرفة $roomNumber' : 'مدفوعات عامة',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: isRoom ? Colors.indigo.shade800 : Colors.amber.shade800,
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: isRoom
+                        ? Colors.indigo.shade50
+                        : Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isRoom ? Icons.hotel : Icons.payments_outlined,
+                    size: 16,
+                    color: isRoom ? Colors.indigo.shade700 : Colors.amber.shade700,
                   ),
                 ),
-                Text(
-                  '$paymentsCount ${paymentsCount == 1 ? 'عملية' : 'عمليات'}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isRoom ? 'غرفة $roomNumber' : 'مدفوعات عامة',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: isRoom ? Colors.indigo.shade800 : Colors.amber.shade800,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (isRoom ? Colors.green : Colors.orange).shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: (isRoom ? Colors.green : Colors.orange).shade200,
+                    ),
+                  ),
+                  child: Text(
+                    CurrencyFormatter.formatAmount(totalAmount),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: (isRoom ? Colors.green : Colors.orange).shade800,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          // المجموع
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: (isRoom ? Colors.green : Colors.orange).shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: (isRoom ? Colors.green : Colors.orange).shade200,
-              ),
-            ),
-            child: Text(
-              CurrencyFormatter.formatAmount(totalAmount),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: (isRoom ? Colors.green : Colors.orange).shade800,
-              ),
-            ),
-          ),
+          // جميع العمليات المفصّلة
+          ...payments.map((p) => _buildPaymentDetailTile(p)),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentTile(db.Payment payment) {
+  Widget _buildPaymentDetailTile(db.Payment payment) {
+    // استخراج الوقت من paymentDate
+    String timeStr = '';
+    if (payment.paymentDate.length >= 16) {
+      timeStr = payment.paymentDate.substring(11, 16); // HH:mm
+    }
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
+          // أيقونة طريقة الدفع
           Container(
-            padding: const EdgeInsets.all(7),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-              color: _getMethodColor(payment.paymentMethod).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
+              color: _getMethodColor(payment.paymentMethod).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
               _getMethodIcon(payment.paymentMethod),
-              size: 16,
+              size: 14,
               color: _getMethodColor(payment.paymentMethod),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+          // المبلغ + طريقة الدفع
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   CurrencyFormatter.formatAmount(payment.amount),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 Text(
-                  payment.paymentMethod,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  '${payment.paymentMethod}${payment.notes != null && payment.notes!.trim().isNotEmpty ? ' - ${payment.notes}' : ''}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          if (payment.roomNumber != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.indigo.shade200),
-              ),
-              child: Text(
-                'غرفة ${payment.roomNumber}',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.indigo.shade700,
-                ),
+          // الوقت
+          if (timeStr.isNotEmpty)
+            Text(
+              timeStr,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade500,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
         ],
