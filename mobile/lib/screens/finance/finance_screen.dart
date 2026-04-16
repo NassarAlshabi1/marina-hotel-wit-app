@@ -360,7 +360,17 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget _buildTodayPayments(List<db.Payment> payments) {
     final hotelDay = Time.hotelDayKey();
     final todayPayments = payments
-        .where((p) => Time.hotelDayKeyFromIso(p.paymentDate) == hotelDay)
+        .where((p) {
+          // نفس منطق todayPaymentsProvider في repository_providers.dart
+          if (p.isVoided) return false;
+          if (p.hotelDayKey == hotelDay) return true;
+          // fallback للسجلات القادمة من المزامنة بدون hotel_day_key
+          if (p.hotelDayKey == null &&
+              p.paymentDate.startsWith(hotelDay)) {
+            return true;
+          }
+          return false;
+        })
         .toList()
       ..sort((a, b) {
         try {

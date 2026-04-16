@@ -343,7 +343,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           !p.isVoided &&
                           (p.hotelDayKey == hotelDay ||
                               (p.hotelDayKey == null &&
-                                  Time.hotelDayKeyFromIso(p.paymentDate) == hotelDay)))
+                                  p.paymentDate.startsWith(hotelDay))))
                       .fold<double>(0, (s, p) => s + p.amount);
                   double remainingAmount = totalAmount - paidAmount;
                   if (remainingAmount < 0) remainingAmount = 0;
