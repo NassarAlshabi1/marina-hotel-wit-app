@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
+import '../../services/whatsapp_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -898,6 +899,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         revenueType: 'other',
       );
 
+      // إرسال إشعار واتساب
+      _sendPaymentWhatsAppNotification(
+        amount: parsedAmount.toDouble(),
+        method: dbMethod,
+        notes: notes.trim(),
+      );
+
       if (mounted) {
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -925,4 +933,30 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       }
     }
   }
-}
+
+  Future<void> _sendPaymentWhatsAppNotification({
+    required double amount,
+    required String method,
+    required String notes,
+  }) async {
+    try {
+      final whatsappService = ref.read(whatsappServiceProvider);
+
+      final message = StringBuffer()
+        ..writeln('إشعار دفعة جديدة')
+        ..writeln('━━━━━━━━━━━━━━━')
+        ..writeln('المبلغ: ${CurrencyFormatter.formatAmount(amount)}')
+        ..writeln('طريقة الدفع: $method')
+        ..writeln('التاريخ: ${Time.nowIso()}')
+        ..writeln('اليوم الفندقي: ${Time.hotelDayKey()}')
+        ..writeln('النوع: دفعة تراكمية (بدون حجز)')
+        ..writeln(notes.isNotEmpty ? 'ملاحظات: $notes' : '');
+
+      await whatsappService.sendMessage(
+        phoneE164: '9677734587456',
+        message: message.toString(),
+      );
+    } catch (_) {
+      debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
+    }
+  }
