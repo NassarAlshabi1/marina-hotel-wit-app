@@ -1870,44 +1870,30 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
-      // ── Required fields (required: true in Appwrite) ──
+      // ── Required fields ──
       'localUuid': debt.localUuid,
       'guestName': debt.guestName,
       'checkinDate': debt.checkinDate,
       'totalAmount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
-      'createdAt': debt.createdAt,
-      'updatedAt': debt.updatedAt,
-      'lastModified': debt.lastModified,
-      // Required sync fields (added 2026-03-07)
+      // ── Required sync fields ──
       'vector_clock': debt.vectorClock,
       'sync_version': debt.version,
       'sync_origin': debt.origin,
-      // ── Optional business fields ──
+      // ── Business fields ──
+      'bookingLocalId': debt.bookingLocalId,
       'checkoutDate': debt.checkoutDate,
-      'dateRecorded': debt.dateRecorded,
-      'debtReason': debt.debtReason,
       'paymentDate': debt.paymentDate,
       'isSettled': debt.isSettled,
-      'pledge': debt.pledge,
-      'pledgeType': debt.pledgeType,
+      'debtReason': debt.debtReason,
       'note': debt.note,
-      'debtUuid': debt.debtUuid,
-      'hotelDayOpened': debt.hotelDayOpened,
-      'hotelDayClosed': debt.hotelDayClosed,
-      'isFromAutoFix': debt.isFromAutoFix,
-      'settlementConfirmed': debt.settlementConfirmed,
-      'bookingLocalId': debt.bookingLocalId,
-      'version': debt.version,
-      'origin': debt.origin,
-      'vectorClock': debt.vectorClock,
-      // ── Optional sync metadata ──
+      // ── Timestamps ──
+      'createdAt': debt.createdAt,
+      'updatedAt': debt.updatedAt,
+      'lastModified': debt.lastModified,
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
-    _putIfNotNull(data, 'createdAtIso', debt.createdAtIso);
-    _putIfNotNull(data, 'updatedAtIso', debt.updatedAtIso);
-    _putIfNotNull(data, 'deletedAtIso', debt.deletedAtIso);
     return data;
   }
 

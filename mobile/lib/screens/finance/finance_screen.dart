@@ -499,25 +499,31 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       padding: const EdgeInsets.only(left: 15, right: 40, top: 4, bottom: 4),
       child: Row(
         children: [
-          Icon(_getMethodIcon(p.paymentMethod), size: 12, color: Colors.grey.shade600),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.notes?.isNotEmpty == true ? p.notes! : p.paymentMethod,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                ),
-              ],
+          if (p.notes?.isNotEmpty == true)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.notes!,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            )
+          else
+            Expanded(
+              child: Text(
+                p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
             ),
-          ),
           Text(
             CurrencyFormatter.formatAmount(p.amount),
             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
