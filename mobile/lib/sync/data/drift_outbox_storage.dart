@@ -9,7 +9,7 @@ import '../models/sync_models.dart';
 @DataClassName('OutboxRecord')
 class OutboxTable extends Table {
   TextColumn get id => text()();
-  TextColumn get tableName => text()();
+  TextColumn get sourceTable => text()();
   TextColumn get uuid => text()();
   TextColumn get operation => text()();
   TextColumn get payload => text()(); // JSON
@@ -44,7 +44,7 @@ class DriftOutboxStorage implements OutboxStorage {
   DeltaChange _toDeltaChange(OutboxRecord record) {
     return DeltaChange(
       id: record.id,
-      table: record.tableName,
+      table: record.sourceTable,
       uuid: record.uuid,
       operation: SyncOperation.values.firstWhere(
         (e) => e.name == record.operation,
@@ -65,7 +65,7 @@ class DriftOutboxStorage implements OutboxStorage {
   OutboxTableCompanion _toCompanion(DeltaChange change) {
     return OutboxTableCompanion.insert(
       id: change.id,
-      tableName: change.table,
+      sourceTable: change.table,
       uuid: change.uuid,
       operation: change.operation.name,
       payload: _encodePayload(change.payload),
@@ -177,7 +177,7 @@ class DriftOutboxStorage implements OutboxStorage {
   @override
   Future<void> deleteByTable(String table) async {
     // ignore: invalid_use_of_visible_for_overriding_member
-    final query = _db.delete(_table)..where((t) => t.tableName.equals(table));
+    final query = _db.delete(_table)..where((t) => t.sourceTable.equals(table));
     await query.go();
   }
 
