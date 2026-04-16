@@ -959,3 +959,4 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
     }
   }
+}
