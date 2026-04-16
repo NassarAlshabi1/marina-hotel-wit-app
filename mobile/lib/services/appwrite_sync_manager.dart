@@ -1870,22 +1870,45 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
     final data = <String, dynamic>{
-      'amount': debt.totalAmount.round(), // Appwrite: integer
-      'debtorName': debt.guestName,
-      'dueDate': _resolveDebtDueDate(debt),
-      'status': debt.isSettled == 1 ? 'settled' : 'pending',
+      // ── Required fields (required: true in Appwrite) ──
       'localUuid': debt.localUuid,
+      'guestName': debt.guestName,
+      'checkinDate': debt.checkinDate,
+      'totalAmount': debt.totalAmount,
+      'paidAmount': debt.paidAmount,
       'createdAt': debt.createdAt,
       'updatedAt': debt.updatedAt,
       'lastModified': debt.lastModified,
+      // Required sync fields (added 2026-03-07)
+      'vector_clock': debt.vectorClock,
+      'sync_version': debt.version,
+      'sync_origin': debt.origin,
+      'sync_vector_clock': debt.vectorClock,
+      // ── Optional business fields ──
+      'checkoutDate': debt.checkoutDate,
+      'dateRecorded': debt.dateRecorded,
+      'debtReason': debt.debtReason,
+      'paymentDate': debt.paymentDate,
+      'isSettled': debt.isSettled,
+      'pledge': debt.pledge,
+      'pledgeType': debt.pledgeType,
+      'note': debt.note,
+      'debtUuid': debt.debtUuid,
+      'hotelDayOpened': debt.hotelDayOpened,
+      'hotelDayClosed': debt.hotelDayClosed,
+      'isFromAutoFix': debt.isFromAutoFix,
+      'settlementConfirmed': debt.settlementConfirmed,
+      'bookingLocalId': debt.bookingLocalId,
       'version': debt.version,
       'origin': debt.origin,
-      'sync_version': debt.version,
-      'sync_vector_clock': debt.vectorClock,
-      'sync_origin': debt.origin,
+      'vectorClock': debt.vectorClock,
+      // ── Optional sync metadata ──
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    _putIfNotNull(data, 'createdAtIso', debt.createdAtIso);
+    _putIfNotNull(data, 'updatedAtIso', debt.updatedAtIso);
+    _putIfNotNull(data, 'deletedAtIso', debt.deletedAtIso);
     return data;
   }
 
