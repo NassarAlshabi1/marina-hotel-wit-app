@@ -11,8 +11,6 @@ import '../utils/id.dart';
 import 'sync_locks.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
-import 'repositories/base_repository.dart';
-import 'conflict_resolver.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -33,8 +31,6 @@ class GoogleDriveDeltaSync {
   static const _prefsLastPushTsKey = 'gd_last_push_ts';
   static const _prefsLastPullTsKey = 'gd_last_pull_ts';
   static const _prefsDeviceIdKey = 'gd_delta_device_id';
-  // افتراضياً السحب معطل ما لم يتم تفعيله يدوياً
-  static const _prefsDrivePullEnabledKey = 'gd_drive_pull_enabled';
 
   static const fullBackupPrefix = 'marina_backup_full_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
@@ -135,18 +131,6 @@ class GoogleDriveDeltaSync {
   }
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isPullEnabled = prefs.getBool(_prefsDrivePullEnabledKey) ?? false;
-
-    if (!isPullEnabled) {
-      debugPrint('⚠️ Google Drive pull skipped (disabled in settings)');
-      return DeltaSyncResult(
-        success: true,
-        message: 'السحب من Google Drive معطل',
-        changesCount: 0,
-      );
-    }
-
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
       if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
       if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
@@ -249,7 +233,7 @@ class GoogleDriveDeltaSync {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
-    return '$deltaSyncPrefix${dateStr}_$timeStr.json';
+    return '${deltaSyncPrefix}${dateStr}_$timeStr.json';
   }
 
   Future<void> _uploadDeltaFile(
@@ -283,7 +267,7 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    return _database!.transaction(() async {
+    return await _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
       int applied = 0;
 
@@ -338,114 +322,6 @@ class GoogleDriveDeltaSync {
     return index == -1 ? 999 : index;
   }
 
-  /// محلل تعارضات Google Drive - مطابق لاستراتيجيات Appwrite
-  static final _driveConflictResolver = EnhancedConflictResolver(
-    defaultStrategy: ConflictStrategy.lastWriteWins,
-    tableStrategies: {
-      'bookings': ConflictStrategy.lastWriteWins,
-      'rooms': ConflictStrategy.lastWriteWins,
-      'payments': ConflictStrategy.lastWriteWins,
-      'expenses': ConflictStrategy.lastWriteWins,
-      'debts': ConflictStrategy.fieldLevel,
-      'employees': ConflictStrategy.fieldLevel,
-      'cash_transactions': ConflictStrategy.lastWriteWins,
-      'shift_notes': ConflictStrategy.fieldLevel,
-      'booking_notes': ConflictStrategy.fieldLevel,
-      'booking_nights': ConflictStrategy.lastWriteWins,
-      'salary_cycles': ConflictStrategy.lastWriteWins,
-      'salary_payments': ConflictStrategy.lastWriteWins,
-      'salary_withdrawals': ConflictStrategy.lastWriteWins,
-      'booking_price_adjustments': ConflictStrategy.lastWriteWins,
-      'price_adjustments': ConflictStrategy.lastWriteWins,
-      'audit_logs': ConflictStrategy.lastWriteWins,
-      'payment_voids': ConflictStrategy.lastWriteWins,
-    },
-  );
-
-  /// الحصول على Repository للكيان المحدد
-  BaseRepository _getRepoForEntity(String entity) {
-    final registry = _adapterRegistry!;
-    switch (entity) {
-      case 'rooms': return registry.rooms;
-      case 'bookings': return registry.bookings;
-      case 'payments': return registry.payments;
-      case 'expenses': return registry.expenses;
-      case 'debts': return registry.debts;
-      case 'employees': return registry.employees;
-      case 'booking_notes': return registry.bookingNotes;
-      case 'booking_nights': return registry.nights;
-      case 'salary_cycles': return registry.salaryCycles;
-      case 'salary_payments': return registry.salaryPayments;
-      case 'cash_transactions': return registry.cashTransactions;
-      case 'shift_notes': return registry.shiftNotes;
-      case 'price_adjustments': return registry.priceAdjustments;
-      case 'audit_logs': return registry.auditLogs;
-      case 'payment_voids': return registry.paymentVoids;
-      case 'booking_price_adjustments': return registry.bookingPriceAdjustments;
-      case 'salary_withdrawals': return registry.salaryWithdrawals;
-      default:
-        throw UnimplementedError('لا يوجد repository للكيان: $entity');
-    }
-  }
-
-  /// معالجة التعارضات قبل التطبيق
-  /// ترجع البيانات المراد تطبيقها (أو null لتخطي التطبيق)
-  Future<Map<String, dynamic>?> _resolveConflict(
-    String entity,
-    String localUuid,
-    Map<String, dynamic> remoteData,
-  ) async {
-    final repo = _getRepoForEntity(entity);
-    final localData = await repo.getJsonByUuid(localUuid);
-
-    // لا يوجد سجل محلي → إدراج جديد بدون تعارض
-    if (localData == null) return remoteData;
-
-    // استخراج الطوابع الزمنية
-    final localTs = _asInt(localData['lastModified']) ??
-        _asInt(localData['last_modified']) ??
-        _asInt(localData['updated_at']) ?? 0;
-    final remoteTs = _asInt(remoteData['lastModified']) ??
-        _asInt(remoteData['last_modified']) ??
-        _asInt(remoteData['updated_at']) ?? 0;
-
-    // لا توجد طوابع زمنية صالحة → السماح بالتحديث
-    if (localTs <= 0 || remoteTs <= 0) return remoteData;
-
-    // البعيد أحدث → تحديث بدون تعارض
-    if (remoteTs > localTs) return remoteData;
-
-    // المحلي أحدث أو بنفس الوقت → تعارض!
-    final resolution = _driveConflictResolver.resolve(
-      ConflictContext(
-        table: entity,
-        uuid: localUuid,
-        localData: localData,
-        remoteData: remoteData,
-        localTimestamp: DateTime.fromMillisecondsSinceEpoch(localTs * 1000),
-        remoteTimestamp: DateTime.fromMillisecondsSinceEpoch(remoteTs * 1000),
-        localDeviceId: _deviceId ?? 'local',
-        remoteDeviceId: remoteData['deviceId'] ?? 'remote_drive',
-      ),
-    );
-
-    if (resolution.winner == localData && resolution.mergedData == null) {
-      // المحلي فاز → تخطي التحديث
-      debugPrint('⚖️ تعارض $entity/$localUuid: المحلي أحدث، تخطي التحديث');
-      return null;
-    }
-
-    if (resolution.mergedData != null) {
-      // دمج على مستوى الحقل
-      debugPrint('🔀 تعارض $entity/$localUuid: دمج على مستوى الحقل');
-      return resolution.mergedData;
-    }
-
-    // البعيد فاز
-    debugPrint('⚖️ تعارض $entity/$localUuid: البعيد فاز بالتعارض');
-    return remoteData;
-  }
-
   Future<void> _applyChange(
     String entity,
     String operation,
@@ -466,62 +342,60 @@ class GoogleDriveDeltaSync {
     }
 
     final payload = Map<String, dynamic>.from(data);
-    payload.putIfAbsent('localUuid', () => localUuid);
-
-    // ✅ معالجة التعارضات قبل التطبيق
-    final resolvedData = await _resolveConflict(entity, localUuid, payload);
-    if (resolvedData == null) return; // تخطي: المحلي أحدث
+    payload.putIfAbsent('local_uuid', () => localUuid);
 
     switch (entity) {
       case 'rooms':
-        await registry.rooms.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.rooms.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'bookings':
-        await registry.bookings.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.bookings.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'payments':
-        await registry.payments.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.payments.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'expenses':
-        await registry.expenses.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.expenses.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'debts':
-        await registry.debts.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.debts.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'employees':
-        await registry.employees.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.employees.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'booking_notes':
-        await registry.bookingNotes.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'booking_nights':
-        await registry.nights.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.nights.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'salary_cycles':
-        await registry.salaryCycles.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'salary_payments':
         await registry.salaryPayments.upsertFromJson(
-          resolvedData,
+          payload,
           src: Source.drive,
         );
+        break;
       case 'cash_transactions':
         await registry.cashTransactions.upsertFromJson(
-          resolvedData,
+          payload,
           src: Source.drive,
         );
+        break;
       case 'shift_notes':
-        await registry.shiftNotes.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'price_adjustments':
-        await registry.priceAdjustments.upsertFromJson(
-          resolvedData,
-          src: Source.drive,
-        );
+        await registry.priceAdjustments.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'audit_logs':
-        await registry.auditLogs.upsertFromJson(resolvedData, src: Source.drive);
+        await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
+        break;
       case 'payment_voids':
-        await registry.paymentVoids.upsertFromJson(resolvedData, src: Source.drive);
-      case 'booking_price_adjustments':
-        await registry.bookingPriceAdjustments.upsertFromJson(
-          resolvedData,
-          src: Source.drive,
-        );
-      case 'salary_withdrawals':
-        await registry.salaryWithdrawals.upsertFromJson(
-          resolvedData,
-          src: Source.drive,
-        );
+        await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
+        break;
     }
   }
 
@@ -601,21 +475,6 @@ class GoogleDriveDeltaSync {
           db.paymentVoids,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
-      case 'audit_logs':
-        await (db.delete(
-          db.auditLogs,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
-      case 'booking_price_adjustments':
-        await (db.delete(
-          db.bookingPriceAdjustments,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
-      case 'salary_withdrawals':
-        await (db.delete(
-          db.salaryWithdrawals,
-        )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
     }
   }
 
@@ -667,7 +526,7 @@ class GoogleDriveDeltaSync {
             Time.nowEpoch(),
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('google_drive_delta'),
+      origin: d.Value('google_drive_delta'),
       registerId: _nullableValue<int>(
         _asInt(data['register_id']) ?? _asInt(data['registerId']),
       ),
@@ -805,12 +664,13 @@ class GoogleDriveDeltaSync {
 }
 
 class DeltaSyncResult {
+  final bool success;
+  final String message;
+  final int changesCount;
+
   DeltaSyncResult({
     required this.success,
     required this.message,
     this.changesCount = 0,
   });
-  final bool success;
-  final String message;
-  final int changesCount;
 }

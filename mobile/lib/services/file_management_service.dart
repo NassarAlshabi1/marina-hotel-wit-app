@@ -105,7 +105,7 @@ class FileManagementService {
         throw Exception('لا توجد ملفات للمشاركة');
       }
 
-      final xFiles = filePaths.map(XFile.new).toList();
+      final xFiles = filePaths.map((path) => XFile(path)).toList();
 
       await Share.shareXFiles(
         xFiles,
@@ -341,7 +341,9 @@ class FileManagementService {
 
       // إضافة العناوين
       final firstRow = tableData.first as Map<String, dynamic>;
-      final headers = firstRow.keys.map(_translateColumnName).join(',');
+      final headers = firstRow.keys
+          .map((key) => _translateColumnName(key))
+          .join(',');
       csvContent.writeln(headers);
 
       // إضافة البيانات

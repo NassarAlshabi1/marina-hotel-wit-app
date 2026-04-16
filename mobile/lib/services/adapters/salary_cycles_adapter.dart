@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
@@ -118,12 +117,12 @@ class SalaryCyclesAdapter
       ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
@@ -131,28 +130,24 @@ class SalaryCyclesAdapter
   @override
   Map<String, dynamic> toJson(SalaryCycle model, {required Source src}) {
     return {
-      // ✅ إرسال camelCase كما يتطلب Appwrite
-      'id': model.id,
-      'localUuid': model.localUuid,
-      'serverId': model.serverId,
-      'employeeId': model.employeeId,
-      'cycleKey': model.cycleKey,
-      'hotelDayStart': model.hotelDayStart,
-      'hotelDayEnd': model.hotelDayEnd,
-      // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'startDate': model.hotelDayStart ?? '',
-      'endDate': model.hotelDayEnd ?? '',
-      'expectedAmount': model.expectedAmount,
-      'actualPaid': model.actualPaid,
-      'remainingAmount': model.remainingAmount,
-      'status': model.status,
-      'createdAt': model.createdAt,
-      'updatedAt': model.updatedAt,
-      'deletedAt': model.deletedAt,
-      'lastModified': model.lastModified,
-      'version': model.version ?? 1, // ✅ integer
-      'origin': model.origin,
-      'vectorClock': jsonEncode(model.vectorClock ?? {}), // ✅ string (JSON)
+      _k(src, 'id', 'id'): model.id,
+      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
+      _k(src, 'serverId', 'server_id'): model.serverId,
+      _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'cycleKey', 'cycle_key'): model.cycleKey,
+      _k(src, 'hotelDayStart', 'hotel_day_start'): model.hotelDayStart,
+      _k(src, 'hotelDayEnd', 'hotel_day_end'): model.hotelDayEnd,
+      _k(src, 'expectedAmount', 'expected_amount'): model.expectedAmount,
+      _k(src, 'actualPaid', 'actual_paid'): model.actualPaid,
+      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount,
+      _k(src, 'status', 'status'): model.status,
+      _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'version', 'version'): model.version,
+      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -183,61 +178,6 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
-  }
-  return null;
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

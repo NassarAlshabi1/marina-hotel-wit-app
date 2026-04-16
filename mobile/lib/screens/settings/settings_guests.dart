@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/local_db.dart';
+import '../../services/booking_derived_fields_service.dart';
+import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import 'guest_edit_screen.dart';
-import 'guest_profile.dart';
+import 'guest_info.dart';
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -69,7 +70,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               // تجميع الضيوف من الحجوزات
               final guests = _groupGuestsFromBookings(bookings);
               final filteredGuests = _filterGuests(guests);
-              final roomPrices = {for (final r in rooms) r.roomNumber: r.price};
+              final roomPrices = {
+                for (final r in rooms) r.roomNumber: r.price,
+              };
 
               if (guests.isEmpty) {
                 return const Center(
@@ -78,10 +81,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     children: [
                       Icon(Icons.people_outline, size: 64, color: Colors.grey),
                       SizedBox(height: 16),
-                      Text(
-                        'لا يوجد ضيوف مسجلين',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                      Text('لا يوجد ضيوف مسجلين', style: TextStyle(fontSize: 18)),
                       SizedBox(height: 8),
                       Text(
                         'سيتم عرض الضيوف عند إضافة حجوزات',
@@ -116,8 +116,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  List<GuestProfile> _groupGuestsFromBookings(List<Booking> bookings) {
-    final Map<String, GuestProfile> guestMap = {};
+  List<GuestInfo> _groupGuestsFromBookings(List<Booking> bookings) {
+    final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
       if (!StatusUtils.isActiveBooking(booking.status)) continue;
@@ -132,7 +132,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
       final existing = guestMap[key];
       if (existing == null) {
-        guestMap[key] = GuestProfile(
+        guestMap[key] = GuestInfo(
           name: booking.guestName,
           phone: booking.guestPhone,
           email: email,
@@ -184,7 +184,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     return sortedGuests;
   }
 
-  List<GuestProfile> _filterGuests(List<GuestProfile> guests) {
+  List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
     if (_searchQuery.isEmpty) return guests;
 
     return guests.where((guest) {
@@ -221,7 +221,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Widget _buildGuestCard(
     BuildContext context,
-    GuestProfile guest,
+    GuestInfo guest,
     Map<String, double> roomPrices,
   ) {
     final activeBookings = guest.bookings
@@ -230,9 +230,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final lastVisit = guest.bookings.isNotEmpty
         ? guest.bookings.first.checkinDate
         : '';
-    final latestBooking = guest.bookings.isNotEmpty
-        ? guest.bookings.first
-        : null;
+    final latestBooking = guest.bookings.isNotEmpty ? guest.bookings.first : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -292,9 +290,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: const [
                         Icon(Icons.star, size: 12, color: Colors.blue),
                         SizedBox(width: 2),
                         Text(
@@ -376,11 +374,21 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     icon: const Icon(Icons.history, size: 14),
                     label: const Text('السجل', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _editCheckinDate(context, guest),
+                    icon: const Icon(Icons.login, size: 14),
+                    label: const Text('تاريخ الدخول', style: TextStyle(fontSize: 10)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      minimumSize: const Size(0, 32),
+                      backgroundColor: Colors.teal,
                     ),
                   ),
                 ),
@@ -391,10 +399,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                     icon: const Icon(Icons.edit, size: 14),
                     label: const Text('تعديل', style: TextStyle(fontSize: 11)),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -403,19 +408,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteGuest(context, guest),
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      size: 14,
-                      color: Colors.red,
-                    ),
+                    icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
                     label: const Text('حذف', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -457,7 +455,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Widget _buildPricePreview(Booking booking, Map<String, double> roomPrices) {
+  Widget _buildPricePreview(
+    Booking booking,
+    Map<String, double> roomPrices,
+  ) {
     final basePrice = roomPrices[booking.roomNumber];
     if (basePrice == null) {
       return _buildDetailRow('سعر الغرفة', 'غير متوفر', Icons.hotel_class);
@@ -478,7 +479,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
   }
 
-  void _showGuestHistory(BuildContext context, GuestProfile guest) {
+  void _showGuestHistory(BuildContext context, GuestInfo guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -528,7 +529,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  void _showGuestDetails(BuildContext context, GuestProfile guest) {
+  void _showGuestDetails(BuildContext context, GuestInfo guest) {
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -579,18 +580,362 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  Future<void> _editGuest(BuildContext context, GuestProfile guest) async {
+  Future<void> _editCheckinDate(BuildContext context, GuestInfo guest) async {
+    final bookingsRepo = ref.read(bookingsRepoProvider);
+    final db = ref.read(databaseProvider);
+
+    // خريطة: bookingId → تاريخ دخول جديد
+    final Map<int, String> newDates = {};
+    for (final b in guest.bookings) {
+      newDates[b.id] = b.checkinDate;
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text('تعديل تاريخ الدخول - ${guest.name}'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'اختر التاريخ الجديد لكل حجز. سيتم إعادة حساب المبالغ تلقائياً.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 12),
+                  ...guest.bookings.map((booking) {
+                    final current = newDates[booking.id]!;
+                    final currentDate = _parseDate(current);
+                    final isChanged =
+                        current.split('T').first !=
+                        booking.checkinDate.split('T').first;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      StatusUtils.isActiveBooking(
+                                        booking.status,
+                                      )
+                                      ? Colors.green
+                                      : Colors.blueGrey,
+                                  child: Text(
+                                    booking.roomNumber,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'غرفة ${booking.roomNumber} - حجز #${booking.id}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        'الحالة: ${booking.status} • ${booking.calculatedNights} ليلة',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () async {
+                                      final picked = await showDatePicker(
+                                        context: context,
+                                        initialDate: currentDate ?? DateTime.now(),
+                                        firstDate: DateTime(2020),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      if (picked == null) return;
+
+                                      // الحفاظ على الوقت الأصلي إن وجد
+                                      final oldTime =
+                                          booking.checkinDate.contains('T')
+                                          ? booking.checkinDate
+                                              .split('T')[1]
+                                          : '00:00:00';
+                                      final newDateStr =
+                                          '${_dateToString(picked)}T$oldTime';
+
+                                      setDialogState(() {
+                                        newDates[booking.id] = newDateStr;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isChanged
+                                            ? Colors.teal.shade50
+                                            : Colors.grey.shade50,
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isChanged
+                                              ? Colors.teal
+                                              : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.calendar_today,
+                                            size: 16,
+                                            color: isChanged
+                                                ? Colors.teal
+                                                : Colors.grey,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _formatDate(current),
+                                            style: TextStyle(
+                                              fontWeight: isChanged
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                              color: isChanged
+                                                  ? Colors.teal.shade700
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          if (isChanged)
+                                            const Icon(
+                                              Icons.check_circle,
+                                              size: 16,
+                                              color: Colors.teal,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // اختيار الوقت
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () async {
+                                      final currentTime =
+                                          _parseDate(current);
+                                      if (currentTime == null) return;
+                                      final picked =
+                                          await showTimePicker(
+                                        context: context,
+                                        initialTime: TimeOfDay.fromDateTime(
+                                          currentTime,
+                                        ),
+                                      );
+                                      if (picked == null) return;
+
+                                      final datePart =
+                                          current.split('T').first;
+                                      final newDateStr =
+                                          '${datePart}T${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
+
+                                      setDialogState(() {
+                                        newDates[booking.id] = newDateStr;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade50,
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color: Colors.grey[600],
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _formatTime(current),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (isChanged)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 14,
+                                      color: Colors.teal.shade700,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'القديم: ${_formatDate(booking.checkinDate)} → سيتم إعادة الحساب',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.teal.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.save, size: 18),
+                label: const Text('حفظ'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (result != true) return;
+
+    // حفظ التغييرات
+    bool hasChanges = false;
+    try {
+      for (final booking in guest.bookings) {
+        final newDate = newDates[booking.id];
+        if (newDate == null) continue;
+        final dateOnlyNew = newDate.split('T').first;
+        final dateOnlyOld = booking.checkinDate.split('T').first;
+        if (dateOnlyNew == dateOnlyOld &&
+            !_timeChanged(newDate, booking.checkinDate)) {
+          continue;
+        }
+
+        hasChanges = true;
+        await bookingsRepo.update(booking.id, checkinDate: newDate);
+        final derivedService = BookingDerivedFieldsService(db);
+        await derivedService.refreshForBookingId(booking.id);
+      }
+
+      if (hasChanges && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تعديل تاريخ الدخول وإعادة حساب المبالغ بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر تعديل تاريخ الدخول: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  DateTime? _parseDate(String value) {
+    if (value.isEmpty) return null;
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _dateToString(DateTime dt) {
+    return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTime(String dateStr) {
+    try {
+      final dt = DateTime.parse(dateStr);
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '--:--';
+    }
+  }
+
+  bool _timeChanged(String newDate, String oldDate) {
+    try {
+      final newDt = DateTime.parse(newDate);
+      final oldDt = DateTime.parse(oldDate);
+      return newDt.hour != oldDt.hour || newDt.minute != oldDt.minute;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
     );
-    if ((result ?? false) && mounted) {
+    if (result == true && mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 
-  Future<void> _deleteGuest(BuildContext context, GuestProfile guest) async {
+  Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
     final active = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
         .length;
@@ -627,73 +972,15 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final debtsRepo = ref.read(debtsRepoProvider);
       final cashRepo = ref.read(cashRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
-      final db = ref.read(databaseProvider);
 
       for (final b in guest.bookings) {
         final bookingId = b.id;
-        final bookingUuid = b.localUuid;
-
-        // 1. حذف ليالي الحجز (BookingNights)
-        final nights = await (db.select(
-          db.bookingNights,
-        )..where((n) => n.bookingLocalId.equals(bookingId))).get();
-        for (final night in nights) {
-          await (db.delete(
-            db.bookingNights,
-          )..where((n) => n.id.equals(night.id))).go();
-          await db.outboxDao.merge(
-            entity: 'booking_nights',
-            op: 'delete',
-            localUuid: night.localUuid,
-            serverId: night.serverId,
-            payload: {'id': night.id},
-            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          );
-        }
-
-        // 2. حذف تعديلات الأسعار (BookingPriceAdjustments)
-        final adjustments = await (db.select(
-          db.bookingPriceAdjustments,
-        )..where((a) => a.bookingLocalId.equals(bookingId))).get();
-        for (final adj in adjustments) {
-          await (db.delete(
-            db.bookingPriceAdjustments,
-          )..where((a) => a.id.equals(adj.id))).go();
-          await db.outboxDao.merge(
-            entity: 'booking_price_adjustments',
-            op: 'delete',
-            localUuid: adj.localUuid,
-            serverId: adj.serverId,
-            payload: {'id': adj.id},
-            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          );
-        }
-
-        // 3. حذف إلغاءات المدفوعات (PaymentVoids)
-        final voids = await (db.select(
-          db.paymentVoids,
-        )..where((v) => v.bookingUuid.equals(bookingUuid))).get();
-        for (final v in voids) {
-          await (db.delete(
-            db.paymentVoids,
-          )..where((t) => t.id.equals(v.id))).go();
-          await db.outboxDao.merge(
-            entity: 'payment_voids',
-            op: 'delete',
-            localUuid: v.localUuid,
-            serverId: v.serverId,
-            payload: {'id': v.id},
-            clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          );
-        }
-
-        // 4. حذف الملاحظات المرتبطة بالحجز
+        // حذف الملاحظات المرتبطة بالحجز
         final notes = await notesRepo.dao.list(bookingId: bookingId);
         for (final n in notes) {
           await notesRepo.delete(n.id);
         }
-
-        // 5. حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
+        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
         final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
         for (final p in pays) {
           if (p.cashTransactionLocalId != null) {
@@ -701,8 +988,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           }
           await paymentsRepo.delete(p.id);
         }
-
-        // 6. حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
+        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
         final relatedCash = await cashRepo.listByReference(
           referenceType: 'booking',
           referenceId: bookingId,
@@ -710,43 +996,21 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         for (final tx in relatedCash) {
           await cashRepo.delete(tx.id);
         }
-
-        // 7. حذف الديون المرتبطة بالحجز
+        // حذف الديون المرتبطة بالحجز
         final debts = await debtsRepo.listByBookingLocalId(bookingId);
         for (final d in debts) {
           await debtsRepo.delete(d.id);
         }
-
-        // 8. تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
+        // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
         if (b.roomNumber.isNotEmpty) {
           final room = await roomsRepo.watchByNumber(b.roomNumber).first;
           if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
             await roomsRepo.update(room.id, status: 'شاغرة');
           }
         }
-
-        // 9. حذف الحجز نفسه
+        // حذف الحجز نفسه
         await bookingsRepo.delete(bookingId);
       }
-
-      // 10. حذف سجلات الضيف من جدول GuestInfos
-      final guestInfos = await (db.select(
-        db.guestInfos,
-      )..where((g) => g.guestName.equals(guest.name))).get();
-      for (final gi in guestInfos) {
-        await (db.delete(db.guestInfos)..where((g) => g.id.equals(gi.id))).go();
-        await db.outboxDao.merge(
-          entity: 'guest_infos',
-          op: 'delete',
-          localUuid: gi.localUuid,
-          serverId: gi.serverId,
-          payload: {'id': gi.id},
-          clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        );
-      }
-
-      // تشغيل المزامنة فوراً لرفع التغييرات إلى Appwrite Cloud
-      ref.read(syncServiceProvider).runSync();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -9,6 +9,12 @@ import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
 
 class ScreenSyncController {
+  final String screenId;
+  final Duration debounceDelay;
+
+  late final CircuitBreaker _circuitBreaker;
+  late final RetryStrategy _retryStrategy;
+
   ScreenSyncController({
     required this.screenId,
     this.debounceDelay = const Duration(seconds: 15),
@@ -24,11 +30,6 @@ class ScreenSyncController {
 
     _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
   }
-  final String screenId;
-  final Duration debounceDelay;
-
-  late final CircuitBreaker _circuitBreaker;
-  late final RetryStrategy _retryStrategy;
 
   bool _hasChanges = false;
   Timer? _debounceTimer;
@@ -110,9 +111,9 @@ class ScreenSyncController {
 
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
-          return _circuitBreaker.execute(() async {
+          return await _circuitBreaker.execute(() async {
             debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
-            return SmartSyncManager.instance.pushLocalChanges();
+            return await SmartSyncManager.instance.pushLocalChanges();
           });
         },
         shouldRetry: (error) {
@@ -133,7 +134,7 @@ class ScreenSyncController {
         },
       );
 
-      if (success ?? false) {
+      if (success == true) {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
         debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
@@ -171,7 +172,7 @@ class ScreenSyncController {
   Future<bool> syncOnExit() async {
     debugPrint('🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
-    return syncNow();
+    return await syncNow();
   }
 
   Map<String, dynamic> getHealthStatus() {

@@ -9,9 +9,9 @@ import 'appwrite_network_helper.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
+  static final AppwriteService _instance = AppwriteService._internal();
   factory AppwriteService() => _instance;
   AppwriteService._internal();
-  static final AppwriteService _instance = AppwriteService._internal();
 
   late final Client _client;
   late final Databases _databases;
@@ -23,40 +23,23 @@ class AppwriteService {
   final _networkHelper = AppwriteNetworkHelper();
 
   bool _initialized = false;
-  String _lastEndpoint = '';
-  String _lastProjectId = '';
-  /// Cache للتأكد من عدم تشغيل initialize() المتزامنة عدة مرات
-  Future<void>? _initFuture;
 
   /// Getter للوصول إلى Client من الخارج إذا لزم الأمر
   Client get client => _client;
   Databases get databases => _databases;
-  bool get isInitialized => _initialized;
 
-  /// التهيئة — آمنة للاستدعاء المتعدد
-  /// يعيد بناء الـ Client إذا تغيرت endpoint أو projectId
-  ///
-  /// ⚠️ ينتظر اكتمال تحميل الإعدادات من AppwriteConfigManager.ready
-  /// قبل بناء الـ Client، مما يمنع استخدام القيم الافتراضية الخطأ.
+  /// التهيئة الأولية
   Future<void> initialize() async {
-    // ✅ بوابة أمان — ننتظر حتى تكتمل تحميل الإعدادات
-    await AppwriteConfigManager.ready;
+    if (_initialized) return;
 
     final endpoint = AppwriteConfigManager.endpoint;
     final projectId = AppwriteConfigManager.projectId;
     final apiKey = AppwriteConfigManager.apiKey;
 
-    // إعادة بناء الـ Client إذا تغيرت الإعدادات
-    if (_initialized && _lastEndpoint == endpoint && _lastProjectId == projectId) {
-      return;
-    }
-
     _client = Client().setEndpoint(endpoint).setProject(projectId);
     if (apiKey.isNotEmpty) {
       _client.addHeader('X-Appwrite-Key', apiKey);
     }
-    _lastEndpoint = endpoint;
-    _lastProjectId = projectId;
 
     // إزالة selfSigned في الإنتاج، مفيدة للتطوير
     // _client.setSelfSigned(status: true);
@@ -66,16 +49,12 @@ class AppwriteService {
     _logger.info('AppwriteService initialized', tag: 'INIT');
   }
 
-  /// يضمن أن الخدمة مهيأة قبل أي عملية CRUD.
-  ///
-  /// ⚠️ إذا كانت هذه أول مرة تُستدعى، ينتظر اكتمال التهيئة فعلياً
-  /// بدلاً من إطلاقها بدون انتظار (كان يسبب LateInitializationError).
-  ///
-  /// يستخدم _initFuture كـ cache لمنع تشغيل initialize() المتزامنة عدة مرات.
-  Future<void> _ensureInitialized() async {
-    if (_initialized) return;
-    _initFuture ??= initialize();
-    await _initFuture;
+  void _ensureInitialized() {
+    if (!_initialized) {
+      initialize();
+      // أو رمي استثناء إذا كان يجب أن تكون مهيأة مسبقاً
+      // throw Exception('AppwriteService not initialized');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -121,7 +100,7 @@ class AppwriteService {
 
     final allDocuments = <models.Document>[];
     int pageOffset = 0;
-    const pageSize = AppwriteConfig.maxPageSize;
+    final pageSize = AppwriteConfig.maxPageSize;
 
     while (true) {
       final pagedQueries = _applyPagingQueries(
@@ -179,7 +158,7 @@ class AppwriteService {
     required String collectionId,
     List<String>? queries,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
 
     try {
       final documents = await listAllDocuments(
@@ -223,8 +202,8 @@ class AppwriteService {
     required String collectionId,
     List<String>? queries,
     bool useCache = true,
-  }) async {
-    await _ensureInitialized();
+  }) {
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: collectionId,
       queries: queries ?? [],
@@ -237,190 +216,31 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    final cleanData = Map<String, dynamic>.from(data);
+    final dbId = AppwriteConfigManager.databaseId;
 
-    // ✅ إزالة حقل id فقط للمجموعات التي لا تتطلبه (required=true في Appwrite)
-    const entitiesRequiringId = {'guest_infos'};
-    if (!entitiesRequiringId.contains(collectionId)) {
-      cleanData.remove('id');
-    }
-
-    final localUuid = cleanData['localUuid']?.toString() ?? documentId;
-
-    // 1. محاولة جلب المستند الحالي للتحقق من التعارض (Optimistic Concurrency Control)
+    // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
     try {
-      final existing = await _databases.getDocument(
-        databaseId: AppwriteConfigManager.databaseId,
+      return await _databases.updateDocument(
+        databaseId: dbId,
         collectionId: collectionId,
         documentId: documentId,
-      );
-
-      // 2. التحقق مما إذا كان المحلي أحدث من البعيد
-      final shouldUpdate = _shouldUpdateRemote(existing.data, cleanData);
-
-      if (!shouldUpdate) {
-        _logger.info(
-          'Skipping update for $collectionId/$documentId: Remote is newer or concurrent',
-          tag: 'SYNC',
-        );
-        return existing; // نعتبر العملية ناجحة ولكن لم نغير شيئاً
-      }
-
-      // 3. التحديث إذا كان المحلي أحدث
-      return await _networkHelper.withRetryAndTimeout(
-        operation: () => _databases.updateDocument(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: cleanData,
-        ),
-        operationName: 'updateDocument',
+        data: data,
       );
     } on AppwriteException catch (e) {
-      // 404 Not Found -> البحث بـ localUuid أولاً ثم إنشاء مستند جديد
-      if (e.code == 404) {
-        // ✅ البحث عن المستند بـ localUuid (قد يكون document ID مختلف)
-        try {
-          final searchResult = await _databases.listDocuments(
-            databaseId: AppwriteConfigManager.databaseId,
+      // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
+      if (e.code == 404 || e.toString().contains('document_not_found')) {
+        return await _networkHelper.withRetryAndTimeout(
+          operation: () => _databases.createDocument(
+            databaseId: dbId,
             collectionId: collectionId,
-            queries: [Query.equal('localUuid', localUuid)],
-          );
-
-          if (searchResult.documents.isNotEmpty) {
-            // وجدنا المستند بـ document ID مختلف - استخدمه للتحديث
-            final actualDocId = searchResult.documents.first.$id;
-            _logger.info(
-              'Found document by localUuid, actual ID: $actualDocId (requested: $documentId)',
-              tag: 'SYNC',
-            );
-
-            final shouldUpdate = _shouldUpdateRemote(
-              searchResult.documents.first.data,
-              cleanData,
-            );
-
-            if (!shouldUpdate) {
-              return searchResult.documents.first;
-            }
-
-            return await _networkHelper.withRetryAndTimeout(
-              operation: () => _databases.updateDocument(
-                databaseId: AppwriteConfigManager.databaseId,
-                collectionId: collectionId,
-                documentId: actualDocId,
-                data: cleanData,
-              ),
-              operationName: 'updateDocument(found_by_localUuid)',
-            );
-          }
-        } catch (searchError) {
-          _logger.debug(
-            'Search by localUuid failed: $searchError',
-            tag: 'SYNC',
-          );
-        }
-
-        // لم نجد المستند - إنشاء جديد
-        try {
-          return await _networkHelper.withRetryAndTimeout(
-            operation: () => _databases.createDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: collectionId,
-              documentId: documentId,
-              data: cleanData,
-            ),
-            operationName: 'createDocument',
-          );
-        } on AppwriteException catch (createError) {
-          // ✅ إذا كان المستند موجوداً بالفعل، نحاول البحث عنه مرة أخرى ثم التحديث
-          if (createError.code == 409 ||
-              (createError.message?.contains('document_already_exists') ??
-                  false)) {
-            _logger.info(
-              'Document $documentId already exists (race condition), searching again...',
-              tag: 'SYNC',
-            );
-
-            // البحث عن المستند بـ localUuid
-            try {
-              final searchResult = await _databases.listDocuments(
-                databaseId: AppwriteConfigManager.databaseId,
-                collectionId: collectionId,
-                queries: [Query.equal('localUuid', localUuid)],
-              );
-
-              if (searchResult.documents.isNotEmpty) {
-                final actualDocId = searchResult.documents.first.$id;
-                return await _networkHelper.withRetryAndTimeout(
-                  operation: () => _databases.updateDocument(
-                    databaseId: AppwriteConfigManager.databaseId,
-                    collectionId: collectionId,
-                    documentId: actualDocId,
-                    data: cleanData,
-                  ),
-                  operationName: 'updateDocument(fallback)',
-                );
-              }
-            } catch (_) {}
-          }
-          rethrow;
-        }
+            documentId: documentId,
+            data: data,
+          ),
+          operationName: 'createDocument',
+        );
       }
       rethrow;
     }
-  }
-
-  /// تحديد ما إذا كان يجب تحديث المستند البعيد بناءً على البيانات المحلية القادمة
-  bool _shouldUpdateRemote(
-    Map<String, dynamic> remote,
-    Map<String, dynamic> local,
-  ) {
-    // 1. استخدام Vector Clock إذا توفر
-    final remoteClockStr =
-        remote['vectorClock']?.toString() ?? remote['vector_clock']?.toString();
-    final localClockStr =
-        local['vectorClock']?.toString() ?? local['vector_clock']?.toString();
-
-    if (remoteClockStr != null && localClockStr != null) {
-      try {
-        // نستخدم التنسيق البسيط للمقارنة إذا لم نرد استيراد VectorClock هنا
-        // أو يمكننا استيراده إذا كان متاحاً في هذا المجلد
-        // للموثوقية، سنفترض أننا نريد تحديث البعيد فقط إذا كان المحلي أحدث
-        // بناءً على الطوابع الزمنية كحل احتياطي قوي
-      } catch (e) {
-        // فشل التحليل
-      }
-    }
-
-    // 2. استخدام الطوابع الزمنية (updatedAt / lastModified)
-    final remoteTs = _extractTs(remote);
-    final localTs = _extractTs(local);
-
-    if (remoteTs != null && localTs != null) {
-      return localTs > remoteTs;
-    }
-
-    // 3. افتراضياً، نحدث إذا لم تتوفر معلومات المقارنة
-    return true;
-  }
-
-  /// استخراج الطابع الزمني من البيانات
-  int? _extractTs(Map<String, dynamic> data) {
-    final ts =
-        data['updatedAt'] ??
-        data['updated_at'] ??
-        data['lastModified'] ??
-        data['last_modified'] ??
-        data['lastModifiedEpoch'] ??
-        data['last_modified_epoch'];
-
-    if (ts is int) return ts;
-    if (ts is String) {
-      final parsed = DateTime.tryParse(ts);
-      if (parsed != null) return parsed.millisecondsSinceEpoch;
-    }
-    return null;
   }
 
   Future<void> _deleteDocumentInternal({
@@ -428,8 +248,6 @@ class AppwriteService {
     required String documentId,
   }) async {
     try {
-      // نستخدم withTimeout بدلاً من withRetryAndTimeout لأن 404 ليس خطأ يحتاج إعادة محاولة
-      // والـ NetworkHelper الآن سيتعامل مع الـ 404 كخطأ غير قابل لإعادة المحاولة
       await _networkHelper.withRetryAndTimeout(
         operation: () => _databases.deleteDocument(
           databaseId: AppwriteConfigManager.databaseId,
@@ -438,14 +256,9 @@ class AppwriteService {
         ),
         operationName: 'deleteDocument',
       );
-    } catch (e) {
-      // إذا كان الخطأ هو 404 (document_not_found)، نتجاهله لأنه يعني أن المستند محذوف بالفعل
-      final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('404') || errorStr.contains('document_not_found')) {
-        _logger.debug(
-          'Document $documentId already deleted from $collectionId',
-          tag: 'CRUD',
-        );
+    } on AppwriteException catch (e) {
+      if (e.code == 404) {
+        // Already deleted, ignore
         return;
       }
       rethrow;
@@ -461,7 +274,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.roomsCollectionId,
       queries: queries ?? [],
@@ -473,7 +286,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.roomsCollectionId,
       documentId: documentId,
@@ -482,7 +295,7 @@ class AppwriteService {
   }
 
   Future<void> deleteRoom(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.roomsCollectionId,
       documentId: documentId,
@@ -494,7 +307,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingsCollectionId,
       queries: queries ?? [],
@@ -506,7 +319,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.bookingsCollectionId,
       documentId: documentId,
@@ -515,7 +328,7 @@ class AppwriteService {
   }
 
   Future<void> deleteBooking(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.bookingsCollectionId,
       documentId: documentId,
@@ -527,7 +340,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.employeesCollectionId,
       queries: queries ?? [],
@@ -539,7 +352,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.employeesCollectionId,
       documentId: documentId,
@@ -548,7 +361,7 @@ class AppwriteService {
   }
 
   Future<void> deleteEmployee(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.employeesCollectionId,
       documentId: documentId,
@@ -560,7 +373,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.expensesCollectionId,
       queries: queries ?? [],
@@ -572,7 +385,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.expensesCollectionId,
       documentId: documentId,
@@ -581,7 +394,7 @@ class AppwriteService {
   }
 
   Future<void> deleteExpense(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.expensesCollectionId,
       documentId: documentId,
@@ -593,7 +406,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.paymentsCollectionId,
       queries: queries ?? [],
@@ -605,7 +418,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.paymentsCollectionId,
       documentId: documentId,
@@ -614,7 +427,7 @@ class AppwriteService {
   }
 
   Future<void> deletePayment(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.paymentsCollectionId,
       documentId: documentId,
@@ -626,7 +439,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.debtsCollectionId,
       queries: queries ?? [],
@@ -638,7 +451,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.debtsCollectionId,
       documentId: documentId,
@@ -647,7 +460,7 @@ class AppwriteService {
   }
 
   Future<void> deleteDebt(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.debtsCollectionId,
       documentId: documentId,
@@ -659,7 +472,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.shiftNotesCollectionId,
       queries: queries ?? [],
@@ -671,7 +484,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.shiftNotesCollectionId,
       documentId: documentId,
@@ -680,7 +493,7 @@ class AppwriteService {
   }
 
   Future<void> deleteShiftNote(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.shiftNotesCollectionId,
       documentId: documentId,
@@ -692,7 +505,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingNotesCollectionId,
       queries: queries ?? [],
@@ -704,7 +517,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.bookingNotesCollectionId,
       documentId: documentId,
@@ -713,7 +526,7 @@ class AppwriteService {
   }
 
   Future<void> deleteBookingNote(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.bookingNotesCollectionId,
       documentId: documentId,
@@ -725,7 +538,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingNightsCollectionId,
       queries: queries ?? [],
@@ -737,7 +550,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.bookingNightsCollectionId,
       documentId: documentId,
@@ -746,7 +559,7 @@ class AppwriteService {
   }
 
   Future<void> deleteBookingNight(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.bookingNightsCollectionId,
       documentId: documentId,
@@ -758,7 +571,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.cashTransactionsCollectionId,
       queries: queries ?? [],
@@ -770,7 +583,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.cashTransactionsCollectionId,
       documentId: documentId,
@@ -779,7 +592,7 @@ class AppwriteService {
   }
 
   Future<void> deleteCashTransaction(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.cashTransactionsCollectionId,
       documentId: documentId,
@@ -791,7 +604,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.salaryCyclesCollectionId,
       queries: queries ?? [],
@@ -803,7 +616,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.salaryCyclesCollectionId,
       documentId: documentId,
@@ -812,7 +625,7 @@ class AppwriteService {
   }
 
   Future<void> deleteSalaryCycle(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.salaryCyclesCollectionId,
       documentId: documentId,
@@ -824,7 +637,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.salaryPaymentsCollectionId,
       queries: queries ?? [],
@@ -836,7 +649,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.salaryPaymentsCollectionId,
       documentId: documentId,
@@ -845,19 +658,52 @@ class AppwriteService {
   }
 
   Future<void> deleteSalaryPayment(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.salaryPaymentsCollectionId,
       documentId: documentId,
     );
   }
 
-  // Salary Withdrawals
+  // GuestInfos
+  Future<List<models.Document>> listGuestInfos({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertGuestInfo(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteGuestInfo(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // SalaryWithdrawals
   Future<List<models.Document>> listSalaryWithdrawals({
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       queries: queries ?? [],
@@ -869,7 +715,7 @@ class AppwriteService {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: documentId,
@@ -878,9 +724,42 @@ class AppwriteService {
   }
 
   Future<void> deleteSalaryWithdrawal(String documentId) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Blacklist
+  Future<List<models.Document>> listBlacklist({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.blacklistCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertBlacklist(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.blacklistCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteBlacklist(String documentId) async {
+    _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.blacklistCollectionId,
       documentId: documentId,
     );
   }
@@ -891,7 +770,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: collectionId,
       queries: queries ?? [],
@@ -903,7 +782,7 @@ class AppwriteService {
     required String collectionId,
     required String documentId,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: collectionId,
       documentId: documentId,
@@ -915,7 +794,7 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _ensureInitialized();
+    _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: collectionId,
       documentId: documentId,
@@ -926,7 +805,7 @@ class AppwriteService {
   /// اختبار اتصال سريع (قراءة فقط)
   Future<bool> quickConnectionTest() async {
     try {
-      await _ensureInitialized();
+      _ensureInitialized();
 
       await _networkHelper.withTimeout(
         operation: () => _databases.listDocuments(
@@ -949,95 +828,71 @@ class AppwriteService {
     }
   }
 
-  /// اختبار شامل للاتصال (قراءة وكتابة وحذف)
+  /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
   Future<Map<String, dynamic>> fullConnectionTest() async {
     final results = <String, dynamic>{
       'tests': <String, dynamic>{},
       'overall_success': false,
     };
 
-    await _ensureInitialized();
-
-    const testCollection = AppwriteConfig.syncLogsCollectionId;
-    final testDocumentId = ID.unique();
-    final now = DateTime.now().millisecondsSinceEpoch;
+    _ensureInitialized();
 
     try {
-      // 1. اختبار الاتصال الأساسي (Ping)
-      results['tests']['ping'] = await quickConnectionTest();
-
-      // 2. اختبار الكتابة (Create)
-
+      // 1. اختبار الاتصال الأساسي (Ping) - listDocuments على rooms
       try {
         await _networkHelper.withTimeout(
-          operation: () => _databases.createDocument(
+          operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
-            collectionId: testCollection,
-            documentId: testDocumentId,
-            data: {
-              'localUuid': testDocumentId,
-              'deviceId': 'connection_test',
-              'syncType': 'test',
-              'startTime': DateTime.now().toIso8601String(),
-              'status': 'test',
-              'timestamp': now,
-              'createdAt': now,
-              'updatedAt': now,
-              'lastModified': now,
-            },
+            collectionId: AppwriteConfig.roomsCollectionId,
+            queries: [Query.limit(1)],
           ),
-          operationName: 'createDocument(Test)',
+          operationName: 'listDocuments(rooms)',
           timeout: const Duration(seconds: 10),
         );
-        results['tests']['write'] = true;
+        results['tests']['rooms'] = true;
       } catch (e) {
-        results['tests']['write'] = false;
-        results['tests']['write_error'] = e.toString();
+        results['tests']['rooms'] = false;
+        results['tests']['rooms_error'] = e.toString();
       }
 
-      // 3. اختبار القراءة (Read)
-      if (results['tests']['write'] == true) {
-        try {
-          await _networkHelper.withTimeout(
-            operation: () => _databases.getDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: testCollection,
-              documentId: testDocumentId,
-            ),
-            operationName: 'getDocument(Test)',
-            timeout: const Duration(seconds: 5),
-          );
-          results['tests']['read'] = true;
-        } catch (e) {
-          results['tests']['read'] = false;
-          results['tests']['read_error'] = e.toString();
-        }
-
-        // 4. اختبار الحذف (Delete)
-        try {
-          await _networkHelper.withTimeout(
-            operation: () => _databases.deleteDocument(
-              databaseId: AppwriteConfigManager.databaseId,
-              collectionId: testCollection,
-              documentId: testDocumentId,
-            ),
-            operationName: 'deleteDocument(Test)',
-            timeout: const Duration(seconds: 5),
-          );
-          results['tests']['delete'] = true;
-        } catch (e) {
-          results['tests']['delete'] = false;
-          results['tests']['delete_error'] = e.toString();
-        }
+      // 2. اختبار القراءة من bookings
+      try {
+        await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.bookingsCollectionId,
+            queries: [Query.limit(1)],
+          ),
+          operationName: 'listDocuments(bookings)',
+          timeout: const Duration(seconds: 5),
+        );
+        results['tests']['bookings'] = true;
+      } catch (e) {
+        results['tests']['bookings'] = false;
+        results['tests']['bookings_error'] = e.toString();
       }
 
-      // حساب الحالة النهائية
+      // 3. اختبار القراءة من devices
+      try {
+        await _networkHelper.withTimeout(
+          operation: () => _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.devicesCollectionId,
+            queries: [Query.limit(1)],
+          ),
+          operationName: 'listDocuments(devices)',
+          timeout: const Duration(seconds: 5),
+        );
+        results['tests']['devices'] = true;
+      } catch (e) {
+        results['tests']['devices'] = false;
+        results['tests']['devices_error'] = e.toString();
+      }
+
+      // حساب الحالة النهائية - ping يعتمد على rooms فقط
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] =
-          tests['ping'] == true &&
-          (tests['write'] == true || tests['write'] == null) &&
-          (tests['read'] == true || tests['read'] == null) &&
-          (tests['delete'] == true || tests['delete'] == null);
+      results['overall_success'] = tests['rooms'] == true;
+      results['tests']['ping'] = tests['rooms'];
 
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
@@ -1058,35 +913,22 @@ class AppwriteService {
       results['overall_success'] = false;
       results['error'] = e.toString();
       return results;
-    } finally {
-      // تنظيف (في حالة بقاء المستند)
-      if (results['tests'] != null &&
-          (results['tests'] as Map)['write'] == true &&
-          (results['tests'] as Map)['delete'] != true) {
-        try {
-          const testCollection = AppwriteConfig.syncLogsCollectionId;
-          await _databases.deleteDocument(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: testCollection,
-            documentId: testDocumentId,
-          );
-        } catch (_) {
-          // Ignore cleanup errors
-        }
-      }
     }
   }
 
   /// اختبار الاتصال (alias لـ fullConnectionTest)
   Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
 
+  /// Getter للتحقق من حالة التهيئة
+  bool get isInitialized => _initialized;
+
   /// قراءة مستند واحد
   Future<models.Document> getDocument({
     required String collectionId,
     required String documentId,
   }) async {
-    await _ensureInitialized();
-    return _networkHelper.withTimeout(
+    _ensureInitialized();
+    return await _networkHelper.withTimeout(
       operation: () => _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -1102,8 +944,8 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _ensureInitialized();
-    return _networkHelper.withTimeout(
+    _ensureInitialized();
+    return await _networkHelper.withTimeout(
       operation: () => _databases.createDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -1120,8 +962,8 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _ensureInitialized();
-    return _networkHelper.withTimeout(
+    _ensureInitialized();
+    return await _networkHelper.withTimeout(
       operation: () => _databases.updateDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -1134,7 +976,7 @@ class AppwriteService {
 
   /// إنشاء سجل مزامنة
   Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
-    return createDocument(
+    return await createDocument(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       documentId: data['localUuid'] ?? 'ID.unique()',
       data: data,
@@ -1146,7 +988,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listDocuments(
+    return await listDocuments(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       queries: queries,
       useCache: useCache,
@@ -1155,7 +997,7 @@ class AppwriteService {
 
   /// إنشاء جهاز
   Future<models.Document> createDevice(Map<String, dynamic> data) async {
-    return createDocument(
+    return await createDocument(
       collectionId: AppwriteConfig.devicesCollectionId,
       documentId: data['localUuid'] ?? 'ID.unique()',
       data: data,
@@ -1167,7 +1009,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listDocuments(
+    return await listDocuments(
       collectionId: AppwriteConfig.devicesCollectionId,
       queries: queries,
       useCache: useCache,

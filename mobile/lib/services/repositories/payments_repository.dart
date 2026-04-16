@@ -5,6 +5,8 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../auto_backup_manager.dart';
+import '../lark/lark_notification_service.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../../utils/time.dart';
 
 class PaymentsRepository {
@@ -52,6 +54,7 @@ class PaymentsRepository {
     String? notes,
     required String paymentMethod,
     required String revenueType,
+    bool isPendingBalance = false,
   }) async {
     final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
 
@@ -75,6 +78,7 @@ class PaymentsRepository {
         revenueType: d.Value(revenueType),
         hotelDayKey: d.Value(hotelDayKey),
         bookingUuidCache: d.Value(bookingUuidCache),
+        isPendingBalance: d.Value(isPendingBalance),
       ),
     );
     if (bookingLocalId != null) {
@@ -85,7 +89,39 @@ class PaymentsRepository {
       'INSERT',
       recordData: {'amount': amount},
     );
+    // إشعار Lark عند استلام دفعة (fire-and-forget)
+    _notifyLarkPayment(roomNumber, amount, paymentMethod, bookingLocalId);
     return result;
+  }
+
+  /// إرسال إشعار Lark عند استلام دفعة
+  void _notifyLarkPayment(
+    String? roomNumber,
+    double amount,
+    String paymentMethod,
+    int? bookingLocalId,
+  ) {
+    // الحصول على اسم الضيف والمبلغ المتبقي بشكل غير متزامن
+    if (bookingLocalId == null) return;
+    (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId)))
+        .getSingleOrNull()
+        .then((booking) {
+      if (booking == null) return;
+      LarkNotificationService.instance.notifyPayment(
+        roomNumber: roomNumber ?? booking.roomNumber,
+        guestName: booking.guestName,
+        amount: amount,
+        paymentMethod: paymentMethod,
+        remaining: booking.remainingBalanceCached,
+      );
+      TelegramNotificationService.instance.notifyPayment(
+        roomNumber: roomNumber ?? booking.roomNumber,
+        guestName: booking.guestName,
+        amount: amount,
+        paymentMethod: paymentMethod,
+        remaining: booking.remainingBalanceCached,
+      );
+    });
   }
 
   Future<int> update(
@@ -98,6 +134,7 @@ class PaymentsRepository {
     String? notes,
     String? paymentMethod,
     String? revenueType,
+    bool? isPendingBalance,
   }) async {
     final before = await (db.select(
       db.payments,
@@ -132,6 +169,9 @@ class PaymentsRepository {
             : const d.Value.absent(),
         hotelDayKey: hotelDayKey != null
             ? d.Value(hotelDayKey)
+            : const d.Value.absent(),
+        isPendingBalance: isPendingBalance != null
+            ? d.Value(isPendingBalance)
             : const d.Value.absent(),
       ),
     );
@@ -203,7 +243,7 @@ class PaymentsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return dao.getRecordCount();
+    return await dao.getRecordCount();
   }
 
   /// الحصول على إجمالي المدفوعات لتاريخ محدد

@@ -225,7 +225,7 @@ class SafeDatabaseOperations {
   }
 
   static Future<bool> isConnectionHealthy() async {
-    return _healthChecker.ensureHealthy();
+    return await _healthChecker.ensureHealthy();
   }
 
   static Stream<DatabaseHealth> watchHealth() {

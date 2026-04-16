@@ -36,10 +36,8 @@ class BookingDerivedFieldsService {
   }) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
-    final calculation = await calcService.calculateForBooking(
-      booking,
-      now: moment,
-    );
+    final calculation =
+        await calcService.calculateForBooking(booking, now: moment);
 
     await calcService.updateNightlyRecords(
       booking,
@@ -50,10 +48,16 @@ class BookingDerivedFieldsService {
 
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
+    
+    // For active bookings (no actual checkout), expectedNights should dynamically 
+    // grow with the current time (totalNights from calculation which uses moment).
+    // This ensures payment screens show the correct number of nights if they stay past 14:00.
     final expectedNightsValue =
-        plannedCheckout != null && actualCheckout == null
+        (actualCheckout == null && StatusUtils.isBookingActive(booking))
         ? calculation.financialSummary.totalNights
-        : booking.expectedNights;
+        : (plannedCheckout != null && actualCheckout == null
+            ? calculation.financialSummary.totalNights
+            : booking.expectedNights);
 
     final isOverdue =
         calculation.bookingActive &&
@@ -101,15 +105,14 @@ class BookingDerivedFieldsService {
 
   Future<int> refreshAllActiveBookings({DateTime? now}) async {
     final moment = now ?? DateTime.now();
-    final activeBookings =
-        await (db.select(db.bookings)
-              ..where(
-                (b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''),
-              )
-              ..where((b) => b.deletedAt.isNull()))
-            .get();
+    final activeBookings = await (db.select(db.bookings)
+          ..where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
+          ..where((b) => b.deletedAt.isNull()))
+        .get();
 
-    final active = activeBookings.where(StatusUtils.isBookingActive).toList();
+    final active = activeBookings
+        .where((b) => StatusUtils.isBookingActive(b))
+        .toList();
 
     int refreshed = 0;
     int promoted = 0;
@@ -136,9 +139,8 @@ class BookingDerivedFieldsService {
   }
 
   Future<void> _promoteProvisionalBooking(int bookingId) async {
-    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
-      const BookingsCompanion(status: d.Value('محجوزة')),
-    );
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId)))
+        .write(const BookingsCompanion(status: d.Value('محجوزة')));
   }
 
   // ignore: unused_element
@@ -285,7 +287,6 @@ class BookingDerivedFieldsService {
     });
   }
 
-  /// ✅ تم إصلاح هذه الدالة لدعم أنواع التخفيض المختلفة بشكل صحيح
   double _calculateNightlyRate(
     DateTime segmentStart,
     double baseRate,
@@ -295,61 +296,21 @@ class BookingDerivedFieldsService {
   ) {
     if (baseRate < 0) baseRate = 0;
     var rate = baseRate;
-
-    if (discount > 0) {
-      // التحقق من تاريخ بدء التخفيض
-      final segDay = DateTime(
-        segmentStart.year,
-        segmentStart.month,
-        segmentStart.day,
-      );
-
-      bool shouldApplyDiscount = true;
-      if (discountStartDate != null) {
+    if (discount > 0 && discountType != 'total') {
+      final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
+      if (discountStartDate == null) {
+        rate = (baseRate - discount).clamp(0.0, baseRate);
+      } else {
         final discountDay = DateTime(
           discountStartDate.year,
           discountStartDate.month,
           discountStartDate.day,
         );
-        shouldApplyDiscount = !segDay.isBefore(discountDay);
-      }
-
-      if (shouldApplyDiscount) {
-        // تحويل نوع التخفيض إلى lowercase للمقارنة الآمنة
-        final normalizedType = discountType.toLowerCase().trim();
-
-        switch (normalizedType) {
-          case 'percentage':
-          case 'percent':
-          case '%':
-          case 'نسبة':
-          case 'نسبة مئوية':
-            // ✅ خصم نسبي: مثلاً 20% من 15,000 = 3,000
-            final discountAmount = baseRate * (discount / 100);
-            rate = (baseRate - discountAmount).clamp(0.0, baseRate);
-
-          case 'fixed':
-          case 'amount':
-          case 'value':
-          case 'ثابت':
-          case 'مبلغ':
-          case 'مبلغ ثابت':
-            // ✅ خصم ثابت: مثلاً 3,000 من 15,000 = 12,000
-            rate = (baseRate - discount.toDouble()).clamp(0.0, baseRate);
-
-          case 'total':
-          case 'المجموع':
-          case 'اجمالي':
-            // خصم من المجموع الكلي (يتم حسابه في مكان آخر، لا نطبق هنا)
-            break;
-
-          default:
-            // ✅ افتراضياً: خصم ثابت للتوافق مع البيانات القديمة
-            rate = (baseRate - discount.toDouble()).clamp(0.0, baseRate);
+        if (!segDay.isBefore(discountDay)) {
+          rate = (baseRate - discount).clamp(0.0, baseRate);
         }
       }
     }
-
     return rate;
   }
 
@@ -376,7 +337,9 @@ class BookingDerivedFieldsService {
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
+    final withSeconds = normalized.length == 16
+        ? '${normalized}:00'
+        : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -391,45 +354,38 @@ class BookingDerivedFieldsService {
   }) {
     final segments = <_NightSegment>[];
 
-    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
+    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
 
-    // ═══════════════════════════════════════════════════════════════
-    // FIX: Use hotel day keys for accurate night counting.
-    // See enhanced_booking_calculation_service.dart for details.
-    // ═══════════════════════════════════════════════════════════════
-    final checkinHotelDay = Time.hotelDayKey(now: checkin, cutoffHour: cutoffHour);
-    final checkoutHotelDay = Time.hotelDayKey(now: checkout, cutoffHour: cutoffHour);
-
-    final startHotelDay = DateTime.parse(checkinHotelDay);
-    final endHotelDay = DateTime.parse(checkoutHotelDay);
-    int days = endHotelDay.difference(startHotelDay).inDays + 1; // +1 for inclusive count
-    if (days < 1) days = 1;
-
-    for (int i = 0; i < days; i++) {
-      final dayDate = checkinDate.add(Duration(days: i));
-      final dayKey = Time.dateToString(dayDate);
-
-      final segStart = i == 0 ? checkin : dayDate;
-      final nextDay = dayDate.add(const Duration(days: 1));
-      final segEnd = i == days - 1
-          ? (checkout.isAfter(segStart)
-                ? checkout
-                : segStart.add(const Duration(minutes: 1)))
-          : nextDay;
-
-      segments.add(
-        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
-      );
+    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      cutoffHour,
+    );
+    if (checkin.isBefore(startOfCheckinHotelDay)) {
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
     }
 
-    if (segments.isEmpty) {
+    for (int i = 0; i < totalNights; i++) {
+      final dayDate = startOfCheckinHotelDay.add(Duration(days: i));
+      final dayKey = Time.dateToString(dayDate);
+      
+      // بداية الشريحة: وقت الوصول الفعلي لأول شريحة، أو بداية يوم الفندق للشرائح التالية
+      final segStart = i == 0 ? checkin : dayDate;
+      
+      // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
+      final nextHotelDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == totalNights - 1
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          : nextHotelDay;
+
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(checkin),
-          start: checkin,
-          end: checkout.isAfter(checkin)
-              ? checkout
-              : checkin.add(const Duration(minutes: 1)),
+          hotelDayKey: dayKey,
+          start: segStart,
+          end: segEnd,
         ),
       );
     }

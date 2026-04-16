@@ -4,6 +4,8 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
+import '../lark/lark_notification_service.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 
@@ -71,14 +73,43 @@ class BookingsRepository {
         discountStartDate: d.Value(discountStartDate),
       ),
     );
-
+    await syncLegacyDiscountToAdjustments(result);
     await derivedFields.refreshForBookingId(result);
     AutoBackupManager.instance.onDataChange(
       'bookings',
       'INSERT',
       recordData: {'id': result},
     );
+    // إشعار Lark (غير متزامن — لا يبطئ العملية)
+    _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
     return result;
+  }
+
+  /// إرسال إشعار Lark و Telegram لحجز جديد (fire-and-forget)
+  void _notifyLarkNewBooking(
+    String roomNumber,
+    String guestName,
+    String? guestPhone,
+    String? checkinDate,
+    String? checkoutDate,
+    int expectedNights,
+  ) {
+    LarkNotificationService.instance.notifyNewBooking(
+      roomNumber: roomNumber,
+      guestName: guestName,
+      guestPhone: guestPhone,
+      checkinDate: checkinDate,
+      checkoutDate: checkoutDate,
+      nights: expectedNights,
+    );
+    TelegramNotificationService.instance.notifyNewBooking(
+      roomNumber: roomNumber,
+      guestName: guestName,
+      guestPhone: guestPhone,
+      checkinDate: checkinDate,
+      checkoutDate: checkoutDate,
+      nights: expectedNights,
+    );
   }
 
   Future<int> update(
@@ -164,14 +195,60 @@ class BookingsRepository {
       ),
     );
     if (result > 0) {
+      await syncLegacyDiscountToAdjustments(id);
       await derivedFields.refreshForBookingId(id);
       AutoBackupManager.instance.onDataChange(
         'bookings',
         'UPDATE',
         recordData: {'id': id},
       );
+      // إشعار Lark عند تغيير حالة الحجز (fire-and-forget)
+      _notifyLarkBookingUpdate(id, status);
     }
     return result;
+  }
+
+  /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
+  void _notifyLarkBookingUpdate(int bookingId, String? newStatus) {
+    if (newStatus == null) return;
+    // الحصول على بيانات الحجز بشكل غير متزامن
+    dao.getById(bookingId).then((booking) {
+      if (booking == null) return;
+      switch (newStatus) {
+        case 'نشط':
+          LarkNotificationService.instance.notifyCheckIn(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          );
+          TelegramNotificationService.instance.notifyCheckIn(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          );
+          break;
+        case 'شاغرة':
+          if (booking.actualCheckout != null) {
+            LarkNotificationService.instance.notifyCheckOut(
+              roomNumber: booking.roomNumber,
+              guestName: booking.guestName,
+              actualNights: booking.calculatedNights,
+              totalPaid: booking.totalPaidCached,
+              remaining: booking.remainingBalanceCached,
+            );
+            TelegramNotificationService.instance.notifyCheckOut(
+              roomNumber: booking.roomNumber,
+              guestName: booking.guestName,
+              actualNights: booking.calculatedNights,
+              totalPaid: booking.totalPaidCached,
+              remaining: booking.remainingBalanceCached,
+            );
+          }
+          break;
+      }
+    });
   }
 
   Future<int> delete(int id) async {
@@ -213,13 +290,13 @@ class BookingsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return dao.getRecordCount();
+    return await dao.getRecordCount();
   }
 
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
-    final booking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.id.equals(bookingId)))
+        .getSingleOrNull();
     if (booking == null) return;
 
     final discount = booking.discount;
@@ -231,16 +308,14 @@ class BookingsRepository {
       booking.discountStartDate ?? booking.checkinDate,
     );
 
-    final existing =
-        await (db.select(db.bookingPriceAdjustments)
-              ..where((a) => a.bookingLocalId.equals(bookingId))
-              ..where((a) => a.isActive.equals(true))
-              ..where((a) => a.deletedAt.isNull()))
-            .get();
+    final existing = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
 
     final hasMatch = existing.any(
-      (a) =>
-          a.adjustmentType == 0 &&
+      (a) => a.adjustmentType == 0 &&
           a.amount == discount &&
           a.effectiveHotelDay == effectiveHotelDay,
     );
@@ -250,15 +325,13 @@ class BookingsRepository {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    await db
-        .into(db.bookingPriceAdjustments)
-        .insert(
+    await db.into(db.bookingPriceAdjustments).insert(
           BookingPriceAdjustmentsCompanion(
             localUuid: d.Value(IdGen.uuid()),
             bookingLocalUuid: d.Value(booking.localUuid),
             bookingLocalId: d.Value(booking.id),
             adjustmentType: const d.Value(0),
-            amount: d.Value(discount),
+            amount: d.Value(discount.toDouble()),
             effectiveHotelDay: d.Value(effectiveHotelDay),
             isActive: const d.Value(true),
             reason: const d.Value('legacy_discount'),
@@ -275,7 +348,7 @@ class BookingsRepository {
 
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    return (db.select(db.bookings)
+    return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.status.equals('محجوزة'))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])

@@ -3,7 +3,6 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
-import '../sync_guardian.dart';
 
 part 'shift_notes_dao.g.dart';
 
@@ -14,16 +13,20 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
   final OutboxDao outboxDao;
 
-  // جلب جميع الملاحظات
-  Future<List<ShiftNote>> getAllNotes() => select(shiftNotes).get();
+  // جلب جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getAllNotes() => (select(shiftNotes)
+    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
 
-  // جلب الملاحظات غير المقروءة فقط
-  Future<List<ShiftNote>> getUnreadNotes() =>
-      (select(shiftNotes)..where((t) => t.isRead.equals(0))).get();
+  // جلب الملاحظات غير المقروءة فقط (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getUnreadNotes() => (select(shiftNotes)
+    ..where((t) => t.isRead.equals(0) & t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
 
-  // جلب الملاحظات عالية الأولوية
-  Future<List<ShiftNote>> getHighPriorityNotes() =>
-      (select(shiftNotes)..where((t) => t.priority.equals('high'))).get();
+  // جلب الملاحظات عالية الأولوية (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getHighPriorityNotes() => (select(shiftNotes)
+    ..where((t) => t.priority.equals('high') & t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
 
   // إضافة ملاحظة جديدة
   Future<int> addNote({
@@ -70,10 +73,6 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
             'created_by': 'user',
           },
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'shift_notes',
-          operation: 'create',
         );
       }
       return id;
@@ -128,10 +127,6 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
             payload: payload,
             clientTs: now,
           );
-          SyncGuardian.instance.notifyLocalChange(
-            table: 'shift_notes',
-            operation: 'update',
-          );
         }
       }
       return rows > 0;
@@ -165,10 +160,6 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {'is_read': 1},
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'shift_notes',
-          operation: 'update',
-        );
       }
       return rows > 0;
     });
@@ -200,10 +191,6 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           payload: {'is_read': 0},
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'shift_notes',
-          operation: 'update',
         );
       }
       return rows > 0;
@@ -244,32 +231,30 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           payload: {}, // Payload often empty for delete, or ID only
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'shift_notes',
-          operation: 'delete',
-        );
       }
       return rows > 0;
     });
   }
 
-  // عدد الملاحظات غير المقروءة
+  // عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Future<int> getUnreadCount() async {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0));
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
     final result = await query.getSingle();
     return result.read(shiftNotes.id.count()) ?? 0;
   }
 
-  // مراقبة التغييرات على جميع الملاحظات
-  Stream<List<ShiftNote>> watchAllNotes() => select(shiftNotes).watch();
+  // مراقبة التغييرات على جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
+  Stream<List<ShiftNote>> watchAllNotes() => (select(shiftNotes)
+    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .watch();
 
-  // مراقبة عدد الملاحظات غير المقروءة
+  // مراقبة عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Stream<int> watchUnreadCount() {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0));
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
     return query.watchSingle().map(
       (row) => row.read(shiftNotes.id.count()) ?? 0,
     );

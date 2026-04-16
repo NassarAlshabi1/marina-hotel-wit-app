@@ -4,21 +4,20 @@ import 'package:flutter/foundation.dart';
 enum CircuitState { closed, open, halfOpen }
 
 class CircuitBreakerConfig {
+  final int failureThreshold;
+  final Duration timeout;
+  final Duration resetTimeout;
+  final int successThreshold;
+
   const CircuitBreakerConfig({
     this.failureThreshold = 5,
     this.timeout = const Duration(seconds: 30),
     this.resetTimeout = const Duration(minutes: 1),
     this.successThreshold = 2,
   });
-  final int failureThreshold;
-  final Duration timeout;
-  final Duration resetTimeout;
-  final int successThreshold;
 }
 
 class CircuitBreaker {
-  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
-    : config = config ?? const CircuitBreakerConfig();
   final String name;
   final CircuitBreakerConfig config;
 
@@ -30,6 +29,9 @@ class CircuitBreaker {
 
   final _stateController = StreamController<CircuitState>.broadcast();
   Stream<CircuitState> get stateStream => _stateController.stream;
+
+  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
+    : config = config ?? const CircuitBreakerConfig();
 
   CircuitState get state => _state;
   int get failureCount => _failureCount;
@@ -175,20 +177,22 @@ class CircuitBreaker {
 }
 
 class CircuitBreakerOpenException implements Exception {
-  CircuitBreakerOpenException(this.message);
   final String message;
+
+  CircuitBreakerOpenException(this.message);
 
   @override
   String toString() => message;
 }
 
 class CircuitBreakerTimeoutException implements Exception {
+  final String message;
+  final TimeoutException originalException;
+
   CircuitBreakerTimeoutException(
     this.message, {
     required this.originalException,
   });
-  final String message;
-  final TimeoutException originalException;
 
   @override
   String toString() => message;

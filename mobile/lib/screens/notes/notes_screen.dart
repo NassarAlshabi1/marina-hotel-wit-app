@@ -155,11 +155,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   }
 
   Widget _buildNoteCard(ShiftNote note) {
-    final priorityColor = note.priority == 'high'
-        ? Colors.red
-        : note.priority == 'medium'
-        ? Colors.orange
-        : Colors.green;
+    final priorityColor = switch (note.priority) {
+      NotePriority.high => Colors.red,
+      NotePriority.medium => Colors.orange,
+      NotePriority.low => Colors.green,
+    };
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -264,10 +264,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
-    // ignore: prefer_final_locals
-    String priority = note?.priority.name ?? 'medium';
-    // ignore: prefer_final_locals
-    String shiftType = note?.shiftType.name ?? 'all';
+    var priority = note?.priority.name ?? 'medium';
+    final shiftType = note?.shiftType.name ?? 'all';
 
     showDialog(
       context: context,

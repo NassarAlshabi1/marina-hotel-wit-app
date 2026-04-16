@@ -254,6 +254,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 <option value="بطاقة شخصية" <?php if (($_POST['guest_id_type'] ?? '') === 'بطاقة شخصية') echo 'selected'; ?>>بطاقة شخصية</option>
                                 <option value="جواز سفر" <?php if (($_POST['guest_id_type'] ?? '') === 'جواز سفر') echo 'selected'; ?>>جواز سفر</option>
                                 <option value="رخصة قيادة" <?php if (($_POST['guest_id_type'] ?? '') === 'رخصة قيادة') echo 'selected'; ?>>رخصة قيادة</option>
+                                <option value="شهادة ميلاد" <?php if (($_POST['guest_id_type'] ?? '') === 'شهادة ميلاد') echo 'selected'; ?>>شهادة ميلاد</option>
                             </select>
                         </div>
 

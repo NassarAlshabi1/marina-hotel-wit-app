@@ -1,0 +1,30 @@
+name: Run Zencoder Agent on PR review
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (leave empty for current branch)'
+        required: false
+        default: ''
+jobs:
+  agent-run:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Running Zencoder Agent
+        uses: zencoderai/zen-agents-action@main
+        with:
+          prompt: "Fix dart flutter"
+          zencoder_client_id: "${{ secrets.ZENCODER_CLIENT_ID }}"
+          zencoder_client_secret: "${{ secrets.ZENCODER_CLIENT_SECRET }}"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"

@@ -53,6 +53,13 @@ final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
 });
 
 class SyncDashboardData {
+  final SyncHealthSnapshot guardianHealth;
+  final SyncHealth orchestratorHealth;
+  final SyncMetricsData? orchestratorMetrics;
+  final QueueStats queueStats;
+  final SyncHealthMetrics healthMetrics;
+  final IntegrityReport? integrityReport;
+
   const SyncDashboardData({
     required this.guardianHealth,
     required this.orchestratorHealth,
@@ -61,10 +68,4 @@ class SyncDashboardData {
     required this.healthMetrics,
     this.integrityReport,
   });
-  final SyncHealthSnapshot guardianHealth;
-  final SyncHealth orchestratorHealth;
-  final SyncMetricsData? orchestratorMetrics;
-  final QueueStats queueStats;
-  final SyncHealthMetrics healthMetrics;
-  final IntegrityReport? integrityReport;
 }

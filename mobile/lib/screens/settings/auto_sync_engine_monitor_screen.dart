@@ -256,8 +256,8 @@ class _AutoSyncEngineMonitorScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.error, color: Colors.red),
                 SizedBox(width: 8),
                 Text(
@@ -270,7 +270,7 @@ class _AutoSyncEngineMonitorScreenState
             LinearProgressIndicator(
               value: state.failedAttempts / 5,
               backgroundColor: Colors.red.shade100,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
             ),
             const SizedBox(height: 8),
             Text(

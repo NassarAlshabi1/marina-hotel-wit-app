@@ -1,7 +1,6 @@
 /// Background Sync Service
 /// خدمة المزامنة في الخلفية باستخدام WorkManager
 /// تضمن مزامنة البيانات حتى عندما يكون التطبيق مغلقاً
-library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -18,10 +17,9 @@ const String _cleanupTaskName = 'marina_hotel_cleanup_sync';
 
 /// خدمة المزامنة في الخلفية
 class BackgroundSyncService {
+  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
   factory BackgroundSyncService() => _instance;
   BackgroundSyncService._internal();
-  static final BackgroundSyncService _instance =
-      BackgroundSyncService._internal();
 
   SyncOrchestrator? _orchestrator;
   SyncConfiguration _config = const SyncConfiguration();
@@ -40,7 +38,10 @@ class BackgroundSyncService {
     _config = config;
 
     // تسجيل معالج المهام في WorkManager
-    Workmanager().initialize(_callbackDispatcher, isInDebugMode: false);
+    Workmanager().initialize(
+      _callbackDispatcher,
+      isInDebugMode: false,
+    );
 
     _isInitialized = true;
     developer.log('BackgroundSyncService initialized', name: 'BackgroundSync');
@@ -62,15 +63,13 @@ class BackgroundSyncService {
       _syncTaskName,
       frequency: _config.autoSyncInterval,
       constraints: Constraints(
-        networkType: _config.requireWifi
-            ? NetworkType.connected
-            : NetworkType.connected,
+        networkType: _config.requireWifi ? NetworkType.connected : NetworkType.connected,
         requiresBatteryNotLow: true,
         requiresCharging: _config.requireCharging,
         requiresDeviceIdle: false,
         requiresStorageNotLow: false,
       ),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+      existingWorkPolicy: ExistingWorkPolicy.replace,
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 10),
     );
@@ -88,13 +87,13 @@ class BackgroundSyncService {
       _cleanupTaskName,
       frequency: const Duration(days: 1),
       constraints: Constraints(
-        networkType: NetworkType.connected,
+        networkType: NetworkType.not_required,
         requiresBatteryNotLow: true,
         requiresCharging: false,
         requiresDeviceIdle: true,
         requiresStorageNotLow: false,
       ),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      existingWorkPolicy: ExistingWorkPolicy.keep,
     );
   }
 
@@ -112,18 +111,12 @@ class BackgroundSyncService {
 
     final canSync = await _canRunBackgroundSync();
     if (!canSync) {
-      developer.log(
-        'Cannot run background sync - constraints not met',
-        name: 'BackgroundSync',
-      );
+      developer.log('Cannot run background sync - constraints not met', name: 'BackgroundSync');
       return;
     }
 
     try {
-      developer.log(
-        'Running immediate background sync',
-        name: 'BackgroundSync',
-      );
+      developer.log('Running immediate background sync', name: 'BackgroundSync');
       await _orchestrator!.performFullSync();
     } catch (e, stackTrace) {
       developer.log(
@@ -139,13 +132,12 @@ class BackgroundSyncService {
   Future<bool> _canRunBackgroundSync() async {
     // التحقق من الاتصال
     final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity.every((r) => r == ConnectivityResult.none)) {
+    if (connectivity == ConnectivityResult.none) {
       return false;
     }
 
     // التحقق من WiFi إذا كان مطلوباً
-    if (_config.requireWifi &&
-        !connectivity.contains(ConnectivityResult.wifi)) {
+    if (_config.requireWifi && connectivity != ConnectivityResult.wifi) {
       return false;
     }
 
@@ -227,6 +219,12 @@ Future<void> _performCleanup() async {
 
 /// إعدادات المزامنة في الخلفية
 class BackgroundSyncSettings {
+  final bool enabled;
+  final Duration interval;
+  final bool requireWifi;
+  final bool requireCharging;
+  final bool runOnBatteryLow;
+
   const BackgroundSyncSettings({
     this.enabled = true,
     this.interval = const Duration(minutes: 15),
@@ -234,11 +232,6 @@ class BackgroundSyncSettings {
     this.requireCharging = false,
     this.runOnBatteryLow = false,
   });
-  final bool enabled;
-  final Duration interval;
-  final bool requireWifi;
-  final bool requireCharging;
-  final bool runOnBatteryLow;
 
   BackgroundSyncSettings copyWith({
     bool? enabled,

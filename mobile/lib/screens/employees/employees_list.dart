@@ -94,7 +94,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 keyboardType: TextInputType.number,
               ),
               DropdownButtonFormField<String>(
-                initialValue: status,
+                value: status,
                 items: const [
                   DropdownMenuItem(value: 'active', child: Text('نشط')),
                   DropdownMenuItem(value: 'inactive', child: Text('غير نشط')),

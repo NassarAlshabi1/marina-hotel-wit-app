@@ -48,21 +48,6 @@ class DriveSyncShard {
     required this.version,
   });
 
-  factory DriveSyncShard.fromJson(Map<String, dynamic> json) {
-    return DriveSyncShard(
-      fileId: json['fileId'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      index: json['index'] as int? ?? 0,
-      totalParts: json['totalParts'] as int? ?? 1,
-      size: json['size'] as int? ?? 0,
-      checksum: json['checksum'] as String? ?? '',
-      modifiedAt:
-          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0),
-      version: json['version'] as int? ?? 1,
-    );
-  }
-
   final String fileId;
   final String name;
   final int index;
@@ -84,6 +69,21 @@ class DriveSyncShard {
       'version': version,
     };
   }
+
+  factory DriveSyncShard.fromJson(Map<String, dynamic> json) {
+    return DriveSyncShard(
+      fileId: json['fileId'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      index: json['index'] as int? ?? 0,
+      totalParts: json['totalParts'] as int? ?? 1,
+      size: json['size'] as int? ?? 0,
+      checksum: json['checksum'] as String? ?? '',
+      modifiedAt:
+          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      version: json['version'] as int? ?? 1,
+    );
+  }
 }
 
 /// ملف فهرس الأجزاء لتسهيل إعادة البناء
@@ -98,25 +98,6 @@ class DriveSyncIndex {
     required this.shards,
     required this.snapshotSize,
   });
-
-  factory DriveSyncIndex.fromJson(Map<String, dynamic> json) {
-    final rawShards = (json['shards'] as List<dynamic>? ?? [])
-        .map(
-          (item) =>
-              DriveSyncShard.fromJson(Map<String, dynamic>.from(item as Map)),
-        )
-        .toList();
-    return DriveSyncIndex(
-      version: json['version'] as int? ?? 1,
-      checksum: json['checksum'] as String? ?? '',
-      lastDeviceId: json['lastDeviceId'] as String? ?? '',
-      lastSyncId: json['lastSyncId'] as String? ?? '',
-      updatedAt: json['updatedAt'] as String? ?? '',
-      totalParts: json['totalParts'] as int? ?? rawShards.length,
-      snapshotSize: json['snapshotSize'] as int? ?? 0,
-      shards: rawShards,
-    );
-  }
 
   final int version;
   final String checksum;
@@ -138,6 +119,25 @@ class DriveSyncIndex {
       'snapshotSize': snapshotSize,
       'shards': shards.map((s) => s.toJson()).toList(),
     };
+  }
+
+  factory DriveSyncIndex.fromJson(Map<String, dynamic> json) {
+    final rawShards = (json['shards'] as List<dynamic>? ?? [])
+        .map(
+          (item) =>
+              DriveSyncShard.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+    return DriveSyncIndex(
+      version: json['version'] as int? ?? 1,
+      checksum: json['checksum'] as String? ?? '',
+      lastDeviceId: json['lastDeviceId'] as String? ?? '',
+      lastSyncId: json['lastSyncId'] as String? ?? '',
+      updatedAt: json['updatedAt'] as String? ?? '',
+      totalParts: json['totalParts'] as int? ?? rawShards.length,
+      snapshotSize: json['snapshotSize'] as int? ?? 0,
+      shards: rawShards,
+    );
   }
 }
 
@@ -167,10 +167,9 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  }) : _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const [
-           drive.DriveApi.driveFileScope,
-           drive.DriveApi.driveAppdataScope,
-         ]),
+  }) : _googleSignIn =
+           googleSignIn ??
+           GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
        _driveApi = driveApi,
        _shardSizeBytes = shardSizeBytes;
 
@@ -181,20 +180,8 @@ class GoogleDriveSyncService {
   bool _encryptionEnabled = false;
   String? _encryptionKey;
   bool _allowInteractiveSignIn = true;
-  GoogleSignInAccount? _currentUser;
 
-  GoogleSignInAccount? get currentUser => _currentUser;
-
-  /// Helper to get Drive API access token from account (v6.x style)
-  Future<String?> _getAccessToken(GoogleSignInAccount account) async {
-    try {
-      final headers = await account.authHeaders;
-      return headers['Authorization']?.replaceFirst('Bearer ', '');
-    } catch (e) {
-      debugPrint('⚠️ فشل الحصول على رمز الوصول: $e');
-      return null;
-    }
-  }
+  GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
   /// تهيئة الخدمة وخيار التشفير AES-256
   Future<void> init({
@@ -219,10 +206,11 @@ class GoogleDriveSyncService {
   Future<GoogleSignInAccount?> signIn() async {
     try {
       final account =
-          await _googleSignIn.signInSilently() ??
+          await _googleSignIn.signInSilently(suppressErrors: true) ??
           await _googleSignIn.signIn();
-      _currentUser = account;
-
+      if (account == null) {
+        return null;
+      }
       final headers = await account.authHeaders;
       _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
       return account;
@@ -435,16 +423,13 @@ class GoogleDriveSyncService {
       return _driveApi!;
     }
 
-    var account = await _googleSignIn.signInSilently();
-    if (account == null && _allowInteractiveSignIn) {
-      account = await _googleSignIn.signIn();
-    }
+    final account =
+        await _googleSignIn.signInSilently(suppressErrors: true) ??
+        (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
 
     if (account == null) {
       throw StateError('لم يتم تسجيل الدخول إلى Google Drive.');
     }
-
-    _currentUser = account;
 
     final headers = await account.authHeaders;
     _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
@@ -537,17 +522,7 @@ class GoogleDriveSyncService {
     SyncMetadata metadata,
     String deviceId,
   ) async {
-    final cleanup = await api.files.list(
-      spaces: 'appDataFolder',
-      q: 'name contains "sync_data" and trashed=false',
-      $fields: 'files(id,name)',
-    );
-    for (final file in cleanup.files ?? []) {
-      if (file.id != null && (file.name?.startsWith('sync_data') ?? false)) {
-        await api.files.delete(file.id!);
-      }
-    }
-
+    // ✅ الإصلاح: الرفع أولاً ثم الحذف — لمنع فقدان البيانات إذا فشل الرفع
     final uploaded = <DriveSyncShard>[];
     for (var index = 0; index < shards.length; index++) {
       final isPrimary = index == 0;
@@ -589,6 +564,15 @@ class GoogleDriveSyncService {
         ),
       );
     }
+
+    // ✅ حذف الملفات القديمة فقط بعد نجاح الرفع الكامل
+    final keepIds = uploaded.map((s) => s.fileId).toSet();
+    try {
+      await _cleanupLegacySnapshot(api, keepShardIds: keepIds.toList());
+    } catch (e) {
+      debugPrint('⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e');
+    }
+
     return uploaded;
   }
 

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../tasks/auto_sync_task.dart';
-import '../tasks/appwrite_auto_sync_task.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import 'unified_sync_orchestrator.dart';
@@ -178,11 +177,9 @@ class SyncGuardian {
     _pendingMonitor?.cancel();
     _pendingMonitor = Timer.periodic(const Duration(minutes: 5), (_) async {
       final prefs = await SharedPreferences.getInstance();
-      final googleDrivePending = prefs.getBool('auto_sync_pending') ?? false;
-      final appwritePending =
-          prefs.getBool('appwrite_auto_sync_pending') ?? false;
-      _pendingEvents = googleDrivePending || appwritePending;
-      if (_pendingEvents) {
+      final pending = prefs.getBool('auto_sync_pending') ?? false;
+      _pendingEvents = pending;
+      if (pending) {
         await _consumePending(force: false);
       } else {
         _emitHealth();
@@ -196,9 +193,7 @@ class SyncGuardian {
     }
     _drainingPending = true;
     try {
-      // استهلاك علامات المزامنة للخدمتين (Google Drive و Appwrite)
       await AutoSyncTask.consumePendingAndSync(force: force);
-      await AppwriteAutoSyncTask.consumePendingAndSync(force: force);
       _failedAttempts = 0;
       _lastSyncAt = DateTime.now().toUtc();
       _lastError = null;
@@ -215,10 +210,7 @@ class SyncGuardian {
 
   Future<void> _refreshPendingFlag() async {
     final prefs = await SharedPreferences.getInstance();
-    final googleDrivePending = prefs.getBool('auto_sync_pending') ?? false;
-    final appwritePending =
-        prefs.getBool('appwrite_auto_sync_pending') ?? false;
-    _pendingEvents = googleDrivePending || appwritePending;
+    _pendingEvents = prefs.getBool('auto_sync_pending') ?? false;
   }
 
   void _emitHealth() {

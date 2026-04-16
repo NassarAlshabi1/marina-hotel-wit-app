@@ -8,9 +8,9 @@ export 'logging/log_models.dart';
 
 /// نظام التسجيل المتقدم
 class AppwriteLogger {
+  static final AppwriteLogger _instance = AppwriteLogger._internal();
   factory AppwriteLogger() => _instance;
   AppwriteLogger._internal();
-  static final AppwriteLogger _instance = AppwriteLogger._internal();
 
   final List<LogEntry> _logs = [];
   static const int _maxLogEntries = 100;

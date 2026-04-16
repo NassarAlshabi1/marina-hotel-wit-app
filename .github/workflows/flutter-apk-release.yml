@@ -8,8 +8,7 @@ on:
   push:
     branches:
       - main
-      - '**/**'
-      - 'A'
+      - 'marina'
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'
@@ -94,12 +93,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Apply Dart fixes
-        run: dart fix --apply
-
-      - name: Format Dart code
-        run: dart format .
 
       - name: Determine dynamic build version
         id: version

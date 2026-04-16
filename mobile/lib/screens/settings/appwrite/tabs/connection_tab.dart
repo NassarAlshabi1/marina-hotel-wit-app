@@ -14,9 +14,6 @@ class AppwriteConnectionTab extends ConsumerStatefulWidget {
 }
 
 class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
-  /// ✅ Debounce guard: prevents rapid connection check taps
-  bool _isChecking = false;
-
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(ap.connectionStatusProvider);
@@ -50,42 +47,28 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
         padding: const EdgeInsets.all(UIConstants.spacingLG),
         child: Column(
           children: [
-            // ✅ AnimatedSwitcher for smooth status icon transition
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: (isConnected ? Colors.green : Colors.red).withOpacity(
+                  0.1,
+                ),
+                shape: BoxShape.circle,
               ),
-              child: Container(
-                key: ValueKey(isConnected),
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: (isConnected ? Colors.green : Colors.red).withOpacity(
-                    0.1,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isConnected ? Icons.cloud_done : Icons.cloud_off,
-                  size: 48,
-                  color: isConnected ? Colors.green : Colors.red,
-                ),
+              child: Icon(
+                isConnected ? Icons.cloud_done : Icons.cloud_off,
+                size: 48,
+                color: isConnected ? Colors.green : Colors.red,
               ),
             ),
             const SizedBox(height: UIConstants.spacingMD),
-            // ✅ AnimatedSwitcher for status text
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: Text(
-                key: ValueKey(isConnected),
-                isConnected ? 'متصل' : 'غير متصل',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: isConnected ? Colors.green : Colors.red,
-                ),
+            Text(
+              isConnected ? 'متصل' : 'غير متصل',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isConnected ? Colors.green : Colors.red,
               ),
             ),
             const SizedBox(height: UIConstants.spacingSM),
@@ -100,21 +83,15 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: (state.isChecking || _isChecking)
-                    ? null
-                    : _checkConnection,
-                icon: (state.isChecking || _isChecking)
+                onPressed: state.isChecking ? null : _checkConnection,
+                icon: state.isChecking
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(
-                  (state.isChecking || _isChecking)
-                      ? 'جاري الفحص...'
-                      : 'فحص الاتصال',
-                ),
+                label: Text(state.isChecking ? 'جاري الفحص...' : 'فحص الاتصال'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(UIConstants.spacingMD),
                   backgroundColor: Colors.blue,
@@ -139,41 +116,38 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                SizedBox(width: UIConstants.spacingSM),
-                Text(
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
                   'معلومات المشروع',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
-            _InfoRow(
+            InfoRow(
               label: 'معرف المشروع',
               value: info['projectId'] ?? '---',
               icon: Icons.fingerprint,
             ),
-            const SizedBox(height: UIConstants.spacingSM),
-            _InfoRow(
+            InfoRow(
               label: 'قاعدة البيانات',
               value: info['databaseId'] ?? '---',
               icon: Icons.storage,
             ),
-            const SizedBox(height: UIConstants.spacingSM),
-            _InfoRow(
+            InfoRow(
               label: 'نقطة النهاية',
               value: info['endpoint'] ?? '---',
               icon: Icons.link,
               isExpandable: true,
             ),
-            const SizedBox(height: UIConstants.spacingSM),
-            _InfoRow(
+            InfoRow(
               label: 'حالة التهيئة',
               value: (info['initialized'] ?? 'false') == 'true'
                   ? 'مهيأ'
@@ -194,8 +168,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(UIConstants.spacingMD),
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -203,8 +177,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                SizedBox(width: UIConstants.spacingSM),
-                Text(
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
                   'إعدادات الاتصال',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -214,41 +188,32 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           const Divider(height: 1),
           ListTile(
             title: const Text('مهلة الاتصال'),
-            // ⚡ Updated to new constant name
-            subtitle: Text(
-              '${AppwriteConfig.connectionTimeout.inSeconds} ثانية',
-            ),
+            subtitle: Text('${AppwriteConfig.defaultTimeout.inSeconds} ثانية'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
               'مهلة الاتصال',
-              '${AppwriteConfig.connectionTimeout.inSeconds} ثانية',
+              '${AppwriteConfig.defaultTimeout.inSeconds} ثانية',
             ),
           ),
           const Divider(height: 1),
           ListTile(
             title: const Text('عدد المحاولات'),
-            // ⚡ Updated to new constant name
-            subtitle: const Text('${AppwriteConfig.fastRetries} محاولات'),
+            subtitle: Text('${AppwriteConfig.maxRetries} محاولات'),
             leading: const Icon(Icons.replay),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
               'عدد المحاولات',
-              '${AppwriteConfig.fastRetries} محاولات',
+              '${AppwriteConfig.maxRetries} محاولات',
             ),
           ),
           const Divider(height: 1),
-          // ✅ Fixed: SwitchListTile always on with AbsorbPointer
-          // Prevents user confusion — switch looks interactive but is clearly disabled
-          AbsorbPointer(
-            absorbing: true,
-            child: SwitchListTile(
-              title: const Text('SSL/TLS'),
-              subtitle: const Text('اتصال آمن مشفر (مُفعّل دائماً)'),
-              value: true,
-              onChanged: (_) {},
-              secondary: const Icon(Icons.security),
-            ),
+          const SwitchListTile(
+            title: Text('SSL/TLS'),
+            subtitle: Text('اتصال آمن مشفر'),
+            value: true,
+            onChanged: null,
+            secondary: Icon(Icons.security),
           ),
         ],
       ),
@@ -275,7 +240,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             title: const Text('اختبار الاتصال'),
             subtitle: const Text('إرسال طلب تجريبي للخادم'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _isChecking ? null : _checkConnection,
+            onTap: _checkConnection,
           ),
           const Divider(height: 1),
           ListTile(
@@ -297,70 +262,26 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
     );
   }
 
-  /// ✅ Enhanced _checkConnection with:
-  /// - Debounce guard (_isChecking)
-  /// - try-catch error handling
-  /// - mounted check before showing SnackBar
   Future<void> _checkConnection() async {
-    // ✅ Debounce: prevent rapid consecutive taps
-    if (_isChecking) return;
-    _isChecking = true;
-
-    try {
-      await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
-    } catch (e) {
-      // ✅ Error handling — show error instead of crashing
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل فحص الاتصال: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isChecking = false;
-        });
-      }
-    }
+    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
   }
 
   void _showResetDialog() {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('تحذير'),
         content: const Text('هل تريد إعادة تهيئة الاتصال؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(dialogContext);
-
-              try {
-                // ✅ Error handling for initialize()
-                await ref.read(ap.appwriteServiceProvider).initialize();
-
-                // ✅ mounted check before calling _checkConnection
-                if (mounted) {
-                  await _checkConnection();
-                }
-              } catch (e) {
-                // ✅ mounted check before showing SnackBar after async gap
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('فشلت إعادة التعيين: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
+              Navigator.pop(context);
+              await ref.read(ap.appwriteServiceProvider).initialize();
+              await _checkConnection();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text(
@@ -383,55 +304,6 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// ✅ Critical fix: InfoRow widget definition
-/// Previously used but never defined/imported — caused compilation error
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.isExpandable = false,
-  });
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool isExpandable;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: UIConstants.spacingXS),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Colors.grey),
-          const SizedBox(width: UIConstants.spacingSM),
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-          Expanded(
-            child: isExpandable
-                ? Text(
-                    value,
-                    style: TextStyle(color: Colors.grey.shade700),
-                    softWrap: true,
-                  )
-                : Text(
-                    value,
-                    style: TextStyle(color: Colors.grey.shade700),
-                    overflow: TextOverflow.ellipsis,
-                  ),
           ),
         ],
       ),

@@ -40,12 +40,6 @@ class _SyncJob {
 
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
 class SyncManager {
-  SyncManager({
-    required this.db,
-    required this.driveService,
-    this.triggerDispatcher,
-  }) : _statusController = StreamController<SyncStatus>.broadcast(),
-       _auditDao = SyncAuditDao(db);
   static SyncManager? _instance;
 
   static SyncManager get instance {
@@ -59,6 +53,13 @@ class SyncManager {
   static void configureSingleton(SyncManager manager) {
     _instance ??= manager;
   }
+
+  SyncManager({
+    required this.db,
+    required this.driveService,
+    this.triggerDispatcher,
+  }) : _statusController = StreamController<SyncStatus>.broadcast(),
+       _auditDao = SyncAuditDao(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -687,7 +688,7 @@ class SyncManager {
 
     for (final table in allTableNames) {
       final remoteList = (remoteTables[table] ?? [])
-          .map(Map<String, dynamic>.from)
+          .map((row) => Map<String, dynamic>.from(row))
           .toList();
       final localList = (localTables[table] as List<dynamic>? ?? [])
           .map((row) => Map<String, dynamic>.from(row as Map))

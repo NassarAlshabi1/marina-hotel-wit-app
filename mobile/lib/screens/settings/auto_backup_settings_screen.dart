@@ -172,7 +172,7 @@ class _AutoBackupSettingsScreenState
             ],
           ),
         ),
-        data: _buildSettingsUI,
+        data: (status) => _buildSettingsUI(status),
       ),
     );
   }

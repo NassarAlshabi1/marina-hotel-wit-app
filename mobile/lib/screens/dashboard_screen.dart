@@ -1,7 +1,4 @@
-import 'dart:async';
 import 'dart:ui' as ui;
-
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,20 +6,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
-import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
-import '../utils/currency_formatter.dart';
-import '../providers/appwrite_providers.dart' as appwrite;
-import '../services/google_drive_unified_sync_coordinator.dart';
-import '../services/appwrite_realtime_sync.dart';
 import '../services/appwrite_delta_sync.dart';
+import '../services/appwrite_realtime_sync.dart';
+import '../services/sync_constants.dart';
+import '../providers/appwrite_providers.dart';
+import '../providers/room_payment_status_provider.dart';
+import '../services/local_db.dart';
 import 'bookings/booking_edit.dart';
-import 'bookings/bookings_list.dart';
 import 'reports/expenses_report_screen.dart';
-import 'reports/payments_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
@@ -48,42 +43,6 @@ const List<String> _dashboardRoomNumbers = [
   '504',
 ];
 
-final todayPaymentsProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
-        readsFrom: {db.payments},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
-});
-
-final todayExpensesProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
-        readsFrom: {db.expenses},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
-});
-
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -92,52 +51,117 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  Timer? _autoPullTimer;
-  bool _isAutoPulling = false;
-
   @override
   void initState() {
     super.initState();
-    _startAutoPullListener();
-  }
-
-  @override
-  void dispose() {
-    _autoPullTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startAutoPullListener() {
-    _autoPullTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted || _isAutoPulling) return;
-      final realtime = AppwriteRealtimeSync();
-      if (realtime.hasRemoteChanges.value) {
-        _autoPullRemoteChanges();
-      }
+    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoPullFromAppwrite();
     });
   }
 
-  Future<void> _autoPullRemoteChanges() async {
-    if (_isAutoPulling) return;
-    _isAutoPulling = true;
+  Future<void> _autoPullFromAppwrite() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+
       if (!appwriteEnabled) return;
 
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (!deltaSync.isInitialized) {
-        final appwriteService = ref.read(appwrite.appwriteServiceProvider);
-        final db = ref.read(databaseProvider);
-        await deltaSync.initialize(appwriteService, db);
+      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+      if (lastPullEpochMs != null) {
+        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+        final elapsed = DateTime.now().difference(lastPull);
+        if (elapsed < SyncConstants.appOpenSyncInterval) {
+          return;
+        }
       }
 
-      await deltaSync.pullDeltaChanges();
+      // التأكد من الاتصال
+      await ref.read(connectionStatusProvider.notifier).checkConnection();
+      final isConnected = ref.read(connectionStatusProvider).isConnected;
+      if (!isConnected) return;
+
+      // إظهار إشعار "جاري السحب"
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '📥 جاري سحب البيانات...',
+                    style: TextStyle(fontFamily: 'Tajawal'),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.blue.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      final deltaSync = AppwriteDeltaSync.instance;
+      int pulledCount = 0;
+
+      if (deltaSync.isInitialized) {
+        final result = await deltaSync.pullDeltaChanges();
+        pulledCount = result.recordsPulled;
+      } else {
+        final syncManager = ref.read(appwriteSyncManagerProvider);
+        final result = await syncManager.sync(push: false, pull: true);
+        pulledCount = result.recordsPulled;
+      }
+
+      // إعادة تعيين علامة التغييرات عن بعد
       AppwriteRealtimeSync().resetRemoteChangesFlag();
+
+      // ─── تسجيل وقت هذا السحب التلقائي ───
+      await prefs.setInt(
+        SyncConstants.lastAppOpenPullKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+
+      if (mounted && pulledCount > 0) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.cloud_download, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '✅ تم سحب $pulledCount سجل جديد من Appwrite تلقائياً',
+                    style: const TextStyle(fontFamily: 'Tajawal'),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else if (mounted) {
+        // إشعار صامت بأن البيانات محدثة
+        debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
+      }
     } catch (e) {
-      debugPrint('⚠️ Auto-pull failed: $e');
-    } finally {
-      _isAutoPulling = false;
+      debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
     }
   }
 
@@ -156,6 +180,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
+              const SizedBox(height: 12),
+              _buildColorInstructions(),
             ],
           ),
         ),
@@ -204,41 +230,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Expanded(
           child: Consumer(
             builder: (context, ref, _) {
-              final roomsAsync = ref.watch(roomsListProvider);
-              return roomsAsync.when(
-                loading: () => _buildStatCard(
-                  'الإشغال',
+              final incomeAsync = ref.watch(todayPaymentsProvider);
+              final expensesAsync = ref.watch(todayExpensesProvider);
+
+              // التعامل مع حالة التحميل
+              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final hasError = incomeAsync.hasError || expensesAsync.hasError;
+
+              if (isLoading) {
+                return _buildStatCard(
+                  'المتبقي',
                   '...',
-                  Icons.pie_chart_rounded,
-                  Colors.orange,
-                ),
-                error: (e, _) => _buildStatCard(
-                  'الإشغال',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
+              if (hasError) {
+                return _buildStatCard(
+                  'المتبقي',
                   '--',
-                  Icons.pie_chart_rounded,
-                  Colors.orange,
-                ),
-                data: (rooms) {
-                  final total = rooms.length;
-                  final occupied = rooms
-                      .where((r) => StatusUtils.isRoomOccupied(r.status))
-                      .length;
-                  final rate = total > 0
-                      ? ((occupied / total) * 100).round()
-                      : 0;
-                  return _buildStatCard(
-                    'الإشغال',
-                    '$rate%',
-                    Icons.pie_chart_rounded,
-                    Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BookingsListScreen(),
-                      ),
-                    ),
-                  );
-                },
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
+              final income = incomeAsync.valueOrNull ?? 0.0;
+              final expenses = expensesAsync.valueOrNull ?? 0.0;
+              final balance = income - expenses;
+
+              return _buildStatCard(
+                balance >= 0 ? 'المتبقي' : 'عجز',
+                '${currencyFmt.format(balance.abs())}',
+                balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
+                balance >= 0 ? Colors.indigo : Colors.orange,
               );
             },
           ),
@@ -266,12 +291,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   currencyFmt.format(total),
                   Icons.payments_rounded,
                   Colors.green,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PaymentsReportScreen(),
-                    ),
-                  ),
                 ),
               );
             },
@@ -364,19 +383,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildRoomsSection() {
     return Consumer(
       builder: (context, ref, _) {
-        final roomsAsync = ref.watch(roomsListProvider);
-        return roomsAsync.when(
+        final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
+        return roomsWithStatusAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('خطأ: $e')),
-          data: _buildRoomsCard,
+          data: (roomsWithStatus) => _buildRoomsCard(roomsWithStatus),
         );
       },
     );
   }
 
-  Widget _buildRoomsCard(List<Room> rooms) {
-    final Map<String, Room> roomsMap = {
-      for (final room in rooms) room.roomNumber: room,
+  Widget _buildRoomsCard(List<RoomWithPaymentStatus> roomsWithStatus) {
+    final Map<String, RoomWithPaymentStatus> roomsMap = {
+      for (final rws in roomsWithStatus) rws.room.roomNumber: rws,
     };
 
     return Container(
@@ -404,9 +423,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendItem('شاغرة', Colors.green.shade600),
+              _buildLegendItem('متأخر', const Color(0xFF795548)),
               const SizedBox(width: 8),
-              _buildLegendItem('صيانة', Colors.orange.shade600),
+              _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
           ),
           const SizedBox(height: 16),
@@ -422,8 +441,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             itemCount: _dashboardRoomNumbers.length,
             itemBuilder: (context, index) {
               final roomNumber = _dashboardRoomNumbers[index];
-              final room = roomsMap[roomNumber];
-              return _buildRoomButton(context, roomNumber, room);
+              final rws = roomsMap[roomNumber];
+              return _buildRoomButton(context, roomNumber, rws);
             },
           ),
         ],
@@ -452,34 +471,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildRoomButton(BuildContext context, String roomNumber, Room? room) {
-    final bool isOccupied =
-        room != null && StatusUtils.isRoomOccupied(room.status);
-    final bool isAvailable =
-        room != null && StatusUtils.isRoomAvailable(room.status);
-    final bool isMaintenance = room != null && room.status == 'صيانة';
-    final Color bgColor = isOccupied
-        ? Colors.red.shade600
-        : (isAvailable
-              ? Colors.green.shade600
-              : (isMaintenance
-                    ? Colors.orange.shade600
-                    : Colors.grey.shade400));
-
-    final String tooltipText = room != null ? room.status : 'غير مسجلة';
+  Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
+    final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
+    final String tooltipText = rws != null ? rws.room.status : 'غير مسجلة';
 
     return Tooltip(
       message: tooltipText,
       child: GestureDetector(
-        onLongPress: room != null
-            ? () => _showRoomOptionsDialog(context, room)
+        onLongPress: rws != null
+            ? () => _showRoomOptionsDialog(context, rws.room)
             : null,
         child: Material(
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            onTap: () => _handleRoomTap(context, roomNumber, room),
+            onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
             child: Center(
               child: Text(
                 roomNumber,
@@ -529,24 +536,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
               ),
-            if (room.status != 'شاغرة') ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _updateRoomStatus(room, 'شاغرة');
-                  },
-                  icon: const Icon(Icons.check_circle, color: Colors.white),
-                  label: const Text('إعادة إلى شاغرة'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
         actions: [
@@ -601,15 +590,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       } else {
         _showRoomDetailsDialog(context, room);
       }
-      return;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
@@ -658,176 +646,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  Future<void> _showCreateRoomDialog(
-    BuildContext context,
-    String roomNumber,
-  ) async {
-    final typeCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    String status = 'شاغرة';
-    final formKey = GlobalKey<FormState>();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.add, color: Colors.blue),
-              const SizedBox(width: 8),
-              Text('إضافة غرفة $roomNumber'),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    initialValue: roomNumber,
-                    decoration: InputDecoration(
-                      labelText: 'رقم الغرفة',
-                      prefixIcon: const Icon(Icons.meeting_room),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    readOnly: true,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: typeCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'نوع الغرفة',
-                      prefixIcon: const Icon(Icons.category),
-                      hintText: 'مثال: فردية، مزدوجة، جناح',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'أدخل نوع الغرفة';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: priceCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'السعر لليلة',
-                      prefixIcon: const Icon(Icons.attach_money),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'أدخل السعر';
-                      final price = CurrencyFormatter.parseAmount(v);
-                      if (price == null || price <= 0) {
-                        return 'أدخل سعراً صحيحاً';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  StatefulBuilder(
-                    builder: (context, setLocalState) =>
-                        DropdownButtonFormField<String>(
-                          initialValue: status,
-                          decoration: InputDecoration(
-                            labelText: 'الحالة',
-                            prefixIcon: const Icon(Icons.toggle_on),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'شاغرة',
-                              child: Text('شاغرة'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'محجوزة',
-                              child: Text('محجوزة'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'صيانة',
-                              child: Text('صيانة'),
-                            ),
-                          ],
-                          onChanged: (v) =>
-                              setLocalState(() => status = v ?? status),
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() != true) return;
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('إنشاء'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (ok != true) return;
-
-    try {
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final price = CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0;
-      await roomsRepo.create(
-        roomNumber: roomNumber,
-        type: typeCtrl.text.trim(),
-        price: price,
-        status: status,
-      );
-
-      final appwriteSync = ref.read(appwrite.appwriteSyncManagerProvider);
-      await appwriteSync.sync(push: true, pull: false);
-
-      try {
-        await GoogleDriveUnifiedSyncCoordinator.instance.performSync(
-          trigger: SyncTrigger.localChange,
-          mode: SyncMode.smart,
-        );
-      } catch (_) {}
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم إنشاء الغرفة $roomNumber ومزامنتها'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في إنشاء الغرفة: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   void _showRoomDetailsDialog(BuildContext context, Room room) {
     showDialog(
       context: context,
@@ -858,6 +676,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildColorInstructions() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Directionality(
+        textDirection: ui.TextDirection.ltr,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildInstructionDot(Colors.red.shade600, 'الغرفة محجوزة'),
+            const SizedBox(width: 12),
+            _buildInstructionDot(Colors.green.shade600, 'الغرفة متاحة'),
+            const SizedBox(width: 12),
+            _buildInstructionDot(const Color(0xFF795548), 'تأخر في السداد'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 8,
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ],
     );
   }
 

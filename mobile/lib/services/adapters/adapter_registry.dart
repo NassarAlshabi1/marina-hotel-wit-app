@@ -17,8 +17,8 @@ import 'price_adjustments_adapter.dart';
 import 'audit_logs_adapter.dart';
 import 'payment_voids_adapter.dart';
 import 'booking_price_adjustments_adapter.dart';
-import 'salary_withdrawals_adapter.dart';
 import 'guest_infos_adapter.dart';
+import 'salary_withdrawals_adapter.dart';
 
 class AdapterRegistry {
   AdapterRegistry(this.db)
@@ -101,24 +101,20 @@ class AdapterRegistry {
         adapter: PaymentVoidsAdapter(IdResolver(db)),
       ),
       bookingPriceAdjustments =
-          BaseRepository<
-            BookingPriceAdjustment,
-            BookingPriceAdjustmentsCompanion
-          >(
+          BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>(
             db: db,
             table: db.bookingPriceAdjustments,
             adapter: BookingPriceAdjustmentsAdapter(IdResolver(db)),
-          ),
-      salaryWithdrawals =
-          BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion>(
-            db: db,
-            table: db.salaryWithdrawals,
-            adapter: SalaryWithdrawalsAdapter(IdResolver(db)),
           ),
       guestInfos = BaseRepository<GuestInfo, GuestInfosCompanion>(
         db: db,
         table: db.guestInfos,
         adapter: GuestInfosAdapter(IdResolver(db)),
+      ),
+      salaryWithdrawals = BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion>(
+        db: db,
+        table: db.salaryWithdrawals,
+        adapter: SalaryWithdrawalsAdapter(IdResolver(db)),
       );
 
   final AppDatabase db;
@@ -137,12 +133,11 @@ class AdapterRegistry {
   cashTransactions;
   final BaseRepository<ShiftNote, ShiftNotesCompanion> shiftNotes;
   final BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion>
-  priceAdjustments;
+      priceAdjustments;
   final BaseRepository<AuditLog, AuditLogsCompanion> auditLogs;
   final BaseRepository<PaymentVoid, PaymentVoidsCompanion> paymentVoids;
   final BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>
-  bookingPriceAdjustments;
-  final BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion>
-  salaryWithdrawals;
+      bookingPriceAdjustments;
   final BaseRepository<GuestInfo, GuestInfosCompanion> guestInfos;
+  final BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion> salaryWithdrawals;
 }

@@ -14,7 +14,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
   bool _isProcessing = false;
   String _status = '';
   int _updatedCount = 0;
-  final List<String> _logs = [];
+  List<String> _logs = [];
 
   final Map<String, String> _roomsMapping = {
     '82f73ed9-7c51-4696-93a8-c3fa753725f7':
@@ -177,8 +177,8 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
-                      children: [
+                    Row(
+                      children: const [
                         Icon(Icons.info_outline, color: Colors.blue),
                         SizedBox(width: 8),
                         Text(
@@ -272,7 +272,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: DecoratedBox(
+              child: Container(
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),

@@ -23,13 +23,14 @@ abstract class RoomRepository {
 
 /// تنفيذ Repository باستخدام Appwrite
 class AppwriteRoomRepository implements RoomRepository {
+  final AppwriteService _appwriteService;
+  final AppwriteErrorHandler _errorHandler;
+
   AppwriteRoomRepository({
     AppwriteService? appwriteService,
     AppwriteErrorHandler? errorHandler,
   }) : _appwriteService = appwriteService ?? AppwriteService(),
        _errorHandler = errorHandler ?? AppwriteErrorHandler();
-  final AppwriteService _appwriteService;
-  final AppwriteErrorHandler _errorHandler;
 
   String get _collectionId => AppwriteConfig.roomsCollectionId;
 
@@ -61,7 +62,9 @@ class AppwriteRoomRepository implements RoomRepository {
         collectionId: _collectionId,
       );
 
-      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+      return documents
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
+          .toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAll');
       throw Exception(error.message);
@@ -132,7 +135,9 @@ class AppwriteRoomRepository implements RoomRepository {
         queries: queries,
       );
 
-      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+      return documents
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
+          .toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'search($query)');
       throw Exception(error.message);
@@ -152,7 +157,9 @@ class AppwriteRoomRepository implements RoomRepository {
         queries: queries,
       );
 
-      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+      return documents
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
+          .toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAvailable');
       throw Exception(error.message);
@@ -172,7 +179,9 @@ class AppwriteRoomRepository implements RoomRepository {
         queries: queries,
       );
 
-      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+      return documents
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
+          .toList();
     } catch (e) {
       final error = _errorHandler.handleError(
         e,
@@ -196,7 +205,9 @@ class AppwriteRoomRepository implements RoomRepository {
         queries: queries,
       );
 
-      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+      return documents
+          .map((doc) => RoomAppwriteExtension.fromAppwriteDocument(doc))
+          .toList();
     } catch (e) {
       final error = _errorHandler.handleError(
         e,
@@ -236,6 +247,13 @@ class AppwriteRoomRepository implements RoomRepository {
 
 /// إحصائيات الغرف
 class RoomStatistics {
+  final int total;
+  final int available;
+  final int occupied;
+  final double minPrice;
+  final double maxPrice;
+  final double avgPrice;
+
   RoomStatistics({
     required this.total,
     required this.available,
@@ -244,12 +262,6 @@ class RoomStatistics {
     required this.maxPrice,
     required this.avgPrice,
   });
-  final int total;
-  final int available;
-  final int occupied;
-  final double minPrice;
-  final double maxPrice;
-  final double avgPrice;
 
   double get occupancyRate => total > 0 ? occupied / total : 0.0;
 
@@ -290,7 +302,7 @@ extension RoomAppwriteExtension on Room {
       lastModifiedEpoch: now,
       version: 1,
       origin: 'cloud',
-      vectorClock: {},
+      vectorClock: '{}',
     );
   }
 

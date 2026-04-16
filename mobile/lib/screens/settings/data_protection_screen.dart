@@ -28,8 +28,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   bool _scheduledEnabled = false;
   bool _googleDriveSyncEnabled = false;
   bool _googleDriveSyncDisableOnStart = false;
-  bool _googleDrivePushEnabled = true; // Push مفعّل افتراضياً
-  bool _googleDrivePullEnabled = false; // Pull معطل افتراضياً (وضع Push فقط)
+  bool _googleDrivePushEnabled = false;
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 21, minute: 0);
   final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60];
   final Map<ConflictResolution, String> _conflictDescriptions = {
@@ -66,11 +65,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final googleDriveSyncDisableOnStart =
         prefs.getBool('google_drive_sync_disable_on_start') ?? false;
     final googleDrivePushEnabled =
-        prefs.getBool('gd_unified_push_enabled') ??
-        true; // Push مفعّل افتراضياً
-    final googleDrivePullEnabled =
-        prefs.getBool('gd_unified_pull_enabled') ??
-        false; // Pull معطل افتراضياً (Push فقط)
+        prefs.getBool('gd_unified_push_enabled') ?? false;
     if (!mounted) return;
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
@@ -83,7 +78,6 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _googleDriveSyncEnabled = googleDriveSyncEnabled;
       _googleDriveSyncDisableOnStart = googleDriveSyncDisableOnStart;
       _googleDrivePushEnabled = googleDrivePushEnabled;
-      _googleDrivePullEnabled = googleDrivePullEnabled;
     });
   }
 
@@ -316,44 +310,6 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد الرفع: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
-    }
-  }
-
-  Future<void> _toggleGoogleDrivePullEnabled(bool enabled) async {
-    if (!_googleDriveSyncEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('فعّل مزامنة Google Drive أولاً'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-    setState(() => _syncBusy = true);
-    try {
-      await GoogleDriveUnifiedSyncCoordinator.instance.setPullEnabled(enabled);
-      if (!mounted) return;
-      setState(() => _googleDrivePullEnabled = enabled);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            enabled
-                ? 'تم تفعيل السحب من Google Drive - ستُنزّل التغييرات من السحابة'
-                : 'تم إيقاف السحب من Google Drive - لن تُنزّل أي تغييرات من السحابة (رفع فقط)',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في تغيير إعداد السحب: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -820,7 +776,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _appwriteBusy ? null : _runAppwriteSync,
+                onPressed: _appwriteBusy ? null : () => _runAppwriteSync(),
                 icon: _appwriteBusy
                     ? const SizedBox(
                         width: 16,
@@ -891,7 +847,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     return statusAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => _buildErrorCard('تعذر تحميل إعدادات المزامنة'),
-      data: _buildSyncContent,
+      data: (status) => _buildSyncContent(status),
     );
   }
 
@@ -969,21 +925,6 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         const SizedBox(height: 12),
         _buildCard(
           SwitchListTile(
-            title: const Text('تفعيل السحب من Google Drive'),
-            subtitle: Text(
-              _googleDrivePullEnabled
-                  ? 'سينزل التغييرات من السحابة (Pull مفعّل)'
-                  : 'السحب معطل - لن تُنزّل أي تغييرات من السحابة (رفع فقط / Push only)',
-            ),
-            value: _googleDrivePullEnabled,
-            onChanged: (!_googleDriveSyncEnabled || _syncBusy)
-                ? null
-                : _toggleGoogleDrivePullEnabled,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildCard(
-          SwitchListTile(
             title: const Text('تعطيل مزامنة Google Drive عند بدء التشغيل'),
             subtitle: Text(
               _googleDriveSyncDisableOnStart
@@ -1023,7 +964,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           const SizedBox(height: 12),
           _buildCard(
             DropdownButtonFormField<int>(
-              initialValue: _intervalOptions.contains(syncInterval)
+              value: _intervalOptions.contains(syncInterval)
                   ? syncInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -1050,7 +991,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             Column(
               children: [
                 DropdownButtonFormField<ConflictResolution>(
-                  initialValue: resolution,
+                  value: resolution,
                   decoration: const InputDecoration(
                     labelText: 'استراتيجية حل التضارب',
                     prefixIcon: Icon(Icons.merge_type),
@@ -1133,7 +1074,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _retentionDaysController.text = retentionDays.toString();
     }
     final statusMessage = backupState.message;
-    final double? progress = backupState.progress?.clamp(0.0, 1.0);
+    final double? progress = backupState.progress?.clamp(0.0, 1.0).toDouble();
     final bool isErrorMessage = backupState.status == BackupStatus.error;
     final bool isSuccessMessage = backupState.status == BackupStatus.success;
     final lastLocalBackup = backupState.lastLocalBackupTime;

@@ -17,7 +17,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // File Types
-        const SectionHeader(
+        SectionHeader(
           title: 'أنواع الملفات المدعومة',
           icon: Icons.file_present,
         ),
@@ -26,7 +26,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Recent Operations
-        const SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
+        SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
         _buildRecentOperationsList(),
       ],
     );
@@ -170,7 +170,9 @@ class FileManagementTab extends ConsumerWidget {
       );
     }
 
-    return Column(children: operations.map(_buildOperationItem).toList());
+    return Column(
+      children: operations.map((op) => _buildOperationItem(op)).toList(),
+    );
   }
 
   Widget _buildOperationItem(Map<String, dynamic> operation) {
@@ -178,7 +180,7 @@ class FileManagementTab extends ConsumerWidget {
     final isSuccess = operation['status'] == 'success';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),

@@ -4,7 +4,6 @@ import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import '../sync_guardian.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 
@@ -50,8 +49,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     String? to,
     String? roomNumber,
     bool includeDeleted = false,
-    int? limit,
-    int? offset,
   }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
@@ -71,40 +68,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-
-    // Add pagination support
-    if (limit != null) q.limit(limit, offset: offset);
-
     return q.get();
-  }
-
-  /// Get total count for pagination
-  Future<int> countForReport({
-    String? from,
-    String? to,
-    String? roomNumber,
-    bool includeDeleted = false,
-  }) async {
-    final countExp = payments.id.count();
-    final query = selectOnly(payments)..addColumns([countExp]);
-
-    if (!includeDeleted) {
-      query.where(payments.deletedAt.isNull());
-    }
-
-    if (from != null && to != null) {
-      query.where(
-        payments.paymentDate.isBiggerOrEqualValue(from) &
-            payments.paymentDate.isSmallerOrEqualValue(to),
-      );
-    }
-
-    if (roomNumber != null && roomNumber.isNotEmpty) {
-      query.where(payments.roomNumber.equals(roomNumber));
-    }
-
-    final result = await query.getSingle();
-    return result.read(countExp) ?? 0;
   }
 
   Stream<List<Payment>> watchList({
@@ -186,10 +150,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'payments',
-          operation: 'create',
-        );
       }
       return id;
     });
@@ -218,10 +178,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'payments',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -246,10 +202,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'payments',
-          operation: 'delete',
         );
       }
       return rows;

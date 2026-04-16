@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../../utils/id.dart';
@@ -58,64 +57,16 @@ class PriceAdjustmentsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      targetType: _vStr(
-        json,
-        'targetType',
-        src,
-        altKey: 'target_type',
-        fallback: '',
-      ),
-      targetUuid: _vStr(
-        json,
-        'targetUuid',
-        src,
-        altKey: 'target_uuid',
-        fallback: '',
-      ),
-      adjustmentType: _vStr(
-        json,
-        'adjustmentType',
-        src,
-        altKey: 'adjustment_type',
-        fallback: '',
-      ),
-      previousValue: _vInt(
-        json,
-        'previousValue',
-        src,
-        altKey: 'previous_value',
-        fallback: 0,
-      ),
+      targetType: _vStr(json, 'targetType', src, altKey: 'target_type', fallback: ''),
+      targetUuid: _vStr(json, 'targetUuid', src, altKey: 'target_uuid', fallback: ''),
+      adjustmentType: _vStr(json, 'adjustmentType', src, altKey: 'adjustment_type', fallback: ''),
+      previousValue: _vInt(json, 'previousValue', src, altKey: 'previous_value', fallback: 0),
       newValue: _vInt(json, 'newValue', src, altKey: 'new_value', fallback: 0),
       reason: _vStr(json, 'reason', src),
-      effectiveDate: _vStr(
-        json,
-        'effectiveDate',
-        src,
-        altKey: 'effective_date',
-        fallback: '',
-      ),
-      appliedBy: _vStr(
-        json,
-        'appliedBy',
-        src,
-        altKey: 'applied_by',
-        fallback: '',
-      ),
-      hotelDayKey: _vStr(
-        json,
-        'hotelDayKey',
-        src,
-        altKey: 'hotel_day_key',
-        fallback: '',
-      ),
-      isReversed: _vBool(
-        json,
-        'isReversed',
-        src,
-        altKey: 'is_reversed',
-        fallback: false,
-      ),
+      effectiveDate: _vStr(json, 'effectiveDate', src, altKey: 'effective_date', fallback: ''),
+      appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by', fallback: ''),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
+      isReversed: _vBool(json, 'isReversed', src, altKey: 'is_reversed', fallback: false),
       reversedAt: _vStr(json, 'reversedAt', src, altKey: 'reversed_at'),
       reversedBy: _vStr(json, 'reversedBy', src, altKey: 'reversed_by'),
       createdAt: d.Value(createdAt),
@@ -124,12 +75,12 @@ class PriceAdjustmentsAdapter
       lastModified: d.Value(lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
@@ -158,9 +109,7 @@ class PriceAdjustmentsAdapter
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock.isNotEmpty
-          ? jsonEncode(model.vectorClock)
-          : '{}',
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -241,38 +190,6 @@ bool? _asBool(Map<String, dynamic> json, String key, Source src) {
     final t = v.toLowerCase();
     if (t == 'true' || t == '1') return true;
     if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
   }
   return null;
 }

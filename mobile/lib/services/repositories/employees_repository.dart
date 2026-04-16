@@ -139,6 +139,6 @@ class EmployeesRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return dao.getRecordCount();
+    return await dao.getRecordCount();
   }
 }

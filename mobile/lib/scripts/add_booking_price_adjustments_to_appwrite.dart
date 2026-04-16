@@ -26,13 +26,7 @@ final List<Map<String, dynamic>> attributes = [
   {'key': 'bookingLocalUuid', 'type': 'string', 'size': 36, 'required': true},
   {'key': 'bookingLocalId', 'type': 'integer', 'required': false},
   {'key': 'adjustmentType', 'type': 'integer', 'required': true},
-  {
-    'key': 'adjustmentMode',
-    'type': 'string',
-    'size': 20,
-    'required': false,
-    'default': 'per_night',
-  },
+  {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'required': false, 'default': 'per_night'},
   {'key': 'amount', 'type': 'double', 'required': true},
   {'key': 'effectiveHotelDay', 'type': 'string', 'size': 10, 'required': true},
   {'key': 'endHotelDay', 'type': 'string', 'size': 10, 'required': false},
@@ -51,27 +45,10 @@ final List<Map<String, dynamic>> attributes = [
   {'key': 'updatedAtIso', 'type': 'string', 'size': 50, 'required': false},
   {'key': 'deletedAtIso', 'type': 'string', 'size': 50, 'required': false},
   {'key': 'createdAtEpoch', 'type': 'integer', 'required': false, 'default': 0},
-  {
-    'key': 'lastModifiedEpoch',
-    'type': 'integer',
-    'required': false,
-    'default': 0,
-  },
+  {'key': 'lastModifiedEpoch', 'type': 'integer', 'required': false, 'default': 0},
   {'key': 'version', 'type': 'integer', 'required': false, 'default': 1},
-  {
-    'key': 'origin',
-    'type': 'string',
-    'size': 20,
-    'required': false,
-    'default': 'local',
-  },
-  {
-    'key': 'vectorClock',
-    'type': 'string',
-    'size': 1000,
-    'required': false,
-    'default': '{}',
-  },
+  {'key': 'origin', 'type': 'string', 'size': 20, 'required': false, 'default': 'local'},
+  {'key': 'vectorClock', 'type': 'string', 'size': 1000, 'required': false, 'default': '{}'},
 ];
 
 Future<void> main(List<String> args) async {
@@ -92,13 +69,9 @@ Future<void> main(List<String> args) async {
     print('\nللحصول على API Key:');
     print('1. افتح https://cloud.appwrite.io/console');
     print('2. اختر المشروع → Settings → API Keys');
-    print(
-      '3. أنشئ API Key جديد مع صلاحيات: databases.write, collections.write',
-    );
+    print('3. أنشئ API Key جديد مع صلاحيات: databases.write, collections.write');
     print('\nثم شغل الأمر:');
-    print(
-      'dart run lib/scripts/add_booking_price_adjustments_to_appwrite.dart <API_KEY>',
-    );
+    print('dart run lib/scripts/add_booking_price_adjustments_to_appwrite.dart <API_KEY>');
     exit(1);
   }
 
@@ -115,11 +88,9 @@ Future<void> main(List<String> args) async {
     // 1. إنشاء الـ Collection
     print('1️⃣ إنشاء الـ Collection...');
     final collectionCreated = await createCollection(client, apiKey);
-
+    
     if (!collectionCreated) {
-      print(
-        '   ⚠️ الـ Collection قد يكون موجوداً بالفعل، نستمر بإضافة الحقول...',
-      );
+      print('   ⚠️ الـ Collection قد يكون موجوداً بالفعل، نستمر بإضافة الحقول...');
     } else {
       print('   ✅ تم إنشاء الـ Collection بنجاح');
     }
@@ -132,9 +103,9 @@ Future<void> main(List<String> args) async {
 
     for (final attr in attributes) {
       await Future.delayed(const Duration(milliseconds: 500));
-
+      
       final result = await addAttribute(client, apiKey, attr);
-
+      
       if (result == 'success') {
         successCount++;
         print('   ✅ ${attr['key']}');
@@ -149,30 +120,9 @@ Future<void> main(List<String> args) async {
 
     // 3. إنشاء الـ Index
     print('\n3️⃣ إنشاء الـ Indexes...');
-    await createIndex(
-      client,
-      apiKey,
-      'idx_local_uuid',
-      ['localUuid'],
-      ['ASC'],
-      'unique',
-    );
-    await createIndex(
-      client,
-      apiKey,
-      'idx_booking_uuid',
-      ['bookingLocalUuid', 'isActive'],
-      ['ASC', 'DESC'],
-      'key',
-    );
-    await createIndex(
-      client,
-      apiKey,
-      'idx_dates',
-      ['effectiveHotelDay', 'endHotelDay'],
-      ['ASC', 'ASC'],
-      'key',
-    );
+    await createIndex(client, apiKey, 'idx_local_uuid', ['localUuid'], ['ASC'], 'unique');
+    await createIndex(client, apiKey, 'idx_booking_uuid', ['bookingLocalUuid', 'isActive'], ['ASC', 'DESC'], 'key');
+    await createIndex(client, apiKey, 'idx_dates', ['effectiveHotelDay', 'endHotelDay'], ['ASC', 'ASC'], 'key');
 
     print('\n═══════════════════════════════════════════════════════════');
     print('📊 النتائج:');
@@ -223,17 +173,16 @@ Future<bool> createCollection(http.Client client, String apiKey) async {
   }
 }
 
-Future<String> addAttribute(
-  http.Client client,
-  String apiKey,
-  Map<String, dynamic> attr,
-) async {
+Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynamic> attr) async {
   final type = attr['type'] as String;
   final key = attr['key'] as String;
   final required = attr['required'] as bool? ?? false;
-
+  
   String urlPath;
-  final Map<String, dynamic> body = {'key': key, 'required': required};
+  final Map<String, dynamic> body = {
+    'key': key,
+    'required': required,
+  };
 
   if (type == 'string') {
     urlPath = 'string';

@@ -182,7 +182,7 @@ class SchemaComparisonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...fields.map(_buildFieldRow),
+            ...fields.map((field) => _buildFieldRow(field)),
           ],
         ),
       ),
@@ -278,7 +278,7 @@ class SchemaComparisonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            ...examples.map(_buildNamingRow),
+            ...examples.map((ex) => _buildNamingRow(ex)),
           ],
         ),
       ),
@@ -486,7 +486,7 @@ class SchemaComparisonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            ...fixes.map(_buildFixRow),
+            ...fixes.map((fix) => _buildFixRow(fix)),
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -681,6 +681,12 @@ class SchemaComparisonScreen extends StatelessWidget {
 }
 
 class _FieldComparison {
+  final String name;
+  final String localType;
+  final String appwriteType;
+  final bool matches;
+  final String? note;
+
   _FieldComparison(
     this.name,
     this.localType,
@@ -688,21 +694,23 @@ class _FieldComparison {
     this.matches, {
     this.note,
   });
-  final String name;
-  final String localType;
-  final String appwriteType;
-  final bool matches;
-  final String? note;
 }
 
 class _NamingExample {
-  _NamingExample(this.sqlName, this.dartName, this.note);
   final String sqlName;
   final String dartName;
   final String note;
+
+  _NamingExample(this.sqlName, this.dartName, this.note);
 }
 
 class _FixSummary {
+  final String problem;
+  final String solution;
+  final int filesModified;
+  final IconData icon;
+  final Color color;
+
   _FixSummary(
     this.problem,
     this.solution,
@@ -710,9 +718,4 @@ class _FixSummary {
     this.icon,
     this.color,
   );
-  final String problem;
-  final String solution;
-  final int filesModified;
-  final IconData icon;
-  final Color color;
 }

@@ -58,9 +58,9 @@ class ShiftNotesRepository {
   /// إنشاء ملاحظة جديدة
   Future<int> create(ShiftNote note) async {
     final data = ShiftNoteAdapter.toBookingNoteData(note);
-    return dao.insertOne(
+    return await dao.insertOne(
       BookingNotesCompanion(
-        bookingId: const d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
+        bookingId: d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
         noteText: d.Value(data['note_text']),
         alertType: d.Value(data['alert_type']),
         alertUntil: data['alert_until'] != null

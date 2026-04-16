@@ -5,19 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
-import '../../providers/smart_init/delta_sync_init_provider.dart';
-import '../../providers/smart_init/delta_sync_init_state.dart';
 import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
-import '../../services/appwrite_delta_sync.dart';
-import '../../services/smart_initializers/delta_sync_initializer.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'comprehensive_backup_screen.dart';
-import 'sync_history_screen.dart';
-import '../../utils/debug_logs.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -40,66 +34,17 @@ class _AppwriteSettingsScreenState
   bool _logFile = false;
   bool _isLoading = false;
 
-  /// ✅ Cache الـ Future لمنع إعادة إنشائه في كل rebuild
-  late Future<AppwriteDeltaSyncResult> _deltaSyncStatusFuture;
-
-  /// ✅ تتبع حالة Dialog التحميل للإغلاق الآمن
-  bool _isShowingLoadingDialog = false;
-
   @override
   void initState() {
     super.initState();
-    _deltaSyncStatusFuture = _getDeltaSyncStatus();
     _loadSettings();
     _checkConnection();
-  }
-
-  /// ✅ Helper آمن لـ setState — يمنع Crash بعد dispose
-  void _safeSetState(VoidCallback fn) {
-    if (mounted) setState(fn);
-  }
-
-  /// ✅ تحديث حالة Delta Sync بعد العمليات
-  void _refreshDeltaSyncStatus() {
-    _safeSetState(() {
-      _deltaSyncStatusFuture = _getDeltaSyncStatus();
-    });
-  }
-
-  /// ✅ عرض Dialog تحميل بدلاً من SnackBar الطويل
-  void _showLoadingDialog(String message) {
-    if (!mounted) return;
-    _isShowingLoadingDialog = true;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 16),
-              Expanded(child: Text(message)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// ✅ إغلاق Dialog التحميل بشكل آمن
-  void _dismissLoadingDialog() {
-    if (_isShowingLoadingDialog && mounted) {
-      _isShowingLoadingDialog = false;
-      Navigator.of(context).pop();
-    }
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
       _autoSyncOnConnect =
           prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
@@ -112,33 +57,24 @@ class _AppwriteSettingsScreenState
     });
   }
 
-  /// ✅ حفظ الإعدادات بشكل batch مع error handling
-  Future<bool> _saveSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await Future.wait([
-        prefs.setBool('appwrite_sync_enabled', _syncEnabled),
-        prefs.setInt('appwrite_sync_interval', _syncInterval),
-        prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect),
-        prefs.setBool('appwrite_cache_enabled', _cacheEnabled),
-        prefs.setInt('appwrite_cache_ttl', _cacheTTLHours),
-        prefs.setInt('appwrite_cache_max_size', _cacheMaxSizeMB),
-        prefs.setString('appwrite_log_level', _logLevel),
-        prefs.setBool('appwrite_log_console', _logConsole),
-        prefs.setBool('appwrite_log_file', _logFile),
-      ]);
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('appwrite_sync_enabled', _syncEnabled);
+    await prefs.setInt('appwrite_sync_interval', _syncInterval);
+    await prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect);
+    await prefs.setBool('appwrite_cache_enabled', _cacheEnabled);
+    await prefs.setInt('appwrite_cache_ttl', _cacheTTLHours);
+    await prefs.setInt('appwrite_cache_max_size', _cacheMaxSizeMB);
+    await prefs.setString('appwrite_log_level', _logLevel);
+    await prefs.setBool('appwrite_log_console', _logConsole);
+    await prefs.setBool('appwrite_log_file', _logFile);
 
-      // تحديث مدير المزامنة بالإعدادات الجديدة
-      final syncManager = ref.read(ap.appwriteSyncManagerProvider);
-      if (_syncEnabled) {
-        syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
-      } else {
-        syncManager.stopAutoSync();
-      }
-      return true;
-    } catch (e) {
-      debugPrint('❌ فشل حفظ الإعدادات: $e');
-      return false;
+    // تحديث مدير المزامنة بالإعدادات الجديدة
+    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+    if (_syncEnabled) {
+      syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
+    } else {
+      syncManager.stopAutoSync();
     }
   }
 
@@ -154,7 +90,6 @@ class _AppwriteSettingsScreenState
     final logStats = ref.watch(ap.logStatsProvider);
     final projectInfo = ref.watch(ap.projectInfoProvider);
     final devicesAsync = ref.watch(ap.devicesListProvider);
-    final smartInitState = ref.watch(deltaSyncInitStateProvider);
 
     return AppScaffold(
       title: 'إعدادات Appwrite',
@@ -171,16 +106,8 @@ class _AppwriteSettingsScreenState
             _buildConnectionSection(context, connectionState, projectInfo),
             const SizedBox(height: 16),
 
-            // قسم تهيئة Delta Sync الذكية
-            _buildSmartInitCard(context, smartInitState),
-            const SizedBox(height: 16),
-
             // قسم المزامنة
             _buildSyncSection(context, syncStatsAsync),
-            const SizedBox(height: 16),
-
-            // قسم أخطاء Field-Level Delta Sync
-            _buildDeltaSyncErrorsSection(context),
             const SizedBox(height: 16),
 
             // قسم التخزين المؤقت
@@ -219,8 +146,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.cloud, color: Colors.blue, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -327,194 +254,6 @@ class _AppwriteSettingsScreenState
     );
   }
 
-  // ==================== قسم تهيئة Delta Sync الذكية ====================
-  Widget _buildSmartInitCard(BuildContext context, DeltaSyncInitState state) {
-    final color = _stateColor(state);
-    final icon = _stateIcon(state);
-    final title = _stateTitle(state);
-    final subtitle = _stateSubtitle(state);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'تهيئة المزامنة التفاضلية',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (state == DeltaSyncInitState.ready)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green),
-                    ),
-                    child: const Text(
-                      '✅ جاهز',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const Divider(height: 24),
-
-            // مؤشر الحالة
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  if (state == DeltaSyncInitState.initializing)
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    )
-                  else
-                    Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: color,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (subtitle.isNotEmpty)
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (state == DeltaSyncInitState.failed)
-                    TextButton.icon(
-                      onPressed: _retrySmartInit,
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: const Text('إعادة المحاولة'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                    ),
-                ],
-              ),
-            ),
-
-            // شريط تقدم خطي لحالة الانتظار
-            if (state == DeltaSyncInitState.waitingNetwork ||
-                state == DeltaSyncInitState.initializing)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: LinearProgressIndicator(
-                  backgroundColor: color.withOpacity(0.1),
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// لون حالة التهيئة.
-  Color _stateColor(DeltaSyncInitState state) {
-    switch (state) {
-      case DeltaSyncInitState.idle:
-        return Colors.grey;
-      case DeltaSyncInitState.waitingNetwork:
-        return Colors.orange;
-      case DeltaSyncInitState.initializing:
-        return Colors.blue;
-      case DeltaSyncInitState.ready:
-        return Colors.green;
-      case DeltaSyncInitState.failed:
-        return Colors.red;
-    }
-  }
-
-  /// أيقونة حالة التهيئة.
-  IconData _stateIcon(DeltaSyncInitState state) {
-    switch (state) {
-      case DeltaSyncInitState.idle:
-        return Icons.hourglass_empty;
-      case DeltaSyncInitState.waitingNetwork:
-        return Icons.wifi_off;
-      case DeltaSyncInitState.initializing:
-        return Icons.sync;
-      case DeltaSyncInitState.ready:
-        return Icons.check_circle;
-      case DeltaSyncInitState.failed:
-        return Icons.error_outline;
-    }
-  }
-
-  /// عنوان حالة التهيئة.
-  String _stateTitle(DeltaSyncInitState state) {
-    switch (state) {
-      case DeltaSyncInitState.idle:
-        return 'في انتظار البدء';
-      case DeltaSyncInitState.waitingNetwork:
-        return 'في انتظار الاتصال بالإنترنت';
-      case DeltaSyncInitState.initializing:
-        return 'جاري تهيئة خدمة Delta Sync...';
-      case DeltaSyncInitState.ready:
-        return 'تمت التهيئة بنجاح — المزامنة جاهزة';
-      case DeltaSyncInitState.failed:
-        return 'فشلت التهيئة — سيتم إعادة المحاولة تلقائياً';
-    }
-  }
-
-  /// وصف فرعي لحالة التهيئة.
-  String _stateSubtitle(DeltaSyncInitState state) {
-    switch (state) {
-      case DeltaSyncInitState.idle:
-        return 'سيبدأ المراقب تلقائياً';
-      case DeltaSyncInitState.waitingNetwork:
-        return 'سيتم التهيئة فوراً عند عودة الاتصال';
-      case DeltaSyncInitState.initializing:
-        return 'يُعدّ AppwriteService ويربط DeltaSync بقاعدة البيانات';
-      case DeltaSyncInitState.ready:
-        return 'يمكنك رفع وسحب البيانات الآن';
-      case DeltaSyncInitState.failed:
-        return 'تحقق من الاتصال وحاول مرة أخرى';
-    }
-  }
-
-  /// إعادة محاولة التهيئة يدوياً من UI.
-  Future<void> _retrySmartInit() async {
-    await DeltaSyncInitializer.instance.retryNow();
-  }
-
   // ==================== قسم المزامنة ====================
   Widget _buildSyncSection(
     BuildContext context,
@@ -526,8 +265,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.sync, color: Colors.cyan, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -611,34 +350,6 @@ class _AppwriteSettingsScreenState
 
             const SizedBox(height: 12),
 
-            // Field-Level Delta Sync buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _pushDeltaSync,
-                    icon: const Icon(Icons.cloud_upload),
-                    label: const Text('رفع'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _pullDeltaSync,
-                    icon: const Icon(Icons.cloud_download),
-                    label: const Text('سحب'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
             // أزرار المزامنة
             Row(
               children: [
@@ -665,28 +376,6 @@ class _AppwriteSettingsScreenState
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-
-            // زر عرض سجل المزامنة
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SyncHistoryScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.history),
-                label: const Text('سجل عمليات المزامنة'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.teal,
-                  side: const BorderSide(color: Colors.teal),
-                ),
-              ),
             ),
           ],
         ),
@@ -751,8 +440,7 @@ class _AppwriteSettingsScreenState
             Expanded(
               child: _buildStatCard(
                 title: 'تضارب',
-                value:
-                    '${stats['conflictCount'] ?? stats['totalConflicts'] ?? 0}',
+                value: '${stats['totalConflicts'] ?? 0}',
                 icon: Icons.warning,
                 color: Colors.amber,
               ),
@@ -770,428 +458,6 @@ class _AppwriteSettingsScreenState
     );
   }
 
-  // ==================== قسم أخطاء Field-Level Delta Sync ====================
-  Widget _buildDeltaSyncErrorsSection(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 24),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'أخطاء مزامنة الحقول',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                // زر مسح الأخطاء
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await AppwriteDeltaSync.clearFieldSyncErrors();
-                    _safeSetState(() {});
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم مسح أخطاء المزامنة'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.delete_sweep, size: 16),
-                  label: const Text('مسح', style: TextStyle(fontSize: 11)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    minimumSize: Size.zero,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-
-            // ✅ عرض أخطاء Field-Level من SharedPreferences
-            FutureBuilder<List<FieldSyncError>>(
-              future: AppwriteDeltaSync.getFieldSyncErrors(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                final errors = snapshot.data ?? [];
-
-                if (errors.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 20),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'لا توجد أخطاء في مزامنة الحقول',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                // تجميع الأخطاء حسب الجدول
-                final grouped = <String, List<FieldSyncError>>{};
-                for (final error in errors) {
-                  grouped.putIfAbsent(error.entityName, () => []).add(error);
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // شريط الملخص
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.warning_amber,
-                            color: Colors.red,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$errors.length خطأ في ${grouped.length} جدول',
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // عرض الأخطاء مجمعة حسب الجدول
-                    ...grouped.entries.map((entry) {
-                      final tableName = entry.key;
-                      final tableErrors = entry.value;
-
-                      return _buildErrorGroup(context, tableName, tableErrors);
-                    }),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// ✅ بناء مجموعة أخطاء لجدول واحد
-  Widget _buildErrorGroup(
-    BuildContext context,
-    String tableName,
-    List<FieldSyncError> errors,
-  ) {
-    // تجميع الأخطاء حسب نوع الخطأ
-    final byType = <String, List<FieldSyncError>>{};
-    for (final error in errors) {
-      byType.putIfAbsent(error.errorType, () => []).add(error);
-    }
-
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(bottom: 8),
-      initiallyExpanded: false,
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.red.shade100,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            '${errors.length}',
-            style: const TextStyle(
-              color: Colors.red,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-      title: Text(
-        _getEntityDisplayName(tableName),
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-      ),
-      subtitle: Text(
-        '${byType.length} نوع خطأ: ${byType.keys.map((t) => errors.first.errorTypeAr).toSet().join(', ')}',
-        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-      ),
-      children: [
-        // عرض الأنواع المختلفة
-        Padding(
-          padding: const EdgeInsets.only(right: 16, bottom: 4),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: byType.entries.map((typeEntry) {
-              final typeName = typeEntry.key;
-              final typeErrors = typeEntry.value;
-              return Chip(
-                avatar: Icon(
-                  _getErrorTypeIcon(typeName),
-                  size: 14,
-                  color: _getErrorTypeColor(typeName),
-                ),
-                label: Text(
-                  '${typeEntry.value.first.errorTypeAr}: ${typeErrors.length}',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                backgroundColor: _getErrorTypeColor(typeName).withOpacity(0.1),
-                side: BorderSide(
-                  color: _getErrorTypeColor(typeName).withOpacity(0.3),
-                ),
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-              );
-            }).toList(),
-          ),
-        ),
-        // عرض تفاصيل الأخطاء (أول 5 فقط)
-        ...errors.take(5).map((error) => _buildErrorItem(error)),
-        if (errors.length > 5)
-          Padding(
-            padding: const EdgeInsets.only(right: 16, top: 4),
-            child: Text(
-              'و ${errors.length - 5} خطأ آخر...',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade500,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// ✅ بناء عنصر خطأ واحد
-  Widget _buildErrorItem(FieldSyncError error) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 24, top: 4, bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.subdirectory_arrow_right,
-            size: 14,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Text(
-                        error.fieldName,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getErrorTypeColor(
-                          error.errorType,
-                        ).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: _getErrorTypeColor(
-                            error.errorType,
-                          ).withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        error.errorTypeAr,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _getErrorTypeColor(error.errorType),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (error.operation.isNotEmpty)
-                      Text(
-                        '[${error.operation}]',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _truncateError(error.errorMessage),
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// ✅ أيقونة نوع الخطأ
-  IconData _getErrorTypeIcon(String type) {
-    switch (type) {
-      case 'network':
-        return Icons.wifi_off;
-      case 'validation':
-        return Icons.rule;
-      case 'not_found':
-        return Icons.search_off;
-      case 'permission':
-        return Icons.lock;
-      case 'timeout':
-        return Icons.timer_off;
-      case 'data_mismatch':
-        return Icons.compare_arrows;
-      default:
-        return Icons.help_outline;
-    }
-  }
-
-  /// ✅ لون نوع الخطأ
-  Color _getErrorTypeColor(String type) {
-    switch (type) {
-      case 'network':
-        return Colors.orange;
-      case 'validation':
-        return Colors.amber;
-      case 'not_found':
-        return Colors.blue;
-      case 'permission':
-        return Colors.red;
-      case 'timeout':
-        return Colors.purple;
-      case 'data_mismatch':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  /// ✅ اسم عرض الجدول
-  String _getEntityDisplayName(String name) {
-    const names = {
-      'rooms': 'الغرف',
-      'bookings': 'الحجوزات',
-      'payments': 'المدفوعات',
-      'employees': 'الموظفين',
-      'expenses': 'المصروفات',
-      'debts': 'الديون',
-      'shift_notes': 'ملاحظات الورديات',
-      'booking_notes': 'ملاحظات الحجز',
-      'cash_transactions': 'المعاملات النقدية',
-      'salary_cycles': 'دورات الرواتب',
-      'salary_payments': 'مدفوعات الرواتب',
-      'salary_withdrawals': 'سحوبات الرواتب',
-      'booking_nights': 'ليالي الحجز',
-      'booking_price_adjustments': 'تعديلات الأسعار',
-      'price_adjustments': 'تعديلات الأسعار',
-      'payment_voids': 'إلغاء المدفوعات',
-      'audit_logs': 'سجل التدقيق',
-    };
-    return names[name] ?? name;
-  }
-
-  /// ✅ تقصير رسالة الخطأ
-  String _truncateError(String message) {
-    if (message.length > 120) {
-      return '${message.substring(0, 120)}...';
-    }
-    return message;
-  }
-
-  Future<AppwriteDeltaSyncResult> _getDeltaSyncStatus() async {
-    try {
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (!deltaSync.isInitialized) {
-        return AppwriteDeltaSyncResult(
-          success: false,
-          message: 'الخدمة غير مهيأة',
-        );
-      }
-      final status = await deltaSync.getStatus();
-      return AppwriteDeltaSyncResult(
-        success: status['initialized'] == true,
-        message: status['is_syncing'] == true ? 'المزامنة جارية...' : 'متهيأة',
-        pushedCount: status['pushed_count'] ?? 0,
-        pulledCount: status['pulled_count'] ?? 0,
-        failedCount: status['failed_count'] ?? 0,
-        conflictCount: status['outbox']?['conflicts'] ?? 0,
-      );
-    } catch (e) {
-      return AppwriteDeltaSyncResult(success: false, message: e.toString());
-    }
-  }
-
   // ==================== قسم التخزين المؤقت ====================
   Widget _buildCacheSection(BuildContext context, cacheStats) {
     return Card(
@@ -1200,8 +466,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.storage, color: Colors.purple, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -1332,8 +598,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.article, color: Colors.green, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -1501,8 +767,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.devices, color: Colors.teal, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -1526,10 +792,7 @@ class _AppwriteSettingsScreenState
                 return Column(
                   children: devices.map<Widget>((device) {
                     return ListTile(
-                      leading: const Icon(
-                        Icons.phone_android,
-                        color: Colors.teal,
-                      ),
+                      leading: Icon(Icons.phone_android, color: Colors.teal),
                       title: Text(device.deviceName),
                       subtitle: Text(
                         '${device.deviceModel} - ${device.osVersion}',
@@ -1589,8 +852,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.data_usage, color: Colors.indigo, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -1663,8 +926,8 @@ class _AppwriteSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
+            Row(
+              children: const [
                 Icon(Icons.science, color: Colors.deepOrange, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -1731,7 +994,7 @@ class _AppwriteSettingsScreenState
             ],
           ),
           const SizedBox(height: 6),
-          Text(subtitle, style: const TextStyle(color: Colors.black87)),
+          Text(subtitle, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87)),
           const SizedBox(height: 8),
           ...details.map(
             (detail) => Padding(
@@ -1853,7 +1116,7 @@ class _AppwriteSettingsScreenState
   // ==================== الأحداث ====================
 
   Future<void> _syncNow() async {
-    _safeSetState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     try {
       final syncManager = ref.read(ap.appwriteSyncManagerProvider);
       final result = await syncManager.sync();
@@ -1878,7 +1141,6 @@ class _AppwriteSettingsScreenState
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
-        _refreshDeltaSyncStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -1887,7 +1149,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      _safeSetState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
@@ -1911,7 +1173,7 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed ?? false) {
+    if (confirmed == true) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1941,7 +1203,7 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed ?? false) {
+    if (confirmed == true) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1952,7 +1214,7 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _exportLogs() async {
-    _safeSetState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     try {
       final file = await ref.read(ap.appwriteLoggerProvider).exportLogs();
       if (mounted) {
@@ -1972,7 +1234,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      _safeSetState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
@@ -1981,10 +1243,10 @@ class _AppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('نسخة احتياطية شاملة من Appwrite'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: const [
             Text('سيتم سحب كل الجداول والفهارس والبيانات من Appwrite Cloud.'),
             SizedBox(height: 8),
             Text('• سيتم إنشاء ملف JSON قابل للمشاركة'),
@@ -2007,11 +1269,16 @@ class _AppwriteSettingsScreenState
 
     if (confirmed != true) return;
 
-    if (!mounted) return;
-    // ✅ استخدام Dialog بدلاً من SnackBar بمدة 5 دقائق (يمنع أي SnackBar آخر)
-    _showLoadingDialog('جاري إنشاء النسخة الاحتياطية الشاملة...');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('جاري إنشاء النسخة الاحتياطية الشاملة...'),
+          duration: Duration(minutes: 5),
+        ),
+      );
+    }
 
-    _safeSetState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     try {
       final deviceId = ref.read(ap.appwriteSyncManagerProvider).currentDeviceId;
       final service = AppwriteBackupService(
@@ -2023,7 +1290,7 @@ class _AppwriteSettingsScreenState
       );
 
       if (!mounted) return;
-      _dismissLoadingDialog();
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       final sortedCounts = result.counts.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key));
@@ -2063,7 +1330,7 @@ class _AppwriteSettingsScreenState
       );
     } catch (e) {
       if (!mounted) return;
-      _dismissLoadingDialog();
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
@@ -2071,7 +1338,11 @@ class _AppwriteSettingsScreenState
         ),
       );
     } finally {
-      _safeSetState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -2080,10 +1351,10 @@ class _AppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الرفع'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: const [
             Text('سيتم رفع جميع البيانات المحلية إلى السحابة.'),
             SizedBox(height: 8),
             Text('• الغرف والحجوزات والمدفوعات والديون'),
@@ -2106,7 +1377,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed != true) return;
 
-    _safeSetState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pushAllLocalData();
@@ -2118,7 +1389,6 @@ class _AppwriteSettingsScreenState
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
-        _refreshDeltaSyncStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -2127,7 +1397,11 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      _safeSetState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -2136,10 +1410,10 @@ class _AppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد السحب'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: const [
             Text('سيتم تحميل البيانات من السحابة إلى الجهاز.'),
             SizedBox(height: 8),
             Text('• قد يتم استبدال بعض البيانات المحلية'),
@@ -2162,7 +1436,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed != true) return;
 
-    _safeSetState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pullAllRemoteData();
@@ -2174,7 +1448,6 @@ class _AppwriteSettingsScreenState
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
-        _refreshDeltaSyncStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -2183,7 +1456,11 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      _safeSetState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -2207,7 +1484,7 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed ?? false) {
+    if (confirmed == true) {
       await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2258,79 +1535,4 @@ class _AppwriteSettingsScreenState
       ),
     );
   }
-
-  /// ✅ Generic method لتقليل التكرار بين Push و Pull Delta Sync
-  Future<void> _runDeltaSync({
-    required String operationName,
-    required Future<AppwriteDeltaSyncResult> Function() operation,
-    Future<void> Function(AppwriteDeltaSyncResult)? onSuccess,
-  }) async {
-    _safeSetState(() => _isLoading = true);
-    try {
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (!deltaSync.isInitialized) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('الخدمة غير مهيئة — انتظر تحميل التطبيق'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      final result = await operation();
-      final count = operationName == 'رفع'
-          ? result.pushedCount
-          : result.pulledCount;
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result.success
-                  ? 'تم $operationName $count سجل بنجاح'
-                  : 'فشل $operationName: ${result.message}',
-            ),
-            backgroundColor: result.success ? Colors.green : Colors.red,
-          ),
-        );
-
-        if (result.success && onSuccess != null) {
-          await onSuccess(result);
-        }
-
-        _refreshDeltaSyncStatus();
-        ref.invalidate(ap.syncStatsProvider);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل $operationName: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      _safeSetState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _pushDeltaSync() => _runDeltaSync(
-    operationName: 'رفع',
-    operation: AppwriteDeltaSync.instance.pushDeltaChanges,
-  );
-
-  Future<void> _pullDeltaSync() => _runDeltaSync(
-    operationName: 'سحب',
-    operation: AppwriteDeltaSync.instance.pullDeltaChanges,
-    onSuccess: (result) async {
-      if (result.pulledCount > 0) {
-        final fixService = RestoreFixService(DatabaseManager.instance);
-        await fixService.runAutoFixAfterRestore();
-      }
-    },
-  );
 }

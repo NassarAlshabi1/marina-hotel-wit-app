@@ -1,16 +1,8 @@
 class Time {
   static const int earlyCheckinGraceHour = 8;
-
+  
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
-
-  /// ✅ Convert epoch seconds to ISO 8601 string
-  static String epochToIso(int epochSeconds) {
-    return DateTime.fromMillisecondsSinceEpoch(
-      epochSeconds * 1000,
-    ).toIso8601String();
-  }
-
   static String nowDateString() {
     final now = DateTime.now();
     return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -51,10 +43,7 @@ class Time {
     return start;
   }
 
-  static DateTime hotelDayStartForNewBooking(
-    DateTime checkin, {
-    int cutoffHour = 14,
-  }) {
+  static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14}) {
     if (checkin.hour < cutoffHour) {
       return DateTime(checkin.year, checkin.month, checkin.day, cutoffHour);
     }
@@ -100,15 +89,9 @@ class Time {
   }
 
   /// حساب عدد الأيام مع قاعدة الساعة 14:00
-  ///
-  /// Uses hotelDayKey() for accurate hotel-day-based counting.
-  /// Times after the cutoff belong to the next hotel day.
-  ///
-  /// Example: check-in at 19:02 on 31/03, checkout at 10:00 on 01/04
-  ///   → both are in hotelDay "2026-03-31" → 1 night
-  ///
-  /// Example: check-in at 19:02 on 31/03, checkout at 15:00 on 01/04
-  ///   → hotelDay "2026-03-31" vs "2026-04-01" → 2 nights
+  /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
+  /// وحتى الساعة 14:00 من اليوم التالي.
+  /// أي مغادرة بعد الساعة 14:00، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
@@ -116,15 +99,35 @@ class Time {
   }) {
     final end = checkout ?? DateTime.now();
 
-    // Use hotel day keys for accurate counting
-    final checkinHotelDay = hotelDayKey(now: checkin, cutoffHour: cutoffHour);
-    final checkoutHotelDay = hotelDayKey(now: end, cutoffHour: cutoffHour);
+    // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      cutoffHour,
+    );
+    if (checkin.isBefore(startOfCheckinHotelDay)) {
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
+    }
 
-    final startDay = DateTime.parse(checkinHotelDay);
-    final endDay = DateTime.parse(checkoutHotelDay);
-    int days = endDay.difference(startDay).inDays + 1; // +1 for inclusive count
-    if (days < 1) days = 1;
+    // حساب الفرق الزمني بين الوقت الحالي (أو وقت المغادرة) وبداية يوم الفندق للحجز
+    final duration = end.difference(startOfCheckinHotelDay);
+    final totalSeconds = duration.inSeconds;
 
-    return days;
+    if (totalSeconds <= 0) {
+      return 1;
+    }
+
+    const int secondsInDay = 24 * 3600;
+    
+    // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1
+    // إذا كان الوقت بالضبط 14:00 (أي مضاعفات 24 ساعة)، لا يتم احتساب يوم جديد
+    int nights = (totalSeconds ~/ secondsInDay) + 1;
+    
+    if (totalSeconds > 0 && totalSeconds % secondsInDay == 0) {
+      nights -= 1;
+    }
+
+    return nights > 0 ? nights : 1;
   }
 }

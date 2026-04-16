@@ -138,10 +138,10 @@ class RoomsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return dao.getRecordCount();
+    return await dao.getRecordCount();
   }
 
-  Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {
+  Future<void> refreshAllRoomOccupancy() async {
     final bookings = await (db.select(
       db.bookings,
     )..where((tbl) => tbl.deletedAt.isNull())).get();
@@ -163,17 +163,9 @@ class RoomsRepository {
       final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
 
       if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await dao.updateByNumber(
-          room.roomNumber,
-          RoomsCompanion(status: d.Value(target)),
-          originIsServer: originIsServer,
-        );
+        await updateByRoomNumber(room.roomNumber, status: target);
       } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await dao.updateByNumber(
-          room.roomNumber,
-          RoomsCompanion(status: d.Value(target)),
-          originIsServer: originIsServer,
-        );
+        await updateByRoomNumber(room.roomNumber, status: target);
       }
     }
   }

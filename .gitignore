@@ -17,4 +17,3 @@ build/
 .npm/
 .cache/
 dist/
-scripts/node_modules/

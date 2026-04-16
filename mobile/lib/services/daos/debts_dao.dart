@@ -3,7 +3,6 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
-import '../sync_guardian.dart';
 
 part 'debts_dao.g.dart';
 
@@ -84,10 +83,6 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           payload: _payloadFrom(companion),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'debts',
-          operation: 'create',
-        );
       }
       return id;
     });
@@ -120,10 +115,6 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           payload: _payloadFrom(companion, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'debts',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -149,10 +140,6 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           serverId: existing.serverId,
           payload: {'debt_id': existing.serverId},
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'debts',
-          operation: 'delete',
         );
       }
       return rows;

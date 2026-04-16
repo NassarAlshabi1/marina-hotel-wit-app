@@ -9,11 +9,6 @@ import '../services/appwrite_logger.dart';
 ///
 /// يدير حالة الغرف ويستمع للتحديثات الفورية من Appwrite
 class RealTimeRoomsProvider extends ChangeNotifier {
-  RealTimeRoomsProvider({
-    required RoomRepository repository,
-    required AppwriteRealtimeService realtimeService,
-  }) : _repository = repository,
-       _realtimeService = realtimeService;
   final RoomRepository _repository;
   // ignore: unused_field
   final AppwriteRealtimeService _realtimeService;
@@ -24,6 +19,12 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   bool _isSubscribed = false;
   String? _error;
   RealtimeSubscription? _subscription;
+
+  RealTimeRoomsProvider({
+    required RoomRepository repository,
+    required AppwriteRealtimeService realtimeService,
+  }) : _repository = repository,
+       _realtimeService = realtimeService;
 
   // Getters
   List<Room> get rooms => List.unmodifiable(_rooms);

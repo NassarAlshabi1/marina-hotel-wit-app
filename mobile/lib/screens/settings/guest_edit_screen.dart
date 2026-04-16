@@ -5,15 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
-import '../../services/local_db.dart';
+import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/status_utils.dart';
-import 'guest_profile.dart';
+import 'guest_info.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
   const GuestEditScreen({super.key, required this.guest});
 
-  final GuestProfile guest;
+  final GuestInfo guest;
 
   @override
   ConsumerState<GuestEditScreen> createState() => _GuestEditScreenState();
@@ -37,7 +37,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   final Map<int, AdjustmentMode> _adjustmentModeSelections = {};
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp('[0-9]'));
+  final _idNumberFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'[0-9]'),
+  );
 
   bool _saving = false;
   String _idType = 'بطاقة شخصية';
@@ -61,7 +63,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _phoneController = TextEditingController(text: widget.guest.phone);
     _emailController = TextEditingController(text: widget.guest.email);
     _nationalityController = TextEditingController(
-      text: widget.guest.nationality,
+      text: widget.guest.nationality.isNotEmpty
+          ? widget.guest.nationality
+          : 'يمني',
     );
     _idType = widget.guest.idType;
     _idNumberController = TextEditingController(text: widget.guest.idNumber);
@@ -399,7 +403,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: _idType,
+                        value: _idType,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -608,7 +612,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: currentValue,
+                      value: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
@@ -708,9 +712,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                     const SizedBox(height: 12),
                     FutureBuilder<List<BookingPriceAdjustment>>(
-                      future: BookingPriceAdjustmentService(
-                        ref.read(databaseProvider),
-                      ).getActiveAdjustments(booking.localUuid),
+                      future: BookingPriceAdjustmentService(ref.read(databaseProvider))
+                          .getActiveAdjustments(booking.localUuid),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const SizedBox.shrink();
@@ -729,10 +732,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    color: Colors.amber.shade700,
-                                  ),
+                                  Icon(Icons.info_outline, color: Colors.amber.shade700),
                                   const SizedBox(width: 8),
                                   Text(
                                     'التعديلات الحالية (${adjustments.length})',
@@ -757,25 +757,18 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                   child: Row(
                                     children: [
                                       Icon(
-                                        isDiscount
-                                            ? Icons.discount
-                                            : Icons.trending_up,
+                                        isDiscount ? Icons.discount : Icons.trending_up,
                                         size: 20,
-                                        color: isDiscount
-                                            ? Colors.green
-                                            : Colors.orange,
+                                        color: isDiscount ? Colors.green : Colors.orange,
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               '$typeName: ${adj.amount} ريال',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                              style: const TextStyle(fontWeight: FontWeight.w600),
                                             ),
                                             Text(
                                               'من ${adj.effectiveHotelDay}',
@@ -788,22 +781,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                         ),
                                       ),
                                       ElevatedButton.icon(
-                                        onPressed: () => _endPriceAdjustment(
-                                          adj.localUuid,
-                                          typeName,
-                                        ),
+                                        onPressed: () => _endPriceAdjustment(adj.localUuid, typeName),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.red.shade400,
                                           foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                         ),
-                                        icon: const Icon(
-                                          Icons.stop_circle,
-                                          size: 18,
-                                        ),
+                                        icon: const Icon(Icons.stop_circle, size: 18),
                                         label: Text('إنهاء $typeName'),
                                       ),
                                     ],
@@ -828,13 +812,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           Row(
                             children: [
                               Icon(
-                                _adjustmentTypeSelections[booking.id] ==
-                                        AdjustmentType.discount
+                                _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
                                     ? Icons.discount
                                     : Icons.trending_up,
-                                color:
-                                    _adjustmentTypeSelections[booking.id] ==
-                                        AdjustmentType.discount
+                                color: _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
                                     ? Colors.green
                                     : Colors.orange,
                               ),
@@ -850,7 +831,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentType>(
-                            initialValue: _adjustmentTypeSelections[booking.id],
+                            value: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -875,7 +856,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentMode>(
-                            initialValue: _adjustmentModeSelections[booking.id],
+                            value: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),
@@ -928,17 +909,14 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    _adjustmentTypeSelections[booking.id] ==
-                                        AdjustmentType.discount
+                                backgroundColor: _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
                                     ? Colors.green
                                     : Colors.orange,
                                 foregroundColor: Colors.white,
                               ),
                               icon: const Icon(Icons.add_circle_outline),
                               label: Text(
-                                _adjustmentTypeSelections[booking.id] ==
-                                        AdjustmentType.discount
+                                _adjustmentTypeSelections[booking.id] == AdjustmentType.discount
                                     ? 'تطبيق التخفيض'
                                     : 'تطبيق الزيادة',
                               ),
@@ -961,41 +939,39 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   Future<void> _applyPriceAdjustment(Booking booking) async {
     final discountController = _discountControllers[booking.id];
     final startDateController = _discountStartDateControllers[booking.id];
-
+    
     if (discountController == null || startDateController == null) return;
-
+    
     final amountText = discountController.text.trim();
     if (amountText.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('الرجاء إدخال المبلغ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء إدخال المبلغ')),
+      );
       return;
     }
-
+    
     final amount = double.tryParse(amountText)?.round() ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('الرجاء إدخال مبلغ صالح')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء إدخال مبلغ صالح')),
+      );
       return;
     }
-
+    
     final startDate = startDateController.text.trim();
     if (startDate.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('الرجاء تحديد تاريخ البدء')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء تحديد تاريخ البدء')),
+      );
       return;
     }
-
-    final type =
-        _adjustmentTypeSelections[booking.id] ?? AdjustmentType.discount;
-    final mode =
-        _adjustmentModeSelections[booking.id] ?? AdjustmentMode.perNight;
-
+    
+    final type = _adjustmentTypeSelections[booking.id] ?? AdjustmentType.discount;
+    final mode = _adjustmentModeSelections[booking.id] ?? AdjustmentMode.perNight;
+    
     try {
       setState(() => _saving = true);
-
+      
       final db = ref.read(databaseProvider);
       await BookingPriceAdjustmentService(db).applyTemporaryAdjustment(
         bookingLocalUuid: booking.localUuid,
@@ -1004,13 +980,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         mode: mode,
         effectiveHotelDay: startDate,
         endHotelDay: null,
-        reason:
-            '${type == AdjustmentType.discount ? 'تخفيض' : 'زيادة'} من شاشة تعديل الضيف',
+        reason: '${type == AdjustmentType.discount ? 'تخفيض' : 'زيادة'} من شاشة تعديل الضيف',
         appliedBy: 'admin',
       );
-
+      
       if (!mounted) return;
-
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1021,13 +996,17 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           backgroundColor: Colors.green,
         ),
       );
-
+      
       discountController.clear();
       startDateController.clear();
+      
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1053,16 +1032,17 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ],
       ),
     );
-
+    
     if (confirmed != true) return;
-
+    
     try {
       setState(() => _saving = true);
       final db = ref.read(databaseProvider);
-      await BookingPriceAdjustmentService(
-        db,
-      ).cancelAdjustment(adjustmentUuid: adjustmentUuid, cancelledBy: 'admin');
-
+      await BookingPriceAdjustmentService(db).cancelAdjustment(
+        adjustmentUuid: adjustmentUuid,
+        cancelledBy: 'admin',
+      );
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1073,7 +1053,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

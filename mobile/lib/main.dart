@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import 'utils/theme.dart';
 import 'utils/env.dart';
@@ -38,14 +36,11 @@ import 'services/local_db.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_guardian.dart';
 import 'services/database_sync_coordinator.dart';
-import 'services/smart_initializers/delta_sync_initializer.dart';
 import 'utils/auto_sync_preferences.dart';
 import 'utils/id.dart';
 
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
-import 'services/sync_orchestrator.dart';
-import 'services/sync_health_monitor.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
@@ -55,12 +50,11 @@ import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
-import 'services/appwrite_delta_sync.dart';
+import 'services/fcm_service.dart';
 import 'services/sync_service.dart';
-import 'services/appwrite_service.dart';
+import 'services/sync_constants.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
-import 'services/auto_backup_manager.dart';
 import 'components/admin_layout.dart';
 
 Future<void> main() async {
@@ -88,12 +82,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // ✅ تهيئة Appwrite Config قبل أي شيء — يضمن أن endpoint/projectId/databaseId
-  // جاهزون قبل DeltaSyncInitializer أو AppwriteService.initialize()
-  await AppwriteConfigManager.init();
-  if (kDebugMode) {
-    debugPrint('BASE_API_URL=${Env.baseApiUrl}');
-  }
+  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) => DiagnosticsLogger.instance.recordError(
@@ -104,104 +93,56 @@ Future<void> main() async {
     ),
   );
 
-  // ✅ تهيئة Sync System فوراً في الخلفية بدون تأخير
   unawaited(_initializeFullyAutomatedSyncSystem());
-
-  // ✅ بدء مراقب تهيئة Delta Sync الذكي (non-blocking)
-  DeltaSyncInitializer.instance.start();
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
-  if (kDebugMode) {
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('🚀 Initializing Fully Automated Sync System');
-    debugPrint('═══════════════════════════════════════════════════════');
-  }
+  debugPrint('═══════════════════════════════════════════════════════');
+  debugPrint('🚀 Initializing Fully Automated Sync System');
+  debugPrint('═══════════════════════════════════════════════════════');
 
   try {
     final prefs = await SharedPreferences.getInstance();
-    final disableGoogleDriveSyncOnStart =
-        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
-    if (disableGoogleDriveSyncOnStart) {
-      await prefs.setBool('google_drive_sync_enabled', false);
-    }
     if (!prefs.containsKey('google_drive_sync_enabled')) {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
     if (!prefs.containsKey('appwrite_sync_enabled')) {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
-    // ✅ تفعيل Appwrite Delta Sync تلقائياً عند أول تشغيل
-    if (!(prefs.getBool('appwrite_sync_enabled') ?? false)) {
-      await prefs.setBool('appwrite_sync_enabled', true);
-      if (kDebugMode) {
-        debugPrint('✅ تم تفعيل Appwrite Delta Sync تلقائياً');
-      }
-    }
 
-    if (kDebugMode) {
-      debugPrint('📦 Appwrite Config Manager already initialized in main()');
-      debugPrint('✅ Appwrite Config loaded');
-    }
+    debugPrint('📦 Initializing Appwrite Config Manager...');
+    await AppwriteConfigManager.init();
+    debugPrint('✅ Appwrite Config loaded');
 
-    // ✅ تهيئة AppwriteService - آمنة للاستدعاء المتعدد (تحتوي على فحص مدمج)
-    // سيتم تهيئتها فعلياً فقط عند أول استدعاء
-    try {
-      await AppwriteService().initialize();
-      if (kDebugMode) {
-        debugPrint('✅ AppwriteService جاهز');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('⚠️ فشلت تهيئة AppwriteService: $e');
-      }
-    }
-
-    if (kDebugMode) {
-      debugPrint('📝 Initializing Google Drive Logger...');
-    }
+    debugPrint('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
       enableConsole: true,
       enableFile: false,
     );
-    if (kDebugMode) {
-      debugPrint('✅ Logger initialized');
-    }
+    debugPrint('✅ Logger initialized');
 
-    if (kDebugMode) {
-      debugPrint('🔐 Initializing Google Drive Backup Service...');
-    }
+    debugPrint('🔐 Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
 
     try {
       // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
-      if (account != null && kDebugMode) {
+      if (account != null) {
         debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
-        // تحديث حالة تسجيل الدخول إذا كانت هناك جلسة محفوظة
-        await _updateGoogleDriveSignInState(account);
-      } else if (kDebugMode) {
+      } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
-        // محاولة التحقق من حالة تسجيل الدخول (قد تكون هناك جلسة محفوظة)
-        await _checkGoogleDriveSignInStatus();
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
 
-    if (kDebugMode) {
-      debugPrint('🔧 [3/7] Initializing Database...');
-    }
+    debugPrint('🔧 [3/7] Initializing Database...');
     final database = DatabaseManager.instance;
-    if (kDebugMode) {
-      debugPrint('✅ Database ready');
-    }
+    debugPrint('✅ Database ready');
 
-    if (kDebugMode) {
-      debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
-    }
+    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
     final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
     await unifiedOrchestrator.initialize(database: database);
     debugPrint('✅ Unified Sync Orchestrator ready');
@@ -244,27 +185,19 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
-    // لا يتم بدء المزامنة تلقائياً عند فتح التطبيق
-    // await autoSyncEngine.start();
-
-    // if (backupService.isSignedIn) {
-    //   debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
-    //   await autoSyncEngine.onSignInChanged(true);
-    //   await smartSync.onGoogleDriveSignInChanged(true);
-    //   debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
-    // }
-    debugPrint('ℹ️ المزامنة التلقائية معطلة عند بدء التطبيق');
+    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
+    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (backupService.isSignedIn && driveSyncEnabled) {
+      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
+      await autoSyncEngine.start();
+      await autoSyncEngine.onSignInChanged(true);
+      await smartSync.onGoogleDriveSignInChanged(true);
+      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
+    } else {
+      debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
+    }
 
     await SyncQueueService.instance.initialize();
-
-    // ✅ تهيئة SyncOrchestrator و SyncHealthMonitor لشاشات الإحصائيات
-    debugPrint('🎯 [9/10] Initializing SyncOrchestrator...');
-    await SyncOrchestrator.instance.initialize(database);
-    debugPrint('✅ SyncOrchestrator ready');
-
-    debugPrint('🏥 [10/10] Initializing SyncHealthMonitor...');
-    await SyncHealthMonitor.instance.initialize();
-    debugPrint('✅ SyncHealthMonitor ready');
 
     _setupEngineMonitoring(autoSyncEngine);
 
@@ -307,34 +240,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('Error: $e');
     debugPrint('Stack trace: $stackTrace');
     debugPrint('═══════════════════════════════════════════════════════');
-  }
-}
-
-/// Helper function to update Google Drive sign-in state after app start
-Future<void> _updateGoogleDriveSignInState(GoogleSignInAccount account) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    // If there's a saved session, clear the skipped flag
-    await prefs.setBool('drive_login_skipped', false);
-    debugPrint('✅ تم مسح علامة تخطي تسجيل الدخول');
-  } catch (e) {
-    debugPrint('⚠️ خطأ في تحديث حالة تسجيل الدخول: $e');
-  }
-}
-
-/// Helper function to check and verify Google Drive sign-in status on app install
-Future<void> _checkGoogleDriveSignInStatus() async {
-  try {
-    final backupService = GoogleDriveBackupService();
-    // التحقق من حالة تسجيل الدخول الحالية
-    if (backupService.isSignedIn || backupService.currentUser != null) {
-      debugPrint('✅ تم اكتشاف جلسة Google Drive نشطة');
-      // تحديث الحالة في Provider
-    } else {
-      debugPrint('ℹ️ لا يوجد تسجيل دخول نشط في Google Drive');
-    }
-  } catch (e) {
-    debugPrint('⚠️ خطأ في التحقق من حالة Google Drive: $e');
   }
 }
 
@@ -480,6 +385,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           database: database,
           deviceIdResolver: () async =>
               GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
@@ -490,7 +396,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           _initialLocalSyncDone = true;
           unawaited(_runLocalAutoSync());
         }
-        unawaited(_autoPullLatestFromAppwrite());
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -501,56 +406,64 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   void _startRealtimeSync() {
-    Future.delayed(const Duration(seconds: 2), () async {
+    Future.delayed(const Duration(seconds: 5), () async {
       try {
-        if (kDebugMode) {
-          debugPrint('═══════════════════════════════════════════════════════');
-          debugPrint('🔗 Connecting to Appwrite Delta Service...');
-          debugPrint('═══════════════════════════════════════════════════════');
-        }
-
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
 
-        // ✅ تسجيل الجهاز تلقائياً
+        // تسجيل الجهاز تلقائياً
         try {
           await syncManager.registerDevice();
-          if (kDebugMode) {
-            debugPrint('✅ Device registered successfully');
-          }
         } catch (e) {
           debugPrint('⚠️ Device registration error: $e');
         }
 
-        // ✅ تهيئة Appwrite Delta Sync صراحةً عند فتح التطبيق
+        // تهيئة FCM للإشعارات بين الأجهزة
         try {
-          final deltaSync = AppwriteDeltaSync.instance;
-          if (!deltaSync.isInitialized) {
-            final appwriteService = AppwriteService();
-            await appwriteService.initialize();
-            final database = ref.read(databaseProvider);
-            await deltaSync.initialize(appwriteService, database);
-            if (kDebugMode) {
+          await _initializeFcm(syncManager);
+        } catch (e) {
+          debugPrint('⚠️ FCM initialization error: $e');
+        }
+
+        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
+        syncManager.startAutoSync(
+          interval: const Duration(minutes: 2),
+        );
+
+        // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+          bool shouldSync = true;
+
+          if (lastPullEpochMs != null) {
+            final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+            final elapsed = DateTime.now().difference(lastPull);
+            if (elapsed < SyncConstants.appOpenSyncInterval) {
+              final remaining = SyncConstants.appOpenSyncInterval - elapsed;
               debugPrint(
-                '✅ Appwrite Delta Sync initialized (deviceId: ${deltaSync.deviceId})',
+                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                '(متبقي ${remaining.inMinutes} دقيقة)',
               );
-            }
-          } else {
-            if (kDebugMode) {
-              debugPrint('✅ Appwrite Delta Sync already initialized');
+              shouldSync = false;
             }
           }
+
+          if (shouldSync) {
+            debugPrint('📥 Pulling latest data from Appwrite on app start...');
+            // push + pull معاً — لا نرفع بدون سحب
+            await syncManager.sync(push: true, pull: true);
+            // تسجيل وقت هذا السحب
+            await prefs.setInt(
+              SyncConstants.lastAppOpenPullKey,
+              DateTime.now().millisecondsSinceEpoch,
+            );
+            debugPrint('✅ Initial sync on app start completed');
+          }
         } catch (e) {
-          debugPrint('⚠️ Delta Sync init error: $e');
-        }
+          debugPrint('⚠️ Initial sync on app start failed: $e');
+ }
 
-        // ✅ بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
-        syncManager.startAutoSync(interval: const Duration(minutes: 2));
-        if (kDebugMode) {
-          debugPrint('✅ Auto sync started (interval: 2 minutes)');
-        }
-
-        // ✅ تهيئة Realtime Sync للاستماع للتغييرات الحية
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
         if (deviceId == null) {
@@ -562,18 +475,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
+        await AppwriteRealtimeSync().initialize(
+          deviceId: deviceId,
+        );
         await AppwriteRealtimeSync().start();
-
-        if (kDebugMode) {
-          debugPrint('✅ Realtime sync listening for live changes');
-          debugPrint('═══════════════════════════════════════════════════════');
-          debugPrint('📡 Appwrite Delta Service Connected Successfully!');
-          debugPrint('📡 Realtime: ACTIVE | Auto Sync: ACTIVE | Delta: ACTIVE');
-          debugPrint('═══════════════════════════════════════════════════════');
-        }
+        debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
-        debugPrint('❌ Appwrite Delta Service connection error: $e');
+        debugPrint('❌ Realtime sync init error: $e');
       }
     });
   }
@@ -607,7 +515,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _localAutoSyncDebounce?.cancel();
     _localAutoSyncDebounce = Timer(
-      const Duration(seconds: 5),
+      const Duration(seconds: 2),
       () => unawaited(_runLocalAutoSync()),
     );
   }
@@ -634,23 +542,33 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   Future<void> _autoPullLatestFromAppwrite() async {
     try {
-      if (kDebugMode) {
-        debugPrint('📥 Delta Sync: Starting initial pull from Appwrite...');
-      }
-
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.initialize();
       await syncManager.pullRemoteChanges();
       _lastAppwriteAutoPull = DateTime.now();
-
-      if (kDebugMode) {
-        debugPrint(
-          '✅ Delta Sync: Initial pull completed at $_lastAppwriteAutoPull',
-        );
-      }
     } catch (e) {
-      debugPrint('❌ Delta Sync: Initial pull error: $e');
+      debugPrint('❌ Appwrite auto-pull error: $e');
     }
+  }
+
+  /// تهيئة FCM للإشعارات بين الأجهزة
+  Future<void> _initializeFcm(dynamic syncManager) async {
+    final fcm = FcmService();
+
+    // حقن الاعتمادات لتجنب import دائري
+    FcmService.injectDependencies(
+      syncManager: syncManager,
+      realtimeSync: AppwriteRealtimeSync(),
+    );
+
+    await fcm.initialize();
+
+    // تسجيل التوكن في SyncManager
+    if (fcm.currentToken != null) {
+      await syncManager.setFcmToken(fcm.currentToken!);
+    }
+
+    debugPrint('✅ FCM ready — cross-device notifications enabled');
   }
 
   Future<void> _autoPullAppwriteOnResume() async {
@@ -660,6 +578,38 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     await _autoPullLatestFromAppwrite();
+  }
+
+  /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
+  Future<void> _syncOnResume() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      // push: رفع أي تغييرات معلقة في الـ outbox
+      // pull: سحب أي تغييرات جديدة من السيرفر
+      await syncManager.sync(push: true, pull: true);
+      _lastAppwriteAutoPull = DateTime.now();
+      debugPrint('✅ Sync on resume completed (push + pull)');
+    } catch (e) {
+      debugPrint('⚠️ Sync on resume error: $e');
+    }
+  }
+
+  /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
+  /// البيانات محفوظة في SQLite (outbox) حتى لو قُتل التطبيق قبل الاكتمال
+  /// عند العودة للتطبيق ستتم إعادة المحاولة تلقائياً
+  Future<void> _pushPendingChangesOnPause() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
+      // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
+      await syncManager.sync(push: true, pull: false).timeout(
+        const Duration(seconds: 10),
+      );
+      debugPrint('✅ Push on pause completed');
+    } catch (e) {
+      // البيانات محفوظة في outbox — لن تُفقد أبداً
+      debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
+    }
   }
 
   @override
@@ -690,25 +640,24 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .catchError(
             (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
-      unawaited(_autoPullAppwriteOnResume());
+      // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
+      unawaited(_syncOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
       SyncGuardian.instance.onAppForeground().catchError(
         (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
       );
-      // Auto-renew active bookings when app returns to foreground.
-      // This ensures night counts are recalculated based on current time
-      // even if the payment screen was never opened.
-      AutoBackupManager.instance.renewActiveBookingsIfNeeded().catchError(
-        (e, s) => debugPrint('Error in renewActiveBookings: $e\n$s'),
-      );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
+      // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
+      unawaited(_pushPendingChangesOnPause());
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
-      Future.microtask(AppSessionManager.onAppCloseOrBackground).catchError(
+      Future.microtask(
+        () => AppSessionManager.onAppCloseOrBackground(),
+      ).catchError(
         (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );
     }
@@ -790,8 +739,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/finance': const FinanceScreen(),
     '/reports': const ReportsScreen(),
     '/notes': const NotesScreen(),
-    '/information': const InformationScreen(),
     '/blacklist': const BlacklistScreen(),
+    '/information': const InformationScreen(),
     '/settings': const SettingsScreen(),
   };
 
@@ -861,7 +810,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                     unreadCount > 9 ? '9+' : '$unreadCount',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 8,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,

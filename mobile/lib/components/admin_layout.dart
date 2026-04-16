@@ -3,6 +3,14 @@ import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
 class AdminLayout extends StatelessWidget {
+  final Widget body;
+  final String currentRoute;
+  final String? title;
+  final List<Widget>? actions;
+  final Widget? floatingActionButton;
+  final PreferredSizeWidget? appBar;
+  final Function(String)? onRouteSelected;
+
   const AdminLayout({
     super.key,
     required this.body,
@@ -13,13 +21,6 @@ class AdminLayout extends StatelessWidget {
     this.appBar,
     this.onRouteSelected,
   });
-  final Widget body;
-  final String currentRoute;
-  final String? title;
-  final List<Widget>? actions;
-  final Widget? floatingActionButton;
-  final PreferredSizeWidget? appBar;
-  final Function(String)? onRouteSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +40,10 @@ class AdminLayout extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    if (title != null || actions != null) _buildTopBar(),
+                    if (title != null || actions != null) _buildTopBar(context),
                     Expanded(
-                      child: ColoredBox(
-                        color: AppColors.backgroundColor,
+                      child: Container(
+                        color: Theme.of(context).scaffoldBackgroundColor,
                         child: body,
                       ),
                     ),
@@ -64,21 +65,27 @@ class AdminLayout extends StatelessWidget {
             currentRoute: currentRoute,
             onRouteSelected: onRouteSelected ?? (route) {},
           ),
-          body: ColoredBox(color: AppColors.backgroundColor, child: body),
+          body: Container(color: Theme.of(context).scaffoldBackgroundColor, child: body),
           floatingActionButton: floatingActionButton,
         ),
       );
     }
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 60,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF3D2048) : const Color(0xFFE0D0EA),
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -92,10 +99,10 @@ class AdminLayout extends StatelessWidget {
               child: title != null
                   ? Text(
                       title!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: isDark ? const Color(0xFFE0D5F0) : AppColors.textPrimary,
                       ),
                     )
                   : const SizedBox.shrink(),
@@ -120,6 +127,13 @@ class AdminLayout extends StatelessWidget {
 
 // Bootstrap-like components for matching PHP design
 class AdminCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets? padding;
+  final Color? color;
+  final double? elevation;
+  final String? title;
+  final Widget? trailing;
+
   const AdminCard({
     super.key,
     required this.child,
@@ -129,18 +143,13 @@ class AdminCard extends StatelessWidget {
     this.title,
     this.trailing,
   });
-  final Widget child;
-  final EdgeInsets? padding;
-  final Color? color;
-  final double? elevation;
-  final String? title;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: elevation ?? 1,
-      color: color ?? Colors.white,
+      color: color ?? (isDark ? const Color(0xFF1E1E1E) : Colors.white),
       margin: const EdgeInsets.all(8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Column(
@@ -149,9 +158,9 @@ class AdminCard extends StatelessWidget {
           if (title != null) ...[
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: AppColors.lightGray,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2C1E38) : AppColors.lightGray,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(8),
                   topRight: Radius.circular(8),
                 ),
@@ -180,6 +189,12 @@ class AdminCard extends StatelessWidget {
 }
 
 class StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String? subtitle;
+
   const StatCard({
     super.key,
     required this.title,
@@ -188,11 +203,6 @@ class StatCard extends StatelessWidget {
     required this.color,
     this.subtitle,
   });
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -260,6 +270,12 @@ class StatCard extends StatelessWidget {
 }
 
 class AdminTable extends StatefulWidget {
+  final List<String> headers;
+  final List<List<Widget>> rows;
+  final bool striped;
+  final bool bordered;
+  final int rowsPerPage;
+
   const AdminTable({
     super.key,
     required this.headers,
@@ -268,11 +284,6 @@ class AdminTable extends StatefulWidget {
     this.bordered = true,
     this.rowsPerPage = 50,
   });
-  final List<String> headers;
-  final List<List<Widget>> rows;
-  final bool striped;
-  final bool bordered;
-  final int rowsPerPage;
 
   @override
   State<AdminTable> createState() => _AdminTableState();
@@ -339,14 +350,24 @@ class _AdminTableState extends State<AdminTable> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
-            headingRowColor: WidgetStateProperty.all(AppColors.darkGray),
-            headingTextStyle: const TextStyle(
-              color: Colors.white,
+            headingRowColor: WidgetStateProperty.all(
+              Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C1E38)
+                  : AppColors.darkGray,
+            ),
+            headingTextStyle: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFE0D5F0)
+                  : Colors.white,
               fontWeight: FontWeight.w600,
             ),
             decoration: widget.bordered
                 ? BoxDecoration(
-                    border: Border.all(color: AppColors.lightGray),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF3D2048)
+                          : AppColors.lightGray,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   )
                 : null,
@@ -363,7 +384,7 @@ class _AdminTableState extends State<AdminTable> {
                             AppColors.lightGray.withOpacity(0.3),
                           )
                         : null,
-                    cells: entry.value.map(DataCell.new).toList(),
+                    cells: entry.value.map((cell) => DataCell(cell)).toList(),
                   ),
                 )
                 .toList(),
@@ -375,6 +396,9 @@ class _AdminTableState extends State<AdminTable> {
 }
 
 class StatusBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+
   const StatusBadge({super.key, required this.text, required this.color});
 
   factory StatusBadge.success(String text) {
@@ -392,8 +416,6 @@ class StatusBadge extends StatelessWidget {
   factory StatusBadge.info(String text) {
     return StatusBadge(text: text, color: Colors.blue);
   }
-  final String text;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {

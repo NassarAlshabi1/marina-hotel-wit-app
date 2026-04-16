@@ -193,8 +193,8 @@ class _SyncPerformanceSettingsScreenState
           ],
         ),
         trailing: isSelected
-            ? const Icon(Icons.check_circle, color: Colors.blue)
-            : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
+            ? Icon(Icons.check_circle, color: Colors.blue)
+            : Icon(Icons.radio_button_unchecked, color: Colors.grey),
         onTap: _isLoading ? null : () => _applyProfile(key),
       ),
     );

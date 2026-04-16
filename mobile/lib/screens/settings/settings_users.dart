@@ -36,7 +36,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final isAdmin = auth.currentUser?.isAdmin ?? false;
+    final isAdmin = auth.currentUser?.isAdmin == true;
 
     return AppScaffold(
       title: 'إدارة المستخدمين والصلاحيات',
@@ -223,7 +223,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: userType,
+                        value: userType,
                         decoration: const InputDecoration(
                           labelText: 'نوع المستخدم',
                         ),
@@ -366,6 +366,11 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
 }
 
 class _UserAccountSummary {
+  final String username;
+  final String displayName;
+  final String userType;
+  final bool isFixed;
+
   const _UserAccountSummary({
     required this.username,
     required this.displayName,
@@ -381,10 +386,6 @@ class _UserAccountSummary {
       isFixed: map['is_fixed'] == true,
     );
   }
-  final String username;
-  final String displayName;
-  final String userType;
-  final bool isFixed;
 }
 
 class UserPermissionsCard extends ConsumerStatefulWidget {
@@ -427,7 +428,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   @override
   Widget build(BuildContext context) {
     final isAdminUser = widget.username == 'admin';
-    const allKeys = AuthLocalStore.permissionKeys;
+    final allKeys = AuthLocalStore.permissionKeys;
 
     return Card(
       child: Padding(
@@ -543,6 +544,8 @@ String _permLabel(String key) {
       return 'التقارير';
     case 'notes':
       return 'الملاحظات';
+    case 'information':
+      return 'المعلومية';
     case 'settings':
       return 'الإعدادات';
     default:

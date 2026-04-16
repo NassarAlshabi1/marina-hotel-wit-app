@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../../utils/id.dart';
@@ -79,27 +78,9 @@ class PaymentVoidsAdapter
       ),
       bookingUuid: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache!)
-          : _vStr(
-              json,
-              'bookingUuid',
-              src,
-              altKey: 'booking_uuid',
-              fallback: '',
-            ),
-      voidedAmount: _vInt(
-        json,
-        'voidedAmount',
-        src,
-        altKey: 'voided_amount',
-        fallback: 0,
-      ),
-      voidReason: _vStr(
-        json,
-        'voidReason',
-        src,
-        altKey: 'void_reason',
-        fallback: '',
-      ),
+          : _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid', fallback: ''),
+      voidedAmount: _vInt(json, 'voidedAmount', src, altKey: 'voided_amount', fallback: 0),
+      voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason', fallback: ''),
       voidedBy: _vStr(json, 'voidedBy', src, altKey: 'voided_by', fallback: ''),
       voidedAt: d.Value(voidedAt),
       voidedAtIso: _vStr(
@@ -107,17 +88,9 @@ class PaymentVoidsAdapter
         'voidedAtIso',
         src,
         altKey: 'voided_at_iso',
-        fallback: DateTime.fromMillisecondsSinceEpoch(
-          voidedAt * 1000,
-        ).toIso8601String(),
+        fallback: DateTime.fromMillisecondsSinceEpoch(voidedAt * 1000).toIso8601String(),
       ),
-      hotelDayKey: _vStr(
-        json,
-        'hotelDayKey',
-        src,
-        altKey: 'hotel_day_key',
-        fallback: '',
-      ),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
       reversalPaymentUuid: _vStr(
         json,
         'reversalPaymentUuid',
@@ -131,12 +104,12 @@ class PaymentVoidsAdapter
       lastModified: d.Value(lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
@@ -147,10 +120,8 @@ class PaymentVoidsAdapter
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'originalPaymentUuid', 'original_payment_uuid'):
-          model.originalPaymentUuid,
-      _k(src, 'originalPaymentId', 'original_payment_id'):
-          model.originalPaymentId,
+      _k(src, 'originalPaymentUuid', 'original_payment_uuid'): model.originalPaymentUuid,
+      _k(src, 'originalPaymentId', 'original_payment_id'): model.originalPaymentId,
       _k(src, 'bookingUuid', 'booking_uuid'): model.bookingUuid,
       _k(src, 'voidedAmount', 'voided_amount'): model.voidedAmount,
       _k(src, 'voidReason', 'void_reason'): model.voidReason,
@@ -158,8 +129,7 @@ class PaymentVoidsAdapter
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
       _k(src, 'voidedAtIso', 'voided_at_iso'): model.voidedAtIso,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'):
-          model.reversalPaymentUuid,
+      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'): model.reversalPaymentUuid,
       _k(src, 'approvedBy', 'approved_by'): model.approvedBy,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
@@ -167,9 +137,7 @@ class PaymentVoidsAdapter
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock.isNotEmpty
-          ? jsonEncode(model.vectorClock)
-          : '{}',
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -200,61 +168,6 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
-  }
-  return null;
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

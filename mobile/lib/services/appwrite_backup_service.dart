@@ -8,16 +8,17 @@ import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
 
 class AppwriteBackupResult {
+  final File file;
+  final Map<String, int> counts;
+  final int totalRecords;
+  final DateTime timestamp;
+
   const AppwriteBackupResult({
     required this.file,
     required this.counts,
     required this.totalRecords,
     required this.timestamp,
   });
-  final File file;
-  final Map<String, int> counts;
-  final int totalRecords;
-  final DateTime timestamp;
 }
 
 class AppwriteBackupService {
@@ -38,7 +39,7 @@ class AppwriteBackupService {
     AppwriteConfig.employeesCollectionId,
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
-    // ❌ hotel_day_ledger - محلي فقط
+    AppwriteConfig.hotelDayLedgerCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -50,7 +51,7 @@ class AppwriteBackupService {
 
   Future<List<dynamic>> _listAllCollections() async {
     final allCollections = <dynamic>[];
-    const limit = AppwriteConfig.maxPageSize;
+    final limit = AppwriteConfig.maxPageSize;
     var offset = 0;
     var usedFallback = false;
 
@@ -165,7 +166,10 @@ class AppwriteBackupService {
         'counts': counts,
         'includesSchema': includeSchema,
       },
-      if (includeSchema) 'schema': {'collections': schemaCollections},
+      if (includeSchema)
+        'schema': {
+          'collections': schemaCollections,
+        },
       'collections': collections,
     };
 

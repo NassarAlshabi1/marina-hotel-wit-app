@@ -3,7 +3,6 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
-import '../sync_guardian.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 
@@ -75,10 +74,6 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'employees',
-          operation: 'create',
-        );
       }
       return id;
     });
@@ -107,10 +102,6 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'employees',
-          operation: 'update',
         );
       }
       return rows;
@@ -141,10 +132,6 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'employees',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -169,10 +156,6 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'employees',
-          operation: 'delete',
         );
       }
       return rows;
@@ -206,10 +189,6 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'employees',
-          operation: 'update',
         );
       }
       return rows;

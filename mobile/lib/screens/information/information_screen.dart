@@ -10,6 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
 
@@ -23,6 +24,13 @@ class InformationScreen extends ConsumerStatefulWidget {
 class _InformationScreenState extends ConsumerState<InformationScreen>
     with SyncOnExitMixin {
   bool _exportingPdf = false;
+  final _verticalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    super.dispose();
+  }
 
   static final List<String> _idTypes = [
     'بطاقة شخصية',
@@ -30,6 +38,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     'إقامة',
     'رخصة قيادة',
     'بطاقة عائلية',
+    'شهادة ميلاد',
+    'بطاقة رقم جلوس',
   ];
 
   @override
@@ -87,9 +97,30 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       );
     }
 
+    final scrollCtrl = _verticalScrollController;
+
+    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
+    final sorted = List<GuestInfo>.from(entries);
+    sorted.sort((a, b) {
+      final aNum = int.tryParse(a.roomNumber);
+      final bNum = int.tryParse(b.roomNumber);
+      if (aNum != null && bNum != null) return aNum.compareTo(bNum);
+      if (aNum != null) return -1;
+      if (bNum != null) return 1;
+      return a.roomNumber.compareTo(b.roomNumber);
+    });
+
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: _buildTable(entries),
+      child: Scrollbar(
+        controller: scrollCtrl,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: scrollCtrl,
+          scrollDirection: Axis.vertical,
+          child: _buildTable(sorted),
+        ),
+      ),
     );
   }
 
@@ -212,7 +243,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       text: existing?.guestName ?? '',
     );
     final nationalityController = TextEditingController(
-      text: existing?.nationality ?? '',
+      text: existing?.nationality.isNotEmpty == true
+          ? existing!.nationality
+          : 'يمني',
     );
     final idNumberController = TextEditingController(
       text: existing?.idNumber ?? '',
@@ -381,6 +414,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     }
 
     markDataChanged();
+    _pushToAppwrite();
   }
 
   Future<void> _confirmDelete(GuestInfo info) async {
@@ -408,6 +442,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     await ref.read(guestInfoRepoProvider).delete(info.id);
     markDataChanged();
     _showSnack('تم حذف السجل');
+    _pushToAppwrite();
   }
 
   Future<void> _pickIssueDate(TextEditingController controller) async {
@@ -626,5 +661,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD
+  Future<void> _pushToAppwrite() async {
+    try {
+      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await syncManager.sync(push: true, pull: false);
+    } catch (e) {
+      debugPrint('⚠️ فشلت المزامنة الفورية: $e');
+    }
   }
 }

@@ -26,9 +26,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   DateTime? _toDate;
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
-
-  // ✅ أنواع المصروفات الأساسية
   static const String _salaryType = 'رواتب';
+  static const String _salaryWithdrawAction = 'سحب من الراتب';
+  static const String _salaryDeductionAction = 'خصم من الراتب';
+  static const List<String> _salaryActions = [
+    _salaryWithdrawAction,
+    _salaryDeductionAction,
+  ];
   static const List<String> availableTypes = [
     'رواتب',
     'ديزل',
@@ -39,26 +43,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     'اخرى',
   ];
 
-  // ✅ قائمة إجراءات الرواتب الافتراضية (قابلة للتوسعة)
-  // Default salary actions list - can be extended dynamically
-  static const List<String> defaultSalaryActions = [
-    'سحب من الراتب',
-    'خصم من الراتب',
-  ];
-
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, 1);
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     _expensesStream = _buildExpensesStream();
   }
 
   @override
   Widget build(BuildContext context) {
     final employeesAsync = ref.watch(employeesListProvider);
-    final salaryWithdrawalsAsync = ref.watch(salaryWithdrawalsListProvider);
+
+    final todaySummary = ref.watch(todayExpensesSummaryProvider);
+    final todayData = todaySummary.valueOrNull ?? (count: 0, total: 0.0);
 
     return wrapWithSyncOnExit(
       child: AppScaffold(
@@ -78,18 +74,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             final employeeNames = {
               for (final emp in employees) emp.id: emp.name,
             };
-
-            // Build a map of expenseId -> employeeId from salary_withdrawals
-            final salaryExpenseToEmployee = <int, int>{};
-            if (salaryWithdrawalsAsync.hasValue &&
-                salaryWithdrawalsAsync.value != null) {
-              for (final sw in salaryWithdrawalsAsync.value!) {
-                if (sw.expenseId != null) {
-                  salaryExpenseToEmployee[sw.expenseId!] = sw.employeeId;
-                }
-              }
-            }
-
             return StreamBuilder<List<Expense>>(
               stream: _expensesStream,
               builder: (context, snapshot) {
@@ -102,21 +86,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   return const Center(child: CircularProgressIndicator());
                 }
                 final filteredExpenses = snapshot.data!;
-                final totalAmount = filteredExpenses.fold<double>(
-                  0,
-                  (sum, e) => sum + e.amount,
-                );
 
                 return ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   children: [
-                    _buildFiltersCard(),
-                    const SizedBox(height: 12),
-                    _buildSummaryCard(
-                      totalAmount: totalAmount,
-                      count: filteredExpenses.length,
+                    _buildCompactFiltersCard(),
+                    const SizedBox(height: 8),
+                    _buildCompactSummaryCard(
+                      totalAmount: todayData.total,
+                      count: todayData.count,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     if (filteredExpenses.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 48),
@@ -125,19 +105,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         ),
                       )
                     else
-                      ...filteredExpenses.map((expense) {
-                        // Get employee name: first from relatedId, then from salary_withdrawals
-                        final employeeName = _getEmployeeNameForExpense(
+                      ...filteredExpenses.map(
+                        (expense) => _buildExpenseCard(
                           expense,
-                          employeeNames,
-                          salaryExpenseToEmployee,
-                        );
-                        return _buildExpenseCard(
-                          expense,
-                          employeeName,
+                          employeeNames[expense.relatedId],
                           employees,
-                        );
-                      }),
+                        ),
+                      ),
                   ],
                 );
               },
@@ -151,32 +125,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
-  /// الحصول على اسم الموظف للمصروف
-  /// Get employee name for expense (from relatedId or salary_withdrawals)
-  String? _getEmployeeNameForExpense(
-    Expense expense,
-    Map<int, String> employeeNames,
-    Map<int, int> salaryExpenseToEmployee,
-  ) {
-    // First try from relatedId
-    if (expense.relatedId != null &&
-        employeeNames.containsKey(expense.relatedId)) {
-      return employeeNames[expense.relatedId];
-    }
-
-    // For salary expenses, check salary_withdrawals table
-    if (expense.expenseType == _salaryType) {
-      final employeeId = salaryExpenseToEmployee[expense.id];
-      if (employeeId != null && employeeNames.containsKey(employeeId)) {
-        return employeeNames[employeeId];
-      }
-    }
-
-    return null;
-  }
+  bool _filterActive = false;
 
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
+    if (!_filterActive) {
+      // الافتراضي: عرض مصروفات اليوم الفندقي فقط
+      final hotelDay = Time.hotelDayKey();
+      return Stream.fromFuture(
+        repo.listFiltered(from: hotelDay, to: hotelDay),
+      );
+    }
     final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
     final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
     return Stream.fromFuture(repo.listFiltered(from: fromStr, to: toStr));
@@ -207,14 +166,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
     if (picked == null) return;
     setState(() {
+      _filterActive = true;
       if (isFrom) {
         _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
-        if (_toDate != null && _fromDate!.isAfter(_toDate!)) {
+        // إذا لم يكن "إلى" محدد، اجعله نفس تاريخ "من"
+        _toDate ??= DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        if (_fromDate!.isAfter(_toDate!)) {
           _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
       } else {
         _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        if (_fromDate != null && _toDate!.isBefore(_fromDate!)) {
+        // إذا لم يكن "من" محدد، اجعله نفس تاريخ "إلى"
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        if (_toDate!.isBefore(_fromDate!)) {
           _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
         }
       }
@@ -222,111 +186,144 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     });
   }
 
-  Widget _buildFiltersCard() {
-    final fromLabel = _fromDate != null
+  Widget _buildCompactFiltersCard() {
+    final hotelDay = Time.hotelDayKey();
+    final fromDisplay = (_filterActive && _fromDate != null)
         ? _dateFormat.format(_fromDate!)
-        : 'غير محدد';
-    final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.date_range, color: Colors.blue),
-                SizedBox(width: 8),
-                Text(
-                  'الفترة الزمنية',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickDate(isFrom: true),
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text('من: $fromLabel'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickDate(isFrom: false),
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text('إلى: $toLabel'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        : hotelDay;
+    final toDisplay = (_filterActive && _toDate != null)
+        ? _dateFormat.format(_toDate!)
+        : hotelDay;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-    );
-  }
-
-  Widget _buildSummaryCard({required double totalAmount, required int count}) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildSummaryItem(
-                label: 'عدد العمليات',
-                value: '$count',
-                icon: Icons.receipt_long,
-                color: Colors.indigo,
+      child: Row(
+        children: [
+          Icon(Icons.date_range, size: 14, color: Colors.blue.shade700),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _pickDate(isFrom: true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                'من $fromDisplay',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
               ),
             ),
-            Expanded(
-              child: _buildSummaryItem(
-                label: 'إجمالي المصروفات',
-                value: CurrencyFormatter.formatAmount(totalAmount),
-                icon: Icons.payments,
-                color: Colors.red,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryItem({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        CircleAvatar(
-          backgroundColor: color.withOpacity(0.15),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              Text(
-                value,
-                style: TextStyle(fontWeight: FontWeight.bold, color: color),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _pickDate(isFrom: false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                'إلى $toDisplay',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+              ),
+            ),
+          ),
+          if (_filterActive) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => setState(() {
+                _filterActive = false;
+                _refreshExpensesStream();
+              }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Icon(Icons.close, size: 12, color: Colors.red.shade700),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactSummaryCard({
+    required double totalAmount,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long, size: 12, color: Colors.indigo.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo.shade700,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  'عملية',
+                  style: TextStyle(fontSize: 9, color: Colors.indigo.shade400),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.payments, size: 12, color: Colors.red.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  CurrencyFormatter.formatAmount(totalAmount),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -405,51 +402,26 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       text: existing?.date ?? Time.hotelDayKey(),
     );
 
-    // ✅ الإجراء المحدد للموظف - حر بدون قيود
-    String selectedSalaryAction = defaultSalaryActions.first;
+    String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
 
-    // Load salary withdrawal data for existing salary expenses
-    SalaryWithdrawal? existingSalaryWithdrawal;
-    if (existing != null && existing.expenseType == _salaryType) {
-      // Try to load from salary_withdrawals table
-      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
-      final allWithdrawals = await salaryRepo.listAll();
-      try {
-        existingSalaryWithdrawal = allWithdrawals.firstWhere(
-          (sw) => sw.expenseId == existing.id,
-        );
-        // ✅ استخدم الإجراء كما هو بدون تحويل
-        selectedSalaryAction = existingSalaryWithdrawal.action;
-      } catch (_) {
-        // Not found, use defaults
-      }
+    if (existing != null && _isSalaryAction(existing.expenseType)) {
+      selectedType = _salaryType;
+      dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
     final availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
-
-    // Get employee ID: first from relatedId, then from salary_withdrawals
     int? selectedEmployeeId = existing?.relatedId;
-    if (selectedEmployeeId == null && existingSalaryWithdrawal != null) {
-      selectedEmployeeId = existingSalaryWithdrawal.employeeId;
-    }
-
-    // ✅ قائمة الإجراءات المتاحة (قابلة للتوسعة)
-    final List<String> salaryActions = List.from(defaultSalaryActions);
-
-    // إضافة الإجراء الحالي إذا لم يكن في القائمة
-    if (!salaryActions.contains(selectedSalaryAction)) {
-      salaryActions.insert(0, selectedSalaryAction);
-    }
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
+          final dropdownTextColor = Theme.of(ctx).textTheme.bodyMedium?.color;
           final dropdownTextStyle = Theme.of(
             ctx,
-          ).textTheme.bodyMedium?.copyWith(fontSize: 14);
+          ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
           return AlertDialog(
             title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
             content: SingleChildScrollView(
@@ -457,7 +429,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedType,
+                    value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: availableTypes
@@ -478,6 +450,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           }
                         } else {
                           selectedEmployeeId = null;
+                          dialogSalaryAction = _salaryWithdrawAction;
                         }
                       });
                     },
@@ -488,7 +461,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        initialValue: selectedEmployeeId,
+                        value: selectedEmployeeId,
+                        style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
                         ),
@@ -496,7 +470,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             .map(
                               (employee) => DropdownMenuItem<int>(
                                 value: employee.id,
-                                child: Text(employee.name),
+                                child: Text(employee.name, style: dropdownTextStyle),
                               ),
                             )
                             .toList(),
@@ -504,14 +478,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             setState(() => selectedEmployeeId = value),
                       ),
                       const SizedBox(height: 12),
-                      // ✅ حقل الإجراء - حر مع إمكانية الكتابة
                       DropdownButtonFormField<String>(
-                        initialValue: selectedSalaryAction,
+                        value: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
-                          hintText: 'اختر أو اكتب نوع المعاملة',
                         ),
-                        items: salaryActions
+                        items: _salaryActions
                             .map(
                               (action) => DropdownMenuItem<String>(
                                 value: action,
@@ -521,22 +493,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             .toList(),
                         onChanged: (value) {
                           if (value == null) return;
-                          setState(() => selectedSalaryAction = value);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      // ✅ حقل نصي لإضافة إجراء جديد مخصص
-                      TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'أو اكتب إجراء مخصص جديد',
-                          hintText: 'مثال: سلفة طارئة',
-                        ),
-                        onChanged: (value) {
-                          if (value.trim().isNotEmpty) {
-                            setState(() {
-                              selectedSalaryAction = value.trim();
-                            });
-                          }
+                          setState(() => dialogSalaryAction = value);
                         },
                       ),
                     ],
@@ -614,9 +571,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         ? Time.hotelDayKey()
         : date.text.trim();
     final isSalaryExpense = selectedType == _salaryType;
-
-    // ✅ استخدام النوع والإجراء كما هما بدون تحويل
-    final savedType = selectedType ?? 'اخرى';
+    final savedType = isSalaryExpense
+        ? _deriveSalaryExpenseType(dialogSalaryAction)
+        : (selectedType ?? 'اخرى');
 
     if (parsedAmount <= 0) {
       description.dispose();
@@ -635,21 +592,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
 
       if (isSalaryExpense && selectedEmployeeId != null) {
-        // ✅ الحصول على اسم الموظف
-        final employeeName = availableEmployees
-            .where((e) => e.id == selectedEmployeeId)
-            .firstOrNull
-            ?.name;
-
-        // ✅ تمرير الإجراء واسم الموظف
         await salaryRepo.saveFromExpense(
           expenseId: newId,
           employeeId: selectedEmployeeId!,
-          employeeName: employeeName, // ✅ اسم الموظف
-          action: selectedSalaryAction, // ✅ مباشرة بدون تحويل
+          action: savedType,
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
+          hotelDayKey: trimmedDate,
         );
       }
     } else {
@@ -663,21 +613,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
 
       if (isSalaryExpense && selectedEmployeeId != null) {
-        // ✅ الحصول على اسم الموظف
-        final employeeName = availableEmployees
-            .where((e) => e.id == selectedEmployeeId)
-            .firstOrNull
-            ?.name;
-
-        // ✅ تمرير الإجراء واسم الموظف
         await salaryRepo.saveFromExpense(
           expenseId: existing.id,
           employeeId: selectedEmployeeId!,
-          employeeName: employeeName, // ✅ اسم الموظف
-          action: selectedSalaryAction, // ✅ مباشرة بدون تحويل
+          action: savedType,
           amount: parsedAmount,
           date: trimmedDate,
           note: trimmedDescription,
+          hotelDayKey: trimmedDate,
         );
       } else {
         await salaryRepo.deleteByExpenseId(existing.id);
@@ -688,12 +631,34 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     amount.dispose();
     date.dispose();
 
-    // ✅ تحديث قائمة سحوبات الرواتب
-    ref.invalidate(salaryWithdrawalsListProvider);
-
     markDataChanged();
     if (mounted) {
       _refreshExpensesStream();
     }
+  }
+
+  bool _isSalaryAction(String? type) {
+    if (type == null) return false;
+    final normalized = type.trim();
+    return normalized == _salaryType ||
+        normalized == 'سحب راتب' ||
+        normalized == _salaryWithdrawAction ||
+        normalized == _salaryDeductionAction ||
+        normalized == 'خصم راتب';
+  }
+
+  String _mapExpenseTypeToSalaryAction(String type) {
+    final normalized = type.trim();
+    if (normalized == _salaryDeductionAction || normalized == 'خصم راتب') {
+      return _salaryDeductionAction;
+    }
+    return _salaryWithdrawAction;
+  }
+
+  String _deriveSalaryExpenseType(String action) {
+    if (action == _salaryDeductionAction) {
+      return _salaryDeductionAction;
+    }
+    return 'سحب راتب';
   }
 }

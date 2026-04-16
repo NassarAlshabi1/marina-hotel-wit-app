@@ -6,29 +6,31 @@ enum LockCategory { mainSync, deltaSync, queueProcessing, screenSync }
 enum LockPriority { critical, high, normal, low }
 
 class LockAcquisitionResult {
+  final bool acquired;
+  final String? holder;
+  final Duration waitTime;
+  final String? failureReason;
+
   const LockAcquisitionResult({
     required this.acquired,
     this.holder,
     required this.waitTime,
     this.failureReason,
   });
-  final bool acquired;
-  final String? holder;
-  final Duration waitTime;
-  final String? failureReason;
 }
 
 class LockStatus {
+  final bool isLocked;
+  final String? currentHolder;
+  final DateTime? acquiredAt;
+  final int waitingCount;
+
   const LockStatus({
     required this.isLocked,
     this.currentHolder,
     this.acquiredAt,
     required this.waitingCount,
   });
-  final bool isLocked;
-  final String? currentHolder;
-  final DateTime? acquiredAt;
-  final int waitingCount;
 
   Duration? get heldDuration =>
       acquiredAt != null ? DateTime.now().difference(acquiredAt!) : null;
@@ -66,6 +68,12 @@ class _LockState {
 }
 
 class _LockEvent {
+  final DateTime timestamp;
+  final LockCategory category;
+  final String holder;
+  final String action;
+  final Duration? duration;
+
   const _LockEvent({
     required this.timestamp,
     required this.category,
@@ -73,11 +81,6 @@ class _LockEvent {
     required this.action,
     this.duration,
   });
-  final DateTime timestamp;
-  final LockCategory category;
-  final String holder;
-  final String action;
-  final Duration? duration;
 
   @override
   String toString() {
@@ -90,8 +93,8 @@ class _LockEvent {
 }
 
 class UnifiedLockManager {
-  UnifiedLockManager._();
   static final UnifiedLockManager instance = UnifiedLockManager._();
+  UnifiedLockManager._();
 
   final Map<LockCategory, _LockState> _locks = {
     for (var category in LockCategory.values) category: _LockState(),
@@ -372,7 +375,7 @@ class UnifiedLockManager {
   void printDiagnostics() {
     debugPrint('🔒📊 [UnifiedLockManager] === Lock Status ===');
     final status = getStatus();
-    for (final entry in status.entries) {
+    for (var entry in status.entries) {
       final s = entry.value;
       final categoryName = entry.key.name;
       if (s.isLocked) {
@@ -387,7 +390,7 @@ class UnifiedLockManager {
 
     debugPrint('🔒📋 [UnifiedLockManager] === Recent Events ===');
     final events = getRecentEvents(limit: 10);
-    for (final event in events) {
+    for (var event in events) {
       debugPrint('  $event');
     }
   }

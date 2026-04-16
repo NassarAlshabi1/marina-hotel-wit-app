@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart' as d;
 import '../local_db.dart';
 import '../../utils/id.dart';
@@ -98,59 +96,33 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       ),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
-      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(
-        json,
-        'lastModifiedEpoch',
-        src,
-        fallback: lastModified,
-      ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: {},
-      ),
     );
   }
 
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
-    // حساب shiftDate من createdAtIso أو createdAt
-    String shiftDate;
-    if (model.shiftDate != null && model.shiftDate!.isNotEmpty) {
-      shiftDate = model.shiftDate!;
-    } else if (model.createdAtIso != null && model.createdAtIso!.isNotEmpty) {
-      shiftDate = model.createdAtIso!.split('T').first;
-    } else {
-      shiftDate = DateTime.fromMillisecondsSinceEpoch(
-        model.createdAt * 1000,
-      ).toIso8601String().split('T').first;
-    }
-
     if (src == Source.appwrite) {
-      final createdAtIso =
-          model.createdAtIso ??
-          DateTime.fromMillisecondsSinceEpoch(
-            model.createdAt * 1000,
-          ).toIso8601String();
+      final createdDate = DateTime.fromMillisecondsSinceEpoch(
+        model.createdAt * 1000,
+      );
+      // shiftDate مطلوب في Appwrite — نأخذه من تاريخ الإنشاء
+      final shiftDate = createdDate.toIso8601String().substring(0, 10);
       return {
         'localUuid': model.localUuid,
         'title': model.title,
         'content': model.content,
         'priority': model.priority,
         'shiftType': model.shiftType,
-        'isRead': model.isRead,
-        'createdAt': createdAtIso,
+        'isRead': model.isRead == 1, // Appwrite يتوقع boolean
+        'createdAt': model.createdAt, // Appwrite يتوقع integer epoch
+        'updatedAt': model.updatedAt, // integer epoch — مطلوب
         'createdBy': model.createdBy,
+        'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
+        'note': model.content ?? model.title ?? '', // مطلوب — يوازي content
         if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
           'expiresAt': model.expiresAt,
-        // ✅ الحقول المطلوبة في Appwrite (required=true)
-        'shiftDate': shiftDate,
-        'note': model.content ?? model.title ?? '',
       };
     }
     return {
@@ -168,17 +140,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
-          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
-      ),
-      // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'shiftDate': shiftDate,
-      'note': model.content ?? model.title ?? '',
     };
   }
 }
@@ -210,38 +173,6 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
-  }
-  return null;
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

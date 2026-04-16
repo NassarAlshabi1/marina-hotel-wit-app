@@ -192,6 +192,12 @@ class AppwriteFullPull {
         collectionId: AppwriteConfig.paymentVoidsCollectionId,
         repo: reg.paymentVoids,
       ),
+      // 18. معلومات الضيوف
+      _PullEntity(
+        name: 'guest_infos',
+        collectionId: AppwriteConfig.guestInfosCollectionId,
+        repo: reg.guestInfos,
+      ),
     ];
   }
 

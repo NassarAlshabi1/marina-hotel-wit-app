@@ -22,8 +22,8 @@ class PdfUtils {
 
   static Future<pw.ImageProvider?> loadLogoImage() async {
     try {
-      final img = await rootBundle.load('assets/images/hotel_logo.jpg');
-      final Uint8List bytes = img.buffer.asUint8List();
+      final data = await rootBundle.load('assets/images/hotel_logo.jpg');
+      final Uint8List bytes = data.buffer.asUint8List();
       return pw.MemoryImage(bytes);
     } catch (_) {
       return null;

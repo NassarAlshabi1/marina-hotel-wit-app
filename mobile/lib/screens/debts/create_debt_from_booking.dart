@@ -100,6 +100,7 @@ class _CreateDebtFromBookingScreenState
             ),
           );
         }
+        final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -109,9 +110,9 @@ class _CreateDebtFromBookingScreenState
                 const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
-                  initialValue: _selectedBooking,
+                  value: _selectedBooking,
                   isExpanded: true,
-                  style: _fieldStyle,
+                  style: _fieldStyle.copyWith(color: dropdownColor),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(
@@ -125,7 +126,7 @@ class _CreateDebtFromBookingScreenState
                       child: Text(
                         '${booking.roomNumber} - ${booking.guestName}',
                         overflow: TextOverflow.ellipsis,
-                        style: _fieldStyle,
+                        style: _fieldStyle.copyWith(color: dropdownColor),
                       ),
                     );
                   }).toList(),
@@ -479,16 +480,17 @@ class _CreateDebtFromBookingScreenState
 }
 
 class _DebtData {
+  final int nights;
+  final double roomRate;
+  final double total;
+  final double paid;
+
   const _DebtData({
     required this.nights,
     required this.roomRate,
     required this.total,
     required this.paid,
   });
-  final int nights;
-  final double roomRate;
-  final double total;
-  final double paid;
 
   double get remaining => (total - paid).clamp(0, total);
 }

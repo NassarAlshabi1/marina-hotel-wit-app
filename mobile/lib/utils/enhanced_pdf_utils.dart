@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 /// ألوان مخصصة للـ PDF
 class PdfColors {
-  static const primary = PdfColor(0.02, 0.33, 0.66);
+  static const primary = PdfColor(1.0, 0.8, 0.502);
   static const secondary = PdfColor(0.85, 0.65, 0.13);
   static const accent = PdfColor(0.0, 0.48, 0.65);
   static const textDark = PdfColor(0.15, 0.15, 0.15);
@@ -17,31 +17,6 @@ class PdfColors {
   static const warning = PdfColor(1.0, 0.6, 0.0);
   static const danger = PdfColor(0.9, 0.2, 0.2);
   static const info = PdfColor(0.1, 0.6, 0.9);
-
-  // Extended colors for compatibility
-  static const white = PdfColor(1.0, 1.0, 1.0);
-  static const black = PdfColor(0.0, 0.0, 0.0);
-  static const grey100 = PdfColor(0.96, 0.96, 0.96);
-  static const grey200 = PdfColor(0.93, 0.93, 0.93);
-  static const grey300 = PdfColor(0.88, 0.88, 0.88);
-  static const grey400 = PdfColor(0.74, 0.74, 0.74);
-  static const grey500 = PdfColor(0.62, 0.62, 0.62);
-  static const grey600 = PdfColor(0.46, 0.46, 0.46);
-  static const grey700 = PdfColor(0.38, 0.38, 0.38);
-
-  static const blue50 = PdfColor(0.9, 0.95, 1.0);
-  static const blue200 = PdfColor(0.75, 0.85, 0.95);
-  static const blue700 = PdfColor(0.1, 0.4, 0.7);
-  static const blue800 = PdfColor(0.08, 0.35, 0.65);
-  static const blue900 = PdfColor(0.05, 0.2, 0.5);
-
-  static const green = PdfColor(0.0, 0.7, 0.3);
-  static const green700 = PdfColor(0.2, 0.6, 0.2);
-  static const red700 = PdfColor(0.8, 0.2, 0.2);
-  static const red = PdfColor(0.9, 0.2, 0.2);
-  static const orange = PdfColor(1.0, 0.6, 0.0);
-  static const blue = PdfColor(0.1, 0.4, 0.8);
-  static const indigo = PdfColor(0.29, 0.0, 0.51);
 }
 
 /// أنماط النصوص المخصصة
@@ -155,8 +130,8 @@ class EnhancedPdfUtils {
       width: double.infinity,
       decoration: pw.BoxDecoration(
         gradient: showGradient
-            ? const pw.LinearGradient(
-                colors: [PdfColors.primary, PdfColors.accent],
+            ? pw.LinearGradient(
+                colors: const [PdfColors.primary, PdfColors.accent],
                 begin: pw.Alignment.topLeft,
                 end: pw.Alignment.bottomRight,
               )
@@ -194,9 +169,7 @@ class EnhancedPdfUtils {
                     horizontal: 12,
                     vertical: 6,
                   ),
-                  decoration: const pw.BoxDecoration(
-                    color: PdfColors.secondary,
-                  ),
+                  decoration: pw.BoxDecoration(color: PdfColors.secondary),
                   child: pw.Text(
                     title.isNotEmpty ? title : 'وثيقة رسمية',
                     style: pw.TextStyle(
@@ -224,14 +197,14 @@ class EnhancedPdfUtils {
             pw.Container(
               width: 80,
               height: 80,
-              decoration: const pw.BoxDecoration(color: PdfColors.textWhite),
+              decoration: pw.BoxDecoration(color: PdfColors.textWhite),
               child: pw.Image(logo, fit: pw.BoxFit.cover),
             )
           else
             pw.Container(
               width: 80,
               height: 80,
-              decoration: const pw.BoxDecoration(color: PdfColors.secondary),
+              decoration: pw.BoxDecoration(color: PdfColors.secondary),
               child: pw.Center(
                 child: pw.Text(
                   'M',
@@ -253,7 +226,7 @@ class EnhancedPdfUtils {
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(16),
-      decoration: const pw.BoxDecoration(color: PdfColors.backgroundCard),
+      decoration: pw.BoxDecoration(color: PdfColors.backgroundCard),
       child: pw.Column(
         children: [
           pw.Row(
@@ -399,7 +372,7 @@ class EnhancedPdfUtils {
         columnWidths: columnWidths != null
             ? Map.fromIterables(
                 List.generate(headers.length, (index) => index),
-                columnWidths.map(pw.FixedColumnWidth.new),
+                columnWidths.map((w) => pw.FixedColumnWidth(w)),
               )
             : null,
         children: [
@@ -552,7 +525,7 @@ class EnhancedPdfUtils {
 
   /// تنسيق المبلغ بالعملة
   static String formatCurrency(double amount) {
-    return amount.toStringAsFixed(0);
+    return '${amount.toStringAsFixed(0)}';
   }
 
   /// تنسيق الأرقام بالفواصل

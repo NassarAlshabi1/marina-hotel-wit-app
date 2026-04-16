@@ -15,6 +15,13 @@ import 'google_drive_backup_service.dart';
 import 'backup_serializers.dart';
 
 class LocalBackupFile {
+  final String fileName;
+  final String filePath;
+  final DateTime createdTime;
+  final int sizeBytes;
+  final BackupMetadata? metadata;
+  final BackupFormat format;
+
   LocalBackupFile({
     required this.fileName,
     required this.filePath,
@@ -39,12 +46,6 @@ class LocalBackupFile {
       format: format,
     );
   }
-  final String fileName;
-  final String filePath;
-  final DateTime createdTime;
-  final int sizeBytes;
-  final BackupMetadata? metadata;
-  final BackupFormat format;
 }
 
 class LocalBackupService {
@@ -156,11 +157,11 @@ class LocalBackupService {
         final salaryCyclesData = await db.select(db.salaryCycles).get();
         final salaryPaymentsData = await db.select(db.salaryPayments).get();
         final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
-        final bookingPriceAdjData = await db
-            .select(db.bookingPriceAdjustments)
-            .get();
+        final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
         final auditLogsData = await db.select(db.auditLogs).get();
         final paymentVoidsData = await db.select(db.paymentVoids).get();
+        final guestInfosData = await db.select(db.guestInfos).get();
+        final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
 
         final totalRecords =
             roomsData.length +
@@ -179,7 +180,9 @@ class LocalBackupService {
             priceAdjustmentsData.length +
             bookingPriceAdjData.length +
             auditLogsData.length +
-            paymentVoidsData.length;
+            paymentVoidsData.length +
+            guestInfosData.length +
+            salaryWithdrawalsData.length;
 
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
@@ -212,7 +215,9 @@ class LocalBackupService {
           'hotel_day_ledger': ledgerData
               .map((entry) => entry.toJson())
               .toList(),
-          'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
+          'shift_notes': shiftNotesData
+              .map((note) => note.toJson())
+              .toList(),
           'salary_cycles': salaryCyclesData
               .map((cycle) => cycle.toJson())
               .toList(),
@@ -225,8 +230,18 @@ class LocalBackupService {
           'booking_price_adjustments': bookingPriceAdjData
               .map((adj) => adj.toJson())
               .toList(),
-          'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
-          'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
+          'audit_logs': auditLogsData
+              .map((log) => log.toJson())
+              .toList(),
+          'payment_voids': paymentVoidsData
+              .map((v) => v.toJson())
+              .toList(),
+          'guest_infos': guestInfosData
+              .map((g) => g.toJson())
+              .toList(),
+          'salary_withdrawals': salaryWithdrawalsData
+              .map((s) => s.toJson())
+              .toList(),
           'sync_state': syncStateData.isNotEmpty
               ? syncStateData.first.toJson()
               : {},

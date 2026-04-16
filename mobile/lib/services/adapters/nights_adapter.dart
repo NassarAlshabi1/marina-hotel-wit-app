@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
@@ -133,12 +132,6 @@ class NightsAdapter
         src,
         altKey: 'applied_adjustment_uuid',
       ),
-      appliedAdjustmentsJson: _vStr(
-        json,
-        'appliedAdjustmentsJson',
-        src,
-        altKey: 'applied_adjustments_json',
-      ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -155,12 +148,12 @@ class NightsAdapter
       ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
@@ -184,17 +177,13 @@ class NightsAdapter
       _k(src, 'finalRate', 'final_rate'): model.finalRate,
       _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'):
           model.appliedAdjustmentUuid,
-      _k(src, 'appliedAdjustmentsJson', 'applied_adjustments_json'):
-          model.appliedAdjustmentsJson,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock.isNotEmpty
-          ? jsonEncode(model.vectorClock)
-          : '{}',
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -298,38 +287,6 @@ bool? _asBool(Map<String, dynamic> json, String key, Source src) {
     final t = v.toLowerCase();
     if (t == 'true' || t == '1') return true;
     if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
   }
   return null;
 }

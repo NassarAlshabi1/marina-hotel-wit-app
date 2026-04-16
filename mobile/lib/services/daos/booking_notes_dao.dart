@@ -3,7 +3,6 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
-import '../sync_guardian.dart';
 
 part 'booking_notes_dao.g.dart';
 
@@ -61,10 +60,6 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'booking_notes',
-          operation: 'create',
-        );
       }
       return id;
     });
@@ -95,10 +90,6 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'booking_notes',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -125,10 +116,6 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           payload: {'id': id},
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'booking_notes',
-          operation: 'delete',
         );
       }
       return rows;

@@ -1,14 +1,12 @@
 /// Sync Providers
 /// Providers Riverpod للمزامنة
-library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/sync_models.dart';
 import '../vector_clock.dart';
-import '../delta_sync_engine.dart' hide ConflictResolver;
-import '../delta_sync_engine.dart' as engine;
+import '../delta_sync_engine.dart';
 import '../processors/outbox_processor.dart';
 import '../orchestrator/sync_orchestrator.dart';
 import '../strategies/conflict_strategies.dart';
@@ -38,8 +36,8 @@ final syncConfigurationProvider = Provider<SyncConfiguration>((ref) {
 /// Provider قابل للتعديل لإعدادات المزامنة
 final syncConfigurationNotifierProvider =
     StateNotifierProvider<SyncConfigurationNotifier, SyncConfiguration>((ref) {
-      return SyncConfigurationNotifier(ref.watch(syncConfigurationProvider));
-    });
+  return SyncConfigurationNotifier(ref.watch(syncConfigurationProvider));
+});
 
 class SyncConfigurationNotifier extends StateNotifier<SyncConfiguration> {
   SyncConfigurationNotifier(super.initialConfig);
@@ -51,8 +49,7 @@ class SyncConfigurationNotifier extends StateNotifier<SyncConfiguration> {
       state = state.copyWith(autoSyncInterval: interval);
   void setConflictStrategy(ConflictStrategy strategy) =>
       state = state.copyWith(conflictStrategy: strategy);
-  void setRequireWifi(bool require) =>
-      state = state.copyWith(requireWifi: require);
+  void setRequireWifi(bool require) => state = state.copyWith(requireWifi: require);
   void setRequireCharging(bool require) =>
       state = state.copyWith(requireCharging: require);
 }
@@ -127,9 +124,7 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
     outbox: ref.watch(outboxDataSourceProvider),
     inbox: ref.watch(inboxDataSourceProvider),
     remote: ref.watch(remoteDataSourceProvider),
-    conflictResolver: _ConflictResolverAdapter(
-      ref.watch(conflictResolverProvider),
-    ),
+    conflictResolver: ref.watch(conflictResolverProvider),
   );
 });
 
@@ -167,7 +162,9 @@ final syncStateProvider = StreamProvider<SyncState>((ref) {
   });
 
   // إيقاف عند التخلص
-  ref.onDispose(orchestrator.stopAutoSync);
+  ref.onDispose(() {
+    orchestrator.stopAutoSync();
+  });
 
   return orchestrator.stateStream;
 });
@@ -245,7 +242,10 @@ final backgroundSyncInitProvider = Provider<Future<void>>((ref) async {
   final orchestrator = ref.watch(syncOrchestratorProvider);
   final config = ref.watch(syncConfigurationProvider);
 
-  await service.initialize(orchestrator: orchestrator, config: config);
+  await service.initialize(
+    orchestrator: orchestrator,
+    config: config,
+  );
 
   await service.schedulePeriodicSync();
   await service.scheduleCleanup();
@@ -256,63 +256,59 @@ final backgroundSyncInitProvider = Provider<Future<void>>((ref) async {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Provider لتنفيذ مزامنة يدوية
-final manualSyncProvider =
-    FutureProvider.family<DeltaSyncResult, SyncDirection?>((
-      ref,
-      direction,
-    ) async {
-      final orchestrator = ref.read(syncOrchestratorProvider);
-      return orchestrator.performFullSync(
-        direction: direction ?? SyncDirection.bidirectional,
-      );
-    });
+final manualSyncProvider = FutureProvider.family<DeltaSyncResult, SyncDirection?>(
+  (ref, direction) async {
+    final orchestrator = ref.read(syncOrchestratorProvider);
+    return await orchestrator.performFullSync(
+      direction: direction ?? SyncDirection.bidirectional,
+    );
+  },
+);
 
 /// Provider لإضافة تغيير للمزامنة
-final queueChangeProvider =
-    Provider<
-      Future<String> Function({
-        required String table,
-        required String uuid,
-        required SyncOperation operation,
-        required Map<String, dynamic> data,
-      })
-    >((ref) {
-      return ({
-        required String table,
-        required String uuid,
-        required SyncOperation operation,
-        required Map<String, dynamic> data,
-      }) async {
-        final orchestrator = ref.read(syncOrchestratorProvider);
-        return orchestrator.queueLocalChange(
-          table: table,
-          uuid: uuid,
-          operation: operation,
-          data: data,
-        );
-      };
-    });
+final queueChangeProvider = Provider<Future<String> Function({
+  required String table,
+  required String uuid,
+  required SyncOperation operation,
+  required Map<String, dynamic> data,
+})>((ref) {
+  return ({
+    required String table,
+    required String uuid,
+    required SyncOperation operation,
+    required Map<String, dynamic> data,
+  }) async {
+    final orchestrator = ref.read(syncOrchestratorProvider);
+    return await orchestrator.queueLocalChange(
+      table: table,
+      uuid: uuid,
+      operation: operation,
+      data: data,
+    );
+  };
+});
 
 /// Provider للتحكم في Realtime Sync
 final realtimeSyncControlProvider = Provider<RealtimeSyncControl>((ref) {
   final service = ref.watch(realtimeSyncServiceProvider);
 
   return RealtimeSyncControl(
-    start: service.start,
-    stop: service.stop,
-    reconnect: service.reconnect,
+    start: () => service.start(),
+    stop: () => service.stop(),
+    reconnect: () => service.reconnect(),
   );
 });
 
 class RealtimeSyncControl {
+  final Future<void> Function() start;
+  final Future<void> Function() stop;
+  final Future<void> Function() reconnect;
+
   RealtimeSyncControl({
     required this.start,
     required this.stop,
     required this.reconnect,
   });
-  final Future<void> Function() start;
-  final Future<void> Function() stop;
-  final Future<void> Function() reconnect;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -373,13 +369,3 @@ final hasPendingChangesProvider = Provider<bool>((ref) {
   final count = ref.watch(pendingChangesCountProvider);
   return (count.valueOrNull ?? 0) > 0;
 });
-
-class _ConflictResolverAdapter implements engine.ConflictResolver {
-  _ConflictResolverAdapter(this._inner);
-  final ConflictResolver _inner;
-
-  @override
-  Future<ConflictResolutionResult> resolve(SyncConflict conflict) async {
-    return _inner.resolve(conflict);
-  }
-}

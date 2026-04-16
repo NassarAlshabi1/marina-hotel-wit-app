@@ -25,7 +25,9 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
     database: database,
   );
 
-  ref.onDispose(manager.dispose);
+  ref.onDispose(() {
+    manager.dispose();
+  });
 
   return manager;
 });
@@ -33,17 +35,17 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   ref,
 ) {
-  final appwriteService = ref.watch(appwriteServiceProvider);
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
-  orch.initialize(appwriteService: appwriteService, smart: smart, database: db);
+  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
   return orch;
 });
 
 final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
-  ref.onDispose(orch.dispose);
+  ref.onDispose(() => orch.dispose());
   return orch.stateStream;
 });
 
@@ -71,14 +73,15 @@ final connectionStatusProvider =
     });
 
 class ConnectionState {
+  final bool isConnected;
+  final bool isChecking;
+  final String? errorMessage;
+
   ConnectionState({
     required this.isConnected,
     this.isChecking = false,
     this.errorMessage,
   });
-  final bool isConnected;
-  final bool isChecking;
-  final String? errorMessage;
 
   ConnectionState copyWith({
     bool? isConnected,
@@ -94,9 +97,10 @@ class ConnectionState {
 }
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
+  final Ref ref;
+
   ConnectionStatusNotifier(this.ref)
     : super(ConnectionState(isConnected: false));
-  final Ref ref;
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true, errorMessage: null);
@@ -119,7 +123,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
       state = ConnectionState(
         isConnected: false,
         isChecking: false,
-        errorMessage: 'خطأ في الاتصال: $e',
+        errorMessage: 'خطأ في الاتصال: ${e.toString()}',
       );
     }
   }
@@ -130,7 +134,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 /// مزود إحصائيات المزامنة
 final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
-  return syncManager.getSyncStatistics();
+  return await syncManager.getSyncStatistics();
 });
 
 final outboxCountProvider = StreamProvider<int>((ref) {

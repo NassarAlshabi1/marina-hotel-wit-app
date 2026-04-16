@@ -1,79 +1,29 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'appwrite_defaults.dart';
+import 'appwrite_config.dart';
 
-/// مدير إعدادات Appwrite - المصدر الوحيد للحقيقة
-/// يحتوي على القيم الافتراضية ويدير التخزين والتحميل
 class AppwriteConfigManager {
-  // ═══════════════════════════════════════════════════════════════════
-  // مفاتيح التخزين
-  // ═══════════════════════════════════════════════════════════════════
-
   static const String _endpointKey = 'appwrite_endpoint';
   static const String _projectIdKey = 'appwrite_project_id';
   static const String _databaseIdKey = 'appwrite_database_id';
   static const String _apiKey = 'appwrite_api_key';
 
-  // ═══════════════════════════════════════════════════════════════════
-  // حالة التهيئة — يضمن عدم استخدام الإعدادات قبل تحميلها
-  // ═══════════════════════════════════════════════════════════════════
-
-  static bool _isInitialized = false;
-  static final Completer<void> _readyCompleter = Completer<void>();
-
-  /// هل تم تحميل الإعدادات؟
-  static bool get isInitialized => _isInitialized;
-
-  /// Future يكتمل عند انتهاء تحميل الإعدادات.
-  /// يمكن استخدامه كبوابة أمان (gate) في أي مكان يحتاج التأكد.
-  static Future<void> get ready {
-    if (_isInitialized) return Future.value();
-    return _readyCompleter.future;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // المتغيرات الداخلية - تبدأ بالقيم الافتراضية
-  // ═══════════════════════════════════════════════════════════════════
-
-  static String _endpoint = AppwriteDefaults.endpoint;
-  static String _projectId = AppwriteDefaults.projectId;
-  static String _databaseId = AppwriteDefaults.databaseId;
+  static String _endpoint = AppwriteConfig.endpoint;
+  static String _projectId = AppwriteConfig.projectId;
+  static String _databaseId = AppwriteConfig.databaseId;
   static String _apiKeyValue = '';
-
-  // ═══════════════════════════════════════════════════════════════════
-  // Getters للوصول للق values الحالية
-  // ═══════════════════════════════════════════════════════════════════
 
   static String get endpoint => _endpoint;
   static String get projectId => _projectId;
   static String get databaseId => _databaseId;
   static String get apiKey => _apiKeyValue;
 
-  // ═══════════════════════════════════════════════════════════════════
-  // Getters للقيم الافتراضية
-  // ═══════════════════════════════════════════════════════════════════
-
-  static String get defaultEndpoint => AppwriteDefaults.endpoint;
-  static String get defaultProjectId => AppwriteDefaults.projectId;
-  static String get defaultDatabaseId => AppwriteDefaults.databaseId;
-
-  // ═══════════════════════════════════════════════════════════════════
-  // التهيئة - تحميل الإعدادات المحفوظة أو استخدام الافتراضية
-  // ═══════════════════════════════════════════════════════════════════
-
   static Future<void> init() async {
-    if (_isInitialized) return;
-
     final prefs = await SharedPreferences.getInstance();
-    _endpoint = prefs.getString(_endpointKey) ?? AppwriteDefaults.endpoint;
-    _projectId = prefs.getString(_projectIdKey) ?? AppwriteDefaults.projectId;
-    _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteDefaults.databaseId;
+    _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
+    _projectId = prefs.getString(_projectIdKey) ?? AppwriteConfig.projectId;
+    _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteConfig.databaseId;
     _apiKeyValue = prefs.getString(_apiKey) ?? '';
-
-    _isInitialized = true;
-    _readyCompleter.complete();
 
     if (kDebugMode) {
       debugPrint('📱 Appwrite Config Loaded:');
@@ -82,10 +32,6 @@ class AppwriteConfigManager {
       debugPrint('   Database ID: $_databaseId');
     }
   }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // حفظ الإعدادات الجديدة
-  // ═══════════════════════════════════════════════════════════════════
 
   static Future<void> saveConfig({
     required String endpoint,
@@ -113,10 +59,6 @@ class AppwriteConfigManager {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // إعادة التعيين للقيم الافتراضية
-  // ═══════════════════════════════════════════════════════════════════
-
   static Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -125,9 +67,9 @@ class AppwriteConfigManager {
     await prefs.remove(_databaseIdKey);
     await prefs.remove(_apiKey);
 
-    _endpoint = AppwriteDefaults.endpoint;
-    _projectId = AppwriteDefaults.projectId;
-    _databaseId = AppwriteDefaults.databaseId;
+    _endpoint = AppwriteConfig.endpoint;
+    _projectId = AppwriteConfig.projectId;
+    _databaseId = AppwriteConfig.databaseId;
     _apiKeyValue = '';
 
     if (kDebugMode) {
@@ -135,20 +77,12 @@ class AppwriteConfigManager {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // التحقق من استخدام إعدادات مخصصة
-  // ═══════════════════════════════════════════════════════════════════
-
   static bool get isUsingCustomConfig {
-    return _endpoint != AppwriteDefaults.endpoint ||
-        _projectId != AppwriteDefaults.projectId ||
-        _databaseId != AppwriteDefaults.databaseId ||
+    return _endpoint != AppwriteConfig.endpoint ||
+        _projectId != AppwriteConfig.projectId ||
+        _databaseId != AppwriteConfig.databaseId ||
         _apiKeyValue.isNotEmpty;
   }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // الحصول على الإعدادات الحالية والافتراضية
-  // ═══════════════════════════════════════════════════════════════════
 
   static Map<String, String> get currentConfig => {
     'endpoint': _endpoint,
@@ -158,9 +92,9 @@ class AppwriteConfigManager {
   };
 
   static Map<String, String> get defaultConfig => {
-    'endpoint': AppwriteDefaults.endpoint,
-    'projectId': AppwriteDefaults.projectId,
-    'databaseId': AppwriteDefaults.databaseId,
+    'endpoint': AppwriteConfig.endpoint,
+    'projectId': AppwriteConfig.projectId,
+    'databaseId': AppwriteConfig.databaseId,
     'apiKey': '',
   };
 }

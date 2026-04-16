@@ -9,17 +9,14 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
-import 'settings_id_types.dart';
 import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
 import 'diagnostics_screen.dart';
-import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
-import 'data_protection_screen.dart';
-import 'smart_sync_settings_screen.dart';
-import 'auto_backup_settings_screen.dart';
+import 'lark_settings_screen.dart';
+import 'telegram_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -35,22 +32,7 @@ class SettingsScreen extends ConsumerWidget {
       title: 'الإعدادات الرئيسية',
       actions: [
         IconButton(
-          onPressed: () async {
-            final result = await ref.read(syncServiceProvider).runSync();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    result.success
-                        ? '✅ تمت المزامنة بنجاح - رفع: ${result.recordsPushed}، سحب: ${result.recordsPulled}'
-                        : '❌ فشلت المزامنة: ${result.errorMessage ?? "خطأ غير معروف"}',
-                  ),
-                  backgroundColor: result.success ? Colors.green : Colors.red,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            }
-          },
+          onPressed: () => ref.read(syncServiceProvider).runSync(),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),
@@ -120,18 +102,6 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            _SettingsItem(
-              title: 'القائمة السوداء',
-              subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
-              icon: Icons.gavel,
-              color: Colors.red,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BlacklistScreen(),
-                ),
-              ),
-            ),
           ]),
 
           const SizedBox(height: 20),
@@ -187,42 +157,6 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            _SettingsItem(
-              title: 'حماية البيانات',
-              subtitle: 'إعدادات المزامنة (Push/Pull)',
-              icon: Icons.security,
-              color: Colors.teal,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DataProtectionScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'المزامنة الذكية',
-              subtitle: 'مزامنة تلقائية ذكية بـ Appwrite',
-              icon: Icons.sync_problem,
-              color: Colors.deepPurple,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SmartSyncSettingsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'النسخ التلقائي',
-              subtitle: 'نسخ احتياطي مجدول تلقائي',
-              icon: Icons.schedule,
-              color: Colors.amber,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AutoBackupSettingsScreen(),
-                ),
-              ),
-            ),
           ]),
 
           const SizedBox(height: 20),
@@ -230,6 +164,30 @@ class SettingsScreen extends ConsumerWidget {
           // قسم إعدادات عامة
           _buildSectionTitle('إعدادات عامة', Icons.settings),
           _buildSettingsGrid(context, [
+            _SettingsItem(
+              title: 'Telegram Bot',
+              subtitle: 'إشعارات فورية وتقارير يومية',
+              icon: Icons.telegram,
+              color: const Color(0xFF0088cc),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TelegramSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'Lark Suite',
+              subtitle: 'الإشعارات الفورية والتقارير اليومية',
+              icon: Icons.integration_instructions,
+              color: Colors.blueAccent,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LarkSettingsScreen(),
+                ),
+              ),
+            ),
             _SettingsItem(
               title: 'رسالة الواتساب',
               subtitle: 'تخصيص نص رسالة الدفع',
@@ -258,18 +216,6 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const DiagnosticsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'أنواع الهوية',
-              subtitle: 'تخصيص قائمة أنواع الهوية',
-              icon: Icons.badge_outlined,
-              color: Colors.blueGrey,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsIdTypesScreen(),
                 ),
               ),
             ),
@@ -350,7 +296,7 @@ class SettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'المستخدمين',
-                    usersCountAsync.value?.toString() ?? '---',
+                    (usersCountAsync.value?.toString()) ?? '---',
                     Icons.admin_panel_settings,
                     Colors.purple,
                   ),
@@ -411,11 +357,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    const crossAxisCount = 3;
+    final crossAxisCount = 3;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
@@ -503,11 +449,11 @@ class SettingsScreen extends ConsumerWidget {
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => const AboutDialog(
+      builder: (context) => AboutDialog(
         applicationName: 'تطبيق إدارة الفندق',
         applicationVersion: '1.2',
         applicationLegalese: '© 2026 Marina Hotel',
-        children: [
+        children: const [
           Text('تطبيق شامل لإدارة العمليات الفندقية'),
           SizedBox(height: 6),
           Text('تصميم Eng: Nassar Alshabi'),
@@ -519,6 +465,12 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 class _SettingsItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
   const _SettingsItem({
     required this.title,
     required this.subtitle,
@@ -526,9 +478,4 @@ class _SettingsItem {
     required this.color,
     required this.onTap,
   });
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
 }

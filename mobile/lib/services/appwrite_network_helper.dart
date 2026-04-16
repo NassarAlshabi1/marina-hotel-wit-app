@@ -4,10 +4,10 @@ import 'appwrite_logger.dart';
 
 /// مساعد للعمليات الشبكية مع Retry Logic و Timeout
 class AppwriteNetworkHelper {
-  factory AppwriteNetworkHelper() => _instance;
-  AppwriteNetworkHelper._internal();
   static final AppwriteNetworkHelper _instance =
       AppwriteNetworkHelper._internal();
+  factory AppwriteNetworkHelper() => _instance;
+  AppwriteNetworkHelper._internal();
 
   final _logger = AppwriteLogger();
 
@@ -165,12 +165,7 @@ class AppwriteNetworkHelper {
       return true;
     }
 
-    // أخطاء Appwrite 404 (document_not_found) غير قابلة لإعادة المحاولة
-    if (errorStr.contains('404') || errorStr.contains('document_not_found')) {
-      return false;
-    }
-
-    // باقي الأخطاء غير قابلة لإعادة المحاولة (مثل 401, 403)
+    // باقي الأخطاء غير قابلة لإعادة المحاولة (مثل 401, 403, 404)
     return false;
   }
 
@@ -195,9 +190,9 @@ class AppwriteNetworkHelper {
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
       final jitter =
-          exponentialDelay *
+          (exponentialDelay *
           0.2 *
-          (0.5 + (DateTime.now().millisecond % 100) / 100);
+          (0.5 + (DateTime.now().millisecond % 100) / 100));
       return Duration(milliseconds: (exponentialDelay + jitter).round());
     }
 

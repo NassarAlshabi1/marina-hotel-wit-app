@@ -1,121 +1,35 @@
-// lib/services/appwrite_delta_sync.dart
-
-import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:appwrite/appwrite.dart' as appwrite;
-import 'package:crypto/crypto.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' as d;
+import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 import 'delta_sync_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
-import 'daos/outbox_dao.dart';
+import 'booking_derived_fields_service.dart';
 import '../utils/time.dart';
 import '../utils/id.dart';
+import '../utils/hotel_date_helper.dart';
 import 'sync_locks.dart';
-import 'adapters/adapter_registry.dart';
-import 'adapters/source.dart';
-import 'repositories/base_repository.dart';
-import 'repositories/rooms_repository.dart';
-import 'booking_derived_fields_service.dart';
-import 'conflict_resolver.dart';
-// ✅ Field-Level Sync
-import 'field_level_sync.dart';
-
-/// ⭐ نموذج خطأ على مستوى الحقل
-/// يُستخدم لتتبع الأخطاء التفصيلية أثناء المزامنة
-class FieldSyncError {
-  const FieldSyncError({
-    required this.entityName,
-    required this.recordUuid,
-    required this.fieldName,
-    required this.errorType,
-    required this.errorMessage,
-    required this.timestamp,
-    this.operation = 'update',
-  });
-
-  final String entityName;
-  final String recordUuid;
-  final String fieldName;
-  final String errorType;
-  final String errorMessage;
-  final int timestamp;
-  final String operation;
-
-  /// نوع الخطأ بالعربية
-  String get errorTypeAr {
-    switch (errorType) {
-      case 'network':
-        return 'شبكة';
-      case 'validation':
-        return 'تحقق';
-      case 'not_found':
-        return 'غير موجود';
-      case 'permission':
-        return 'صلاحية';
-      case 'timeout':
-        return 'انتهاء المهلة';
-      case 'data_mismatch':
-        return 'تضارب بيانات';
-      case 'unknown':
-        return 'غير معروف';
-      default:
-        return errorType;
-    }
-  }
-
-  Map<String, dynamic> toJson() => {
-    'entityName': entityName,
-    'recordUuid': recordUuid,
-    'fieldName': fieldName,
-    'errorType': errorType,
-    'errorMessage': errorMessage,
-    'timestamp': timestamp,
-    'operation': operation,
-  };
-
-  factory FieldSyncError.fromJson(Map<String, dynamic> json) => FieldSyncError(
-    entityName: json['entityName'] as String? ?? '',
-    recordUuid: json['recordUuid'] as String? ?? '',
-    fieldName: json['fieldName'] as String? ?? '',
-    errorType: json['errorType'] as String? ?? 'unknown',
-    errorMessage: json['errorMessage'] as String? ?? '',
-    timestamp: json['timestamp'] as int? ?? 0,
-    operation: json['operation'] as String? ?? 'update',
-  );
-}
 
 class AppwriteDeltaSyncResult {
-  const AppwriteDeltaSyncResult({
-    required this.success,
-    required this.message,
-    this.pushedCount = 0,
-    this.pulledCount = 0,
-    this.conflictCount = 0,
-    this.failedCount = 0,
-    this.fieldErrors = const [],
-    this.fieldsPushed = 0,
-  });
   final bool success;
   final String message;
   final int pushedCount;
   final int pulledCount;
-  final int conflictCount;
-  final int failedCount;
 
-  /// ⭐ أخطاء Field-Level التفصيلية
-  final List<FieldSyncError> fieldErrors;
+  AppwriteDeltaSyncResult({
+    required this.success,
+    required this.message,
+    this.pushedCount = 0,
+    this.pulledCount = 0,
+  });
 
-  /// عدد الحقول المرفوعة فعلياً (فقط المتغيرة)
-  final int fieldsPushed;
-
+  /// Alias getters for compatibility
   int get recordsPulled => pulledCount;
   int get recordsPushed => pushedCount;
-  bool get hasConflicts => conflictCount > 0;
-  bool get hasFieldErrors => fieldErrors.isNotEmpty;
+  bool get hasConflicts => false; // TODO: Implement actual conflict detection
 }
 
 class AppwriteDeltaSync {
@@ -125,47 +39,18 @@ class AppwriteDeltaSync {
   AppwriteService? _appwriteService;
   DeltaSyncService? _deltaSyncService;
   AppDatabase? _database;
-  AdapterRegistry? _adapterRegistry;
   String? _deviceId;
   bool _isSyncing = false;
 
   final _logger = AppwriteLogger();
 
-  static const _prefsLastDeltaPushKey = 'appwrite_last_delta_push';
-  static const _prefsLastDeltaPullKey = 'appwrite_last_delta_pull';
+  static const _prefsLastPushSyncKey = 'appwrite_last_push_delta_sync';
+  static const _prefsLastPullSyncKey = 'appwrite_last_pull_delta_sync';
+  static const _prefsLastDeltaSyncKey = 'appwrite_last_delta_sync'; // للتوافق العكسي
   static const _prefsDeviceIdKey = 'appwrite_delta_device_id';
   static const _prefsDeltaSyncEnabledKey = 'appwrite_delta_sync_enabled';
-  static const _prefsPushedCountKey = 'appwrite_delta_pushed_count';
-  static const _prefsPulledCountKey = 'appwrite_delta_pulled_count';
-  static const _prefsFailedCountKey = 'appwrite_delta_failed_count';
 
-  /// حجم الدفعة الواحدة في PULL
-  static const int _pullBatchSize = 100;
-
-  /// الحد الأقصى للسجلات في PULL الواحد (0 = بدون حد)
-  static const int _maxPullRecords = 500;
-
-  /// ✅ حقل التimestamp المستخدم للسحب حسب الجدول
-  /// بعض الجداول تحتوي على syncTimestamp، والبعض الآخر يستخدم lastModified
-  static const _timestampFieldPerEntity = {
-    // الجداول التي تحتوي على syncTimestamp
-    'employees': 'syncTimestamp',
-    // باقي الجداول تستخدم lastModified
-    'rooms': 'lastModified',
-    'bookings': 'lastModified',
-    'payments': 'lastModified',
-    'expenses': 'lastModified',
-    'debts': 'lastModified',
-    'booking_notes': 'lastModified',
-    'booking_nights': 'lastModified',
-    'cash_transactions': 'lastModified',
-    'salary_cycles': 'lastModified',
-    'salary_payments': 'lastModified',
-    'salary_withdrawals': 'lastModified',
-    'shift_notes': 'lastModified',
-    'booking_price_adjustments': 'lastModified',
-    'guest_infos': 'lastModified',
-  };
+  static const deltaSyncCollectionId = 'delta_sync_records';
 
   Future<void> initialize(
     AppwriteService appwriteService,
@@ -174,7 +59,6 @@ class AppwriteDeltaSync {
     _appwriteService = appwriteService;
     _database = db;
     _deltaSyncService = DeltaSyncService(db);
-    _adapterRegistry = AdapterRegistry(db);
     await _initializeDeviceId();
     _logger.info(
       'تم تهيئة خدمة المزامنة التفاضلية لـ Appwrite',
@@ -196,11 +80,21 @@ class AppwriteDeltaSync {
   bool get isSyncing => _isSyncing;
   String? get deviceId => _deviceId;
 
-  // ==================== PUSH ====================
+  Future<bool> isEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_prefsDeltaSyncEnabledKey) ?? false;
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsDeltaSyncEnabledKey, enabled);
+  }
 
   Future<AppwriteDeltaSyncResult> pushDeltaChanges() async {
     final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) return false;
+      if (!isInitialized || _isSyncing) {
+        return false;
+      }
       _isSyncing = true;
       return true;
     });
@@ -214,32 +108,12 @@ class AppwriteDeltaSync {
 
     try {
       _logger.info(
-        '📤 بدء المزامنة التفاضلية (Field-Level) إلى Appwrite...',
+        '📤 بدء المزامنة التفاضلية إلى Appwrite...',
         tag: 'DELTA_SYNC',
       );
 
-      // ✅ تشخيص: طباعة lastPushTs
-      final lastPushTs = await _getLastDeltaPushTimestamp();
-      _logger.info(
-        '⏱️ lastPushTs: $lastPushTs (${lastPushTs > 0 ? DateTime.fromMillisecondsSinceEpoch(lastPushTs * 1000) : "never"})',
-        tag: 'DELTA_SYNC',
-      );
-
-      // ✅ تشخيص: عدد السجلات في المرآة
-      final mirrorCount = await _getMirrorCount();
-      _logger.info('📊 عدد السجلات في المرآة: $mirrorCount', tag: 'DELTA_SYNC');
-
-      // ❌ تم إزالة _ensureMirrorIntegrity() لأنها تُعيد بناء المرآة من البيانات الحالية
-      // مما يجعل rowHash متطابقاً ويمنع اكتشاف التغييرات!
-      // await _ensureMirrorIntegrity();
-
-      // ✅ استخدام Field-Level Sync عبر DeltaSyncService
-      // DeltaSyncService يحسب الفروقات من قاعدة البيانات والمرآة
+      final lastPushTs = await _getLastPushSyncTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastPushTs);
-
-      // ✅ تشخيص: عدد السجلات المحلية
-      final localCounts = await _getLocalRecordCounts();
-      _logger.info('📊 السجلات المحلية: $localCounts', tag: 'DELTA_SYNC');
 
       if (computation.changes.isEmpty) {
         _logger.info('✅ لا توجد تغييرات للمزامنة', tag: 'DELTA_SYNC');
@@ -250,92 +124,38 @@ class AppwriteDeltaSync {
         );
       }
 
-      // ✅ طباعة تفصيلية للتشخيص
-      final entityCounts = <String, int>{};
-      for (final change in computation.changes) {
-        entityCounts[change.entity] = (entityCounts[change.entity] ?? 0) + 1;
-      }
-      _logger.info(
-        '📊 تم اكتشاف ${computation.changes.length} تغيير: $entityCounts',
-        tag: 'DELTA_SYNC',
-      );
-
-      final successfulChanges = <DeltaSyncChange>[];
       final failedChanges = <DeltaSyncChange>[];
+      final successfulChanges = <DeltaSyncChange>[];
 
-      // تحسين: معالجة الدفعات بشكل تسلسلي لتجنب تعارضات الشبكة وزيادة الاستقرار
       for (final change in computation.changes) {
         try {
           await _pushSingleChange(change);
           successfulChanges.add(change);
         } catch (e) {
+          failedChanges.add(change);
           _logger.warning(
             'فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e',
             tag: 'DELTA_SYNC',
           );
-          failedChanges.add(change);
-
-          // إذا كان الخطأ متعلقاً بالشبكة، نتوقف عن المحاولة لهذه الدفعة
-          if (e.toString().contains('SocketException') ||
-              e.toString().contains('HttpException') ||
-              e.toString().contains('Connection refused')) {
-            _logger.error(
-              'توقف المزامنة بسبب مشكلة في الاتصال',
-              tag: 'DELTA_SYNC',
-            );
-            break;
-          }
         }
       }
 
-      // ✅ الترتيب الصحيح مع حماية إضافية
-      // القاعدة الذهبية: لا تمسح Outbox إلا إذا كنت متأكداً 100% من أن البيانات آمنة
       if (successfulChanges.isNotEmpty) {
-        try {
-          // 1️⃣ تحديث المرآة أولاً (حفظ الحالة الجديدة للمقارنة في المزامنة القادمة)
-          await _persistSuccessfulChanges(computation, successfulChanges);
-
-          // 2️⃣ تحديث timestamp (منع إعادة إرسال نفس البيانات)
-          await _updateLastDeltaPushTimestamp();
-
-          // 3️⃣ مسح Outbox فقط بعد نجاح الخطوتين السابقتين
-          await _cleanupOutboxAfterSync(successfulChanges);
-
-          _logger.info(
-            '✅ تم اكتمال المزامنة المحلية: ${successfulChanges.length} سجل',
-            tag: 'DELTA_SYNC',
-          );
-        } catch (e) {
-          // ❌ فشل في الخطوات المحلية - Outbox يبقى سليماً للمحاولة مرة أخرى
-          _logger.error(
-            '❌ فشل في الخطوات المحلية بعد نجاح الشبكة: $e\n'
-            '⚠️ Outbox لم يُمسح - ستتم إعادة المحاولة تلقائياً',
-            tag: 'DELTA_SYNC',
-          );
-          // نعيد نتيجة فشل جزئي
-          return AppwriteDeltaSyncResult(
-            success: false,
-            message: 'تم الرفع لكن فشل التحديث المحلي: $e',
-            pushedCount: successfulChanges.length,
-            failedCount: failedChanges.length + 1, // +1 للفشل المحلي
-          );
-        }
+        await _persistSuccessfulChanges(computation, successfulChanges);
+        await _updateLastPushSyncTimestamp();
       }
 
-      final totalPushed = successfulChanges.length;
-      final totalFailed = failedChanges.length;
-
-      final hasFailures = totalFailed > 0;
+      final hasFailures = failedChanges.isNotEmpty;
       final message = hasFailures
-          ? 'تم رفع $totalPushed تغيير (Field-Level) وفشل $totalFailed'
-          : 'تم رفع $totalPushed تغيير (Field-Level) بنجاح';
+          ? 'تم رفع ${successfulChanges.length} تغيير وفشل ${failedChanges.length}'
+          : 'تم رفع ${successfulChanges.length} تغيير بنجاح';
 
       _logger.info('✅ $message', tag: 'DELTA_SYNC');
+
       return AppwriteDeltaSyncResult(
         success: !hasFailures,
         message: message,
-        pushedCount: totalPushed,
-        failedCount: totalFailed,
+        pushedCount: successfulChanges.length,
       );
     } catch (e) {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
@@ -347,495 +167,81 @@ class AppwriteDeltaSync {
     }
   }
 
-  /// ✅ رفع تغيير واحد باستخدام Field-Level Sync
-  Future<void> _pushSingleChange(DeltaSyncChange change) async {
-    final collectionId = _getCollectionId(change.entity);
-    if (collectionId == null) return;
+  Future<void> _persistSuccessfulChanges(
+    DeltaSyncComputation computation,
+    List<DeltaSyncChange> successfulChanges,
+  ) async {
+    final successfulUuids = successfulChanges.map((c) => c.localUuid).toSet();
+    final allChangeUuids = computation.changes.map((c) => c.localUuid).toSet();
+    final filteredSnapshot = <String, Map<String, MirrorRow>>{};
 
-    final payload = Map<String, dynamic>.from(change.data);
-    // ✅ عدم الكتابة فوق القيم الموجودة إذا كانت أحدث
-    payload['deviceId'] ??= _deviceId;
-    payload['syncTimestamp'] = Time.nowEpoch(); // هذا يجب أن يكون دائماً جديداً
-
-    // ✅ استخدام Field-Level payload إذا كان متاحاً
-    Map<String, dynamic> sanitizedPayload;
-    if (change.fieldChanges != null && change.fieldChanges!.isNotEmpty) {
-      // استخدام الحقول المتغيرة فقط
-      sanitizedPayload = _sanitizePayload(
-        payload,
-        collectionEntity: change.entity,
-      );
-
-      // ✅ إصلاح: لا تُرسل حقول metadata (_version, _timestamp, _device) إلى Appwrite
-      // لأنها ليست معرّفة في Appwrite schema وستُسبب document_invalid_structure
-      // المتبقي metadata محفوظ في change.fieldMetadata / change.toMap() للاستخدام المحلي فقط
-
-      _logger.debug(
-        '📤 Field-Level update: ${change.entity}/${change.localUuid} - ${change.fieldChanges!.length} fields changed',
-        tag: 'DELTA_SYNC',
-      );
-    } else {
-      sanitizedPayload = _sanitizePayload(
-        payload,
-        collectionEntity: change.entity,
-      );
+    for (final entry in computation.mirrorSnapshot.entries) {
+      final filteredRows = <String, MirrorRow>{};
+      for (final rowEntry in entry.value.entries) {
+        if (successfulUuids.contains(rowEntry.key) ||
+            !allChangeUuids.contains(rowEntry.key)) {
+          filteredRows[rowEntry.key] = rowEntry.value;
+        }
+      }
+      filteredSnapshot[entry.key] = filteredRows;
     }
 
-    // إذا كانت البيانات فارغة، نتخطى هذا السجل
-    if (sanitizedPayload.isEmpty) {
-      _logger.info(
-        '⏭️ تخطي ${change.entity}/${change.localUuid} - بيانات غير مكتملة',
-        tag: 'DELTA_SYNC',
-      );
+    final filteredComputation = DeltaSyncComputation(
+      changes: successfulChanges,
+      mirrorSnapshot: filteredSnapshot,
+      fallbackTables: computation.fallbackTables,
+    );
+
+    await _deltaSyncService!.persistMirror(filteredComputation);
+  }
+
+  Future<void> _pushSingleChange(DeltaSyncChange change) async {
+    final collectionId = _getCollectionId(change.entity);
+    if (collectionId == null) {
+      _logger.warning('مجموعة غير معروفة: ${change.entity}', tag: 'DELTA_SYNC');
       return;
     }
 
+    final payload = Map<String, dynamic>.from(change.data);
+    payload['deviceId'] = _deviceId;
+    payload['syncTimestamp'] = Time.nowEpoch();
+
     switch (change.operation) {
       case 'insert':
+      case 'update':
+        var sanitized = _sanitizePayload(payload);
+        // إزالة الحقول المحسوبة قبل الرفع (لا تُزامن إلى Appwrite)
+        sanitized = HotelDateHelper.stripComputedFieldsForEntity(
+          change.entity,
+          sanitized,
+        );
+        final converted = _convertAmountTypesForAppwrite(collectionId, sanitized);
         await _appwriteService!.upsertDocument(
           collectionId: collectionId,
           documentId: change.localUuid,
-          data: sanitizedPayload,
+          data: converted,
         );
-      case 'update':
-        // تحسين: استخدام التحديث الجزئي (Patch) إذا كان التغيير يحتوي على فروقات فقط
-        // هذا يقلل بشكل كبير من استهلاك البيانات ويمنع مسح الحقول غير الموجودة في الـ diff
-        await _appwriteService!.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: collectionId,
-          documentId: change.localUuid,
-          data: sanitizedPayload,
-        );
+        break;
       case 'delete':
         try {
           await _appwriteService!.deleteDocument(
             collectionId: collectionId,
             documentId: change.localUuid,
           );
-        } on appwrite.AppwriteException catch (e) {
-          // تم التعامل مع خطأ 404 مسبقاً في AppwriteService و AppwriteNetworkHelper
+        } on AppwriteException catch (e) {
           if (e.code != 404) rethrow;
-        }
-    }
-  }
-
-  // ==================== FIELD-LEVEL PUSH ====================
-
-  /// ✅ رفع تغييرات على مستوى الحقل (Field-Level Sync)
-  /// يكتشف السجلات المتغيرة عبر DeltaSyncService، ثم يحسب فروقات الحقول
-  /// عبر FieldLevelTracker ويرفع فقط الحقول المتغيرة
-  Future<AppwriteDeltaSyncResult> pushFieldLevelChanges() async {
-    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) return false;
-      _isSyncing = true;
-      return true;
-    });
-
-    if (!canStart) {
-      return const AppwriteDeltaSyncResult(
-        success: false,
-        message: 'الخدمة غير جاهزة أو المزامنة جارية',
-      );
-    }
-
-    final fieldErrors = <FieldSyncError>[];
-    int totalFieldsPushed = 0;
-    final successfulChanges = <DeltaSyncChange>[];
-    final failedChanges = <DeltaSyncChange>[];
-    final fieldTracker = FieldLevelTracker(deviceId: _deviceId ?? '');
-    final fieldVersionsDao = FieldVersionsDao(_database!);
-
-    try {
-      _logger.info(
-        '📤 بدء Field-Level Sync إلى Appwrite...',
-        tag: 'FIELD_SYNC',
-      );
-
-      // 1️⃣ اكتشاف السجلات المتغيرة عبر المرآة
-      final lastPushTs = await _getLastDeltaPushTimestamp();
-      final computation = await _deltaSyncService!.compute(since: lastPushTs);
-
-      if (computation.changes.isEmpty) {
-        _logger.info('✅ لا توجد تغييرات للمزامنة', tag: 'FIELD_SYNC');
-        return const AppwriteDeltaSyncResult(
-          success: true,
-          message: 'لا توجد تغييرات',
-        );
-      }
-
-      _logger.info(
-        '📊 تم اكتشاف ${computation.changes.length} سجل متغير',
-        tag: 'FIELD_SYNC',
-      );
-
-      // 2️⃣ لكل سجل متغير، نحسب الفروقات على مستوى الحقل
-      for (final change in computation.changes) {
-        final collectionId = _getCollectionId(change.entity);
-        if (collectionId == null) {
-          _logger.warning(
-            '⚠️ لا يوجد collectionId لـ ${change.entity}',
-            tag: 'FIELD_SYNC',
-          );
-          continue;
-        }
-
-        try {
-          if (change.operation == 'delete') {
-            // الحذف لا يحتاج field-level diff
-            await _pushSingleChange(change);
-            successfulChanges.add(change);
-            continue;
-          }
-
-          // 3️⃣ الحصول على البيانات القديمة من المرآة والجديدة من التغيير
-          final newData = Map<String, dynamic>.from(change.data);
-          final oldData = <String, dynamic>{};
-
-          // استخراج البيانات القديمة من المرآة
-          final mirrorData = computation.mirrorSnapshot[change.entity];
-          if (mirrorData != null && mirrorData.containsKey(change.localUuid)) {
-            final mirrorRow = mirrorData[change.localUuid]!;
-            try {
-              // payload هو Map<String, dynamic> مباشرة (ليس JSON string)
-              oldData.addAll(mirrorRow.payload);
-            } catch (_) {
-              _logger.debug(
-                '⚠️ فشل قراءة مرآة ${change.entity}/${change.localUuid}',
-                tag: 'FIELD_SYNC',
-              );
-            }
-          }
-
-          // 4️⃣ قراءة نسخ الحقول السابقة
-          final oldFieldVersions = await fieldVersionsDao.getFieldVersions(
-            change.entity,
-            change.localUuid,
-          );
-          final oldFieldTimestamps = await fieldVersionsDao.getFieldTimestamps(
-            change.entity,
-            change.localUuid,
-          );
-          final oldFieldVectorClocks = await fieldVersionsDao
-              .getFieldVectorClocks(change.entity, change.localUuid);
-          final oldFieldDevices = await fieldVersionsDao.getFieldDevices(
-            change.entity,
-            change.localUuid,
-          );
-
-          // 5️⃣ حساب الفروقات على مستوى الحقل
-          final diff = fieldTracker.computeDiff(
-            entityName: change.entity,
-            oldData: oldData,
-            newData: newData,
-            oldFieldVersions: oldFieldVersions,
-            oldFieldTimestamps: oldFieldTimestamps,
-            oldFieldVectorClocks: oldFieldVectorClocks,
-            oldFieldDevices: oldFieldDevices,
-          );
-
-          if (diff.isEmpty) {
-            // ✅ نظام ذكي: إذا لم نتمكن من اكتشاف الفروق الحقلية
-            // (مثلاً: تغير حقل غير موجود في trackableFields، أو أول مزامنة)
-            // نعود للرفع الكامل حتى لا تضيع التغييرات
-            _logger.info(
-              '🔄 Fallback → رفع كامل: ${change.entity}/${change.localUuid} '
-              '(لم يتم اكتشاف فروق حقلية)',
-              tag: 'FIELD_SYNC',
-            );
-            await _pushSingleChange(change);
-            successfulChanges.add(change);
-            continue;
-          }
-
-          _logger.info(
-            '📤 ${change.entity}/${change.localUuid}: ${diff.changedFields.length} حقل متغير [${diff.changedFields.keys.join(', ')}]',
-            tag: 'FIELD_SYNC',
-          );
-
-          // 6️⃣ بناء payload يحتوي فقط على الحقول المتغيرة + حقول التحكم
-          final fieldOnlyPayload = <String, dynamic>{
-            'localUuid': change.localUuid,
-            'deviceId': _deviceId,
-            'syncTimestamp': Time.nowEpoch(),
-            'lastModified': Time.nowEpoch(),
-          };
-          fieldOnlyPayload.addAll(diff.changedFields);
-
-          // 7️⃣ إضافة الحقول المطلوبة للكيان
-          final sanitizedPayload = _sanitizePayload(
-            fieldOnlyPayload,
-            collectionEntity: change.entity,
-          );
-
-          if (sanitizedPayload.isEmpty) {
-            _logger.warning(
-              '⚠️ Payload فارغ بعد التنظيف لـ ${change.entity}/${change.localUuid}',
-              tag: 'FIELD_SYNC',
-            );
-            successfulChanges.add(change);
-            continue;
-          }
-
-          // 8️⃣ رفع التغيير
-          // ✅ لعملية insert: نرسل البيانات الكاملة (change.data)
-          // لأن Appwrite يتطلب جميع الحقول المطلوبة عند إنشاء المستند
-          // ولإصلاح: "Missing required attribute" في guest_infos وغيرها
-          // ✅ لعملية update: نرسل البيانات الجزئية فقط (fieldOnlyPayload)
-          final operation = change.operation == 'insert' ? 'insert' : 'update';
-
-          final Map<String, dynamic> payloadToSend;
-          if (operation == 'insert') {
-            // insert → رفع كامل بجميع الحقول المطلوبة
-            payloadToSend = _sanitizePayload(
-              Map<String, dynamic>.from(change.data)
-                ..['deviceId'] = _deviceId
-                ..['syncTimestamp'] = Time.nowEpoch()
-                ..['lastModified'] = Time.nowEpoch(),
-              collectionEntity: change.entity,
-            );
-          } else {
-            // update → رفع جزئي (فقط الحقول المتغيرة + حقول التحكم)
-            payloadToSend = sanitizedPayload;
-          }
-
-          if (payloadToSend.isEmpty) {
-            _logger.warning(
-              '⚠️ Payload فارغ لـ ${change.entity}/${change.localUuid}',
-              tag: 'FIELD_SYNC',
-            );
-            successfulChanges.add(change);
-            continue;
-          }
-
-          await _pushFieldLevelToAppwrite(
-            collectionId: collectionId,
-            documentId: change.localUuid,
-            data: payloadToSend,
-            operation: operation,
-          );
-
-          totalFieldsPushed += diff.changedFields.length;
-
-          // 9️⃣ حفظ نسخ الحقول المحدثة
-          await fieldVersionsDao.saveFieldVersions(
-            entityName: change.entity,
-            recordUuid: change.localUuid,
-            versions: diff.fieldVersions,
-            timestamps: diff.fieldTimestamps,
-            vectorClocks: diff.fieldVectorClocks,
-            devices: diff.fieldDevices,
-          );
-
-          successfulChanges.add(change);
         } catch (e) {
-          final errorType = _classifyError(e);
-          final errorMsg = e.toString();
-
-          _logger.warning(
-            '❌ فشل رفع ${change.entity}/${change.localUuid}: $errorMsg',
-            tag: 'FIELD_SYNC',
-          );
-
-          // إضافة خطأ لكل حقل في هذا السجل
-          for (final fieldKey in change.data.keys) {
-            fieldErrors.add(
-              FieldSyncError(
-                entityName: change.entity,
-                recordUuid: change.localUuid,
-                fieldName: fieldKey,
-                errorType: errorType,
-                errorMessage: errorMsg,
-                timestamp: Time.nowEpoch(),
-                operation: change.operation,
-              ),
-            );
-          }
-
-          failedChanges.add(change);
-
-          // التوقف إذا كان خطأ شبكة
-          if (errorType == 'network') {
-            _logger.error(
-              'توقف Field-Level Sync بسبب مشكلة في الاتصال',
-              tag: 'FIELD_SYNC',
-            );
-            break;
-          }
+          rethrow;
         }
-      }
-
-      // 🔟 تحديث المرآة والتوقيت بعد النجاح
-      if (successfulChanges.isNotEmpty) {
-        try {
-          await _persistSuccessfulChanges(computation, successfulChanges);
-          await _updateLastDeltaPushTimestamp();
-          await _cleanupOutboxAfterSync(successfulChanges);
-          _logger.info(
-            '✅ Field-Level Sync: ${successfulChanges.length} سجل، $totalFieldsPushed حقل',
-            tag: 'FIELD_SYNC',
-          );
-        } catch (e) {
-          _logger.error('❌ فشل التحديث المحلي: $e', tag: 'FIELD_SYNC');
-          return AppwriteDeltaSyncResult(
-            success: false,
-            message: 'تم الرفع لكن فشل التحديث المحلي: $e',
-            pushedCount: successfulChanges.length,
-            failedCount: failedChanges.length + 1,
-            fieldsPushed: totalFieldsPushed,
-            fieldErrors: fieldErrors,
-          );
-        }
-      }
-
-      // 1️⃣1️⃣ حفظ أخطاء المزامنة لعرضها لاحقاً
-      if (fieldErrors.isNotEmpty) {
-        await _saveFieldSyncErrors(fieldErrors);
-      }
-
-      final hasFailures = failedChanges.isNotEmpty;
-      final message = hasFailures
-          ? 'Field-Level: $totalFieldsPushed حقل (${successfulChanges.length} سجل)، فشل ${failedChanges.length}'
-          : 'Field-Level: $totalFieldsPushed حقل (${successfulChanges.length} سجل) بنجاح';
-
-      _logger.info('✅ $message', tag: 'FIELD_SYNC');
-
-      return AppwriteDeltaSyncResult(
-        success: !hasFailures,
-        message: message,
-        pushedCount: successfulChanges.length,
-        failedCount: failedChanges.length,
-        fieldsPushed: totalFieldsPushed,
-        fieldErrors: fieldErrors,
-      );
-    } catch (e) {
-      _logger.error('❌ خطأ في Field-Level Sync: $e', tag: 'FIELD_SYNC');
-      return AppwriteDeltaSyncResult(
-        success: false,
-        message: e.toString(),
-        fieldErrors: fieldErrors,
-      );
-    } finally {
-      await SyncLocks.appwriteSyncLock.synchronized(() async {
-        _isSyncing = false;
-      });
+        break;
     }
   }
-
-  /// ✅ رفع بيانات حقلية جزئية إلى Appwrite
-  Future<void> _pushFieldLevelToAppwrite({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-    required String operation,
-  }) async {
-    switch (operation) {
-      case 'insert':
-        await _appwriteService!.upsertDocument(
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        );
-      case 'update':
-        await _appwriteService!.databases.updateDocument(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        );
-    }
-  }
-
-  /// ✅ تصنيف نوع الخطأ
-  String _classifyError(dynamic error) {
-    final errorStr = error.toString();
-    if (errorStr.contains('SocketException') ||
-        errorStr.contains('HttpException') ||
-        errorStr.contains('Connection refused')) {
-      return 'network';
-    }
-    if (errorStr.contains('TimeoutException') ||
-        errorStr.contains('timed out')) {
-      return 'timeout';
-    }
-    if (errorStr.contains('404') || errorStr.contains('not_found')) {
-      return 'not_found';
-    }
-    if (errorStr.contains('403') ||
-        errorStr.contains('401') ||
-        errorStr.contains('permission')) {
-      return 'permission';
-    }
-    if (errorStr.contains('document_invalid_structure') ||
-        errorStr.contains('invalid') ||
-        errorStr.contains('validation')) {
-      return 'validation';
-    }
-    if (errorStr.contains('data_mismatch') || errorStr.contains('conflict')) {
-      return 'data_mismatch';
-    }
-    return 'unknown';
-  }
-
-  /// ✅ حفظ أخطاء المزامنة في SharedPreferences لعرضها في الإعدادات
-  Future<void> _saveFieldSyncErrors(List<FieldSyncError> errors) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final now = Time.nowEpoch();
-
-      // الاحتفاظ بآخر 50 خطأ فقط
-      final existingJson = prefs.getStringList('field_sync_errors') ?? [];
-      final newErrors = errors.map((e) => jsonEncode(e.toJson())).toList();
-      final allErrors = [...newErrors, ...existingJson].take(50).toList();
-
-      await prefs.setStringList('field_sync_errors', allErrors);
-      await prefs.setInt('field_sync_errors_last_updated', now);
-
-      // تحديث العداد
-      final currentCount = prefs.getInt('field_sync_errors_count') ?? 0;
-      await prefs.setInt(
-        'field_sync_errors_count',
-        currentCount + errors.length,
-      );
-    } catch (e) {
-      _logger.warning('⚠️ فشل حفظ أخطاء المزامنة: $e', tag: 'FIELD_SYNC');
-    }
-  }
-
-  /// ✅ جلب أخطاء المزامنة المحفوظة (للعرض في الإعدادات)
-  static Future<List<FieldSyncError>> getFieldSyncErrors() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final errorsJson = prefs.getStringList('field_sync_errors') ?? [];
-      return errorsJson
-          .map((json) {
-            try {
-              return FieldSyncError.fromJson(
-                jsonDecode(json) as Map<String, dynamic>,
-              );
-            } catch (_) {
-              return null;
-            }
-          })
-          .whereType<FieldSyncError>()
-          .toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  /// ✅ مسح أخطاء المزامنة المحفوظة
-  static Future<void> clearFieldSyncErrors() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('field_sync_errors');
-    await prefs.setInt('field_sync_errors_count', 0);
-    await prefs.remove('field_sync_errors_last_updated');
-  }
-
-  // ==================== PULL (مع Pagination) ====================
 
   Future<AppwriteDeltaSyncResult> pullDeltaChanges() async {
     final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
-      if (!isInitialized || _isSyncing) return false;
+      if (!isInitialized || _isSyncing) {
+        return false;
+      }
       _isSyncing = true;
       return true;
     });
@@ -843,191 +249,64 @@ class AppwriteDeltaSync {
     if (!canStart) {
       return AppwriteDeltaSyncResult(
         success: false,
-        message: 'الخدمة غير جاهزة أو المزامنة جارية',
+        message: 'الخدمة غير جاهزة',
       );
     }
 
     try {
-      _logger.info(
-        '📥 بدء سحب التغييرات الحديثة من Appwrite...',
-        tag: 'DELTA_SYNC',
-      );
+      _logger.info('📥 فحص التغييرات من Appwrite...', tag: 'DELTA_SYNC');
 
-      final lastPullEpoch = await _getLastDeltaPullTimestamp();
+      final lastPullTs = await _getLastPullSyncTimestamp();
+      int pulledCount = 0;
 
-      // ✅ إذا كان أول سحب (lastPullEpoch == 0)، نجلب جميع السجلات
-      // وليس آخر 24 ساعة فقط
-      final sinceEpoch = lastPullEpoch > 0
-          ? lastPullEpoch
-          : 0; // جلب الكل من البداية
+      final entitiesToPull = {
+        'rooms': AppwriteConfig.roomsCollectionId,
+        'bookings': AppwriteConfig.bookingsCollectionId,
+        // ✅ بعد bookings مباشرة لأنه يعتمد عليها (bookingLocalId)
+        'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+        'booking_notes': AppwriteConfig.bookingNotesCollectionId,
+        'booking_nights': AppwriteConfig.bookingNightsCollectionId,
+        'payments': AppwriteConfig.paymentsCollectionId,
+        'expenses': AppwriteConfig.expensesCollectionId,
+        'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
+        'debts': AppwriteConfig.debtsCollectionId,
+        'employees': AppwriteConfig.employeesCollectionId,
+        // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
+        'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
+        'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
+        'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
+        'shift_notes': AppwriteConfig.shiftNotesCollectionId,
+        'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
+        'audit_logs': AppwriteConfig.auditLogsCollectionId,
+        'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
+        'guest_infos': AppwriteConfig.guestInfosCollectionId,
+      };
 
-      final isFirstPull = lastPullEpoch == 0;
-      _logger.info(
-        '⏱️ سحب التغييرات منذ: $sinceEpoch (epoch) ${isFirstPull ? "- أول سحب (جلب الكل)" : ""}',
-        tag: 'DELTA_SYNC',
-      );
-
-      int totalPulled = 0;
-      final List<String> failedEntities = [];
-
-      final entities = [
-        _SyncEntity(
-          'rooms',
-          AppwriteConfig.roomsCollectionId,
-          _adapterRegistry!.rooms,
-        ),
-        _SyncEntity(
-          'bookings',
-          AppwriteConfig.bookingsCollectionId,
-          _adapterRegistry!.bookings,
-        ),
-        _SyncEntity(
-          'employees',
-          AppwriteConfig.employeesCollectionId,
-          _adapterRegistry!.employees,
-        ),
-        _SyncEntity(
-          'expenses',
-          AppwriteConfig.expensesCollectionId,
-          _adapterRegistry!.expenses,
-        ),
-        _SyncEntity(
-          'payments',
-          AppwriteConfig.paymentsCollectionId,
-          _adapterRegistry!.payments,
-        ),
-        _SyncEntity(
-          'debts',
-          AppwriteConfig.debtsCollectionId,
-          _adapterRegistry!.debts,
-        ),
-        _SyncEntity(
-          'booking_notes',
-          AppwriteConfig.bookingNotesCollectionId,
-          _adapterRegistry!.bookingNotes,
-        ),
-        _SyncEntity(
-          'booking_nights',
-          AppwriteConfig.bookingNightsCollectionId,
-          _adapterRegistry!.nights,
-        ),
-        _SyncEntity(
-          'cash_transactions',
-          AppwriteConfig.cashTransactionsCollectionId,
-          _adapterRegistry!.cashTransactions,
-        ),
-        _SyncEntity(
-          'salary_cycles',
-          AppwriteConfig.salaryCyclesCollectionId,
-          _adapterRegistry!.salaryCycles,
-        ),
-        _SyncEntity(
-          'salary_payments',
-          AppwriteConfig.salaryPaymentsCollectionId,
-          _adapterRegistry!.salaryPayments,
-        ),
-        _SyncEntity(
-          'shift_notes',
-          AppwriteConfig.shiftNotesCollectionId,
-          _adapterRegistry!.shiftNotes,
-        ),
-        // ✅ كيانات جديدة
-        _SyncEntity(
-          'salary_withdrawals',
-          AppwriteConfig.salaryWithdrawalsCollectionId,
-          _adapterRegistry!.salaryWithdrawals,
-        ),
-        _SyncEntity(
-          'booking_price_adjustments',
-          AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-          _adapterRegistry!.bookingPriceAdjustments,
-        ),
-        _SyncEntity(
-          'guest_infos',
-          AppwriteConfig.guestInfosCollectionId,
-          _adapterRegistry!.guestInfos,
-        ),
-      ];
-
-      await _database!.customStatement('PRAGMA foreign_keys = OFF');
-
-      try {
-        for (final entity in entities) {
-          try {
-            // ✅ استخدام pagination لجلب جميع السجلات
-            final count = await _pullEntityChangesWithPagination(
-              entity,
-              sinceEpoch,
-            );
-            totalPulled += count;
-          } catch (e) {
-            failedEntities.add(entity.name);
-            _logger.warning('❌ فشل سحب ${entity.name}: $e', tag: 'DELTA_SYNC');
-          }
-        }
-
-        // ✅ الترتيب الصحيح: إعادة بناء المرآة قبل إعادة تفعيل Foreign Keys
-        if (totalPulled > 0) {
-          _logger.info('🔄 إعادة بناء المرآة...', tag: 'DELTA_SYNC');
-          await _deltaSyncService!.rebuildMirror();
-
-          // ✅ تحديث occupancy بعد إعادة بناء المرآة
-          await RoomsRepository(
-            _database!,
-          ).refreshAllRoomOccupancy(originIsServer: true);
-
-          // ✅ إعادة حساب الحقول المشتقة للحجوزات النشطة بعد السحب
-          // هذا يضمن أن بيانات الليالي والأسعار محسوبة محلياً بشكل صحيح
-          // حتى لو جاءت بيانات قديمة من Appwrite
-          try {
-            final derivedService = BookingDerivedFieldsService(_database!);
-            final renewed = await derivedService.refreshAllActiveBookings();
-            if (renewed > 0) {
-              _logger.info(
-                '🏨 إعادة حساب بعد السحب: $renewed حجز نشط',
-                tag: 'DELTA_SYNC',
-              );
-            }
-          } catch (e) {
-            _logger.warning(
-              '⚠️ خطأ في إعادة حساب الحجوزات بعد السحب: $e',
-              tag: 'DELTA_SYNC',
-            );
-          }
-        }
-
-        await _updateLastDeltaPullTimestamp();
-      } finally {
-        await _database!.customStatement('PRAGMA foreign_keys = ON');
-        _logger.info('🔓 تم إعادة تفعيل FOREIGN KEYS', tag: 'DELTA_SYNC');
+      for (final entry in entitiesToPull.entries) {
+        pulledCount += await _pullEntityChanges(
+          entry.key,
+          entry.value,
+          lastPullTs,
+        );
       }
 
-      final message = failedEntities.isEmpty
-          ? 'تم سحب $totalPulled تغيير حديث من Appwrite'
-          : 'تم سحب $totalPulled تغيير، فشل في: ${failedEntities.join(', ')}';
+      if (pulledCount > 0) {
+        await _updateLastPullSyncTimestamp();
+      }
 
-      _logger.info('✅ $message', tag: 'DELTA_SYNC');
-
-      // تحديث الإحصائيات المحفوظة للسحب
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(
-        _prefsPulledCountKey,
-        (prefs.getInt(_prefsPulledCountKey) ?? 0) + totalPulled,
+      _logger.info(
+        '✅ تم سحب $pulledCount تغيير من Appwrite',
+        tag: 'DELTA_SYNC',
       );
 
       return AppwriteDeltaSyncResult(
-        success: failedEntities.isEmpty,
-        message: message,
-        pulledCount: totalPulled,
-        failedCount: failedEntities.length,
+        success: true,
+        message: 'تم سحب التغييرات بنجاح',
+        pulledCount: pulledCount,
       );
     } catch (e) {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
-      return AppwriteDeltaSyncResult(
-        success: false,
-        message: e.toString(),
-        pulledCount: 0,
-      );
+      return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
       await SyncLocks.appwriteSyncLock.synchronized(() async {
         _isSyncing = false;
@@ -1035,507 +314,819 @@ class AppwriteDeltaSync {
     }
   }
 
-  /// ✅ سحب التغييرات مع Pagination لجلب جميع السجلات
-  Future<int> _pullEntityChangesWithPagination(
-    _SyncEntity entity,
-    int sinceEpoch,
+  Future<int> _pullEntityChanges(
+    String entity,
+    String collectionId,
+    int lastPullTs,
   ) async {
-    if (entity.collectionId == null) {
-      _logger.warning(
-        '⚠️ لا يوجد collectionId لـ ${entity.name}',
-        tag: 'DELTA_SYNC',
-      );
-      return 0;
-    }
+    try {
+      int applied = 0;
 
-    _logger.info(
-      '📥 سحب ${entity.name} (syncTimestamp > $sinceEpoch)...',
-      tag: 'DELTA_SYNC',
-    );
+      // ✅ بناء استعلامات الفلترة فقط - بدون limit/offset
+      // لأن listDocuments → _listAllDocumentsInternal يتعامل مع Pagination داخلياً
+      final filterQueries = <String>[
+        Query.orderAsc('\$createdAt'),
+      ];
 
-    int totalSuccessCount = 0;
-    int offset = 0;
-    int batchCount;
-    int totalBatches = 0;
+      // تحويل lastPullTs من ثوانٍ إلى مللي ثانية للمقارنة مع $updatedAt (Appwrite يستخدم مللي)
+      final lastPullMs = lastPullTs > 0 ? lastPullTs * 1000 : 0;
 
-    // استراتيجيات حل التعارضات حسب نوع الكيان
-    // lastWriteWins: الأخير يفوز (أبسط وأسرع)
-    // fieldLevel: دمج على مستوى الحقل (أكثر دقة)
-    final conflictResolver = EnhancedConflictResolver(
-      defaultStrategy: ConflictStrategy.lastWriteWins,
-      tableStrategies: {
-        // الحجوزات: الأخير يفوز (لتجنب تعقيدات الدمج)
-        'bookings': ConflictStrategy.lastWriteWins,
-        // الغرف: الأخير يفوز (تغييرات بسيطة)
-        'rooms': ConflictStrategy.lastWriteWins,
-        // المدفوعات: الأخير يفوز (حساس - لا نريد دمج خاطئ)
-        'payments': ConflictStrategy.lastWriteWins,
-        // المصروفات: الأخير يفوز
-        'expenses': ConflictStrategy.lastWriteWins,
-        // الديون: دمج على مستوى الحقل (معلومات مالية دقيقة)
-        'debts': ConflictStrategy.fieldLevel,
-        // الموظفين: دمج على مستوى الحقل (بيانات شخصية متعددة)
-        'employees': ConflictStrategy.fieldLevel,
-        // المعاملات النقدية: الأخير يفوز
-        'cash_transactions': ConflictStrategy.lastWriteWins,
-        // ملاحظات الورديات: دمج على مستوى الحقل (محتوى نصي)
-        'shift_notes': ConflictStrategy.fieldLevel,
-        // ملاحظات الحجز: دمج على مستوى الحقل (تنبيهات متعددة)
-        'booking_notes': ConflictStrategy.fieldLevel,
-        // ليالي الحجز: الأخير يفوز (بيانات حسابية)
-        'booking_nights': ConflictStrategy.lastWriteWins,
-        // دورات الرواتب: الأخير يفوز
-        'salary_cycles': ConflictStrategy.lastWriteWins,
-        // مدفوعات الرواتب: الأخير يفوز
-        'salary_payments': ConflictStrategy.lastWriteWins,
-        // سحوبات الرواتب: الأخير يفوز (حساس)
-        'salary_withdrawals': ConflictStrategy.lastWriteWins,
-        // تعديلات أسعار الحجوزات: الأخير يفوز (بيانات حسابية)
-        'booking_price_adjustments': ConflictStrategy.lastWriteWins,
-        // معلومات الضيوف: دمج على مستوى الحقل
-        'guest_infos': ConflictStrategy.fieldLevel,
-      },
-    );
+      List<models.Document> documents;
 
-    // ✅ تحديد حقل التimestamp للسحب حسب الجدول
-    // بعض الجداول لا تحتوي على syncTimestamp، نستخدم lastModified بدلاً منها
-    final timestampField =
-        _timestampFieldPerEntity[entity.name] ?? 'lastModified';
+      if (lastPullTs > 0) {
+        // ✅ تحويل epoch ثوانٍ إلى ISO 8601 لاستعلام $updatedAt في Appwrite
+        final lastPullIso = DateTime.fromMillisecondsSinceEpoch(lastPullMs)
+            .toUtc()
+            .toIso8601String();
 
-    _logger.info(
-      '📥 سحب ${entity.name} باستخدام $timestampField > $sinceEpoch...',
-      tag: 'DELTA_SYNC',
-    );
-
-    // ✅ جلب السجلات على دفعات
-    do {
-      totalBatches++;
-      batchCount = 0;
-
-      try {
-        final queries = <String>[
-          appwrite.Query.greaterThan(timestampField, sinceEpoch),
-          appwrite.Query.orderDesc(timestampField),
-          appwrite.Query.limit(_pullBatchSize),
-          appwrite.Query.offset(offset),
-        ];
-
-        final response = await _appwriteService!.databases.listDocuments(
-          databaseId: AppwriteConfig.databaseId,
-          collectionId: entity.collectionId!,
-          queries: queries,
-        );
-
-        final documents = response.documents;
-
-        if (documents.isEmpty) {
-          break; // لا مزيد من السجلات
-        }
-
-        _logger.debug(
-          '📦 دفعة $totalBatches: ${documents.length} سجل من ${entity.name}',
-          tag: 'DELTA_SYNC',
-        );
-
-        for (final doc in documents) {
+        // محاولة الفلترة بـ syncTimestamp أولاً
+        try {
+          final syncQueries = [
+            ...filterQueries,
+            Query.greaterThan('syncTimestamp', lastPullTs),
+          ];
+          documents = await _appwriteService!.listDocuments(
+            collectionId: collectionId,
+            queries: syncQueries,
+            useCache: false,
+          );
+        } catch (e) {
+          // ✅ fallback: إذا syncTimestamp غير معرّف كـ attribute، استخدم $updatedAt
+          _logger.warning(
+            'فشل فلترة $entity بـ syncTimestamp، استخدام \$updatedAt: $e',
+            tag: 'DELTA_SYNC',
+          );
           try {
-            final remoteData = Map<String, dynamic>.from(doc.data);
-            final localUuid = remoteData['localUuid'] ?? doc.$id;
-            remoteData['localUuid'] = localUuid;
-
-            // ✅ التحقق من الحذف في Appwrite - حذف محلي بدلاً من upsert
-            final isDeletedInRemote =
-                remoteData['deletedAt'] != null ||
-                remoteData['isDeleted'] == true ||
-                remoteData['deletedAtEpoch'] != null;
-
-            if (isDeletedInRemote) {
-              try {
-                await entity.repo.deleteByUuid(localUuid);
-                _logger.debug(
-                  '🗑️ حذف محلي للسجل المحذوف في Appwrite: $localUuid',
-                  tag: 'DELTA_SYNC',
-                );
-              } catch (e) {
-                _logger.warning(
-                  'فشل حذف ${entity.name}/$localUuid: $e',
-                  tag: 'DELTA_SYNC',
-                );
-              }
-              batchCount++;
-              totalSuccessCount++;
-              continue;
-            }
-
-            final localData = await entity.repo.getJsonByUuid(localUuid);
-
-            if (localData != null) {
-              final localTs =
-                  localData['lastModified'] ?? localData['updated_at'] ?? 0;
-              // ✅ استخدام الحقل المناسب حسب الجدول
-              final remoteTs =
-                  remoteData[timestampField] ??
-                  remoteData['lastModified'] ??
-                  remoteData['updated_at'] ??
-                  0;
-
-              if (localTs > 0 && remoteTs > 0 && localTs > remoteTs) {
-                final resolution = conflictResolver.resolve(
-                  ConflictContext(
-                    table: entity.name,
-                    uuid: localUuid,
-                    localData: localData,
-                    remoteData: remoteData,
-                    localTimestamp: DateTime.fromMillisecondsSinceEpoch(
-                      localTs * 1000,
-                    ),
-                    remoteTimestamp: DateTime.fromMillisecondsSinceEpoch(
-                      remoteTs * 1000,
-                    ),
-                    localDeviceId: _deviceId ?? 'unknown',
-                    remoteDeviceId: remoteData['deviceId'] ?? 'remote',
-                  ),
-                );
-
-                if (resolution.winner == remoteData ||
-                    resolution.mergedData != null) {
-                  await entity.repo.upsertFromJson(
-                    resolution.mergedData ?? remoteData,
-                    src: Source.appwrite,
-                  );
-                }
-              } else {
-                await entity.repo.upsertFromJson(
-                  remoteData,
-                  src: Source.appwrite,
-                );
-              }
-            } else {
-              await entity.repo.upsertFromJson(
-                remoteData,
-                src: Source.appwrite,
-              );
-            }
-
-            batchCount++;
-            totalSuccessCount++;
-          } catch (e) {
+            final fallbackQueries = [
+              // Appwrite يتطلب ISO 8601 لحقول التاريخ/الوقت
+              Query.greaterThan('\$updatedAt', lastPullIso),
+              ...filterQueries,
+            ];
+            documents = await _appwriteService!.listDocuments(
+              collectionId: collectionId,
+              queries: fallbackQueries,
+              useCache: false,
+            );
+          } catch (e2) {
+            // ✅ fallback أخير: جلب كل شيء وفلترة يدوية
             _logger.warning(
-              'فشل حفظ ${entity.name}/${doc.$id}: $e',
+              'فشل فلترة $entity بـ \$updatedAt، جلب كامل: $e2',
               tag: 'DELTA_SYNC',
+            );
+            documents = await _appwriteService!.listDocuments(
+              collectionId: collectionId,
+              queries: filterQueries,
+              useCache: false,
             );
           }
         }
-
-        offset += _pullBatchSize;
-
-        // التحقق من الحد الأقصى
-        if (_maxPullRecords > 0 && totalSuccessCount >= _maxPullRecords) {
-          _logger.info(
-            '⏸️ تم الوصول للحد الأقصى ($_maxPullRecords) في ${entity.name}',
-            tag: 'DELTA_SYNC',
-          );
-          break;
-        }
-      } on appwrite.AppwriteException catch (e) {
-        _logger.error(
-          '❌ خطأ Appwrite في ${entity.name}: ${e.code} - ${e.message}',
-          tag: 'DELTA_SYNC',
+      } else {
+        // أول سحب: جلب كل شيء بدون فلترة زمنية
+        documents = await _appwriteService!.listDocuments(
+          collectionId: collectionId,
+          queries: filterQueries,
+          useCache: false,
         );
-        rethrow;
       }
-    } while (batchCount == _pullBatchSize); // استمر إذا كانت الدفعة ممتلئة
 
-    if (totalSuccessCount > 0) {
-      _logger.info(
-        '✅ ${entity.name}: $totalSuccessCount سجل في $totalBatches دفعة',
-        tag: 'DELTA_SYNC',
-      );
-    }
+      // ✅ معالجة المستندات المسحوبة
+      for (final doc in documents) {
+        final data = Map<String, dynamic>.from(doc.data);
+        final sourceDeviceId = data['deviceId'] as String?;
 
-    return totalSuccessCount;
-  }
+        // تخطي المستندات التي أرسلها هذا الجهاز نفسه
+        if (sourceDeviceId == _deviceId) continue;
 
-  /// الطريقة القديمة (للتوافق)
-  Future<int> _pullEntityChanges(_SyncEntity entity, int sinceEpoch) async {
-    return _pullEntityChangesWithPagination(entity, sinceEpoch);
-  }
-
-  // ==================== MIRROR INTEGRITY ====================
-
-  /// ✅ التحقق من صحة المرآة وإعادة بنائها إذا لزم الأمر
-  /// هذا يضمن أن Delta Sync يكتشف جميع التغييرات بشكل صحيح
-  Future<void> _ensureMirrorIntegrity() async {
-    try {
-      // الجداول الحرجة التي يجب التحقق منها
-      const criticalTables = [
-        'salary_withdrawals',
-        'expenses',
-        'payments',
-        'bookings',
-      ];
-
-      for (final tableName in criticalTables) {
-        final mirrorCount = await _getMirrorCount(tableName);
-        final dbCount = await _getDbCount(tableName);
-
-        // إذا كانت المرآة فارغة أو أقل من قاعدة البيانات
-        if (mirrorCount == 0 && dbCount > 0) {
-          _logger.warning(
-            '⚠️ المرآة فارغة لـ $tableName ($dbCount سجل) - إعادة بناء...',
-            tag: 'DELTA_SYNC',
-          );
-          await _rebuildTableMirror(tableName);
-        } else if (mirrorCount < dbCount * 0.9) {
-          // إذا كانت المرآة ناقصة بأكثر من 10%
-          _logger.warning(
-            '⚠️ المرآة ناقصة لـ $tableName (مرآة: $mirrorCount, قاعدة: $dbCount) - إعادة بناء...',
-            tag: 'DELTA_SYNC',
-          );
-          await _rebuildTableMirror(tableName);
+        // ✅ فلترة يدوية إضافية بالوقت (safety net)
+        if (lastPullTs > 0) {
+          final syncTs = _asInt(data['syncTimestamp']);
+          if (syncTs != null && syncTs <= lastPullTs) {
+            continue;
+          }
+          // ✅ فحص $updatedAt من كائن Document مباشرة (ليس من doc.data)
+          // لأن $updatedAt حقل نظامي لا يظهر في doc.data
+          try {
+            final updatedAt = DateTime.parse(doc.$updatedAt);
+            if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
+              continue;
+            }
+          } catch (_) {}
         }
-      }
-    } catch (e) {
-      _logger.error('❌ خطأ في التحقق من المرآة: $e', tag: 'DELTA_SYNC');
-    }
-  }
 
-  /// الحصول على عدد سجلات المرآة لجدول معين
-  Future<int> _getMirrorCount([String? tableName]) async {
-    try {
-      if (tableName != null) {
-        final result = await _database!
-            .customSelect(
-              'SELECT COUNT(*) as count FROM sync_mirror WHERE sync_entity_name = ?',
-              variables: [Variable.withString(tableName)],
-            )
-            .getSingle();
-        return result.read<int>('count');
-      } else {
-        // إجمالي جميع السجلات في المرآة
-        final result = await _database!
-            .customSelect('SELECT COUNT(*) as count FROM sync_mirror')
-            .getSingle();
-        return result.read<int>('count');
-      }
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  /// الحصول على عدد سجلات الجداول المحلية
-  Future<Map<String, int>> _getLocalRecordCounts() async {
-    try {
-      final counts = <String, int>{};
-      final tables = [
-        'rooms',
-        'bookings',
-        'employees',
-        'expenses',
-        'payments',
-        'debts',
-        'salary_withdrawals',
-      ];
-
-      for (final table in tables) {
         try {
-          final result = await _database!
-              .customSelect(
-                'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
-              )
-              .getSingle();
-          counts[table] = result.read<int>('count');
-        } catch (_) {
-          counts[table] = 0;
+          await _applyRemoteChange(entity, doc.$id, data);
+          applied++;
+        } catch (e) {
+          _logger.warning(
+            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+            tag: 'DELTA_SYNC',
+          );
         }
       }
-      return counts;
-    } catch (e) {
-      return {};
-    }
-  }
 
-  /// الحصول على عدد سجلات جدول معين
-  Future<int> _getDbCount(String tableName) async {
-    try {
-      final result = await _database!
-          .customSelect(
-            'SELECT COUNT(*) as count FROM $tableName WHERE deleted_at IS NULL',
-          )
-          .getSingle();
-      return result.read<int>('count');
+      _logger.info(
+        '📥 سحب $entity: $applied سجل من ${documents.length} مستند',
+        tag: 'DELTA_SYNC',
+      );
+
+      return applied;
     } catch (e) {
+      _logger.warning('فشل سحب $entity: $e', tag: 'DELTA_SYNC');
       return 0;
     }
   }
 
-  /// إعادة بناء مرآة جدول معين
-  Future<void> _rebuildTableMirror(String tableName) async {
-    try {
-      // مسح المرآة القديمة
-      await _database!.customStatement(
-        'DELETE FROM sync_mirror WHERE sync_entity_name = ?',
-        [tableName],
-      );
+  Future<void> _applyRemoteChange(
+    String entity,
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    final db = _database!;
 
-      final now = Time.nowEpoch();
-      int count = 0;
+    switch (entity) {
+      case 'rooms':
+        await _applyRoomChange(db, documentId, data);
+        break;
+      case 'bookings':
+        await _applyBookingChange(db, documentId, data);
+        break;
+      case 'payments':
+        await _applyPaymentChange(db, documentId, data);
+        break;
+      case 'expenses':
+        await _applyExpenseChange(db, documentId, data);
+        break;
+      case 'debts':
+        await _applyDebtChange(db, documentId, data);
+        break;
+      case 'employees':
+        await _applyEmployeeChange(db, documentId, data);
+        break;
+      case 'booking_nights':
+        await _applyBookingNightChange(db, documentId, data);
+        break;
+      case 'booking_notes':
+        await _applyBookingNoteChange(db, documentId, data);
+        break;
+      case 'cash_transactions':
+        await _applyCashTransactionChange(db, documentId, data);
+        break;
+      case 'shift_notes':
+        await _applyShiftNoteChange(db, documentId, data);
+        break;
+      case 'salary_cycles':
+        await _applySalaryCycleChange(db, documentId, data);
+        break;
+      case 'salary_payments':
+        await _applySalaryPaymentChange(db, documentId, data);
+        break;
+      // ❌ hotel_day_ledger - محلي فقط
+      case 'price_adjustments':
+        await _applyPriceAdjustmentChange(db, documentId, data);
+        break;
+      case 'booking_price_adjustments':
+        await _applyBookingPriceAdjustmentChange(db, documentId, data);
+        break;
+      case 'audit_logs':
+        await _applyAuditLogChange(db, documentId, data);
+        break;
+      case 'payment_voids':
+        await _applyPaymentVoidChange(db, documentId, data);
+        break;
+      case 'guest_infos':
+        await _applyGuestInfoChange(db, documentId, data);
+        break;
+      case 'salary_withdrawals':
+        await _applySalaryWithdrawalChange(db, documentId, data);
+        break;
+    }
+  }
 
-      // بناء المرآة حسب نوع الجدول
-      switch (tableName) {
-        case 'salary_withdrawals':
-          count = await _rebuildSalaryWithdrawalsMirror(now);
-        case 'expenses':
-          count = await _rebuildExpensesMirror(now);
-        case 'payments':
-          count = await _rebuildPaymentsMirror(now);
-        case 'bookings':
-          count = await _rebuildBookingsMirror(now);
+  Future<void> _applyRoomChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final roomNumber = _asString(data['roomNumber']);
+    if (roomNumber == null || roomNumber.isEmpty) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = RoomsCompanion(
+      roomNumber: d.Value(roomNumber),
+      type: d.Value(_asString(data['type']) ?? ''),
+      price: d.Value(_asDouble(data['price'])),
+      status: d.Value(_asString(data['status']) ?? 'available'),
+      imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    final existingByUuid =
+        await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+    if (existingByUuid != null) {
+      await (db.update(
+        db.rooms,
+      )..where((t) => t.localUuid.equals(localUuid))).write(companion);
+      return;
+    }
+
+    final existingByNumber =
+        await (db.select(db.rooms)
+              ..where((t) => t.roomNumber.equals(roomNumber))
+              ..limit(1))
+            .getSingleOrNull();
+
+    if (existingByNumber != null) {
+      if (incomingLastModified >= existingByNumber.lastModified) {
+        await (db.update(
+          db.rooms,
+        )..where((t) => t.roomNumber.equals(roomNumber))).write(companion);
       }
+      return;
+    }
 
-      _logger.info(
-        '✅ تم إعادة بناء مرآة $tableName: $count سجل',
-        tag: 'DELTA_SYNC',
+    await db.into(db.rooms).insert(companion);
+  }
+
+  Future<void> _applyBookingChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final roomNumber = _asString(data['roomNumber']);
+    if (roomNumber == null || roomNumber.isEmpty) return;
+
+    final companion = BookingsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
+      roomNumber: d.Value(roomNumber),
+      guestName: d.Value(_asString(data['guestName']) ?? ''),
+      guestPhone: d.Value(_asString(data['guestPhone']) ?? ''),
+      guestIdType: d.Value(_asString(data['guestIdType']) ?? ''),
+      guestIdNumber: d.Value(_asString(data['guestIdNumber']) ?? ''),
+      guestIdIssueDate: _nullableValue<String>(
+        _asString(data['guestIdIssueDate']),
+      ),
+      guestIdIssuePlace: _nullableValue<String>(
+        _asString(data['guestIdIssuePlace']),
+      ),
+      guestNationality: d.Value(_asString(data['guestNationality']) ?? ''),
+      guestEmail: _nullableValue<String>(_asString(data['guestEmail'])),
+      guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
+      checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
+      checkoutDate: _nullableValue<String>(_asString(data['checkoutDate'])),
+      actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
+      status: d.Value(_asString(data['status']) ?? ''),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
+      calculatedNights: d.Value(_asInt(data['calculatedNights']) ?? 1),
+      discount: d.Value(_asDouble(data['discount'])),
+      discountType: d.Value(_asString(data['discountType']) ?? 'per_night'),
+      discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
+    );
+
+    await db.into(db.bookings).insertOnConflictUpdate(companion);
+
+    // إعادة حساب الحقول المحسوبة محلياً بعد السحب من السيرفر
+    try {
+      await BookingDerivedFieldsService(db).refreshForBookingId(
+        await _getBookingLocalId(db, localUuid),
+        forceRebuild: true,
       );
     } catch (e) {
-      _logger.error('❌ فشل إعادة بناء مرآة $tableName: $e', tag: 'DELTA_SYNC');
+      _logger.warning(
+        'فشل إعادة حساب الحقول المحسوبة للحجز $localUuid: $e',
+        tag: 'DELTA_SYNC',
+      );
     }
   }
 
-  /// إعادة بناء مرآة salary_withdrawals
-  Future<int> _rebuildSalaryWithdrawalsMirror(int now) async {
-    final records = await _database!.select(_database!.salaryWithdrawals).get();
-    int count = 0;
+  /// استخراج localId (int) للحجز من localUuid (String).
+  Future<int> _getBookingLocalId(AppDatabase db, String localUuid) async {
+    final row = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+    return row?.id ?? 0;
+  }
 
-    for (final record in records) {
-      final payload = _adapterRegistry!.salaryWithdrawals.adapter.toJson(
-        record,
-        src: Source.appwrite,
-      );
-      final rowHash = _computeHash(payload);
+  Future<void> _applyPaymentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = PaymentsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
+      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
+      serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
+      roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
+      amount: d.Value(_asDouble(data['amount'])),
+      paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      paymentMethod: d.Value(_asString(data['paymentMethod']) ?? ''),
+      revenueType: d.Value(_asString(data['revenueType']) ?? ''),
+      cashTransactionLocalId: _nullableValue<int>(
+        _asInt(data['cashTransactionLocalId']),
+      ),
+      cashTransactionServerId: _nullableValue<int>(
+        _asInt(data['cashTransactionServerId']),
+      ),
+      referenceNumber: _nullableValue<String>(
+        _asString(data['referenceNumber']),
+      ),
+    );
 
-      await _database!.customStatement(
-        '''
-INSERT INTO sync_mirror 
-           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
-           VALUES (?, ?, ?, ?, ?)''',
-        [
-          'salary_withdrawals',
-          record.localUuid,
-          rowHash,
-          jsonEncode(payload),
-          now,
-        ],
-      );
-      count++;
+    await db.into(db.payments).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyExpenseChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final expenseType = _asString(data['expenseType']);
+    if (expenseType == null || expenseType.isEmpty) return;
+
+    final companion = ExpensesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      expenseType: d.Value(expenseType),
+      relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
+      description: d.Value(_asString(data['description']) ?? ''),
+      amount: d.Value(_asDouble(data['amount'])),
+      date: d.Value(_asString(data['date']) ?? ''),
+      cashTransactionId: _nullableValue<int>(_asInt(data['cashTransactionId'])),
+    );
+
+    await db.into(db.expenses).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyDebtChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final guestName =
+        _asString(data['guestName']) ?? _asString(data['debtorName']);
+    if (guestName == null || guestName.isEmpty) return;
+
+    final companion = DebtsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
+      guestName: d.Value(guestName),
+      checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
+      checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
+      dateRecorded: d.Value(_asString(data['dateRecorded']) ?? ''),
+      debtReason: d.Value(_asString(data['debtReason']) ?? ''),
+      totalAmount: d.Value(
+        _asDouble(data['totalAmount'] ?? data['amount']),
+      ),
+      paidAmount: d.Value(_asDouble(data['paidAmount'])),
+      remainingAmount: d.Value(_asDouble(data['remainingAmount'])),
+      paymentDate: d.Value(_asString(data['paymentDate']) ?? ''),
+      isSettled: d.Value(
+        _asInt(data['isSettled']) ?? (data['status'] == 'settled' ? 1 : 0),
+      ),
+      pledge: _nullableValue<String>(_asString(data['pledge'])),
+      pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
+      note: _nullableValue<String>(_asString(data['note'])),
+    );
+
+    await db.into(db.debts).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyEmployeeChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final name = _asString(data['name']);
+    if (name == null || name.isEmpty) return;
+
+    final companion = EmployeesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      name: d.Value(name),
+      basicSalary: d.Value(_asDouble(data['basicSalary'])),
+      position: d.Value(_asString(data['position']) ?? ''),
+      phone: d.Value(_asString(data['phone']) ?? ''),
+      hireDate: d.Value(_asString(data['hireDate']) ?? ''),
+      status: d.Value(_asString(data['status']) ?? ''),
+    );
+
+    await db.into(db.employees).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyPriceAdjustmentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final targetType = _asString(data['targetType']);
+    final targetUuid = _asString(data['targetUuid']);
+    if (targetType == null || targetUuid == null) return;
+
+    final companion = PriceAdjustmentsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      targetType: d.Value(targetType),
+      targetUuid: d.Value(targetUuid),
+      adjustmentType: d.Value(_asString(data['adjustmentType']) ?? ''),
+      previousValue: d.Value(_asInt(data['previousValue']) ?? 0),
+      newValue: d.Value(_asInt(data['newValue']) ?? 0),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      effectiveDate: d.Value(_asString(data['effectiveDate']) ?? ''),
+      appliedBy: d.Value(_asString(data['appliedBy']) ?? ''),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      isReversed: d.Value(_asBool(data['isReversed']) ?? false),
+      reversedAt: _nullableValue<String>(_asString(data['reversedAt'])),
+      reversedBy: _nullableValue<String>(_asString(data['reversedBy'])),
+    );
+
+    await db.into(db.priceAdjustments).insertOnConflictUpdate(companion);
+    if (targetType == 'room') {
+      await _recalculateBookingsForRoomUuid(db, targetUuid);
+    } else if (targetType == 'booking') {
+      await _recalculateBookingByUuid(db, targetUuid);
     }
-
-    return count;
   }
 
-  /// إعادة بناء مرآة expenses
-  Future<int> _rebuildExpensesMirror(int now) async {
-    final records = await _database!.select(_database!.expenses).get();
-    int count = 0;
+  Future<void> _applyAuditLogChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final operationType = _asString(data['operationType']);
+    final entityType = _asString(data['entityType']);
+    if (operationType == null || entityType == null) return;
 
-    for (final record in records) {
-      final payload = _adapterRegistry!.expenses.adapter.toJson(
-        record,
-        src: Source.appwrite,
-      );
-      final rowHash = _computeHash(payload);
+    final timestamp = _asInt(data['timestamp']) ?? Time.nowEpoch();
 
-      await _database!.customStatement(
-        '''
-INSERT INTO sync_mirror 
-           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
-           VALUES (?, ?, ?, ?, ?)''',
-        ['expenses', record.localUuid, rowHash, jsonEncode(payload), now],
-      );
-      count++;
+    final companion = AuditLogsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      operationType: d.Value(operationType),
+      entityType: d.Value(entityType),
+      entityUuid: d.Value(_asString(data['entityUuid']) ?? ''),
+      entityId: _nullableValue<int>(_asInt(data['entityId'])),
+      previousState: _nullableValue<String>(_asString(data['previousState'])),
+      newState: _nullableValue<String>(_asString(data['newState'])),
+      changedFields: _nullableValue<String>(_asString(data['changedFields'])),
+      performedBy: d.Value(_asString(data['performedBy']) ?? ''),
+      deviceId: d.Value(_asString(data['deviceId']) ?? ''),
+      ipAddress: _nullableValue<String>(_asString(data['ipAddress'])),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      timestamp: d.Value(timestamp),
+      timestampIso: d.Value(
+        _asString(data['timestampIso']) ??
+            DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toIso8601String(),
+      ),
+      isFinancial: d.Value(_asBool(data['isFinancial']) ?? false),
+      amountImpact: _nullableValue<int>(_asInt(data['amountImpact'])),
+    );
+
+    await db.into(db.auditLogs).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyPaymentVoidChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final originalPaymentUuid = _asString(data['originalPaymentUuid']);
+    if (originalPaymentUuid == null) return;
+
+    final voidedAt = _asInt(data['voidedAt']) ?? Time.nowEpoch();
+
+    final companion = PaymentVoidsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      originalPaymentUuid: d.Value(originalPaymentUuid),
+      originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
+      bookingUuid: d.Value(_asString(data['bookingUuid']) ?? ''),
+      voidedAmount: d.Value(_asInt(data['voidedAmount']) ?? 0),
+      voidReason: d.Value(_asString(data['voidReason']) ?? ''),
+      voidedBy: d.Value(_asString(data['voidedBy']) ?? ''),
+      voidedAt: d.Value(voidedAt),
+      voidedAtIso: d.Value(
+        _asString(data['voidedAtIso']) ??
+            DateTime.fromMillisecondsSinceEpoch(voidedAt * 1000).toIso8601String(),
+      ),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      reversalPaymentUuid: _nullableValue<String>(_asString(data['reversalPaymentUuid'])),
+      approvedBy: _nullableValue<String>(_asString(data['approvedBy'])),
+    );
+
+    await db.into(db.paymentVoids).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyGuestInfoChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final guestName = _asString(data['guestName']);
+    if (guestName == null || guestName.isEmpty) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = GuestInfosCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      roomNumber: d.Value(_asString(data['roomNumber']) ?? ''),
+      guestName: d.Value(guestName),
+      nationality: d.Value(_asString(data['nationality']) ?? ''),
+      idNumber: d.Value(_asString(data['idNumber']) ?? ''),
+      idType: d.Value(_asString(data['idType']) ?? 'بطاقة شخصية'),
+      issueDate: _nullableValue<String>(_asString(data['issueDate'])),
+      issuePlace: _nullableValue<String>(_asString(data['issuePlace'])),
+      governorate: _nullableValue<String>(_asString(data['governorate'])),
+      notes: _nullableValue<String>(_asString(data['notes'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    await db.into(db.guestInfos).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryWithdrawalChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final employeeId = _asInt(data['employeeId']);
+    if (employeeId == null) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+
+    final companion = SalaryWithdrawalsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      employeeId: d.Value(employeeId),
+      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      withdrawalType: _nullableValue<String>(_asString(data['withdrawalType'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+    );
+
+    await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNightChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingLocalId = _asInt(data['bookingLocalId']);
+    if (bookingLocalId == null) return;
+
+    final companion = BookingNightsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingLocalId: d.Value(bookingLocalId),
+      hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
+      nightStart: d.Value(_asString(data['nightStart']) ?? ''),
+      nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
+      nightlyRate: d.Value(_asDouble(data['nightlyRate'])),
+      sequence: d.Value(_asInt(data['sequence']) ?? 0),
+      isProcessedByAutoFix: d.Value(_asBool(data['isProcessedByAutoFix']) ?? false),
+      baseRate: d.Value(_asDouble(data['baseRate'])),
+      adjustment: d.Value(_asDouble(data['adjustment'])),
+      finalRate: d.Value(_asDouble(data['finalRate'])),
+      appliedAdjustmentUuid: _nullableValue<String>(_asString(data['appliedAdjustmentUuid'])),
+      appliedAdjustmentsJson: _nullableValue<String>(_asString(data['appliedAdjustmentsJson'])),
+    );
+
+    await db.into(db.bookingNights).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyBookingNoteChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingId = _asInt(data['bookingId']);
+    if (bookingId == null) return;
+
+    final companion = BookingNotesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      bookingId: d.Value(bookingId),
+      noteText: d.Value(_asString(data['noteText']) ?? ''),
+      alertType: d.Value(_asString(data['alertType']) ?? ''),
+      alertUntil: _nullableValue<String>(_asString(data['alertUntil'])),
+      isActive: d.Value(_asInt(data['isActive']) ?? 1),
+    );
+
+    await db.into(db.bookingNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyCashTransactionChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = CashTransactionsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      registerId: _nullableValue<int>(_asInt(data['registerId'])),
+      transactionType: d.Value(_asString(data['transactionType']) ?? ''),
+      amount: d.Value(_asDouble(data['amount'])),
+      referenceType: _nullableValue<String>(_asString(data['referenceType'])),
+      referenceId: _nullableValue<int>(_asInt(data['referenceId'])),
+      description: _nullableValue<String>(_asString(data['description'])),
+      transactionTime: d.Value(_asString(data['transactionTime']) ?? ''),
+      createdBy: _nullableValue<int>(_asInt(data['createdBy'])),
+    );
+
+    await db.into(db.cashTransactions).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyShiftNoteChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final companion = ShiftNotesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      title: d.Value(_asString(data['title']) ?? ''),
+      content: d.Value(_asString(data['content']) ?? ''),
+      priority: d.Value(_asString(data['priority']) ?? 'medium'),
+      shiftType: d.Value(_asString(data['shiftType']) ?? 'all'),
+      isRead: d.Value(_asInt(data['isRead']) ?? 0),
+      expiresAt: _nullableValue<String>(_asString(data['expiresAt'])),
+      createdBy: d.Value(_asString(data['createdBy']) ?? 'user'),
+    );
+
+    await db.into(db.shiftNotes).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryCycleChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final employeeId = _asInt(data['employeeId']);
+    if (employeeId == null) return;
+
+    final companion = SalaryCyclesCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      employeeId: d.Value(employeeId),
+      cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
+      hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
+      hotelDayEnd: _nullableValue<String>(_asString(data['hotelDayEnd'])),
+      expectedAmount: d.Value(_asInt(data['expectedAmount']) ?? 0),
+      actualPaid: d.Value(_asInt(data['actualPaid']) ?? 0),
+      remainingAmount: d.Value(_asInt(data['remainingAmount']) ?? 0),
+      status: d.Value(_asString(data['status']) ?? 'draft'),
+    );
+
+    await db.into(db.salaryCycles).insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applySalaryPaymentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final cycleId = _asInt(data['cycleId']);
+    if (cycleId == null) return;
+
+    final companion = SalaryPaymentsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      cycleId: d.Value(cycleId),
+      amount: d.Value(_asInt(data['amount']) ?? 0),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      paymentDateIso: d.Value(_asString(data['paymentDateIso']) ?? ''),
+      method: _nullableValue<String>(_asString(data['method'])),
+      isAutoGenerated: d.Value(_asBool(data['isAutoGenerated']) ?? false),
+    );
+
+    await db.into(db.salaryPayments).insertOnConflictUpdate(companion);
+  }
+
+
+  bool? _asBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final t = value.toLowerCase();
+      if (t == 'true' || t == '1') return true;
+      if (t == 'false' || t == '0') return false;
     }
-
-    return count;
+    return null;
   }
-
-  /// إعادة بناء مرآة payments
-  Future<int> _rebuildPaymentsMirror(int now) async {
-    final records = await _database!.select(_database!.payments).get();
-    int count = 0;
-
-    for (final record in records) {
-      final payload = _adapterRegistry!.payments.adapter.toJson(
-        record,
-        src: Source.appwrite,
-      );
-      final rowHash = _computeHash(payload);
-
-      await _database!.customStatement(
-        '''
-INSERT INTO sync_mirror 
-           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
-           VALUES (?, ?, ?, ?, ?)''',
-        ['payments', record.localUuid, rowHash, jsonEncode(payload), now],
-      );
-      count++;
-    }
-
-    return count;
-  }
-
-  /// إعادة بناء مرآة bookings
-  Future<int> _rebuildBookingsMirror(int now) async {
-    final records = await _database!.select(_database!.bookings).get();
-    int count = 0;
-
-    for (final record in records) {
-      final payload = _adapterRegistry!.bookings.adapter.toJson(
-        record,
-        src: Source.appwrite,
-      );
-      final rowHash = _computeHash(payload);
-
-      await _database!.customStatement(
-        '''
-INSERT INTO sync_mirror 
-           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
-           VALUES (?, ?, ?, ?, ?)''',
-        ['bookings', record.localUuid, rowHash, jsonEncode(payload), now],
-      );
-      count++;
-    }
-
-    return count;
-  }
-
-  /// حساب hash للبيانات
-  String _computeHash(Map<String, dynamic> payload) {
-    final sorted = _sortMapForHash(payload);
-    final jsonStr = jsonEncode(sorted);
-    return sha1.convert(utf8.encode(jsonStr)).toString();
-  }
-
-  /// ترتيب Map لحساب hash متسق
-  Map<String, dynamic> _sortMapForHash(Map<String, dynamic> source) {
-    final entries = source.entries.map((entry) {
-      final value = entry.value;
-      dynamic normalized;
-      if (value is Map<String, dynamic>) {
-        normalized = _sortMapForHash(value);
-      } else if (value is List) {
-        normalized = value.map((item) {
-          if (item is Map<String, dynamic>) return _sortMapForHash(item);
-          return item;
-        }).toList();
-      } else {
-        normalized = value;
-      }
-      return MapEntry(entry.key, normalized);
-    }).toList()..sort((a, b) => a.key.compareTo(b.key));
-    return Map<String, dynamic>.fromEntries(entries);
-  }
-
-  // ==================== HELPERS ====================
 
   String? _getCollectionId(String entity) {
     switch (entity) {
@@ -1557,13 +1148,11 @@ INSERT INTO sync_mirror
         return AppwriteConfig.debtsCollectionId;
       case 'employees':
         return AppwriteConfig.employeesCollectionId;
-      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
+      // ❌ hotel_day_ledger - محلي فقط
       case 'salary_cycles':
         return AppwriteConfig.salaryCyclesCollectionId;
       case 'salary_payments':
         return AppwriteConfig.salaryPaymentsCollectionId;
-      case 'salary_withdrawals':
-        return AppwriteConfig.salaryWithdrawalsCollectionId;
       case 'shift_notes':
         return AppwriteConfig.shiftNotesCollectionId;
       case 'price_adjustments':
@@ -1576,681 +1165,223 @@ INSERT INTO sync_mirror
         return AppwriteConfig.paymentVoidsCollectionId;
       case 'guest_infos':
         return AppwriteConfig.guestInfosCollectionId;
+      case 'salary_withdrawals':
+        return AppwriteConfig.salaryWithdrawalsCollectionId;
       default:
         return null;
     }
   }
 
-  /// حقول محلية فقط لا يجب إرسالها إلى Appwrite
-  static const _localOnlyFields = {
-    'local_id',
-    'rowHash', // حقل محلي للتتبع
-    // ✅ تمت إزالة createdAtEpoch و lastModifiedEpoch
-    // لأنها موجودة في Appwrite لجميع المجموعات
-    'deletedAtEpoch',
+  Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
+    final result = <String, dynamic>{};
+    payload.forEach((key, value) {
+      final camelKey = _toCamelCase(key);
+      if (value != null) {
+        result[camelKey] = value;
+      }
+    });
+    return result;
+  }
+
+  /// تحويل حقول amount من double إلى int للمجموعات التي تتطلب integer في Appwrite
+  static const _intAmountFields = <String, Set<String>>{
+    'booking_price_adjustments': {'amount'},
+    'cash_transactions': {'amount'},
+    'salary_withdrawals': {'amount'},
+    'debts': {'amount', 'remainingAmount'},
   };
 
-  /// المجموعات التي تتطلب حقل id (required=true في Appwrite)
-  static const _entitiesRequiringIdField = {
-    'guest_infos',
-  };
+  Map<String, dynamic> _convertAmountTypesForAppwrite(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
+    final intFields = _intAmountFields[collectionId];
+    if (intFields == null || intFields.isEmpty) return payload;
 
-  /// حقول sync التي يجب إزالتها من المجموعات التي لا تدعمها
-  /// هذه الحقول تُرسل من الـ adapters لكن Appwrite لا يدعمها في بعض المجموعات
-  /// ⚠️ ملاحظة: هذه الأسماء لا تتطابق مع أي حقول فعلية حالياً
-  /// لأن الـ adapters ترسل camelCase بينما هذه القائمة تستخدم snake_case
-  /// الإبقاء كما هو لأن التغيير قد يسبب حذف حقول مطلوبة
-  static const _unsupportedSyncFields = {
-    'bookings': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'booking_nights': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'salary_payments': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'salary_cycles': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'shift_notes': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'booking_notes': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'rooms': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'employees': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'expenses': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-    'cash_transactions': [
-      'sync_version',
-      'sync_vector_clock',
-      'vector_clock',
-      'sync_origin',
-    ],
-  };
-
-  /// حقول مطلوبة لكل كيان في Appwrite
-  static const _requiredFieldsPerEntity = {
-    'salary_payments': [
-      'employeeId',
-      'cycleId',
-      'paymentDateIso',
-      'paymentDate',
-    ],
-    'shift_notes': ['shiftDate', 'createdAt'],
-    'salary_withdrawals': ['employeeId', 'action', 'amount', 'date'],
-    'salary_cycles': ['employeeId', 'cycleKey', 'startDate', 'endDate'],
-    'cash_transactions': ['transactionType', 'transactionTime'],
-    'booking_price_adjustments': [
-      'bookingUuid',
-      'bookingLocalUuid',
-      'effectiveHotelDay',
-    ],
-    'payments': [
-      'amount',
-      'paymentDate',
-      'paymentMethod',
-      'revenueType',
-    ], // sync_version و sync_vector_clock تُعالج في _syncFieldsPerEntity
-    'debts': [
-      'guestName',
-      'checkinDate',
-      'totalAmount',
-      'paidAmount',
-      'localUuid',
-      'createdAt',
-      'updatedAt',
-      'lastModified',
-    ],
-    'expenses': [
-      'expenseType',
-      'description',
-      'amount',
-      'date',
-      'localUuid',
-      'createdAt',
-      'updatedAt',
-      'lastModified',
-    ],
-    'rooms': [
-      'roomNumber',
-      'type',
-      'status',
-      'price',
-      'localUuid',
-      'createdAt',
-      'updatedAt',
-      'lastModified',
-    ],
-  };
-
-  /// حقول sync مطلوبة فقط لمجموعات محددة (ليست كل المجموعات)
-  /// ملاحظة: debts لا تحتوي على حقول sync في Appwrite - تمت الإزالة
-  static const _syncFieldsPerEntity = {
-    'payments': ['sync_version', 'sync_vector_clock'],
-  };
-
-  Map<String, dynamic> _sanitizePayload(
-    Map<String, dynamic> payload, {
-    required String collectionEntity,
-  }) {
-    final sanitized = Map<String, dynamic>.from(payload);
-
-    // إزالة الحقول المحلية فقط
-    for (final field in _localOnlyFields) {
-      sanitized.remove(field);
-    }
-
-    // ✅ إزالة حقل id إلا للمجموعات التي تتطلبه (required=true في Appwrite)
-    if (!_entitiesRequiringIdField.contains(collectionEntity)) {
-      sanitized.remove('id');
-    }
-
-    // ✅ إزالة حقول sync غير المدعومة لهذه المجموعة
-    final unsupportedFields = _unsupportedSyncFields[collectionEntity];
-    if (unsupportedFields != null) {
-      for (final field in unsupportedFields) {
-        sanitized.remove(field);
+    final result = Map<String, dynamic>.from(payload);
+    for (final field in intFields) {
+      if (result.containsKey(field) && result[field] is num) {
+        result[field] = (result[field] as num).round();
       }
     }
-
-    // تحويل المبالغ إلى أعداد صحيحة (Appwrite يتطلب integer)
-    _convertAmountsToInt(sanitized);
-
-    // تحويل vectorClock من Map إلى String إذا كان Map
-    if (sanitized.containsKey('vectorClock')) {
-      final vc = sanitized['vectorClock'];
-      if (vc is Map) {
-        sanitized['vectorClock'] = jsonEncode(vc);
-      } else if (vc == null) {
-        sanitized['vectorClock'] = '{}';
-      }
-    }
-
-    // ✅ تقليص الحقول النصية الطويلة (Appwrite يحدد 50 حرف للـ strings القصيرة)
-    _truncateStringFields(sanitized);
-
-    // ✅ إضافة id إذا لم يكن موجوداً (بعض المجموعات تتطلبه)
-    // ملاحظة: لا نضيف id لأن Appwrite يستخدم document ID تلقائياً
-
-    // ✅ إضافة حقول sync فقط للمجموعات التي تتطلبها
-    final syncFields = _syncFieldsPerEntity[collectionEntity];
-    if (syncFields != null) {
-      for (final field in syncFields) {
-        if (!sanitized.containsKey(field) || sanitized[field] == null) {
-          switch (field) {
-            case 'sync_version':
-              sanitized['sync_version'] = sanitized['version'] ?? 1;
-            case 'sync_vector_clock':
-              final vc = sanitized['vectorClock'] ?? sanitized['vector_clock'];
-              sanitized['sync_vector_clock'] = vc is String
-                  ? vc
-                  : jsonEncode(vc ?? {});
-            case 'vector_clock':
-              final vc2 = sanitized['vectorClock'];
-              sanitized['vector_clock'] = vc2 is String
-                  ? vc2
-                  : jsonEncode(vc2 ?? {});
-            case 'sync_origin':
-              sanitized['sync_origin'] = sanitized['origin'] ?? 'mobile';
-          }
-        }
-      }
-    }
-
-    // التحقق من الحقول المطلوبة وإضافة قيم افتراضية إذا كانت مفقودة
-    final requiredFields = _requiredFieldsPerEntity[collectionEntity];
-    if (requiredFields != null) {
-      for (final field in requiredFields) {
-        if (!sanitized.containsKey(field) || sanitized[field] == null) {
-          // إضافة قيم افتراضية للحقول المطلوبة المفقودة
-          switch (field) {
-            case 'employeeId':
-              // محاولة استخراج employeeId من بيانات أخرى
-              final relatedId = sanitized['relatedId'];
-              if (relatedId != null) {
-                sanitized['employeeId'] = relatedId;
-              } else {
-                _logger.warning(
-                  '⚠️ $collectionEntity: $field مفقود، سيتم تخطي هذا السجل',
-                  tag: 'DELTA_SYNC',
-                );
-                return {}; // إرجاع قائمة فارغة لتخطي هذا السجل
-              }
-            case 'guestName':
-              // اسم الضيف مطلوب للديون
-              sanitized['guestName'] =
-                  sanitized['guestName'] ?? 'Unknown Guest';
-            case 'checkinDate':
-              // تاريخ تسجيل الدخول مطلوب للديون
-              sanitized['checkinDate'] =
-                  sanitized['checkinDate'] ??
-                  sanitized['createdAtIso'] ??
-                  DateTime.now().toIso8601String();
-            case 'totalAmount':
-              // المبلغ الإجمالي مطلوب - افتراضي 0
-              sanitized['totalAmount'] = sanitized['totalAmount'] ?? 0.0;
-            case 'paidAmount':
-              // المبلغ المدفوع مطلوب - افتراضي 0
-              sanitized['paidAmount'] = sanitized['paidAmount'] ?? 0.0;
-            case 'localUuid':
-              // المعرف المحلي مطلوب
-              if (sanitized['localUuid'] == null) {
-                _logger.warning(
-                  '⚠️ $collectionEntity: localUuid مفقود، سيتم تخطي هذا السجل',
-                  tag: 'DELTA_SYNC',
-                );
-                return {};
-              }
-            case 'expenseType':
-              // نوع المصروف مطلوب
-              sanitized['expenseType'] = sanitized['expenseType'] ?? 'general';
-            case 'description':
-              // الوصف مطلوب للمصروفات
-              sanitized['description'] =
-                  sanitized['description'] ?? 'No description';
-            case 'roomNumber':
-              // رقم الغرفة مطلوب
-              sanitized['roomNumber'] = sanitized['roomNumber'] ?? 'Unknown';
-            case 'type':
-              // نوع الغرفة مطلوب
-              sanitized['type'] =
-                  sanitized['type'] ?? sanitized['roomType'] ?? 'standard';
-            case 'status':
-              // حالة الغرفة مطلوبة
-              sanitized['status'] = sanitized['status'] ?? 'available';
-            case 'price':
-              // سعر الغرفة مطلوب - double
-              sanitized['price'] =
-                  (sanitized['price'] ?? sanitized['basePrice'] ?? 0.0)
-                      .toDouble();
-            case 'shiftDate':
-              // استخدام createdAtIso كـ shiftDate
-              sanitized['shiftDate'] =
-                  sanitized['createdAtIso'] ?? DateTime.now().toIso8601String();
-            case 'paymentDate':
-              // استخدام paymentDateIso كـ paymentDate
-              sanitized['paymentDate'] =
-                  sanitized['paymentDateIso'] ??
-                  sanitized['createdAtIso'] ??
-                  DateTime.now().toIso8601String();
-            case 'createdAt':
-              // إنشاء createdAt من createdAtIso أو الوقت الحالي
-              if (sanitized['createdAtIso'] != null) {
-                try {
-                  sanitized['createdAt'] = DateTime.parse(
-                    sanitized['createdAtIso'],
-                  ).millisecondsSinceEpoch;
-                } catch (_) {
-                  sanitized['createdAt'] =
-                      DateTime.now().millisecondsSinceEpoch;
-                }
-              } else {
-                sanitized['createdAt'] = DateTime.now().millisecondsSinceEpoch;
-              }
-            case 'cycleId':
-              // cycleId مطلوب، إذا لم يكن موجوداً نتخطى السجل
-              _logger.warning(
-                '⚠️ $collectionEntity: $field مفقود، سيتم تخطي هذا السجل',
-                tag: 'DELTA_SYNC',
-              );
-              return {};
-            case 'startDate':
-              // استخدام hotelDayStart أو createdAtIso كـ startDate
-              sanitized['startDate'] =
-                  sanitized['hotelDayStart'] ??
-                  sanitized['createdAtIso'] ??
-                  DateTime.now().toIso8601String();
-            case 'endDate':
-              // استخدام hotelDayEnd أو createdAtIso كـ endDate
-              sanitized['endDate'] =
-                  sanitized['hotelDayEnd'] ??
-                  sanitized['startDate'] ??
-                  DateTime.now().toIso8601String();
-            case 'bookingUuid':
-              // استخدام bookingLocalUuid كـ bookingUuid
-              sanitized['bookingUuid'] =
-                  sanitized['bookingLocalUuid'] ??
-                  sanitized['bookingLocalId']?.toString() ??
-                  sanitized['localUuid'] ??
-                  '';
-            case 'bookingLocalUuid':
-              // bookingLocalUuid مطلوب، استخدام bookingUuid أو localUuid كقيمة افتراضية
-              if (sanitized['bookingLocalUuid'] == null) {
-                sanitized['bookingLocalUuid'] =
-                    sanitized['bookingUuid'] ?? sanitized['localUuid'] ?? '';
-              }
-            case 'effectiveHotelDay':
-              // effectiveHotelDay مطلوب، استخدام تاريخ اليوم إذا لم يكن موجوداً
-              if (sanitized['effectiveHotelDay'] == null ||
-                  sanitized['effectiveHotelDay'].toString().isEmpty) {
-                sanitized['effectiveHotelDay'] = DateTime.now()
-                    .toIso8601String()
-                    .split('T')
-                    .first;
-              }
-            case 'amount':
-              // amount مطلوب - استخدام 0 كقيمة افتراضية
-              sanitized['amount'] = sanitized['amount'] ?? 0;
-            case 'date':
-              // date مطلوب - استخدام التاريخ الحالي
-              sanitized['date'] =
-                  sanitized['date'] ??
-                  DateTime.now().toIso8601String().split('T').first;
-            case 'action':
-              // action مطلوب لـ salary_withdrawals - قيمة افتراضية
-              sanitized['action'] = sanitized['action'] ?? 'سحب راتب';
-            case 'paymentMethod':
-              // paymentMethod مطلوب لـ payments
-              sanitized['paymentMethod'] = sanitized['paymentMethod'] ?? 'نقدي';
-            case 'revenueType':
-              // revenueType مطلوب لـ payments
-              sanitized['revenueType'] = sanitized['revenueType'] ?? 'room';
-            case 'paymentDate':
-              // paymentDate مطلوب لـ payments
-              sanitized['paymentDate'] =
-                  sanitized['paymentDate'] ?? DateTime.now().toIso8601String();
-            default:
-              // للحقول الأخرى، نستخدم قيمة افتراضية
-              if (sanitized[field] == null) {
-                sanitized[field] = '';
-              }
-          }
-        }
-      }
-    }
-
-    // ✅ التحقق من حقول التخفيض في bookings
-    // إذا كان هناك تخفيض، يجب إرسال الثلاثة حقول معاً
-    if (collectionEntity == 'bookings') {
-      final hasDiscount =
-          sanitized.containsKey('discount') &&
-          sanitized['discount'] != null &&
-          (sanitized['discount'] as num) > 0;
-
-      if (hasDiscount) {
-        // التأكد من وجود discountType
-        if (!sanitized.containsKey('discountType') ||
-            sanitized['discountType'] == null ||
-            (sanitized['discountType'] as String).isEmpty) {
-          sanitized['discountType'] = 'per_night'; // قيمة افتراضية
-          _logger.debug(
-            '📝 أضيف discountType=default للتخفيض',
-            tag: 'DELTA_SYNC',
-          );
-        }
-
-        // التأكد من وجود discountStartDate
-        if (!sanitized.containsKey('discountStartDate') ||
-            sanitized['discountStartDate'] == null ||
-            (sanitized['discountStartDate'] as String).isEmpty) {
-          // استخدام تاريخ اليوم كقيمة افتراضية
-          sanitized['discountStartDate'] = DateTime.now()
-              .toIso8601String()
-              .split('T')
-              .first;
-          _logger.debug(
-            '📝 أضيف discountStartDate=${sanitized['discountStartDate']} للتخفيض',
-            tag: 'DELTA_SYNC',
-          );
-        }
-      }
-    }
-
-    return sanitized;
+    return result;
   }
 
-  /// تحويل حقول المبالغ إلى أعداد صحيحة
-  /// ⚠️ بعض الحقول في Appwrite من نوع double ولا يجب تحويلها
-  void _convertAmountsToInt(Map<String, dynamic> data) {
-    // ✅ حقول يجب تحويلها إلى int (نوعها integer في Appwrite)
-    final intAmountFields = [
-      'amount', // integer في salary_withdrawals, debts
-      'remainingAmount', // integer في debts
-      'totalDeductions', // integer في salary_cycles
-      'totalWithdrawals', // integer في salary_cycles
-      'netSalary', // integer في salary_cycles
-      'originalAmount', // integer في payment_voids
-      'voidedAmount', // integer في payment_voids
-    ];
-
-    // ✅ حقول يجب تركها كـ double (نوعها double في Appwrite)
-    // تحويلها إلى int يسبب خطأ type mismatch مع Appwrite!
-    // لا تقم بتحويل: payments.amount, expenses.amount, rooms.price,
-    //   debts.totalAmount, debts.paidAmount, bookings.totalDueCached,
-    //   bookings.totalPaidCached, bookings.remainingBalanceCached,
-    //   salary_cycles.expectedAmount, salary_cycles.actualPaid
-    // ملاحظة: الحقول المكررة (مثل 'amount') موجودة في كلا القائمتين.
-    // يتم معالجتها عبر الالتكرار الثاني الذي لا يُغيّر النوع.
-
-    for (final field in intAmountFields) {
-      if (data.containsKey(field) && data[field] != null) {
-        final value = data[field];
-        if (value is double) {
-          data[field] = value.round();
-        } else if (value is String) {
-          final parsed = double.tryParse(value);
-          if (parsed != null) {
-            data[field] = parsed.round();
-          }
-        }
-      }
-    }
+  String _toCamelCase(String input) {
+    if (!input.contains('_')) return input;
+    final parts = input.split('_');
+    final first = parts.first;
+    final rest = parts
+        .skip(1)
+        .map((p) => p.isEmpty ? '' : '${p[0].toUpperCase()}${p.substring(1)}');
+    return '$first${rest.join()}';
   }
 
-  /// ✅ تقليص الحقول النصية الطويلة (Appwrite يحدد 50 حرف للـ strings القصيرة)
-  /// ملاحظة: للنص العربي، كل حرف = 2 بايت تقريباً في UTF-8
-  void _truncateStringFields(Map<String, dynamic> data) {
-    // حقول يجب تقليصها (القيمة هي عدد الرموز، وليس البايتات)
-    final shortStringFields = {
-      'stayDurationIso': 50,
-      'roomNumber': 50, // ✅ تطابق Appwrite schema (string 50)
-      'guestName': 50, // ✅ تقليل إلى 50 رمز (100 بايت تقريباً للعربي)
-      'guestPhone': 50, // ✅ تطابق Appwrite schema (string 50)
-      'guestNationality': 50, // ✅ إصلاح: كان 'nationality' (اسم خاطئ)
-      'status': 20, // ✅ تطابق Appwrite schema (string 20)
-      'paymentMethod': 30,
-      'transactionType': 30,
-    };
-
-    for (final entry in shortStringFields.entries) {
-      final field = entry.key;
-      final maxChars = entry.value;
-
-      if (data.containsKey(field) && data[field] is String) {
-        final value = data[field] as String;
-        // ✅ حساب البايتات الفعلية للنص العربي
-        final bytes = utf8.encode(value);
-        final maxBytes = maxChars * 2; // افتراض 2 بايت/حرف للعربي
-
-        if (bytes.length > maxBytes) {
-          // تقليص مع مراعاة عدم قطع الحرف في المنتصف
-          var truncated = value;
-          while (utf8.encode(truncated).length > maxBytes &&
-              truncated.isNotEmpty) {
-            truncated = truncated.substring(0, truncated.length - 1);
-          }
-          data[field] = truncated;
-          _logger.debug(
-            '✂️ تم تقليص $field من ${bytes.length} بايت إلى ${utf8.encode(truncated).length} بايت',
-            tag: 'DELTA_SYNC',
-          );
-        }
-      }
-    }
-  }
-
-  Future<int> _getLastDeltaPushTimestamp() async {
+  Future<int> _getLastDeltaSyncTimestamp() async {
+    // للتوافق العكسي: يُرجع القيمة القديمة الموحدة
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastDeltaPushKey) ?? 0;
+    return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
-  Future<void> _updateLastDeltaPushTimestamp() async {
+  Future<int> _getLastPushSyncTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDeltaPushKey, Time.nowEpoch());
+    return prefs.getInt(_prefsLastPushSyncKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
-  Future<int> _getLastDeltaPullTimestamp() async {
+  Future<void> _updateLastPushSyncTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastDeltaPullKey) ?? 0;
+    await prefs.setInt(_prefsLastPushSyncKey, Time.nowEpoch());
   }
 
-  Future<void> _updateLastDeltaPullTimestamp() async {
+  Future<int> _getLastPullSyncTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastDeltaPullKey, Time.nowEpoch());
+    return prefs.getInt(_prefsLastPullSyncKey) ??
+        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
-  /// ✅ إعادة تعيين timestamp للسحب - يُستخدم قبل السحب الشامل
-  Future<void> resetPullTimestamp() async {
+  Future<void> _updateLastPullSyncTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsLastDeltaPullKey);
-    _logger.info('🔄 تم إعادة تعيين timestamp للسحب', tag: 'DELTA_SYNC');
-  }
-
-  Future<void> _persistSuccessfulChanges(
-    DeltaSyncComputation computation,
-    List<DeltaSyncChange> successfulChanges,
-  ) async {
-    final successfulUuids = successfulChanges.map((c) => c.localUuid).toSet();
-    final filteredSnapshot = <String, Map<String, MirrorRow>>{};
-
-    for (final entry in computation.mirrorSnapshot.entries) {
-      final filteredRows = <String, MirrorRow>{};
-      for (final rowEntry in entry.value.entries) {
-        if (successfulUuids.contains(rowEntry.key) ||
-            !computation.changes.any((c) => c.localUuid == rowEntry.key)) {
-          filteredRows[rowEntry.key] = rowEntry.value;
-        }
-      }
-      filteredSnapshot[entry.key] = filteredRows;
-    }
-
-    await _deltaSyncService!.persistMirror(
-      DeltaSyncComputation(
-        changes: successfulChanges,
-        mirrorSnapshot: filteredSnapshot,
-        fallbackTables: computation.fallbackTables,
-      ),
-    );
-  }
-
-  /// ✅ مسح السجلات الناجحة من Outbox فوراً بعد النجاح
-  Future<void> _cleanupOutboxAfterSync(
-    List<DeltaSyncChange> successfulChanges,
-  ) async {
-    try {
-      final outboxDao = OutboxDao(_database!);
-
-      // مسح بناءً على entity + localUuid
-      int totalDeleted = 0;
-      for (final change in successfulChanges) {
-        final deleted = await outboxDao.removeByEntityAndUuid(
-          change.entity,
-          change.localUuid,
-        );
-        totalDeleted += deleted;
-      }
-
-      // أيضاً مسح أي سجلات معلقة مرتبطة بنفس UUIDs (للتأكد)
-      final successfulUuids = successfulChanges
-          .map((c) => c.localUuid)
-          .toList();
-      await outboxDao.cleanupSuccessfulByUuids(successfulUuids);
-
-      // ✅ تنظيف آمن: مسح السجلات المكتملة القديمة فقط (24 ساعة+)
-      // ⚠️ لا نحذف السجلات pending القديمة لأنها قد تكون لم تُرفع بعد
-      final oldRecordsDeleted = await outboxDao.cleanupOldRecords(
-        maxAgeHours: 24,
-      );
-      totalDeleted += oldRecordsDeleted;
-
-      _logger.info(
-        '🧹 تم مسح $totalDeleted سجل من Outbox (${successfulChanges.length} تغيير + $oldRecordsDeleted مكتمل قديم)',
-        tag: 'DELTA_SYNC',
-      );
-    } catch (e) {
-      _logger.warning('⚠️ خطأ في تنظيف Outbox: $e', tag: 'DELTA_SYNC');
-    }
+    await prefs.setInt(_prefsLastPullSyncKey, Time.nowEpoch());
   }
 
   Future<Map<String, dynamic>> getStatus() async {
-    final lastPush = await _getLastDeltaPushTimestamp();
-    final lastPull = await _getLastDeltaPullTimestamp();
-    final prefs = await SharedPreferences.getInstance();
-
-    // إضافة إحصائيات Outbox
-    final outboxDao = OutboxDao(_database!);
-    final outboxStats = await outboxDao.getStats();
-
+    final lastSync = await _getLastDeltaSyncTimestamp();
+    final enabled = await isEnabled();
     return {
       'initialized': isInitialized,
+      'enabled': enabled,
       'is_syncing': _isSyncing,
-      'last_push_epoch': lastPush,
-      'last_pull_epoch': lastPull,
-      'last_push_time': lastPush > 0
+      'device_id': _deviceId,
+      'last_sync_epoch': lastSync,
+      'last_sync_time': lastSync > 0
           ? DateTime.fromMillisecondsSinceEpoch(
-              lastPush * 1000,
+              lastSync * 1000,
             ).toIso8601String()
           : null,
-      'last_pull_time': lastPull > 0
-          ? DateTime.fromMillisecondsSinceEpoch(
-              lastPull * 1000,
-            ).toIso8601String()
-          : null,
-      'pushed_count': prefs.getInt(_prefsPushedCountKey) ?? 0,
-      'pulled_count': prefs.getInt(_prefsPulledCountKey) ?? 0,
-      'failed_count': prefs.getInt(_prefsFailedCountKey) ?? 0,
-      'outbox': {
-        'pending': outboxStats.pending,
-        'processing': outboxStats.processing,
-        'failed': outboxStats.failed,
-        'conflicts': outboxStats.conflicts,
-        'total': outboxStats.total,
-      },
     };
   }
 
-  /// مزامنة كاملة (Pull ثم Push للسلامة)
-  /// الترتيب الصحيح: Pull أولاً للحصول على أحدث بيانات، ثم Push
-  Future<AppwriteDeltaSyncResult> fullSync() async {
-    _logger.info('🔄 بدء مزامنة كاملة...', tag: 'DELTA_SYNC');
+  d.Value<T?> _nullableValue<T>(T? value) {
+    return value == null ? const d.Value.absent() : d.Value(value);
+  }
 
-    // 1️⃣ Pull أولاً للحصول على أحدث بيانات من الخادم
-    final pullResult = await pullDeltaChanges();
-
-    // 2️⃣ Push بعد الـ Pull (للتأكد من عدم فقدان بيانات محلية)
-    final pushResult = await pushDeltaChanges();
-
-    // 3️⃣ Pull نهائي إذا كان هناك push ناجح (للحصول على التغييرات المتزامنة)
-    if (pushResult.pushedCount > 0 && pushResult.success) {
-      final finalPull = await pullDeltaChanges();
-      return AppwriteDeltaSyncResult(
-        success: pushResult.success && pullResult.success && finalPull.success,
-        message:
-            'Pull 1: ${pullResult.message}\n'
-            'Push: ${pushResult.message}\n'
-            'Pull 2: ${finalPull.message}',
-        pushedCount: pushResult.pushedCount,
-        pulledCount: pullResult.pulledCount + finalPull.pulledCount,
-        conflictCount:
-            pushResult.conflictCount +
-            pullResult.conflictCount +
-            finalPull.conflictCount,
-        failedCount:
-            pushResult.failedCount +
-            pullResult.failedCount +
-            finalPull.failedCount,
-      );
+  int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String && value.isNotEmpty) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt();
     }
+    return null;
+  }
 
-    return AppwriteDeltaSyncResult(
-      success: pushResult.success && pullResult.success,
-      message: 'Pull: ${pullResult.message}\nPush: ${pushResult.message}',
-      pushedCount: pushResult.pushedCount,
-      pulledCount: pullResult.pulledCount,
-      conflictCount: pushResult.conflictCount + pullResult.conflictCount,
-      failedCount: pushResult.failedCount + pullResult.failedCount,
+  Future<void> _applyBookingPriceAdjustmentChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final bookingUuid = _asString(data['bookingLocalUuid']) ?? _asString(data['booking_local_uuid']);
+    if (bookingUuid == null || bookingUuid.isEmpty) return;
+
+    final companion = BookingPriceAdjustmentsCompanion(
+      localUuid: d.Value(localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId']) ?? _asInt(data['server_id'])),
+      bookingLocalUuid: d.Value(bookingUuid),
+      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id'])),
+      adjustmentType: d.Value(_asInt(data['adjustmentType']) ?? _asInt(data['adjustment_type']) ?? 0),
+      adjustmentMode: d.Value(_asString(data['adjustmentMode']) ?? _asString(data['adjustment_mode']) ?? 'per_night'),
+      amount: d.Value(_asDouble(data['amount'])),
+      effectiveHotelDay: d.Value(_asString(data['effectiveHotelDay']) ?? _asString(data['effective_hotel_day']) ?? ''),
+      endHotelDay: _nullableValue<String>(_asString(data['endHotelDay']) ?? _asString(data['end_hotel_day'])),
+      isActive: d.Value(_asBool(data['isActive']) ?? _asBool(data['is_active']) ?? true),
+      reason: _nullableValue<String>(_asString(data['reason'])),
+      appliedBy: _nullableValue<String>(_asString(data['appliedBy']) ?? _asString(data['applied_by'])),
+      cancelledAt: _nullableValue<String>(_asString(data['cancelledAt']) ?? _asString(data['cancelled_at'])),
+      cancelledBy: _nullableValue<String>(_asString(data['cancelledBy']) ?? _asString(data['cancelled_by'])),
+      createdAt: d.Value(_asInt(data['createdAt']) ?? _asInt(data['created_at']) ?? Time.nowEpoch()),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? _asInt(data['updated_at']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt']) ?? _asInt(data['deleted_at'])),
+      lastModified: d.Value(_asInt(data['lastModified']) ?? _asInt(data['last_modified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso']) ?? _asString(data['created_at_iso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso']) ?? _asString(data['updated_at_iso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso']) ?? _asString(data['deleted_at_iso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
+    );
+
+    await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
+    final bookingId =
+        _asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id']);
+    if (bookingId != null) {
+      await _recalculateBookingById(db, bookingId);
+    } else {
+      await _recalculateBookingByUuid(db, bookingUuid);
+    }
+  }
+
+  Future<void> _recalculateBookingById(AppDatabase db, int bookingId) async {
+    await BookingDerivedFieldsService(db).refreshForBookingId(
+      bookingId,
+      forceRebuild: true,
     );
   }
-}
 
-class _SyncEntity {
-  _SyncEntity(this.name, this.collectionId, this.repo);
-  final String name;
-  final String? collectionId;
-  final BaseRepository repo;
+  Future<void> _recalculateBookingByUuid(
+    AppDatabase db,
+    String bookingUuid,
+  ) async {
+    final booking = await (db.select(db.bookings)
+          ..where((b) => b.localUuid.equals(bookingUuid)))
+        .getSingleOrNull();
+    if (booking == null) return;
+    await _recalculateBookingById(db, booking.id);
+  }
+
+  Future<void> _recalculateBookingsForRoomUuid(
+    AppDatabase db,
+    String roomUuid,
+  ) async {
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.localUuid.equals(roomUuid)))
+        .getSingleOrNull();
+    if (room == null) return;
+    final activeStatuses = [
+      'مؤكد',
+      'confirmed',
+      'نشط',
+      'active',
+      'مسجل دخول',
+      'checked_in',
+    ];
+    final bookings = await (db.select(db.bookings)
+          ..where((b) => b.roomNumber.equals(room.roomNumber))
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.actualCheckout.isNull())
+          ..where((b) => b.status.isIn(activeStatuses)))
+        .get();
+    for (final booking in bookings) {
+      await _recalculateBookingById(db, booking.id);
+    }
+  }
+
+  double _asDouble(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    if (value is String && value.isNotEmpty) {
+      return double.tryParse(value) ?? fallback;
+    }
+    return fallback;
+  }
+
+  String? _asString(dynamic value) {
+    if (value == null) return null;
+    final result = value.toString();
+    return result.isEmpty ? null : result;
+  }
 }

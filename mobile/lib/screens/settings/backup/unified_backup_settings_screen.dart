@@ -65,15 +65,15 @@ class _UnifiedBackupSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
                   Icons.backup,
                   color: UIConstants.backupColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                SizedBox(width: UIConstants.spacingSM),
-                Text(
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
                   'حالة النسخ الاحتياطي',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -90,11 +90,7 @@ class _UnifiedBackupSettingsScreenState
               value: FileSizeFormatter.formatBytes(1024 * 1024 * 15),
               icon: Icons.storage,
             ),
-            const InfoRow(
-              label: 'عدد النسخ',
-              value: '5 نسخ',
-              icon: Icons.layers,
-            ),
+            InfoRow(label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
           ],
         ),
       ),
@@ -109,8 +105,8 @@ class _UnifiedBackupSettingsScreenState
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(UIConstants.spacingMD),
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -118,8 +114,8 @@ class _UnifiedBackupSettingsScreenState
                   color: UIConstants.backupColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                SizedBox(width: UIConstants.spacingSM),
-                Text(
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
                   'النسخ الاحتياطي التلقائي',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -140,7 +136,7 @@ class _UnifiedBackupSettingsScreenState
             subtitle: const Text('يومياً - 2:00 صباحاً'),
             leading: const Icon(Icons.repeat),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _showBackupFrequencyDialog,
+            onTap: () => _showBackupFrequencyDialog(),
           ),
           const Divider(height: 1),
           ListTile(
@@ -163,8 +159,8 @@ class _UnifiedBackupSettingsScreenState
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(UIConstants.spacingMD),
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -172,8 +168,8 @@ class _UnifiedBackupSettingsScreenState
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                SizedBox(width: UIConstants.spacingSM),
-                Text(
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
                   'Google Drive',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -225,8 +221,8 @@ class _UnifiedBackupSettingsScreenState
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(UIConstants.spacingMD),
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -234,8 +230,8 @@ class _UnifiedBackupSettingsScreenState
                   color: Colors.green,
                   size: UIConstants.iconSizeMD,
                 ),
-                SizedBox(width: UIConstants.spacingSM),
-                Text(
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
                   'النسخ المحلي',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -251,10 +247,10 @@ class _UnifiedBackupSettingsScreenState
             onTap: () {},
           ),
           const Divider(height: 1),
-          const ListTile(
-            title: Text('المساحة المتاحة'),
-            subtitle: Text('12.5 جيجابايت من 64 جيجابايت'),
-            leading: Icon(Icons.sd_storage),
+          ListTile(
+            title: const Text('المساحة المتاحة'),
+            subtitle: const Text('12.5 جيجابايت من 64 جيجابايت'),
+            leading: const Icon(Icons.sd_storage),
           ),
           const Divider(height: 1),
           SwitchListTile(
@@ -306,9 +302,9 @@ class _UnifiedBackupSettingsScreenState
           ListTile(
             title: const Text('نسخ احتياطي الآن'),
             subtitle: const Text('إنشاء نسخة احتياطية فورية'),
-            leading: const Icon(Icons.backup, color: UIConstants.backupColor),
+            leading: Icon(Icons.backup, color: UIConstants.backupColor),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _performBackupNow,
+            onTap: () => _performBackupNow(),
           ),
           const Divider(height: 1),
           ListTile(
@@ -324,7 +320,7 @@ class _UnifiedBackupSettingsScreenState
             subtitle: const Text('مسح جميع النسخ الاحتياطية'),
             leading: const Icon(Icons.delete_forever, color: Colors.red),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _showDeleteAllBackupsDialog,
+            onTap: () => _showDeleteAllBackupsDialog(),
           ),
         ],
       ),

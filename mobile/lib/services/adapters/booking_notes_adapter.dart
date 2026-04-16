@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
@@ -103,12 +102,12 @@ class BookingNotesAdapter
       ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
@@ -130,12 +129,7 @@ class BookingNotesAdapter
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
-      ),
-      // ✅ الحقول المطلوبة في Appwrite (required=true) - دائماً string
-      'bookingUuid': model.localUuid ?? '',
-      'note': model.noteText ?? '',
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -166,87 +160,6 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
-bool? _asBool(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is bool) return v;
-  if (v is num) return v != 0;
-  if (v is String) {
-    final t = v.toLowerCase();
-    if (t == 'true' || t == '1') return true;
-    if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
-  }
-  return null;
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

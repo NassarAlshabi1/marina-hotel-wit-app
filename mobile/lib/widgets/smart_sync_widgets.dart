@@ -43,7 +43,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isSyncing) ...[
-                const SizedBox(
+                SizedBox(
                   width: 12,
                   height: 12,
                   child: CircularProgressIndicator(
@@ -74,8 +74,9 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-  const SmartSyncNotificationListener({super.key, required this.child});
   final Widget child;
+
+  const SmartSyncNotificationListener({super.key, required this.child});
 
   @override
   ConsumerState<SmartSyncNotificationListener> createState() =>
@@ -278,9 +279,9 @@ class _SmartSyncDashboardCardState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'المزامنة بين الأجهزة',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),

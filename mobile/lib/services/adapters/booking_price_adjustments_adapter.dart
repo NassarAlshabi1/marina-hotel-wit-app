@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
@@ -10,11 +9,7 @@ import 'resolve_result.dart';
 import 'source.dart';
 
 class BookingPriceAdjustmentsAdapter
-    extends
-        EntityAdapter<
-          BookingPriceAdjustment,
-          BookingPriceAdjustmentsCompanion
-        > {
+    extends EntityAdapter<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion> {
   BookingPriceAdjustmentsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -107,14 +102,13 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'effective_hotel_day',
         fallback: '',
       ),
-      endHotelDay: _vStr(json, 'endHotelDay', src, altKey: 'end_hotel_day'),
-      isActive: _vBool(
+      endHotelDay: _vStr(
         json,
-        'isActive',
+        'endHotelDay',
         src,
-        altKey: 'is_active',
-        fallback: true,
+        altKey: 'end_hotel_day',
       ),
+      isActive: _vBool(json, 'isActive', src, altKey: 'is_active', fallback: true),
       reason: _vStr(json, 'reason', src),
       appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by'),
       cancelledAt: _vStr(json, 'cancelledAt', src, altKey: 'cancelled_at'),
@@ -135,48 +129,41 @@ class BookingPriceAdjustmentsAdapter
       ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
 
   @override
-  Map<String, dynamic> toJson(
-    BookingPriceAdjustment model, {
-    required Source src,
-  }) {
+  Map<String, dynamic> toJson(BookingPriceAdjustment model, {required Source src}) {
     return {
-      // ✅ إرسال snake_case كما يتطلب Appwrite
-      'id': model.id,
-      'localUuid': model.localUuid,
-      'serverId': model.serverId,
-      'bookingLocalUuid': model.bookingLocalUuid,
-      'bookingUuid': model.bookingLocalUuid, // Appwrite يتطلب هذا الحقل
-      'bookingLocalId': model.bookingLocalId,
-      'adjustmentType': model.adjustmentType,
-      'adjustmentMode': model.adjustmentMode,
-      'amount': model.amount,
-      'effectiveHotelDay': model.effectiveHotelDay,
-      'endHotelDay': model.endHotelDay,
-      'isActive': model.isActive,
-      'reason': model.reason,
-      'appliedBy': model.appliedBy,
-      'cancelledAt': model.cancelledAt,
-      'cancelledBy': model.cancelledBy,
-      'createdAt': model.createdAt,
-      'updatedAt': model.updatedAt,
-      'deletedAt': model.deletedAt,
-      'lastModified': model.lastModified,
-      'version': model.version,
-      'origin': model.origin,
-      'vectorClock': model.vectorClock.isNotEmpty
-          ? jsonEncode(model.vectorClock)
-          : '{}',
+      _k(src, 'id', 'id'): model.id,
+      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
+      _k(src, 'serverId', 'server_id'): model.serverId,
+      _k(src, 'bookingLocalUuid', 'booking_local_uuid'): model.bookingLocalUuid,
+      _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
+      _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
+      _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
+      _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
+      _k(src, 'effectiveHotelDay', 'effective_hotel_day'): model.effectiveHotelDay,
+      _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
+      _k(src, 'isActive', 'is_active'): model.isActive,
+      _k(src, 'reason', 'reason'): model.reason,
+      _k(src, 'appliedBy', 'applied_by'): model.appliedBy,
+      _k(src, 'cancelledAt', 'cancelled_at'): model.cancelledAt,
+      _k(src, 'cancelledBy', 'cancelled_by'): model.cancelledBy,
+      _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'version', 'version'): model.version,
+      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -280,38 +267,6 @@ bool? _asBool(Map<String, dynamic> json, String key, Source src) {
     final t = v.toLowerCase();
     if (t == 'true' || t == '1') return true;
     if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
   }
   return null;
 }

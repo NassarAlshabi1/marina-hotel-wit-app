@@ -1,5 +1,14 @@
 /// نموذج نتيجة المزامنة
 class SyncResult {
+  final bool isSuccess;
+  final String message;
+  final int pushedCount;
+  final int pulledCount;
+  final int conflictCount;
+  final Duration duration;
+  final Map<String, dynamic>? metadata;
+  final List<SyncError> errors;
+
   SyncResult({
     required this.isSuccess,
     required this.message,
@@ -16,36 +25,36 @@ class SyncResult {
     int pushed = 0,
     int pulled = 0,
     Map<String, dynamic>? adapters,
-  }) => SyncResult(
-    isSuccess: true,
-    message: 'تمت المزامنة بنجاح',
-    pushedCount: pushed,
-    pulledCount: pulled,
-    metadata: adapters,
-  );
+  }) =>
+      SyncResult(
+        isSuccess: true,
+        message: 'تمت المزامنة بنجاح',
+        pushedCount: pushed,
+        pulledCount: pulled,
+        metadata: adapters,
+      );
 
   factory SyncResult.error(String error) => SyncResult(
-    isSuccess: false,
-    message: error,
-    errors: [SyncError(message: error)],
-  );
+        isSuccess: false,
+        message: error,
+        errors: [SyncError(message: error)],
+      );
 
-  factory SyncResult.conflict(String message) =>
-      SyncResult(isSuccess: false, message: message, conflictCount: 1);
+  factory SyncResult.conflict(String message) => SyncResult(
+        isSuccess: false,
+        message: message,
+        conflictCount: 1,
+      );
 
-  factory SyncResult.offline() =>
-      SyncResult(isSuccess: false, message: 'لا يوجد اتصال بالإنترنت');
+  factory SyncResult.offline() => SyncResult(
+        isSuccess: false,
+        message: 'لا يوجد اتصال بالإنترنت',
+      );
 
-  factory SyncResult.cancelled() =>
-      SyncResult(isSuccess: false, message: 'تم إلغاء المزامنة');
-  final bool isSuccess;
-  final String message;
-  final int pushedCount;
-  final int pulledCount;
-  final int conflictCount;
-  final Duration duration;
-  final Map<String, dynamic>? metadata;
-  final List<SyncError> errors;
+  factory SyncResult.cancelled() => SyncResult(
+        isSuccess: false,
+        message: 'تم إلغاء المزامنة',
+      );
 
   // Getters
   bool get hasConflicts => conflictCount > 0;
@@ -56,7 +65,7 @@ class SyncResult {
   SyncResult merge(SyncResult other) {
     return SyncResult(
       isSuccess: isSuccess && other.isSuccess,
-      message: '$message | ${other.message}',
+      message: '${message} | ${other.message}',
       pushedCount: pushedCount + other.pushedCount,
       pulledCount: pulledCount + other.pulledCount,
       conflictCount: conflictCount + other.conflictCount,
@@ -74,16 +83,17 @@ class SyncResult {
 
 /// نموذج خطأ المزامنة
 class SyncError {
+  final String message;
+  final String? code;
+  final DateTime timestamp;
+  final StackTrace? stackTrace;
+
   SyncError({
     required this.message,
     this.code,
     this.stackTrace,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
-  final String message;
-  final String? code;
-  final DateTime timestamp;
-  final StackTrace? stackTrace;
 
   @override
   String toString() => '[$code] $message';

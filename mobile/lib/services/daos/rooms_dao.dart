@@ -3,7 +3,6 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
-import '../sync_guardian.dart';
 import 'outbox_dao.dart';
 
 part 'rooms_dao.g.dart';
@@ -75,10 +74,6 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromRoom(comp),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'rooms',
-          operation: 'create',
-        );
       }
       return comp.roomNumber.value;
     });
@@ -109,10 +104,6 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFromRoom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'rooms',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -142,10 +133,6 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           payload: _payloadFromRoom(comp, base: existing),
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'rooms',
-          operation: 'update',
         );
       }
       return rows;
@@ -178,10 +165,6 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           payload: {'room_number': roomNumber},
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'rooms',
-          operation: 'delete',
         );
       }
       return rows;

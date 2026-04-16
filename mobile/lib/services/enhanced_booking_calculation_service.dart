@@ -7,6 +7,16 @@ import '../utils/time.dart';
 import 'local_db.dart';
 
 class BookingCalculationResult {
+  final List<NightlyBreakdown> breakdown;
+  final FinancialSummary financialSummary;
+  final DateTime checkin;
+  final DateTime checkout;
+  final bool bookingActive;
+  final String stayDurationIso;
+  final int? lastNightEpoch;
+  final String hotelDayCheckin;
+  final String hotelDayCheckout;
+
   const BookingCalculationResult({
     required this.breakdown,
     required this.financialSummary,
@@ -18,15 +28,6 @@ class BookingCalculationResult {
     required this.hotelDayCheckin,
     required this.hotelDayCheckout,
   });
-  final List<NightlyBreakdown> breakdown;
-  final FinancialSummary financialSummary;
-  final DateTime checkin;
-  final DateTime checkout;
-  final bool bookingActive;
-  final String stayDurationIso;
-  final int? lastNightEpoch;
-  final String hotelDayCheckin;
-  final String hotelDayCheckout;
 }
 
 class EnhancedBookingCalculationService {
@@ -40,7 +41,10 @@ class EnhancedBookingCalculationService {
   }) async {
     final moment = now ?? DateTime.now();
     final context = _resolveDateRange(booking, moment);
-    final breakdown = await _buildNightlyBreakdown(booking, context: context);
+    final breakdown = await _buildNightlyBreakdown(
+      booking,
+      context: context,
+    );
 
     final summary = await _buildFinancialSummary(
       booking,
@@ -94,8 +98,11 @@ class EnhancedBookingCalculationService {
     List<NightlyBreakdown>? breakdown,
   }) async {
     final context = _resolveDateRange(booking, now ?? DateTime.now());
-    final resolvedBreakdown =
-        breakdown ?? await _buildNightlyBreakdown(booking, context: context);
+    final resolvedBreakdown = breakdown ??
+        await _buildNightlyBreakdown(
+          booking,
+          context: context,
+        );
     await _replaceBookingNights(
       booking: booking,
       breakdown: resolvedBreakdown,
@@ -103,10 +110,13 @@ class EnhancedBookingCalculationService {
     );
   }
 
-  Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
-    final booking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+  Future<void> recalculateAfterSync(
+    int bookingId, {
+    DateTime? now,
+  }) async {
+    final booking =
+        await (db.select(db.bookings)..where((b) => b.id.equals(bookingId)))
+            .getSingleOrNull();
     if (booking == null) return;
 
     final calculation = await calculateForBooking(booking, now: now);
@@ -155,9 +165,8 @@ class EnhancedBookingCalculationService {
     final int baseRate = _asInt(room?.price ?? 0);
 
     final adjustments = await _fetchActiveAdjustments(booking);
-    final legacyDiscount = booking.discountType == 'total'
-        ? 0
-        : _asInt(booking.discount);
+    final legacyDiscount =
+        booking.discountType == 'total' ? 0 : _asInt(booking.discount);
     final legacyDiscountStart = _parseDateTime(booking.discountStartDate);
 
     final segments = _buildNightSegments(context.checkin, context.checkout);
@@ -180,7 +189,7 @@ class EnhancedBookingCalculationService {
         }
         final rawAmount = _asInt(adj.amount);
         final isDiscount = adj.adjustmentType == 0;
-
+        
         int adjAmount = rawAmount;
         if (adj.adjustmentMode == 'total') {
           final nightsInRange = _countNightsInRange(
@@ -192,7 +201,7 @@ class EnhancedBookingCalculationService {
             adjAmount = (rawAmount / nightsInRange).round();
           }
         }
-
+        
         final signedAmount = isDiscount ? -adjAmount : adjAmount;
         adjustmentTotal += signedAmount;
         applied.add(
@@ -241,11 +250,7 @@ class EnhancedBookingCalculationService {
       breakdown.add(
         NightlyBreakdown(
           hotelDayKey: Time.dateToString(
-            DateTime(
-              context.checkin.year,
-              context.checkin.month,
-              context.checkin.day,
-            ),
+            DateTime(context.checkin.year, context.checkin.month, context.checkin.day),
           ),
           nightStart: context.checkin,
           nightEnd: context.checkout,
@@ -279,9 +284,8 @@ class EnhancedBookingCalculationService {
       (sum, night) => sum + night.finalRate,
     );
 
-    final totalDiscount = booking.discountType == 'total'
-        ? _asInt(booking.discount)
-        : 0;
+    final totalDiscount =
+        booking.discountType == 'total' ? _asInt(booking.discount) : 0;
     if (totalDiscount > 0) {
       totalDue = (totalDue - totalDiscount).clamp(0, totalDue);
       totalAdjustments -= totalDiscount;
@@ -325,7 +329,7 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
-    return (db.select(db.bookingPriceAdjustments)
+    return await (db.select(db.bookingPriceAdjustments)
           ..where(
             (a) =>
                 (a.bookingLocalId.equals(booking.id) |
@@ -355,7 +359,9 @@ class EnhancedBookingCalculationService {
       if (existing.length != breakdown.length) {
         shouldRebuild = true;
       } else {
-        final byDay = {for (final night in existing) night.hotelDayKey: night};
+        final byDay = {
+          for (final night in existing) night.hotelDayKey: night,
+        };
         for (final night in breakdown) {
           final current = byDay[night.hotelDayKey];
           if (current == null) {
@@ -385,9 +391,9 @@ class EnhancedBookingCalculationService {
 
     await db.transaction(() async {
       if (shouldRebuild) {
-        await (db.delete(
-          db.bookingNights,
-        )..where((n) => n.bookingLocalId.equals(booking.id))).go();
+        await (db.delete(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id)))
+            .go();
       }
 
       int sequence = 0;
@@ -442,13 +448,20 @@ class EnhancedBookingCalculationService {
     final bookingActive =
         actualCheckout == null && StatusUtils.isBookingActive(booking);
 
-    DateTime checkout = actualCheckout ?? plannedCheckout ?? checkin;
-
-    // For active bookings, we calculate up to the current moment.
-    // The _buildNightSegments method now uses hotelDayKey() for counting,
-    // so passing moment directly correctly handles same-hotel-day cases
-    // (e.g., check-in at 19:02, current time 19:02 → 1 night, not 2).
-    if (bookingActive) {
+    // Resolve effective checkout:
+    // 1. Actual checkout exists → use it (unless it's in the future, then use moment)
+    // 2. Active booking (no actual checkout) → ALWAYS use moment to ensure dynamic calculation
+    // 3. Otherwise (e.g. cancelled/provisional) → use planned checkout if in the past, else moment
+    DateTime checkout;
+    if (actualCheckout != null) {
+      checkout = actualCheckout.isBefore(moment) ? actualCheckout : moment;
+    } else if (bookingActive) {
+      // For active guests, always calculate up to the current moment
+      // This ensures that if they stay past 14:00, a new night is added automatically
+      checkout = moment;
+    } else if (plannedCheckout != null && plannedCheckout.isBefore(moment)) {
+      checkout = plannedCheckout;
+    } else {
       checkout = moment;
     }
 
@@ -469,11 +482,7 @@ class EnhancedBookingCalculationService {
   ) {
     if (discountStartDate == null) return true;
     final nightDay = DateTime(nightDate.year, nightDate.month, nightDate.day);
-    final discountDay = DateTime(
-      discountStartDate.year,
-      discountStartDate.month,
-      discountStartDate.day,
-    );
+    final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
     return !nightDay.isBefore(discountDay);
   }
 
@@ -524,7 +533,8 @@ class EnhancedBookingCalculationService {
     final v = value.trim();
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
+    final withSeconds =
+        normalized.length == 16 ? '${normalized}:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -547,58 +557,38 @@ class EnhancedBookingCalculationService {
   }) {
     final segments = <_NightSegment>[];
 
-    final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
+    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
+    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
 
-    // ═══════════════════════════════════════════════════════════════
-    // FIX: Use hotel day keys for accurate night counting instead of
-    // raw calendar date difference + cutoff hour logic.
-    //
-    // The old logic (date diff + if hour > 14 add 1) produced wrong
-    // results when check-in and moment are on the same calendar day
-    // but after 14:00 (e.g., check-in at 19:02, refresh called at
-    // 19:02 → days=0→1, hour 19>14→2 nights instead of 1).
-    //
-    // Hotel day key subtracts cutoffHour from the time, so times
-    // after the cutoff belong to the next hotel day.
-    // Example: 31/03 19:02 - 14h = 31/03 05:02 → hotelDay "2026-03-31"
-    //          01/04 10:00 - 14h = 31/03 20:00 → hotelDay "2026-03-31" (same!)
-    //          01/04 15:00 - 14h = 01/04 01:00 → hotelDay "2026-04-01" (new!)
-    // ═══════════════════════════════════════════════════════════════
-    final checkinHotelDay = Time.hotelDayKey(now: checkin, cutoffHour: cutoffHour);
-    final checkoutHotelDay = Time.hotelDayKey(now: checkout, cutoffHour: cutoffHour);
-
-    final startHotelDay = DateTime.parse(checkinHotelDay);
-    final endHotelDay = DateTime.parse(checkoutHotelDay);
-    int days = endHotelDay.difference(startHotelDay).inDays + 1; // +1 for inclusive count
-    if (days < 1) days = 1;
-
-    for (int i = 0; i < days; i++) {
-      // Use calendar date for segment key to ensure compatibility with
-      // effectiveHotelDay comparisons in price adjustment matching.
-      final dayDate = checkinDate.add(Duration(days: i));
-      final dayKey = Time.dateToString(dayDate);
-
-      final segStart = i == 0 ? checkin : dayDate;
-      final nextDay = dayDate.add(const Duration(days: 1));
-      final segEnd = i == days - 1
-          ? (checkout.isAfter(segStart)
-                ? checkout
-                : segStart.add(const Duration(minutes: 1)))
-          : nextDay;
-
-      segments.add(
-        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
-      );
+    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      cutoffHour,
+    );
+    if (checkin.isBefore(startOfCheckinHotelDay)) {
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
     }
 
-    if (segments.isEmpty) {
+    for (int i = 0; i < totalNights; i++) {
+      final dayDate = startOfCheckinHotelDay.add(Duration(days: i));
+      final dayKey = Time.dateToString(dayDate);
+      
+      // بداية الشريحة: وقت الوصول الفعلي لأول شريحة، أو بداية يوم الفندق للشرائح التالية
+      final segStart = i == 0 ? checkin : dayDate;
+      
+      // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
+      final nextHotelDay = dayDate.add(const Duration(days: 1));
+      final segEnd = i == totalNights - 1
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          : nextHotelDay;
+
       segments.add(
         _NightSegment(
-          hotelDayKey: Time.dateToString(checkin),
-          start: checkin,
-          end: checkout.isAfter(checkin)
-              ? checkout
-              : checkin.add(const Duration(minutes: 1)),
+          hotelDayKey: dayKey,
+          start: segStart,
+          end: segEnd,
         ),
       );
     }

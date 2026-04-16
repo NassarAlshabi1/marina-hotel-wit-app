@@ -48,7 +48,10 @@ class ApiService {
 
     if (config.enableLogging) {
       _dio.interceptors.add(
-        LogInterceptor(requestBody: true, responseBody: true),
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+        ),
       );
     }
   }
@@ -56,7 +59,6 @@ class ApiService {
   void _onConfigChanged() {
     _initializeDio();
   }
-
   static final ApiService I = ApiService._internal();
 
   late final Dio _dio;
@@ -121,7 +123,7 @@ class ApiService {
     final qp = {
       'page': page,
       'page_size': pageSize,
-      'since': ?since,
+      if (since != null) 'since': since,
       if (filter != null && filter.isNotEmpty) 'filter': filter,
     };
     final res = await _dio.get('/$entity.php', queryParameters: qp);

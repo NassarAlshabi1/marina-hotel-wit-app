@@ -17,16 +17,17 @@ import 'local_db.dart';
 import 'logging/log_models.dart';
 
 class RetryConfig {
+  final int maxRetries;
+  final int baseDelaySeconds;
+  final int maxDelaySeconds;
+  final double backoffMultiplier;
+
   const RetryConfig({
     this.maxRetries = 5,
     this.baseDelaySeconds = 2,
     this.maxDelaySeconds = 300,
     this.backoffMultiplier = 2.0,
   });
-  final int maxRetries;
-  final int baseDelaySeconds;
-  final int maxDelaySeconds;
-  final double backoffMultiplier;
 
   int calculateDelay(int attemptNumber) {
     final delay =
@@ -36,6 +37,15 @@ class RetryConfig {
 }
 
 class AutoSyncEngineState {
+  final bool isRunning;
+  final bool hasNetworkConnection;
+  final bool isSignedIn;
+  final int pendingChangesCount;
+  final DateTime? lastSuccessfulSync;
+  final int failedAttempts;
+  final DateTime? nextRetryAt;
+  final String? lastError;
+
   const AutoSyncEngineState({
     required this.isRunning,
     required this.hasNetworkConnection,
@@ -46,14 +56,6 @@ class AutoSyncEngineState {
     this.nextRetryAt,
     this.lastError,
   });
-  final bool isRunning;
-  final bool hasNetworkConnection;
-  final bool isSignedIn;
-  final int pendingChangesCount;
-  final DateTime? lastSuccessfulSync;
-  final int failedAttempts;
-  final DateTime? nextRetryAt;
-  final String? lastError;
 
   AutoSyncEngineState copyWith({
     bool? isRunning,
@@ -437,7 +439,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     if (_pendingChangesCount > 0) {
       _log(
-        '📤 Syncing $_pendingChangesCount pending changes after network restore',
+        '📤 Syncing ${_pendingChangesCount} pending changes after network restore',
       );
       await _orchestrator!.syncNow(
         push: true,
@@ -701,7 +703,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
 
     if (!_hasNetworkConnection) {
-      const message = 'لا يوجد اتصال بالإنترنت';
+      final message = 'لا يوجد اتصال بالإنترنت';
       _log('📴 $message');
       return SyncResult.failure(
         message: message,
@@ -711,7 +713,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     if (!_isSignedIn) {
-      const message = 'غير مسجل الدخول في Google Drive';
+      final message = 'غير مسجل الدخول في Google Drive';
       _log('🔐 $message');
       return SyncResult.failure(
         message: message,

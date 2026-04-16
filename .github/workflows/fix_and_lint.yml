@@ -6,7 +6,7 @@ on:
       branch:
         description: 'الفرع المراد تشغيل العملية عليه'
         required: true
-        default: 'A'
+        default: 'main'
         type: string
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
         working-directory: mobile
         run: |
           dart fix --apply
-          dart format
+          dart format .
         continue-on-error: true
 
       - name: 🤖 Commit auto-fixes

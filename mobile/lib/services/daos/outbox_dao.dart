@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
@@ -10,30 +9,20 @@ part 'outbox_dao.g.dart';
 
 const _uuid = Uuid();
 
-/// أولويات السجلات في Outbox
-enum OutboxPriority {
-  high('high'),
-  normal('normal'),
-  low('low');
-
-  const OutboxPriority(this.value);
-  final String value;
-}
-
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   OutboxDao(super.db) : adapters = AdapterRegistry(db);
 
   final AdapterRegistry adapters;
 
-  // ==================== مراقبة العداد ====================
-
   Stream<int> watchCount() {
     final countExp = outbox.id.count();
     final query = selectOnly(outbox)
       ..addColumns([countExp])
       ..where(outbox.processingStatus.isIn(['pending', 'failed']));
-    return query.map((row) => row.read(countExp) ?? 0).watchSingle();
+    return query
+        .map((row) => row.read(countExp) ?? 0)
+        .watchSingle();
   }
 
   Future<int> count() async {
@@ -45,58 +34,40 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return row.read(countExp) ?? 0;
   }
 
-  /// عداد السجلات حسب الحالة
-  Future<Map<String, int>> countByStatus() async {
-    final result = <String, int>{};
-    final statuses = [
-      'pending',
-      'processing',
-      'completed',
-      'failed',
-      'conflict',
-    ];
-
-    for (final status in statuses) {
-      final countExp = outbox.id.count();
-      final query = selectOnly(outbox)
-        ..addColumns([countExp])
-        ..where(outbox.processingStatus.equals(status));
-      final row = await query.getSingle();
-      result[status] = row.read(countExp) ?? 0;
-    }
-
-    return result;
-  }
-
-  // ==================== إدارة السجلات ====================
-
   Future<void> resetErrors() async {
-    await (update(
-      outbox,
-    )..where((t) => t.processingStatus.equals('failed'))).write(
-      const OutboxCompanion(
-        processingStatus: Value('pending'),
-        attempts: Value(0),
-        lastError: Value(null),
-        processingStartedAt: Value(null),
-        processingWorker: Value(null),
-        nextRetryAt: Value(null),
-      ),
-    );
+    await (update(outbox)
+          ..where(
+              (t) => t.processingStatus.equals('failed')))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      attempts: Value(0),
+      lastError: Value(null),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
   }
 
+  /// إعادة تعيين العناصر القديمة بدلاً من حذفها — لا نفقد بيانات outbox أبداً
+  /// العناصر التي فشلت عدة مرات تُعاد إلى حالة pending لمحاولة رفعها لاحقاً
   Future<int> clearStale({int attemptsThreshold = 3}) async {
-    final rows =
-        await (delete(outbox)..where(
-              (t) =>
-                  t.attempts.isBiggerOrEqualValue(attemptsThreshold) &
-                  t.processingStatus.isIn(['failed', 'conflict']),
-            ))
-            .go();
+    final rows = await (update(outbox)
+          ..where((t) =>
+              t.attempts.isBiggerOrEqualValue(attemptsThreshold) &
+              t.processingStatus.equals('failed')))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      attempts: Value(0),
+      lastError: Value(null),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
+    // تحديث إحصائيات الاستعلام بعد إعادة تعيين جماعي
+    if (rows > 20) {
+      await customSelect('ANALYZE outbox').get();
+    }
     return rows;
   }
 
-  /// إضافة أو تحديث سجل في Outbox
   Future<int> merge({
     required String entity,
     required String op,
@@ -104,21 +75,17 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     int? serverId,
     required Map<String, dynamic> payload,
     required int clientTs,
-    OutboxPriority priority = OutboxPriority.normal,
   }) async {
-    final existing =
-        await (select(outbox)
-              ..where(
-                (t) =>
-                    t.entity.equals(entity) &
-                    t.localUuid.equals(localUuid) &
-                    t.processingStatus.equals('pending'),
-              )
-              ..limit(1))
-            .getSingleOrNull();
+    final existing = await (select(outbox)
+          ..where((t) =>
+              t.entity.equals(entity) &
+              t.localUuid.equals(localUuid) &
+              t.processingStatus.equals('pending'))
+          ..limit(1))
+        .getSingleOrNull();
 
     final payloadJson = jsonEncode(payload);
-    final idempKey = '$entity:$op:$localUuid:$clientTs';
+    final idempKey = '${entity}:${op}:${localUuid}:$clientTs';
 
     if (existing != null) {
       await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
@@ -128,60 +95,31 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           clientTs: Value(clientTs),
           idempotencyKey: Value(idempKey),
           serverId: Value(serverId),
-          priority: Value(priority.value),
         ),
       );
       return existing.id;
     }
 
-    return into(outbox).insert(
-      OutboxCompanion.insert(
-        entity: entity,
-        op: op,
-        localUuid: localUuid,
-        serverId: Value(serverId),
-        payload: payloadJson,
-        clientTs: clientTs,
-        idempotencyKey: Value(idempKey),
-        priority: Value(priority.value),
-        maxAttempts: const Value(5),
-      ),
-    );
+    return into(outbox).insert(OutboxCompanion.insert(
+      entity: entity,
+      op: op,
+      localUuid: localUuid,
+      serverId: Value(serverId),
+      payload: payloadJson,
+      clientTs: clientTs,
+      idempotencyKey: Value(idempKey),
+    ));
   }
 
-  // ==================== جلب السجلات للمعالجة ====================
-
-  /// جلب دفعة من السجلات المعلقة مع مراعاة الأولوية ووقت إعادة المحاولة
   Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
     final worker = workerId ?? _uuid.v4();
     final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    // جلب السجلات المعلقة التي حان وقت معالجتها
-    final pending =
-        await (select(outbox)
-              ..where(
-                (t) =>
-                    t.processingStatus.equals('pending') &
-                    (t.nextRetryAt.isNull() |
-                        t.nextRetryAt.isSmallerOrEqualValue(nowEpoch)),
-              )
-              ..orderBy([
-                // ترتيب حسب الأولوية (high أولاً)
-                (t) => OrderingTerm(
-                  expression: t.priority.caseMatch(
-                    when: {
-                      const Constant('high'): const Constant(0),
-                      const Constant('normal'): const Constant(1),
-                      const Constant('low'): const Constant(2),
-                    },
-                    orElse: const Constant(3),
-                  ),
-                ),
-                // ثم حسب وقت الإنشاء (الأقدم أولاً)
-                (t) => OrderingTerm.asc(t.clientTs),
-              ])
-              ..limit(limit))
-            .get();
+    final pending = await (select(outbox)
+          ..where((t) => t.processingStatus.equals('pending'))
+          ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
+          ..limit(limit))
+        .get();
 
     if (pending.isEmpty) return [];
 
@@ -191,100 +129,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         processingStatus: const Value('processing'),
         processingStartedAt: Value(nowEpoch),
         processingWorker: Value(worker),
-        attempts: Value(pending.first.attempts + 1),
       ),
     );
 
     return pending;
   }
-
-  // ==================== إدارة النجاح والفشل ====================
-
-  /// ✅ مسح السجلات الناجحة فوراً (بدلاً من تحويلها إلى completed)
-  Future<void> cleanupOnSuccess(List<int> ids) async {
-    if (ids.isEmpty) return;
-
-    // حذف السجلات الناجحة مباشرة
-    await (delete(outbox)..where((t) => t.id.isIn(ids))).go();
-
-    // تحديث وقت آخر رفع ناجح
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    await (update(outbox)..where((t) => t.id.isIn(ids.isEmpty ? [-1] : ids)))
-        .write(OutboxCompanion(lastSuccessfulPushAt: Value(now)));
-  }
-
-  /// ✅ مسح سجل ناجح واحد
-  Future<void> cleanupSingleSuccess(int id) async {
-    await (delete(outbox)..where((t) => t.id.equals(id))).go();
-  }
-
-  /// ✅ مسح السجلات الناجحة حسب UUIDs
-  Future<void> cleanupSuccessfulByUuids(List<String> uuids) async {
-    if (uuids.isEmpty) return;
-    await (delete(outbox)..where((t) => t.localUuid.isIn(uuids))).go();
-  }
-
-  /// ✅ مسح السجلات المكتملة القديمة فقط (ليس المعلقة!)
-  /// ⚠️ تم تغييرها: لا تحذف السجلات pending القديمة لأنها قد تكون لم تُرفع بعد
-  /// نحذف فقط السجلات completed والفاشلة نهائياً التي تجاوزت حد المحاولات
-  Future<int> cleanupOldRecords({int maxAgeHours = 24}) async {
-    final cutoffEpoch =
-        DateTime.now()
-            .subtract(Duration(hours: maxAgeHours))
-            .millisecondsSinceEpoch ~/
-        1000;
-
-    // مسح السجلات المكتملة القديمة فقط (ليس المعلقة أو الفاشلة)
-    return (delete(outbox)..where(
-          (t) =>
-              t.processingStatus.equals('completed') &
-              t.clientTs.isSmallerThanValue(cutoffEpoch),
-        ))
-        .go();
-  }
-
-  /// جدولة إعادة المحاولة مع exponential backoff
-  Future<void> scheduleRetry(int id, String error, int currentAttempts) async {
-    // حساب التأخير: 2^attempts ثانية (2, 4, 8, 16, 32...)
-    // مع حد أقصى ساعة واحدة
-    final delaySeconds = math.min(
-      math.pow(2, currentAttempts).toInt(),
-      3600, // ساعة واحدة كحد أقصى
-    );
-
-    final nextRetry = DateTime.now().add(Duration(seconds: delaySeconds));
-    final nextRetryEpoch = nextRetry.millisecondsSinceEpoch ~/ 1000;
-
-    await (update(outbox)..where((t) => t.id.equals(id))).write(
-      OutboxCompanion(
-        processingStatus: const Value('pending'),
-        lastError: Value(error),
-        attempts: Value(currentAttempts),
-        nextRetryAt: Value(nextRetryEpoch),
-        processingStartedAt: const Value(null),
-        processingWorker: const Value(null),
-      ),
-    );
-  }
-
-  /// تحديد السجل كفاشل نهائياً (تجاوز حد المحاولات)
-  Future<void> markAsPermanentlyFailed(int id, String error) async {
-    await (update(outbox)..where((t) => t.id.equals(id))).write(
-      OutboxCompanion(
-        processingStatus: const Value('failed'),
-        lastError: Value('PERMANENT: $error'),
-        processingStartedAt: const Value(null),
-        processingWorker: const Value(null),
-      ),
-    );
-  }
-
-  /// التحقق مما إذا كان السجل تجاوز حد المحاولات
-  bool isPermanentlyFailed(OutboxData entry) {
-    return entry.attempts >= (entry.maxAttempts ?? 5);
-  }
-
-  // ==================== الحذف والإزالة ====================
 
   Future<void> removeById(int id) async {
     await (delete(outbox)..where((t) => t.id.equals(id))).go();
@@ -295,132 +144,72 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (delete(outbox)..where((t) => t.id.isIn(ids))).go();
   }
 
-  Future<int> removeByEntityAndUuid(String entity, String localUuid) async {
-    return (delete(outbox)..where(
-          (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid),
-        ))
-        .go();
-  }
-
-  Future<OutboxData?> findPendingByEntityAndUuid(
-    String entity,
-    String localUuid,
-  ) async {
-    final results =
-        await (select(outbox)..where(
-              (t) =>
-                  t.entity.equals(entity) &
-                  t.localUuid.equals(localUuid) &
-                  t.processingStatus.isIn(['pending', 'processing']),
-            ))
-            .get();
-    return results.isEmpty ? null : results.first;
-  }
-
-  Future<void> markAsConflict(
-    int id,
-    String error, {
-    String? remotePayload,
-  }) async {
+  Future<void> setError(int id, String message, int attempts) async {
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
-        processingStatus: const Value('conflict'),
-        lastError: Value(error),
-        remotePayload: Value(remotePayload),
+        lastError: Value(message),
+        attempts: Value(attempts),
+        processingStatus: const Value('failed'),
         processingStartedAt: const Value(null),
         processingWorker: const Value(null),
       ),
     );
   }
 
-  Future<int> removeAllPending() async {
-    return (delete(
-      outbox,
-    )..where((t) => t.processingStatus.isIn(['pending', 'failed']))).go();
-  }
-
-  Future<void> removeByUuids(List<String> uuids) async {
-    if (uuids.isEmpty) return;
-    await (delete(outbox)..where((t) => t.localUuid.isIn(uuids))).go();
-  }
-
-  Future<void> removeByUuid(String uuid) async {
-    await (delete(outbox)..where((t) => t.localUuid.equals(uuid))).go();
-  }
-
-  Future<void> setError(int id, String message, int attempts) async {
-    // التحقق من تجاوز الحد الأقصى
-    final entry = await (select(
-      outbox,
-    )..where((t) => t.id.equals(id))).getSingleOrNull();
-
-    if (entry != null && attempts >= (entry.maxAttempts ?? 5)) {
-      await markAsPermanentlyFailed(id, message);
-    } else {
-      await scheduleRetry(id, message, attempts);
-    }
-  }
-
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) return;
-    // ✅ مسح فوري بدلاً من تحديث الحالة
-    await cleanupOnSuccess(ids);
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      const OutboxCompanion(
+        processingStatus: Value('completed'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
   }
 
   Future<void> markFailed(List<int> ids) async {
     if (ids.isEmpty) return;
-
-    for (final id in ids) {
-      final entry = await (select(
-        outbox,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (entry != null) {
-        await setError(id, 'Batch processing failed', entry.attempts + 1);
-      }
-    }
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      const OutboxCompanion(
+        processingStatus: Value('failed'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
   }
 
   Future<void> retryFailed() async {
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-    await (update(outbox)..where(
-          (t) =>
-              t.processingStatus.equals('failed') &
-              (t.nextRetryAt.isNull() |
-                  t.nextRetryAt.isSmallerOrEqualValue(now)),
-        ))
-        .write(
-          const OutboxCompanion(
-            processingStatus: Value('pending'),
-            processingStartedAt: Value(null),
-            processingWorker: Value(null),
-            nextRetryAt: Value(null),
-          ),
-        );
+    await (update(outbox)
+          ..where((t) => t.processingStatus.equals('failed')))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
   }
-
-  // ==================== التنظيف والصيانة ====================
 
   Future<int> cleanupStuckEntries({
     Duration timeout = const Duration(minutes: 5),
   }) async {
     final cutoff =
         (DateTime.now().millisecondsSinceEpoch ~/ 1000) - timeout.inSeconds;
-    final stuck =
-        await (select(outbox)..where(
-              (t) =>
-                  t.processingStatus.equals('processing') &
-                  t.processingStartedAt.isSmallerOrEqualValue(cutoff),
-            ))
-            .get();
+    final stuck = await (select(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('processing') &
+              t.processingStartedAt.isSmallerOrEqualValue(cutoff)))
+        .get();
 
     if (stuck.isEmpty) return 0;
 
-    for (final entry in stuck) {
-      await scheduleRetry(entry.id, 'Processing timeout', entry.attempts);
-    }
-
-    return stuck.length;
+    final ids = stuck.map((e) => e.id).toList();
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
+    return ids.length;
   }
 
   Future<int> cleanupCompleted({
@@ -428,161 +217,71 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }) async {
     final cutoff =
         (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
-    final rows =
-        await (delete(outbox)..where(
-              (t) =>
-                  t.processingStatus.equals('completed') &
-                  t.clientTs.isSmallerOrEqualValue(cutoff),
-            ))
-            .go();
+    final rows = await (delete(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('completed') &
+              t.clientTs.isSmallerOrEqualValue(cutoff)))
+        .go();
+    // تحديث إحصائيات الاستعلام بعد الحذف الجماعي
+    if (rows > 50) {
+      await customSelect('ANALYZE outbox').get();
+    }
     return rows;
   }
 
-  /// تنظيف شامل للسجلات القديمة والفاشلة
-  Future<Map<String, int>> performFullCleanup() async {
-    final result = <String, int>{};
-
-    // مسح السجلات العالقة
-    result['stuck'] = await cleanupStuckEntries();
-
-    // مسح السجلات المكتملة القديمة
-    result['completed'] = await cleanupCompleted();
-
-    // مسح السجلات الفاشلة نهائياً
-    result['permanent_failed'] =
-        await (delete(outbox)..where(
-              (t) =>
-                  t.processingStatus.equals('failed') &
-                  t.attempts.isBiggerOrEqual(t.maxAttempts),
-            ))
-            .go();
-
-    return result;
-  }
-
-  // ==================== التعارضات ====================
-
+  /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
   Future<List<ConflictRecord>> getConflicts() async {
-    final conflicting =
-        await (select(outbox)
-              ..where((t) => t.processingStatus.equals('conflict'))
-              ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
-            .get();
+    final failed = await (select(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.lastError.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
+        .get();
 
-    return conflicting.map((entry) {
-      final localPayload = jsonDecode(entry.payload) as Map<String, dynamic>;
-      final remotePayload = entry.remotePayload != null
-          ? jsonDecode(entry.remotePayload!) as Map<String, dynamic>
-          : localPayload;
+    return failed.map((entry) {
+      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
       return ConflictRecord(
         id: entry.id,
         uuid: entry.localUuid,
         targetTable: entry.entity,
-        localPayload: localPayload,
-        remotePayload: remotePayload,
+        localPayload: payload,
+        remotePayload: payload, // TODO: Fetch actual remote data
         lastError: entry.lastError ?? 'Unknown conflict',
         timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
       );
     }).toList();
   }
 
-  /// ✅ جلب السجلات الفاشلة مع تفاصيل الخطأ
-  Future<List<SyncErrorRecord>> getFailedRecords({int limit = 50}) async {
-    final failed =
-        await (select(outbox)
-              ..where((t) => t.processingStatus.equals('failed'))
-              ..orderBy([(t) => OrderingTerm.desc(t.clientTs)])
-              ..limit(limit))
-            .get();
-
-    return failed.map((entry) {
-      return SyncErrorRecord(
-        id: entry.id,
-        uuid: entry.localUuid,
-        entity: entry.entity,
-        operation: entry.op,
-        error: entry.lastError ?? 'Unknown error',
-        attempts: entry.attempts,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
-        payload: jsonDecode(entry.payload) as Map<String, dynamic>,
-      );
-    }).toList();
-  }
-
-  /// ✅ جلب جميع السجلات ذات الأخطاء (فاشلة + متضاربة)
-  Future<List<SyncErrorRecord>> getAllErrorRecords({int limit = 100}) async {
-    final errors =
-        await (select(outbox)
-              ..where((t) => t.processingStatus.isIn(['failed', 'conflict']))
-              ..orderBy([(t) => OrderingTerm.desc(t.clientTs)])
-              ..limit(limit))
-            .get();
-
-    return errors.map((entry) {
-      return SyncErrorRecord(
-        id: entry.id,
-        uuid: entry.localUuid,
-        entity: entry.entity,
-        operation: entry.op,
-        error: entry.lastError ?? 'Unknown error',
-        attempts: entry.attempts,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
-        payload: jsonDecode(entry.payload) as Map<String, dynamic>,
-        status: entry.processingStatus,
-      );
-    }).toList();
-  }
-
+  /// حل تعارض محدد — يُعيد العنصر إلى pending لرفعه فعلياً لاحقاً
   Future<void> resolveConflict(
     int id,
     Map<String, dynamic> resolvedData, {
     required String resolution,
   }) async {
-    // ✅ مسح السجل بعد حل التعارض
-    await (delete(outbox)..where((t) => t.id.equals(id))).go();
-  }
-
-  // ==================== الإحصائيات ====================
-
-  Future<OutboxStats> getStats() async {
-    final statusCounts = await countByStatus();
-
-    final oldestPending =
-        await (select(outbox)
-              ..where((t) => t.processingStatus.equals('pending'))
-              ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
-              ..limit(1))
-            .getSingleOrNull();
-
-    final nextRetry =
-        await (select(outbox)
-              ..where(
-                (t) =>
-                    t.processingStatus.equals('pending') &
-                    t.nextRetryAt.isNotNull(),
-              )
-              ..orderBy([(t) => OrderingTerm.asc(t.nextRetryAt)])
-              ..limit(1))
-            .getSingleOrNull();
-
-    return OutboxStats(
-      pending: statusCounts['pending'] ?? 0,
-      processing: statusCounts['processing'] ?? 0,
-      completed: statusCounts['completed'] ?? 0,
-      failed: statusCounts['failed'] ?? 0,
-      conflicts: statusCounts['conflict'] ?? 0,
-      oldestPendingAt: oldestPending != null
-          ? DateTime.fromMillisecondsSinceEpoch(oldestPending.clientTs * 1000)
-          : null,
-      nextRetryAt: nextRetry?.nextRetryAt != null
-          ? DateTime.fromMillisecondsSinceEpoch(nextRetry!.nextRetryAt! * 1000)
-          : null,
+    // تحديث السجل ليعكس الحل وإعادته إلى pending ليُرفع فعلياً
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        processingStatus: const Value('pending'),
+        lastError: Value(null),
+        attempts: const Value(0),
+        payload: Value(jsonEncode(resolvedData)),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
     );
   }
 }
 
 /// سجل يمثل تعارض في البيانات
 class ConflictRecord {
+  final int id;
+  final String uuid;
+  final String targetTable;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String lastError;
+  final DateTime timestamp;
+
   ConflictRecord({
     required this.id,
     required this.uuid,
@@ -592,81 +291,4 @@ class ConflictRecord {
     required this.lastError,
     required this.timestamp,
   });
-
-  final int id;
-  final String uuid;
-  final String targetTable;
-  final Map<String, dynamic> localPayload;
-  final Map<String, dynamic> remotePayload;
-  final String lastError;
-  final DateTime timestamp;
-}
-
-/// إحصائيات Outbox
-class OutboxStats {
-  OutboxStats({
-    required this.pending,
-    required this.processing,
-    required this.completed,
-    required this.failed,
-    required this.conflicts,
-    this.oldestPendingAt,
-    this.nextRetryAt,
-  });
-
-  final int pending;
-  final int processing;
-  final int completed;
-  final int failed;
-  final int conflicts;
-  final DateTime? oldestPendingAt;
-  final DateTime? nextRetryAt;
-
-  int get total => pending + processing + completed + failed + conflicts;
-  int get needsAttention => failed + conflicts;
-  bool get hasPendingWork => pending > 0 || processing > 0;
-}
-
-/// ✅ سجل خطأ المزامنة
-class SyncErrorRecord {
-  SyncErrorRecord({
-    required this.id,
-    required this.uuid,
-    required this.entity,
-    required this.operation,
-    required this.error,
-    required this.attempts,
-    required this.timestamp,
-    required this.payload,
-    this.status = 'failed',
-  });
-
-  final int id;
-  final String uuid;
-  final String entity;
-  final String operation;
-  final String error;
-  final int attempts;
-  final DateTime timestamp;
-  final Map<String, dynamic> payload;
-  final String status;
-
-  /// اختصار للخطأ (أول 100 حرف)
-  String get shortError =>
-      error.length > 100 ? '${error.substring(0, 100)}...' : error;
-
-  /// هل هو تعارض
-  bool get isConflict => status == 'conflict';
-
-  /// لون الحالة
-  String get statusLabel {
-    switch (status) {
-      case 'failed':
-        return 'فشل';
-      case 'conflict':
-        return 'تعارض';
-      default:
-        return status;
-    }
-  }
 }

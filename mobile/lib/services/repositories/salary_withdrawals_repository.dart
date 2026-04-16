@@ -1,356 +1,145 @@
-import 'dart:convert';
-import '../local_db.dart';
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
-import '../daos/outbox_dao.dart';
-import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
-import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' as d;
 
-const _uuid = Uuid();
+import '../local_db.dart';
+import '../../utils/id.dart';
+import '../../utils/time.dart';
 
 class SalaryWithdrawalsRepository {
-  SalaryWithdrawalsRepository(this._db)
-    : _outbox = OutboxDao(_db),
-      _adapters = AdapterRegistry(_db);
-
+  SalaryWithdrawalsRepository(this._db);
   final AppDatabase _db;
-  final OutboxDao _outbox;
-  final AdapterRegistry _adapters;
 
-  /// ✅ حفظ سحب الراتب من شاشة المصروفات
-  /// يتضمن: حفظ محلي + Outbox + المرآة
+  /// إنشاء سجل سحب راتب مرتبط بمصروف
+  Future<int> createFromExpense({
+    required int expenseId,
+    required int employeeId,
+    required String reason,
+    required double amount,
+    required String date,
+    String? hotelDayKey,
+    String? withdrawalType,
+    String? description,
+  }) async {
+    final now = Time.nowEpoch();
+    final companion = SalaryWithdrawalsCompanion(
+      localUuid: d.Value(IdGen.uuid()),
+      serverId: const d.Value(null),
+      employeeId: d.Value(employeeId),
+      amount: d.Value(amount),
+      withdrawDate: d.Value(date),
+      reason: d.Value(reason),
+      hotelDayKey: d.Value(hotelDayKey ?? ''),
+      withdrawalType: d.Value(withdrawalType),
+      description: d.Value(description),
+      createdAt: d.Value(now),
+      updatedAt: d.Value(now),
+      deletedAt: const d.Value(null),
+      lastModified: d.Value(now),
+      createdAtEpoch: d.Value(now),
+      lastModifiedEpoch: d.Value(now),
+      version: const d.Value(1),
+      origin: const d.Value('local'),
+      vectorClock: const d.Value('{}'),
+    );
+    return _db.into(_db.salaryWithdrawals).insert(companion);
+  }
+
+  /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
+  /// ملاحظة: الجدول لا يحتوي expense_id مباشرة،
+  /// لذلك نستخدم الربط عبر حقل reason الذي يحتوي [exp_ID]
   Future<void> saveFromExpense({
     required int expenseId,
     required int employeeId,
     required String action,
     required double amount,
     required String date,
-    String? employeeName, // ✅ اسم الموظف للتخزين والعرض السريع
     String? note,
+    String? hotelDayKey,
   }) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final nowIso = DateTime.now().toIso8601String();
+    // محاولة البحث عن سجل موجود مرتبط بنفس الموظف والتاريخ والمبلغ
+    final existing = await (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.employeeId.equals(employeeId)))
+        .get();
 
-    // Check if record exists
-    final existing = await (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.expenseId.equals(expenseId))).getSingleOrNull();
+    final matched = existing.where((w) =>
+        w.withdrawDate == date &&
+        (w.reason?.contains('exp_$expenseId') ?? false)).firstOrNull;
 
-    String localUuid;
-    int? recordId;
-    final bool isNewRecord = existing == null;
+    final now = Time.nowEpoch();
+    // reason يحتوي فقط على علامة الربط بالمصروف
+    final reasonText = 'exp_$expenseId';
 
-    if (existing != null) {
-      // Update existing
-      localUuid = existing.localUuid;
-      recordId = existing.id;
-
-      await (_db.update(
-        _db.salaryWithdrawals,
-      )..where((t) => t.expenseId.equals(expenseId))).write(
+    if (matched != null) {
+      // تحديث السجل الموجود
+      await (_db.update(_db.salaryWithdrawals)
+            ..where((t) => t.id.equals(matched.id)))
+          .write(SalaryWithdrawalsCompanion(
+            employeeId: d.Value(employeeId),
+            amount: d.Value(amount),
+            withdrawDate: d.Value(date),
+            reason: d.Value(reasonText),
+            withdrawalType: d.Value(action),
+            description: d.Value(note),
+            hotelDayKey: d.Value(hotelDayKey ?? ''),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            version: d.Value(matched.version + 1),
+          ));
+    } else {
+      // إنشاء سجل جديد
+      await _db.into(_db.salaryWithdrawals).insert(
         SalaryWithdrawalsCompanion(
-          employeeId: Value(employeeId),
-          name: Value(employeeName), // ✅ تحديث اسم الموظف
-          action: Value(action),
-          amount: Value(amount),
-          note: Value(note),
-          date: Value(date),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-          updatedAtIso: Value(nowIso),
+          localUuid: d.Value(IdGen.uuid()),
+          serverId: const d.Value(null),
+          employeeId: d.Value(employeeId),
+          amount: d.Value(amount),
+          withdrawDate: d.Value(date),
+          reason: d.Value(reasonText),
+          withdrawalType: d.Value(action),
+          description: d.Value(note),
+          hotelDayKey: d.Value(hotelDayKey ?? ''),
+          createdAt: d.Value(now),
+          updatedAt: d.Value(now),
+          deletedAt: const d.Value(null),
+          lastModified: d.Value(now),
+          createdAtEpoch: d.Value(now),
+          lastModifiedEpoch: d.Value(now),
+          version: const d.Value(1),
+          origin: const d.Value('local'),
+          vectorClock: const d.Value('{}'),
         ),
       );
-    } else {
-      // Insert new
-      localUuid = _uuid.v4();
-
-      recordId = await _db
-          .into(_db.salaryWithdrawals)
-          .insert(
-            SalaryWithdrawalsCompanion(
-              expenseId: Value(expenseId),
-              employeeId: Value(employeeId),
-              name: Value(employeeName), // ✅ إضافة اسم الموظف
-              action: Value(action),
-              amount: Value(amount),
-              note: Value(note),
-              date: Value(date),
-              localUuid: Value(localUuid),
-              createdAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-              createdAtIso: Value(nowIso),
-              updatedAtIso: Value(nowIso),
-              version: const Value(1),
-              origin: const Value('local'),
-            ),
-          );
-    }
-
-    // ✅ 1. إضافة للمزامنة عبر Outbox (بـ payload يدوي متوافق مع Appwrite)
-    final outboxPayload = _buildPayload(
-      localUuid: localUuid,
-      recordId: recordId,
-      expenseId: expenseId,
-      employeeId: employeeId,
-      employeeName: employeeName,
-      action: action,
-      amount: amount,
-      date: date,
-      note: note,
-      now: now,
-      nowIso: nowIso,
-    );
-
-    await _addToOutbox(
-      localUuid: localUuid,
-      recordId: recordId,
-      payload: outboxPayload,
-      now: now,
-    );
-
-    // ✅ 2. تحديث المرآة باستخدام Adapter.toJson() (متوافق مع Delta Sync compute)
-    final updatedRow = await (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingle();
-
-    final mirrorPayload = _adapters.salaryWithdrawals.adapter.toJson(
-      updatedRow,
-      src: Source.appwrite,
-    );
-
-    await _updateMirror(
-      localUuid: localUuid,
-      payload: mirrorPayload,
-      now: now,
-      isNewRecord: isNewRecord,
-    );
-  }
-
-  /// ✅ بناء payload يدوي للـ Outbox (متوافق مع Appwrite server)
-  /// ⚠️ لا يُستخدم للمرآة — المرآة تستخدم Adapter.toJson() بدلاً منه
-  Map<String, dynamic> _buildPayload({
-    required String localUuid,
-    required int recordId,
-    required int expenseId,
-    required int employeeId,
-    String? employeeName, // ✅ اسم الموظف
-    required String action,
-    required double amount,
-    required String date,
-    String? note,
-    required int now,
-    required String nowIso,
-  }) {
-    return {
-      // ✅ الحقول الأساسية
-      'id': recordId,
-      'localUuid': localUuid,
-      'expenseId': expenseId,
-      'employeeId': employeeId,
-      if (employeeName != null && employeeName.isNotEmpty)
-        'name': employeeName, // ✅ اسم الموظف
-      'action': action,
-      'amount': amount.toInt(), // ✅ integer for Appwrite
-      'date': date,
-      if (note != null && note.isNotEmpty) 'note': note,
-
-      // ✅ Timestamps
-      'createdAt': now,
-      'updatedAt': now,
-      'lastModified': now,
-      'createdAtIso': nowIso,
-      'updatedAtIso': nowIso,
-
-      // ✅ Sync metadata
-      'version': 1,
-      'origin': 'local',
-      'vectorClock': '{}',
-    };
-  }
-
-  /// ✅ إضافة سجل للـ Outbox للمزامنة
-  Future<void> _addToOutbox({
-    required String localUuid,
-    required int recordId,
-    required Map<String, dynamic> payload,
-    required int now,
-  }) async {
-    await _outbox.merge(
-      entity: 'salary_withdrawals',
-      op: 'upsert',
-      localUuid: localUuid,
-      serverId: recordId,
-      payload: payload,
-      clientTs: now ~/ 1000,
-    );
-  }
-
-  /// ✅ تحديث المرآة فوراً (لـ Delta Sync)
-  /// هذا يضمن أن Delta Sync يكتشف التغييرات بشكل صحيح
-  Future<void> _updateMirror({
-    required String localUuid,
-    required Map<String, dynamic> payload,
-    required int now,
-    required bool isNewRecord,
-  }) async {
-    try {
-      // حساب hash للبيانات
-      final sortedPayload = _sortMapForHash(payload);
-      final rowHash = sha1
-          .convert(utf8.encode(jsonEncode(sortedPayload)))
-          .toString();
-
-      // تحديث أو إدراج في المرآة
-      await _db.customStatement(
-        '''
-INSERT OR REPLACE INTO sync_mirror 
-           (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
-           VALUES (?, ?, ?, ?, ?)''',
-        ['salary_withdrawals', localUuid, rowHash, jsonEncode(payload), now],
-      );
-
-      print(
-        '✅ [Mirror] Updated salary_withdrawals/$localUuid (isNew: $isNewRecord)',
-      );
-    } catch (e) {
-      print('⚠️ [Mirror] Failed to update mirror: $e');
-      // لا نرمي الخطأ لأن العملية الأساسية نجحت
     }
   }
 
-  /// ترتيب Map لحساب hash متسق
-  Map<String, dynamic> _sortMapForHash(Map<String, dynamic> source) {
-    final entries = source.entries.map((entry) {
-      final value = entry.value;
-      dynamic normalized;
-      if (value is Map<String, dynamic>) {
-        normalized = _sortMapForHash(value);
-      } else if (value is List) {
-        normalized = value.map((item) {
-          if (item is Map<String, dynamic>) return _sortMapForHash(item);
-          return item;
-        }).toList();
-      } else {
-        normalized = value;
-      }
-      return MapEntry(entry.key, normalized);
-    }).toList()..sort((a, b) => a.key.compareTo(b.key));
-    return Map<String, dynamic>.fromEntries(entries);
-  }
-
-  /// ✅ حذف سجل بواسطة expenseId
+  /// حذف سحوبات مرتبطة بمصروف معين (via reason contains exp_id)
   Future<void> deleteByExpenseId(int expenseId) async {
-    // جلب السجل قبل الحذف للحصول على localUuid
-    final existing = await (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.expenseId.equals(expenseId))).getSingleOrNull();
-
-    if (existing != null) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-
-      // حذف من قاعدة البيانات المحلية
-      await (_db.delete(
-        _db.salaryWithdrawals,
-      )..where((t) => t.expenseId.equals(expenseId))).go();
-
-      // ✅ 1. إضافة عملية حذف للـ Outbox
-      await _outbox.merge(
-        entity: 'salary_withdrawals',
-        op: 'delete',
-        localUuid: existing.localUuid,
-        payload: {
-          'deleted': true,
-          'localUuid': existing.localUuid,
-          'deletedAt': now,
-        },
-        clientTs: now ~/ 1000,
-      );
-
-      // ✅ 2. تحديث المرآة بحذف السجل
-      await _deleteFromMirror(existing.localUuid);
+    final all = await _db.select(_db.salaryWithdrawals).get();
+    final toDelete = all
+        .where((w) => (w.reason?.contains('exp_$expenseId') ?? false))
+        .toList();
+    for (final item in toDelete) {
+      await (_db.delete(_db.salaryWithdrawals)
+            ..where((t) => t.id.equals(item.id)))
+          .go();
     }
   }
 
-  /// ✅ حذف من المرآة
-  Future<void> _deleteFromMirror(String localUuid) async {
-    try {
-      await _db.customStatement(
-        'DELETE FROM sync_mirror WHERE sync_entity_name = ? AND local_uuid = ?',
-        ['salary_withdrawals', localUuid],
-      );
-      print('✅ [Mirror] Deleted salary_withdrawals/$localUuid');
-    } catch (e) {
-      print('⚠️ [Mirror] Failed to delete from mirror: $e');
-    }
-  }
-
-  /// جلب جميع السجلات
+  /// جلب كل سحوبات الرواتب
   Future<List<SalaryWithdrawal>> listAll() async {
-    return (_db.select(
-      _db.salaryWithdrawals,
-    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+    return _db.select(_db.salaryWithdrawals).get();
   }
 
-  /// جلب سجل واحد بواسطة localUuid
-  Future<SalaryWithdrawal?> getByUuid(String localUuid) async {
-    return (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  /// جلب سحوبات موظف معين
+  Future<List<SalaryWithdrawal>> listByEmployeeId(int employeeId) async {
+    return (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.employeeId.equals(employeeId)))
+        .get();
   }
 
-  /// تحويل السجل إلى JSON للإرسال
-  Map<String, dynamic> toJson(SalaryWithdrawal record) {
-    return _adapters.salaryWithdrawals.adapter.toJson(
-      record,
-      src: Source.appwrite,
-    );
-  }
-
-  /// ✅ إعادة بناء المرآة من قاعدة البيانات
-  /// يُستخدم عند بدء التطبيق أو عند اكتشاف عدم تطابق
-  Future<int> rebuildMirror() async {
-    try {
-      // مسح المرآة القديمة للجدول
-      await _db.customStatement(
-        'DELETE FROM sync_mirror WHERE sync_entity_name = ?',
-        ['salary_withdrawals'],
-      );
-
-      // جلب جميع السجلات
-      final records = await listAll();
-      final now = DateTime.now().millisecondsSinceEpoch;
-      int count = 0;
-
-      for (final record in records) {
-        final payload = toJson(record);
-        final sortedPayload = _sortMapForHash(payload);
-        final rowHash = sha1
-            .convert(utf8.encode(jsonEncode(sortedPayload)))
-            .toString();
-
-        await _db.customStatement(
-          '''
-INSERT INTO sync_mirror 
-             (sync_entity_name, local_uuid, row_hash, payload, last_seen_at) 
-             VALUES (?, ?, ?, ?, ?)''',
-          [
-            'salary_withdrawals',
-            record.localUuid,
-            rowHash,
-            jsonEncode(payload),
-            now,
-          ],
-        );
-        count++;
-      }
-
-      print('✅ [Mirror] Rebuilt salary_withdrawals: $count records');
-      return count;
-    } catch (e) {
-      print('❌ [Mirror] Failed to rebuild mirror: $e');
-      return 0;
-    }
+  /// جلب السحوبات النشطة (غير المحذوفة)
+  Future<List<SalaryWithdrawal>> listActive() async {
+    return (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
   }
 }

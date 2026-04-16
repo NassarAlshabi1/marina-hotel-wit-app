@@ -1,7 +1,6 @@
 /// Outbox Processor
 /// يدير التغييرات المحلية المعلقة ويرسلها للمزامنة
 /// مع دعم إعادة المحاولة التلقائية والتتبع
-library;
 
 import 'dart:async';
 import 'dart:convert';
@@ -12,13 +11,6 @@ import '../vector_clock.dart';
 
 /// معالج Outbox - يدير قائمة الانتظار للتغييرات المحلية
 class OutboxProcessor {
-  OutboxProcessor({
-    required OutboxStorage storage,
-    required VectorClockManager clockManager,
-    required SyncConfiguration config,
-  }) : _storage = storage,
-       _clockManager = clockManager,
-       _config = config;
   final OutboxStorage _storage;
   final VectorClockManager _clockManager;
   final SyncConfiguration _config;
@@ -28,6 +20,14 @@ class OutboxProcessor {
 
   Timer? _retryTimer;
   bool _isProcessing = false;
+
+  OutboxProcessor({
+    required OutboxStorage storage,
+    required VectorClockManager clockManager,
+    required SyncConfiguration config,
+  })  : _storage = storage,
+        _clockManager = clockManager,
+        _config = config;
 
   /// Stream لعدد التغييرات المعلقة
   Stream<int> get pendingCountStream => _pendingCountController.stream;
@@ -114,7 +114,7 @@ class OutboxProcessor {
 
   /// جلب التغييرات المعلقة للرفع
   Future<List<DeltaChange>> fetchPending({int? limit}) async {
-    return _storage.fetchPending(
+    return await _storage.fetchPending(
       limit: limit ?? _config.batchSize,
       before: DateTime.now(),
     );
@@ -122,7 +122,7 @@ class OutboxProcessor {
 
   /// جلب التغييرات جاهزة لإعادة المحاولة
   Future<List<DeltaChange>> fetchReadyForRetry() async {
-    return _storage.fetchPending(
+    return await _storage.fetchPending(
       limit: _config.batchSize,
       before: DateTime.now(),
       onlyRetryable: true,
@@ -191,7 +191,7 @@ class OutboxProcessor {
 
   /// الحصول على إحصائيات Outbox
   Future<OutboxStats> getStats() async {
-    return _storage.getStats();
+    return await _storage.getStats();
   }
 
   /// معالجة إعادة المحاولة التلقائية
@@ -199,9 +199,7 @@ class OutboxProcessor {
     if (_isProcessing) return;
 
     _isProcessing = true;
-    _statusController.add(
-      OutboxStatus(pendingCount: 0, failedCount: 0, isProcessing: true),
-    );
+    _statusController.add(OutboxStatus.processing);
 
     try {
       final retryable = await fetchReadyForRetry();
@@ -234,10 +232,8 @@ class OutboxProcessor {
 
   /// تنظيف السجلات القديمة المُزامنة
   Future<int> cleanup({Duration? olderThan}) async {
-    final cutoff = DateTime.now().subtract(
-      olderThan ?? const Duration(days: 7),
-    );
-    return _storage.deleteSyncedBefore(cutoff);
+    final cutoff = DateTime.now().subtract(olderThan ?? const Duration(days: 7));
+    return await _storage.deleteSyncedBefore(cutoff);
   }
 
   /// بدء مؤقت إعادة المحاولة
@@ -264,13 +260,11 @@ class OutboxProcessor {
   /// إشعار بحالة Outbox
   void _notifyStatus() async {
     final stats = await _storage.getStats();
-    _statusController.add(
-      OutboxStatus(
-        pendingCount: stats.pendingCount,
-        failedCount: stats.failedCount,
-        isProcessing: _isProcessing,
-      ),
-    );
+    _statusController.add(OutboxStatus(
+      pendingCount: stats.pendingCount,
+      failedCount: stats.failedCount,
+      isProcessing: _isProcessing,
+    ));
   }
 
   /// حساب تأخير Exponential Backoff
@@ -302,28 +296,30 @@ class OutboxProcessor {
 
 /// طلب تغيير
 class ChangeRequest {
+  final String table;
+  final String uuid;
+  final SyncOperation operation;
+  final Map<String, dynamic> payload;
+
   ChangeRequest({
     required this.table,
     required this.uuid,
     required this.operation,
     required this.payload,
   });
-  final String table;
-  final String uuid;
-  final SyncOperation operation;
-  final Map<String, dynamic> payload;
 }
 
 /// حالة Outbox
 class OutboxStatus {
+  final int pendingCount;
+  final int failedCount;
+  final bool isProcessing;
+
   OutboxStatus({
     required this.pendingCount,
     required this.failedCount,
     this.isProcessing = false,
   });
-  final int pendingCount;
-  final int failedCount;
-  final bool isProcessing;
 
   bool get hasPending => pendingCount > 0;
   bool get hasFailed => failedCount > 0;
@@ -335,6 +331,12 @@ class OutboxStatus {
 
 /// إحصائيات Outbox
 class OutboxStats {
+  final int pendingCount;
+  final int syncingCount;
+  final int syncedCount;
+  final int failedCount;
+  final DateTime? oldestPending;
+
   OutboxStats({
     required this.pendingCount,
     required this.syncingCount,
@@ -342,11 +344,6 @@ class OutboxStats {
     required this.failedCount,
     this.oldestPending,
   });
-  final int pendingCount;
-  final int syncingCount;
-  final int syncedCount;
-  final int failedCount;
-  final DateTime? oldestPending;
 }
 
 /// واجهة تخزين Outbox

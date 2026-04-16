@@ -4,9 +4,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
-  SyncNotificationManager._() {
-    _initLocalNotifications();
-  }
   static SyncNotificationManager? _instance;
   static SyncNotificationManager get instance =>
       _instance ??= SyncNotificationManager._();
@@ -14,6 +11,10 @@ class SyncNotificationManager {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
+
+  SyncNotificationManager._() {
+    _initLocalNotifications();
+  }
 
   Future<void> _initLocalNotifications() async {
     if (_isInitialized) return;
@@ -24,7 +25,7 @@ class SyncNotificationManager {
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _localNotifications.initialize(
-      settings: initSettings,
+      initSettings,
       onDidReceiveNotificationResponse: (details) {
         // يمكن إضافة توجيه عند الضغط على الإشعار هنا
       },
@@ -55,13 +56,7 @@ class SyncNotificationManager {
     // نستخدم رقم عشوائي أو ثابت للـ ID
     final id = DateTime.now().millisecondsSinceEpoch % 100000;
 
-    await _localNotifications.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: details,
-      payload: payload,
-    );
+    await _localNotifications.show(id, title, body, details, payload: payload);
   }
 
   /// إشعار نجاح المزامنة

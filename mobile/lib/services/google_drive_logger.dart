@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'logging/log_models.dart';
 
 class GoogleDriveLogger extends ChangeNotifier {
+  static final GoogleDriveLogger _instance = GoogleDriveLogger._internal();
   factory GoogleDriveLogger() => _instance;
   GoogleDriveLogger._internal();
-  static final GoogleDriveLogger _instance = GoogleDriveLogger._internal();
 
   final List<LogEntry> _logs = [];
   static const int _maxLogEntries = 100;
@@ -154,9 +154,6 @@ class GoogleDriveLogger extends ChangeNotifier {
       stackTrace: stackTrace,
     );
   }
-
-  /// Getter للوصول المباشر للسجلات
-  List<LogEntry> get logs => List.unmodifiable(_logs);
 
   List<LogEntry> getLogs({LogLevel? filterLevel}) {
     if (filterLevel == null) {

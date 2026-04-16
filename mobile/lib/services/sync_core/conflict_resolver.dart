@@ -6,6 +6,13 @@ enum ConflictStrategy { newerWins, devicePriority, manualResolve }
 
 /// معلومات التضارب
 class DataConflict {
+  final String table;
+  final String uuid;
+  final Map<String, dynamic> localData;
+  final Map<String, dynamic> remoteData;
+  final DateTime localTimestamp;
+  final DateTime remoteTimestamp;
+
   DataConflict({
     required this.table,
     required this.uuid,
@@ -14,12 +21,6 @@ class DataConflict {
     required this.localTimestamp,
     required this.remoteTimestamp,
   });
-  final String table;
-  final String uuid;
-  final Map<String, dynamic> localData;
-  final Map<String, dynamic> remoteData;
-  final DateTime localTimestamp;
-  final DateTime remoteTimestamp;
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
 
@@ -138,27 +139,29 @@ class ConflictResolver {
 
   /// اختيار البيانات الفائزة حسب الاستراتيجية
   Map<String, dynamic> _selectWinner(DataConflict conflict) {
-    // بناءً على طلب المستخدم، "الأحدث يفوز" هي الاستراتيجية الافتراضية والمحسنة
-    // نقارن التوقيت الزمني (timestamp) ونختار البيانات ذات التوقيت الأحدث
+    switch (strategy) {
+      case ConflictStrategy.newerWins:
+        return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
 
-    final bool remoteIsNewer = conflict.remoteTimestamp.isAfter(
-      conflict.localTimestamp,
-    );
+      case ConflictStrategy.devicePriority:
+        // ignore: unused_local_variable
+        final remoteDevice = conflict.remoteData['device_id'] as String?;
+        final remotePriority =
+            conflict.remoteData['device_priority'] as int? ?? 100;
 
-    if (remoteIsNewer) {
-      debugPrint(
-        '🔔 ConflictResolver: البيانات البعيدة أحدث (${conflict.remoteTimestamp}) من المحلية (${conflict.localTimestamp})',
-      );
-      return conflict.remoteData;
-    } else {
-      debugPrint(
-        '🔔 ConflictResolver: البيانات المحلية أحدث أو مساوية (${conflict.localTimestamp}) للبعيدة (${conflict.remoteTimestamp})',
-      );
-      return conflict.localData;
+        if (devicePriority >= remotePriority) {
+          return conflict.localData;
+        } else {
+          return conflict.remoteData;
+        }
+
+      case ConflictStrategy.manualResolve:
+        return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
     }
   }
 
   /// تحويل timestamp إلى DateTime
+  /// يدعم الثواني والمللي ثانية تلقائياً
   DateTime? _parseTimestamp(dynamic timestamp) {
     if (timestamp == null) return null;
 
@@ -166,6 +169,12 @@ class ConflictResolver {
       if (timestamp is String) {
         return DateTime.parse(timestamp);
       } else if (timestamp is int) {
+        // ✅ كشف تلقائي: إذا كانت القيمة < 10^10 فهي بالثواني، وإلا بالمللي ثانية
+        // Time.nowEpoch() يعيد ثوانٍ (مثال: 1713000000)
+        // DateTime.now().millisecondsSinceEpoch يعيد مللي ثانية (مثال: 1713000000000)
+        if (timestamp < 10000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        }
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {

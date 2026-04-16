@@ -7,11 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
 class SyncPerformanceOptimizer {
+  static final SyncPerformanceOptimizer _instance =
+      SyncPerformanceOptimizer._internal();
+
   factory SyncPerformanceOptimizer() => _instance;
 
   SyncPerformanceOptimizer._internal();
-  static final SyncPerformanceOptimizer _instance =
-      SyncPerformanceOptimizer._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static SyncPerformanceOptimizer get instance => _instance;
@@ -118,22 +119,29 @@ class SyncPerformanceOptimizer {
     if (results.isEmpty) return 'لا يوجد اتصال';
 
     final List<String> types = [];
-    for (final result in results) {
+    for (var result in results) {
       switch (result) {
         case ConnectivityResult.wifi:
           types.add('WiFi');
+          break;
         case ConnectivityResult.mobile:
           types.add('بيانات الهاتف');
+          break;
         case ConnectivityResult.ethernet:
           types.add('إيثرنت');
+          break;
         case ConnectivityResult.vpn:
           types.add('VPN');
+          break;
         case ConnectivityResult.bluetooth:
           types.add('بلوتوث');
+          break;
         case ConnectivityResult.other:
           types.add('أخرى');
+          break;
         case ConnectivityResult.none:
           types.add('لا يوجد اتصال');
+          break;
       }
     }
     return types.join(' + ');
@@ -182,7 +190,15 @@ class SyncPerformanceOptimizer {
     // التحقق من عدد المحاولات الفاشلة
     final settings = getCurrentPerformanceSettings();
     if (_syncAttempts >= settings['retryAttempts']) {
-      debugPrint('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات');
+      // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
+      final cooldownMinutes = 30;
+      if (_lastSyncTime != null &&
+          DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
+        debugPrint('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
+        _syncAttempts = 0;
+        return false;
+      }
+      debugPrint('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)');
       return true;
     }
 
@@ -332,7 +348,7 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من تفعيل WiFi Only
   Future<bool> isWifiOnlyEnabled() async {
-    return _isWifiOnlyEnabled();
+    return await _isWifiOnlyEnabled();
   }
 
   /// حساب الفترة المحسنة للمزامنة بناءً على الأداء
@@ -354,7 +370,7 @@ class SyncPerformanceOptimizer {
 
       // زيادة الفترة مع كل فشل متتالي
       if (_syncAttempts > 0) {
-        optimizedInterval += _syncAttempts * 30; // إضافة 30 ثانية لكل فشل
+        optimizedInterval += (_syncAttempts * 30); // إضافة 30 ثانية لكل فشل
       }
 
       debugPrint(

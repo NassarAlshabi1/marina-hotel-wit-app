@@ -4,6 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/env.dart';
 
 class ApiConfig {
+  final String baseUrl;
+  final String? apiKey;
+  final int connectTimeout;
+  final int receiveTimeout;
+  final bool enableLogging;
+  final bool useSsl;
+  final Map<String, String> customHeaders;
+
   const ApiConfig({
     required this.baseUrl,
     this.apiKey,
@@ -13,25 +21,6 @@ class ApiConfig {
     this.useSsl = true,
     this.customHeaders = const {},
   });
-
-  factory ApiConfig.fromJson(Map<String, dynamic> json) {
-    return ApiConfig(
-      baseUrl: json['baseUrl'] as String? ?? '',
-      apiKey: json['apiKey'] as String?,
-      connectTimeout: json['connectTimeout'] as int? ?? 15,
-      receiveTimeout: json['receiveTimeout'] as int? ?? 20,
-      enableLogging: json['enableLogging'] as bool? ?? false,
-      useSsl: json['useSsl'] as bool? ?? true,
-      customHeaders: Map<String, String>.from(json['customHeaders'] ?? {}),
-    );
-  }
-  final String baseUrl;
-  final String? apiKey;
-  final int connectTimeout;
-  final int receiveTimeout;
-  final bool enableLogging;
-  final bool useSsl;
-  final Map<String, String> customHeaders;
 
   ApiConfig copyWith({
     String? baseUrl,
@@ -63,6 +52,18 @@ class ApiConfig {
     'customHeaders': customHeaders,
   };
 
+  factory ApiConfig.fromJson(Map<String, dynamic> json) {
+    return ApiConfig(
+      baseUrl: json['baseUrl'] as String? ?? '',
+      apiKey: json['apiKey'] as String?,
+      connectTimeout: json['connectTimeout'] as int? ?? 15,
+      receiveTimeout: json['receiveTimeout'] as int? ?? 20,
+      enableLogging: json['enableLogging'] as bool? ?? false,
+      useSsl: json['useSsl'] as bool? ?? true,
+      customHeaders: Map<String, String>.from(json['customHeaders'] ?? {}),
+    );
+  }
+
   static final ApiConfig defaultConfig = ApiConfig(
     baseUrl: Env.baseApiUrl,
     connectTimeout: 15,
@@ -71,9 +72,9 @@ class ApiConfig {
 }
 
 class ApiConfigService {
-  factory ApiConfigService() => instance;
   ApiConfigService._internal();
   static final ApiConfigService instance = ApiConfigService._internal();
+  factory ApiConfigService() => instance;
 
   static const String _configKey = 'php_api_config';
   static const String _serverListKey = 'php_server_list';
@@ -202,6 +203,13 @@ class ApiConfigService {
 }
 
 class ServerInfo {
+  final String id;
+  final String name;
+  final String url;
+  final String? apiKey;
+  final DateTime addedAt;
+  final bool isDefault;
+
   const ServerInfo({
     required this.id,
     required this.name,
@@ -210,6 +218,15 @@ class ServerInfo {
     required this.addedAt,
     this.isDefault = false,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'url': url,
+    'apiKey': apiKey,
+    'addedAt': addedAt.toIso8601String(),
+    'isDefault': isDefault,
+  };
 
   factory ServerInfo.fromJson(Map<String, dynamic> json) {
     return ServerInfo(
@@ -221,21 +238,6 @@ class ServerInfo {
       isDefault: json['isDefault'] as bool? ?? false,
     );
   }
-  final String id;
-  final String name;
-  final String url;
-  final String? apiKey;
-  final DateTime addedAt;
-  final bool isDefault;
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'url': url,
-    'apiKey': apiKey,
-    'addedAt': addedAt.toIso8601String(),
-    'isDefault': isDefault,
-  };
 
   ServerInfo copyWith({
     String? id,

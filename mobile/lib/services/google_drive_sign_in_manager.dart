@@ -14,15 +14,13 @@ class GoogleDriveSignInManager {
 
   static final GoogleDriveSignInManager instance = GoogleDriveSignInManager._();
 
-  /// Initialize GoogleSignIn with the required scopes
-  Future<void> initialize() async {
-    // In google_sign_in 7.x, initialize is called automatically
-    // but we can use this to ensure it's ready
+  GoogleSignIn? _client;
+
+  GoogleSignIn get client {
+    _client ??= GoogleSignIn(
+      scopes: kGoogleDriveScopes,
+      serverClientId: kGoogleDriveServerClientId,
+    );
+    return _client!;
   }
-
-  /// Get the GoogleSignIn instance
-  GoogleSignIn get client => GoogleSignIn.instance;
-
-  /// Check if initialized (always true in 7.x)
-  bool get isInitialized => true;
 }

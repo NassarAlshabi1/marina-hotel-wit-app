@@ -5,7 +5,7 @@ import '../services/google_drive_conflict_resolver.dart';
 import '../services/google_drive_unified_sync_coordinator.dart';
 
 final autoSyncEngineProvider = Provider<AutoSyncEngine>((ref) {
-  // Provider keeps value alive by default in Riverpod 3.x
+  ref.keepAlive();
   return AutoSyncEngine.instance;
 });
 
@@ -16,7 +16,7 @@ final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
 
 final unifiedSyncCoordinatorProvider =
     Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
-      // Provider keeps value alive by default in Riverpod 3.x
+      ref.keepAlive();
       return GoogleDriveUnifiedSyncCoordinator.instance;
     });
 
@@ -26,7 +26,7 @@ final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
 });
 
 final conflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
-  // Provider keeps value alive by default in Riverpod 3.x
+  ref.keepAlive();
   return GoogleDriveConflictResolver.instance;
 });
 
@@ -34,21 +34,21 @@ final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   final engine = ref.watch(autoSyncEngineProvider);
-  return engine.getEngineStatus();
+  return await engine.getEngineStatus();
 });
 
 final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
-  return resolver.getConflictStatistics();
+  return await resolver.getConflictStatistics();
 });
 
 final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
-  return resolver.getConflictHistory(limit: 50);
+  return await resolver.getConflictHistory(limit: 50);
 });
 
 class AutoSyncEngineController

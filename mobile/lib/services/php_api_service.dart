@@ -9,6 +9,12 @@ import '../utils/field_mapper.dart';
 enum PhpApiStatus { disconnected, connecting, connected, error }
 
 class PhpApiResult<T> {
+  final bool success;
+  final T? data;
+  final String? message;
+  final int? statusCode;
+  final Map<String, dynamic>? errors;
+
   const PhpApiResult({
     required this.success,
     this.data,
@@ -33,21 +39,16 @@ class PhpApiResult<T> {
       errors: errors,
     );
   }
-  final bool success;
-  final T? data;
-  final String? message;
-  final int? statusCode;
-  final Map<String, dynamic>? errors;
 }
 
 class PhpApiService {
-  factory PhpApiService() => instance;
   PhpApiService._internal() {
     _initializeDio();
     ApiConfigService.instance.configNotifier.addListener(_onConfigChanged);
   }
 
   static final PhpApiService instance = PhpApiService._internal();
+  factory PhpApiService() => instance;
 
   late Dio _dio;
   static const _storage = FlutterSecureStorage();
@@ -168,7 +169,7 @@ class PhpApiService {
       'path': path,
       'data': data?.toString().substring(
         0,
-        data.toString().length.clamp(0, 500),
+        (data.toString().length).clamp(0, 500),
       ),
       'statusCode': statusCode,
       'timestamp': DateTime.now().toIso8601String(),
@@ -286,7 +287,7 @@ class PhpApiService {
       final queryParams = <String, dynamic>{
         'page': page,
         'page_size': pageSize,
-        'since': ?since,
+        if (since != null) 'since': since,
         if (filter != null && filter.isNotEmpty) 'filter': filter,
         ...?extraParams,
       };
@@ -536,14 +537,17 @@ class PhpApiService {
             data: data != null ? jsonEncode(data) : null,
             queryParameters: queryParams,
           );
+          break;
         case 'PUT':
           response = await _dio.put(
             endpoint,
             data: data != null ? jsonEncode(data) : null,
             queryParameters: queryParams,
           );
+          break;
         case 'DELETE':
           response = await _dio.delete(endpoint, queryParameters: queryParams);
+          break;
         default:
           response = await _dio.get(endpoint, queryParameters: queryParams);
       }

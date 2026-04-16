@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
@@ -173,12 +172,12 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
@@ -197,7 +196,7 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'debtReason', 'debt_reason'): model.debtReason,
       _k(src, 'totalAmount', 'total_amount'): model.totalAmount,
       _k(src, 'paidAmount', 'paid_amount'): model.paidAmount,
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount,
+      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount.round(), // Appwrite: integer
       _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
       _k(src, 'isSettled', 'is_settled'): model.isSettled,
       _k(src, 'pledge', 'pledge'): model.pledge,
@@ -213,18 +212,9 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'version', 'version'): model.version ?? 1,
+      _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
-      ),
-      // ✅ الحقول المطلوبة في Appwrite (required=true)
-      'vector_clock': jsonEncode(model.vectorClock ?? {}), // ✅ string (JSON)
-      'sync_version': model.version ?? 1, // ✅ integer
-      'sync_origin': model.origin ?? 'mobile', // ✅ string
-      'sync_vector_clock': jsonEncode(
-        model.vectorClock ?? {},
-      ), // ✅ string (JSON)
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
@@ -329,38 +319,6 @@ bool? _asBool(Map<String, dynamic> json, String key, Source src) {
     final t = v.toLowerCase();
     if (t == 'true' || t == '1') return true;
     if (t == 'false' || t == '0') return false;
-  }
-  return null;
-}
-
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
   }
   return null;
 }

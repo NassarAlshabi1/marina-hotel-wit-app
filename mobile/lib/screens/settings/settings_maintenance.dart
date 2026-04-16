@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/repository_providers.dart';
+import '../../services/booking_derived_fields_service.dart';
 import '../../services/sync_orchestrator.dart';
 import '../../services/unified_sync_orchestrator.dart';
 import '../../services/sync_guardian.dart';
@@ -112,6 +114,14 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
+
+          _buildMaintenanceCard(
+            'معالجة الرصيد التراكمي',
+            'تحويل المدفوعات التراكمية المعلقة إلى مدفوعات فعلية محسوبة',
+            Icons.account_balance_wallet,
+            Colors.teal,
+            () => _showProcessPendingBalanceDialog(context, ref),
+          ),
 
           _buildMaintenanceCard(
             'إعادة تشغيل الخدمات',
@@ -510,6 +520,212 @@ class SettingsMaintenanceScreen extends ConsumerWidget {
             child: const Text('اختيار ملف'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showProcessPendingBalanceDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.account_balance_wallet, color: Colors.teal),
+            SizedBox(width: 8),
+            Text('معالجة الرصيد التراكمي'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sync_alt, size: 48, color: Colors.teal),
+            SizedBox(height: 16),
+            Text('تحويل المدفوعات التراكمية المعلقة'),
+            SizedBox(height: 8),
+            Text(
+              'سيتم:\n• البحث عن جميع المدفوعات المعلقة (رصيد تراكمي)\n• تحويلها إلى مدفوعات فعلية محسوبة ضمن إجمالي الغرفة\n• إعادة حساب الرصيد المتبقي لجميع الحجوزات المتأثرة',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              _showProgressDialog(context, 'جاري معالجة الرصيد التراكمي...');
+              try {
+                final result = await _processPendingBalances(ref);
+                Navigator.pop(context);
+                if (result.isEmpty) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('لا توجد مدفوعات تراكمية معلقة للمعالجة'),
+                        backgroundColor: Colors.blue,
+                      ),
+                    );
+                  }
+                } else {
+                  if (context.mounted) {
+                    _showProcessingResultDialog(context, result);
+                  }
+                }
+              } catch (e) {
+                Navigator.pop(context);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ في معالجة الرصيد التراكمي: $e')),
+                );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            child: const Text('معالجة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _processPendingBalances(WidgetRef ref) async {
+    final db = ref.read(databaseProvider);
+    final paymentsRepo = ref.read(paymentsRepoProvider);
+    final derivedService = BookingDerivedFieldsService(db);
+    final results = <Map<String, dynamic>>[];
+
+    // البحث عن جميع المدفوعات التراكمية المعلقة
+    final pendingPayments = await (db.select(db.payments)
+          ..where((p) => p.isPendingBalance.equals(true))
+          ..where((p) => p.deletedAt.isNull()))
+        .get();
+
+    if (pendingPayments.isEmpty) return results;
+
+    // تجميع معرّفات الحجوزات المتأثرة
+    final affectedBookingIds = <int>{};
+
+    for (final payment in pendingPayments) {
+      // تحويل الدفعة: isPendingBalance = false, revenueType = 'room'
+      await paymentsRepo.update(
+        payment.id,
+        isPendingBalance: false,
+        revenueType: 'room',
+      );
+
+      results.add({
+        'id': payment.id,
+        'roomNumber': payment.roomNumber ?? '—',
+        'amount': payment.amount,
+        'paymentDate': payment.paymentDate,
+        'paymentMethod': payment.paymentMethod,
+        'notes': payment.notes,
+      });
+
+      if (payment.bookingLocalId != null) {
+        affectedBookingIds.add(payment.bookingLocalId!);
+      }
+    }
+
+    // إعادة حساب جميع الحجوزات المتأثرة
+    for (final bookingId in affectedBookingIds) {
+      await derivedService.refreshForBookingId(bookingId);
+    }
+
+    // إعادة حساب جميع الحجوزات النشطة
+    await derivedService.refreshAllActiveBookings();
+
+    return results;
+  }
+
+  void _showProcessingResultDialog(BuildContext context, List<Map<String, dynamic>> results) {
+    final totalAmount = results.fold<double>(0, (s, r) => s + (r['amount'] as double));
+
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.teal),
+              SizedBox(width: 8),
+              Text('تمت المعالجة بنجاح'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.payments, color: Colors.teal),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${results.length} دفعة تم تحويلها',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'الإجمالي: ${totalAmount.toStringAsFixed(0)} ر.ي',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'التفاصيل:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: results.length,
+                  itemBuilder: (context, index) {
+                    final r = results[index];
+                    return ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.teal.withOpacity(0.1),
+                        child: Text(
+                          r['roomNumber'] as String,
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
+                        ),
+                      ),
+                      title: Text(
+                        '${r['amount'].toStringAsFixed(0)} ر.ي - ${r['paymentMethod']}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      subtitle: Text(
+                        r['paymentDate'] as String,
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
       ),
     );
   }

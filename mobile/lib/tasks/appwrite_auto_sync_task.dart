@@ -17,7 +17,7 @@ void appwriteAutoSyncCallbackDispatcher() {
       WidgetsFlutterBinding.ensureInitialized();
 
       final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('appwrite_sync_enabled') ?? false;
+      final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!enabled) {
         return true;

@@ -71,7 +71,7 @@ abstract class BaseSyncManager {
 
     _scheduler = SyncScheduler(
       onSyncTrigger: _performSync,
-      isEnabled: () => _isEnabled && (_backupService?.isSignedIn ?? false),
+      isEnabled: () => _isEnabled && _backupService?.isSignedIn == true,
       quickCheckInterval: const Duration(minutes: 1),
       fullSyncInterval: const Duration(hours: 24),
     );
@@ -80,7 +80,7 @@ abstract class BaseSyncManager {
 
     await SyncPerformanceOptimizer.instance.initialize();
 
-    if (_isEnabled && (_backupService?.isSignedIn ?? false)) {
+    if (_isEnabled && _backupService?.isSignedIn == true) {
       await _scheduler.start();
     }
 
@@ -286,7 +286,7 @@ abstract class BaseSyncManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsEnabledKey, true);
 
-    if (_backupService?.isSignedIn ?? false) {
+    if (_backupService?.isSignedIn == true) {
       await _scheduler.start();
     }
 

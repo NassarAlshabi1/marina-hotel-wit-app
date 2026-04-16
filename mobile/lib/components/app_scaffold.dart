@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../screens/notes/notes_screen.dart';
 import '../providers/repository_providers.dart';
-import '../utils/theme.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -32,8 +31,6 @@ class AppScaffold extends ConsumerWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: AppColors.primaryColor,
-          foregroundColor: Colors.white,
           title: Text(title),
           actions: [
             IconButton(

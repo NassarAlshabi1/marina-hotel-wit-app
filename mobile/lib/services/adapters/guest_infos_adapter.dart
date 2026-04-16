@@ -1,6 +1,5 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart' as d;
+
 import '../local_db.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -28,22 +27,9 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    final uuid =
-        _asString(json, 'localUuid', src) ??
-        _asString(json, 'local_uuid', src) ??
-        IdGen.uuid();
-    // ignore: unused_local_variable
-    final serverId =
-        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
-    // ignore: unused_local_variable
-    final localId = _asInt(json, 'id', src);
-
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-
     return ResolveResult(
-      bookingLocalId: null,
-      bookingUuidCache: uuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -62,38 +48,75 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
-
     return GuestInfosCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(refs.bookingUuidCache ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      roomNumber: d.Value(
-        _asString(json, 'roomNumber', src) ?? '',
+      roomNumber: _vStr(
+        json,
+        'roomNumber',
+        src,
+        altKey: 'room_number',
+        fallback: '',
       ),
-      guestName: d.Value(
-        _asString(json, 'guestName', src) ?? '',
+      guestName: _vStr(
+        json,
+        'guestName',
+        src,
+        altKey: 'guest_name',
+        fallback: '',
       ),
-      nationality: d.Value(
-        _asString(json, 'nationality', src) ?? '',
+      nationality: _vStr(
+        json,
+        'nationality',
+        src,
+        fallback: '',
       ),
-      idNumber: d.Value(
-        _asString(json, 'idNumber', src) ?? '',
+      idNumber: _vStr(
+        json,
+        'idNumber',
+        src,
+        altKey: 'id_number',
+        fallback: '',
       ),
-      idType: _vStr(json, 'idType', src, fallback: 'بطاقة شخصية'),
-      issueDate: _vStr(json, 'issueDate', src),
-      issuePlace: _vStr(json, 'issuePlace', src),
-      governorate: _vStr(json, 'governorate', src),
-      notes: _vStr(json, 'notes', src),
+      idType: _vStr(
+        json,
+        'idType',
+        src,
+        altKey: 'id_type',
+        fallback: 'بطاقة شخصية',
+      ),
+      issueDate: _vStr(
+        json,
+        'issueDate',
+        src,
+        altKey: 'issue_date',
+      ),
+      issuePlace: _vStr(
+        json,
+        'issuePlace',
+        src,
+        altKey: 'issue_place',
+      ),
+      governorate: _vStr(
+        json,
+        'governorate',
+        src,
+      ),
+      notes: _vStr(
+        json,
+        'notes',
+        src,
+      ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
-      createdAtIso: _vStr(
-        json,
-        'createdAtIso',
-        src,
-        fallback: _asString(json, 'createdAt', src),
-      ),
+      createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
@@ -105,39 +128,18 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
       ),
       version: _vInt(json, 'version', src, fallback: 1),
       origin: _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vMapJson(
+      vectorClock: _vStr(
         json,
         'vectorClock',
         src,
         altKey: 'vector_clock',
-        fallback: {},
+        fallback: '{}',
       ),
     );
   }
 
   @override
   Map<String, dynamic> toJson(GuestInfo model, {required Source src}) {
-    if (src == Source.appwrite) {
-      return {
-        'localUuid': model.localUuid,
-        'id': model.id,
-        'roomNumber': model.roomNumber,
-        'guestName': model.guestName,
-        'nationality': model.nationality,
-        'idNumber': model.idNumber,
-        'idType': model.idType,
-        if (model.issueDate != null) 'issueDate': model.issueDate,
-        if (model.issuePlace != null) 'issuePlace': model.issuePlace,
-        if (model.governorate != null) 'governorate': model.governorate,
-        if (model.notes != null) 'notes': model.notes,
-        'createdAt': model.createdAt,
-        'updatedAt': model.updatedAt,
-        'lastModified': model.lastModified,
-        'version': model.version,
-        'origin': model.origin,
-        'vectorClock': jsonEncode(model.vectorClock ?? {}),
-      };
-    }
     return {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
@@ -159,18 +161,15 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
       _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
-          model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
-      _k(src, 'vectorClock', 'vector_clock'): jsonEncode(
-        model.vectorClock ?? {},
-      ),
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+// ─── Helpers (مطابقة تماماً لـ rooms_adapter) ───────────────────────────
 
 d.Value<int> _vInt(
   Map<String, dynamic> json,
@@ -200,51 +199,12 @@ d.Value<String> _vStr(
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<Map<String, dynamic>> _vMapJson(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  Map<String, dynamic>? fallback,
-}) {
-  final v =
-      _asMap(json, key, src) ??
-      (altKey != null ? _asMap(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-Map<String, dynamic>? _asMap(
-  Map<String, dynamic> json,
-  String key,
-  Source src,
-) {
-  final v = _raw(json, key, src);
-  if (v is Map<String, dynamic>) return v;
-  if (v is Map) return Map<String, dynamic>.from(v);
-  if (v is String) {
-    try {
-      final decoded = jsonDecode(v);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
-  }
-  return null;
-}
-
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
   if (v != null) return v;
   final s = _asString(json, key, src);
   if (s == null) return null;
-  final parsed = int.tryParse(s);
-  if (parsed != null) return parsed;
-  final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
-  try {
-    return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
-  } catch (_) {
-    return null;
-  }
+  return int.tryParse(s);
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
@@ -253,6 +213,7 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   if (v is int) return v;
   if (v is num) return v.toInt();
   if (v is String) {
+    // تجاهل UUID أو strings طويلة
     if (v.contains('-') || v.length > 20) return null;
     return int.tryParse(v);
   }

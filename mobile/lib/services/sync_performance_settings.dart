@@ -114,6 +114,7 @@ class SyncPerformanceSettings {
         ); // تعطيل تحسين البطارية
         await prefs.setInt('batch_size', 100); // حجم دفعة أكبر
         await prefs.setInt('connection_timeout_seconds', 30);
+        break;
 
       case 'balanced':
         // إعدادات متوازنة
@@ -124,6 +125,7 @@ class SyncPerformanceSettings {
         ); // تحسين البطارية معتدل
         await prefs.setInt('batch_size', 50); // حجم دفعة متوسط
         await prefs.setInt('connection_timeout_seconds', 20);
+        break;
 
       case 'battery_saver':
         // إعدادات توفير البطارية
@@ -140,6 +142,7 @@ class SyncPerformanceSettings {
         // إعدادات إضافية لتوفير البطارية
         await prefs.setBool('background_sync_enabled', false);
         await prefs.setInt('max_retry_attempts', 1);
+        break;
     }
   }
 

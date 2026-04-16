@@ -1,6 +1,5 @@
 /// Drift Sync Data Source Implementation
 /// تطبيق OutboxDataSource و InboxDataSource باستخدام Drift
-library;
 
 import 'package:drift/drift.dart';
 import '../delta_sync_engine.dart';
@@ -9,9 +8,10 @@ import '../models/sync_models.dart';
 /// Drift Outbox Data Source
 /// يربط DeltaSyncEngine بقاعدة البيانات المحلية
 class DriftOutboxDataSource implements OutboxDataSource {
-  DriftOutboxDataSource(this._db);
   // ignore: unused_field
   final GeneratedDatabase _db;
+
+  DriftOutboxDataSource(this._db);
 
   @override
   Future<List<DeltaChange>> fetchPending({required int batchSize}) async {
@@ -57,10 +57,7 @@ class DriftOutboxDataSource implements OutboxDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>?> getLocalRecord(
-    String table,
-    String uuid,
-  ) async {
+  Future<Map<String, dynamic>?> getLocalRecord(String table, String uuid) async {
     // قراءة السجل المحلي
     return null;
   }
@@ -71,10 +68,13 @@ class DriftOutboxDataSource implements OutboxDataSource {
     switch (change.operation) {
       case SyncOperation.create:
         await _applyCreate(change);
+        break;
       case SyncOperation.update:
         await _applyUpdate(change);
+        break;
       case SyncOperation.delete:
         await _applyDelete(change);
+        break;
     }
   }
 
@@ -93,9 +93,10 @@ class DriftOutboxDataSource implements OutboxDataSource {
 
 /// Drift Inbox Data Source
 class DriftInboxDataSource implements InboxDataSource {
-  DriftInboxDataSource(this._db);
   // ignore: unused_field
   final GeneratedDatabase _db;
+
+  DriftInboxDataSource(this._db);
 
   @override
   Future<void> save(DeltaChange change) async {
@@ -117,9 +118,13 @@ class DriftInboxDataSource implements InboxDataSource {
 /// API Remote Data Source
 /// يربط DeltaSyncEngine بواجهة برمجة التطبيقات (API)
 class ApiRemoteDataSource implements RemoteDataSource {
-  ApiRemoteDataSource({required this.baseUrl, this.authToken});
   final String baseUrl;
   final String? authToken;
+
+  ApiRemoteDataSource({
+    required this.baseUrl,
+    this.authToken,
+  });
 
   @override
   Future<List<DeltaChange>> fetchChanges({

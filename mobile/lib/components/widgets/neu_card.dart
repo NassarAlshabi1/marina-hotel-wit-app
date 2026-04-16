@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 class NeuCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final VoidCallback? onTap;
+  final double borderRadius;
+
   const NeuCard({
     super.key,
     required this.child,
@@ -9,11 +15,6 @@ class NeuCard extends StatelessWidget {
     this.onTap,
     this.borderRadius = 16,
   });
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final VoidCallback? onTap;
-  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +53,13 @@ class NeuCard extends StatelessWidget {
 }
 
 class NeuStatCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color? iconColor;
+  final Color? valueColor;
+  final bool emphasize;
+
   const NeuStatCard({
     super.key,
     required this.icon,
@@ -61,12 +69,6 @@ class NeuStatCard extends StatelessWidget {
     this.valueColor,
     this.emphasize = false,
   });
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color? iconColor;
-  final Color? valueColor;
-  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
@@ -116,15 +118,16 @@ class NeuStatCard extends StatelessWidget {
 }
 
 class NeuDateButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
   const NeuDateButton({
     super.key,
     required this.icon,
     required this.label,
     required this.onTap,
   });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -163,15 +166,16 @@ class NeuDateButton extends StatelessWidget {
 }
 
 class NeuQuickFilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
   const NeuQuickFilterChip({
     super.key,
     required this.label,
     required this.selected,
     required this.onTap,
   });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -212,6 +216,11 @@ class NeuQuickFilterChip extends StatelessWidget {
 }
 
 class NeuSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? trailing;
+  final Color? iconColor;
+
   const NeuSectionHeader({
     super.key,
     required this.icon,
@@ -219,10 +228,6 @@ class NeuSectionHeader extends StatelessWidget {
     this.trailing,
     this.iconColor,
   });
-  final IconData icon;
-  final String title;
-  final String? trailing;
-  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {

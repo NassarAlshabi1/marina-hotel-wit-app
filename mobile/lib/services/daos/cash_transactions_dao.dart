@@ -3,7 +3,6 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
-import '../sync_guardian.dart';
 
 part 'cash_transactions_dao.g.dart';
 
@@ -104,10 +103,6 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'cash_transactions',
-          operation: 'create',
-        );
       }
       return id;
     });
@@ -139,10 +134,6 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'cash_transactions',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -173,10 +164,6 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'cash_transactions',
-          operation: 'update',
         );
       }
       return rows;
@@ -213,10 +200,6 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           payload: _payloadFrom(comp, base: existing),
           clientTs: now,
         );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'cash_transactions',
-          operation: 'update',
-        );
       }
       return rows;
     });
@@ -247,10 +230,6 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           payload: {'id': id},
           clientTs: now,
-        );
-        SyncGuardian.instance.notifyLocalChange(
-          table: 'cash_transactions',
-          operation: 'delete',
         );
       }
       return rows;

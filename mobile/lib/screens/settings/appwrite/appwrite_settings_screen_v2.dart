@@ -5,7 +5,6 @@ import 'tabs/connection_tab.dart';
 import 'tabs/sync_tab.dart';
 import 'tabs/devices_tab.dart';
 import 'tabs/tools_tab.dart';
-import 'tabs/collections_tab.dart';
 
 /// Appwrite Settings Screen v2 - إعدادات Appwrite المحسّنة
 ///
@@ -30,7 +29,7 @@ class _AppwriteSettingsScreenV2State
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -58,7 +57,7 @@ class _AppwriteSettingsScreenV2State
       body: Column(
         children: [
           // Tab Bar
-          ColoredBox(
+          Container(
             color: Colors.grey.shade100,
             child: TabBar(
               controller: _tabController,
@@ -69,7 +68,6 @@ class _AppwriteSettingsScreenV2State
               tabs: const [
                 Tab(icon: Icon(Icons.cloud), text: 'الاتصال'),
                 Tab(icon: Icon(Icons.sync), text: 'المزامنة'),
-                Tab(icon: Icon(Icons.storage), text: 'الجداول'),
                 Tab(icon: Icon(Icons.devices), text: 'الأجهزة'),
                 Tab(icon: Icon(Icons.build), text: 'الأدوات'),
               ],
@@ -83,7 +81,6 @@ class _AppwriteSettingsScreenV2State
               children: const [
                 AppwriteConnectionTab(),
                 AppwriteSyncTab(),
-                AppwriteCollectionsTab(),
                 AppwriteDevicesTab(),
                 AppwriteToolsTab(),
               ],
@@ -105,7 +102,7 @@ class _AppwriteSettingsScreenV2State
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -127,7 +124,6 @@ class _AppwriteSettingsScreenV2State
                 // Navigate to stats
               },
             ),
-
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات متقدمة'),
@@ -159,7 +155,6 @@ class _AppwriteSettingsScreenV2State
             'إدارة اتصال ومزامنة Appwrite:\n\n'
             '• الاتصال: التحقق من الاتصال وإعدادات المشروع\n'
             '• المزامنة: إدارة المزامنة والإحصائيات\n'
-            '• الجداول: عرض الجداول والحقول المزامنة\n'
             '• الأجهزة: الأجهزة المسجلة والمتصلة\n'
             '• الأدوات: أدوات الصيانة والاختبار',
           ),

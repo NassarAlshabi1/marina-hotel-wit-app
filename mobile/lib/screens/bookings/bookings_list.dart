@@ -68,7 +68,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
         body: bookingsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
-            child: Text('خطأ: $e', style: const TextStyle(color: Colors.black)),
+            child: Text('خطأ: $e', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black)),
           ),
           data: (bookings) {
             final roomsList = roomsAsync.maybeWhen(
@@ -126,35 +126,32 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 ? DateTime.tryParse(booking.actualCheckout!)
                                 : null;
                             final price = room?.price ?? 0;
-                            final expectedNights = booking.expectedNights > 0
-                                ? booking.expectedNights
-                                : (checkin == null
-                                      ? 1
-                                      : Time.nightsWithCutoff(
-                                          checkin,
-                                          checkout: plannedCheckout,
-                                        ));
-
-                            // Calculate nights based on current time for active bookings
-                            // or based on actual/planned checkout for finished ones.
-                            final isActive =
-                                actualCheckout == null &&
-                                StatusUtils.isBookingActive(booking);
-                            final actualNights = checkin == null
-                                ? expectedNights
-                                : Time.nightsWithCutoff(
-                                    checkin,
-                                    checkout:
-                                        actualCheckout ??
-                                        (isActive
-                                            ? DateTime.now()
-                                            : plannedCheckout),
-                                  );
-
-                            // Use cached total due if available, otherwise fallback to simple calculation
-                            final totalAmount = booking.totalDueCached > 0
-                                ? booking.totalDueCached
-                                : (actualNights * price);
+                            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
+                            final hasNoCheckout = plannedCheckout == null &&
+                                actualCheckout == null;
+                            final dynamicNights =
+                                hasNoCheckout && checkin != null
+                                    ? Time.nightsWithCutoff(checkin)
+                                    : null;
+                            final expectedNights = dynamicNights ??
+                                (booking.expectedNights > 0
+                                    ? booking.expectedNights
+                                    : (checkin == null
+                                          ? 1
+                                          : Time.nightsWithCutoff(
+                                              checkin,
+                                              checkout: plannedCheckout,
+                                            )));
+                            final actualNights = dynamicNights ??
+                                (checkin == null
+                                    ? expectedNights
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout:
+                                            actualCheckout ?? plannedCheckout,
+                                      ));
+                            final totalAmount = (actualNights * price)
+                                .toDouble();
                             return _BookingRow(
                               index: index,
                               booking: booking,
@@ -191,30 +188,31 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           ? DateTime.tryParse(booking.actualCheckout!)
                           : null;
                       final price = room?.price ?? 0;
-                      final expectedNights = booking.expectedNights > 0
-                          ? booking.expectedNights
-                          : (checkin == null
-                                ? 1
-                                : Time.nightsWithCutoff(
-                                    checkin,
-                                    checkout: plannedCheckout,
-                                  ));
-
-                      final isActive =
-                          actualCheckout == null &&
-                          StatusUtils.isBookingActive(booking);
-                      final actualNights = checkin == null
-                          ? expectedNights
-                          : Time.nightsWithCutoff(
-                              checkin,
-                              checkout:
-                                  actualCheckout ??
-                                  (isActive ? DateTime.now() : plannedCheckout),
-                            );
-
-                      final totalAmount = booking.totalDueCached > 0
-                          ? booking.totalDueCached
-                          : (actualNights * price);
+                      // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
+                      final hasNoCheckout = plannedCheckout == null &&
+                          actualCheckout == null;
+                      final dynamicNights =
+                          hasNoCheckout && checkin != null
+                              ? Time.nightsWithCutoff(checkin)
+                              : null;
+                      final expectedNights = dynamicNights ??
+                          (booking.expectedNights > 0
+                              ? booking.expectedNights
+                              : (checkin == null
+                                    ? 1
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout: plannedCheckout,
+                                      )));
+                      final actualNights = dynamicNights ??
+                          (checkin == null
+                              ? expectedNights
+                              : Time.nightsWithCutoff(
+                                  checkin,
+                                  checkout:
+                                      actualCheckout ?? plannedCheckout,
+                                ));
+                      final totalAmount = (actualNights * price).toDouble();
                       return _BookingRow(
                         index: index + 1,
                         booking: booking,
@@ -409,11 +407,9 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(
-      context,
-    ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-    child: const Row(
-      children: [
+    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+    child: Row(
+      children: const [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),
         _HeaderCell('بيانات النزيل', flex: 2),
         _HeaderCell('الغرفة'),
@@ -471,11 +467,11 @@ class _BookingRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
-    const baseTextStyle = TextStyle(color: Colors.black);
+    final baseTextStyle = TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
     final nightsLabel = actualNights != expectedNights
-        ? '$expectedNights ($actualNights فعلي)'
+        ? '$expectedNights (${actualNights} فعلي)'
         : expectedNights.toString();
     final plannedText = plannedCheckout != null
         ? _formatDate(plannedCheckout!.toIso8601String())
@@ -504,7 +500,9 @@ class _BookingRow extends ConsumerWidget {
         final paid = snapshot.hasData
             ? snapshot.data!.fold<double>(0, (s, p) => s + p.amount)
             : 0.0;
-        final remaining = (totalAmount - paid).clamp(0.0, totalAmount);
+        final remaining = (totalAmount - paid)
+            .clamp(0.0, totalAmount)
+            .toDouble();
         final Color statusColor = remaining <= 0.0
             ? Colors.green
             : (paid > 0 ? Colors.orange : Colors.red);
@@ -705,10 +703,12 @@ Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
       case 'مكتمل':
         bg = Colors.blue.shade100;
         txt = 'مكتمل';
+        break;
       case 'cancelled':
       case 'ملغي':
         bg = Colors.red.shade100;
         txt = 'ملغي';
+        break;
       default:
         bg = Colors.grey.shade100;
         txt = status;

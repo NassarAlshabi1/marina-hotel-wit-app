@@ -10,14 +10,21 @@ import 'package:flutter/material.dart';
 
 /// مستويات توفير البطارية
 enum BatteryOptimizationLevel {
-  none, // لا تحسين - المزامنة العادية
-  light, // تحسين خفيف - تقليل التردد
-  moderate, // تحسين متوسط - المزامنة عند الشحن فقط
+  none,       // لا تحسين - المزامنة العادية
+  light,      // تحسين خفيف - تقليل التردد
+  moderate,   // تحسين متوسط - المزامنة عند الشحن فقط
   aggressive, // تحسين عالي - إيقاف المزامنة التلقائية
 }
 
 /// إعدادات المزامنة بناءً على مستوى البطارية
 class BatterySyncSettings {
+  final Duration syncInterval;
+  final int batchSize;
+  final bool syncOnBattery;
+  final int minBatteryPercentage;
+  final bool reduceAnimations;
+  final bool compressData;
+
   const BatterySyncSettings({
     required this.syncInterval,
     required this.batchSize,
@@ -26,25 +33,6 @@ class BatterySyncSettings {
     required this.reduceAnimations,
     required this.compressData,
   });
-
-  factory BatterySyncSettings.fromLevel(BatteryOptimizationLevel level) {
-    switch (level) {
-      case BatteryOptimizationLevel.none:
-        return none;
-      case BatteryOptimizationLevel.light:
-        return light;
-      case BatteryOptimizationLevel.moderate:
-        return moderate;
-      case BatteryOptimizationLevel.aggressive:
-        return aggressive;
-    }
-  }
-  final Duration syncInterval;
-  final int batchSize;
-  final bool syncOnBattery;
-  final int minBatteryPercentage;
-  final bool reduceAnimations;
-  final bool compressData;
 
   static const BatterySyncSettings none = BatterySyncSettings(
     syncInterval: Duration(minutes: 5),
@@ -81,35 +69,47 @@ class BatterySyncSettings {
     reduceAnimations: true,
     compressData: true,
   );
+
+  factory BatterySyncSettings.fromLevel(BatteryOptimizationLevel level) {
+    switch (level) {
+      case BatteryOptimizationLevel.none:
+        return none;
+      case BatteryOptimizationLevel.light:
+        return light;
+      case BatteryOptimizationLevel.moderate:
+        return moderate;
+      case BatteryOptimizationLevel.aggressive:
+        return aggressive;
+    }
+  }
 }
 
 /// خدمة تحسين استهلاك البطارية
 class BatteryOptimizer extends ChangeNotifier {
+  static final BatteryOptimizer _instance = BatteryOptimizer._internal();
   factory BatteryOptimizer() => _instance;
   BatteryOptimizer._internal();
-  static final BatteryOptimizer _instance = BatteryOptimizer._internal();
 
   final Battery _battery = Battery();
   final Connectivity _connectivity = Connectivity();
 
   BatteryState _batteryState = BatteryState.unknown;
   int _batteryLevel = 100;
-  List<ConnectivityResult> _connectionState = [ConnectivityResult.none];
+  ConnectivityResult _connectionState = ConnectivityResult.none;
   BatteryOptimizationLevel _optimizationLevel = BatteryOptimizationLevel.light;
   bool _isMonitoring = false;
   bool _isCharging = false;
   StreamSubscription<BatteryState>? _batterySubscription;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
   // Getters
   BatteryState get batteryState => _batteryState;
   int get batteryLevel => _batteryLevel;
-  List<ConnectivityResult> get connectionState => _connectionState;
+  ConnectivityResult get connectionState => _connectionState;
   BatteryOptimizationLevel get optimizationLevel => _optimizationLevel;
   bool get isCharging => _isCharging;
   bool get shouldSync => _shouldSync();
-  BatterySyncSettings get syncSettings =>
-      BatterySyncSettings.fromLevel(_optimizationLevel);
+  BatterySyncSettings get syncSettings => BatterySyncSettings.fromLevel(_optimizationLevel);
 
   /// تهيئة الخدمة
   Future<void> initialize() async {
@@ -130,10 +130,7 @@ class BatteryOptimizer extends ChangeNotifier {
         name: 'BatteryOptimizer',
       );
     } catch (e) {
-      developer.log(
-        '⚠️ BatteryOptimizer init error: $e',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('⚠️ BatteryOptimizer init error: $e', name: 'BatteryOptimizer');
     }
   }
 
@@ -167,9 +164,7 @@ class BatteryOptimizer extends ChangeNotifier {
     });
 
     // مراقبة الاتصال
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-      result,
-    ) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
       _connectionState = result;
       notifyListeners();
 
@@ -235,7 +230,7 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     // التحقق من الاتصال
-    if (_connectionState.every((r) => r == ConnectivityResult.none)) {
+    if (_connectionState == ConnectivityResult.none) {
       return false;
     }
 
@@ -272,11 +267,11 @@ class BatteryOptimizer extends ChangeNotifier {
   IconData getBatteryIcon() {
     if (_isCharging) return Icons.battery_charging_full;
     if (_batteryLevel <= 10) return Icons.battery_alert;
-    if (_batteryLevel <= 20) return Icons.battery_2_bar;
-    if (_batteryLevel <= 30) return Icons.battery_3_bar;
-    if (_batteryLevel <= 50) return Icons.battery_4_bar;
-    if (_batteryLevel <= 60) return Icons.battery_5_bar;
-    if (_batteryLevel <= 80) return Icons.battery_6_bar;
+    if (_batteryLevel <= 20) return Icons.battery_20;
+    if (_batteryLevel <= 30) return Icons.battery_30;
+    if (_batteryLevel <= 50) return Icons.battery_50;
+    if (_batteryLevel <= 60) return Icons.battery_60;
+    if (_batteryLevel <= 80) return Icons.battery_80;
     return Icons.battery_full;
   }
 
@@ -307,9 +302,7 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     if (_connectionState == ConnectivityResult.mobile) {
-      recommendations.add(
-        '📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية',
-      );
+      recommendations.add('📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية');
     }
 
     if (syncSettings.compressData) {

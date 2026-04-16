@@ -145,7 +145,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                     _buildFixResultCard(),
                     const SizedBox(height: 16),
                   ],
-                  if (_validationReport?.hasIssues ?? false) _buildFixButton(),
+                  if (_validationReport?.hasIssues == true) _buildFixButton(),
                 ],
               ),
             ),

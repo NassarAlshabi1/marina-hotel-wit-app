@@ -9,8 +9,8 @@ import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
-  const PaymentHistoryScreen({super.key, this.bookingId});
   final String? bookingId;
+  const PaymentHistoryScreen({super.key, this.bookingId});
 
   @override
   ConsumerState<PaymentHistoryScreen> createState() =>
@@ -403,20 +403,21 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedRevenueType,
+                    value: _selectedRevenueType,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
                       border: OutlineInputBorder(),
                     ),
                     items: [
-                      const DropdownMenuItem(
+                      DropdownMenuItem(
                         value: null,
-                        child: Text('جميع الأنواع'),
+                        child: Text('جميع الأنواع', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                       ),
                       ..._revenueTypes.map(
                         (type) => DropdownMenuItem(
                           value: type,
-                          child: Text(_getRevenueTypeLabel(type)),
+                          child: Text(_getRevenueTypeLabel(type), style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                         ),
                       ),
                     ],
@@ -425,20 +426,21 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentMethod,
+                    value: _selectedPaymentMethod,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',
                       border: OutlineInputBorder(),
                     ),
                     items: [
-                      const DropdownMenuItem(
+                      DropdownMenuItem(
                         value: null,
-                        child: Text('جميع الطرق'),
+                        child: Text('جميع الطرق', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                       ),
                       ..._paymentMethods.map(
                         (method) => DropdownMenuItem(
                           value: method,
-                          child: Text(method),
+                          child: Text(method, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                         ),
                       ),
                     ],

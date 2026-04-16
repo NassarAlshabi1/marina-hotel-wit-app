@@ -220,6 +220,7 @@ include_once '../../includes/header.php';
                                     <option value="بطاقة شخصية" <?= $guest_data['guest_id_type'] == 'بطاقة شخصية' ? 'selected' : '' ?>>بطاقة شخصية</option>
                                     <option value="جواز سفر" <?= $guest_data['guest_id_type'] == 'جواز سفر' ? 'selected' : '' ?>>جواز سفر</option>
                                     <option value="رخصة قيادة" <?= $guest_data['guest_id_type'] == 'رخصة قيادة' ? 'selected' : '' ?>>رخصة قيادة</option>
+                                    <option value="شهادة ميلاد" <?= $guest_data['guest_id_type'] == 'شهادة ميلاد' ? 'selected' : '' ?>>شهادة ميلاد</option>
                                 </select>
                             </div>
                             

@@ -28,11 +28,6 @@ const collectionsWithSyncFields = [
   'salary_cycles',
   'salary_payments',
   'hotel_day_ledger',
-  // ✅ كيانات كانت مفقودة - تسبب فشل رفع البيانات
-  'booking_price_adjustments',
-  'price_adjustments',
-  'salary_withdrawals',
-  'payment_voids',
 ];
 
 async function addIdempotencyKey() {

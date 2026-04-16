@@ -17,11 +17,12 @@ import 'appwrite_logger.dart';
 /// تتيح هذه الخدمة تصدير جميع البيانات من قاعدة البيانات المحلية إلى ملف JSON
 /// واستيرادها إلى Appwrite (Overwrite أو Merge)
 class ComprehensiveAppwriteBackupService {
+  static final ComprehensiveAppwriteBackupService _instance =
+      ComprehensiveAppwriteBackupService._internal();
+
   factory ComprehensiveAppwriteBackupService() => _instance;
 
   ComprehensiveAppwriteBackupService._internal();
-  static final ComprehensiveAppwriteBackupService _instance =
-      ComprehensiveAppwriteBackupService._internal();
 
   final AppwriteService _appwriteService = AppwriteService();
   final AppwriteLogger _logger = AppwriteLogger();
@@ -40,7 +41,7 @@ class ComprehensiveAppwriteBackupService {
     AppwriteConfig.employeesCollectionId,
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
-    // ❌ hotel_day_ledger - محلي فقط
+    AppwriteConfig.hotelDayLedgerCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -140,7 +141,12 @@ class ComprehensiveAppwriteBackupService {
       collectionsData[AppwriteConfig.salaryPaymentsCollectionId] =
           salaryPayments.map((e) => e.toJson()).toList();
 
-      // ❌ hotel_day_ledger - محلي فقط، لا يتم تصديره
+      // 13. Hotel Day Ledger
+      if (onProgress != null) onProgress('تصدير دفتر اليومية...', 0.88);
+      final ledger = await db.select(db.hotelDayLedger).get();
+      collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger
+          .map((e) => e.toJson())
+          .toList();
 
       // 14. Price Adjustments
       if (onProgress != null) onProgress('تصدير تعديلات الأسعار...', 0.91);
@@ -149,9 +155,7 @@ class ComprehensiveAppwriteBackupService {
           priceAdjustments.map((e) => e.toJson()).toList();
 
       // 15. Booking Price Adjustments
-      if (onProgress != null) {
-        onProgress('تصدير تعديلات أسعار الحجوزات...', 0.93);
-      }
+      if (onProgress != null) onProgress('تصدير تعديلات أسعار الحجوزات...', 0.93);
       final bookingPriceAdj = await db.select(db.bookingPriceAdjustments).get();
       collectionsData[AppwriteConfig.bookingPriceAdjustmentsCollectionId] =
           bookingPriceAdj.map((e) => e.toJson()).toList();
@@ -159,16 +163,14 @@ class ComprehensiveAppwriteBackupService {
       // 16. Audit Logs
       if (onProgress != null) onProgress('تصدير سجلات التدقيق...', 0.95);
       final auditLogs = await db.select(db.auditLogs).get();
-      collectionsData[AppwriteConfig.auditLogsCollectionId] = auditLogs
-          .map((e) => e.toJson())
-          .toList();
+      collectionsData[AppwriteConfig.auditLogsCollectionId] =
+          auditLogs.map((e) => e.toJson()).toList();
 
       // 17. Payment Voids
       if (onProgress != null) onProgress('تصدير إلغاءات الدفع...', 0.98);
       final paymentVoids = await db.select(db.paymentVoids).get();
-      collectionsData[AppwriteConfig.paymentVoidsCollectionId] = paymentVoids
-          .map((e) => e.toJson())
-          .toList();
+      collectionsData[AppwriteConfig.paymentVoidsCollectionId] =
+          paymentVoids.map((e) => e.toJson()).toList();
 
       final payload = {
         'metadata': {

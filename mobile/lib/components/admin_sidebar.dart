@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 
 class AdminSidebar extends ConsumerWidget {
+  final String currentRoute;
+  final Function(String) onRouteSelected;
+
   const AdminSidebar({
     super.key,
     required this.currentRoute,
     required this.onRouteSelected,
   });
-  final String currentRoute;
-  final Function(String) onRouteSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,8 +22,8 @@ class AdminSidebar extends ConsumerWidget {
       return u.permissions.contains(key);
     }
 
-    const sidebarColor = Color(0xFF0F172A);
-    const headerColor = Color(0xFF16213C);
+    final sidebarColor = const Color(0xFF0F172A);
+    final headerColor = const Color(0xFF16213C);
     final cardOverlay = Colors.white.withOpacity(0.08);
     final dividerColor = Colors.white.withOpacity(0.12);
     final inactiveColor = Colors.white.withOpacity(0.72);
@@ -201,15 +202,6 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/notes'),
                     context: context,
                   ),
-                if (can('information'))
-                  _buildMenuItem(
-                    icon: Icons.badge,
-                    title: 'سجل المعلومية',
-                    route: '/information',
-                    isActive: currentRoute.startsWith('/information'),
-                    onTap: () => onRouteSelected('/information'),
-                    context: context,
-                  ),
                 if (can('settings'))
                   _buildMenuItem(
                     icon: Icons.gavel,
@@ -217,6 +209,15 @@ class AdminSidebar extends ConsumerWidget {
                     route: '/blacklist',
                     isActive: currentRoute.startsWith('/blacklist'),
                     onTap: () => onRouteSelected('/blacklist'),
+                    context: context,
+                  ),
+                if (true)
+                  _buildMenuItem(
+                    icon: Icons.badge,
+                    title: 'سجل المعلومية',
+                    route: '/information',
+                    isActive: currentRoute.startsWith('/information'),
+                    onTap: () => onRouteSelected('/information'),
                     context: context,
                   ),
                 if (can('settings'))

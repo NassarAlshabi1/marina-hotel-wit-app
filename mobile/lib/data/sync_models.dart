@@ -44,18 +44,6 @@ class SyncMetadata {
     required this.lastDeviceId,
   });
 
-  factory SyncMetadata.fromJson(Map<String, dynamic> json) {
-    return SyncMetadata(
-      version: json['version'] as int? ?? 1,
-      lastUpdatedAt: json['lastUpdatedAt'] as String? ?? '',
-      devicePriority: json['devicePriority'] as int? ?? 0,
-      snapshotSize: json['snapshotSize'] as int? ?? 0,
-      lastSyncId: json['lastSyncId'] as String? ?? '',
-      checksum: json['checksum'] as String? ?? '',
-      lastDeviceId: json['lastDeviceId'] as String? ?? '',
-    );
-  }
-
   final int version;
   final String lastUpdatedAt;
   final int devicePriority;
@@ -75,11 +63,30 @@ class SyncMetadata {
       'lastDeviceId': lastDeviceId,
     };
   }
+
+  factory SyncMetadata.fromJson(Map<String, dynamic> json) {
+    return SyncMetadata(
+      version: json['version'] as int? ?? 1,
+      lastUpdatedAt: json['lastUpdatedAt'] as String? ?? '',
+      devicePriority: json['devicePriority'] as int? ?? 0,
+      snapshotSize: json['snapshotSize'] as int? ?? 0,
+      lastSyncId: json['lastSyncId'] as String? ?? '',
+      checksum: json['checksum'] as String? ?? '',
+      lastDeviceId: json['lastDeviceId'] as String? ?? '',
+    );
+  }
 }
 
 /// حاوية اللقطة الكاملة لجميع الجداول
 class SyncSnapshot {
   SyncSnapshot({required this.metadata, required this.tables});
+
+  final SyncMetadata metadata;
+  final Map<String, List<Map<String, dynamic>>> tables;
+
+  Map<String, dynamic> toJson() {
+    return {'metadata': metadata.toJson(), 'tables': tables};
+  }
 
   factory SyncSnapshot.fromJson(Map<String, dynamic> json) {
     final rawTables = json['tables'] as Map<String, dynamic>? ?? {};
@@ -99,13 +106,6 @@ class SyncSnapshot {
       tables: parsedTables,
     );
   }
-
-  final SyncMetadata metadata;
-  final Map<String, List<Map<String, dynamic>>> tables;
-
-  Map<String, dynamic> toJson() {
-    return {'metadata': metadata.toJson(), 'tables': tables};
-  }
 }
 
 /// عنصر من طابور التغييرات المحلي
@@ -120,19 +120,6 @@ class SyncQueueEntry {
     required this.deviceId,
     required this.status,
   });
-
-  factory SyncQueueEntry.fromJson(Map<String, dynamic> json) {
-    return SyncQueueEntry(
-      id: json['id'] as int? ?? 0,
-      uuid: json['uuid'] as String? ?? '',
-      tableName: json['tableName'] as String? ?? '',
-      operation: json['operation'] as String? ?? 'update',
-      payload: Map<String, dynamic>.from(json['payload'] as Map? ?? {}),
-      updatedAt: json['updatedAt'] as String? ?? '',
-      deviceId: json['deviceId'] as String? ?? '',
-      status: json['status'] as String? ?? 'pending',
-    );
-  }
 
   final int id;
   final String uuid;
@@ -154,6 +141,19 @@ class SyncQueueEntry {
       'deviceId': deviceId,
       'status': status,
     };
+  }
+
+  factory SyncQueueEntry.fromJson(Map<String, dynamic> json) {
+    return SyncQueueEntry(
+      id: json['id'] as int? ?? 0,
+      uuid: json['uuid'] as String? ?? '',
+      tableName: json['tableName'] as String? ?? '',
+      operation: json['operation'] as String? ?? 'update',
+      payload: Map<String, dynamic>.from(json['payload'] as Map? ?? {}),
+      updatedAt: json['updatedAt'] as String? ?? '',
+      deviceId: json['deviceId'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
+    );
   }
 }
 

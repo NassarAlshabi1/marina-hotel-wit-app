@@ -9,16 +9,17 @@ abstract class RetryStrategy {
 
 /// استراتيجية Exponential Backoff
 class ExponentialBackoffStrategy implements RetryStrategy {
+  final int maxAttempts;
+  final Duration initialDelay;
+  final Duration maxDelay;
+  final double backoffMultiplier;
+
   ExponentialBackoffStrategy({
     this.maxAttempts = 5,
     this.initialDelay = const Duration(seconds: 1),
     this.maxDelay = const Duration(minutes: 5),
     this.backoffMultiplier = 2.0,
   });
-  final int maxAttempts;
-  final Duration initialDelay;
-  final Duration maxDelay;
-  final double backoffMultiplier;
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {
@@ -30,7 +31,7 @@ class ExponentialBackoffStrategy implements RetryStrategy {
         return await operation();
       } catch (e) {
         attempt++;
-
+        
         if (attempt >= maxAttempts) {
           throw Exception('فشلت العملية بعد $maxAttempts محاولات: $e');
         }
@@ -38,9 +39,9 @@ class ExponentialBackoffStrategy implements RetryStrategy {
         // إضافة jitter عشوائي لتجنب thundering herd
         final jitter = Random().nextInt(1000);
         final delayWithJitter = currentDelay + Duration(milliseconds: jitter);
-
+        
         await Future.delayed(delayWithJitter);
-
+        
         // زيادة المدة للمحاولة التالية
         currentDelay = Duration(
           milliseconds: min(
@@ -57,27 +58,28 @@ class ExponentialBackoffStrategy implements RetryStrategy {
 
 /// استراتيجية Circuit Breaker
 class CircuitBreakerStrategy implements RetryStrategy {
+  final int failureThreshold;
+  final Duration resetTimeout;
+  
+  int _failureCount = 0;
+  DateTime? _lastFailureTime;
+  bool _isOpen = false;
+
   CircuitBreakerStrategy({
     this.failureThreshold = 5,
     this.resetTimeout = const Duration(minutes: 1),
   });
-  final int failureThreshold;
-  final Duration resetTimeout;
-
-  int _failureCount = 0;
-  DateTime? _lastFailureTime;
-  bool _isOpen = false;
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {
     // التحقق من حالة Circuit Breaker
     if (_isOpen) {
       final timeSinceLastFailure = DateTime.now().difference(_lastFailureTime!);
-
+      
       if (timeSinceLastFailure < resetTimeout) {
         throw Exception('Circuit Breaker مفتوح - المحاولة لاحقاً');
       }
-
+      
       // إعادة المحاولة - نصف مغلق
       _isOpen = false;
     }
@@ -100,7 +102,7 @@ class CircuitBreakerStrategy implements RetryStrategy {
   void _onFailure() {
     _failureCount++;
     _lastFailureTime = DateTime.now();
-
+    
     if (_failureCount >= failureThreshold) {
       _isOpen = true;
     }
@@ -112,13 +114,14 @@ class CircuitBreakerStrategy implements RetryStrategy {
 
 /// استراتيجية Combined (Exponential Backoff + Circuit Breaker)
 class CombinedRetryStrategy implements RetryStrategy {
+  final ExponentialBackoffStrategy _backoff;
+  final CircuitBreakerStrategy _circuitBreaker;
+
   CombinedRetryStrategy({
     ExponentialBackoffStrategy? backoff,
     CircuitBreakerStrategy? circuitBreaker,
-  }) : _backoff = backoff ?? ExponentialBackoffStrategy(),
-       _circuitBreaker = circuitBreaker ?? CircuitBreakerStrategy();
-  final ExponentialBackoffStrategy _backoff;
-  final CircuitBreakerStrategy _circuitBreaker;
+  })  : _backoff = backoff ?? ExponentialBackoffStrategy(),
+        _circuitBreaker = circuitBreaker ?? CircuitBreakerStrategy();
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {

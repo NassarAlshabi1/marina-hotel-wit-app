@@ -1,4 +1,10 @@
 class AppliedAdjustment {
+  final String uuid;
+  final String type;
+  final int amount;
+  final String? reason;
+  final String? appliedBy;
+
   const AppliedAdjustment({
     required this.uuid,
     required this.type,
@@ -6,11 +12,6 @@ class AppliedAdjustment {
     this.reason,
     this.appliedBy,
   });
-  final String uuid;
-  final String type;
-  final int amount;
-  final String? reason;
-  final String? appliedBy;
 
   Map<String, dynamic> toJson() => {
     'uuid': uuid,
@@ -22,6 +23,14 @@ class AppliedAdjustment {
 }
 
 class NightlyBreakdown {
+  final String hotelDayKey;
+  final DateTime nightStart;
+  final DateTime nightEnd;
+  final int baseRate;
+  final int adjustmentAmount;
+  final int finalRate;
+  final List<AppliedAdjustment> appliedAdjustments;
+
   const NightlyBreakdown({
     required this.hotelDayKey,
     required this.nightStart,
@@ -31,16 +40,17 @@ class NightlyBreakdown {
     required this.finalRate,
     required this.appliedAdjustments,
   });
-  final String hotelDayKey;
-  final DateTime nightStart;
-  final DateTime nightEnd;
-  final int baseRate;
-  final int adjustmentAmount;
-  final int finalRate;
-  final List<AppliedAdjustment> appliedAdjustments;
 }
 
 class FinancialSummary {
+  final int subtotal;
+  final int totalAdjustments;
+  final int totalDue;
+  final int totalPaid;
+  final int remainingBalance;
+  final int totalNights;
+  final bool isFullyPaid;
+
   const FinancialSummary({
     required this.subtotal,
     required this.totalAdjustments,
@@ -50,11 +60,4 @@ class FinancialSummary {
     required this.totalNights,
     required this.isFullyPaid,
   });
-  final int subtotal;
-  final int totalAdjustments;
-  final int totalDue;
-  final int totalPaid;
-  final int remainingBalance;
-  final int totalNights;
-  final bool isFullyPaid;
 }

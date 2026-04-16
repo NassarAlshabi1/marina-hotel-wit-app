@@ -48,80 +48,27 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
             _asString(json, 'local_uuid', src) ??
             IdGen.uuid(),
       ),
-      operationType: _vStr(
-        json,
-        'operationType',
-        src,
-        altKey: 'operation_type',
-        fallback: '',
-      ),
-      entityType: _vStr(
-        json,
-        'entityType',
-        src,
-        altKey: 'entity_type',
-        fallback: '',
-      ),
-      entityUuid: _vStr(
-        json,
-        'entityUuid',
-        src,
-        altKey: 'entity_uuid',
-        fallback: '',
-      ),
+      operationType: _vStr(json, 'operationType', src, altKey: 'operation_type', fallback: ''),
+      entityType: _vStr(json, 'entityType', src, altKey: 'entity_type', fallback: ''),
+      entityUuid: _vStr(json, 'entityUuid', src, altKey: 'entity_uuid', fallback: ''),
       entityId: _vInt(json, 'entityId', src, altKey: 'entity_id'),
-      previousState: _vStr(
-        json,
-        'previousState',
-        src,
-        altKey: 'previous_state',
-      ),
+      previousState: _vStr(json, 'previousState', src, altKey: 'previous_state'),
       newState: _vStr(json, 'newState', src, altKey: 'new_state'),
-      changedFields: _vStr(
-        json,
-        'changedFields',
-        src,
-        altKey: 'changed_fields',
-      ),
-      performedBy: _vStr(
-        json,
-        'performedBy',
-        src,
-        altKey: 'performed_by',
-        fallback: '',
-      ),
+      changedFields: _vStr(json, 'changedFields', src, altKey: 'changed_fields'),
+      performedBy: _vStr(json, 'performedBy', src, altKey: 'performed_by', fallback: ''),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
       ipAddress: _vStr(json, 'ipAddress', src, altKey: 'ip_address'),
-      hotelDayKey: _vStr(
-        json,
-        'hotelDayKey',
-        src,
-        altKey: 'hotel_day_key',
-        fallback: '',
-      ),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
       timestamp: d.Value(timestamp),
       timestampIso: _vStr(
         json,
         'timestampIso',
         src,
         altKey: 'timestamp_iso',
-        fallback: DateTime.fromMillisecondsSinceEpoch(
-          timestamp * 1000,
-        ).toIso8601String(),
+        fallback: DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toIso8601String(),
       ),
-      isFinancial: _vBool(
-        json,
-        'isFinancial',
-        src,
-        altKey: 'is_financial',
-        fallback: false,
-      ),
-      amountImpact: _vDouble(
-        json,
-        'amountImpact',
-        src,
-        altKey: 'amount_impact',
-      ),
+      isFinancial: _vBool(json, 'isFinancial', src, altKey: 'is_financial', fallback: false),
+      amountImpact: _vInt(json, 'amountImpact', src, altKey: 'amount_impact'),
       createdAt: d.Value(createdAt),
     );
   }
@@ -191,29 +138,6 @@ d.Value<bool> _vBool(
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

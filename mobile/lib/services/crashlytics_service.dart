@@ -9,17 +9,17 @@ import 'package:flutter/foundation.dart';
 
 /// مستويات الأهمية للأخطاء
 enum CrashlyticsSeverity {
-  fatal, // خطأ قاتل - يوقف المزامنة
-  error, // خطأ خطير - يجب الإصلاح
-  warning, // تحذير - يمكن الاستمرار
-  info, // معلومة - للتتبع فقط
+  fatal,      // خطأ قاتل - يوقف المزامنة
+  error,      // خطأ خطير - يجب الإصلاح
+  warning,    // تحذير - يمكن الاستمرار
+  info,       // معلومة - للتتبع فقط
 }
 
 /// خدمة Crashlytics لتتبع أخطاء المزامنة
 class CrashlyticsService {
+  static final CrashlyticsService _instance = CrashlyticsService._internal();
   factory CrashlyticsService() => _instance;
   CrashlyticsService._internal();
-  static final CrashlyticsService _instance = CrashlyticsService._internal();
 
   FirebaseCrashlytics? _crashlytics;
   bool _isEnabled = true;
@@ -54,15 +54,9 @@ class CrashlyticsService {
         return true;
       };
 
-      developer.log(
-        '✅ CrashlyticsService initialized',
-        name: 'CrashlyticsService',
-      );
+      developer.log('✅ CrashlyticsService initialized', name: 'CrashlyticsService');
     } catch (e) {
-      developer.log(
-        '⚠️ Crashlytics initialization failed: $e',
-        name: 'CrashlyticsService',
-      );
+      developer.log('⚠️ Crashlytics initialization failed: $e', name: 'CrashlyticsService');
     }
   }
 
@@ -107,10 +101,7 @@ class CrashlyticsService {
     // إرسال إلى Crashlytics
     try {
       await _crashlytics?.setCustomKey('last_sync_operation', operation);
-      await _crashlytics?.setCustomKey(
-        'sync_error_count',
-        _errorHistory.length,
-      );
+      await _crashlytics?.setCustomKey('sync_error_count', _errorHistory.length);
 
       // إضافة سياق إضافي
       for (final entry in context.entries) {
@@ -127,7 +118,9 @@ class CrashlyticsService {
         stackTrace ?? StackTrace.current,
         reason: operation,
         fatal: isFatal,
-        information: [...context.entries.map((e) => '${e.key}: ${e.value}')],
+        information: [
+          ...context.entries.map((e) => '${e.key}: ${e.value}'),
+        ],
       );
     } catch (e) {
       // لا نوقف التطبيق بسبب فشل Crashlytics
@@ -204,8 +197,7 @@ class CrashlyticsService {
   }
 
   /// الحصول على تاريخ الأخطاء
-  List<Map<String, dynamic>> getErrorHistory() =>
-      List.unmodifiable(_errorHistory);
+  List<Map<String, dynamic>> getErrorHistory() => List.unmodifiable(_errorHistory);
 
   /// مسح تاريخ الأخطاء
   void clearErrorHistory() {
@@ -278,7 +270,10 @@ class CrashlyticsService {
       error: 'Failed to resolve $operationId with $resolution: $error',
       stackTrace: stackTrace,
       severity: CrashlyticsSeverity.error,
-      context: {'operation_id': operationId, 'resolution': resolution},
+      context: {
+        'operation_id': operationId,
+        'resolution': resolution,
+      },
     );
   }
 }

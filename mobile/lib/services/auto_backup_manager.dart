@@ -19,7 +19,6 @@ import '../utils/time.dart';
 enum BackupMode { fullBackup, deltaSync, both }
 
 class AutoBackupManager {
-  AutoBackupManager._();
   static const String _lastAutoBackupKey = 'last_auto_backup_timestamp';
   static const String _autoBackupEnabledKey = 'auto_backup_enabled';
   static const String _maxBackupCountKey = 'max_backup_count';
@@ -35,6 +34,8 @@ class AutoBackupManager {
   static AutoBackupManager? _instance;
   static AutoBackupManager get instance => _instance ??= AutoBackupManager._();
 
+  AutoBackupManager._();
+
   GoogleDriveBackupService? _backupService;
   GoogleDriveDeltaSync? _googleDriveDeltaSync;
   AppwriteDeltaSync? _appwriteDeltaSync;
@@ -48,7 +49,6 @@ class AutoBackupManager {
   Timer? _cleanupTimer;
   bool _isBackingUp = false;
   bool _isDeltaSyncing = false;
-  bool _isRenewingBookings = false;
   int _pendingChanges = 0;
   String? _deviceId;
   BackupMode _currentMode = BackupMode.deltaSync;
@@ -98,9 +98,12 @@ class AutoBackupManager {
 
   Future<void> _loadBackupMode() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentMode = BackupMode.deltaSync;
-    await prefs.setInt(_backupModeKey, _currentMode.index);
-    await prefs.setBool(_deltaSyncEnabledKey, true);
+    final savedIndex = prefs.getInt(_backupModeKey);
+    if (savedIndex != null && savedIndex >= 0 && savedIndex < BackupMode.values.length) {
+      _currentMode = BackupMode.values[savedIndex];
+    } else {
+      _currentMode = BackupMode.deltaSync;
+    }
   }
 
   Future<void> _startDeltaSyncTimer() async {
@@ -171,7 +174,7 @@ class AutoBackupManager {
     if (_currentMode == BackupMode.fullBackup ||
         _currentMode == BackupMode.both) {
       _debounceTimer?.cancel();
-      _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
+      _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () {
         _performAutoBackup(
           reason: 'تغييرات تلقائية ($tableName: $operation)',
           changesCount: _pendingChanges,
@@ -316,7 +319,7 @@ class AutoBackupManager {
     _cleanupTimer?.cancel();
 
     // تنظيف دوري كل 6 ساعات
-    _cleanupTimer = Timer.periodic(const Duration(hours: 6), (timer) {
+    _cleanupTimer = Timer.periodic(Duration(hours: 6), (timer) {
       _cleanupOldBackups();
     });
 
@@ -354,7 +357,7 @@ class AutoBackupManager {
   }
 
   Future<int> getMaxBackupCount() async {
-    return _getMaxBackupCount();
+    return await _getMaxBackupCount();
   }
 
   Future<int> _getRetentionDays() async {
@@ -369,7 +372,7 @@ class AutoBackupManager {
   }
 
   Future<int> getRetentionDays() async {
-    return _getRetentionDays();
+    return await _getRetentionDays();
   }
 
   Future<DateTime?> _getLastAutoBackupTime() async {
@@ -538,6 +541,8 @@ class AutoBackupManager {
       }
 
       debugPrint('✅ اكتملت المزامنة التفاضلية');
+
+      await _autoRenewActiveBookings();
     } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
@@ -549,18 +554,8 @@ class AutoBackupManager {
     return results;
   }
 
-  /// Public method to trigger active bookings renewal on app resume or
-  /// any other event. Uses hotelDayKey to run at most once per hotel day.
-  Future<void> renewActiveBookingsIfNeeded() async {
-    await _autoRenewActiveBookings();
-  }
-
   Future<void> _autoRenewActiveBookings() async {
     try {
-      // Guard against concurrent execution (e.g., app resume + payment screen)
-      if (_isRenewingBookings) return;
-      _isRenewingBookings = true;
-
       final currentHotelDay = Time.hotelDayKey();
       if (_lastRenewedHotelDay == currentHotelDay) return;
 
@@ -569,14 +564,10 @@ class AutoBackupManager {
       final count = await service.refreshAllActiveBookings();
       _lastRenewedHotelDay = currentHotelDay;
       if (count > 0) {
-        debugPrint(
-          '🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)',
-        );
+        debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
       }
     } catch (e) {
       debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
-    } finally {
-      _isRenewingBookings = false;
     }
   }
 
@@ -624,7 +615,7 @@ class AutoBackupManager {
   /// تعيين وضع النسخ الاحتياطي
   Future<void> setBackupMode(BackupMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    _currentMode = BackupMode.deltaSync;
+    _currentMode = mode;
     await prefs.setInt(_backupModeKey, _currentMode.index);
     await prefs.setBool(_deltaSyncEnabledKey, true);
     debugPrint('🔧 وضع النسخ الاحتياطي: ${_currentMode.name}');

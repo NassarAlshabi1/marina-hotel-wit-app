@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as d;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/time.dart';
 import 'api_service.dart';
 import 'local_db.dart';
@@ -13,7 +12,6 @@ import 'daos/employees_dao.dart';
 import 'daos/expenses_dao.dart';
 import 'daos/cash_transactions_dao.dart';
 import 'daos/payments_dao.dart';
-import 'daos/sync_log_dao.dart';
 import '../providers/repository_providers.dart';
 import 'sync_performance_optimizer.dart';
 import 'delta_sync_service.dart';
@@ -23,30 +21,6 @@ import 'sync_mutex.dart';
 import 'sync_config.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
-
-/// نتيجة عملية المزامنة
-class SyncResult {
-  const SyncResult({
-    required this.success,
-    this.recordsPushed = 0,
-    this.recordsPulled = 0,
-    this.errorMessage,
-    required this.durationMs,
-    this.syncId,
-  });
-
-  final bool success;
-  final int recordsPushed;
-  final int recordsPulled;
-  final String? errorMessage;
-  final int durationMs;
-  final String? syncId;
-
-  @override
-  String toString() {
-    return 'SyncResult(success: $success, pushed: $recordsPushed, pulled: $recordsPulled, duration: ${durationMs}ms)';
-  }
-}
 
 class SyncService {
   SyncService(this.db)
@@ -58,8 +32,7 @@ class SyncService {
       cashDao = CashTransactionsDao(db, OutboxDao(db)),
       paymentsDao = PaymentsDao(db, OutboxDao(db)),
       deltaSyncService = DeltaSyncService(db),
-      _performanceOptimizer = SyncPerformanceOptimizer(),
-      _syncLogDao = SyncLogDao(db);
+      _performanceOptimizer = SyncPerformanceOptimizer();
 
   final AppDatabase db;
   final RoomsDao roomsDao;
@@ -72,7 +45,6 @@ class SyncService {
   final DeltaSyncService deltaSyncService;
   final SyncPerformanceOptimizer _performanceOptimizer;
   final SyncMutex _syncMutex = SyncMutex();
-  final SyncLogDao _syncLogDao;
 
   final _status = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _status.stream;
@@ -100,289 +72,49 @@ class SyncService {
   }
 
   /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
-  /// تقوم بتسجيل العملية في سجل المزامنة تلقائياً
-  Future<SyncResult> runSync() async {
+  Future<void> runSync() async {
     if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
       debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
-      return const SyncResult(
-        success: false,
-        durationMs: 0,
-        errorMessage: 'مزامنة جارية',
-      );
+      return;
     }
-
-    final stopwatch = Stopwatch()..start();
-    final syncId = 'sync_${DateTime.now().millisecondsSinceEpoch}';
-
-    // تسجيل بداية العملية
-    await _syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'bidirectional',
-      deviceId: await _getDeviceId(),
-      target: 'Server',
-      status: 'in_progress',
-    );
-
-    int recordsPushed = 0;
-    int recordsPulled = 0;
 
     try {
       if (await _performanceOptimizer.shouldSkipSync()) {
         debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
-        return const SyncResult(success: true, durationMs: 0);
+        return;
       }
 
       _status.add(SyncStatus.pushing);
-      recordsPushed = await _push();
+      await _push();
       _status.add(SyncStatus.pulling);
-      recordsPulled = await _pull();
+      await _pull();
 
-      stopwatch.stop();
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
 
-      // تسجيل نجاح العملية
-      await _syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'bidirectional',
-        deviceId: await _getDeviceId(),
-        target: 'Server',
-        status: 'success',
-        recordsPushed: recordsPushed,
-        recordsPulled: recordsPulled,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      debugPrint(
-        '✅ تم إنجاز المزامنة بنجاح - رفع: $recordsPushed، سحب: $recordsPulled',
-      );
-
-      return SyncResult(
-        success: true,
-        recordsPushed: recordsPushed,
-        recordsPulled: recordsPulled,
-        durationMs: stopwatch.elapsedMilliseconds,
-        syncId: syncId,
-      );
+      debugPrint('✅ تم إنجاز المزامنة بنجاح');
     } catch (e) {
-      stopwatch.stop();
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
       debugPrint('❌ فشل في المزامنة: $e');
-
-      // تسجيل فشل العملية
-      await _syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'bidirectional',
-        deviceId: await _getDeviceId(),
-        target: 'Server',
-        status: 'failed',
-        recordsPushed: recordsPushed,
-        recordsPulled: recordsPulled,
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      return SyncResult(
-        success: false,
-        recordsPushed: recordsPushed,
-        recordsPulled: recordsPulled,
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-        syncId: syncId,
-      );
+      rethrow;
     } finally {
       _syncMutex.release();
     }
   }
 
-  /// سحب التغييرات من السيرفر فقط
-  Future<SyncResult> pullOnly() async {
-    if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
-      debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
-      return const SyncResult(
-        success: false,
-        durationMs: 0,
-        errorMessage: 'مزامنة جارية',
-      );
-    }
-
-    final stopwatch = Stopwatch()..start();
-    final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
-
-    await _syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'pull',
-      deviceId: await _getDeviceId(),
-      target: 'Server',
-      status: 'in_progress',
-    );
-
-    int recordsPulled = 0;
-
-    try {
-      if (await _performanceOptimizer.shouldSkipSync()) {
-        debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
-        return const SyncResult(success: true, durationMs: 0);
-      }
-
-      _status.add(SyncStatus.pulling);
-      recordsPulled = await _pull();
-
-      stopwatch.stop();
-      _performanceOptimizer.recordSyncAttempt(success: true);
-      _status.add(SyncStatus.idle);
-
-      await _syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: await _getDeviceId(),
-        target: 'Server',
-        status: 'success',
-        recordsPulled: recordsPulled,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      debugPrint('✅ تم سحب التغييرات بنجاح - سحب: $recordsPulled');
-
-      return SyncResult(
-        success: true,
-        recordsPulled: recordsPulled,
-        durationMs: stopwatch.elapsedMilliseconds,
-        syncId: syncId,
-      );
-    } catch (e) {
-      stopwatch.stop();
-      _performanceOptimizer.recordSyncAttempt(success: false);
-      _status.add(SyncStatus.error);
-      debugPrint('❌ فشل في سحب التغييرات: $e');
-
-      await _syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: await _getDeviceId(),
-        target: 'Server',
-        status: 'failed',
-        recordsPulled: recordsPulled,
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      return SyncResult(
-        success: false,
-        recordsPulled: recordsPulled,
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-        syncId: syncId,
-      );
-    } finally {
-      _syncMutex.release();
-    }
-  }
-
-  /// رفع التغييرات المحلية فقط
-  Future<SyncResult> pushOnly() async {
-    if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
-      debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
-      return const SyncResult(
-        success: false,
-        durationMs: 0,
-        errorMessage: 'مزامنة جارية',
-      );
-    }
-
-    final stopwatch = Stopwatch()..start();
-    final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
-
-    await _syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: await _getDeviceId(),
-      target: 'Server',
-      status: 'in_progress',
-    );
-
-    int recordsPushed = 0;
-
-    try {
-      if (await _performanceOptimizer.shouldSkipSync()) {
-        debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
-        return const SyncResult(success: true, durationMs: 0);
-      }
-
-      _status.add(SyncStatus.pushing);
-      recordsPushed = await _push();
-
-      stopwatch.stop();
-      _performanceOptimizer.recordSyncAttempt(success: true);
-      _status.add(SyncStatus.idle);
-
-      await _syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'push',
-        deviceId: await _getDeviceId(),
-        target: 'Server',
-        status: 'success',
-        recordsPushed: recordsPushed,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      debugPrint('✅ تم رفع التغييرات بنجاح - رفع: $recordsPushed');
-
-      return SyncResult(
-        success: true,
-        recordsPushed: recordsPushed,
-        durationMs: stopwatch.elapsedMilliseconds,
-        syncId: syncId,
-      );
-    } catch (e) {
-      stopwatch.stop();
-      _performanceOptimizer.recordSyncAttempt(success: false);
-      _status.add(SyncStatus.error);
-      debugPrint('❌ فشل في رفع التغييرات: $e');
-
-      await _syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'push',
-        deviceId: await _getDeviceId(),
-        target: 'Server',
-        status: 'failed',
-        recordsPushed: recordsPushed,
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-
-      return SyncResult(
-        success: false,
-        recordsPushed: recordsPushed,
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-        syncId: syncId,
-      );
-    } finally {
-      _syncMutex.release();
-    }
-  }
-
-  Future<int> _push() async {
+  Future<void> _push() async {
     final settings = _performanceOptimizer.getCurrentPerformanceSettings();
     final timeout = Duration(seconds: settings['timeout'] as int);
     final computation = await deltaSyncService.compute();
     if (computation.changes.isEmpty) {
-      return 0;
+      return;
     }
     final payload = computation.toPayload();
-    final changesCount = computation.changes.length;
-
-    // ✅ جمع الـ UUIDs الناجحة لتنظيف Outbox لاحقاً
-    // Collect successful UUIDs to clean Outbox later
-    final successfulUuids = <String>[];
-
     try {
-      final changes = List<Map<String, dynamic>>.from(payload);
-      final response = await ApiService.I.syncPush(changes).timeout(timeout);
+      final response = await ApiService.I.syncPush(payload).timeout(timeout);
       if (response['success'] != true) {
-        return 0;
+        return;
       }
 
       final results = List<Map<String, dynamic>>.from(
@@ -409,9 +141,6 @@ class SyncService {
               change.localUuid,
               result['server_id'],
             );
-            // ✅ إضافة الـ UUID للقائمة الناجحة
-            // Add UUID to successful list
-            successfulUuids.add(change.localUuid);
           } else {
             allSucceeded = false;
             debugPrint(
@@ -433,37 +162,23 @@ class SyncService {
         final state = await (db.select(
           db.syncState,
         )..where((t) => t.id.equals(1))).getSingleOrNull();
-        await db
-            .into(db.syncState)
-            .insertOnConflictUpdate(
-              SyncStateCompanion(
-                id: const d.Value(1),
-                lastServerTs: d.Value(state?.lastServerTs ?? 0),
-                lastPullTs: d.Value(state?.lastPullTs ?? 0),
-                lastPushTs: d.Value(now),
-                isSyncing: const d.Value(0),
-              ),
-            );
-      });
-
-      // ✅ تنظيف Outbox بعد نجاح المزامنة
-      // Clean Outbox after successful sync
-      if (successfulUuids.isNotEmpty) {
-        final outboxDao = OutboxDao(db);
-        await outboxDao.cleanupSuccessfulByUuids(successfulUuids);
-        debugPrint(
-          '🧹 تم مسح ${successfulUuids.length} سجل من Outbox بعد المزامنة الناجحة',
+        await (db.into(db.syncState)).insertOnConflictUpdate(
+          SyncStateCompanion(
+            id: const d.Value(1),
+            lastServerTs: d.Value(state?.lastServerTs ?? 0),
+            lastPullTs: d.Value(state?.lastPullTs ?? 0),
+            lastPushTs: d.Value(now),
+            isSyncing: const d.Value(0),
+          ),
         );
-      }
-
-      return changesCount;
+      });
     } catch (e) {
       debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
   }
 
-  Future<int> _pull() async {
+  Future<void> _pull() async {
     final pullSettings = _performanceOptimizer.getCurrentPerformanceSettings();
     final pullTimeoutSeconds = (() {
       final custom = pullSettings['pullTimeout'];
@@ -484,11 +199,10 @@ class SyncService {
     final res = await ApiService.I
         .syncPull(since)
         .timeout(Duration(seconds: pullTimeoutSeconds));
-    if (res['success'] != true) return 0;
+    if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data']);
-    final recordsCount = data.length;
 
-    const Map<String, int> entityPriority = {
+    const Map<String, int> _entityPriority = {
       'rooms': 0,
       'employees': 1,
       'cash_transactions': 1,
@@ -498,13 +212,13 @@ class SyncService {
       'booking_nights': 3,
       'payments': 4,
       'debts': 5,
-      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
+      'hotel_day_ledger': 6,
     };
-    int priority(String entity) => entityPriority[entity] ?? 10;
+    int _priority(String entity) => _entityPriority[entity] ?? 10;
     data.sort((a, b) {
       final ea = (a['entity'] as String?) ?? '';
       final eb = (b['entity'] as String?) ?? '';
-      return priority(ea).compareTo(priority(eb));
+      return _priority(ea).compareTo(_priority(eb));
     });
 
     await db.transaction(() async {
@@ -531,20 +245,17 @@ class SyncService {
       }
 
       final now = Time.nowEpoch();
-      await db
-          .into(db.syncState)
-          .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const d.Value(1),
-              lastServerTs: d.Value(maxTs),
-              lastPullTs: d.Value(now),
-              isSyncing: const d.Value(0),
-            ),
-          );
+      await (db.into(db.syncState)).insertOnConflictUpdate(
+        SyncStateCompanion(
+          id: const d.Value(1),
+          lastServerTs: d.Value(maxTs),
+          lastPullTs: d.Value(now),
+          isSyncing: const d.Value(0),
+        ),
+      );
     });
 
-    await RoomsRepository(db).refreshAllRoomOccupancy(originIsServer: true);
-    return recordsCount;
+    await RoomsRepository(db).refreshAllRoomOccupancy();
   }
 
   Future<void> _applyServerId(
@@ -570,6 +281,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'bookings':
         final row = await (db.select(
           db.bookings,
@@ -585,6 +297,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'booking_notes':
         final rowN = await (db.select(
           db.bookingNotes,
@@ -599,6 +312,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'employees':
         final rowE = await (db.select(
           db.employees,
@@ -613,6 +327,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'expenses':
         final rowX = await (db.select(
           db.expenses,
@@ -627,6 +342,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'cash_transactions':
         final rowC = await (db.select(
           db.cashTransactions,
@@ -641,6 +357,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'payments':
         final rowP = await (db.select(
           db.payments,
@@ -656,6 +373,7 @@ class SyncService {
             ),
           );
         }
+        break;
       case 'debts':
         final rowD = await (db.select(
           db.debts,
@@ -668,6 +386,7 @@ class SyncService {
             ),
           );
         }
+        break;
     }
   }
 
@@ -724,6 +443,7 @@ class SyncService {
         if (op == 'delete' || data['deleted_at'] != null) {
           await roomsDao.softDelete(rn, originIsServer: true);
         }
+        break;
       case 'bookings':
         final sbid = data['booking_id'] as int?;
         Booking? local;
@@ -793,6 +513,7 @@ class SyncService {
             await bookingsDao.softDelete(target.id, originIsServer: true);
           }
         }
+        break;
       case 'booking_notes':
         final nid = data['note_id'] as int?;
         BookingNote? ln;
@@ -840,6 +561,7 @@ class SyncService {
             await notesDao.softDelete(target.id, originIsServer: true);
           }
         }
+        break;
       case 'employees':
         final sid = data['id'] as int?;
         Employee? le;
@@ -887,6 +609,7 @@ class SyncService {
             await employeesDao.softDelete(target.id, originIsServer: true);
           }
         }
+        break;
       case 'expenses':
         final xid = data['id'] as int?;
         Expense? lx;
@@ -938,6 +661,7 @@ class SyncService {
             await expensesDao.softDelete(target.id, originIsServer: true);
           }
         }
+        break;
       case 'cash_transactions':
         final cid = data['id'] as int?;
         final lc = cid != null
@@ -996,6 +720,7 @@ class SyncService {
             await cashDao.softDelete(target.id, originIsServer: true);
           }
         }
+        break;
       case 'payments':
         final pid = data['payment_id'] as int?;
         final lp = pid != null
@@ -1058,9 +783,13 @@ class SyncService {
             await paymentsDao.softDelete(target.id, originIsServer: true);
           }
         }
+        break;
       case 'booking_nights':
         await _applyBookingNight(op, serverTs, data);
-      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
+        break;
+      case 'hotel_day_ledger':
+        await _applyHotelDayLedger(op, serverTs, data);
+        break;
     }
   }
 
@@ -1069,8 +798,7 @@ class SyncService {
     int serverTs,
     Map<String, dynamic> data,
   ) async {
-    // دعم camelCase و snake_case للتوافق
-    final localUuid = _asString(data['localUuid'] ?? data['local_uuid']);
+    final localUuid = _asString(data['local_uuid']);
     if (localUuid == null || localUuid.isEmpty) {
       return;
     }
@@ -1080,48 +808,40 @@ class SyncService {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
     final bool isDelete =
         op == 'delete' ||
-        (data.containsKey('deletedAt') && data['deletedAt'] != null) ||
         (data.containsKey('deleted_at') && data['deleted_at'] != null);
     final int normalizedServerTs = _normalizeTimestampField(
       serverTs,
       fallback: Time.nowEpoch(),
     );
     final int createdAt = _normalizeTimestampField(
-      data['createdAt'] ?? data['created_at'],
+      data['created_at'],
       fallback: normalizedServerTs,
     );
     final int updatedAt = _normalizeTimestampField(
-      data['updatedAt'] ?? data['updated_at'],
+      data['updated_at'],
       fallback: normalizedServerTs,
     );
     final int lastModified = _normalizeTimestampField(
-      data['lastModified'] ?? data['last_modified'],
+      data['last_modified'],
       fallback: updatedAt,
     );
     final int createdEpoch = _normalizeTimestampField(
-      data['createdAtEpoch'] ?? data['created_at_epoch'],
+      data['created_at_epoch'],
       fallback: createdAt,
     );
     final int lastModifiedEpoch = _normalizeTimestampField(
-      data['lastModifiedEpoch'] ?? data['last_modified_epoch'],
+      data['last_modified_epoch'],
       fallback: lastModified,
     );
     final int? deletedAt =
-        (data.containsKey('deletedAt') && data['deletedAt'] != null) ||
-            (data.containsKey('deleted_at') && data['deleted_at'] != null)
+        data.containsKey('deleted_at') && data['deleted_at'] != null
         ? _normalizeTimestampField(
-            data['deletedAt'] ?? data['deleted_at'],
+            data['deleted_at'],
             fallback: normalizedServerTs,
           )
         : null;
-    final String createdIso = _isoFromData(
-      data['createdAtIso'] ?? data['created_at_iso'],
-      createdAt,
-    );
-    final String updatedIso = _isoFromData(
-      data['updatedAtIso'] ?? data['updated_at_iso'],
-      updatedAt,
-    );
+    final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
+    final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
     final String? deletedIso = _maybeIsoFromData(
       data['deleted_at_iso'],
       deletedAt,
@@ -1198,7 +918,124 @@ class SyncService {
     }
   }
 
-  // ❌ _applyHotelDayLedger - تمت الإزالة، hotel_day_ledger محلي فقط
+  Future<void> _applyHotelDayLedger(
+    String op,
+    int serverTs,
+    Map<String, dynamic> data,
+  ) async {
+    final localUuid = _asString(data['local_uuid']);
+    if (localUuid == null || localUuid.isEmpty) {
+      return;
+    }
+
+    final existing = await (db.select(
+      db.hotelDayLedger,
+    )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    final bool isDelete = op == 'delete' || data['deleted_at'] != null;
+    final int normalizedServerTs = _normalizeTimestampField(
+      serverTs,
+      fallback: Time.nowEpoch(),
+    );
+    final int createdAt = _normalizeTimestampField(
+      data['created_at'],
+      fallback: normalizedServerTs,
+    );
+    final int updatedAt = _normalizeTimestampField(
+      data['updated_at'],
+      fallback: normalizedServerTs,
+    );
+    final int lastModified = _normalizeTimestampField(
+      data['last_modified'],
+      fallback: updatedAt,
+    );
+    final int createdEpoch = _normalizeTimestampField(
+      data['created_at_epoch'],
+      fallback: createdAt,
+    );
+    final int lastModifiedEpoch = _normalizeTimestampField(
+      data['last_modified_epoch'],
+      fallback: lastModified,
+    );
+    final int? deletedAt =
+        data.containsKey('deleted_at') && data['deleted_at'] != null
+        ? _normalizeTimestampField(
+            data['deleted_at'],
+            fallback: normalizedServerTs,
+          )
+        : null;
+    final String createdIso = _isoFromData(data['created_at_iso'], createdAt);
+    final String updatedIso = _isoFromData(data['updated_at_iso'], updatedAt);
+    final String? deletedIso = _maybeIsoFromData(
+      data['deleted_at_iso'],
+      deletedAt,
+    );
+
+    if (isDelete) {
+      if (existing != null) {
+        await (db.update(
+          db.hotelDayLedger,
+        )..where((t) => t.id.equals(existing.id))).write(
+          HotelDayLedgerCompanion(
+            deletedAt: deletedAt != null
+                ? d.Value(deletedAt)
+                : const d.Value.absent(),
+            deletedAtIso: deletedIso != null
+                ? d.Value(deletedIso)
+                : const d.Value.absent(),
+            updatedAt: d.Value(updatedAt),
+            lastModified: d.Value(lastModified),
+            updatedAtIso: d.Value(updatedIso),
+            lastModifiedEpoch: d.Value(lastModifiedEpoch),
+            origin: const d.Value('server'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final hotelDayKey = _asString(data['hotel_day_key']);
+    if (hotelDayKey == null || hotelDayKey.isEmpty) {
+      debugPrint('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
+      return;
+    }
+
+    final companion = HotelDayLedgerCompanion(
+      localUuid: existing == null ? d.Value(localUuid) : const d.Value.absent(),
+      hotelDayKey: d.Value(hotelDayKey),
+      totalIncome: _doubleValue(data['total_income']),
+      totalExpenses: _doubleValue(data['total_expenses']),
+      pendingBalances: _doubleValue(data['pending_balances']),
+      occupancyRate: _doubleValue(data['occupancy_rate']),
+      bookingsProcessed: _intValue(data['bookings_processed']),
+      paymentsProcessed: _intValue(data['payments_processed']),
+      debtsProcessed: _intValue(data['debts_processed']),
+      expensesProcessed: _intValue(data['expenses_processed']),
+      status: d.Value(_asString(data['status']) ?? 'draft'),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(updatedAt),
+      deletedAt: deletedAt != null
+          ? d.Value(deletedAt)
+          : const d.Value.absent(),
+      lastModified: d.Value(lastModified),
+      createdAtIso: d.Value(createdIso),
+      updatedAtIso: d.Value(updatedIso),
+      deletedAtIso: deletedIso != null
+          ? d.Value(deletedIso)
+          : const d.Value.absent(),
+      createdAtEpoch: d.Value(createdEpoch),
+      lastModifiedEpoch: d.Value(lastModifiedEpoch),
+      version: _intValue(data['version']),
+      origin: const d.Value('server'),
+    );
+
+    if (existing == null) {
+      await db.into(db.hotelDayLedger).insert(companion);
+    } else {
+      await (db.update(
+        db.hotelDayLedger,
+      )..where((t) => t.id.equals(existing.id))).write(companion);
+    }
+  }
 
   Future<void> _ensureRoomExists(String roomNumber) async {
     if (roomNumber.isEmpty) return;
@@ -1215,21 +1052,6 @@ class SyncService {
       ),
       originIsServer: true,
     );
-  }
-
-  /// الحصول على معرف الجهاز للتسجيل في سجلات المزامنة
-  Future<String> _getDeviceId() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      var deviceId = prefs.getString('device_id');
-      if (deviceId == null) {
-        deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
-        await prefs.setString('device_id', deviceId);
-      }
-      return deviceId;
-    } catch (e) {
-      return 'unknown_device';
-    }
   }
 }
 

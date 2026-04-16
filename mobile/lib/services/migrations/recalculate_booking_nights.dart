@@ -189,7 +189,7 @@ class RecalculationReport {
 
     if (errors.isNotEmpty) {
       buffer.writeln('\n❌ Errors (${errors.length}):');
-      for (final error in errors) {
+      for (var error in errors) {
         buffer.writeln('  • $error');
       }
     }
@@ -199,7 +199,7 @@ class RecalculationReport {
         .toList();
     if (changedBookings.isNotEmpty) {
       buffer.writeln('\n🔄 Changed Bookings (${changedBookings.length}):');
-      for (final booking in changedBookings) {
+      for (var booking in changedBookings) {
         buffer.writeln(
           '  • ${booking.guestName} (Room ${booking.roomNumber}):',
         );
@@ -234,6 +234,19 @@ class RecalculationReport {
 }
 
 class BookingRecalculationDetails {
+  final int bookingId;
+  final String guestName;
+  final String roomNumber;
+  final String checkinDate;
+  final String? checkoutDate;
+  final int oldExpectedNights;
+  final int newExpectedNights;
+  final int oldCalculatedNights;
+  final int newCalculatedNights;
+  final double oldTotalDue;
+  final double newTotalDue;
+  final bool changed;
+
   BookingRecalculationDetails({
     required this.bookingId,
     required this.guestName,
@@ -248,18 +261,6 @@ class BookingRecalculationDetails {
     required this.newTotalDue,
     required this.changed,
   });
-  final int bookingId;
-  final String guestName;
-  final String roomNumber;
-  final String checkinDate;
-  final String? checkoutDate;
-  final int oldExpectedNights;
-  final int newExpectedNights;
-  final int oldCalculatedNights;
-  final int newCalculatedNights;
-  final double oldTotalDue;
-  final double newTotalDue;
-  final bool changed;
 
   Map<String, dynamic> toJson() {
     return {

@@ -1,0 +1,95 @@
+{
+  "name": "notify-devices",
+  "description": "إرسال إشعارات FCM للأجهزة الأخرى عند حدوث تغييرات في البيانات",
+  "runtime": "node-20.0.0",
+  "execute": [
+    "src/main.js"
+  ],
+  "permissions": {
+    "documents": [
+      "read"
+    ]
+  },
+  "scopes": [
+    "databases.read",
+    "functions.read"
+  ],
+  "events": [
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "rooms",
+      "functions": [
+        "databases.*.collections.rooms.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "bookings",
+      "functions": [
+        "databases.*.collections.bookings.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "payments",
+      "functions": [
+        "databases.*.collections.payments.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "expenses",
+      "functions": [
+        "databases.*.collections.expenses.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "employees",
+      "functions": [
+        "databases.*.collections.employees.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "shift_notes",
+      "functions": [
+        "databases.*.collections.shift_notes.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "debts",
+      "functions": [
+        "databases.*.collections.debts.documents.*"
+      ]
+    },
+    {
+      "name": "onDocumentChange",
+      "type": "database",
+      "collection": "guest_infos",
+      "functions": [
+        "databases.*.collections.guest_infos.documents.*"
+      ]
+    }
+  ],
+  "vars": [
+    {
+      "key": "FCM_SERVER_KEY",
+      "required": true,
+      "description": "Firebase Cloud Messaging Server Key من Firebase Console"
+    },
+    {
+      "key": "DATABASE_ID",
+      "required": true,
+      "description": "معرف قاعدة البيانات (hotel_db)"
+    }
+  ]
+}

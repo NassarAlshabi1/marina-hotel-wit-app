@@ -15,7 +15,7 @@ final smartSyncStatusProvider =
       // استمع لتغييرات حالة تسجيل الدخول في Google Drive
       ref.watch(smartSyncGoogleDriveSignInStatusProvider);
 
-      return manager.getStatus();
+      return await manager.getStatus();
     });
 
 /// Provider لحالة تسجيل الدخول Google Drive (في smart_sync_provider)
