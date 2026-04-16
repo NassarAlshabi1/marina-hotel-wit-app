@@ -1883,7 +1883,6 @@ class AppwriteSyncManager {
       'vector_clock': debt.vectorClock,
       'sync_version': debt.version,
       'sync_origin': debt.origin,
-      'sync_vector_clock': debt.vectorClock,
       // ── Optional business fields ──
       'checkoutDate': debt.checkoutDate,
       'dateRecorded': debt.dateRecorded,
