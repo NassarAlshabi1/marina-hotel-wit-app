@@ -949,7 +949,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ..writeln('طريقة الدفع: $method')
         ..writeln('التاريخ: ${Time.nowIso()}')
         ..writeln('اليوم الفندقي: ${Time.hotelDayKey()}')
-        ..writeln('النوع: دفعة تراكمية (بدون حجز)')
         ..writeln(notes.isNotEmpty ? 'ملاحظات: $notes' : '');
 
       await whatsappService.sendMessage(
