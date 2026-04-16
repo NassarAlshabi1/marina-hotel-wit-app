@@ -356,32 +356,36 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  // ─── مدفوعات اليوم ───
+  // ─── مدفوعات اليوم (مجمّعة حسب الغرفة) ───
   Widget _buildTodayPayments(List<db.Payment> payments) {
     final hotelDay = Time.hotelDayKey();
     final todayPayments = payments
         .where((p) {
-          // نفس منطق todayPaymentsProvider في repository_providers.dart
           if (p.isVoided) return false;
           if (p.hotelDayKey == hotelDay) return true;
-          // fallback للسجلات القادمة من المزامنة بدون hotel_day_key
           if (p.hotelDayKey == null &&
               p.paymentDate.startsWith(hotelDay)) {
             return true;
           }
           return false;
         })
-        .toList()
-      ..sort((a, b) {
-        try {
-          return DateTime.parse(b.paymentDate)
-              .compareTo(DateTime.parse(a.paymentDate));
-        } catch (_) {
-          return 0;
-        }
-      });
+        .toList();
 
-    final recent = todayPayments.take(8).toList();
+    // تجميع المدفوعات حسب رقم الغرفة
+    final grouped = <String, List<db.Payment>>{};
+    for (final p in todayPayments) {
+      final key = (p.roomNumber != null && p.roomNumber!.trim().isNotEmpty)
+          ? p.roomNumber!.trim()
+          : '__other__';
+      grouped.putIfAbsent(key, () => []).add(p);
+    }
+
+    // ترتيب: الغرف أولاً (مرتبة تصاعدياً)، ثم المدفوعات العامة
+    final sortedKeys = grouped.keys.toList()..sort((a, b) {
+      if (a == '__other__') return 1;
+      if (b == '__other__') return -1;
+      return a.compareTo(b);
+    });
 
     return Container(
       decoration: BoxDecoration(
@@ -410,7 +414,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               ],
             ),
           ),
-          if (recent.isEmpty)
+          if (todayPayments.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -421,25 +425,110 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               ),
             )
           else
-            ...recent.map((p) => _buildPaymentTile(p)),
-          if (todayPayments.length > 8)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Center(
-                child: TextButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PaymentHistoryScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.arrow_forward_ios, size: 14),
-                  label: const Text('عرض الكل'),
-                ),
+            ...sortedKeys.map((key) {
+              final groupPayments = grouped[key]!;
+              final total = groupPayments.fold<double>(
+                0, (s, p) => s + p.amount,
+              );
+              final isOther = key == '__other__';
+              return _buildRoomPaymentTile(
+                roomNumber: isOther ? null : key,
+                totalAmount: total,
+                paymentsCount: groupPayments.length,
+              );
+            }),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PaymentHistoryScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.arrow_forward_ios, size: 14),
+                label: const Text('عرض التفاصيل'),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoomPaymentTile({
+    required String? roomNumber,
+    required double totalAmount,
+    required int paymentsCount,
+  }) {
+    final isRoom = roomNumber != null;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isRoom ? Colors.grey.shade50 : Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          // أيقونة الغرفة أو المدفوعات العامة
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: isRoom
+                  ? Colors.indigo.shade50
+                  : Colors.amber.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isRoom ? Icons.hotel : Icons.payments_outlined,
+              size: 16,
+              color: isRoom ? Colors.indigo.shade700 : Colors.amber.shade700,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // رقم الغرفة + عدد العمليات
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isRoom ? 'غرفة $roomNumber' : 'مدفوعات عامة',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: isRoom ? Colors.indigo.shade800 : Colors.amber.shade800,
+                  ),
+                ),
+                Text(
+                  '$paymentsCount ${paymentsCount == 1 ? 'عملية' : 'عمليات'}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          // المجموع
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: (isRoom ? Colors.green : Colors.orange).shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: (isRoom ? Colors.green : Colors.orange).shade200,
+              ),
+            ),
+            child: Text(
+              CurrencyFormatter.formatAmount(totalAmount),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: (isRoom ? Colors.green : Colors.orange).shade800,
+              ),
+            ),
+          ),
         ],
       ),
     );
