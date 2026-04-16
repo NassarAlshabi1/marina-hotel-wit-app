@@ -356,7 +356,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  // ─── مدفوعات اليوم (مجمّعة حسب الغرفة) ───
+  // ─── مدفوعات اليوم (مجمّعة حسب الغرفة ومفصلة) ───
   Widget _buildTodayPayments(List<db.Payment> payments) {
     final hotelDay = Time.hotelDayKey();
     final todayPayments = payments
@@ -403,7 +403,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 const Icon(Icons.receipt_long, size: 18, color: Colors.indigo),
                 const SizedBox(width: 6),
                 const Text(
-                  'مدفوعات اليوم الفندقي',
+                  'تفاصيل مدفوعات اليوم الفندقي',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -431,69 +431,44 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 0, (s, p) => s + p.amount,
               );
               final isOther = key == '__other__';
-              return _buildRoomPaymentTile(
+              return _buildRoomPaymentGroup(
                 roomNumber: isOther ? null : key,
                 totalAmount: total,
-                paymentsCount: groupPayments.length,
+                payments: groupPayments,
               );
             }),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Center(
-              child: TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PaymentHistoryScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.arrow_forward_ios, size: 14),
-                label: const Text('عرض التفاصيل'),
-              ),
-            ),
-          ),
+          const SizedBox(height: 10),
         ],
       ),
     );
   }
 
-  Widget _buildRoomPaymentTile({
+  Widget _buildRoomPaymentGroup({
     required String? roomNumber,
     required double totalAmount,
-    required int paymentsCount,
+    required List<db.Payment> payments,
   }) {
     final isRoom = roomNumber != null;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: isRoom ? Colors.grey.shade50 : Colors.amber.shade50,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: isRoom
-                  ? Colors.indigo.shade50
-                  : Colors.amber.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isRoom ? Icons.hotel : Icons.payments_outlined,
-              size: 16,
-              color: isRoom ? Colors.indigo.shade700 : Colors.amber.shade700,
-            ),
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isRoom ? Colors.indigo.shade50 : Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: (isRoom ? Colors.indigo : Colors.amber).shade100),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          child: Row(
+            children: [
+              Icon(
+                isRoom ? Icons.hotel : Icons.payments_outlined,
+                size: 16,
+                color: isRoom ? Colors.indigo.shade700 : Colors.amber.shade700,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
                   isRoom ? 'غرفة $roomNumber' : 'مدفوعات عامة',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -501,30 +476,51 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                     color: isRoom ? Colors.indigo.shade800 : Colors.amber.shade800,
                   ),
                 ),
+              ),
+              Text(
+                CurrencyFormatter.formatAmount(totalAmount),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isRoom ? Colors.indigo.shade900 : Colors.amber.shade900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...payments.map((p) => _buildSinglePaymentDetail(p)),
+        const Divider(indent: 40, endIndent: 40, height: 10),
+      ],
+    );
+  }
+
+  Widget _buildSinglePaymentDetail(db.Payment p) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 15, right: 40, top: 4, bottom: 4),
+      child: Row(
+        children: [
+          Icon(_getMethodIcon(p.paymentMethod), size: 12, color: Colors.grey.shade600),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '$paymentsCount ${paymentsCount == 1 ? 'عملية' : 'عمليات'}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  p.notes?.isNotEmpty == true ? p.notes! : p.paymentMethod,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: (isRoom ? Colors.green : Colors.orange).shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: (isRoom ? Colors.green : Colors.orange).shade200,
-              ),
-            ),
-            child: Text(
-              CurrencyFormatter.formatAmount(totalAmount),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: (isRoom ? Colors.green : Colors.orange).shade800,
-              ),
-            ),
+          Text(
+            CurrencyFormatter.formatAmount(p.amount),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ],
       ),
