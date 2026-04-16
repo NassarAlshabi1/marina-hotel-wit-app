@@ -262,6 +262,7 @@ class BookingPriceAdjustmentService {
       localUuid: Value(uuid),
       bookingLocalUuid: Value(bookingLocalUuid),
       bookingLocalId: Value(booking.id),
+      roomNumber: Value(booking.roomNumber),
       adjustmentType: Value(type.value),
       adjustmentMode: Value(mode.value),
       amount: Value(amount.toDouble()),
@@ -287,6 +288,7 @@ class BookingPriceAdjustmentService {
       payload: {
         'bookingLocalUuid': bookingLocalUuid,
         'bookingLocalId': booking.id,
+        'roomNumber': booking.roomNumber,
         'adjustmentType': type.value,
         'adjustmentMode': mode.value,
         'amount': amount.toDouble(),

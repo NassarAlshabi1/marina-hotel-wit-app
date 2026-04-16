@@ -365,6 +365,7 @@ class BookingPriceAdjustments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get bookingLocalUuid => text()();
   IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  TextColumn get roomNumber => text().nullable()();
   IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
   TextColumn get adjustmentMode => text().withDefault(const Constant('per_night'))();
   RealColumn get amount => real().withDefault(const Constant(0.0))();
@@ -710,7 +711,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1532,6 +1533,13 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 31: performance indexes created successfully',
+          name: 'db.migration',
+        );
+      }
+      if (from < 32) {
+        await m.addColumn(bookingPriceAdjustments, bookingPriceAdjustments.roomNumber);
+        developer.log(
+          'Migration 32: added roomNumber to booking_price_adjustments',
           name: 'db.migration',
         );
       }
