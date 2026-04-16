@@ -336,6 +336,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     0,
                     (s, p) => s + p.amount,
                   );
+                  // حساب المدفوعات في اليوم الفندقي الحالي لهذا الحجز
+                  final hotelDay = Time.hotelDayKey();
+                  final todayPaidAmount = dbPayments
+                      .where((p) =>
+                          !p.isVoided &&
+                          (p.hotelDayKey == hotelDay ||
+                              (p.hotelDayKey == null &&
+                                  Time.hotelDayKeyFromIso(p.paymentDate) == hotelDay)))
+                      .fold<double>(0, (s, p) => s + p.amount);
                   double remainingAmount = totalAmount - paidAmount;
                   if (remainingAmount < 0) remainingAmount = 0;
                   _remainingAmount = remainingAmount;
@@ -370,6 +379,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         hasNotCheckedOut: hasNotCheckedOut,
                         nowIsAfterCutoff: nowIsAfterCutoff,
                         actualNightsDynamic: actualNights,
+                        todayPaidAmount: todayPaidAmount,
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -437,6 +447,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     bool hasNotCheckedOut = false,
     bool nowIsAfterCutoff = false,
     int actualNightsDynamic = 0,
+    double todayPaidAmount = 0,
   }) {
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
@@ -737,6 +748,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   'المتبقي',
                   summary.remainingAmount,
                   Colors.red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: _buildAmountChip(
+                  'مدفوع اليوم',
+                  todayPaidAmount,
+                  Colors.indigo,
                 ),
               ),
             ],
