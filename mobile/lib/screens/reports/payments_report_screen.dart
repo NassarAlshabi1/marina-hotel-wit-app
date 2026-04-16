@@ -128,10 +128,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
     final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+        ? '${DateFormat('yyyy-MM-dd').format(_fromDate!)} 00:00:00'
         : null;
     final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+        ? '${DateFormat('yyyy-MM-dd').format(_toDate!)} 23:59:59'
         : null;
     final payments = await paymentsDao.listForReport(
       from: fromStr,

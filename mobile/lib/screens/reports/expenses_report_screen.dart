@@ -156,10 +156,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
     final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+        ? '${DateFormat('yyyy-MM-dd').format(_fromDate!)} 00:00:00'
         : null;
     final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+        ? '${DateFormat('yyyy-MM-dd').format(_toDate!)} 23:59:59'
         : null;
     final selectedType =
         widget.showTypeFilter &&

@@ -63,8 +63,8 @@ class _IncomeExpenseReportScreenState
       final paymentsDao = PaymentsDao(db, outboxDao);
       final expensesDao = ExpensesDao(db, outboxDao);
 
-      final fromStr = _dateFormat.format(_fromDate);
-      final toStr = _dateFormat.format(_toDate);
+      final fromStr = '${_dateFormat.format(_fromDate)} 00:00:00';
+      final toStr = '${_dateFormat.format(_toDate)} 23:59:59';
 
       final payments = await paymentsDao.list(from: fromStr, to: toStr);
       final expenses = await expensesDao.list(from: fromStr, to: toStr);
