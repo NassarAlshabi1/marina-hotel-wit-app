@@ -750,11 +750,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   Colors.red,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
+              const SizedBox(width: 6),
               Expanded(
                 child: _buildAmountChip(
                   'مدفوع اليوم',
