@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:flutter/foundation.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
+import '../../services/whatsapp_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
@@ -410,7 +413,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
-    final availableEmployees =
+    List<Employee> availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
 
@@ -634,6 +637,72 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     markDataChanged();
     if (mounted) {
       _refreshExpensesStream();
+    }
+
+    // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
+    if (isSalaryExpense && selectedEmployeeId != null && mounted) {
+      _sendSalaryExpenseWhatsApp(
+        employeeId: selectedEmployeeId!,
+        action: savedType,
+        amount: parsedAmount,
+        date: trimmedDate,
+        employees: availableEmployees,
+      );
+    }
+  }
+
+  /// إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
+  Future<void> _sendSalaryExpenseWhatsApp({
+    required int employeeId,
+    required String action,
+    required double amount,
+    required String date,
+    required List<Employee> employees,
+  }) async {
+    try {
+      // البحث عن الموظف للحصول على رقم الهاتف والاسم
+      final employee = employees.where((e) => e.id == employeeId).firstOrNull;
+      if (employee == null) return;
+
+      final phone = employee.phone.trim();
+      if (phone.isEmpty) return;
+
+      final whatsappService = ref.read(whatsappServiceProvider);
+
+      // تنظيف رقم الهاتف
+      String cleanedPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      if (!cleanedPhone.startsWith('+')) {
+        cleanedPhone = '+$cleanedPhone';
+      }
+
+      final actionText = action == _salaryDeductionAction ? 'خصم' : 'سحب';
+      final message = StringBuffer()
+        ..writeln('مرحباً ${employee.name}')
+        ..writeln('')
+        ..writeln('تم تسجيل $actionText راتب بقيمة ${CurrencyFormatter.formatAmount(amount)}')
+        ..writeln('التاريخ: $date')
+        ..writeln('')
+        ..writeln('فندق مارينا')
+        ..write('للاستفسار: 9677734587456');
+
+      final success = await whatsappService.sendMessage(
+        phoneE164: cleanedPhone,
+        message: message.toString(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? 'تم إرسال إشعار واتساب لـ ${employee.name}'
+                : 'تعذّر إرسال إشعار واتساب لـ ${employee.name}'),
+            backgroundColor: success ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('WhatsApp salary notification error: $e');
     }
   }
 
