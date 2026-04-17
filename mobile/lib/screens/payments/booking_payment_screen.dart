@@ -299,6 +299,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               double totalSurcharge = 0;
 
               if (nights.isNotEmpty) {
+                // حماية: التخفيض/المزادة يُحسب فقط إذا كانت adjustment != 0
+                // لتجنب عرض تخفيض وهمي من بيانات booking_nights قديمة/fاسدة
                 discountedNights =
                     nights.where((n) => n.adjustment < 0).length;
                 surchargeNights =
@@ -314,6 +316,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   0,
                   (sum, n) => sum + (n.adjustment > 0 ? n.adjustment : 0),
                 );
+                // حماية إضافية: إذا لم يكن هناك تخفيض على الحجز نفسه
+                // ولا توجد تعديلات سعرية نشطة، لا تُظهر أي تخفيض
+                if (discount <= 0 && totalDiscount > 0) {
+                  // تحقق أن التخفيض حقيقي وليس من بيانات قديمة
+                  // إذا كانت جميع baseRate == 0 و finalRate == 0 فهي بيانات غير مكتملة
+                  final hasValidBaseRates = nights.any((n) => n.baseRate > 0);
+                  if (!hasValidBaseRates) {
+                    // بيانات booking_nights غير مكتملة — تجاهل التخفيض الوهمي
+                    totalDiscount = 0;
+                    discountedNights = 0;
+                    normalNights = nightsCount;
+                  }
+                }
               } else if (discount > 0 && discountType == 'per_night') {
                 final checkout = actualCheckout ?? DateTime.now();
                 discountedNights = _countNightsWithDiscount(

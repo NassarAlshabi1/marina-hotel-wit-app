@@ -191,10 +191,10 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       lastNightEpoch: _vInt(json, 'lastNightEpoch', src),
       isOverdue: _vBool(json, 'isOverdue', src),
       needsCheckoutReview: _vBool(json, 'needsCheckoutReview', src),
-      totalDueCached: _vDouble(json, 'totalDueCached', src),
-      totalPaidCached: _vDouble(json, 'totalPaidCached', src),
-      remainingBalanceCached: _vDouble(json, 'remainingBalanceCached', src),
-      isFullyPaid: _vBool(json, 'isFullyPaid', src),
+      // لا نقرأ الحقول المحسوبة من Appwrite/Drive — تُعاد حسابها محلياً
+      // عبر BookingDerivedFieldsService لضمان دقة الأرقام
+      // totalDueCached, totalPaidCached, remainingBalanceCached, isFullyPaid
+      // تُترك كـ Value.absent() حتى يُعاد حسابها
       hotelDayCheckin: _vStr(
         json,
         'hotelDayCheckin',
@@ -400,8 +400,10 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+/// تحويل اسم الحقل بين camelCase و snake_case حسب المصدر.
+/// يدعم استدعاء باراميترين (camel فقط) أو ثلاثة (camel + snake).
+String _k(Source src, String camel, [String? snake]) =>
+    src == Source.drive ? (snake ?? camel) : camel;
 
 String? _altKey(String camel, Source src) {
   if (src == Source.drive) return camel;
