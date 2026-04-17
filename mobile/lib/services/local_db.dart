@@ -711,7 +711,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 32;
+  int get schemaVersion => 33;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1542,6 +1542,66 @@ class AppDatabase extends _$AppDatabase {
           'Migration 32: added roomNumber to booking_price_adjustments',
           name: 'db.migration',
         );
+      }
+
+      // === Migration 33: إصلاح مصروفات الرواتب المفقودة من salary_withdrawals ===
+      if (from < 33) {
+        try {
+          // أنواع المصروفات التي يجب أن تكون في salary_withdrawals
+          const salaryTypes = ['سحب راتب', 'خصم راتب', 'سحب من الراتب', 'خصم من الراتب'];
+
+          // جلب كل مصروفات الرواتب التي لها موظف مرتبط
+          final allExpenses = await m.database.select(m.database.expenses).get();
+          final salaryExpenses = allExpenses.where((e) =>
+              e.deletedAt == null &&
+              e.relatedId != null &&
+              salaryTypes.contains(e.expenseType.trim()));
+
+          int created = 0;
+          for (final exp in salaryExpenses) {
+            // التحقق من عدم وجود سجل مسبق في salary_withdrawals
+            final existing = await (m.database.select(m.database.salaryWithdrawals)
+                  ..where((t) => t.reason.like('%exp_${exp.id}%')))
+                .get();
+
+            if (existing.isEmpty) {
+              final now = DateTime.now().millisecondsSinceEpoch;
+              final uuid = 'mig33_${const Uuid().v4()}';
+              await m.database.into(m.database.salaryWithdrawals).insert(
+                SalaryWithdrawalsCompanion(
+                  localUuid: Value(uuid),
+                  serverId: const Value(null),
+                  employeeId: Value(exp.relatedId!),
+                  amount: Value(exp.amount),
+                  withdrawDate: Value(exp.date),
+                  reason: Value('exp_${exp.id}'),
+                  hotelDayKey: Value(exp.hotelDayKey ?? exp.date),
+                  withdrawalType: Value(exp.expenseType),
+                  description: Value(exp.description),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  deletedAt: const Value(null),
+                  lastModified: Value(now),
+                  createdAtEpoch: Value(now),
+                  lastModifiedEpoch: Value(now),
+                  version: const Value(1),
+                  origin: const Value('local'),
+                  vectorClock: const Value('{}'),
+                ),
+              );
+              created++;
+            }
+          }
+          developer.log(
+            'Migration 33: created $created missing salary_withdrawals records',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 33: failed - $e',
+            name: 'db.migration',
+          );
+        }
       }
     },
   );
