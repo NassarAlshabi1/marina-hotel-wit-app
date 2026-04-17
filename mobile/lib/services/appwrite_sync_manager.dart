@@ -1751,6 +1751,11 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
+      // حقول مطلوبة إضافية من Appwrite schema
+      'roomType': room.type,
+      'basePrice': room.price,
+      'floor': 1,
+      'bedsCount': 1,
     };
     _putIfNotNull(data, 'serverId', room.serverId);
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
