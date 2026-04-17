@@ -718,7 +718,26 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const SizedBox.shrink();
                         }
-                        final adjustments = snapshot.data!;
+                        // ─── حماية: تصفية التعديلات الوهمية/اليتيمة ───
+                        final bookingDiscount = booking.discount;
+                        final adjustments = snapshot.data!.where((adj) {
+                          // استبعاد سجلات legacy_discount دائماً (لا تُعرض في UI)
+                          // هي سجلات داخلية يديرها النظام ولا علاقة لها بالمستخدم
+                          if (adj.reason == 'legacy_discount') {
+                            return false;
+                          }
+                          // تخطي سجلات التخفيض بدون سبب إذا لم يكن هناك تخفيض
+                          if (bookingDiscount <= 0 &&
+                              adj.adjustmentType == 0 &&
+                              adj.reason == null) {
+                            return false;
+                          }
+                          return true;
+                        }).toList();
+
+                        if (adjustments.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(12),

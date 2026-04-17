@@ -339,15 +339,37 @@ class EnhancedBookingCalculationService {
           ..where((a) => a.deletedAt.isNull()))
         .get();
 
-    // حماية: التحقق من أن roomNumber في التعديل السعرية يطابق غرفة الحجز
-    // لتجنب تطبيق تخفيض من حجز آخر محذوف بسبب تعارض bookingLocalId
-    final room = booking.roomNumber.trim();
+    // ─── حماية متعددة الطبقات ضد التعديلات الوهمية ───
+
+    final bookingDiscount = _asInt(booking.discount);
+    final isDiscountTotal = booking.discountType == 'total';
+
     return raw.where((adj) {
+      // ① استبعاد سجلات legacy_discount دائماً
+      //    يتم تطبيق التخفيض القديم عبر المسار المخصص في
+      //    _buildNightlyBreakdown (سطور 218-232).
+      //    تمرير هذه السجلات هنا يُسبب تخفيضاً مزدوجاً (BUG #2).
+      if (adj.reason == 'legacy_discount') {
+        return false;
+      }
+
+      // ② التحقق من roomNumber — تجنب تطبيق تخفيض من حجز آخر
       final adjRoom = adj.roomNumber?.trim();
-      // إذا كان roomNumber فارغ/None → تعديل قديم يتيّم → تجاهله
       if (adjRoom == null || adjRoom.isEmpty) return false;
-      // إذا كان roomNumber يطابق → مقبول
-      return adjRoom == room;
+      final room = booking.roomNumber.trim();
+      if (adjRoom != room) return false;
+
+      // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
+      //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
+      if (bookingDiscount <= 0 &&
+          adj.adjustmentType == 0 &&
+          adj.reason == null) {
+        // سجل تخفيض يدوي بدون سبب + لا يوجد تخفيض على الحجز
+        // = سجل يتيم محتمل → تجاهله للحماية
+        return false;
+      }
+
+      return true;
     }).toList();
   }
 

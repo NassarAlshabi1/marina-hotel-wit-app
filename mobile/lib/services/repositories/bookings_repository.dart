@@ -293,6 +293,16 @@ class BookingsRepository {
     return await dao.getRecordCount();
   }
 
+  /// مزامنة التخفيض القديم (legacy discount) مع جدول التعديلات.
+  ///
+  /// ─── ملاحظة مهمة (BUG #2 + #3): ───
+  /// سجلات legacy_discount في booking_price_adjustments هي سجلات ميتة لا تُستخدم
+  /// في الحساب الفعلي. EnhancedBookingCalculationService يستبعدها دائماً في
+  /// _fetchActiveAdjustments ويطبق التخفيض القديم مباشرة عبر booking.discount.
+  ///
+  /// لذلك هذه الدالة تقوم بـ:
+  /// 1. إلغاء أي سجلات legacy_discount يتيمة (عند عدم وجود تخفيض)
+  /// 2. عدم إنشاء سجلات جديدة (كانت ميتة ولا فائدة منها)
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
@@ -301,51 +311,16 @@ class BookingsRepository {
 
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {
-      // لا يوجد تخفيض — ألغِ أي سجلات legacy_discount يتيمة نشطة
+      // لا يوجد تخفيض — ألغِ أي سجلات يتيمة
       await _cancelLegacyDiscountAdjustments(bookingId);
       return;
     }
 
-    final effectiveHotelDay = Time.hotelDayKeyFromIso(
-      booking.discountStartDate ?? booking.checkinDate,
-    );
-
-    final existing = await (db.select(db.bookingPriceAdjustments)
-          ..where((a) => a.bookingLocalId.equals(bookingId))
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.deletedAt.isNull()))
-        .get();
-
-    final hasMatch = existing.any(
-      (a) => a.adjustmentType == 0 &&
-          a.amount == discount &&
-          a.effectiveHotelDay == effectiveHotelDay,
-    );
-
-    if (hasMatch) return;
-
-    final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toUtc().toIso8601String();
-
-    await db.into(db.bookingPriceAdjustments).insert(
-          BookingPriceAdjustmentsCompanion(
-            localUuid: d.Value(IdGen.uuid()),
-            bookingLocalUuid: d.Value(booking.localUuid),
-            bookingLocalId: d.Value(booking.id),
-            adjustmentType: const d.Value(0),
-            amount: d.Value(discount.toDouble()),
-            effectiveHotelDay: d.Value(effectiveHotelDay),
-            isActive: const d.Value(true),
-            reason: const d.Value('legacy_discount'),
-            createdAt: d.Value(now),
-            updatedAt: d.Value(now),
-            lastModified: d.Value(now),
-            createdAtIso: d.Value(nowIso),
-            updatedAtIso: d.Value(nowIso),
-            createdAtEpoch: d.Value(now),
-            lastModifiedEpoch: d.Value(now),
-          ),
-        );
+    // التخفيض موجود — لا حاجة لإنشاء سجل legacy_discount لأن:
+    // 1. EnhancedBookingCalculationService يستبعدها دائماً
+    // 2. التخفيض يُطبق مباشرة عبر booking.discount في المسار القديم
+    // فقط تأكد من تنظيف أي سجلات يتيمة بمبلغ مختلف
+    await _cancelLegacyDiscountAdjustments(bookingId);
   }
 
   /// إلغاء جميع سجلات legacy_discount النشطة لحجز معين.
