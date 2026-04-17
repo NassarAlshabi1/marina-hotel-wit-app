@@ -1,15 +1,12 @@
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
-import '../daos/outbox_dao.dart';
-import '../adapters/source.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db);
   final AppDatabase _db;
-  late final _outboxDao = OutboxDao(_db);
 
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   Future<int> createFromExpense({
@@ -23,9 +20,8 @@ class SalaryWithdrawalsRepository {
     String? description,
   }) async {
     final now = Time.nowEpoch();
-    final localUuid = IdGen.uuid();
     final companion = SalaryWithdrawalsCompanion(
-      localUuid: d.Value(localUuid),
+      localUuid: d.Value(IdGen.uuid()),
       serverId: const d.Value(null),
       employeeId: d.Value(employeeId),
       amount: d.Value(amount),
@@ -44,9 +40,7 @@ class SalaryWithdrawalsRepository {
       origin: const d.Value('local'),
       vectorClock: const d.Value('{}'),
     );
-    final id = await _db.into(_db.salaryWithdrawals).insert(companion);
-    await _mergeOutbox(op: 'create', localUuid: localUuid, clientTs: now);
-    return id;
+    return _db.into(_db.salaryWithdrawals).insert(companion);
   }
 
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
@@ -90,18 +84,11 @@ class SalaryWithdrawalsRepository {
             lastModified: d.Value(now),
             version: d.Value(matched.version + 1),
           ));
-      await _mergeOutbox(
-        op: 'update',
-        localUuid: matched.localUuid,
-        clientTs: now,
-        serverId: matched.serverId,
-      );
     } else {
       // إنشاء سجل جديد
-      final localUuid = IdGen.uuid();
       await _db.into(_db.salaryWithdrawals).insert(
         SalaryWithdrawalsCompanion(
-          localUuid: d.Value(localUuid),
+          localUuid: d.Value(IdGen.uuid()),
           serverId: const d.Value(null),
           employeeId: d.Value(employeeId),
           amount: d.Value(amount),
@@ -121,7 +108,6 @@ class SalaryWithdrawalsRepository {
           vectorClock: const d.Value('{}'),
         ),
       );
-      await _mergeOutbox(op: 'create', localUuid: localUuid, clientTs: now);
     }
   }
 
@@ -132,13 +118,6 @@ class SalaryWithdrawalsRepository {
         .where((w) => (w.reason?.contains('exp_$expenseId') ?? false))
         .toList();
     for (final item in toDelete) {
-      // كتابة outbox delete قبل الحذف الفعلي
-      await _mergeOutbox(
-        op: 'delete',
-        localUuid: item.localUuid,
-        clientTs: Time.nowEpoch(),
-        serverId: item.serverId,
-      );
       await (_db.delete(_db.salaryWithdrawals)
             ..where((t) => t.id.equals(item.id)))
           .go();
@@ -162,53 +141,5 @@ class SalaryWithdrawalsRepository {
     return (_db.select(_db.salaryWithdrawals)
           ..where((t) => t.deletedAt.isNull()))
         .get();
-  }
-
-  // ─── Outbox Helper ──────────────────────────────────────────────────
-
-  Future<void> _mergeOutbox({
-    required String op,
-    required String localUuid,
-    required int clientTs,
-    int? serverId,
-  }) async {
-    final payload = await _payloadForLocalUuid(localUuid);
-    if (payload == null) return;
-    await _outboxDao.merge(
-      entity: 'salary_withdrawals',
-      op: op,
-      localUuid: localUuid,
-      serverId: serverId,
-      payload: payload,
-      clientTs: clientTs,
-    );
-  }
-
-  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
-    final row = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.localUuid.equals(localUuid))
-          ..limit(1))
-        .getSingleOrNull();
-    if (row == null) return null;
-    // بناء payload بنفس تنسيق Adapter.toJson لـ Appwrite
-    return {
-      'id': row.id,
-      'localUuid': row.localUuid,
-      'serverId': row.serverId,
-      'employeeId': row.employeeId,
-      'amount': row.amount.round(),
-      'withdrawDate': row.withdrawDate,
-      'reason': row.reason,
-      'hotelDayKey': row.hotelDayKey,
-      'withdrawalType': row.withdrawalType,
-      'description': row.description,
-      'createdAt': row.createdAt,
-      'updatedAt': row.updatedAt,
-      'deletedAt': row.deletedAt,
-      'lastModified': row.lastModified,
-      'version': row.version,
-      'origin': row.origin,
-      'vectorClock': row.vectorClock,
-    };
   }
 }
