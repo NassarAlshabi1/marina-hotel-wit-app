@@ -9,7 +9,6 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
 import 'settings_maintenance.dart';
-import 'settings_id_types.dart';
 import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
@@ -35,17 +34,13 @@ class SettingsScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () async {
-            final result = await ref.read(syncServiceProvider).runSync();
+            await ref.read(syncServiceProvider).runSync();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    result.success
-                        ? '✅ تمت المزامنة بنجاح - رفع: ${result.recordsPushed}، سحب: ${result.recordsPulled}'
-                        : '❌ فشلت المزامنة: ${result.errorMessage ?? "خطأ غير معروف"}',
-                  ),
-                  backgroundColor: result.success ? Colors.green : Colors.red,
-                  duration: const Duration(seconds: 3),
+                const SnackBar(
+                  content: Text('✅ تمت المزامنة بنجاح'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
                 ),
               );
             }
@@ -248,18 +243,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            _SettingsItem(
-              title: 'أنواع الهوية',
-              subtitle: 'تخصيص قائمة أنواع الهوية',
-              icon: Icons.badge_outlined,
-              color: Colors.blueGrey,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsIdTypesScreen(),
-                ),
-              ),
-            ),
+
             _SettingsItem(
               title: 'معلومات التطبيق',
               subtitle: 'الإصدار ومعلومات المطور',

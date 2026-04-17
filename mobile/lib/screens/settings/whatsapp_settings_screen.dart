@@ -580,8 +580,8 @@ class _WhatsAppSettingsScreenState
             controller: _templateController,
             maxLines: 10,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
               hintText: 'أدخل نص الرسالة هنا...',
               filled: true,
               fillColor: Colors.grey.shade50,
