@@ -1,27 +1,26 @@
-import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/local_db.dart';
 import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/bookings_repository.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
-import '../utils/time.dart';
 import '../services/repositories/cash_repository.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/repositories/debts_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/guest_info_repository.dart';
 import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
-import '../services/repositories/guest_infos_repository.dart';
 import '../services/auth_local_store.dart';
 import '../services/sync_guardian.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
-import 'core_providers.dart';
 
 import '../services/whatsapp_service.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
@@ -54,6 +53,9 @@ final bookingsRepoProvider = Provider<BookingsRepository>(
 final employeesRepoProvider = Provider<EmployeesRepository>(
   (ref) => EmployeesRepository(ref.read(databaseProvider)),
 );
+final guestInfoRepoProvider = Provider<GuestInfoRepository>(
+  (ref) => GuestInfoRepository(ref.read(databaseProvider)),
+);
 final expensesRepoProvider = Provider<ExpensesRepository>(
   (ref) => ExpensesRepository(ref.read(databaseProvider)),
 );
@@ -81,12 +83,29 @@ final shiftNotesRepoProvider = Provider<ShiftNotesRepository>(
 final blacklistRepoProvider = Provider<BlacklistRepository>(
   (ref) => BlacklistRepository(ref.read(databaseProvider)),
 );
+final whatsappSettingsProvider = FutureProvider<Map<String, String>>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return {
+    'baseUrl': prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
+    'instanceId': prefs.getString('wa_api_instance_id') ?? 'waInstance7103894450',
+    'token': prefs.getString('wa_api_token') ?? 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+  };
+});
+
 final whatsappServiceProvider = Provider<WhatsAppService>(
-  (ref) => WhatsAppService(
-    baseUrl: 'https://7103.api.greenapi.com',
-    instanceId: 'waInstance7103894450',
-    token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
-  ),
+  (ref) {
+    final settingsAsync = ref.watch(whatsappSettingsProvider);
+    final settings = settingsAsync.valueOrNull ?? {
+      'baseUrl': 'https://7103.api.greenapi.com',
+      'instanceId': 'waInstance7103894450',
+      'token': 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+    };
+    return WhatsAppService(
+      baseUrl: settings['baseUrl']!,
+      instanceId: settings['instanceId']!,
+      token: settings['token']!,
+    );
+  },
 );
 
 final roomsListProvider = StreamProvider.autoDispose(
@@ -131,9 +150,17 @@ final employeesListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(employeesRepoProvider).watchAll(),
 );
 
+final guestInfoListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(guestInfoRepoProvider).watchAll(),
+);
+
 final expensesListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(expensesRepoProvider).watchAll(),
 );
+
+final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
+  return ref.watch(salaryWithdrawalsRepoProvider).listAll();
+});
 
 final cashTransactionsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(cashRepoProvider).watchAll(),
@@ -145,88 +172,16 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
-// Daily Statistics Providers — StreamProvider لتحديث لحظي
-// ──────────────────────────────────────────────────────────────────
-// الاستعلام يشمل:
-//   1. السجلات ذات hotel_day_key مطابق لليوم الفندقي الحالي
-//   2. السجلات ذات hotel_day_key = NULL مع تاريخ مطابق (fallback
-//      للمصروفات/المدفوعات القادمة من المزامنة بدون hotel_day_key)
-// ──────────────────────────────────────────────────────────────────
-final todayPaymentsProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE deleted_at IS NULL AND is_voided = 0 AND ('
-        '  hotel_day_key = ? '
-        '  OR (hotel_day_key IS NULL AND substr(payment_date, 1, 10) = ?)'
-        ')',
-        variables: [
-          Variable.withString(todayKey),
-          Variable.withString(todayKey),
-        ],
-        readsFrom: {db.payments},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
+// Daily Statistics Providers
+final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
+  final hotelDay = Time.hotelDayKey();
+  return ref.watch(paymentsRepoProvider).getTotalByHotelDayKey(hotelDay);
 });
 
-final todayExpensesProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE deleted_at IS NULL AND ('
-        '  hotel_day_key = ? '
-        '  OR (hotel_day_key IS NULL AND date = ?)'
-        ')',
-        variables: [
-          Variable.withString(todayKey),
-          Variable.withString(todayKey),
-        ],
-        readsFrom: {db.expenses},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
+final todayExpensesProvider = FutureProvider.autoDispose((ref) {
+  final hotelDay = Time.hotelDayKey();
+  return ref.watch(expensesRepoProvider).getTotalByHotelDayKey(hotelDay);
 });
-
-/// عدد + إجمالي مصروفات اليوم الفندقي الحالي
-final todayExpensesSummaryProvider = StreamProvider<({int count, double total})>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE deleted_at IS NULL AND ('
-        '  hotel_day_key = ? '
-        '  OR (hotel_day_key IS NULL AND date = ?)'
-        ')',
-        variables: [
-          Variable.withString(todayKey),
-          Variable.withString(todayKey),
-        ],
-        readsFrom: {db.expenses},
-      )
-      .watch()
-      .map((rows) {
-        final r = rows.isEmpty ? <String, Object?>{} : rows.first.data;
-        return (
-          count: (r['cnt'] as num? ?? 0).toInt(),
-          total: (r['total'] as num? ?? 0.0).toDouble(),
-        );
-  });
-});
-
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
@@ -253,17 +208,3 @@ final settledDebtsProvider = StreamProvider.autoDispose(
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
-
-
-// GuestInfo repo helper for CRUD operations
-final guestInfoRepoProvider = Provider<GuestInfosRepository>(
-  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
-);
-
-// GuestInfos Providers (for information_screen)
-final guestInfoListProvider = StreamProvider.autoDispose(
-  (ref) {
-    final repo = ref.read(guestInfoRepoProvider);
-    return repo.watchAll();
-  },
-);
