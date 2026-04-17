@@ -217,7 +217,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     ],
                   ),
                 ),
-                DataCell(Text(info.roomNumber)),
+                DataCell(Text(
+                  info.roomNumber,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                )),
                 DataCell(Text(info.guestName)),
                 DataCell(Text(info.nationality)),
                 DataCell(Text(info.idNumber)),
