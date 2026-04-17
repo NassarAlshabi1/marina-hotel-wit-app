@@ -329,7 +329,7 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    final raw = await (db.select(db.bookingPriceAdjustments)
           ..where(
             (a) =>
                 (a.bookingLocalId.equals(booking.id) |
@@ -338,6 +338,17 @@ class EnhancedBookingCalculationService {
           ..where((a) => a.isActive.equals(true))
           ..where((a) => a.deletedAt.isNull()))
         .get();
+
+    // حماية: التحقق من أن roomNumber في التعديل السعرية يطابق غرفة الحجز
+    // لتجنب تطبيق تخفيض من حجز آخر محذوف بسبب تعارض bookingLocalId
+    final room = booking.roomNumber.trim();
+    return raw.where((adj) {
+      final adjRoom = adj.roomNumber?.trim();
+      // إذا كان roomNumber فارغ/None → تعديل قديم يتيّم → تجاهله
+      if (adjRoom == null || adjRoom.isEmpty) return false;
+      // إذا كان roomNumber يطابق → مقبول
+      return adjRoom == room;
+    }).toList();
   }
 
   Future<void> _replaceBookingNights({
