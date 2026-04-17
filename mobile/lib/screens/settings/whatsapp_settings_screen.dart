@@ -653,6 +653,7 @@ class _WhatsAppSettingsScreenState
                 ),
               ),
             ),
+          ),
 
           const SizedBox(height: 20),
         ],
