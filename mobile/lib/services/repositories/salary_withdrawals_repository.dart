@@ -1,12 +1,14 @@
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
+import '../daos/outbox_dao.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 
 class SalaryWithdrawalsRepository {
-  SalaryWithdrawalsRepository(this._db);
+  SalaryWithdrawalsRepository(this._db) : _outboxDao = OutboxDao(_db);
   final AppDatabase _db;
+  final OutboxDao _outboxDao;
 
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   Future<int> createFromExpense({
@@ -18,10 +20,12 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     String? withdrawalType,
     String? description,
+    bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
+    final uuid = IdGen.uuid();
     final companion = SalaryWithdrawalsCompanion(
-      localUuid: d.Value(IdGen.uuid()),
+      localUuid: d.Value(uuid),
       serverId: const d.Value(null),
       employeeId: d.Value(employeeId),
       amount: d.Value(amount),
@@ -37,10 +41,31 @@ class SalaryWithdrawalsRepository {
       createdAtEpoch: d.Value(now),
       lastModifiedEpoch: d.Value(now),
       version: const d.Value(1),
-      origin: const d.Value('local'),
+      origin: d.Value(originIsServer ? 'server' : 'local'),
       vectorClock: const d.Value('{}'),
     );
-    return _db.into(_db.salaryWithdrawals).insert(companion);
+    final id = await _db.into(_db.salaryWithdrawals).insert(companion);
+
+    if (!originIsServer) {
+      await _outboxDao.merge(
+        entity: 'salary_withdrawals',
+        op: 'create',
+        localUuid: uuid,
+        serverId: null,
+        payload: {
+          'employeeId': employeeId,
+          'amount': amount,
+          'withdrawDate': date,
+          'reason': reason,
+          'hotelDayKey': hotelDayKey ?? '',
+          'withdrawalType': withdrawalType,
+          'description': description,
+        },
+        clientTs: now,
+      );
+    }
+
+    return id;
   }
 
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
@@ -54,6 +79,7 @@ class SalaryWithdrawalsRepository {
     required String date,
     String? note,
     String? hotelDayKey,
+    bool originIsServer = false,
   }) async {
     // محاولة البحث عن سجل موجود مرتبط بنفس الموظف والتاريخ والمبلغ
     final existing = await (_db.select(_db.salaryWithdrawals)
@@ -84,11 +110,31 @@ class SalaryWithdrawalsRepository {
             lastModified: d.Value(now),
             version: d.Value(matched.version + 1),
           ));
+
+      if (!originIsServer) {
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'update',
+          localUuid: matched.localUuid,
+          serverId: matched.serverId,
+          payload: {
+            'amount': amount,
+            'withdrawDate': date,
+            'reason': reasonText,
+            'withdrawalType': action,
+            'description': note,
+            'hotelDayKey': hotelDayKey ?? '',
+            'lastModified': now,
+          },
+          clientTs: now,
+        );
+      }
     } else {
       // إنشاء سجل جديد
+      final uuid = IdGen.uuid();
       await _db.into(_db.salaryWithdrawals).insert(
         SalaryWithdrawalsCompanion(
-          localUuid: d.Value(IdGen.uuid()),
+          localUuid: d.Value(uuid),
           serverId: const d.Value(null),
           employeeId: d.Value(employeeId),
           amount: d.Value(amount),
@@ -104,10 +150,29 @@ class SalaryWithdrawalsRepository {
           createdAtEpoch: d.Value(now),
           lastModifiedEpoch: d.Value(now),
           version: const d.Value(1),
-          origin: const d.Value('local'),
+          origin: d.Value(originIsServer ? 'server' : 'local'),
           vectorClock: const d.Value('{}'),
         ),
       );
+
+      if (!originIsServer) {
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'create',
+          localUuid: uuid,
+          serverId: null,
+          payload: {
+            'employeeId': employeeId,
+            'amount': amount,
+            'withdrawDate': date,
+            'reason': reasonText,
+            'withdrawalType': action,
+            'description': note,
+            'hotelDayKey': hotelDayKey ?? '',
+          },
+          clientTs: now,
+        );
+      }
     }
   }
 
@@ -117,10 +182,24 @@ class SalaryWithdrawalsRepository {
     final toDelete = all
         .where((w) => (w.reason?.contains('exp_$expenseId') ?? false))
         .toList();
+
+    final now = Time.nowEpoch();
     for (final item in toDelete) {
       await (_db.delete(_db.salaryWithdrawals)
             ..where((t) => t.id.equals(item.id)))
           .go();
+
+      await _outboxDao.merge(
+        entity: 'salary_withdrawals',
+        op: 'delete',
+        localUuid: item.localUuid,
+        serverId: item.serverId,
+        payload: {
+          'deletedAt': now,
+          'lastModified': now,
+        },
+        clientTs: now,
+      );
     }
   }
 
