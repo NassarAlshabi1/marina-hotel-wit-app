@@ -301,6 +301,8 @@ class BookingsRepository {
 
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {
+      // لا يوجد تخفيض — ألغِ أي سجلات legacy_discount يتيمة نشطة
+      await _cancelLegacyDiscountAdjustments(bookingId);
       return;
     }
 
@@ -344,6 +346,30 @@ class BookingsRepository {
             lastModifiedEpoch: d.Value(now),
           ),
         );
+  }
+
+  /// إلغاء جميع سجلات legacy_discount النشطة لحجز معين.
+  /// تُستدعى عندما يُزال التخفيض من الحجز (discount <= 0) لمنع سجلات يتيمة.
+  Future<void> _cancelLegacyDiscountAdjustments(int bookingId) async {
+    final now = Time.nowEpoch();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    await (db.update(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull())
+          ..where((a) => a.reason.equals('legacy_discount')))
+        .write(
+      BookingPriceAdjustmentsCompanion(
+        isActive: const d.Value(false),
+        cancelledAt: d.Value(nowIso),
+        cancelledBy: const d.Value('auto_cleanup'),
+        updatedAt: d.Value(now),
+        lastModified: d.Value(now),
+        updatedAtIso: d.Value(nowIso),
+        lastModifiedEpoch: d.Value(now),
+      ),
+    );
   }
 
   /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
