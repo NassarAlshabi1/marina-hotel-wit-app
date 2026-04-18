@@ -175,7 +175,10 @@ class WhatsAppService {
         }),
       ).timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      // SendZen يُرجع 202 Accepted عند النجاح (ليس 200 أو 201)
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 202) {
         return (success: true, quotaMessage: null);
       }
 
@@ -190,6 +193,22 @@ class WhatsAppService {
           success: false,
           quotaMessage: 'تجاوز الحصة الشهرية (600 رسالة مجانية)',
         );
+      }
+
+      // 400/422 = خطأ في البيانات — استخراج رسالة الخطأ من JSON
+      if (response.statusCode == 400 || response.statusCode == 422) {
+        try {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final msg = json['message'] as String? ?? '';
+          final data = json['data'];
+          String detail = msg;
+          if (data is List && data.isNotEmpty) {
+            detail += ' (${data.join(', ')})';
+          }
+          return (success: false, quotaMessage: detail.isNotEmpty ? detail : null);
+        } catch (_) {
+          return (success: false, quotaMessage: null);
+        }
       }
 
       debugPrint(
@@ -295,8 +314,10 @@ class WhatsAppService {
         }),
       ).timeout(const Duration(seconds: 15));
 
-      // 200/201 = نجاح (مفاجئ مع بيانات اختبار لكن ممكن مع sandbox)
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      // 200/201/202 = نجاح — SendZen يُرجع 202 Accepted عند القبول
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 202) {
         return (
           success: true,
           statusCode: response.statusCode,
