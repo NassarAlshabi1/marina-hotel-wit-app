@@ -2018,215 +2018,224 @@ class AppwriteSyncManager {
 
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
+  /// Guarded by [_mutex] to prevent concurrent pulls.
+  /// All collection syncs are wrapped in a single database transaction for atomicity.
   Future<bool> pullRemoteChanges() async {
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
-      return false;
-    }
-
-    try {
-      _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
-
-      int recordsPulled = 0;
-
-      // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
-      final lastPullTs = await _getLastPullTs();
-      final deltaQ = _deltaQueries(lastPullTs);
-      final isDelta = deltaQ.isNotEmpty;
-      if (isDelta) {
-        _logger.info(
-          '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
-          tag: 'SYNC',
-        );
-      } else {
-        _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
-      }
-
-      // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
-      try {
-        final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncRooms(rooms);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب rooms (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final bookings = await appwriteService.listBookings(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncBookings(bookings);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب bookings (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final employees = await appwriteService.listEmployees(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncEmployees(employees);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب employees (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final expenses = await appwriteService.listExpenses(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncExpenses(expenses);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب expenses (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncPayments(payments);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب payments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final debts = await appwriteService.listDebts(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncDebts(debts);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب debts (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final guestInfos = await appwriteService.listGuestInfos(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncGuestInfos(guestInfos);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب guest_infos (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب salary_withdrawals (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final bookingPriceAdjustments = await appwriteService.listDocuments(
-          collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-          queries: deltaQ,
-        );
-        recordsPulled += await _syncBookingPriceAdjustments(bookingPriceAdjustments);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب booking_price_adjustments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncShiftNotes(shiftNotes);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب shift_notes (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final blacklistDocs = await appwriteService.listBlacklist(queries: deltaQ, useCache: false);
-        recordsPulled += await _syncBlacklist(blacklistDocs);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب blacklist (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final bookingNotes = await appwriteService.listBookingNotes(
-          queries: deltaQ,
-          useCache: false,
-        );
-        recordsPulled += await _syncBookingNotes(bookingNotes);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب booking_notes (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final bookingNights = await appwriteService.listBookingNights(
-          queries: deltaQ,
-          useCache: false,
-        );
-        recordsPulled += await _syncBookingNights(bookingNights);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب booking_nights (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final cashTransactions = await appwriteService.listCashTransactions(
-          queries: deltaQ,
-          useCache: false,
-        );
-        recordsPulled += await _syncCashTransactions(cashTransactions);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب cash_transactions (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final salaryCycles = await appwriteService.listSalaryCycles(
-          queries: deltaQ,
-          useCache: false,
-        );
-        recordsPulled += await _syncSalaryCycles(salaryCycles);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب salary_cycles (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final salaryPayments = await appwriteService.listSalaryPayments(
-          queries: deltaQ,
-          useCache: false,
-        );
-        recordsPulled += await _syncSalaryPayments(salaryPayments);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب salary_payments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final priceAdjustments = await appwriteService.listDocuments(
-          collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
-          queries: deltaQ,
-        );
-        recordsPulled += await _syncPriceAdjustments(priceAdjustments);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب price_adjustments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final auditLogs = await appwriteService.listDocuments(
-          collectionId: AppwriteConfig.auditLogsCollectionId,
-          queries: deltaQ,
-        );
-        recordsPulled += await _syncAuditLogs(auditLogs);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب audit_logs (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      try {
-        final paymentVoids = await appwriteService.listDocuments(
-          collectionId: AppwriteConfig.paymentVoidsCollectionId,
-          queries: deltaQ,
-        );
-        recordsPulled += await _syncPaymentVoids(paymentVoids);
-      } catch (e, st) {
-        _logger.error('❌ فشل سحب payment_voids (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
-      }
-
-      // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
-
-      // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
-      await _updateLastPullTs(Time.nowEpoch());
-
-      _lastSyncTime = DateTime.now();
-      await _saveSettings();
-
-      if (recordsPulled > 0) {
-        _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
-        return true;
-      } else {
-        _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
+    return await _mutex.runExclusive(() async {
+      if (_currentStatus == SyncStatus.syncing) {
+        _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
         return false;
       }
-    } catch (e, stackTrace) {
-      _logger.error(
-        '❌ خطأ في سحب التغييرات من Appwrite',
-        error: e,
-        stackTrace: stackTrace,
-        tag: 'SYNC',
-      );
-      return false;
-    }
+
+      try {
+        _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
+
+        int recordsPulled = 0;
+
+        // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
+        final lastPullTs = await _getLastPullTs();
+        final deltaQ = _deltaQueries(lastPullTs);
+        final isDelta = deltaQ.isNotEmpty;
+        if (isDelta) {
+          _logger.info(
+            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+            tag: 'SYNC',
+          );
+        } else {
+          _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
+        }
+
+        // Wrap all collection syncs in a single transaction for atomicity.
+        // Individual collection failures are caught internally so partial progress
+        // is preserved, but the entire batch either commits or rolls back together.
+        await database.transaction(() async {
+          // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
+          try {
+            final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncRooms(rooms);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب rooms (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final bookings = await appwriteService.listBookings(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncBookings(bookings);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب bookings (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final employees = await appwriteService.listEmployees(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncEmployees(employees);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب employees (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final expenses = await appwriteService.listExpenses(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncExpenses(expenses);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب expenses (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncPayments(payments);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب payments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final debts = await appwriteService.listDebts(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncDebts(debts);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب debts (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final guestInfos = await appwriteService.listGuestInfos(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncGuestInfos(guestInfos);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب guest_infos (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب salary_withdrawals (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final bookingPriceAdjustments = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+              queries: deltaQ,
+            );
+            recordsPulled += await _syncBookingPriceAdjustments(bookingPriceAdjustments);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب booking_price_adjustments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncShiftNotes(shiftNotes);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب shift_notes (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final blacklistDocs = await appwriteService.listBlacklist(queries: deltaQ, useCache: false);
+            recordsPulled += await _syncBlacklist(blacklistDocs);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب blacklist (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final bookingNotes = await appwriteService.listBookingNotes(
+              queries: deltaQ,
+              useCache: false,
+            );
+            recordsPulled += await _syncBookingNotes(bookingNotes);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب booking_notes (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final bookingNights = await appwriteService.listBookingNights(
+              queries: deltaQ,
+              useCache: false,
+            );
+            recordsPulled += await _syncBookingNights(bookingNights);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب booking_nights (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final cashTransactions = await appwriteService.listCashTransactions(
+              queries: deltaQ,
+              useCache: false,
+            );
+            recordsPulled += await _syncCashTransactions(cashTransactions);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب cash_transactions (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final salaryCycles = await appwriteService.listSalaryCycles(
+              queries: deltaQ,
+              useCache: false,
+            );
+            recordsPulled += await _syncSalaryCycles(salaryCycles);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب salary_cycles (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final salaryPayments = await appwriteService.listSalaryPayments(
+              queries: deltaQ,
+              useCache: false,
+            );
+            recordsPulled += await _syncSalaryPayments(salaryPayments);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب salary_payments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final priceAdjustments = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+              queries: deltaQ,
+            );
+            recordsPulled += await _syncPriceAdjustments(priceAdjustments);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب price_adjustments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final auditLogs = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.auditLogsCollectionId,
+              queries: deltaQ,
+            );
+            recordsPulled += await _syncAuditLogs(auditLogs);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب audit_logs (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            final paymentVoids = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.paymentVoidsCollectionId,
+              queries: deltaQ,
+            );
+            recordsPulled += await _syncPaymentVoids(paymentVoids);
+          } catch (e, st) {
+            _logger.error('❌ فشل سحب payment_voids (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
+
+          // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
+          await _updateLastPullTs(Time.nowEpoch());
+        });
+
+        _lastSyncTime = DateTime.now();
+        await _saveSettings();
+
+        if (recordsPulled > 0) {
+          _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
+          return true;
+        } else {
+          _logger.info('ℹ️ لا توجد تغييرات جديدة من Appwrite', tag: 'SYNC');
+          return false;
+        }
+      } catch (e, stackTrace) {
+        _logger.error(
+          '❌ خطأ في سحب التغييرات من Appwrite',
+          error: e,
+          stackTrace: stackTrace,
+          tag: 'SYNC',
+        );
+        return false;
+      }
+    }, timeout: const Duration(minutes: 5)) ?? false;
   }
 
   /// رفع جميع البيانات المحلية

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -68,6 +70,8 @@ class BackupMetadata {
   final int totalRecords;
   final String deviceInfo;
   final BackupFormat format;
+  /// تجزئة SHA-256 للتحقق من سلامة بيانات النسخة الاحتياطية
+  final String? dataHash;
 
   BackupMetadata({
     required this.appVersion,
@@ -76,6 +80,7 @@ class BackupMetadata {
     required this.totalRecords,
     required this.deviceInfo,
     this.format = BackupFormat.json,
+    this.dataHash,
   });
 
   Map<String, dynamic> toJson() => {
@@ -85,6 +90,7 @@ class BackupMetadata {
     'total_records': totalRecords,
     'device_info': deviceInfo,
     'format': format.name,
+    if (dataHash != null) 'data_hash': dataHash,
   };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
@@ -100,6 +106,7 @@ class BackupMetadata {
       totalRecords: (json['total_records'] as num?)?.toInt() ?? 0,
       deviceInfo: (json['device_info'] as String?) ?? '',
       format: format,
+      dataHash: json['data_hash'] as String?,
     );
   }
 }
@@ -356,25 +363,31 @@ class GoogleDriveBackupService {
     try {
       final db = DatabaseManager.instance;
 
-      final roomsData = await db.select(db.rooms).get();
-      final bookingsData = await db.select(db.bookings).get();
-      final bookingNotesData = await db.select(db.bookingNotes).get();
-      final bookingNightsData = await db.select(db.bookingNights).get();
-      final ledgerData = await db.select(db.hotelDayLedger).get();
-      final shiftNotesData = await db.select(db.shiftNotes).get();
-      final employeesData = await db.select(db.employees).get();
-      final expensesData = await db.select(db.expenses).get();
-      final cashTransactionsData = await db.select(db.cashTransactions).get();
-      final paymentsData = await db.select(db.payments).get();
-      final debtsData = await db.select(db.debts).get();
-      final salaryCyclesData = await db.select(db.salaryCycles).get();
-      final salaryPaymentsData = await db.select(db.salaryPayments).get();
-      final priceAdjustmentsData = await db.select(db.priceAdjustments).get();
-      final bookingPriceAdjData = await db.select(db.bookingPriceAdjustments).get();
-      final auditLogsData = await db.select(db.auditLogs).get();
-      final paymentVoidsData = await db.select(db.paymentVoids).get();
-      final guestInfosData = await db.select(db.guestInfos).get();
-      final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
+      // تحميل البيانات على دفعات لتجنب استهلاك الذاكرة في قواعد البيانات الكبيرة
+      final roomsData = await _loadTableBatched(db.rooms);
+      final bookingsData = await _loadTableBatched(db.bookings);
+      final bookingNotesData = await _loadTableBatched(db.bookingNotes);
+      final bookingNightsData = await _loadTableBatched(db.bookingNights);
+      final ledgerData = await _loadTableBatched(db.hotelDayLedger);
+      final shiftNotesData = await _loadTableBatched(db.shiftNotes);
+      final employeesData = await _loadTableBatched(db.employees);
+      final expensesData = await _loadTableBatched(db.expenses);
+      final cashTransactionsData = await _loadTableBatched(db.cashTransactions);
+      final paymentsData = await _loadTableBatched(db.payments);
+      final debtsData = await _loadTableBatched(db.debts);
+      final salaryCyclesData = await _loadTableBatched(db.salaryCycles);
+      final salaryPaymentsData = await _loadTableBatched(db.salaryPayments);
+      final priceAdjustmentsData = await _loadTableBatched(db.priceAdjustments);
+      final bookingPriceAdjData = await _loadTableBatched(db.bookingPriceAdjustments);
+      final auditLogsData = await _loadTableBatched(db.auditLogs);
+      final paymentVoidsData = await _loadTableBatched(db.paymentVoids);
+      final guestInfosData = await _loadTableBatched(db.guestInfos);
+      final salaryWithdrawalsData = await _loadTableBatched(db.salaryWithdrawals);
+
+      // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
+      final blacklistQuery = db.select(db.shiftNotes)
+        ..where((t) => t.createdBy.equals('blacklist'));
+      final blacklistData = await blacklistQuery.get();
 
       final totalRecords =
           roomsData.length +
@@ -395,11 +408,12 @@ class GoogleDriveBackupService {
           auditLogsData.length +
           paymentVoidsData.length +
           guestInfosData.length +
-          salaryWithdrawalsData.length;
+          salaryWithdrawalsData.length +
+          blacklistData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
-        databaseVersion: 3,
+        databaseVersion: DatabaseManager.instance.schemaVersion,
         backupTimestamp: DateTime.now(),
         totalRecords: totalRecords,
         deviceInfo: Platform.isAndroid ? 'Android' : 'iOS',
@@ -470,7 +484,15 @@ class GoogleDriveBackupService {
         'salary_withdrawals': salaryWithdrawalsData
             .map((s) => s.toJson())
             .toList(),
+        // القائمة السوداء مستخرجة بشكل منفصل لتسهيل الاستعادة والتحقق
+        'blacklist': blacklistData.map((e) => e.toJson()).toList(),
       };
+
+      // حساب تجزئة SHA-256 للتحقق من سلامة البيانات
+      final dataHash = _computeBackupChecksum(backupData);
+      (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = dataHash;
+
+      _log('🔐 تجزئة النسخة الاحتياطية: $dataHash');
 
       if (whatsappSettings.isNotEmpty) {
         _log('📱 تم تضمين إعدادات الواتساب في النسخة الاحتياطية');
@@ -484,6 +506,33 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// تحميل بيانات جدول على دفعات لتجنب استهلاك الذاكرة
+  ///
+  /// يقرأ السجلات بكميات [batchSize] بدلاً من تحميلها كلها مرة واحدة.
+  /// يستخدم طريقة عامة للتعامل مع جميع جداول Drift.
+  Future<List<T>> _loadTableBatched<T>(
+    dynamic table, {
+    int batchSize = 500,
+  }) async {
+    final db = DatabaseManager.instance;
+    final allData = <T>[];
+    int offset = 0;
+
+    while (true) {
+      // تحويل الجدول إلى TableInfo لاستخدامه مع select
+      final tableInfo = table as TableInfo;
+      final query = db.select(tableInfo)..limit(batchSize, offset: offset);
+      final batch = await query.get();
+      if (batch.isEmpty) break;
+      allData.addAll(batch.cast<T>());
+      offset += batchSize;
+      // إذا كانت الدفعة الأخيرة أقل من الحجم المطلوب، فقد وصلنا للنهاية
+      if (batch.length < batchSize) break;
+    }
+
+    return allData;
+  }
+
   static const fullBackupPrefix = 'marina_backup_full_';
   static const autoSyncPrefix = 'marina_sync_auto_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
@@ -491,6 +540,33 @@ class GoogleDriveBackupService {
   void _log(String message) {
     DebugLogs.add('DriveBackup', message);
     debugPrint(message);
+  }
+
+  /// حساب تجزئة SHA-256 لبيانات النسخة الاحتياطية (باستثناء حقل data_hash نفسه)
+  static String _computeBackupChecksum(Map<String, dynamic> backupData) {
+    // إزالة data_hash مؤقتاً من البيانات الوصفية قبل الحساب
+    final metadata = Map<String, dynamic>.from(backupData['metadata'] as Map);
+    metadata.remove('data_hash');
+
+    final dataForHash = <String, dynamic>{
+      ...backupData,
+      'metadata': metadata,
+    };
+
+    final jsonBytes = utf8.encode(jsonEncode(dataForHash));
+    final digest = sha256.convert(jsonBytes);
+    return digest.toString();
+  }
+
+  /// التحقق من تجزئة النسخة الاحتياطية عند الاستعادة
+  static bool verifyBackupChecksum(Map<String, dynamic> backupData) {
+    final metadata = backupData['metadata'];
+    if (metadata is! Map) return true; // لا يوجد بيانات وصفية = تجاوز التحقق
+    final storedHash = metadata['data_hash'] as String?;
+    if (storedHash == null) return true; // نسخ قديمة بدون تجزئة = تجاوز التحقق
+
+    final computedHash = _computeBackupChecksum(backupData);
+    return storedHash == computedHash;
   }
 
   Future<String> uploadBackup(

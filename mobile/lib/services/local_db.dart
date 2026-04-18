@@ -1859,7 +1859,14 @@ class DatabaseManager {
   static Future<void> Function()? _onRestartCallback;
   static bool _isRestoring = false;
 
-  static AppDatabase get instance => _instance ??= AppDatabase();
+  /// Synchronous singleton accessor. Safe for use from synchronous contexts.
+  /// During restore operations, asserts that an instance already exists.
+  static AppDatabase get instance {
+    if (_isRestoring) {
+      assert(_instance != null, 'Database is being restored; cannot access instance during restore');
+    }
+    return _instance ??= AppDatabase();
+  }
 
   static bool get isInitialized => _instance != null;
   static bool get isRestoring => _isRestoring;
