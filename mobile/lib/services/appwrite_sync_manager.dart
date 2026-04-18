@@ -559,6 +559,20 @@ class AppwriteSyncManager {
           _pushAllEntities,
           phaseMs,
         );
+
+        // رفع إعدادات الواتساب إلى Appwrite (يدفع من SharedPreferences → السحابة)
+        try {
+          recordsPushed += await _timePhase('pushAppSettings', () async {
+            final pushed = await _pushAppSettingsToCloud();
+            if (pushed) {
+              _logger.debug('WhatsApp settings pushed to cloud', tag: 'SYNC');
+              return 1;
+            }
+            return 0;
+          }, phaseMs);
+        } catch (e, st) {
+          _logger.error('❌ فشل رفع app_settings', error: e, stackTrace: st, tag: 'SYNC');
+        }
       }
 
       if (pull) {
@@ -3461,6 +3475,47 @@ class AppwriteSyncManager {
   }
 
   // ─── PaymentVoids ─────────────────────────────────────────────────────
+
+  /// رفع إعدادات الواتساب من SharedPreferences → Appwrite
+  Future<bool> _pushAppSettingsToCloud() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final data = <String, dynamic>{
+        'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
+        'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
+        'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
+        'wa_api_token': prefs.getString('wa_api_token') ?? '',
+        'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
+        'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
+        'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
+        'wa_template': prefs.getString('whatsapp_template') ?? '',
+      };
+
+      final docId = 'whatsapp_settings';
+      final collectionId = 'app_settings';
+
+      // محاولة تحديث، إذا لم يكن موجوداً ننشئه
+      try {
+        await appwriteService.updateDocument(
+          collectionId: collectionId,
+          documentId: docId,
+          data: data,
+        );
+      } catch (_) {
+        await appwriteService.createDocument(
+          collectionId: collectionId,
+          documentId: docId,
+          data: data,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      _logger.warning('Failed to push app_settings: $e', tag: 'SYNC');
+      return false;
+    }
+  }
 
   /// مزامنة إعدادات الواتساب من Appwrite → SharedPreferences
   Future<int> _syncAppSettings(List<models.Document> documents) async {
