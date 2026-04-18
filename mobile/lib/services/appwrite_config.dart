@@ -43,6 +43,9 @@ class AppwriteConfig {
   // جدول سحوبات الرواتب
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
+  // جدول إعدادات التطبيق (واتساب، وغيرها)
+  static const String appSettingsCollectionId = 'app_settings';
+
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);
   static const Duration cacheExpiry = Duration(hours: 6);

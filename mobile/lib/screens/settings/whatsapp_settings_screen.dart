@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../services/whatsapp_service.dart';
+import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
@@ -30,6 +32,7 @@ class _WhatsAppSettingsScreenState
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSaving = false;
+  bool _isSyncing = false;
   late TabController _tabController;
   bool _obscureToken = true;
   bool _obscureSendzenKey = true;
@@ -307,6 +310,99 @@ class _WhatsAppSettingsScreenState
     );
   }
 
+  /// رفع الإعدادات إلى Appwrite Console
+  Future<void> _uploadToCloud() async {
+    setState(() => _isSyncing = true);
+    try {
+      final appwrite = ref.read(appwriteServiceProvider);
+      final sync = WhatsAppSettingsSync(appwrite);
+      final result = await sync.uploadToCloud();
+      if (!mounted) return;
+      setState(() => _isSyncing = false);
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_upload, color: Colors.white),
+                SizedBox(width: 8),
+                Text('تم رفع الإعدادات إلى السحابة بنجاح'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(result.error ?? 'فشل الرفع')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSyncing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  /// تنزيل الإعدادات من Appwrite Console
+  Future<void> _downloadFromCloud() async {
+    setState(() => _isSyncing = true);
+    try {
+      final appwrite = ref.read(appwriteServiceProvider);
+      final sync = WhatsAppSettingsSync(appwrite);
+      final result = await sync.downloadFromCloud();
+      if (!mounted) return;
+      setState(() => _isSyncing = false);
+      if (result.success) {
+        // إعادة تحميل الإعدادات من SharedPreferences
+        await _loadSettings();
+        ref.invalidate(whatsappSettingsProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_download, color: Colors.white),
+                SizedBox(width: 8),
+                Text('تم تنزيل الإعدادات من السحابة بنجاح'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(result.error ?? 'فشل التنزيل')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSyncing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   Future<void> _openUrl(String url) async {
     try {
       await Process.run('xdg-open', [url]);
@@ -525,6 +621,11 @@ class _WhatsAppSettingsScreenState
               ),
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          // ─── مزامنة مع Appwrite Console ───
+          _buildCloudSyncSection(),
 
           const SizedBox(height: 20),
         ],
@@ -880,6 +981,107 @@ class _WhatsAppSettingsScreenState
           textDirection: TextDirection.ltr,
         ),
       ],
+    );
+  }
+
+  // ─── قسم مزامنة السحابة ───
+  Widget _buildCloudSyncSection() {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.blue.shade200),
+      ),
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.cloud_sync, color: Colors.blue, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'مزامنة مع Appwrite Console',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'احفظ إعدادات الواتساب في السحابة واسترجعها على أي جهاز',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isSyncing ? null : _uploadToCloud,
+                    icon: _isSyncing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.cloud_upload, size: 18),
+                    label: Text(
+                      _isSyncing ? 'جاري المزامنة...' : 'رفع إلى السحابة',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSyncing ? null : _downloadFromCloud,
+                    icon: _isSyncing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_download, size: 18),
+                    label: const Text(
+                      'تنزيل من السحابة',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.indigo,
+                      side: const BorderSide(color: Colors.indigo),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
