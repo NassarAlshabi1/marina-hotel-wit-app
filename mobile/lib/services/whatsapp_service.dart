@@ -3,16 +3,27 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+/// أنواع واتساب API المدعومة
+enum WhatsAppApiType {
+  greenapi,
+  custom,
+}
+
 class WhatsAppService {
   WhatsAppService({
-    required this.baseUrl,
-    required this.instanceId,
-    required this.token,
+    required this.apiType,
+    this.baseUrl,
+    this.instanceId,
+    this.token,
+    this.customUrlTemplate,
     http.Client? client,
   }) : _client = client ?? http.Client();
-  final String baseUrl;
-  final String instanceId;
-  final String token;
+
+  final WhatsAppApiType apiType;
+  final String? baseUrl;
+  final String? instanceId;
+  final String? token;
+  final String? customUrlTemplate;
   final http.Client _client;
 
   /// HTTP client للعمليات الخارجية (اختبار الاتصال)
@@ -22,14 +33,23 @@ class WhatsAppService {
   static const int maxMessageLength = 1000;
 
   /// إرسال رسالة واتساب
-  /// يُرجع true إذا تم الإرسال بنجاح، false إذا فشل
-  /// يُرجع قيمة في quotaExceeded إذا كان رمز 466 (تجاوز الحصة)
   Future<({bool success, String? quotaMessage})> sendMessage({
     required String phoneE164,
     required String message,
   }) async {
-    // اقتصاص الرسالة إذا تجاوزت الحد الأقصى
     final trimmedMessage = _trimMessage(message);
+
+    if (apiType == WhatsAppApiType.custom) {
+      return _sendViaCustom(phoneE164, trimmedMessage);
+    }
+    return _sendViaGreenApi(phoneE164, trimmedMessage);
+  }
+
+  /// إرسال عبر GreenAPI (POST مع JSON body)
+  Future<({bool success, String? quotaMessage})> _sendViaGreenApi(
+    String phoneE164,
+    String message,
+  ) async {
     final sanitizedPhone = phoneE164.startsWith('+')
         ? phoneE164.substring(1)
         : phoneE164;
@@ -40,7 +60,7 @@ class WhatsAppService {
       final response = await _client.post(
         endpoint,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'chatId': chatId, 'message': trimmedMessage}),
+        body: jsonEncode({'chatId': chatId, 'message': message}),
       );
       if (response.statusCode == 200) {
         return (success: true, quotaMessage: null);
@@ -70,11 +90,57 @@ class WhatsAppService {
     }
   }
 
-  /// اختبار الاتصال بـ API عبر getSettings (يعمل على الخطة المجانية)
-  /// getState يعيد 403 على الخطة المجانية، لذلك نستخدم getSettings بدلاً منه
+  /// إرسال عبر Custom API (GET مع استبدال المتغيرات في الرابط)
+  /// الرابط يحتوي على [number] و [message] كمعاملات
+  Future<({bool success, String? quotaMessage})> _sendViaCustom(
+    String phoneE164,
+    String message,
+  ) async {
+    if (customUrlTemplate == null || customUrlTemplate!.isEmpty) {
+      return (success: false, quotaMessage: 'رابط API المخصص غير مضبوط');
+    }
+
+    final sanitizedPhone = phoneE164.startsWith('+')
+        ? phoneE164.substring(1)
+        : phoneE164;
+
+    try {
+      final urlStr = customUrlTemplate!
+          .replaceAll('[number]', sanitizedPhone)
+          .replaceAll('[message]', Uri.encodeComponent(message));
+
+      final endpoint = Uri.parse(urlStr);
+      final response = await _client.get(endpoint).timeout(
+        const Duration(seconds: 15),
+      );
+
+      if (response.statusCode == 200) {
+        return (success: true, quotaMessage: null);
+      }
+
+      debugPrint(
+        'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
+      );
+      return (success: false, quotaMessage: null);
+    } catch (error, stackTrace) {
+      debugPrint('Custom WhatsApp send error: $error');
+      debugPrint('$stackTrace');
+      return (success: false, quotaMessage: null);
+    }
+  }
+
+  /// اختبار الاتصال بـ API
   Future<({bool success, int statusCode, String body})> testConnection() async {
-    final endpoint =
-        Uri.parse('$baseUrl/$instanceId/getSettings/$token');
+    if (apiType == WhatsAppApiType.custom) {
+      return _testCustomConnection();
+    }
+    return _testGreenApiConnection();
+  }
+
+  /// اختبار GreenAPI عبر getSettings
+  Future<({bool success, int statusCode, String body})>
+      _testGreenApiConnection() async {
+    final endpoint = Uri.parse('$baseUrl/$instanceId/getSettings/$token');
     try {
       final response = await _client
           .get(endpoint)
@@ -89,8 +155,41 @@ class WhatsAppService {
     }
   }
 
+  /// اختبار Custom API عبر إرسال طلب GET فارغ مع رقم اختبار
+  Future<({bool success, int statusCode, String body})>
+      _testCustomConnection() async {
+    if (customUrlTemplate == null || customUrlTemplate!.isEmpty) {
+      return (
+        success: false,
+        statusCode: 0,
+        body: 'رابط API المخصص فارغ',
+      );
+    }
+
+    try {
+      // نختبر الرابط فقط بالتحقق من استجابة الخادم
+      final testUrl = customUrlTemplate!
+          .replaceAll('[number]', '000000000')
+          .replaceAll('[message]', Uri.encodeComponent('test'));
+
+      final endpoint = Uri.parse(testUrl);
+      final response = await _client.get(endpoint).timeout(
+        const Duration(seconds: 15),
+      );
+
+      // أي استجابة من الخادم تعني الرابط يعمل (حتى لو كانت خطأ منطقي)
+      final isReachable = response.statusCode < 500;
+      return (
+        success: isReachable,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
+    } catch (e) {
+      return (success: false, statusCode: 0, body: e.toString());
+    }
+  }
+
   /// اقتصاص الرسالة لتتلاءم مع الحد الأقصى
-  /// يحافظ على التذييل (فندق مارينا + رقم الهاتف) ويقتطع من المنتصف
   String _trimMessage(String message) {
     if (message.length <= maxMessageLength) return message;
 
@@ -98,19 +197,18 @@ class WhatsAppService {
       'WhatsApp message trimmed: ${message.length} → $maxMessageLength chars',
     );
 
-    // نبحث عن التذييل (آخر 3 أسطر عادة: فندق مارينا + هاتف)
     final lines = message.split('\n');
     String footer = '';
     final footerLines = <String>[];
     for (int i = lines.length - 1; i >= 0; i--) {
       final line = lines[i].trim();
       if (line.contains('فندق مارينا') ||
+          line.contains('مارينا هوتل') ||
           line.contains('للاستفسار') ||
           line.contains('green-api') ||
           line.contains('967')) {
         footerLines.insert(0, lines[i]);
       } else if (footerLines.isNotEmpty) {
-        // وصلنا لنهاية التذييل
         break;
       }
     }
@@ -118,11 +216,11 @@ class WhatsAppService {
       footer = '\n${footerLines.join('\n')}';
     }
 
-    // المساحة المتاحة للمحتوى (مع مراعاة التذييل و ...)
-    final availableSpace = maxMessageLength - footer.length - 10; // 10 = '\n...' + buffer
-    if (availableSpace < 100) return message.substring(0, maxMessageLength - 3) + '...';
+    final availableSpace = maxMessageLength - footer.length - 10;
+    if (availableSpace < 100) {
+      return message.substring(0, maxMessageLength - 3) + '...';
+    }
 
-    // اقتطاع المحتوى مع إضافة ... والتذييل
     final truncated = message.substring(0, availableSpace);
     return '$truncated...\n$footer';
   }

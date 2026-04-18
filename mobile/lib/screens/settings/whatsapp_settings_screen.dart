@@ -22,11 +22,15 @@ class _WhatsAppSettingsScreenState
   final _baseUrlController = TextEditingController();
   final _instanceIdController = TextEditingController();
   final _tokenController = TextEditingController();
+  final _customUrlController = TextEditingController();
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSaving = false;
   late TabController _tabController;
   bool _obscureToken = true;
+
+  // نوع API الحالي
+  WhatsAppApiType _selectedApiType = WhatsAppApiType.greenapi;
 
   // القيم الافتراضية
   static const _defaultBaseUrl = 'https://7103.api.greenapi.com';
@@ -47,6 +51,7 @@ class _WhatsAppSettingsScreenState
     _baseUrlController.dispose();
     _instanceIdController.dispose();
     _tokenController.dispose();
+    _customUrlController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -63,6 +68,11 @@ class _WhatsAppSettingsScreenState
           prefs.getString('wa_api_instance_id') ?? _defaultInstanceId;
       _tokenController.text =
           prefs.getString('wa_api_token') ?? _defaultToken;
+      _customUrlController.text =
+          prefs.getString('wa_custom_url_template') ?? '';
+      _selectedApiType = prefs.getString('wa_api_type') == 'custom'
+          ? WhatsAppApiType.custom
+          : WhatsAppApiType.greenapi;
       _isLoading = false;
     });
   }
@@ -70,12 +80,14 @@ class _WhatsAppSettingsScreenState
   Future<void> _saveApiSettings() async {
     setState(() => _isSaving = true);
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('wa_api_type', _selectedApiType == WhatsAppApiType.custom ? 'custom' : 'greenapi');
     await prefs.setString('wa_api_base_url', _baseUrlController.text.trim());
     await prefs.setString(
       'wa_api_instance_id',
       _instanceIdController.text.trim(),
     );
     await prefs.setString('wa_api_token', _tokenController.text.trim());
+    await prefs.setString('wa_custom_url_template', _customUrlController.text.trim());
     // تحديث الـ provider
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) return;
@@ -107,6 +119,8 @@ class _WhatsAppSettingsScreenState
       _baseUrlController.text = _defaultBaseUrl;
       _instanceIdController.text = _defaultInstanceId;
       _tokenController.text = _defaultToken;
+      _customUrlController.text = '';
+      _selectedApiType = WhatsAppApiType.greenapi;
     });
   }
 
@@ -118,9 +132,11 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _resetAllToDefault() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('wa_api_type');
     await prefs.remove('wa_api_base_url');
     await prefs.remove('wa_api_instance_id');
     await prefs.remove('wa_api_token');
+    await prefs.remove('wa_custom_url_template');
     await prefs.remove('whatsapp_template');
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) return;
@@ -129,6 +145,8 @@ class _WhatsAppSettingsScreenState
       _instanceIdController.text = _defaultInstanceId;
       _tokenController.text = _defaultToken;
       _templateController.text = whatsappPaymentTemplate;
+      _customUrlController.text = '';
+      _selectedApiType = WhatsAppApiType.greenapi;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -138,29 +156,17 @@ class _WhatsAppSettingsScreenState
     );
   }
 
-  /// اختبار اتصال API عبر طلب getState
+  /// اختبار اتصال API
   Future<void> _testConnection() async {
-    final baseUrl = _baseUrlController.text.trim();
-    final instanceId = _instanceIdController.text.trim();
-    final token = _tokenController.text.trim();
-
-    if (baseUrl.isEmpty || instanceId.isEmpty || token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى ملء جميع حقول API أولاً'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isTesting = true);
 
     try {
       final testService = WhatsAppService(
-        baseUrl: baseUrl,
-        instanceId: instanceId,
-        token: token,
+        apiType: _selectedApiType,
+        baseUrl: _baseUrlController.text.trim(),
+        instanceId: _instanceIdController.text.trim(),
+        token: _tokenController.text.trim(),
+        customUrlTemplate: _customUrlController.text.trim(),
       );
 
       final result = await testService.testConnection();
@@ -170,53 +176,20 @@ class _WhatsAppSettingsScreenState
 
       if (result.success) {
         _showTestResult(true, 'API متصل بنجاح', result.body);
-      } else if (result.statusCode == 401) {
-        _showTestResult(
-          false,
-          'رمز التوكن غير صالح (401)',
-          'تحقق من صحة API Token في لوحة تحكم GreenAPI',
-        );
-      } else if (result.statusCode == 403) {
-        _showTestResult(
-          false,
-          'وصول مرفوض (403 Forbidden)',
-          'الأسباب المحتملة:\n'
-              '1. Instance ID أو Token غير صحيح\n'
-              '2. انتهت صلاحية الحساب أو الحساب معطّل\n'
-              '3. الرقم الخاص بالخطة المجانية تم تجاوزه\n'
-              '4. عنوان IP محظور من قبل الخادم\n\n'
-              'الحل: سجّل دخول في greenapi.com وتحقق من حالة الـ Instance',
-        );
-      } else if (result.statusCode == 404) {
-        _showTestResult(
-          false,
-          'Instance ID غير موجود (404)',
-          'تحقق من Instance ID والرابط في لوحة تحكم GreenAPI',
-        );
-      } else if (result.statusCode == 429) {
-        _showTestResult(
-          false,
-          'تجاوز عدد الطلبات (429 Too Many)',
-          'تم تجاوز حد الطلبات المسموح. انتظر قليلاً وحاول مرة أخرى.',
-        );
-      } else if (result.statusCode == 500 || result.statusCode == 502 || result.statusCode == 503) {
-        _showTestResult(
-          false,
-          'خطأ في خادم GreenAPI (${result.statusCode})',
-          'الخادم يواجه مشكلة مؤقتة. حاول مرة أخرى بعد قليل.',
-        );
       } else if (result.statusCode == 0) {
         _showTestResult(
           false,
           'فشل الاتصال بالخادم',
-          'تأكد من اتصالك بالإنترنت وأن الرابط (Base URL) صحيح\n\nالرابط الحالي: $baseUrl',
+          'تأكد من اتصالك بالإنترنت وأن الرابط صحيح',
         );
       } else {
         final cleanBody = _sanitizeResponseBody(result.body);
         _showTestResult(
           false,
-          'خطأ غير متوقع (${result.statusCode})',
-          cleanBody.isNotEmpty ? cleanBody : 'حدث خطأ غير معروف. تحقق من الإعدادات وحاول مرة أخرى.',
+          'خطأ (${result.statusCode})',
+          cleanBody.isNotEmpty
+              ? cleanBody
+              : 'تحقق من الإعدادات وحاول مرة أخرى.',
         );
       }
     } catch (e) {
@@ -228,11 +201,8 @@ class _WhatsAppSettingsScreenState
 
   /// تنظيف استجابة الخادم من HTML الخام
   String _sanitizeResponseBody(String body) {
-    // إزالة أكواد HTML
     var cleaned = body.replaceAll(RegExp(r'<[^>]*>'), '').trim();
-    // إزالة الأسطر الفارغة المتعددة
     cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-    // إذا كانت النتيجة تحتوي على كلمات HTML فقط، أرجع نص فارغ
     if (RegExp(r'^[\s\n]*$').hasMatch(cleaned)) return '';
     return cleaned;
   }
@@ -258,57 +228,34 @@ class _WhatsAppSettingsScreenState
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.maxFinite,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: (success ? Colors.green : Colors.red).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: (success ? Colors.green : Colors.red).withOpacity(0.3),
-                ),
-              ),
-              child: SelectableText(
-                detail,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.6,
-                  color: Colors.grey.shade800,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.right,
-              ),
-            ),
-            if (!success) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _launchGreenApi();
-                  },
-                  icon: const Icon(Icons.open_in_new, size: 16),
-                  label: const Text(
-                    'فتح لوحة تحكم GreenAPI',
-                    style: TextStyle(fontSize: 13),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.maxFinite,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (success ? Colors.green : Colors.red).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: (success ? Colors.green : Colors.red).withOpacity(0.3),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                ),
+                child: SelectableText(
+                  detail,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.6,
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.right,
                 ),
               ),
             ],
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -316,18 +263,6 @@ class _WhatsAppSettingsScreenState
             child: const Text('إغلاق'),
           ),
         ],
-      ),
-    );
-  }
-
-  /// فتح لوحة تحكم GreenAPI في المتصفح
-  Future<void> _launchGreenApi() async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('افتح greenapi.com من المتصفح وتحقق من حالة الـ Instance'),
-        backgroundColor: Colors.blue,
-        duration: Duration(seconds: 4),
       ),
     );
   }
@@ -391,136 +326,249 @@ class _WhatsAppSettingsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // بطاقة معلومات
+          // ─── اختيار نوع API ───
           Card(
-            color: Colors.blue.shade50,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.blue.shade200),
+              side: BorderSide(
+                color: _selectedApiType == WhatsAppApiType.custom
+                    ? Colors.teal.shade300
+                    : Colors.blue.shade200,
+              ),
             ),
+            color: _selectedApiType == WhatsAppApiType.custom
+                ? Colors.teal.shade50
+                : Colors.blue.shade50,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
+                      Icon(Icons.swap_horiz, size: 20, color: Colors.blue),
+                      SizedBox(width: 8),
                       Text(
-                        'كيفية الحصول على بيانات API',
+                        'نوع API',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: Colors.blue.shade700,
+                          color: Colors.blue,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  _buildStepItem('1', 'سجّل في greenapi.com وأنشئ instance'),
-                  _buildStepItem('2', 'انسخ Base URL من لوحة التحكم'),
-                  _buildStepItem('3', 'انسخ Instance ID و API Token'),
-                  _buildStepItem(
-                    '4',
-                    'ألصقها في الحقول أدناه واختبر الاتصال',
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // حقل Base URL
-          _buildLabel('رابط API (Base URL)'),
-          TextField(
-            controller: _baseUrlController,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'https://xxx.api.greenapi.com',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.link, size: 20),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.paste, size: 18),
-                tooltip: 'لصق',
-                onPressed: () async {
-                  final data = await Clipboard.getData('text/plain');
-                  if (data?.text != null) {
-                    setState(() => _baseUrlController.text = data!.text!);
-                  }
-                },
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // حقل Instance ID
-          _buildLabel('معرّف الحساب (Instance ID)'),
-          TextField(
-            controller: _instanceIdController,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'waInstanceXXXXXXXXXX',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.fingerprint, size: 20),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.paste, size: 18),
-                tooltip: 'لصق',
-                onPressed: () async {
-                  final data = await Clipboard.getData('text/plain');
-                  if (data?.text != null) {
-                    setState(() => _instanceIdController.text = data!.text!);
-                  }
-                },
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // حقل Token
-          _buildLabel('رمز التوكن (API Token)'),
-          TextField(
-            controller: _tokenController,
-            obscureText: _obscureToken,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'أدخل رمز التوكن',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.vpn_key, size: 20),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _obscureToken ? Icons.visibility : Icons.visibility_off,
-                      size: 18,
-                    ),
-                    tooltip: _obscureToken ? 'إظهار' : 'إخفاء',
-                    onPressed: () => setState(() => _obscureToken = !_obscureToken),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.paste, size: 18),
-                    tooltip: 'لصق',
-                    onPressed: () async {
-                      final data = await Clipboard.getData('text/plain');
-                      if (data?.text != null) {
-                        setState(() => _tokenController.text = data!.text!);
-                      }
+                  const SizedBox(height: 12),
+                  SegmentedButton<WhatsAppApiType>(
+                    segments: const [
+                      ButtonSegment(
+                        value: WhatsAppApiType.greenapi,
+                        label: Text('GreenAPI'),
+                        icon: Icon(Icons.cloud, size: 18),
+                      ),
+                      ButtonSegment(
+                        value: WhatsAppApiType.custom,
+                        label: Text('رابط مخصص'),
+                        icon: Icon(Icons.link, size: 18),
+                      ),
+                    ],
+                    selected: {_selectedApiType},
+                    onSelectionChanged: (selection) {
+                      setState(() {
+                        _selectedApiType = selection.first;
+                      });
                     },
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      textStyle: WidgetStatePropertyAll(
+                        const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
             ),
           ),
+
+          const SizedBox(height: 16),
+
+          // ─── حقول GreenAPI ───
+          if (_selectedApiType == WhatsAppApiType.greenapi) ...[
+            Card(
+              color: Colors.blue.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.blue.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Text(
+                          'كيفية الحصول على بيانات API',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildStepItem('1', 'سجّل في greenapi.com وأنشئ instance'),
+                    _buildStepItem('2', 'انسخ Base URL من لوحة التحكم'),
+                    _buildStepItem('3', 'انسخ Instance ID و API Token'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('رابط API (Base URL)'),
+            TextField(
+              controller: _baseUrlController,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'https://xxx.api.greenapi.com',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.link, size: 20),
+                suffixIcon: _buildPasteButton(_baseUrlController),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _buildLabel('معرّف الحساب (Instance ID)'),
+            TextField(
+              controller: _instanceIdController,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'waInstanceXXXXXXXXXX',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.fingerprint, size: 20),
+                suffixIcon: _buildPasteButton(_instanceIdController),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _buildLabel('رمز التوكن (API Token)'),
+            TextField(
+              controller: _tokenController,
+              obscureText: _obscureToken,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'أدخل رمز التوكن',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.vpn_key, size: 20),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _obscureToken ? Icons.visibility : Icons.visibility_off,
+                        size: 18,
+                      ),
+                      tooltip: _obscureToken ? 'إظهار' : 'إخفاء',
+                      onPressed: () =>
+                          setState(() => _obscureToken = !_obscureToken),
+                    ),
+                    _buildPasteButton(_tokenController),
+                  ],
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+            ),
+          ],
+
+          // ─── حقل الرابط المخصص ───
+          if (_selectedApiType == WhatsAppApiType.custom) ...[
+            Card(
+              color: Colors.teal.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.teal.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.teal.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'ألصق رابط API المخصص مع المتغيرات',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.teal.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildVariableChip('[number]', 'رقم الهاتف'),
+                    _buildVariableChip('[message]', 'نص الرسالة'),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'مثال: https://wa.nux.my.id/api/sendWA?to=[number]&msg=[message]&secret=xxx',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                          color: Colors.teal,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('رابط API المخصص'),
+            TextField(
+              controller: _customUrlController,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                fontFamily: 'monospace',
+              ),
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'https://example.com/api/send?to=[number]&msg=[message]&key=xxx',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(bottom: 48),
+                  child: Icon(Icons.link, size: 20),
+                ),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(bottom: 48),
+                  child: _buildPasteButton(_customUrlController),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                alignLabelWithHint: true,
+              ),
+              textAlign: TextAlign.left,
+              textDirection: TextDirection.ltr,
+            ),
+          ],
 
           const SizedBox(height: 24),
 
@@ -541,7 +589,7 @@ class _WhatsAppSettingsScreenState
                         )
                       : const Icon(Icons.save, size: 18),
                   label: Text(
-                    _isSaving ? 'جاري الحفظ...' : 'حفظ API',
+                    _isSaving ? 'جاري الحفظ...' : 'حفظ',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -591,7 +639,7 @@ class _WhatsAppSettingsScreenState
               onPressed: _resetApiToDefault,
               icon: const Icon(Icons.restore, size: 16),
               label: const Text(
-                'استعادة القيم الافتراضية لـ API',
+                'استعادة القيم الافتراضية',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
               style: OutlinedButton.styleFrom(
@@ -742,6 +790,19 @@ class _WhatsAppSettingsScreenState
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _buildPasteButton(TextEditingController controller) {
+    return IconButton(
+      icon: const Icon(Icons.paste, size: 18),
+      tooltip: 'لصق',
+      onPressed: () async {
+        final data = await Clipboard.getData('text/plain');
+        if (data?.text != null) {
+          setState(() => controller.text = data!.text!);
+        }
+      },
     );
   }
 
