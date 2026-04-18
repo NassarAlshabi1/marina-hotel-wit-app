@@ -684,21 +684,31 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         ..writeln('فندق مارينا')
         ..write('للاستفسار: 9677734587456');
 
-      final success = await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: message.toString(),
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success
-                ? 'تم إرسال إشعار واتساب لـ ${employee.name}'
-                : 'تعذّر إرسال إشعار واتساب لـ ${employee.name}'),
-            backgroundColor: success ? Colors.green : Colors.orange,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (result.quotaMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.quotaMessage!),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.success
+                  ? 'تم إرسال إشعار واتساب لـ ${employee.name}'
+                  : 'تعذّر إرسال إشعار واتساب لـ ${employee.name}'),
+              backgroundColor: result.success ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('WhatsApp salary notification error: $e');

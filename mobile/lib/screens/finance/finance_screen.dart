@@ -907,10 +907,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ..writeln('اليوم الفندقي: ${Time.hotelDayKey()}')
         ..writeln(notes.isNotEmpty ? 'ملاحظات: $notes' : '');
 
-      await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: '9677734587456',
         message: message.toString(),
       );
+      if (result.quotaMessage != null) {
+        debugPrint('تجاوز حصة الواتساب: ${result.quotaMessage}');
+      }
     } catch (_) {
       debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
     }

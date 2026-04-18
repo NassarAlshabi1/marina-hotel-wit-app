@@ -1395,10 +1395,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ..write('للاستفسار: 9677734587456');
 
     try {
-      await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: message.toString(),
       );
+      if (result.quotaMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1704,10 +1709,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     message += 'للاستفسار: 9677734587456';
 
     try {
-      await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: message,
       );
+      if (result.quotaMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2468,10 +2478,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     message += 'للاستفسار: 9677734587456';
 
     try {
-      await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: message,
       );
+      if (result.quotaMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
+        );
+      }
     } catch (_) {
       // تجاهل الأخطاء
     }
@@ -2860,32 +2875,48 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     try {
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
-      final success = await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: message,
       );
+      final success = result.success;
 
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  success ? Icons.check_circle : Icons.error,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  success
-                      ? 'تم إرسال كشف الحساب إلى ${widget.booking.guestName} بنجاح'
-                      : 'فشل في إرسال كشف الحساب — تحقق من إعدادات الواتساب',
-                ),
-              ],
+        if (result.quotaMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.warning, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(result.quotaMessage!),
+                ],
+              ),
+              backgroundColor: Colors.orange,
             ),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    success ? Icons.check_circle : Icons.error,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    success
+                        ? 'تم إرسال كشف الحساب إلى ${widget.booking.guestName} بنجاح'
+                        : 'فشل في إرسال كشف الحساب — تحقق من إعدادات الواتساب',
+                  ),
+                ],
+              ),
+              backgroundColor: success ? Colors.green : Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -2931,13 +2962,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     try {
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
-      final success = await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: reminder,
       );
 
       if (mounted) {
-        if (success) {
+        if (result.quotaMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.quotaMessage!),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else if (result.success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تم إرسال تذكير الدفع للعميل بنجاح'),
@@ -3164,10 +3202,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     message += 'للاستفسار: 9677734587456';
 
     try {
-      await whatsappService.sendMessage(
+      final result = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
         message: message,
       );
+      if (result.quotaMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
+        );
+      }
     } catch (_) {
       // تجاهل الأخطاء، الدفعة مسجلة بنجاح
     }

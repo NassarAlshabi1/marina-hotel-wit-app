@@ -18,7 +18,10 @@ class WhatsAppService {
   /// HTTP client للعمليات الخارجية (اختبار الاتصال)
   http.Client get client => _client;
 
-  Future<bool> sendMessage({
+  /// إرسال رسالة واتساب
+  /// يُرجع true إذا تم الإرسال بنجاح، false إذا فشل
+  /// يُرجع قيمة في quotaExceeded إذا كان رمز 466 (تجاوز الحصة)
+  Future<({bool success, String? quotaMessage})> sendMessage({
     required String phoneE164,
     required String message,
   }) async {
@@ -35,22 +38,38 @@ class WhatsAppService {
         body: jsonEncode({'chatId': chatId, 'message': message}),
       );
       if (response.statusCode == 200) {
-        return true;
+        return (success: true, quotaMessage: null);
       }
+
+      // 466 = تجاوز الحصة الشهرية
+      if (response.statusCode == 466) {
+        try {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final desc = json['invokeStatus']?['description'] as String? ??
+              json['correspondentsStatus']?['description'] as String? ??
+              'تجاوز الحصة الشهرية';
+          return (success: false, quotaMessage: desc);
+        } catch (_) {
+          return (success: false, quotaMessage: 'تجاوز الحصة الشهرية');
+        }
+      }
+
       debugPrint(
         'WhatsApp send failed: ${response.statusCode} ${response.body}',
       );
-      return false;
+      return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
       debugPrint('WhatsApp send error: $error');
       debugPrint('$stackTrace');
-      return false;
+      return (success: false, quotaMessage: null);
     }
   }
 
-  /// اختبار الاتصال بـ API عبر getState
+  /// اختبار الاتصال بـ API عبر getSettings (يعمل على الخطة المجانية)
+  /// getState يعيد 403 على الخطة المجانية، لذلك نستخدم getSettings بدلاً منه
   Future<({bool success, int statusCode, String body})> testConnection() async {
-    final endpoint = Uri.parse('$baseUrl/$instanceId/getState/$token');
+    final endpoint =
+        Uri.parse('$baseUrl/$instanceId/getSettings/$token');
     try {
       final response = await _client
           .get(endpoint)

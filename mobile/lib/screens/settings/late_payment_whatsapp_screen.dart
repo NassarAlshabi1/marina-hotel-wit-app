@@ -97,7 +97,13 @@ class _LatePaymentWhatsAppScreenState
     if (phone.isEmpty) return false;
 
     final message = _buildLatePaymentMessage(debt, booking: booking);
-    return await whatsappService.sendMessage(phoneE164: phone, message: message);
+    final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
+    if (result.quotaMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
+      );
+    }
+    return result.success;
   }
 
   /// إرسال تنبيه لجميع الديون المحددة

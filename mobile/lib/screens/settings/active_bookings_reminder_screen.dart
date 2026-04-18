@@ -89,7 +89,13 @@ class _ActiveBookingsReminderScreenState
     if (phone.isEmpty) return false;
 
     final message = _buildReminderMessage(booking);
-    return await whatsappService.sendMessage(phoneE164: phone, message: message);
+    final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
+    if (result.quotaMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
+      );
+    }
+    return result.success;
   }
 
   /// إرسال تذكير لجميع الحجوزات المحددة
