@@ -265,7 +265,9 @@ class WhatsAppService {
     }
   }
 
-  /// اختبار SendZen عبر طلب GET للقوالب (يتحقق من صحة API key)
+  /// اختبار SendZen عبر طلب POST لمحاكاة إرسال رسالة
+  /// يستخدم endpoint الرسائل لأنه يعمل مع مفاتيح Sandbox والإنتاج
+  /// لا يتم إرسال رسالة حقيقية — فقط التحقق من صحة المفتاح
   Future<({bool success, int statusCode, String body})>
       _testSendZenConnection() async {
     if (sendzenApiKey == null || sendzenApiKey!.isEmpty) {
@@ -277,17 +279,53 @@ class WhatsAppService {
     }
 
     try {
-      final endpoint = Uri.parse('https://api.sendzen.io/v1/templates');
-      final response = await _client.get(
+      final endpoint = Uri.parse('https://api.sendzen.io/v1/messages');
+      final response = await _client.post(
         endpoint,
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': 'Bearer $sendzenApiKey',
         },
+        body: jsonEncode({
+          // بيانات اختبار — لن يتم إرسالها فعلياً لأن الرقم غير صالح
+          'from': sendzenFromNumber ?? '0000000000',
+          'to': '0000000000',
+          'type': 'text',
+          'text': {'body': 'test', 'preview_url': false},
+        }),
       ).timeout(const Duration(seconds: 15));
 
-      // 200 = نجاح، 401 = مفتاح خاطئ، أي شيء آخر = الخادم يعمل
+      // 200/201 = نجاح (مفاجئ مع بيانات اختبار لكن ممكن مع sandbox)
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return (
+          success: true,
+          statusCode: response.statusCode,
+          body: response.body,
+        );
+      }
+
+      // 400/422 = المفتاح صالح لكن البيانات غير صحيحة (متوقع مع بيانات اختبار)
+      // هذا يعني أن المفتاح معترف به من الخادم ✅
+      if (response.statusCode == 400 || response.statusCode == 422) {
+        return (
+          success: true,
+          statusCode: response.statusCode,
+          body: 'تم التحقق من المفتاح بنجاح — الخادم يعترف بالمفتاح',
+        );
+      }
+
+      // 401/403 = مفتاح غير صالح أو غير مصرح ❌
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        return (
+          success: false,
+          statusCode: response.statusCode,
+          body: response.body,
+        );
+      }
+
+      // أي شيء آخر (5xx الخ) = الخادم يواجه مشكلة
       return (
-        success: response.statusCode == 200,
+        success: false,
         statusCode: response.statusCode,
         body: response.body,
       );
