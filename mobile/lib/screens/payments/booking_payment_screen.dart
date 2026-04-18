@@ -2524,68 +2524,281 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return;
     }
 
+    final messagePreview = _buildAccountStatementMessage(summary);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.receipt_long, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('إرسال كشف حساب'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('سيتم إرسال كشف حساب تفصيلي للعميل:'),
-            const SizedBox(height: 12),
-            _buildStatementPreviewRow('العميل', widget.booking.guestName),
-            _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
-            _buildStatementPreviewRow(
-              'الإجمالي',
-              _currencyFmt.format(summary.totalAmount),
-            ),
-            _buildStatementPreviewRow(
-              'المدفوع',
-              _currencyFmt.format(summary.paidAmount),
-            ),
-            _buildStatementPreviewRow(
-              'المتبقي',
-              _currencyFmt.format(summary.remainingAmount),
-              valueColor: summary.remainingAmount > 0
-                  ? Colors.red
-                  : Colors.green,
-            ),
-            const Divider(height: 16),
-            Row(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.receipt_long, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('إرسال كشف حساب'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.phone, size: 16, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(
-                  _currentGuestPhone,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                // معلومات العميل السريعة
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildStatementPreviewRow(
+                        'العميل',
+                        widget.booking.guestName,
+                      ),
+                      _buildStatementPreviewRow(
+                        'الغرفة',
+                        widget.booking.roomNumber,
+                      ),
+                      _buildStatementPreviewRow(
+                        'الهاتف',
+                        _currentGuestPhone,
+                      ),
+                      _buildStatementPreviewRow(
+                        'الإجمالي',
+                        '${CurrencyFormatter.formatAmount(summary.totalAmount)} ريال',
+                      ),
+                      _buildStatementPreviewRow(
+                        'المدفوع',
+                        '${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال',
+                        valueColor: Colors.green,
+                      ),
+                      _buildStatementPreviewRow(
+                        'المتبقي',
+                        '${CurrencyFormatter.formatAmount(summary.remainingAmount)} ريال',
+                        valueColor: summary.remainingAmount > 0
+                            ? Colors.red
+                            : Colors.green,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 12),
+
+                // زر معاينة الرسالة
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setDialogState(() {
+                      _showFullPreview = !_showFullPreview;
+                    });
+                  },
+                  icon: Icon(
+                    _showFullPreview
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    size: 16,
+                  ),
+                  label: Text(
+                    _showFullPreview
+                        ? 'إخفاء المعاينة'
+                        : 'معاينة الرسالة',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.teal,
+                    side: const BorderSide(color: Colors.teal),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                  ),
+                ),
+
+                // معاينة الرسالة الكاملة
+                if (_showFullPreview) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        messagePreview,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.6,
+                          fontFamily: 'Courier',
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${messagePreview.length} حرف',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _performSendAccountStatement(summary);
+              },
+              icon: const Icon(Icons.send, size: 18),
+              label: const Text('إرسال واتساب'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              _performSendAccountStatement(summary);
-            },
-            icon: const Icon(Icons.send, size: 18),
-            label: const Text('إرسال واتساب'),
-          ),
-        ],
       ),
     );
+  }
+
+  bool _showFullPreview = false;
+
+  /// بناء رسالة كشف حساب احترافية شاملة
+  String _buildAccountStatementMessage(BookingPaymentSummary summary) {
+    final b = widget.booking;
+    final checkin = b.checkinDate.split(' ').first;
+    final checkout = b.checkoutDate?.split(' ').first ?? 'لم يحدد';
+    final actualCheckout = b.actualCheckout?.split(' ').first;
+    final nights = b.calculatedNights;
+    final total = summary.totalAmount;
+    final paid = summary.paidAmount;
+    final remaining = summary.remainingAmount;
+    final now = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    final nowTime = DateFormat('hh:mm a').format(DateTime.now());
+
+    String msg = '';
+
+    // رأس الفندق
+    msg += 'MARINA HOTEL\n';
+    msg += '━━━━━━━━━━━━━━━\n\n';
+
+    // عنوان الكشف
+    msg += 'كشف حساب\n';
+    msg += 'Account Statement\n';
+    msg += '━━━━━━━━━━━━━━━\n\n';
+
+    // معلومات العميل
+    msg += 'بيانات العميل:\n';
+    msg += 'الاسم: ${b.guestName}\n';
+    if (b.guestPhone.isNotEmpty) {
+      msg += 'الهاتف: ${b.guestPhone}\n';
+    }
+    if (b.guestNationality.isNotEmpty) {
+      msg += 'الجنسية: ${b.guestNationality}\n';
+    }
+    if (b.guestIdType.isNotEmpty) {
+      msg += 'نوع الهوية: ${b.guestIdType}\n';
+    }
+    if (b.guestIdNumber.isNotEmpty) {
+      msg += 'رقم الهوية: ${b.guestIdNumber}\n';
+    }
+    msg += 'رقم الغرفة: ${b.roomNumber}\n\n';
+
+    // تفاصيل الإقامة
+    msg += 'تفاصيل الإقامة:\n';
+    msg += 'تاريخ الوصول: $checkin\n';
+    msg += 'تاريخ المغادرة: $checkout\n';
+    if (actualCheckout != null) {
+      msg += 'تاريخ المغادرة الفعلي: $actualCheckout\n';
+    }
+    msg += 'عدد الليالي: $nights ليلة\n\n';
+
+    // ملخص مالي
+    msg += '━━━━━━━━━━━━━━━\n';
+    msg += 'الملخص المالي:\n';
+    msg += '━━━━━━━━━━━━━━━\n\n';
+    msg += 'الإجمالي: ${CurrencyFormatter.formatAmount(total)} ريال\n';
+
+    if (b.discount > 0) {
+      final discountTypeAr = b.discountType == 'per_night' ? 'لكل ليلة' : 'إجمالي';
+      msg += 'الخصم: ${CurrencyFormatter.formatAmount(b.discount)} ريال ($discountTypeAr)\n';
+    }
+
+    msg += 'المدفوع: ${CurrencyFormatter.formatAmount(paid)} ريال\n';
+    msg += 'المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال\n';
+
+    if (remaining <= 0) {
+      msg += 'حالة الحساب: مكتمل الدفع ✅\n\n';
+    } else {
+      msg += 'حالة الحساب: دفع جزئي ⚠️\n\n';
+    }
+
+    // سجل المدفوعات
+    if (summary.payments.isNotEmpty) {
+      msg += '━━━━━━━━━━━━━━━\n';
+      msg += 'سجل المدفوعات:\n';
+      msg += '━━━━━━━━━━━━━━━\n\n';
+
+      for (int i = 0; i < summary.payments.length; i++) {
+        final p = summary.payments[i];
+        final pDate = DateFormat('dd/MM/yyyy').format(p.paymentDate);
+        final pTime = DateFormat('hh:mm a').format(p.paymentDate);
+        final methodAr = _mapPaymentMethodToAr(p.method);
+        final amountStr = CurrencyFormatter.formatAmount(p.amount);
+
+        msg += '${i + 1}. $amountStr ريال\n';
+        msg += '   التاريخ: $pDate - $pTime\n';
+        msg += '   طريقة الدفع: $methodAr\n';
+        if (p.notes != null && p.notes!.isNotEmpty) {
+          msg += '   ملاحظات: ${p.notes}\n';
+        }
+        if (i < summary.payments.length - 1) {
+          msg += '   ─────────────\n';
+        }
+      }
+      msg += '\n';
+    }
+
+    // معلومات الديون إن وجدت
+    if (_debtAmount > 0) {
+      msg += '━━━━━━━━━━━━━━━\n';
+      msg += 'تنبيه: يوجد ديون غير مسددة بقيمة ${CurrencyFormatter.formatAmount(_debtAmount)} ريال\n';
+      msg += '━━━━━━━━━━━━━━━\n\n';
+    }
+
+    // تذييل الكشف
+    msg += '━━━━━━━━━━━━━━━\n\n';
+    msg += 'تم إعداد هذا الكشف بتاريخ: $now\n';
+    msg += 'الساعة: $nowTime\n\n';
+    msg += 'مع خالص التحية والتقدير\n';
+    msg += 'فندق مارينا\n';
+    msg += 'للاستفسار: 9677734587456';
+
+    return msg;
+  }
+
+  /// تحويل طريقة الدفع من enum إلى عربي
+  String _mapPaymentMethodToAr(PaymentMethod method) {
+    switch (method) {
+      case PaymentMethod.cash:
+        return 'نقدي';
+      case PaymentMethod.card:
+        return 'بطاقة ائتمانية';
+      case PaymentMethod.transfer:
+        return 'تحويل بنكي';
+      case PaymentMethod.check:
+        return 'شيك';
+      case PaymentMethod.installment:
+        return 'تقسيط';
+    }
   }
 
   Widget _buildStatementPreviewRow(
@@ -2598,10 +2811,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: valueColor,
+                fontSize: 13,
+              ),
+              textAlign: TextAlign.end,
+            ),
           ),
         ],
       ),
@@ -2612,62 +2832,73 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     BookingPaymentSummary summary,
   ) async {
     final whatsappService = ref.read(whatsappServiceProvider);
+    final message = _buildAccountStatementMessage(summary);
 
-    // بناء كشف الحساب
-    String statement = 'كشف حساب\n\n';
-    statement += 'الغرفة: ${widget.booking.roomNumber}\n';
-    statement += 'تاريخ الوصول: ${widget.booking.checkinDate.split(' ')[0]}\n';
-
-    statement += '\nتفاصيل الحساب:\n';
-    statement +=
-        'المبلغ الإجمالي: ${_currencyFmt.format(summary.totalAmount)}\n';
-    statement += 'المبلغ المدفوع: ${_currencyFmt.format(summary.paidAmount)}\n';
-    statement +=
-        'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}\n';
-
-    if (summary.payments.isNotEmpty) {
-      statement += '\nسجل المدفوعات:\n';
-      for (int i = 0; i < summary.payments.length; i++) {
-        final payment = summary.payments[i];
-        final paymentDate = DateFormat(
-          'dd/MM/yyyy',
-        ).format(payment.paymentDate);
-        statement +=
-            '${i + 1}. ${_currencyFmt.format(payment.amount)} - $paymentDate\n';
-      }
+    // إظهار مؤشر التحميل
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('جاري إرسال كشف الحساب...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
-
-    statement += '\nشكراً لاختياركم فندق مارينا';
 
     try {
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
       final success = await whatsappService.sendMessage(
         phoneE164: cleanedPhone,
-        message: statement,
+        message: message,
       );
 
       if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم إرسال كشف الحساب للعميل بنجاح'),
-              backgroundColor: Colors.green,
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  success ? Icons.check_circle : Icons.error,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  success
+                      ? 'تم إرسال كشف الحساب إلى ${widget.booking.guestName} بنجاح'
+                      : 'فشل في إرسال كشف الحساب — تحقق من إعدادات الواتساب',
+                ),
+              ],
             ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('فشل في إرسال كشف الحساب'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('خطأ في إرسال كشف الحساب: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('خطأ: $e'),
+              ],
+            ),
             backgroundColor: Colors.red,
           ),
         );
