@@ -819,15 +819,15 @@ class _WhatsAppSettingsScreenState
                 ),
                 const SizedBox(height: 8),
                 _buildStepItem('1', 'سجّل في app.sendzen.io (مجاني، 600 رسالة/شهر)'),
-                _buildStepItem('2', 'أنشئ حساب WhatsApp Business واربطه'),
-                _buildStepItem('3', 'انسخ API Key من لوحة التحكم'),
-                _buildStepItem('4', 'أدخل رقم المرسل (رقم WhatsApp Business)'),
+                _buildStepItem('2', 'اذهب إلى صفحة WhatsApp API في لوحة التحكم'),
+                _buildStepItem('3', 'انسخ Sandbox API Key'),
+                _buildStepItem('4', 'انسخ Sandbox Number وأدخله أدناه'),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
-        _buildLabel('مفتاح API (API Key)'),
+        _buildLabel('Sandbox API Key'),
         TextField(
           controller: _sendzenApiKeyController,
           obscureText: _obscureSendzenKey,
@@ -837,7 +837,7 @@ class _WhatsAppSettingsScreenState
             fontFamily: 'monospace',
           ),
           decoration: InputDecoration(
-            hintText: 'أدخل مفتاح API من SendZen',
+            hintText: 'أدخل Sandbox API Key من صفحة WhatsApp API',
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.vpn_key, size: 20),
             suffixIcon: Row(
@@ -862,7 +862,7 @@ class _WhatsAppSettingsScreenState
           textAlign: TextAlign.left,
         ),
         const SizedBox(height: 14),
-        _buildLabel('رقم المرسل (رقم WhatsApp Business)'),
+        _buildLabel('Sandbox Number'),
         TextField(
           controller: _sendzenFromController,
           style: const TextStyle(
@@ -877,7 +877,7 @@ class _WhatsAppSettingsScreenState
             suffixIcon: _buildPasteButton(_sendzenFromController),
             filled: true,
             fillColor: Colors.grey.shade50,
-            helperText: 'رقم الواتساب التجاري المرتبط بحساب SendZen',
+            helperText: 'Sandbox Number من صفحة WhatsApp API في لوحة تحكم SendZen',
             helperMaxLines: 1,
           ),
           textDirection: TextDirection.ltr,
@@ -886,7 +886,7 @@ class _WhatsAppSettingsScreenState
         ),
         const SizedBox(height: 12),
         InkWell(
-          onTap: () => _openUrl('https://app.sendzen.io'),
+          onTap: () => _openUrl('https://app.sendzen.io/whatsapp-api/'),
           child: Card(
             color: Colors.indigo.shade50,
             shape: RoundedRectangleBorder(
