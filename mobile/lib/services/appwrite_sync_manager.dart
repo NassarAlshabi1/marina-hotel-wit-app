@@ -827,6 +827,22 @@ class AppwriteSyncManager {
 
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
+          // مزامنة إعدادات الواتساب (app_settings)
+          try {
+            recordsPulled += await _timePhase('syncAppSettings', () async {
+              final docs = await appwriteService.listDocuments(
+                collectionId: 'app_settings',
+                queries: deltaQ,
+              );
+              final synced = await _syncAppSettings(docs);
+              _logger.debug('Synced $synced app_settings', tag: 'SYNC');
+              return synced;
+            }, phaseMs);
+          } catch (e, st) {
+            _failedCollections.add('app_settings');
+            _logger.error('❌ فشل سحب app_settings', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
           // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
           // إذا فشل بعضها، لا نحدّث timestamp حتى نتمكن من سحبها في المرة القادمة
           if (_failedCollections.isEmpty) {
@@ -3445,6 +3461,52 @@ class AppwriteSyncManager {
   }
 
   // ─── PaymentVoids ─────────────────────────────────────────────────────
+
+  /// مزامنة إعدادات الواتساب من Appwrite → SharedPreferences
+  Future<int> _syncAppSettings(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    final prefs = await SharedPreferences.getInstance();
+
+    for (final doc in documents) {
+      try {
+        final data = doc.data;
+
+        // ربط الحقول: wa_api_type → wa_api_type في prefs
+        const fieldMap = {
+          'wa_api_type': 'wa_api_type',
+          'wa_api_base_url': 'wa_api_base_url',
+          'wa_api_instance_id': 'wa_api_instance_id',
+          'wa_api_token': 'wa_api_token',
+          'wa_custom_url_template': 'wa_custom_url_template',
+          'wa_sendzen_api_key': 'wa_sendzen_api_key',
+          'wa_sendzen_from_number': 'wa_sendzen_from_number',
+        };
+
+        for (final entry in fieldMap.entries) {
+          final value = data[entry.key];
+          if (value != null && value.toString().isNotEmpty) {
+            await prefs.setString(entry.value, value.toString());
+          }
+        }
+
+        // wa_template → whatsapp_template (مفتاح مختلف في prefs)
+        final template = data['wa_template'];
+        if (template != null && template.toString().isNotEmpty) {
+          await prefs.setString('whatsapp_template', template.toString());
+        }
+
+        processed++;
+        _logger.debug('AppSettings synced: ${doc.$id}', tag: 'SYNC');
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync app_settings ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
 
   Future<int> _syncPaymentVoids(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
