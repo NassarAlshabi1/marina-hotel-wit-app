@@ -48,9 +48,6 @@ class WhatsAppService {
     // التحقق من عدد أرقام الهاتف — يجب أن يكون 12 رقم على الأقل
     final digitsOnly = phoneE164.replaceAll(RegExp(r'\D'), '');
     if (digitsOnly.length < minPhoneDigits) {
-      debugPrint(
-        'WhatsApp send skipped: phone has ${digitsOnly.length} digits (minimum $minPhoneDigits required)',
-      );
       return (success: false, quotaMessage: null);
     }
 
