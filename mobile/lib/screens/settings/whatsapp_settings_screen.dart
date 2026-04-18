@@ -174,21 +174,49 @@ class _WhatsAppSettingsScreenState
         _showTestResult(
           false,
           'رمز التوكن غير صالح (401)',
-          'تحقق من Instance ID و Token',
+          'تحقق من صحة API Token في لوحة تحكم GreenAPI',
+        );
+      } else if (result.statusCode == 403) {
+        _showTestResult(
+          false,
+          'وصول مرفوض (403 Forbidden)',
+          'الأسباب المحتملة:\n'
+              '1. Instance ID أو Token غير صحيح\n'
+              '2. انتهت صلاحية الحساب أو الحساب معطّل\n'
+              '3. الرقم الخاص بالخطة المجانية تم تجاوزه\n'
+              '4. عنوان IP محظور من قبل الخادم\n\n'
+              'الحل: سجّل دخول في greenapi.com وتحقق من حالة الـ Instance',
         );
       } else if (result.statusCode == 404) {
         _showTestResult(
           false,
           'Instance ID غير موجود (404)',
-          'تحقق من Instance ID والرابط',
+          'تحقق من Instance ID والرابط في لوحة تحكم GreenAPI',
         );
-      } else if (result.statusCode == 0) {
-        _showTestResult(false, 'فشل الاتصال بالخادم', result.body);
-      } else {
+      } else if (result.statusCode == 429) {
         _showTestResult(
           false,
-          'خطأ ${result.statusCode}',
-          result.body,
+          'تجاوز عدد الطلبات (429 Too Many)',
+          'تم تجاوز حد الطلبات المسموح. انتظر قليلاً وحاول مرة أخرى.',
+        );
+      } else if (result.statusCode == 500 || result.statusCode == 502 || result.statusCode == 503) {
+        _showTestResult(
+          false,
+          'خطأ في خادم GreenAPI (${result.statusCode})',
+          'الخادم يواجه مشكلة مؤقتة. حاول مرة أخرى بعد قليل.',
+        );
+      } else if (result.statusCode == 0) {
+        _showTestResult(
+          false,
+          'فشل الاتصال بالخادم',
+          'تأكد من اتصالك بالإنترنت وأن الرابط (Base URL) صحيح\n\nالرابط الحالي: $baseUrl',
+        );
+      } else {
+        final cleanBody = _sanitizeResponseBody(result.body);
+        _showTestResult(
+          false,
+          'خطأ غير متوقع (${result.statusCode})',
+          cleanBody.isNotEmpty ? cleanBody : 'حدث خطأ غير معروف. تحقق من الإعدادات وحاول مرة أخرى.',
         );
       }
     } catch (e) {
@@ -196,6 +224,17 @@ class _WhatsAppSettingsScreenState
       setState(() => _isTesting = false);
       _showTestResult(false, 'فشل الاتصال', e.toString());
     }
+  }
+
+  /// تنظيف استجابة الخادم من HTML الخام
+  String _sanitizeResponseBody(String body) {
+    // إزالة أكواد HTML
+    var cleaned = body.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    // إزالة الأسطر الفارغة المتعددة
+    cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    // إذا كانت النتيجة تحتوي على كلمات HTML فقط، أرجع نص فارغ
+    if (RegExp(r'^[\s\n]*$').hasMatch(cleaned)) return '';
+    return cleaned;
   }
 
   void _showTestResult(bool success, String title, String detail) {
@@ -211,7 +250,12 @@ class _WhatsAppSettingsScreenState
               size: 28,
             ),
             const SizedBox(width: 10),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -219,6 +263,7 @@ class _WhatsAppSettingsScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
+              width: double.maxFinite,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: (success ? Colors.green : Colors.red).withOpacity(0.08),
@@ -228,14 +273,41 @@ class _WhatsAppSettingsScreenState
                 ),
               ),
               child: SelectableText(
-                detail.length > 300 ? '${detail.substring(0, 300)}...' : detail,
+                detail,
                 style: TextStyle(
                   fontSize: 13,
+                  height: 1.6,
                   color: Colors.grey.shade800,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.right,
               ),
             ),
+            if (!success) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _launchGreenApi();
+                  },
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text(
+                    'فتح لوحة تحكم GreenAPI',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -244,6 +316,18 @@ class _WhatsAppSettingsScreenState
             child: const Text('إغلاق'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// فتح لوحة تحكم GreenAPI في المتصفح
+  Future<void> _launchGreenApi() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('افتح greenapi.com من المتصفح وتحقق من حالة الـ Instance'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 4),
       ),
     );
   }
