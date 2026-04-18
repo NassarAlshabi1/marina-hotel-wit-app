@@ -1070,6 +1070,7 @@ class GoogleDriveBackupService {
 
           // استعادة إعدادات الواتساب → SharedPreferences
           if (backupData.containsKey('whatsapp_settings')) {
+            final restorePrefs = await SharedPreferences.getInstance();
             final waSettings = Map<String, dynamic>.from(
               backupData['whatsapp_settings'] as Map,
             );
@@ -1077,7 +1078,7 @@ class GoogleDriveBackupService {
               for (final entry in waSettings.entries) {
                 final value = entry.value?.toString() ?? '';
                 if (value.isNotEmpty) {
-                  await prefs.setString(entry.key, value);
+                  await restorePrefs.setString(entry.key, value);
                 }
               }
               _log('📱 تم استعادة إعدادات الواتساب (${waSettings.length} حقل)');
