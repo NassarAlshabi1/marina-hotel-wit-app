@@ -37,11 +37,23 @@ class WhatsAppService {
   /// الحد الأقصى لطول الرسالة (حرف)
   static const int maxMessageLength = 1000;
 
+  /// الحد الأدنى لعدد أرقام الهاتف المطلوب
+  static const int minPhoneDigits = 12;
+
   /// إرسال رسالة واتساب
   Future<({bool success, String? quotaMessage})> sendMessage({
     required String phoneE164,
     required String message,
   }) async {
+    // التحقق من عدد أرقام الهاتف — يجب أن يكون 12 رقم على الأقل
+    final digitsOnly = phoneE164.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.length < minPhoneDigits) {
+      debugPrint(
+        'WhatsApp send skipped: phone has ${digitsOnly.length} digits (minimum $minPhoneDigits required)',
+      );
+      return (success: false, quotaMessage: null);
+    }
+
     final trimmedMessage = _trimMessage(message);
 
     switch (apiType) {
