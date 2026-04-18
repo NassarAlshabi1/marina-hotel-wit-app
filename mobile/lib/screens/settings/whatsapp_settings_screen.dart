@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,16 +25,17 @@ class _WhatsAppSettingsScreenState
   final _instanceIdController = TextEditingController();
   final _tokenController = TextEditingController();
   final _customUrlController = TextEditingController();
+  final _sendzenApiKeyController = TextEditingController();
+  final _sendzenFromController = TextEditingController();
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSaving = false;
   late TabController _tabController;
   bool _obscureToken = true;
+  bool _obscureSendzenKey = true;
 
-  // نوع API الحالي
   WhatsAppApiType _selectedApiType = WhatsAppApiType.greenapi;
 
-  // القيم الافتراضية
   static const _defaultBaseUrl = 'https://7103.api.greenapi.com';
   static const _defaultInstanceId = 'waInstance7103894450';
   static const _defaultToken =
@@ -52,6 +55,8 @@ class _WhatsAppSettingsScreenState
     _instanceIdController.dispose();
     _tokenController.dispose();
     _customUrlController.dispose();
+    _sendzenApiKeyController.dispose();
+    _sendzenFromController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -70,9 +75,16 @@ class _WhatsAppSettingsScreenState
           prefs.getString('wa_api_token') ?? _defaultToken;
       _customUrlController.text =
           prefs.getString('wa_custom_url_template') ?? '';
-      _selectedApiType = prefs.getString('wa_api_type') == 'custom'
+      _sendzenApiKeyController.text =
+          prefs.getString('wa_sendzen_api_key') ?? '';
+      _sendzenFromController.text =
+          prefs.getString('wa_sendzen_from_number') ?? '';
+      final typeStr = prefs.getString('wa_api_type');
+      _selectedApiType = typeStr == 'custom'
           ? WhatsAppApiType.custom
-          : WhatsAppApiType.greenapi;
+          : typeStr == 'sendzen'
+              ? WhatsAppApiType.sendzen
+              : WhatsAppApiType.greenapi;
       _isLoading = false;
     });
   }
@@ -80,15 +92,32 @@ class _WhatsAppSettingsScreenState
   Future<void> _saveApiSettings() async {
     setState(() => _isSaving = true);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('wa_api_type', _selectedApiType == WhatsAppApiType.custom ? 'custom' : 'greenapi');
+    await prefs.setString(
+      'wa_api_type',
+      _selectedApiType == WhatsAppApiType.custom
+          ? 'custom'
+          : _selectedApiType == WhatsAppApiType.sendzen
+              ? 'sendzen'
+              : 'greenapi',
+    );
     await prefs.setString('wa_api_base_url', _baseUrlController.text.trim());
     await prefs.setString(
       'wa_api_instance_id',
       _instanceIdController.text.trim(),
     );
     await prefs.setString('wa_api_token', _tokenController.text.trim());
-    await prefs.setString('wa_custom_url_template', _customUrlController.text.trim());
-    // تحديث الـ provider
+    await prefs.setString(
+      'wa_custom_url_template',
+      _customUrlController.text.trim(),
+    );
+    await prefs.setString(
+      'wa_sendzen_api_key',
+      _sendzenApiKeyController.text.trim(),
+    );
+    await prefs.setString(
+      'wa_sendzen_from_number',
+      _sendzenFromController.text.trim(),
+    );
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) return;
     setState(() => _isSaving = false);
@@ -120,6 +149,8 @@ class _WhatsAppSettingsScreenState
       _instanceIdController.text = _defaultInstanceId;
       _tokenController.text = _defaultToken;
       _customUrlController.text = '';
+      _sendzenApiKeyController.text = '';
+      _sendzenFromController.text = '';
       _selectedApiType = WhatsAppApiType.greenapi;
     });
   }
@@ -137,6 +168,8 @@ class _WhatsAppSettingsScreenState
     await prefs.remove('wa_api_instance_id');
     await prefs.remove('wa_api_token');
     await prefs.remove('wa_custom_url_template');
+    await prefs.remove('wa_sendzen_api_key');
+    await prefs.remove('wa_sendzen_from_number');
     await prefs.remove('whatsapp_template');
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) return;
@@ -146,6 +179,8 @@ class _WhatsAppSettingsScreenState
       _tokenController.text = _defaultToken;
       _templateController.text = whatsappPaymentTemplate;
       _customUrlController.text = '';
+      _sendzenApiKeyController.text = '';
+      _sendzenFromController.text = '';
       _selectedApiType = WhatsAppApiType.greenapi;
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -156,10 +191,8 @@ class _WhatsAppSettingsScreenState
     );
   }
 
-  /// اختبار اتصال API
   Future<void> _testConnection() async {
     setState(() => _isTesting = true);
-
     try {
       final testService = WhatsAppService(
         apiType: _selectedApiType,
@@ -167,6 +200,8 @@ class _WhatsAppSettingsScreenState
         instanceId: _instanceIdController.text.trim(),
         token: _tokenController.text.trim(),
         customUrlTemplate: _customUrlController.text.trim(),
+        sendzenApiKey: _sendzenApiKeyController.text.trim(),
+        sendzenFromNumber: _sendzenFromController.text.trim(),
       );
 
       final result = await testService.testConnection();
@@ -181,6 +216,12 @@ class _WhatsAppSettingsScreenState
           false,
           'فشل الاتصال بالخادم',
           'تأكد من اتصالك بالإنترنت وأن الرابط صحيح',
+        );
+      } else if (result.statusCode == 401) {
+        _showTestResult(
+          false,
+          'مفتاح API غير صالح (401)',
+          'تحقق من صحة المفتاح في لوحة التحكم',
         );
       } else {
         final cleanBody = _sanitizeResponseBody(result.body);
@@ -199,7 +240,6 @@ class _WhatsAppSettingsScreenState
     }
   }
 
-  /// تنظيف استجابة الخادم من HTML الخام
   String _sanitizeResponseBody(String body) {
     var cleaned = body.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
@@ -237,10 +277,10 @@ class _WhatsAppSettingsScreenState
                 width: double.maxFinite,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: (success ? Colors.green : Colors.red).withOpacity(0.08),
+                  color: (success ? Colors.green : Colors.red).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: (success ? Colors.green : Colors.red).withOpacity(0.3),
+                    color: (success ? Colors.green : Colors.red).withValues(alpha: 0.3),
                   ),
                 ),
                 child: SelectableText(
@@ -267,6 +307,12 @@ class _WhatsAppSettingsScreenState
     );
   }
 
+  Future<void> _openUrl(String url) async {
+    try {
+      await Process.run('xdg-open', [url]);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -275,11 +321,10 @@ class _WhatsAppSettingsScreenState
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Tab bar
                 Container(
                   margin: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TabBar(
@@ -303,8 +348,6 @@ class _WhatsAppSettingsScreenState
                     ],
                   ),
                 ),
-
-                // Tab content
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -321,6 +364,8 @@ class _WhatsAppSettingsScreenState
 
   // ─── تبويب إعدادات API ───
   Widget _buildApiSettingsTab() {
+    final apiColor = _getApiColor();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -330,30 +375,24 @@ class _WhatsAppSettingsScreenState
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: _selectedApiType == WhatsAppApiType.custom
-                    ? Colors.teal.shade300
-                    : Colors.blue.shade200,
-              ),
+              side: BorderSide(color: apiColor.withValues(alpha: 0.4)),
             ),
-            color: _selectedApiType == WhatsAppApiType.custom
-                ? Colors.teal.shade50
-                : Colors.blue.shade50,
+            color: apiColor.withValues(alpha: 0.05),
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.swap_horiz, size: 20, color: Colors.blue),
-                      SizedBox(width: 8),
+                      Icon(Icons.swap_horiz, size: 20, color: apiColor),
+                      const SizedBox(width: 8),
                       Text(
-                        'نوع API',
+                        'نوع خدمة الواتساب',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: Colors.blue,
+                          color: apiColor,
                         ),
                       ),
                     ],
@@ -363,28 +402,33 @@ class _WhatsAppSettingsScreenState
                     segments: const [
                       ButtonSegment(
                         value: WhatsAppApiType.greenapi,
-                        label: Text('GreenAPI'),
-                        icon: Icon(Icons.cloud, size: 18),
+                        label: Text('GreenAPI', style: TextStyle(fontSize: 11)),
+                        icon: Icon(Icons.cloud, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: WhatsAppApiType.sendzen,
+                        label: Text('SendZen', style: TextStyle(fontSize: 11)),
+                        icon: Icon(Icons.send, size: 16),
                       ),
                       ButtonSegment(
                         value: WhatsAppApiType.custom,
-                        label: Text('رابط مخصص'),
-                        icon: Icon(Icons.link, size: 18),
+                        label: Text('مخصص', style: TextStyle(fontSize: 11)),
+                        icon: Icon(Icons.link, size: 16),
                       ),
                     ],
                     selected: {_selectedApiType},
                     onSelectionChanged: (selection) {
-                      setState(() {
-                        _selectedApiType = selection.first;
-                      });
+                      setState(() => _selectedApiType = selection.first);
                     },
                     style: ButtonStyle(
                       visualDensity: VisualDensity.compact,
-                      textStyle: WidgetStatePropertyAll(
-                        const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      textStyle: const WidgetStatePropertyAll(
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  _buildApiDescription(),
                 ],
               ),
             ),
@@ -392,183 +436,13 @@ class _WhatsAppSettingsScreenState
 
           const SizedBox(height: 16),
 
-          // ─── حقول GreenAPI ───
-          if (_selectedApiType == WhatsAppApiType.greenapi) ...[
-            Card(
-              color: Colors.blue.shade50,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.blue.shade200),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          'كيفية الحصول على بيانات API',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStepItem('1', 'سجّل في greenapi.com وأنشئ instance'),
-                    _buildStepItem('2', 'انسخ Base URL من لوحة التحكم'),
-                    _buildStepItem('3', 'انسخ Instance ID و API Token'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildLabel('رابط API (Base URL)'),
-            TextField(
-              controller: _baseUrlController,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'https://xxx.api.greenapi.com',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.link, size: 20),
-                suffixIcon: _buildPasteButton(_baseUrlController),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _buildLabel('معرّف الحساب (Instance ID)'),
-            TextField(
-              controller: _instanceIdController,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'waInstanceXXXXXXXXXX',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.fingerprint, size: 20),
-                suffixIcon: _buildPasteButton(_instanceIdController),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _buildLabel('رمز التوكن (API Token)'),
-            TextField(
-              controller: _tokenController,
-              obscureText: _obscureToken,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'أدخل رمز التوكن',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.vpn_key, size: 20),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        _obscureToken ? Icons.visibility : Icons.visibility_off,
-                        size: 18,
-                      ),
-                      tooltip: _obscureToken ? 'إظهار' : 'إخفاء',
-                      onPressed: () =>
-                          setState(() => _obscureToken = !_obscureToken),
-                    ),
-                    _buildPasteButton(_tokenController),
-                  ],
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-            ),
-          ],
-
-          // ─── حقل الرابط المخصص ───
-          if (_selectedApiType == WhatsAppApiType.custom) ...[
-            Card(
-              color: Colors.teal.shade50,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.teal.shade200),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.teal.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'ألصق رابط API المخصص مع المتغيرات',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.teal.shade700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _buildVariableChip('[number]', 'رقم الهاتف'),
-                    _buildVariableChip('[message]', 'نص الرسالة'),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'مثال: https://wa.nux.my.id/api/sendWA?to=[number]&msg=[message]&secret=xxx',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          color: Colors.teal,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildLabel('رابط API المخصص'),
-            TextField(
-              controller: _customUrlController,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                fontFamily: 'monospace',
-              ),
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/api/send?to=[number]&msg=[message]&key=xxx',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(bottom: 48),
-                  child: Icon(Icons.link, size: 20),
-                ),
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(bottom: 48),
-                  child: _buildPasteButton(_customUrlController),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                alignLabelWithHint: true,
-              ),
-              textAlign: TextAlign.left,
-              textDirection: TextDirection.ltr,
-            ),
-          ],
+          // ─── حقول حسب النوع المختار ───
+          if (_selectedApiType == WhatsAppApiType.greenapi)
+            _buildGreenApiFields(),
+          if (_selectedApiType == WhatsAppApiType.sendzen)
+            _buildSendZenFields(),
+          if (_selectedApiType == WhatsAppApiType.custom)
+            _buildCustomApiFields(),
 
           const SizedBox(height: 24),
 
@@ -632,7 +506,6 @@ class _WhatsAppSettingsScreenState
 
           const SizedBox(height: 12),
 
-          // استعادة الافتراضي
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -659,6 +532,357 @@ class _WhatsAppSettingsScreenState
     );
   }
 
+  Color _getApiColor() {
+    switch (_selectedApiType) {
+      case WhatsAppApiType.greenapi:
+        return Colors.green;
+      case WhatsAppApiType.sendzen:
+        return Colors.indigo;
+      case WhatsAppApiType.custom:
+        return Colors.teal;
+    }
+  }
+
+  Widget _buildApiDescription() {
+    switch (_selectedApiType) {
+      case WhatsAppApiType.greenapi:
+        return Text(
+          'GreenAPI — خدمة واتساب عبر حساب مجاني (3 أرقام فقط)',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        );
+      case WhatsAppApiType.sendzen:
+        return Row(
+          children: [
+            Expanded(
+              child: Text(
+                'SendZen — 600 رسالة مجانية/شهر | شراكة Meta رسمية',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+            InkWell(
+              onTap: () => _openUrl('https://app.sendzen.io'),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Text(
+                  'فتح',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.indigo,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      case WhatsAppApiType.custom:
+        return Text(
+          'رابط مخصص — أي خدمة واتساب تدعم GET مع [number] و [message]',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        );
+    }
+  }
+
+  // ─── حقول GreenAPI ───
+  Widget _buildGreenApiFields() {
+    return Column(
+      children: [
+        Card(
+          color: Colors.green.shade50,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.green.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStepItem('1', 'سجّل في greenapi.com وأنشئ instance'),
+                _buildStepItem('2', 'انسخ Base URL و Instance ID و Token'),
+                _buildStepItem('3', 'ألصقها في الحقول أدناه واختبر الاتصال'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('رابط API (Base URL)'),
+        TextField(
+          controller: _baseUrlController,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'https://xxx.api.greenapi.com',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.link, size: 20),
+            suffixIcon: _buildPasteButton(_baseUrlController),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _buildLabel('معرّف الحساب (Instance ID)'),
+        TextField(
+          controller: _instanceIdController,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'waInstanceXXXXXXXXXX',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.fingerprint, size: 20),
+            suffixIcon: _buildPasteButton(_instanceIdController),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _buildLabel('رمز التوكن (API Token)'),
+        TextField(
+          controller: _tokenController,
+          obscureText: _obscureToken,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'أدخل رمز التوكن',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.vpn_key, size: 20),
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _obscureToken ? Icons.visibility : Icons.visibility_off,
+                    size: 18,
+                  ),
+                  tooltip: _obscureToken ? 'إظهار' : 'إخفاء',
+                  onPressed: () =>
+                      setState(() => _obscureToken = !_obscureToken),
+                ),
+                _buildPasteButton(_tokenController),
+              ],
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── حقول SendZen ───
+  Widget _buildSendZenFields() {
+    return Column(
+      children: [
+        Card(
+          color: Colors.indigo.shade50,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.indigo.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.indigo, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'إعداد SendZen',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.indigo,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildStepItem('1', 'سجّل في app.sendzen.io (مجاني، 600 رسالة/شهر)'),
+                _buildStepItem('2', 'أنشئ حساب WhatsApp Business واربطه'),
+                _buildStepItem('3', 'انسخ API Key من لوحة التحكم'),
+                _buildStepItem('4', 'أدخل رقم المرسل (رقم WhatsApp Business)'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('مفتاح API (API Key)'),
+        TextField(
+          controller: _sendzenApiKeyController,
+          obscureText: _obscureSendzenKey,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            fontFamily: 'monospace',
+          ),
+          decoration: InputDecoration(
+            hintText: 'أدخل مفتاح API من SendZen',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.vpn_key, size: 20),
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _obscureSendzenKey ? Icons.visibility : Icons.visibility_off,
+                    size: 18,
+                  ),
+                  tooltip: _obscureSendzenKey ? 'إظهار' : 'إخفاء',
+                  onPressed: () =>
+                      setState(() => _obscureSendzenKey = !_obscureSendzenKey),
+                ),
+                _buildPasteButton(_sendzenApiKeyController),
+              ],
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.left,
+        ),
+        const SizedBox(height: 14),
+        _buildLabel('رقم المرسل (رقم WhatsApp Business)'),
+        TextField(
+          controller: _sendzenFromController,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            fontFamily: 'monospace',
+          ),
+          decoration: InputDecoration(
+            hintText: '967xxxxxxxxx',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.phone_android, size: 20),
+            suffixIcon: _buildPasteButton(_sendzenFromController),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            helperText: 'رقم الواتساب التجاري المرتبط بحساب SendZen',
+            helperMaxLines: 1,
+          ),
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.left,
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: () => _openUrl('https://app.sendzen.io'),
+          child: Card(
+            color: Colors.indigo.shade50,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: Colors.indigo.shade100),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.open_in_new, size: 16, color: Colors.indigo.shade400),
+                  const SizedBox(width: 6),
+                  Text(
+                    'فتح لوحة تحكم SendZen',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo.shade400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── حقول الرابط المخصص ───
+  Widget _buildCustomApiFields() {
+    return Column(
+      children: [
+        Card(
+          color: Colors.teal.shade50,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.teal.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.teal, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'رابط API مخصص',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildVariableChip('[number]', 'رقم الهاتف'),
+                _buildVariableChip('[message]', 'نص الرسالة'),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'مثال: https://wa.nux.my.id/api/sendWA?to=[number]&msg=[message]&secret=xxx',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      color: Colors.teal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('رابط API المخصص'),
+        TextField(
+          controller: _customUrlController,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            fontFamily: 'monospace',
+          ),
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText:
+                'https://example.com/api/send?to=[number]&msg=[message]&key=xxx',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Padding(
+              padding: EdgeInsets.only(bottom: 48),
+              child: Icon(Icons.link, size: 20),
+            ),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 48),
+              child: _buildPasteButton(_customUrlController),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            alignLabelWithHint: true,
+          ),
+          textAlign: TextAlign.left,
+          textDirection: TextDirection.ltr,
+        ),
+      ],
+    );
+  }
+
   // ─── تبويب قالب الرسالة ───
   Widget _buildTemplateTab() {
     return SingleChildScrollView(
@@ -666,7 +890,6 @@ class _WhatsAppSettingsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // بطاقة المتغيرات
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -700,9 +923,7 @@ class _WhatsAppSettingsScreenState
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
           const Text(
             'نص الرسالة:',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -719,9 +940,7 @@ class _WhatsAppSettingsScreenState
               fillColor: Colors.grey.shade50,
             ),
           ),
-
           const SizedBox(height: 20),
-
           Row(
             children: [
               Expanded(
@@ -763,10 +982,7 @@ class _WhatsAppSettingsScreenState
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // استعادة كل شيء
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -786,7 +1002,6 @@ class _WhatsAppSettingsScreenState
               ),
             ),
           ),
-
           const SizedBox(height: 20),
         ],
       ),

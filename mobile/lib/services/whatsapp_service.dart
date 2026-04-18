@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 enum WhatsAppApiType {
   greenapi,
   custom,
+  sendzen,
 }
 
 class WhatsAppService {
@@ -16,6 +17,8 @@ class WhatsAppService {
     this.instanceId,
     this.token,
     this.customUrlTemplate,
+    this.sendzenApiKey,
+    this.sendzenFromNumber,
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -24,6 +27,8 @@ class WhatsAppService {
   final String? instanceId;
   final String? token;
   final String? customUrlTemplate;
+  final String? sendzenApiKey;
+  final String? sendzenFromNumber;
   final http.Client _client;
 
   /// HTTP client للعمليات الخارجية (اختبار الاتصال)
@@ -39,10 +44,14 @@ class WhatsAppService {
   }) async {
     final trimmedMessage = _trimMessage(message);
 
-    if (apiType == WhatsAppApiType.custom) {
-      return _sendViaCustom(phoneE164, trimmedMessage);
+    switch (apiType) {
+      case WhatsAppApiType.custom:
+        return _sendViaCustom(phoneE164, trimmedMessage);
+      case WhatsAppApiType.sendzen:
+        return _sendViaSendZen(phoneE164, trimmedMessage);
+      case WhatsAppApiType.greenapi:
+        return _sendViaGreenApi(phoneE164, trimmedMessage);
     }
-    return _sendViaGreenApi(phoneE164, trimmedMessage);
   }
 
   /// إرسال عبر GreenAPI (POST مع JSON body)
@@ -91,7 +100,6 @@ class WhatsAppService {
   }
 
   /// إرسال عبر Custom API (GET مع استبدال المتغيرات في الرابط)
-  /// الرابط يحتوي على [number] و [message] كمعاملات
   Future<({bool success, String? quotaMessage})> _sendViaCustom(
     String phoneE164,
     String message,
@@ -129,12 +137,82 @@ class WhatsAppService {
     }
   }
 
+  /// إرسال عبر SendZen API (POST مع Bearer token)
+  /// Endpoint: POST https://api.sendzen.io/v1/messages
+  /// Body: {"from": "sender", "to": "recipient", "type": "text", "text": {"body": "msg"}}
+  Future<({bool success, String? quotaMessage})> _sendViaSendZen(
+    String phoneE164,
+    String message,
+  ) async {
+    if (sendzenApiKey == null ||
+        sendzenApiKey!.isEmpty ||
+        sendzenFromNumber == null ||
+        sendzenFromNumber!.isEmpty) {
+      return (success: false, quotaMessage: 'إعدادات SendZen غير مكتملة');
+    }
+
+    final sanitizedPhone = phoneE164.startsWith('+')
+        ? phoneE164.substring(1)
+        : phoneE164;
+
+    final endpoint = Uri.parse('https://api.sendzen.io/v1/messages');
+
+    try {
+      final response = await _client.post(
+        endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sendzenApiKey',
+        },
+        body: jsonEncode({
+          'from': sendzenFromNumber,
+          'to': sanitizedPhone,
+          'type': 'text',
+          'text': {
+            'body': message,
+            'preview_url': false,
+          },
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return (success: true, quotaMessage: null);
+      }
+
+      // 401 = API key غير صالح
+      if (response.statusCode == 401) {
+        return (success: false, quotaMessage: 'مفتاح API غير صالح أو منتهي');
+      }
+
+      // 402 أو 429 = تجاوز الحصة
+      if (response.statusCode == 402 || response.statusCode == 429) {
+        return (
+          success: false,
+          quotaMessage: 'تجاوز الحصة الشهرية (600 رسالة مجانية)',
+        );
+      }
+
+      debugPrint(
+        'SendZen send failed: ${response.statusCode} ${response.body}',
+      );
+      return (success: false, quotaMessage: null);
+    } catch (error, stackTrace) {
+      debugPrint('SendZen send error: $error');
+      debugPrint('$stackTrace');
+      return (success: false, quotaMessage: null);
+    }
+  }
+
   /// اختبار الاتصال بـ API
   Future<({bool success, int statusCode, String body})> testConnection() async {
-    if (apiType == WhatsAppApiType.custom) {
-      return _testCustomConnection();
+    switch (apiType) {
+      case WhatsAppApiType.custom:
+        return _testCustomConnection();
+      case WhatsAppApiType.sendzen:
+        return _testSendZenConnection();
+      case WhatsAppApiType.greenapi:
+        return _testGreenApiConnection();
     }
-    return _testGreenApiConnection();
   }
 
   /// اختبار GreenAPI عبر getSettings
@@ -155,7 +233,7 @@ class WhatsAppService {
     }
   }
 
-  /// اختبار Custom API عبر إرسال طلب GET فارغ مع رقم اختبار
+  /// اختبار Custom API
   Future<({bool success, int statusCode, String body})>
       _testCustomConnection() async {
     if (customUrlTemplate == null || customUrlTemplate!.isEmpty) {
@@ -167,7 +245,6 @@ class WhatsAppService {
     }
 
     try {
-      // نختبر الرابط فقط بالتحقق من استجابة الخادم
       final testUrl = customUrlTemplate!
           .replaceAll('[number]', '000000000')
           .replaceAll('[message]', Uri.encodeComponent('test'));
@@ -177,10 +254,40 @@ class WhatsAppService {
         const Duration(seconds: 15),
       );
 
-      // أي استجابة من الخادم تعني الرابط يعمل (حتى لو كانت خطأ منطقي)
       final isReachable = response.statusCode < 500;
       return (
         success: isReachable,
+        statusCode: response.statusCode,
+        body: response.body,
+      );
+    } catch (e) {
+      return (success: false, statusCode: 0, body: e.toString());
+    }
+  }
+
+  /// اختبار SendZen عبر طلب GET للقوالب (يتحقق من صحة API key)
+  Future<({bool success, int statusCode, String body})>
+      _testSendZenConnection() async {
+    if (sendzenApiKey == null || sendzenApiKey!.isEmpty) {
+      return (
+        success: false,
+        statusCode: 0,
+        body: 'مفتاح API غير موجود',
+      );
+    }
+
+    try {
+      final endpoint = Uri.parse('https://api.sendzen.io/v1/templates');
+      final response = await _client.get(
+        endpoint,
+        headers: {
+          'Authorization': 'Bearer $sendzenApiKey',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      // 200 = نجاح، 401 = مفتاح خاطئ، أي شيء آخر = الخادم يعمل
+      return (
+        success: response.statusCode == 200,
         statusCode: response.statusCode,
         body: response.body,
       );

@@ -91,28 +91,42 @@ final whatsappSettingsProvider = FutureProvider<Map<String, String>>((ref) async
     'instanceId': prefs.getString('wa_api_instance_id') ?? 'waInstance7103894450',
     'token': prefs.getString('wa_api_token') ?? 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
     'customUrlTemplate': prefs.getString('wa_custom_url_template') ?? '',
+    'sendzenApiKey': prefs.getString('wa_sendzen_api_key') ?? '',
+    'sendzenFromNumber': prefs.getString('wa_sendzen_from_number') ?? '',
   };
 });
+
+WhatsAppApiType _parseApiType(String? type) {
+  switch (type) {
+    case 'custom':
+      return WhatsAppApiType.custom;
+    case 'sendzen':
+      return WhatsAppApiType.sendzen;
+    default:
+      return WhatsAppApiType.greenapi;
+  }
+}
 
 final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) {
     final settingsAsync = ref.watch(whatsappSettingsProvider);
-    final settings = settingsAsync.valueOrNull ?? {
+    final settings = settingsAsync.valueOrNull ?? const {
       'apiType': 'greenapi',
       'baseUrl': 'https://7103.api.greenapi.com',
       'instanceId': 'waInstance7103894450',
       'token': 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
       'customUrlTemplate': '',
+      'sendzenApiKey': '',
+      'sendzenFromNumber': '',
     };
-    final apiType = settings['apiType'] == 'custom'
-        ? WhatsAppApiType.custom
-        : WhatsAppApiType.greenapi;
     return WhatsAppService(
-      apiType: apiType,
+      apiType: _parseApiType(settings['apiType']),
       baseUrl: settings['baseUrl'],
       instanceId: settings['instanceId'],
       token: settings['token'],
       customUrlTemplate: settings['customUrlTemplate'],
+      sendzenApiKey: settings['sendzenApiKey'],
+      sendzenFromNumber: settings['sendzenFromNumber'],
     );
   },
 );
