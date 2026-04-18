@@ -406,8 +406,29 @@ class GoogleDriveBackupService {
         format: BackupFormat.json,
       );
 
+      // إعدادات الواتساب من SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final whatsappSettings = <String, dynamic>{};
+      const waKeys = [
+        'wa_api_type',
+        'wa_api_base_url',
+        'wa_api_instance_id',
+        'wa_api_token',
+        'wa_custom_url_template',
+        'wa_sendzen_api_key',
+        'wa_sendzen_from_number',
+        'whatsapp_template',
+      ];
+      for (final key in waKeys) {
+        final value = prefs.getString(key);
+        if (value != null && value.isNotEmpty) {
+          whatsappSettings[key] = value;
+        }
+      }
+
       final backupData = {
         'metadata': metadata.toJson(),
+        'whatsapp_settings': whatsappSettings,
         'rooms': roomsData.map((room) => room.toJson()).toList(),
         'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
         'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
@@ -450,6 +471,10 @@ class GoogleDriveBackupService {
             .map((s) => s.toJson())
             .toList(),
       };
+
+      if (whatsappSettings.isNotEmpty) {
+        _log('📱 تم تضمين إعدادات الواتساب في النسخة الاحتياطية');
+      }
 
       _log('✅ تم تصدير البيانات: $totalRecords سجل');
       return backupData;
@@ -1040,6 +1065,22 @@ class GoogleDriveBackupService {
                 Map<String, dynamic>.from(guestJson as Map),
                 src: Source.drive,
               );
+            }
+          }
+
+          // استعادة إعدادات الواتساب → SharedPreferences
+          if (backupData.containsKey('whatsapp_settings')) {
+            final waSettings = Map<String, dynamic>.from(
+              backupData['whatsapp_settings'] as Map,
+            );
+            if (waSettings.isNotEmpty) {
+              for (final entry in waSettings.entries) {
+                final value = entry.value?.toString() ?? '';
+                if (value.isNotEmpty) {
+                  await prefs.setString(entry.key, value);
+                }
+              }
+              _log('📱 تم استعادة إعدادات الواتساب (${waSettings.length} حقل)');
             }
           }
 
