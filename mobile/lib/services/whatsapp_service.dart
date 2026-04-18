@@ -18,6 +18,9 @@ class WhatsAppService {
   /// HTTP client للعمليات الخارجية (اختبار الاتصال)
   http.Client get client => _client;
 
+  /// الحد الأقصى لطول الرسالة (حرف)
+  static const int maxMessageLength = 1000;
+
   /// إرسال رسالة واتساب
   /// يُرجع true إذا تم الإرسال بنجاح، false إذا فشل
   /// يُرجع قيمة في quotaExceeded إذا كان رمز 466 (تجاوز الحصة)
@@ -25,6 +28,8 @@ class WhatsAppService {
     required String phoneE164,
     required String message,
   }) async {
+    // اقتصاص الرسالة إذا تجاوزت الحد الأقصى
+    final trimmedMessage = _trimMessage(message);
     final sanitizedPhone = phoneE164.startsWith('+')
         ? phoneE164.substring(1)
         : phoneE164;
@@ -35,7 +40,7 @@ class WhatsAppService {
       final response = await _client.post(
         endpoint,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'chatId': chatId, 'message': message}),
+        body: jsonEncode({'chatId': chatId, 'message': trimmedMessage}),
       );
       if (response.statusCode == 200) {
         return (success: true, quotaMessage: null);
@@ -82,5 +87,43 @@ class WhatsAppService {
     } catch (e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
+  }
+
+  /// اقتصاص الرسالة لتتلاءم مع الحد الأقصى
+  /// يحافظ على التذييل (فندق مارينا + رقم الهاتف) ويقتطع من المنتصف
+  String _trimMessage(String message) {
+    if (message.length <= maxMessageLength) return message;
+
+    debugPrint(
+      'WhatsApp message trimmed: ${message.length} → $maxMessageLength chars',
+    );
+
+    // نبحث عن التذييل (آخر 3 أسطر عادة: فندق مارينا + هاتف)
+    final lines = message.split('\n');
+    String footer = '';
+    final footerLines = <String>[];
+    for (int i = lines.length - 1; i >= 0; i--) {
+      final line = lines[i].trim();
+      if (line.contains('فندق مارينا') ||
+          line.contains('للاستفسار') ||
+          line.contains('green-api') ||
+          line.contains('967')) {
+        footerLines.insert(0, lines[i]);
+      } else if (footerLines.isNotEmpty) {
+        // وصلنا لنهاية التذييل
+        break;
+      }
+    }
+    if (footerLines.isNotEmpty) {
+      footer = '\n${footerLines.join('\n')}';
+    }
+
+    // المساحة المتاحة للمحتوى (مع مراعاة التذييل و ...)
+    final availableSpace = maxMessageLength - footer.length - 10; // 10 = '\n...' + buffer
+    if (availableSpace < 100) return message.substring(0, maxMessageLength - 3) + '...';
+
+    // اقتطاع المحتوى مع إضافة ... والتذييل
+    final truncated = message.substring(0, availableSpace);
+    return '$truncated...\n$footer';
   }
 }
