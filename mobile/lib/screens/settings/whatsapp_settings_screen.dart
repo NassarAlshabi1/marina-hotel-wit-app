@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
@@ -320,38 +321,71 @@ class _WhatsAppSettingsScreenState
       if (!mounted) return;
       setState(() => _isSyncing = false);
       if (result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.cloud_upload, color: Colors.white),
-                SizedBox(width: 8),
-                Text('تم رفع الإعدادات إلى السحابة بنجاح'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-          ),
+        _showSyncResult(
+          success: true,
+          title: 'تم رفع الإعدادات إلى السحابة بنجاح',
+          subtitle: 'يمكنك تنزيلها على أي جهاز آخر من هنا',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(result.error ?? 'فشل الرفع')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
+        _showSyncResult(
+          success: false,
+          title: 'فشل رفع الإعدادات',
+          subtitle: result.error ?? 'حدث خطأ غير معروف',
         );
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSyncing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+      _showSyncResult(
+        success: false,
+        title: 'خطأ غير متوقع',
+        subtitle: e.toString(),
       );
+    }
+  }
+
+  /// تأكيد تنزيل الإعدادات من السحابة
+  Future<void> _confirmDownloadFromCloud() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.cloud_download, color: Colors.indigo, size: 28),
+            SizedBox(width: 10),
+            Text('تنزيل الإعدادات من السحابة'),
+          ],
+        ),
+        content: const Text(
+          'سيتم استبدال إعدادات الواتساب الحالية على هذا الجهاز بالإعدادات المحفوظة في السحابة.
+
+هل تريد المتابعة؟',
+          textAlign: TextAlign.right,
+          style: TextStyle(height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text('تنزيل'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _downloadFromCloud();
     }
   }
 
@@ -368,37 +402,25 @@ class _WhatsAppSettingsScreenState
         // إعادة تحميل الإعدادات من SharedPreferences
         await _loadSettings();
         ref.invalidate(whatsappSettingsProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.cloud_download, color: Colors.white),
-                SizedBox(width: 8),
-                Text('تم تنزيل الإعدادات من السحابة بنجاح'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-          ),
+        _showSyncResult(
+          success: true,
+          title: 'تم تنزيل الإعدادات من السحابة بنجاح',
+          subtitle: 'تم تحديث الإعدادات المحلية',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(result.error ?? 'فشل التنزيل')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
+        _showSyncResult(
+          success: false,
+          title: 'فشل تنزيل الإعدادات',
+          subtitle: result.error ?? 'حدث خطأ غير معروف',
         );
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSyncing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+      _showSyncResult(
+        success: false,
+        title: 'خطأ غير متوقع',
+        subtitle: e.toString(),
       );
     }
   }
@@ -984,6 +1006,53 @@ class _WhatsAppSettingsScreenState
     );
   }
 
+  /// عرض نتيجة المزامنة
+  void _showSyncResult({
+    required bool success,
+    required String title,
+    required String subtitle,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle : Icons.error,
+              color: success ? Colors.green : Colors.red,
+              size: 28,
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.6,
+            color: Colors.grey.shade700,
+          ),
+          textAlign: TextAlign.right,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── قسم مزامنة السحابة ───
   Widget _buildCloudSyncSection() {
     return Card(
@@ -1015,6 +1084,19 @@ class _WhatsAppSettingsScreenState
             Text(
               'احفظ إعدادات الواتساب في السحابة واسترجعها على أي جهاز',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'يتم إنشاء المجموعة تلقائياً عند أول رفع',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Row(
@@ -1052,7 +1134,7 @@ class _WhatsAppSettingsScreenState
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _isSyncing ? null : _downloadFromCloud,
+                    onPressed: _isSyncing ? null : _confirmDownloadFromCloud,
                     icon: _isSyncing
                         ? const SizedBox(
                             width: 16,
@@ -1078,6 +1160,28 @@ class _WhatsAppSettingsScreenState
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => _openUrl(
+                'https://fra.cloud.appwrite.io/project/${AppwriteConfig.projectId}/database/${AppwriteConfig.databaseId}/collection/app_settings',
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.open_in_new, size: 14, color: Colors.blue.shade400),
+                  const SizedBox(width: 4),
+                  Text(
+                    'فتح في Appwrite Console',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.blue.shade400,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

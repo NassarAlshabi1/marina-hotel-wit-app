@@ -9,7 +9,7 @@
  * ❌ لا تقم بتشغيله إذا كانت الـ collections موجودة مسبقاً
  * ✅ استخدمه فقط لإنشاء قاعدة بيانات جديدة من الصفر
  *
- * المجموع: 19 collection + 2 system collections (devices, sync_logs)
+ * المجموع: 19 collection + 3 system collections (devices, sync_logs, app_settings)
  * ============================================================================
  *
  * أنواع Appwrite المدعومة:
@@ -744,6 +744,21 @@ const sync_logs = {
   indexes: [
     { key: 'idx_sync_device', type: 'key', attributes: ['deviceId'] },
     { key: 'idx_sync_time',   type: 'key', attributes: ['timestamp'] },
+  ],
+};
+
+
+// 22. APP_SETTINGS — إعدادات التطبيق (واتساب وغيرها — مزامنة بين الأجهزة)
+const app_settings = {
+  attributes: [
+    { key: 'wa_api_type',          type: 'string', required: false, size: 50,   default: 'greenapi' },
+    { key: 'wa_api_base_url',      type: 'string', required: false, size: 500,  default: '' },
+    { key: 'wa_api_instance_id',   type: 'string', required: false, size: 200,  default: '' },
+    { key: 'wa_api_token',         type: 'string', required: false, size: 500,  default: '' },
+    { key: 'wa_custom_url_template', type: 'string', required: false, size: 1000, default: '' },
+    { key: 'wa_sendzen_api_key',   type: 'string', required: false, size: 500,  default: '' },
+    { key: 'wa_sendzen_from_number', type: 'string', required: false, size: 30,  default: '' },
+    { key: 'wa_template',          type: 'string', required: false, size: 5000, default: '' },
   ],
 };
 
