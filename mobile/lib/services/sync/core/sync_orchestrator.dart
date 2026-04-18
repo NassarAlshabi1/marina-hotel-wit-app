@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/sync_state.dart';
 import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
-import 'sync_worker.dart';
+import '../models/sync_result.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {

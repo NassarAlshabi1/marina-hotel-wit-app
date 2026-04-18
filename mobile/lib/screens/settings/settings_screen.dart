@@ -314,7 +314,7 @@ class SettingsScreen extends ConsumerWidget {
                     'الحجوزات النشطة',
                     bookingsAsync.value
                             ?.where(
-                              (b) => StatusUtils.isActiveBooking(b.status),
+                              (b) => StatusUtils.isActiveBooking(b.status as String),
                             )
                             .length
                             .toString() ??

@@ -294,7 +294,7 @@ class AppwriteRealtimeService {
     try {
       final events = response.events;
 
-      if (events.isEmpty) {
+      if ((events as List).isEmpty) {
         _logger.debug(
           'Received Realtime message with no events',
           tag: 'REALTIME',
@@ -304,17 +304,17 @@ class AppwriteRealtimeService {
 
       // تحديد نوع الحدث
       RealtimeEventType eventType = RealtimeEventType.unknown;
-      if (events.any((e) => e.contains('create'))) {
+      if ((events as List).any((e) => (e as String).contains('create'))) {
         eventType = RealtimeEventType.create;
-      } else if (events.any((e) => e.contains('update'))) {
+      } else if ((events as List).any((e) => (e as String).contains('update'))) {
         eventType = RealtimeEventType.update;
-      } else if (events.any((e) => e.contains('delete'))) {
+      } else if ((events as List).any((e) => (e as String).contains('delete'))) {
         eventType = RealtimeEventType.delete;
       }
 
       // استخراج البيانات
-      final payload = response.payload;
-      final documentId = payload['\$id'] ?? '';
+      final payload = (response.payload as Map<String, dynamic>?) ?? {};
+      final documentId = (payload['\$id'] ?? '') as String;
 
       _logger.debug(
         'Realtime event: $eventType on $collectionId/$documentId',
@@ -326,7 +326,7 @@ class AppwriteRealtimeService {
         type: eventType,
         collection: collectionId,
         documentId: documentId,
-        data: payload,
+        data: payload as Map<String, dynamic>?,
       );
 
       // تحديث الذاكرة المؤقتة

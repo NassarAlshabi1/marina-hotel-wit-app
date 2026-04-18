@@ -191,13 +191,13 @@ class SafeDatabaseOperations {
                     setupStream();
                   } catch (e) {
                     if (!isClosed) {
-                      controller.addError(e, stackTrace);
+                      controller.addError(e as Object, stackTrace as StackTrace?);
                     }
                   }
                 });
               } else {
                 if (!isClosed) {
-                  controller.addError(error, stackTrace);
+                  controller.addError(error as Object, stackTrace as StackTrace?);
                 }
               }
             },

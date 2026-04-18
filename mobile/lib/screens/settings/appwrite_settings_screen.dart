@@ -450,7 +450,7 @@ class _AppwriteSettingsScreenState
         if (stats['lastSyncTime'] != null) ...[
           const SizedBox(height: 8),
           Text(
-            'آخر مزامنة: ${_formatDateTime(stats['lastSyncTime'])}',
+            'آخر مزامنة: ${_formatDateTime(stats['lastSyncTime'] as String?)}',
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
@@ -781,7 +781,8 @@ class _AppwriteSettingsScreenState
 
             devicesAsync.when(
               data: (devices) {
-                if (devices.isEmpty) {
+                final devicesList = devices as List;
+                if (devicesList.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(16),
@@ -790,12 +791,13 @@ class _AppwriteSettingsScreenState
                   );
                 }
                 return Column(
-                  children: devices.map<Widget>((device) {
+                  children: devicesList.map<Widget>((device) {
+                    final d = device as Map<String, dynamic>;
                     return ListTile(
                       leading: Icon(Icons.phone_android, color: Colors.teal),
-                      title: Text(device.deviceName),
+                      title: Text(d['deviceName'] as String? ?? ''),
                       subtitle: Text(
-                        '${device.deviceModel} - ${device.osVersion}',
+                        '${d['deviceModel'] ?? ''} - ${d['osVersion'] ?? ''}',
                       ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(
@@ -803,13 +805,13 @@ class _AppwriteSettingsScreenState
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: device.status == 'active'
+                          color: d['status'] == 'active'
                               ? Colors.green
                               : Colors.grey,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          device.status == 'active' ? 'نشط' : 'غير نشط',
+                          d['status'] == 'active' ? 'نشط' : 'غير نشط',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,

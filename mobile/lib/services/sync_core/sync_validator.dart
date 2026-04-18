@@ -36,7 +36,7 @@ class SyncValidator {
 
     if (data.containsKey('timestamp')) {
       try {
-        DateTime.parse(data['timestamp']);
+        DateTime.parse(data['timestamp'] as String);
       } catch (e) {
         return ValidationResult.invalid('timestamp غير صالح');
       }
@@ -89,8 +89,8 @@ class SyncValidator {
     }
 
     try {
-      final localTime = DateTime.parse(localData['timestamp']);
-      final remoteTime = DateTime.parse(remoteData['timestamp']);
+      final localTime = DateTime.parse(localData['timestamp'] as String);
+      final remoteTime = DateTime.parse(remoteData['timestamp'] as String);
 
       final difference = localTime.difference(remoteTime).abs();
       if (difference > const Duration(hours: 24)) {

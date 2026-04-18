@@ -175,7 +175,7 @@ class BackupOverviewTab extends ConsumerWidget {
           ),
         ),
         title: Text(
-          backup['name'],
+          backup['name'] as String,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
@@ -183,12 +183,12 @@ class BackupOverviewTab extends ConsumerWidget {
           children: [
             const SizedBox(height: 4),
             Text(
-              DateTimeFormatter.getRelativeTime(backup['date']),
+              DateTimeFormatter.getRelativeTime(backup['date'] as String?),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 2),
             Text(
-              FileSizeFormatter.formatBytes(backup['size']),
+              FileSizeFormatter.formatBytes(backup['size'] as int),
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
           ],

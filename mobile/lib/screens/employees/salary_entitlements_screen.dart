@@ -97,24 +97,24 @@ class _SalaryEntitlementsScreenState
             _row(
               'إجمالي الاستحقاقات',
               CurrencyFormatter.formatAmount(
-                _summary['totalEntitlements'] ?? 0,
+                (_summary['totalEntitlements'] as num?)?.toDouble() ?? 0.0,
               ),
               Colors.green,
             ),
             _row(
               'إجمالي السحبيات',
-              CurrencyFormatter.formatAmount(_summary['totalWithdrawals'] ?? 0),
+              CurrencyFormatter.formatAmount((_summary['totalWithdrawals'] as num?)?.toDouble() ?? 0.0),
               Colors.orange,
             ),
             _row(
               'إجمالي الخصومات',
-              CurrencyFormatter.formatAmount(_summary['totalDeductions'] ?? 0),
+              CurrencyFormatter.formatAmount((_summary['totalDeductions'] as num?)?.toDouble() ?? 0.0),
               Colors.red,
             ),
             const Divider(),
             _row(
               'صافي المستحقات',
-              CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0),
+              CurrencyFormatter.formatAmount((_summary['totalNet'] as num?)?.toDouble() ?? 0.0),
               Colors.blue.shade700,
               true,
             ),

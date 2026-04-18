@@ -277,7 +277,7 @@ class BookingsRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
+        List<Map<String, dynamic>>.from(data['data'] as List),
         clearExisting: false,
       );
     }

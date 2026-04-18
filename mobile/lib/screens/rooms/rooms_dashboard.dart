@@ -110,16 +110,60 @@ class RoomsDashboard extends ConsumerWidget {
   }
 
   void _handleRoomTap(BuildContext context, WidgetRef ref, Room room) {
+    final isAvailable = StatusUtils.isRoomAvailable(room.status);
+
     showDialog(
       context: context,
-      builder: (context) => RoomDetailsDialog(
-        room: room,
-        onBookRoom: StatusUtils.isRoomAvailable(room.status)
-            ? () => _navigateToBooking(context, room.roomNumber)
-            : null,
-        onViewBookings: !StatusUtils.isRoomAvailable(room.status)
-            ? () => _showRoomBookings(context, ref, room.roomNumber)
-            : null,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('غرفة ${room.roomNumber}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('الحالة', room.status),
+            if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
+            if (room.price > 0)
+              _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+          if (isAvailable)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _navigateToBooking(context, room.roomNumber);
+              },
+              child: const Text('حجز جديد'),
+            ),
+          if (!isAvailable)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showRoomBookings(context, ref, room.roomNumber);
+              },
+              child: const Text('عرض الحجز'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(value),
+        ],
       ),
     );
   }

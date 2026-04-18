@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 import 'hotel_time_engine.dart';
 import 'local_db.dart';
-import 'status_utils.dart';
+import '../utils/status_utils.dart';
 
 /// Reactive model combining raw booking data with computed financial values.
 ///
@@ -42,6 +42,21 @@ class BookingWithPayments {
     final plannedCheckout = _parseDate(booking.checkoutDate);
     if (plannedCheckout == null) return false;
     return now.isAfter(plannedCheckout);
+  }
+}
+
+/// Parses a nullable date string into a [DateTime].
+/// Handles both space- and T-separated ISO-like formats.
+DateTime? _parseDate(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  final v = value.trim();
+  final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
+  final withSeconds =
+      normalized.length == 16 ? '${normalized}:00' : normalized;
+  try {
+    return DateTime.parse(withSeconds);
+  } catch (_) {
+    return null;
   }
 }
 
@@ -215,18 +230,5 @@ class BookingComputedStreamService {
         .get();
 
     return payments.fold<int>(0, (sum, p) => sum + p.amount.round());
-  }
-
-  DateTime? _parseDate(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final v = value.trim();
-    final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
-    try {
-      return DateTime.parse(withSeconds);
-    } catch (_) {
-      return null;
-    }
   }
 }

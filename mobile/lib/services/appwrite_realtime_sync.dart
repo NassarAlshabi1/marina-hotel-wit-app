@@ -114,7 +114,7 @@ class AppwriteRealtimeSync {
     final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
     if (updatedAt != null) {
       try {
-        final serverTime = DateTime.parse(updatedAt);
+        final serverTime = DateTime.parse(updatedAt as String);
         if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }

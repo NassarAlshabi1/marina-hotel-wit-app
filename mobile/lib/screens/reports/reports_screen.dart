@@ -124,7 +124,7 @@ class ReportsScreen extends ConsumerWidget {
               ),
               SizedBox(
                 height: 150,
-                child: BarChart(BarChartData(barGroups: d['dailyOcc'])),
+                child: BarChart(BarChartData(barGroups: d['dailyOcc'] as List<BarChartGroupData>?)),
               ),
               const SizedBox(height: 10),
               const Padding(
@@ -136,7 +136,7 @@ class ReportsScreen extends ConsumerWidget {
               ),
               SizedBox(
                 height: 150,
-                child: BarChart(BarChartData(barGroups: d['revExp'])),
+                child: BarChart(BarChartData(barGroups: d['revExp'] as List<BarChartGroupData>?)),
               ),
               const SizedBox(height: 10),
               const Padding(
@@ -148,7 +148,7 @@ class ReportsScreen extends ConsumerWidget {
               ),
               SizedBox(
                 height: 150,
-                child: BarChart(BarChartData(barGroups: d['topRooms'])),
+                child: BarChart(BarChartData(barGroups: d['topRooms'] as List<BarChartGroupData>?)),
               ),
             ],
           );
@@ -164,25 +164,25 @@ class ReportsScreen extends ConsumerWidget {
     // dummy last 7 days occupancy by current status
     final daily = List.generate(7, (i) {
       final busy = rooms
-          .where((r) => StatusUtils.isRoomOccupied(r.status))
+          .where((r) => StatusUtils.isRoomOccupied(r.status as String))
           .length;
-      final occ = (busy * 100 / total).round();
+      final occ = ((busy as int) * 100 / (total as int)).round().toDouble();
       return BarChartGroupData(
         x: i,
-        barRods: [BarChartRodData(toY: occ.toDouble())],
+        barRods: [BarChartRodData(toY: occ)],
       );
     });
 
     // month revenue vs expense: placeholder from local
     final incomes = await db.select(db.cashTransactions).get();
     double income = 0;
-    for (final i in incomes) {
-      income += i.amount;
+    for (final i in incomes as List) {
+      income += (i.amount as num).toDouble();
     }
     final expenses = await db.select(db.expenses).get();
     double expense = 0;
-    for (final e in expenses) {
-      expense += e.amount;
+    for (final e in expenses as List) {
+      expense += (e.amount as num).toDouble();
     }
     final revExp = [
       BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: income)]),
@@ -192,9 +192,9 @@ class ReportsScreen extends ConsumerWidget {
     // top rooms by occupancy (approx by status)
     final topRooms = rooms.take(5).toList();
     final topBars = <BarChartGroupData>[];
-    for (var i = 0; i < topRooms.length; i++) {
+    for (var i = 0; i < (topRooms as List).length; i++) {
       final r = topRooms[i];
-      final v = StatusUtils.isRoomOccupied(r.status) ? 100.0 : 20.0;
+      final v = StatusUtils.isRoomOccupied(r.status as String) ? 100.0 : 20.0;
       topBars.add(
         BarChartGroupData(
           x: i,

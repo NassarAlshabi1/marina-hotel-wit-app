@@ -156,17 +156,17 @@ class LocalBackupsTab extends ConsumerWidget {
           ),
           child: const Icon(Icons.file_present, color: Colors.green),
         ),
-        title: Text(backup['name']),
+        title: Text(backup['name'] as String),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
             Text(
-              DateTimeFormatter.formatDateTime(backup['date']),
+              DateTimeFormatter.formatDateTime(backup['date'] as String?),
               style: const TextStyle(fontSize: 12),
             ),
             Text(
-              FileSizeFormatter.formatBytes(backup['size']),
+              FileSizeFormatter.formatBytes(backup['size'] as int),
               style: const TextStyle(fontSize: 11),
             ),
           ],

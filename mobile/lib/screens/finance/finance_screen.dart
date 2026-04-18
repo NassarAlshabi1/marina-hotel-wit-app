@@ -60,7 +60,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildBody(dynamic paymentsRepo, double income, double expenses, double balance) {
     return StreamBuilder<List<db.Payment>>(
-      stream: paymentsRepo.watchAll(),
+      stream: (paymentsRepo.watchAll() as Stream<List<db.Payment>>),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());

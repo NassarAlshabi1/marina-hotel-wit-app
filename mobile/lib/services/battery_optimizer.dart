@@ -95,17 +95,17 @@ class BatteryOptimizer extends ChangeNotifier {
 
   BatteryState _batteryState = BatteryState.unknown;
   int _batteryLevel = 100;
-  ConnectivityResult _connectionState = ConnectivityResult.none;
+  List<ConnectivityResult> _connectionState = [ConnectivityResult.none];
   BatteryOptimizationLevel _optimizationLevel = BatteryOptimizationLevel.light;
   bool _isMonitoring = false;
   bool _isCharging = false;
   StreamSubscription<BatteryState>? _batterySubscription;
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   // Getters
   BatteryState get batteryState => _batteryState;
   int get batteryLevel => _batteryLevel;
-  ConnectivityResult get connectionState => _connectionState;
+  List<ConnectivityResult> get connectionState => _connectionState;
   BatteryOptimizationLevel get optimizationLevel => _optimizationLevel;
   bool get isCharging => _isCharging;
   bool get shouldSync => _shouldSync();
@@ -230,7 +230,7 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     // التحقق من الاتصال
-    if (_connectionState == ConnectivityResult.none) {
+    if (_connectionState.contains(ConnectivityResult.none) && !_connectionState.any((r) => r != ConnectivityResult.none)) {
       return false;
     }
 
@@ -267,11 +267,11 @@ class BatteryOptimizer extends ChangeNotifier {
   IconData getBatteryIcon() {
     if (_isCharging) return Icons.battery_charging_full;
     if (_batteryLevel <= 10) return Icons.battery_alert;
-    if (_batteryLevel <= 20) return Icons.battery_20;
-    if (_batteryLevel <= 30) return Icons.battery_30;
-    if (_batteryLevel <= 50) return Icons.battery_50;
-    if (_batteryLevel <= 60) return Icons.battery_60;
-    if (_batteryLevel <= 80) return Icons.battery_80;
+    if (_batteryLevel <= 20) return Icons.battery_0_bar;
+    if (_batteryLevel <= 30) return Icons.battery_1_bar;
+    if (_batteryLevel <= 50) return Icons.battery_3_bar;
+    if (_batteryLevel <= 60) return Icons.battery_4_bar;
+    if (_batteryLevel <= 80) return Icons.battery_5_bar;
     return Icons.battery_full;
   }
 
@@ -301,7 +301,7 @@ class BatteryOptimizer extends ChangeNotifier {
       recommendations.add('⚡ وضع توفير البطارية مفعل تلقائياً');
     }
 
-    if (_connectionState == ConnectivityResult.mobile) {
+    if (_connectionState.contains(ConnectivityResult.mobile)) {
       recommendations.add('📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية');
     }
 

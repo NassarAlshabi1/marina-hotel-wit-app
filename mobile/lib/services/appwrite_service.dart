@@ -978,7 +978,7 @@ class AppwriteService {
   Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
     return await createDocument(
       collectionId: AppwriteConfig.syncLogsCollectionId,
-      documentId: data['localUuid'] ?? 'ID.unique()',
+      documentId: (data['localUuid'] ?? 'ID.unique()') as String,
       data: data,
     );
   }
@@ -999,7 +999,7 @@ class AppwriteService {
   Future<models.Document> createDevice(Map<String, dynamic> data) async {
     return await createDocument(
       collectionId: AppwriteConfig.devicesCollectionId,
-      documentId: data['localUuid'] ?? 'ID.unique()',
+      documentId: (data['localUuid'] ?? 'ID.unique()') as String,
       data: data,
     );
   }

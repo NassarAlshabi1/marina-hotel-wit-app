@@ -94,11 +94,11 @@ class BackupMetadata {
       orElse: () => BackupFormat.json,
     );
     return BackupMetadata(
-      appVersion: json['app_version'] ?? '',
-      databaseVersion: json['database_version'] ?? 1,
-      backupTimestamp: DateTime.parse(json['backup_timestamp']),
-      totalRecords: json['total_records'] ?? 0,
-      deviceInfo: json['device_info'] ?? '',
+      appVersion: (json['app_version'] as String?) ?? '',
+      databaseVersion: (json['database_version'] as num?)?.toInt() ?? 1,
+      backupTimestamp: DateTime.parse(json['backup_timestamp'] as String),
+      totalRecords: (json['total_records'] as num?)?.toInt() ?? 0,
+      deviceInfo: (json['device_info'] as String?) ?? '',
       format: format,
     );
   }
@@ -533,7 +533,7 @@ class GoogleDriveBackupService {
           uploadedFile.id!,
           jsonBytes.length,
         );
-        if (!verifyResult['is_complete']) {
+        if (!(verifyResult['is_complete'] as bool? ?? false)) {
           _log('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
           // حذف النسخة الناقصة
           await deleteBackupFile(uploadedFile.id!);

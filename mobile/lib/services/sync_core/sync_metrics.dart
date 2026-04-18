@@ -33,12 +33,12 @@ class SyncSession {
   };
 
   factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
-    startTime: DateTime.parse(json['startTime']),
-    endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
-    success: json['success'] ?? false,
-    error: json['error'],
-    recordsSynced: json['recordsSynced'] ?? 0,
-    conflictsResolved: json['conflictsResolved'] ?? 0,
+    startTime: DateTime.parse(json['startTime'] as String),
+    endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
+    success: json['success'] as bool? ?? false,
+    error: json['error'] as String?,
+    recordsSynced: (json['recordsSynced'] as num?)?.toInt() ?? 0,
+    conflictsResolved: (json['conflictsResolved'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -231,7 +231,7 @@ class SyncMetrics {
 
       _history.clear();
       for (final jsonStr in jsonList) {
-        final session = SyncSession.fromJson(jsonDecode(jsonStr));
+        final session = SyncSession.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
         _history.add(session);
       }
 

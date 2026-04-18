@@ -60,7 +60,7 @@ class ApiConfig {
       receiveTimeout: json['receiveTimeout'] as int? ?? 20,
       enableLogging: json['enableLogging'] as bool? ?? false,
       useSsl: json['useSsl'] as bool? ?? true,
-      customHeaders: Map<String, String>.from(json['customHeaders'] ?? {}),
+      customHeaders: Map<String, String>.from((json['customHeaders'] ?? {}) as Map),
     );
   }
 

@@ -176,7 +176,7 @@ class SyncPerformanceOptimizer {
     // التحقق من الحد الأدنى للفترة بين المزامنة
     if (_lastSyncTime != null) {
       final settings = getCurrentPerformanceSettings();
-      final minInterval = Duration(seconds: settings['syncInterval']);
+      final minInterval = Duration(seconds: settings['syncInterval'] as int);
       final timeSinceLastSync = DateTime.now().difference(_lastSyncTime!);
 
       if (timeSinceLastSync < minInterval) {
@@ -189,7 +189,7 @@ class SyncPerformanceOptimizer {
 
     // التحقق من عدد المحاولات الفاشلة
     final settings = getCurrentPerformanceSettings();
-    if (_syncAttempts >= settings['retryAttempts']) {
+    if (_syncAttempts >= (settings['retryAttempts'] as num)) {
       // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
       final cooldownMinutes = 30;
       if (_lastSyncTime != null &&

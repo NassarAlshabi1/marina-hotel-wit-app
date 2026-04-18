@@ -583,7 +583,7 @@ class LarkReportService {
             await _api.sendBotMessage(
               chatId: chatId,
               msgType: 'interactive',
-              content: card['card'] ?? {},
+              content: card['card'] as Map<String, dynamic>? ?? {},
             );
             debugPrint('✅ Lark Report: تم إرسال نسخة للمجموعة $chatId');
           } catch (e) {

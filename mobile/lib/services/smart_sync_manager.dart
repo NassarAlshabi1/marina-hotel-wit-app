@@ -373,13 +373,13 @@ class SmartSyncManager {
 
       for (final record in localRecords) {
         if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          localMap[record['local_uuid']] = record;
+          localMap[record['local_uuid'] as String] = record;
         }
       }
 
       for (final record in remoteRecords) {
         if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          remoteMap[record['local_uuid']] = record;
+          remoteMap[record['local_uuid'] as String] = record;
         }
       }
 
@@ -407,8 +407,8 @@ class SmartSyncManager {
                 DataConflict(
                   tableName: tableName,
                   recordId: uuid,
-                  localRecord: localRecord,
-                  remoteRecord: remoteRecord,
+                  localRecord: localRecord as Map<String, dynamic>,
+                  remoteRecord: remoteRecord as Map<String, dynamic>,
                   localTimestamp: localTime,
                   remoteTimestamp: remoteTime,
                 ),
@@ -470,7 +470,7 @@ class SmartSyncManager {
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
             // التحقق من تاريخ الملاحظة
-            final String? createdAtStr = noteData['created_at'];
+            final String? createdAtStr = noteData['created_at'] as String?;
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
               try {
@@ -480,8 +480,8 @@ class SmartSyncManager {
                 // لكن هنا سنعتمد على الوقت بشكل أساسي
                 if (createdAt.isAfter(lastSync)) {
                   newNotesCount++;
-                  lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
-                  noteCreator = noteData['created_by'] ?? 'مسؤول';
+                  lastNoteTitle = (noteData['title'] as String?) ?? 'بدون عنوان';
+                  noteCreator = (noteData['created_by'] as String?) ?? 'مسؤول';
                 }
               } catch (e) {
                 _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');

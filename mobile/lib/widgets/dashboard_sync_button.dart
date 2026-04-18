@@ -695,7 +695,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             if (winnerData != null) {
               await outboxDao.resolveConflict(
                 conflict.id,
-                winnerData,
+                winnerData as Map<String, dynamic>,
                 resolution: 'newer_wins',
               );
               resolvedCount++;

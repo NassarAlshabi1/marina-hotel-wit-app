@@ -323,9 +323,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   }
 
   Widget _buildDataTransferCard(Map<String, dynamic> stats) {
-    final recordsPushed = stats['totalRecordsPushed'] ?? 0;
-    final recordsPulled = stats['totalRecordsPulled'] ?? 0;
-    final conflicts = stats['totalConflicts'] ?? 0;
+    final recordsPushed = (stats['totalRecordsPushed'] as num?)?.toInt() ?? 0;
+    final recordsPulled = (stats['totalRecordsPulled'] as num?)?.toInt() ?? 0;
+    final conflicts = (stats['totalConflicts'] as num?)?.toInt() ?? 0;
 
     final maxValue = [
       recordsPushed,
@@ -464,17 +464,17 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 _buildDataItem(
                   'رفع',
-                  recordsPushed,
+                  recordsPushed as int,
                   Icons.upload,
                   Colors.orange,
                 ),
                 _buildDataItem(
                   'تحميل',
-                  recordsPulled,
+                  recordsPulled as int,
                   Icons.download,
                   Colors.purple,
                 ),
-                _buildDataItem('تضارب', conflicts, Icons.warning, Colors.amber),
+                _buildDataItem('تضارب', conflicts as int, Icons.warning, Colors.amber),
               ],
             ),
           ],
@@ -506,10 +506,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             if (lastSyncTime != null) ...[
               _buildInfoRow(
                 'الوقت',
-                _formatDateTime(lastSyncTime),
+                _formatDateTime(lastSyncTime as String?),
                 Icons.access_time,
               ),
-              _buildInfoRow('منذ', _timeAgo(lastSyncTime), Icons.schedule),
+              _buildInfoRow('منذ', _timeAgo(lastSyncTime as String?), Icons.schedule),
             ] else ...[
               const Center(
                 child: Padding(

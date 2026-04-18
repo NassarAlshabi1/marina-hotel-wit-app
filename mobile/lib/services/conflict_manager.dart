@@ -200,10 +200,10 @@ class ConflictManager {
         Map<String, dynamic>? resolutionData;
 
         try {
-          localData = jsonDecode(row.localPayload);
-          remoteData = jsonDecode(row.remotePayload);
+          localData = jsonDecode(row.localPayload) as Map<String, dynamic>;
+          remoteData = jsonDecode(row.remotePayload) as Map<String, dynamic>;
           if (row.resolution.isNotEmpty) {
-            resolutionData = jsonDecode(row.resolution);
+            resolutionData = jsonDecode(row.resolution) as Map<String, dynamic>?;
           }
         } catch (e) {
           debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');

@@ -1193,7 +1193,7 @@ class _IncomeExpenseReportScreenState
         });
       }
       allEntries.sort((a, b) =>
-          DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+          DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)));
 
       for (final entry in allEntries) {
         buffer.writeln(

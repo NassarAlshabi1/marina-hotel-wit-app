@@ -288,15 +288,15 @@ class RoomsGrid extends StatelessWidget {
       itemCount: rooms.length,
       itemBuilder: (context, index) {
         final roomData = rooms[index];
-        final Room room;
+        Room room;
         Color? customColor;
 
         // التحقق مما إذا كانت البيانات مدمجة مع حالة الدفع
         try {
           // محاولة التعامل معها كـ RoomWithPaymentStatus (التي سنعرفها لاحقاً أو نمررها)
           // بما أننا لا نستطيع استيراد البروفايدر هنا لتجنب التعارض الدائري، سنستخدم dynamic
-          room = roomData.room;
-          customColor = roomData.roomColor;
+          room = roomData.room as Room;
+          customColor = roomData.roomColor as Color?;
         } catch (_) {
           room = roomData as Room;
         }
@@ -382,9 +382,9 @@ class _FloorSectionState extends State<FloorSection>
     int available = 0;
 
     for (final roomData in widget.rooms) {
-      final Room room;
+      Room room;
       try {
-        room = roomData.room;
+        room = roomData.room as Room;
       } catch (_) {
         room = roomData as Room;
       }

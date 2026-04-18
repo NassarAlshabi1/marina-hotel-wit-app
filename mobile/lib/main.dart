@@ -49,6 +49,7 @@ import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_sync_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/fcm_service.dart';
 import 'services/sync_service.dart';
@@ -557,7 +558,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
-      syncManager: syncManager,
+      syncManager: syncManager as AppwriteSyncManager,
       realtimeSync: AppwriteRealtimeSync(),
     );
 
