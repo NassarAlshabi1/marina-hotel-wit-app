@@ -342,7 +342,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
   bool _initialLocalSyncDone = false;
-  DateTime? _lastAppwriteAutoPull;
   StreamSubscription? _localAutoSyncSub;
   Timer? _localAutoSyncDebounce;
   DateTime? _lastLocalAutoSync;
@@ -541,16 +540,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _autoPullLatestFromAppwrite() async {
-    try {
-      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await syncManager.initialize();
-      await syncManager.pullRemoteChanges();
-      _lastAppwriteAutoPull = DateTime.now();
-    } catch (e) {
-      debugPrint('❌ Appwrite auto-pull error: $e');
-    }
-  }
 
   /// تهيئة FCM للإشعارات بين الأجهزة
   Future<void> _initializeFcm(dynamic syncManager) async {
@@ -572,15 +561,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('✅ FCM ready — cross-device notifications enabled');
   }
 
-  Future<void> _autoPullAppwriteOnResume() async {
-    final last = _lastAppwriteAutoPull;
-    if (last != null &&
-        DateTime.now().difference(last) < const Duration(seconds: 30)) {
-      return;
-    }
-    await _autoPullLatestFromAppwrite();
-  }
-
   /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
   Future<void> _syncOnResume() async {
     try {
@@ -588,7 +568,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // push: رفع أي تغييرات معلقة في الـ outbox
       // pull: سحب أي تغييرات جديدة من السيرفر
       await syncManager.sync(push: true, pull: true);
-      _lastAppwriteAutoPull = DateTime.now();
       debugPrint('✅ Sync on resume completed (push + pull)');
     } catch (e) {
       debugPrint('⚠️ Sync on resume error: $e');

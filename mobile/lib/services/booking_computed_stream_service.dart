@@ -111,7 +111,7 @@ class BookingComputedStreamService {
       final results = <BookingWithPayments>[];
       for (final booking in bookings) {
         final computed = await _buildBookingWithPayments(booking);
-        if (computed != null) results.add(computed);
+        results.add(computed);
       }
       return results;
     });
@@ -129,7 +129,7 @@ class BookingComputedStreamService {
       final results = <BookingWithPayments>[];
       for (final booking in bookings) {
         final computed = await _buildBookingWithPayments(booking);
-        if (computed != null) results.add(computed);
+        results.add(computed);
       }
       return results;
     });
@@ -188,7 +188,7 @@ class BookingComputedStreamService {
 
     // Calculate total due (days * price, minus total-type discount)
     int totalDue = days * pricePerNight;
-    final discount = (booking.discount ?? 0).round();
+    final discount = booking.discount.round();
     if (booking.discountType == 'total' && discount > 0) {
       totalDue = (totalDue - discount).clamp(0, totalDue);
     }

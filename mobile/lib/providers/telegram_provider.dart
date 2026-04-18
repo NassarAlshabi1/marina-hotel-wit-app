@@ -76,7 +76,6 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   }
 
   final TelegramApiClient _api = TelegramApiClient.instance;
-  final TelegramNotificationService _notifications = TelegramNotificationService.instance;
   final TelegramReportService _reports = TelegramReportService.instance;
 
   /// تهيئة الحالة من SharedPreferences

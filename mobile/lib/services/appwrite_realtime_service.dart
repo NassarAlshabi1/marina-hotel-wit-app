@@ -292,9 +292,9 @@ class AppwriteRealtimeService {
     RealtimeEventHandler handler,
   ) {
     try {
-      final events = response.events;
+      final events = response.events as List;
 
-      if ((events as List).isEmpty) {
+      if (events.isEmpty) {
         _logger.debug(
           'Received Realtime message with no events',
           tag: 'REALTIME',
@@ -304,11 +304,11 @@ class AppwriteRealtimeService {
 
       // تحديد نوع الحدث
       RealtimeEventType eventType = RealtimeEventType.unknown;
-      if ((events as List).any((e) => (e as String).contains('create'))) {
+      if (events.any((e) => (e as String).contains('create'))) {
         eventType = RealtimeEventType.create;
-      } else if ((events as List).any((e) => (e as String).contains('update'))) {
+      } else if (events.any((e) => (e as String).contains('update'))) {
         eventType = RealtimeEventType.update;
-      } else if ((events as List).any((e) => (e as String).contains('delete'))) {
+      } else if (events.any((e) => (e as String).contains('delete'))) {
         eventType = RealtimeEventType.delete;
       }
 

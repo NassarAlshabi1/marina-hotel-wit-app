@@ -464,17 +464,17 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 _buildDataItem(
                   'رفع',
-                  recordsPushed as int,
+                  recordsPushed,
                   Icons.upload,
                   Colors.orange,
                 ),
                 _buildDataItem(
                   'تحميل',
-                  recordsPulled as int,
+                  recordsPulled,
                   Icons.download,
                   Colors.purple,
                 ),
-                _buildDataItem('تضارب', conflicts as int, Icons.warning, Colors.amber),
+                _buildDataItem('تضارب', conflicts, Icons.warning, Colors.amber),
               ],
             ),
           ],
@@ -484,7 +484,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   }
 
   Widget _buildLastSyncCard(Map<String, dynamic> stats) {
-    final lastSyncTime = stats['lastSyncTime'];
+    final lastSyncTime = stats['lastSyncTime'] as String?;
 
     return Card(
       child: Padding(
@@ -506,10 +506,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             if (lastSyncTime != null) ...[
               _buildInfoRow(
                 'الوقت',
-                _formatDateTime(lastSyncTime as String?),
+                _formatDateTime(lastSyncTime),
                 Icons.access_time,
               ),
-              _buildInfoRow('منذ', _timeAgo(lastSyncTime as String?), Icons.schedule),
+              _buildInfoRow('منذ', _timeAgo(lastSyncTime), Icons.schedule),
             ] else ...[
               const Center(
                 child: Padding(

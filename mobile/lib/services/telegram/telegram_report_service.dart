@@ -114,7 +114,6 @@ class TelegramReportService {
     try {
       final db = DatabaseManager.instance;
       final hotelDayKey = Time.hotelDayKey();
-      final now = DateTime.now();
 
       // ── حالة الغرف ──
       final roomsQuery = await db.select(db.rooms).get();
@@ -125,7 +124,7 @@ class TelegramReportService {
       int maintenanceRooms = 0;
 
       for (final room in roomsQuery) {
-        final status = room.status?.toLowerCase() ?? '';
+        final status = room.status.toLowerCase();
         if (status == 'محجوزة' || status == 'مشغولة') {
           occupiedRooms++;
         } else if (status == 'شاغرة' || status == 'متاحة') {
@@ -151,7 +150,7 @@ class TelegramReportService {
       for (final booking in bookingsQuery) {
         if (booking.deletedAt != null) continue;
 
-        final status = booking.status?.toLowerCase() ?? '';
+        final status = booking.status.toLowerCase();
 
         // حجوزات نشطة
         if (status == 'نشط' || status == 'محجوزة') {
@@ -210,7 +209,7 @@ class TelegramReportService {
       // تأخير مغادرة
       for (final booking in bookingsQuery) {
         if (booking.deletedAt != null) continue;
-        final status = booking.status?.toLowerCase() ?? '';
+        final status = booking.status.toLowerCase();
         if (status == 'نشط' || status == 'محجوزة') {
           if (booking.checkoutDate != null &&
               booking.actualCheckout == null &&
@@ -219,7 +218,7 @@ class TelegramReportService {
                 .where((r) => r.roomNumber == booking.roomNumber)
                 .firstOrNull;
             alerts.add(
-                '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName ?? 'غير معروف'})');
+                '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName})');
           }
         }
       }

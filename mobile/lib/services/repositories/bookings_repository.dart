@@ -6,7 +6,6 @@ import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
 import '../telegram/telegram_notification_service.dart';
-import '../../utils/id.dart';
 import '../../utils/time.dart';
 
 class BookingsRepository {

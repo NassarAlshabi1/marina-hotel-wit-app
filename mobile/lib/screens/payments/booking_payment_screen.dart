@@ -11,8 +11,6 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart' as db;
 import '../../models/payment_models.dart';
-import '../../models/enhanced_payment_models.dart';
-import '../../utils/enhanced_pdf_utils.dart';
 import '../../services/providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 
@@ -2400,8 +2398,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final roomsRepo = ref.read(roomsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final nowIso = Time.nowIso();
-    final checkin =
-        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
 
     // 1. تسجيل المغادرة
     await bookingsRepo.update(

@@ -342,7 +342,6 @@ class EnhancedBookingCalculationService {
     // ─── حماية متعددة الطبقات ضد التعديلات الوهمية ───
 
     final bookingDiscount = _asInt(booking.discount);
-    final isDiscountTotal = booking.discountType == 'total';
 
     return raw.where((adj) {
       // ① استبعاد سجلات legacy_discount دائماً

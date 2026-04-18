@@ -926,7 +926,7 @@ class AppwriteDeltaSync {
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
       employeeId: d.Value(employeeId),
-      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount'])),
       withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
       reason: _nullableValue<String>(_asString(data['reason'])),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),

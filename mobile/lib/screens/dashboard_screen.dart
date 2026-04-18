@@ -5,9 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
-import '../providers/core_providers.dart';
 import '../utils/status_utils.dart';
-import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
 import '../services/appwrite_delta_sync.dart';

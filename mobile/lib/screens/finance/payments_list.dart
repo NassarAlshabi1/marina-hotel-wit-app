@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
-import '../../models/payment_models.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
 class PaymentsListScreen extends ConsumerStatefulWidget {
@@ -23,7 +22,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   String? _filterMethod;
   String? _filterType;
   String _sortOrder = 'desc';
-  bool _isLoading = false;
 
   final List<String> _methods = ['نقدي', 'تحويل', 'بطاقة', 'شيك', 'تقسيط'];
   final List<MapEntry<String, String>> _types = const [
@@ -220,8 +218,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   Widget _buildFilterChips() {
-    final hasFilters = _filterMethod != null || _filterType != null;
-
     return Container(
       height: 44,
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),

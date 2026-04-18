@@ -1,14 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 
 import 'lark_api_client.dart';
 import 'lark_config.dart';
 import '../local_db.dart';
-import '../daos/bookings_dao.dart';
-import '../daos/rooms_dao.dart';
-import '../daos/payments_dao.dart';
-import '../daos/expenses_dao.dart';
 import '../../utils/time.dart';
 
 /// نموذج بيانات التقرير اليومي
@@ -110,7 +104,7 @@ class LarkReportService {
       int maintenanceRooms = 0;
 
       for (final room in allRooms) {
-        final status = room.status?.toLowerCase() ?? '';
+        final status = room.status.toLowerCase();
         if (status == 'محجوزة' || status == 'مشغولة') {
           occupiedRooms++;
         } else if (status == 'شاغرة' || status == 'متاحة') {
@@ -127,10 +121,6 @@ class LarkReportService {
           : 0.0;
 
       // ─────────────────────────────────
-      // بيانات الحجوزات
-      // ─────────────────────────────────
-      final hotelDayStart = Time.hotelDayStartIso(hotelDayKey);
-      final hotelDayEnd = Time.hotelDayEndIso(hotelDayKey);
 
       final allBookings = await db.select(db.bookings).get()
         ..where((b) => b.deletedAt == null);
@@ -144,7 +134,7 @@ class LarkReportService {
       for (final booking in allBookings) {
         if (booking.deletedAt != null) continue;
 
-        final status = booking.status?.toLowerCase() ?? '';
+        final status = booking.status.toLowerCase();
 
         // حجوزات نشطة
         if (status == 'نشط' || status == 'محجوزة') {
@@ -185,7 +175,7 @@ class LarkReportService {
 
       for (final payment in paymentsQuery) {
         if (payment.hotelDayKey == hotelDayKey && !payment.isVoided) {
-          totalIncome += payment.amount ?? 0;
+          totalIncome += payment.amount;
           totalPayments++;
         }
       }
@@ -199,7 +189,7 @@ class LarkReportService {
 
       for (final expense in expensesQuery) {
         if (expense.hotelDayKey == hotelDayKey) {
-          totalExpenses += expense.amount ?? 0;
+          totalExpenses += expense.amount;
           totalExpensesCount++;
         }
       }

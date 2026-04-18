@@ -14,7 +14,6 @@ import 'local_db.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
 import 'sync_locks.dart';
-import 'sync_config.dart';
 import 'sync_constants.dart';
 
 /// استراتيجيات حل التضارب
@@ -38,7 +37,6 @@ class SmartSyncManager {
   bool _isEnabled = false;
   bool _isLoggedIn = false;
   String? _deviceId;
-  int _silentSignInRetryCount = 0;
 
   String? get deviceId => _deviceId;
   bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
@@ -669,43 +667,6 @@ class SmartSyncManager {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getString(_prefsLastSyncKey);
     return timestamp != null ? DateTime.parse(timestamp) : null;
-  }
-
-  /// محاولة تسجيل دخول صامت مع إعادة محاولة العملية
-  Future<T?> _attemptSilentSignInAndRetry<T>(
-    String operationName,
-    Future<T> Function() operation,
-  ) async {
-    if (_backupService == null || !_backupService!.isSignedIn) {
-      _log('⚠️ لا يمكن $operationName: غير مسجل الدخول');
-
-      if (_backupService != null &&
-          _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
-        _silentSignInRetryCount++;
-        _log(
-          '🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...',
-        );
-        try {
-          final account = await _backupService!.attemptSilentSignIn();
-          if (account != null) {
-            _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة $operationName...');
-            _isLoggedIn = true;
-            _silentSignInRetryCount = 0;
-            return await operation();
-          } else {
-            _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
-          }
-        } catch (e) {
-          _log('❌ خطأ في تسجيل الدخول الصامت: $e');
-        } finally {
-          if (_silentSignInRetryCount >= SyncConfig.maxSilentSignInRetries) {
-            _log('⚠️ تم الوصول للحد الأقصى من محاولات تسجيل الدخول الصامت');
-            _silentSignInRetryCount = 0;
-          }
-        }
-      }
-    }
-    return null;
   }
 
   /// معلومات الحالة

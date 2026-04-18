@@ -4,12 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
-import '../../services/whatsapp_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../../models/payment_models.dart';
-import '../payments/payment_history_screen.dart';
 import '../payments/booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
@@ -112,8 +110,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final now = DateTime.now();
     final hotelDay = Time.hotelDayKey();
     final cutoff = now.hour >= 14;
-    final dateFmt = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -582,7 +578,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildBookingTile(db.Booking booking) {
     final isPaid = booking.isFullyPaid;
-    final hasBalance = (booking.remainingBalanceCached ?? 0) > 0;
+    final hasBalance = booking.remainingBalanceCached > 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -642,7 +638,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 ),
                 if (hasBalance)
                   Text(
-                    'متبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached ?? 0)}',
+                    'متبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)}',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -675,46 +671,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ],
       ),
     );
-  }
-
-  // ─── أدوات مساعدة ───
-
-  Color _getMethodColor(String method) {
-    switch (method) {
-      case 'نقدي':
-        return Colors.green;
-      case 'بطاقة':
-      case 'بطاقة ائتمان':
-        return Colors.blue;
-      case 'تحويل':
-      case 'تحويل بنكي':
-        return Colors.orange;
-      case 'شيك':
-        return Colors.purple;
-      case 'تقسيط':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getMethodIcon(String method) {
-    switch (method) {
-      case 'نقدي':
-        return Icons.money;
-      case 'بطاقة':
-      case 'بطاقة ائتمان':
-        return Icons.credit_card;
-      case 'تحويل':
-      case 'تحويل بنكي':
-        return Icons.account_balance;
-      case 'شيك':
-        return Icons.receipt_long;
-      case 'تقسيط':
-        return Icons.calendar_view_month;
-      default:
-        return Icons.payment;
-    }
   }
 
   // ─── إضافة دفعة جديدة تراكمية ───

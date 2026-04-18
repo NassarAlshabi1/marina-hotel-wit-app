@@ -496,7 +496,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           info.issuePlace ?? '-',
           info.issueDate ?? '-',
           info.idNumber,
-          info.idType ?? '-',
+          info.idType,
           info.nationality,
           info.guestName,
           info.roomNumber,

@@ -11,7 +11,6 @@ import '../../utils/status_utils.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../providers/core_providers.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});

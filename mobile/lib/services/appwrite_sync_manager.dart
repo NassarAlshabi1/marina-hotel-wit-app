@@ -1219,7 +1219,7 @@ class AppwriteSyncManager {
 
         // Financial immutability: if local payment exists and is newer, keep local
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        final incomingLastModified = _asInt(data['lastModified']);
         final existingPayment = await _getPaymentByLocalUuid(localUuid);
         if (existingPayment != null && existingPayment.lastModified > incomingLastModified) {
           _logger.debug(
@@ -1291,7 +1291,7 @@ class AppwriteSyncManager {
 
         // Financial immutability: if local debt exists and is newer, keep local
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        final incomingLastModified = _asInt(data['lastModified']);
         final existingDebt = await _getDebtByLocalUuid(localUuid);
         if (existingDebt != null && existingDebt.lastModified > incomingLastModified) {
           _logger.debug(
@@ -1900,16 +1900,6 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
     return data;
-  }
-
-  String _resolveDebtDueDate(Debt debt) {
-    final candidates = [debt.checkoutDate, debt.paymentDate, debt.dateRecorded];
-    for (final value in candidates) {
-      if (value.isNotEmpty) {
-        return value;
-      }
-    }
-    return '1970-01-01';
   }
 
   void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
@@ -2969,7 +2959,7 @@ class AppwriteSyncManager {
           updatedAtEpoch = Time.nowEpoch();
         }
 
-        final lastModified = _asInt(data['lastModified']) ?? updatedAtEpoch;
+        final lastModified = _asInt(data['lastModified']);
         final serverId = _asIntNullable(data['serverId']);
 
         // معالجة الحذف الناعم
@@ -3477,21 +3467,6 @@ class AppwriteSyncManager {
     }
     return processed;
   }
-
-  String _asString(dynamic value) {
-    if (value is String) return value;
-    if (value != null) return value.toString();
-    return '';
-  }
-
-  double? _asDouble(dynamic value) {
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value);
-    return null;
-  }
-
-  T? _nullableValue<T>(T? value) => value;
 
   String _resolveDeviceType() {
     if (kIsWeb) {

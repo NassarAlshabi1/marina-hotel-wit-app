@@ -4,7 +4,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/time.dart';
 
 /// شاشة إرسال تنبيه واتساب للمبالغ المتأخرة
 /// تعرض جميع الديون المعلقة والمتأخرة مع إمكانية إرسال رسالة تذكير
@@ -589,7 +588,7 @@ class _LatePaymentWhatsAppScreenState
                   Expanded(
                     child: _buildInfoChip(
                       Icons.phone,
-                      hasPhone ? booking!.guestPhone : 'بدون رقم',
+                      hasPhone ? booking.guestPhone : 'بدون رقم',
                       isValid: hasPhone,
                     ),
                   ),

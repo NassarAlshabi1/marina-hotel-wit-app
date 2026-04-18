@@ -156,7 +156,7 @@ class SafeDatabaseOperations {
                 controller.add(data);
               }
             },
-            onError: (error, stackTrace) {
+            onError: (Object error, StackTrace stackTrace) {
               final errorStr = error.toString();
               if (errorStr.contains('connection was closed') ||
                   errorStr.contains('isolate channel') ||
@@ -191,13 +191,13 @@ class SafeDatabaseOperations {
                     setupStream();
                   } catch (e) {
                     if (!isClosed) {
-                      controller.addError(e as Object, stackTrace as StackTrace?);
+                      controller.addError(e, stackTrace);
                     }
                   }
                 });
               } else {
                 if (!isClosed) {
-                  controller.addError(error as Object, stackTrace as StackTrace?);
+                  controller.addError(error, stackTrace);
                 }
               }
             },
