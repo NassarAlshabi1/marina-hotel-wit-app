@@ -1545,52 +1545,95 @@ class AppDatabase extends _$AppDatabase {
       }
 
       // === Migration 33: إصلاح مصروفات الرواتب المفقودة من salary_withdrawals ===
+      // نستخدم SQL مباشرة لأن m.database لا يدعم typed accessors داخل المايكريشن
       if (from < 33) {
         try {
-          // أنواع المصروفات التي يجب أن تكون في salary_withdrawals
-          const salaryTypes = ['سحب راتب', 'خصم راتب', 'سحب من الراتب', 'خصم من الراتب'];
+          final now = DateTime.now().millisecondsSinceEpoch;
 
-          // جلب كل مصروفات الرواتب التي لها موظف مرتبط
-          final allExpenses = await m.database.select(m.database.expenses).get();
-          final salaryExpenses = allExpenses.where((e) =>
-              e.deletedAt == null &&
-              e.relatedId != null &&
-              salaryTypes.contains(e.expenseType.trim()));
+          // جلب مصروفات الرواتب التي لها موظف مرتبط ولم تُحذف
+          // وأنواعها من: سحب راتب، خصم راتب، سحب من الراتب، خصم من الراتب
+          const salaryTypes = "'سحب راتب','خصم راتب','سحب من الراتب','خصم من الراتب'";
+
+          final missingExpenses = await m.database.customSelect(
+            '''
+            SELECT e.id, e.related_id, e.amount, e.date, e.hotel_day_key,
+                   e.expense_type, e.description
+            FROM expenses e
+            WHERE e.deleted_at IS NULL
+              AND e.related_id IS NOT NULL
+              AND TRIM(e.expense_type) IN ($salaryTypes)
+              AND NOT EXISTS (
+                SELECT 1 FROM salary_withdrawals sw
+                WHERE sw.reason LIKE '%' || 'exp_' || e.id || '%'
+              )
+            ''',
+          ).get();
 
           int created = 0;
-          for (final exp in salaryExpenses) {
-            // التحقق من عدم وجود سجل مسبق في salary_withdrawals
-            final existing = await (m.database.select(m.database.salaryWithdrawals)
-                  ..where((t) => t.reason.like('%exp_${exp.id}%')))
-                .get();
+          for (final row in missingExpenses) {
+            final expId = row.read<int>('id');
+            final relatedId = row.read<int>('related_id');
+            final amount = row.read<double>('amount');
+            final date = row.read<String>('date');
+            final hotelDayKey = row.read<String?>(('hotel_day_key'));
+            final expenseType = row.read<String>('expense_type');
+            final description = row.read<String?>(('description'));
 
-            if (existing.isEmpty) {
-              final now = DateTime.now().millisecondsSinceEpoch;
-              final uuid = 'mig33_${const Uuid().v4()}';
-              await m.database.into(m.database.salaryWithdrawals).insert(
-                SalaryWithdrawalsCompanion(
-                  localUuid: Value(uuid),
-                  serverId: const Value(null),
-                  employeeId: Value(exp.relatedId!),
-                  amount: Value(exp.amount),
-                  withdrawDate: Value(exp.date),
-                  reason: Value('exp_${exp.id}'),
-                  hotelDayKey: Value(exp.hotelDayKey ?? exp.date),
-                  withdrawalType: Value(exp.expenseType),
-                  description: Value(exp.description),
-                  createdAt: Value(now),
-                  updatedAt: Value(now),
-                  deletedAt: const Value(null),
-                  lastModified: Value(now),
-                  createdAtEpoch: Value(now),
-                  lastModifiedEpoch: Value(now),
-                  version: const Value(1),
-                  origin: const Value('local'),
-                  vectorClock: const Value('{}'),
-                ),
-              );
-              created++;
-            }
+            // توليد UUID فريد
+            final uuid = 'mig33_${expId}_${now}';
+
+            await m.database.customInsert(
+              '''
+              INSERT INTO salary_withdrawals (
+                local_uuid, server_id, employee_id, amount, withdraw_date,
+                reason, hotel_day_key, withdrawal_type, description,
+                created_at, updated_at, deleted_at, last_modified,
+                created_at_epoch, last_modified_epoch, version, origin, vector_clock
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ''',
+              variables: [
+                Variable<String>(uuid),
+                const Variable<int?>(null),
+                Variable<int>(relatedId),
+                Variable<double>(amount),
+                Variable<String>(date),
+                Variable<String>('exp_$expId'),
+                Variable<String>(hotelDayKey ?? date),
+                Variable<String>(expenseType),
+                Variable<String>(description ?? ''),
+                Variable<int>(now),
+                Variable<int>(now),
+                const Variable<int?>(null),
+                Variable<int>(now),
+                Variable<int>(now),
+                Variable<int>(now),
+                const Variable<int>(1),
+                const Variable<String>('local'),
+                const Variable<String>('{}'),
+              ],
+            );
+
+            // إضافة سجل Outbox للمزامنة
+            await m.database.customInsert(
+              '''
+              INSERT INTO outbox (
+                entity, op, local_uuid, server_id, payload,
+                client_ts, idempotency_key, processing_status
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              ''',
+              variables: [
+                const Variable<String>('salary_withdrawals'),
+                const Variable<String>('create'),
+                Variable<String>(uuid),
+                const Variable<int?>(null),
+                const Variable<String>('{}'),
+                Variable<int>(now),
+                Variable<String>('mig33_${expId}'),
+                const Variable<String>('pending'),
+              ],
+            );
+
+            created++;
           }
           developer.log(
             'Migration 33: created $created missing salary_withdrawals records',
