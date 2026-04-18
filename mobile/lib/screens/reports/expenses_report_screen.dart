@@ -9,11 +9,13 @@ import 'package:printing/printing.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../components/widgets/neu_card.dart';
 import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
   const ExpensesReportScreen({
@@ -71,13 +73,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _initializeDefaults() async {
-    final now = DateTime.now();
-    _fromDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(const Duration(days: 30));
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
+    _fromDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
+    _toDate = _fromDate!.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
       setState(() {
@@ -121,12 +120,88 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     if (picked != null) {
       setState(() {
         if (isFrom) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+          _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
+          if (_fromDate!.isAfter(_toDate!)) {
+            _toDate = _fromDate!.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          }
         } else {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+          _toDate = DateTime(picked.year, picked.month, picked.day, 13, 59, 59);
+          if (_toDate!.isBefore(_fromDate!)) {
+            _fromDate = _toDate!.subtract(const Duration(days: 1));
+            _fromDate = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
+          }
         }
       });
+      _fetchReport();
     }
+  }
+
+  // ===== فلتر سريع حسب اليوم الفندقي =====
+  bool _isHotelDay() {
+    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
+    final expectedFrom = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
+    return _fromDate?.year == expectedFrom.year &&
+        _fromDate?.month == expectedFrom.month &&
+        _fromDate?.day == expectedFrom.day;
+  }
+
+  bool _isThisWeek() {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
+    return _fromDate?.year == hotelWeekStart.year &&
+        _fromDate?.month == hotelWeekStart.month &&
+        _fromDate?.day == hotelWeekStart.day;
+  }
+
+  bool _isThisMonth() {
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
+    return _fromDate?.year == hotelMonthStart.year &&
+        _fromDate?.month == hotelMonthStart.month &&
+        _fromDate?.day == hotelMonthStart.day;
+  }
+
+  bool _isThisYear() {
+    final now = DateTime.now();
+    final yearStart = DateTime(now.year, 1, 1);
+    final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
+    return _fromDate?.year == hotelYearStart.year &&
+        _fromDate?.month == hotelYearStart.month &&
+        _fromDate?.day == hotelYearStart.day;
+  }
+
+  void _setQuickFilter(String type) {
+    final now = DateTime.now();
+    setState(() {
+      switch (type) {
+        case 'hotelDay':
+          final hotelDay = HotelTimeEngine.getHotelDay(now);
+          _fromDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
+          _toDate = _fromDate!.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+          break;
+        case 'week':
+          final weekStart = now.subtract(Duration(days: now.weekday - 1));
+          final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
+          _fromDate = DateTime(hotelWeekStart.year, hotelWeekStart.month, hotelWeekStart.day, 14);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'month':
+          final monthStart = DateTime(now.year, now.month, 1);
+          final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
+          _fromDate = DateTime(hotelMonthStart.year, hotelMonthStart.month, hotelMonthStart.day, 14);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'year':
+          final yearStart = DateTime(now.year, 1, 1);
+          final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
+          _fromDate = DateTime(hotelYearStart.year, hotelYearStart.month, hotelYearStart.day, 14);
+          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+      }
+    });
+    _fetchReport();
   }
 
   Future<void> _fetchReport() async {
@@ -156,10 +231,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
     final fromStr = _fromDate != null
-        ? '${DateFormat('yyyy-MM-dd').format(_fromDate!)} 00:00:00'
+        ? '${DateFormat('yyyy-MM-dd HH:mm:ss').format(_fromDate!)}'
         : null;
     final toStr = _toDate != null
-        ? '${DateFormat('yyyy-MM-dd').format(_toDate!)} 23:59:59'
+        ? '${DateFormat('yyyy-MM-dd HH:mm:ss').format(_toDate!)}'
         : null;
     final selectedType =
         widget.showTypeFilter &&
@@ -452,6 +527,38 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // أزرار فلترة سريعة
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  NeuQuickFilterChip(
+                    label: 'اليوم الفندقي',
+                    selected: _isHotelDay(),
+                    onTap: () => _setQuickFilter('hotelDay'),
+                  ),
+                  const SizedBox(width: 6),
+                  NeuQuickFilterChip(
+                    label: 'الأسبوع',
+                    selected: _isThisWeek(),
+                    onTap: () => _setQuickFilter('week'),
+                  ),
+                  const SizedBox(width: 6),
+                  NeuQuickFilterChip(
+                    label: 'الشهر',
+                    selected: _isThisMonth(),
+                    onTap: () => _setQuickFilter('month'),
+                  ),
+                  const SizedBox(width: 6),
+                  NeuQuickFilterChip(
+                    label: 'السنة',
+                    selected: _isThisYear(),
+                    onTap: () => _setQuickFilter('year'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,

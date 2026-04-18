@@ -19,6 +19,7 @@ import '../../services/daos/payments_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
@@ -50,8 +51,10 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    _fromDate = DateTime(_toDate.year, _toDate.month, 1);
-    _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
+    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
+    _fromDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
+    _toDate = _fromDate.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
     _fetchReport();
   }
 
@@ -63,8 +66,8 @@ class _IncomeExpenseReportScreenState
       final paymentsDao = PaymentsDao(db, outboxDao);
       final expensesDao = ExpensesDao(db, outboxDao);
 
-      final fromStr = '${_dateFormat.format(_fromDate)} 00:00:00';
-      final toStr = '${_dateFormat.format(_toDate)} 23:59:59';
+      final fromStr = '${_dateFormat.format(_fromDate)} 14:00:00';
+      final toStr = '${_dateFormat.format(_toDate)} 13:59:59';
 
       final payments = await paymentsDao.list(from: fromStr, to: toStr);
       final expenses = await expensesDao.list(from: fromStr, to: toStr);
@@ -124,28 +127,15 @@ class _IncomeExpenseReportScreenState
     if (picked != null) {
       setState(() {
         if (isFrom) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+          _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
           if (_fromDate.isAfter(_toDate)) {
-            _toDate = DateTime(
-              picked.year,
-              picked.month,
-              picked.day,
-              23,
-              59,
-              59,
-            );
+            _toDate = _fromDate.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
           }
         } else {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+          _toDate = DateTime(picked.year, picked.month, picked.day, 13, 59, 59);
           if (_toDate.isBefore(_fromDate)) {
-            _fromDate = DateTime(
-              picked.year,
-              picked.month,
-              picked.day,
-              0,
-              0,
-              0,
-            );
+            _fromDate = _toDate.subtract(const Duration(days: 1));
+            _fromDate = DateTime(_fromDate.year, _fromDate.month, _fromDate.day, 14);
           }
         }
       });
@@ -154,35 +144,38 @@ class _IncomeExpenseReportScreenState
   }
 
   bool _isToday() {
-    final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == now.month &&
-        _fromDate.day == now.day &&
-        _toDate.year == now.year &&
-        _toDate.month == now.month &&
-        _toDate.day == now.day;
+    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
+    final expectedFrom = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
+    return _fromDate.year == expectedFrom.year &&
+        _fromDate.month == expectedFrom.month &&
+        _fromDate.day == expectedFrom.day;
   }
 
   bool _isThisWeek() {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    return _fromDate.year == weekStart.year &&
-        _fromDate.month == weekStart.month &&
-        _fromDate.day == weekStart.day;
+    final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
+    return _fromDate.year == hotelWeekStart.year &&
+        _fromDate.month == hotelWeekStart.month &&
+        _fromDate.day == hotelWeekStart.day;
   }
 
   bool _isThisMonth() {
     final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == now.month &&
-        _fromDate.day == 1;
+    final monthStart = DateTime(now.year, now.month, 1);
+    final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
+    return _fromDate.year == hotelMonthStart.year &&
+        _fromDate.month == hotelMonthStart.month &&
+        _fromDate.day == hotelMonthStart.day;
   }
 
   bool _isThisYear() {
     final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == 1 &&
-        _fromDate.day == 1;
+    final yearStart = DateTime(now.year, 1, 1);
+    final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
+    return _fromDate.year == hotelYearStart.year &&
+        _fromDate.month == hotelYearStart.month &&
+        _fromDate.day == hotelYearStart.day;
   }
 
   void _setQuickFilter(String type) {
@@ -190,27 +183,26 @@ class _IncomeExpenseReportScreenState
     setState(() {
       switch (type) {
         case 'today':
-          _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          final hotelDay = HotelTimeEngine.getHotelDay(now);
+          _fromDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
+          _toDate = _fromDate.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
           break;
         case 'week':
           final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          _fromDate = DateTime(
-            weekStart.year,
-            weekStart.month,
-            weekStart.day,
-            0,
-            0,
-            0,
-          );
+          final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
+          _fromDate = DateTime(hotelWeekStart.year, hotelWeekStart.month, hotelWeekStart.day, 14);
           _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
         case 'month':
-          _fromDate = DateTime(now.year, now.month, 1, 0, 0, 0);
+          final monthStart = DateTime(now.year, now.month, 1);
+          final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
+          _fromDate = DateTime(hotelMonthStart.year, hotelMonthStart.month, hotelMonthStart.day, 14);
           _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
         case 'year':
-          _fromDate = DateTime(now.year, 1, 1, 0, 0, 0);
+          final yearStart = DateTime(now.year, 1, 1);
+          final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
+          _fromDate = DateTime(hotelYearStart.year, hotelYearStart.month, hotelYearStart.day, 14);
           _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
       }
@@ -1497,7 +1489,7 @@ class _IncomeExpenseReportScreenState
                     child: Row(
                       children: [
                         NeuQuickFilterChip(
-                          label: 'اليوم',
+                          label: 'اليوم الفندقي',
                           selected: _isToday(),
                           onTap: () => _setQuickFilter('today'),
                         ),
