@@ -2653,12 +2653,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${messagePreview.length} حرف',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade600,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${messagePreview.length}/1000 حرف',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: messagePreview.length > 1000
+                                ? Colors.red
+                                : messagePreview.length > 900
+                                    ? Colors.orange
+                                    : Colors.grey.shade600,
+                          ),
+                        ),
+                        if (messagePreview.length > 1000)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: Icon(Icons.warning, size: 12, color: Colors.red),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -2686,7 +2701,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   bool _showFullPreview = false;
 
-  /// بناء رسالة كشف حساب احترافية شاملة
+  /// بناء رسالة كشف حساب مختصرة (اقصى 1000 حرف)
   String _buildAccountStatementMessage(BookingPaymentSummary summary) {
     final b = widget.booking;
     final checkin = b.checkinDate.split(' ').first;
@@ -2696,107 +2711,67 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final total = summary.totalAmount;
     final paid = summary.paidAmount;
     final remaining = summary.remainingAmount;
-    final now = DateFormat('dd/MM/yyyy').format(DateTime.now());
-    final nowTime = DateFormat('hh:mm a').format(DateTime.now());
 
-    String msg = '';
+    final buf = StringBuffer();
 
-    // رأس الفندق
-    msg += 'MARINA HOTEL\n';
-    msg += '━━━━━━━━━━━━━━━\n\n';
+    // رأس الكشف
+    buf.writeln('كشف حساب - MARINA HOTEL');
+    buf.writeln('━━━━━━━━━━━');
 
-    // عنوان الكشف
-    msg += 'كشف حساب\n';
-    msg += 'Account Statement\n';
-    msg += '━━━━━━━━━━━━━━━\n\n';
+    // بيانات العميل والإقامة (مضغوطة)
+    buf.writeln('العميل: ${b.guestName}');
+    buf.write('الغرفة: ${b.roomNumber} | $nights ليلة');
+    buf.writeln(' | الوصول: $checkin');
+    buf.writeln('المغادرة: ${actualCheckout ?? checkout}');
 
-    // معلومات العميل
-    msg += 'بيانات العميل:\n';
-    msg += 'الاسم: ${b.guestName}\n';
-    if (b.guestPhone.isNotEmpty) {
-      msg += 'الهاتف: ${b.guestPhone}\n';
-    }
-    if (b.guestNationality.isNotEmpty) {
-      msg += 'الجنسية: ${b.guestNationality}\n';
-    }
-    if (b.guestIdType.isNotEmpty) {
-      msg += 'نوع الهوية: ${b.guestIdType}\n';
-    }
-    if (b.guestIdNumber.isNotEmpty) {
-      msg += 'رقم الهوية: ${b.guestIdNumber}\n';
-    }
-    msg += 'رقم الغرفة: ${b.roomNumber}\n\n';
-
-    // تفاصيل الإقامة
-    msg += 'تفاصيل الإقامة:\n';
-    msg += 'تاريخ الوصول: $checkin\n';
-    msg += 'تاريخ المغادرة: $checkout\n';
-    if (actualCheckout != null) {
-      msg += 'تاريخ المغادرة الفعلي: $actualCheckout\n';
-    }
-    msg += 'عدد الليالي: $nights ليلة\n\n';
-
-    // ملخص مالي
-    msg += '━━━━━━━━━━━━━━━\n';
-    msg += 'الملخص المالي:\n';
-    msg += '━━━━━━━━━━━━━━━\n\n';
-    msg += 'الإجمالي: ${CurrencyFormatter.formatAmount(total)} ريال\n';
-
+    // الملخص المالي
+    buf.writeln('━━━━━━━━━━━');
+    buf.writeln('الإجمالي: ${CurrencyFormatter.formatAmount(total)} ريال');
     if (b.discount > 0) {
-      final discountTypeAr = b.discountType == 'per_night' ? 'لكل ليلة' : 'إجمالي';
-      msg += 'الخصم: ${CurrencyFormatter.formatAmount(b.discount)} ريال ($discountTypeAr)\n';
+      final dType = b.discountType == 'per_night' ? '/ليلة' : '';
+      buf.writeln('الخصم: -${CurrencyFormatter.formatAmount(b.discount)} ريال$dType');
     }
+    buf.writeln('المدفوع: ${CurrencyFormatter.formatAmount(paid)} ريال');
+    buf.writeln('المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال');
+    buf.writeln(remaining <= 0 ? 'الحالة: مكتمل' : 'الحالة: دفع جزئي');
 
-    msg += 'المدفوع: ${CurrencyFormatter.formatAmount(paid)} ريال\n';
-    msg += 'المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال\n';
-
-    if (remaining <= 0) {
-      msg += 'حالة الحساب: مكتمل الدفع ✅\n\n';
-    } else {
-      msg += 'حالة الحساب: دفع جزئي ⚠️\n\n';
-    }
-
-    // سجل المدفوعات
+    // سجل المدفوعات (سطر واحد لكل دفعة)
     if (summary.payments.isNotEmpty) {
-      msg += '━━━━━━━━━━━━━━━\n';
-      msg += 'سجل المدفوعات:\n';
-      msg += '━━━━━━━━━━━━━━━\n\n';
-
+      buf.writeln('━━━━━━━━━━━');
+      buf.writeln('سجل المدفوعات:');
       for (int i = 0; i < summary.payments.length; i++) {
         final p = summary.payments[i];
-        final pDate = DateFormat('dd/MM/yyyy').format(p.paymentDate);
-        final pTime = DateFormat('hh:mm a').format(p.paymentDate);
+        final pDate = DateFormat('dd/MM').format(p.paymentDate);
         final methodAr = _mapPaymentMethodToAr(p.method);
         final amountStr = CurrencyFormatter.formatAmount(p.amount);
-
-        msg += '${i + 1}. $amountStr ريال\n';
-        msg += '   التاريخ: $pDate - $pTime\n';
-        msg += '   طريقة الدفع: $methodAr\n';
-        if (p.notes != null && p.notes!.isNotEmpty) {
-          msg += '   ملاحظات: ${p.notes}\n';
-        }
-        if (i < summary.payments.length - 1) {
-          msg += '   ─────────────\n';
+        buf.writeln('${i + 1}.$amountStr - $methodAr - $pDate');
+        // إيقاف إذا اقتربنا من الحد الأقصى
+        if (buf.length > 950) {
+          final remaining2 = summary.payments.length - i - 1;
+          if (remaining2 > 0) {
+            buf.writeln('+ $remaining2 دفعات أخرى...');
+          }
+          break;
         }
       }
-      msg += '\n';
     }
 
-    // معلومات الديون إن وجدت
-    if (_debtAmount > 0) {
-      msg += '━━━━━━━━━━━━━━━\n';
-      msg += 'تنبيه: يوجد ديون غير مسددة بقيمة ${CurrencyFormatter.formatAmount(_debtAmount)} ريال\n';
-      msg += '━━━━━━━━━━━━━━━\n\n';
+    // ديون إن وجدت
+    if (_debtAmount > 0 && buf.length < 960) {
+      buf.writeln('ديون: ${CurrencyFormatter.formatAmount(_debtAmount)} ريال');
     }
 
-    // تذييل الكشف
-    msg += '━━━━━━━━━━━━━━━\n\n';
-    msg += 'تم إعداد هذا الكشف بتاريخ: $now\n';
-    msg += 'الساعة: $nowTime\n\n';
-    msg += 'مع خالص التحية والتقدير\n';
-    msg += 'فندق مارينا\n';
-    msg += 'للاستفسار: 9677734587456';
+    // تذييل مختصر
+    if (buf.length < 980) {
+      buf.writeln('━━━━━━━━━━━');
+      buf.write('مارينا هوتل | 9677734587456');
+    }
 
+    final msg = buf.toString();
+    // ضمان عدم تجاوز 1000 حرف
+    if (msg.length > 1000) {
+      return msg.substring(0, 997) + '...';
+    }
     return msg;
   }
 
