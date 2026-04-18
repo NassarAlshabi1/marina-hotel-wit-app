@@ -18,6 +18,7 @@ import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
+import 'active_bookings_reminder_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -200,6 +201,18 @@ class SettingsScreen extends ConsumerWidget {
           // قسم إعدادات عامة
           _buildSectionTitle('إعدادات عامة', Icons.settings),
           _buildSettingsGrid(context, [
+            _SettingsItem(
+              title: 'تذكير المتبقي',
+              subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
+              icon: Icons.payment,
+              color: Colors.blue,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ActiveBookingsReminderScreen(),
+                ),
+              ),
+            ),
             _SettingsItem(
               title: 'تنبيه تأخر الدفع',
               subtitle: 'إرسال تنبيه واتساب للديون المتأخرة',
