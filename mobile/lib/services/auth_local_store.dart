@@ -219,6 +219,22 @@ class AuthLocalStore {
       } catch (_) {
         perms = await getPermissions(normalized);
       }
+      // حفظ credentials_version لمراقبة الجلسة
+      try {
+        final appwrite = AppwriteService();
+        await appwrite.initialize();
+        final docs = await appwrite.listDocuments(
+          collectionId: 'app_users',
+          useCache: false,
+        );
+        for (final doc in docs) {
+          if ((doc.data['username']?.toString() ?? '') == normalized) {
+            final version = doc.data['credentials_version'] as int? ?? 0;
+            await saveCredentialsVersion(version);
+            break;
+          }
+        }
+      } catch (_) {}
     } else {
       perms = await getPermissions(normalized);
     }
@@ -295,6 +311,7 @@ class AuthLocalStore {
           'permissions': jsonEncode(permissions),
           'active': true,
           'last_login': 0,
+          'credentials_version': 1,
         },
       );
       AppLogger.debug('User $username pushed to cloud', tag: 'AUTH');
@@ -304,6 +321,139 @@ class AuthLocalStore {
         tag: 'AUTH',
         error: e,
       );
+    }
+  }
+
+  /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات) + زيادة credentials_version
+  /// يعيد true إذا نجح → يجب قطع الجلسة على الأجهزة الأخرى
+  Future<bool> updateCloudUser({
+    required String username,
+    required String docId,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+    bool? active,
+  }) async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+
+      // سحب المستند الحالي لمعرفة credentials_version الحالي
+      final currentDoc = await appwrite.getDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      final currentVersion = currentDoc.data['credentials_version'] as int? ?? 0;
+      final nextVersion = currentVersion + 1;
+
+      final data = <String, dynamic>{
+        'credentials_version': nextVersion,
+      };
+
+      if (newPassword != null) data['password'] = newPassword;
+      if (newFullName != null) data['full_name'] = newFullName;
+      if (newUserType != null) data['user_type'] = newUserType;
+      if (newPermissions != null) data['permissions'] = jsonEncode(newPermissions);
+      if (active != null) data['active'] = active;
+
+      await appwrite.updateDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
+
+      AppLogger.info(
+        'Cloud user $username updated (version $currentVersion → $nextVersion)',
+        tag: 'AUTH',
+      );
+      return true;
+    } catch (e) {
+      AppLogger.error(
+        'Failed to update cloud user $username',
+        tag: 'AUTH',
+        error: e,
+      );
+      return false;
+    }
+  }
+
+  /// حذف مستخدم سحابي من Appwrite
+  Future<bool> deleteCloudUser({
+    required String docId,
+  }) async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      await appwrite.deleteDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
+      return true;
+    } catch (e) {
+      AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
+      return false;
+    }
+  }
+
+  /// حفظ credentials_version عند تسجيل الدخول
+  static const _kCredVersion = 'credentials_version';
+
+  Future<void> saveCredentialsVersion(int version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kCredVersion, version);
+  }
+
+  Future<int?> getCredentialsVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_kCredVersion);
+  }
+
+  /// التحقق من صلاحية الجلسة — يقارن credentials_version المحلي مع السحابة
+  /// يعيد true إذا الجلسة صالحة، false إذا تم تغيير البيانات من جهاز آخر
+  Future<bool> checkSessionValidity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedVersion = prefs.getInt(_kCredVersion);
+      if (storedVersion == null) return true; // مستخدم محلي، لا تحقق
+
+      final currentUser = await loadCurrentUser();
+      if (currentUser == null) return true;
+
+      final username = currentUser['username']?.toString() ?? '';
+      if (username.isEmpty) return true;
+      if (_fixedAccounts.containsKey(username)) return true; // hardcoded
+
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccount = cloudAccounts[username];
+      if (cloudAccount == null) return true; // ليس مستخدم سحابي
+
+      // سحب credentials_version من السحابة
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      for (final doc in docs) {
+        final d = doc.data;
+        if ((d['username']?.toString() ?? '') == username) {
+          final cloudVersion = d['credentials_version'] as int? ?? 0;
+          if (cloudVersion != storedVersion) {
+            AppLogger.warning(
+              'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
+              tag: 'AUTH',
+            );
+            return false;
+          }
+          return true;
+        }
+      }
+      return true;
+    } catch (e) {
+      AppLogger.warning('Session check failed (ignoring)', tag: 'AUTH', error: e);
+      return true;
     }
   }
 

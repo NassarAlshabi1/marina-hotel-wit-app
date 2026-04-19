@@ -781,6 +781,7 @@ const app_users = {
     { key: 'permissions', type: 'string', required: false, size: 2000, default: '[]' },
     { key: 'active',     type: 'boolean', required: false, default: true },
     { key: 'last_login', type: 'integer', required: false, default: 0 },
+    { key: 'credentials_version', type: 'integer', required: false, default: 1 },
   ],
 };
 
