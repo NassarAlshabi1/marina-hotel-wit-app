@@ -842,7 +842,7 @@ class AppwriteSyncManager {
 
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
-          // مزامنة إعدادات الواتساب (app_settings)
+          // مزامنة إعدادات الواتساب (app_settings) — غير حرجة، لا تمنع Delta Sync
           try {
             recordsPulled += await _timePhase('syncAppSettings', () async {
               final docs = await appwriteService.listDocuments(
@@ -854,8 +854,12 @@ class AppwriteSyncManager {
               return synced;
             }, phaseMs);
           } catch (e, st) {
-            _failedCollections.add('app_settings');
-            _logger.error('❌ فشل سحب app_settings', error: e, stackTrace: st, tag: 'SYNC');
+            // ⚠️ app_settings غير حرجة — لا تمنع تحديث lastPullTs
+            // إعدادات واتساب ليست بيانات فندقية أساسية
+            _logger.warning(
+              '⚠️ فشل سحب app_settings (غير حرج — لن يؤثر على Delta Sync): $e',
+              tag: 'SYNC',
+            );
           }
 
           // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات

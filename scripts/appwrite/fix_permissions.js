@@ -28,7 +28,15 @@ const COLLECTIONS = [
     'sync_logs',
     'devices',
     'outbox',
-    'sync_state'
+    'sync_state',
+    'app_settings',
+    'audit_logs',
+    'payment_voids',
+    'blacklist',
+    'guest_infos',
+    'salary_withdrawals',
+    'booking_price_adjustments',
+    'price_adjustments'
 ];
 
 // Public permissions for testing (allow any user to read/write)

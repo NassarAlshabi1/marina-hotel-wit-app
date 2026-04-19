@@ -809,6 +809,9 @@ async function main() {
     // مراجعة
     ['audit_logs',             'سجل المراجعة',             audit_logs],
     ['payment_voids',          'إلغاءات المدفوعات',        payment_voids],
+
+    // إعدادات
+    ['app_settings',           'إعدادات التطبيق',          app_settings],
   ];
 
   let success = 0;
