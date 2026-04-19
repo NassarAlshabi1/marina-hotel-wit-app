@@ -87,9 +87,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Payment>> listByDate(
     String date, {
     bool includeDeleted = false,
+    bool includeVoided = false,
   }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeVoided) q.where((t) => t.isVoided.equals(false));
     q.where((t) => t.paymentDate.like('$date%'));
     return q.get();
   }
@@ -97,10 +99,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Payment>> listByHotelDayKey(
     String hotelDayKey, {
     bool includeDeleted = false,
+    bool includeVoided = false,
     String? revenueType,
   }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeVoided) q.where((t) => t.isVoided.equals(false));
 
     final startIso = Time.hotelDayStartIso(hotelDayKey);
     final endIso = Time.hotelDayEndIso(hotelDayKey);
