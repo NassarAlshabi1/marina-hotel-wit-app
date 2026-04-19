@@ -11,6 +11,7 @@ import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/salary_entitlement_service.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -682,11 +683,32 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       final actionText = action == _salaryDeductionAction ? 'خصم' : 'سحب';
+
+      // حساب الراتب المتبقي
+      String remainingText = '';
+      try {
+        final entitlementService = SalaryEntitlementService(
+          DatabaseManager.instance,
+        );
+        final entitlement = await entitlementService
+            .calculateEmployeeEntitlement(employee);
+        remainingText =
+            'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
+      } catch (e) {
+        debugPrint('Error calculating remaining salary: $e');
+      }
+
       final message = StringBuffer()
         ..writeln('مرحباً ${employee.name}')
         ..writeln('')
         ..writeln('تم تسجيل $actionText راتب بقيمة ${CurrencyFormatter.formatAmount(amount)}')
-        ..writeln('التاريخ: $date')
+        ..writeln('التاريخ: $date');
+
+      if (remainingText.isNotEmpty) {
+        message.writeln(remainingText);
+      }
+
+      message
         ..writeln('')
         ..writeln('فندق مارينا')
         ..write('للاستفسار: 9677734587456');
