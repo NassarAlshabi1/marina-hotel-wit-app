@@ -751,6 +751,7 @@ const sync_logs = {
 // 22. APP_SETTINGS — إعدادات التطبيق (واتساب وغيرها — مزامنة بين الأجهزة)
 const app_settings = {
   attributes: [
+    // ── WhatsApp ──
     { key: 'wa_api_type',          type: 'string', required: false, size: 50,   default: 'greenapi' },
     { key: 'wa_api_base_url',      type: 'string', required: false, size: 500,  default: '' },
     { key: 'wa_api_instance_id',   type: 'string', required: false, size: 200,  default: '' },
@@ -759,6 +760,13 @@ const app_settings = {
     { key: 'wa_sendzen_api_key',   type: 'string', required: false, size: 500,  default: '' },
     { key: 'wa_sendzen_from_number', type: 'string', required: false, size: 30,  default: '' },
     { key: 'wa_template',          type: 'string', required: false, size: 5000, default: '' },
+    // ── Telegram ──
+    { key: 'telegram_enabled',             type: 'boolean', required: false, default: false },
+    { key: 'telegram_bot_token',           type: 'string',  required: false, size: 500,  default: '' },
+    { key: 'telegram_chat_id',             type: 'string',  required: false, size: 100,  default: '' },
+    { key: 'telegram_notifications_enabled', type: 'boolean', required: false, default: true },
+    { key: 'telegram_daily_report_enabled',  type: 'boolean', required: false, default: false },
+    { key: 'telegram_daily_report_time',    type: 'string',  required: false, size: 10,   default: '08:00' },
   ],
 };
 

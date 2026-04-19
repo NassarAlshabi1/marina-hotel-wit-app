@@ -3498,6 +3498,7 @@ class AppwriteSyncManager {
       final prefs = await SharedPreferences.getInstance();
 
       final data = <String, dynamic>{
+        // ── WhatsApp ──
         'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
@@ -3506,9 +3507,16 @@ class AppwriteSyncManager {
         'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
         'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
+        // ── Telegram ──
+        'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
+        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '',
+        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
+        'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? true,
+        'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
+        'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '08:00',
       };
 
-      final docId = 'whatsapp_settings';
+      final docId = 'messaging_settings';
       final collectionId = 'app_settings';
 
       // محاولة تحديث، إذا لم يكن موجوداً ننشئه
@@ -3533,7 +3541,7 @@ class AppwriteSyncManager {
     }
   }
 
-  /// مزامنة إعدادات الواتساب من Appwrite → SharedPreferences
+  /// مزامنة إعدادات المراسلة (واتساب + تلجرام) من Appwrite → SharedPreferences
   Future<int> _syncAppSettings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -3543,8 +3551,8 @@ class AppwriteSyncManager {
       try {
         final data = doc.data;
 
-        // ربط الحقول: wa_api_type → wa_api_type في prefs
-        const fieldMap = {
+        // ── WhatsApp fields ──
+        const waStringFields = {
           'wa_api_type': 'wa_api_type',
           'wa_api_base_url': 'wa_api_base_url',
           'wa_api_instance_id': 'wa_api_instance_id',
@@ -3554,7 +3562,7 @@ class AppwriteSyncManager {
           'wa_sendzen_from_number': 'wa_sendzen_from_number',
         };
 
-        for (final entry in fieldMap.entries) {
+        for (final entry in waStringFields.entries) {
           final value = data[entry.key];
           if (value != null && value.toString().isNotEmpty) {
             await prefs.setString(entry.value, value.toString());
@@ -3565,6 +3573,33 @@ class AppwriteSyncManager {
         final template = data['wa_template'];
         if (template != null && template.toString().isNotEmpty) {
           await prefs.setString('whatsapp_template', template.toString());
+        }
+
+        // ── Telegram fields ──
+        const tgStringFields = {
+          'telegram_bot_token': 'telegram_bot_token',
+          'telegram_chat_id': 'telegram_chat_id',
+          'telegram_daily_report_time': 'telegram_daily_report_time',
+        };
+
+        for (final entry in tgStringFields.entries) {
+          final value = data[entry.key];
+          if (value != null && value.toString().isNotEmpty) {
+            await prefs.setString(entry.value, value.toString());
+          }
+        }
+
+        const tgBoolFields = {
+          'telegram_enabled': 'telegram_enabled',
+          'telegram_notifications_enabled': 'telegram_notifications_enabled',
+          'telegram_daily_report_enabled': 'telegram_daily_report_enabled',
+        };
+
+        for (final entry in tgBoolFields.entries) {
+          final value = data[entry.key];
+          if (value != null) {
+            await prefs.setBool(entry.value, value as bool);
+          }
         }
 
         processed++;
