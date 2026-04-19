@@ -81,9 +81,10 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _initializeDefaults() async {
-    final range = DateFilterController.getDefaultHotelDayRange();
-    _fromDate = range.from;
-    _toDate = range.to;
+    // افتراضي: بداية الشهر الحالي
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, 1);
+    _toDate = now;
     await _fetchReport();
   }
 
@@ -186,31 +187,39 @@ class _SalaryWithdrawalsReportScreenState
 
   // ─── PDF ───
   Future<void> _exportPdf() async {
-    if (_allRows.isEmpty) return;
+    // استخدام البيانات المفلترة (حسب الموظف المحدد أو الكل)
+    final rows = _filteredRows;
+    if (rows.isEmpty) return;
 
-    final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الوصف', 'الموظف'];
+    final selectedEmpName = _selectedEmployeeId != null
+        ? _allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull?.name
+        : null;
+
+    final headers = _selectedEmployeeId != null
+        ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الوصف']
+        : <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الوصف', 'الموظف'];
 
     final dataRows = <List<String>>[];
-    for (final row in _allRows) {
-      dataRows.add([
+    for (final row in rows) {
+      final cells = <String>[
         _dateLabelFormat.format(row.date),
         EnhancedPdfUtils.formatNumber(row.amount),
         row.withdrawalType.isNotEmpty ? row.withdrawalType : 'سحب',
         row.reason.isNotEmpty ? row.reason : '-',
         row.description.isNotEmpty ? row.description : '-',
-        row.employee?.name ?? 'غير محدد',
-      ]);
+      ];
+      if (_selectedEmployeeId == null) {
+        cells.add(row.employee?.name ?? 'غير محدد');
+      }
+      dataRows.add(cells);
     }
 
-    final totalAmount = _allRows.fold<double>(0, (sum, r) => sum + r.amount);
-
+    final totalAmount = rows.fold<double>(0, (sum, r) => sum + r.amount);
+    final emptyCells = List.filled(headers.length, '');
     dataRows.add([
       'الإجمالي',
       EnhancedPdfUtils.formatNumber(totalAmount),
-      '',
-      '',
-      '',
-      '',
+      ...emptyCells.sublist(2),
     ]);
 
     await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
@@ -248,9 +257,21 @@ class _SalaryWithdrawalsReportScreenState
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
+                    pw.Text('الموظف',
+                        style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                    pw.Text(selectedEmpName ?? 'الكل',
+                        style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+                  ],
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 6),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
                     pw.Text('عدد السجلات',
                         style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-                    pw.Text('${_allRows.length}',
+                    pw.Text('${rows.length}',
                         style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
                   ],
                 ),
@@ -267,7 +288,11 @@ class _SalaryWithdrawalsReportScreenState
           ),
         ];
       },
-      fileName: ReportPdfBuilder.generateFileName('تقرير سحبيات الرواتب'),
+      fileName: ReportPdfBuilder.generateFileName(
+        selectedEmpName != null
+            ? 'سحبيات راتب $selectedEmpName'
+            : 'تقرير سحبيات الرواتب',
+      ),
     ));
   }
 
