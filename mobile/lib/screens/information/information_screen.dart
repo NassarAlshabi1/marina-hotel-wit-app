@@ -53,7 +53,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       orElse: () => const <GuestInfo>[],
     );
 
-    return wrapWithSyncOnExit(
+    return PopScope(
+      canPop: !hasUnsyncedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showDiscardDialog(context);
+      },
       child: AppScaffold(
         title: 'سجل المعلومية',
         actions: [
@@ -82,6 +87,29 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           error: (error, _) =>
               Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
         ),
+      ),
+    );
+  }
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تغييرات غير محفوظة'),
+        content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
+            },
+            child: const Text('مغادرة'),
+          ),
+        ],
       ),
     );
   }

@@ -458,7 +458,7 @@ class GoogleDriveConflictResolver {
     for (final entry in history.take(limit)) {
       try {
         decoded.add(jsonDecode(entry) as Map<String, dynamic>);
-      } catch (_) {}
+      } catch (e) { debugPrint('WARN: Failed to parse conflict history: $e'); }
     }
 
     return decoded;

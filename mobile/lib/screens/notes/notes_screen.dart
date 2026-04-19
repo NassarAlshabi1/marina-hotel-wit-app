@@ -144,13 +144,16 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       );
     }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: notes.length,
       itemBuilder: (context, index) {
         final note = notes[index];
         return _buildNoteCard(note);
       },
+      ),
     );
   }
 
@@ -367,7 +370,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     _refreshData();
   }
 
-  void _refreshData() {
+  Future<void> _refreshData() async {
     ref.invalidate(allSimpleNotesProvider);
     ref.invalidate(unreadSimpleNotesProvider);
     ref.invalidate(highPrioritySimpleNotesProvider);

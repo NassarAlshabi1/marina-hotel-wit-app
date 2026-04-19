@@ -101,6 +101,12 @@ class CentralSyncCoordinator {
   void dispose() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
+    _isSyncing = false;
+  }
+
+  /// تنظيف آمن للمثيل Singleton
+  static void disposeInstance() {
+    _instance.dispose();
   }
 
   Map<String, dynamic> getStatus() {

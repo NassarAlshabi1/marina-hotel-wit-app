@@ -13,6 +13,7 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_notification_manager.dart';
+import 'sync_conflict_event_bus.dart';
 import 'sync_performance_optimizer.dart';
 import 'sync_locks.dart';
 import 'sync_constants.dart';
@@ -433,7 +434,13 @@ class SmartSyncManager {
         _log(
           '📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث',
         );
-        // النسخة البعيدة أحدث، سيتم استيرادها
+        // النسخة البعيدة أحدث، سيتم استيرادها — إرسال حدث تضارب (المحلي تم تجاهله)
+        SyncConflictEventBus.instance.emitSimple(
+          table: conflict.tableName,
+          localUuid: conflict.recordId,
+          winnerSide: 'remote',
+          reason: 'النسخة البعيدة أحدث (${conflict.remoteTimestamp.toIso8601String()})',
+        );
       } else {
         _log(
           '📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}',
@@ -442,6 +449,13 @@ class SmartSyncManager {
         AppLogger.warning(
           'تغيير السيرفر تم تجاهله (المحلي أحدث): ${conflict.tableName}/${conflict.recordId}',
           tag: 'SYNC_CONFLICT',
+        );
+        // إرسال حدث تضارب (السيرفر تم تجاهله)
+        SyncConflictEventBus.instance.emitSimple(
+          table: conflict.tableName,
+          localUuid: conflict.recordId,
+          winnerSide: 'local',
+          reason: 'النسخة المحلية أحدث (${conflict.localTimestamp.toIso8601String()})',
         );
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
         await _removeRecordFromBackupData(

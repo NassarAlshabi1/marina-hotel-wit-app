@@ -141,11 +141,15 @@ class Employees extends Table with SyncFields {
   TextColumn get hireDate => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
 
-  // فهرس لتسريع البحث بالاسم
+  // فهرس لتسريع البحث بالاسم والحالة
   List<Index> get indexes => [
     Index(
       'idx_employees_name',
       'CREATE INDEX idx_employees_name ON employees (name)',
+    ),
+    Index(
+      'idx_employees_status',
+      'CREATE INDEX idx_employees_status ON employees (status)',
     ),
   ];
 }
@@ -172,6 +176,10 @@ class Expenses extends Table with SyncFields {
     Index(
       'idx_expenses_category',
       'CREATE INDEX idx_expenses_category ON expenses (category_uuid)',
+    ),
+    Index(
+      'idx_expenses_date',
+      'CREATE INDEX idx_expenses_date ON expenses (date)',
     ),
   ];
 }
@@ -248,6 +256,10 @@ class Payments extends Table with SyncFields {
       'idx_payments_void',
       'CREATE INDEX idx_payments_void ON payments (is_voided)',
     ),
+    Index(
+      'idx_payments_method',
+      'CREATE INDEX idx_payments_method ON payments (payment_method)',
+    ),
   ];
 }
 
@@ -308,7 +320,7 @@ class ShiftNotes extends Table with SyncFields {
   TextColumn get expiresAt => text().nullable()();
   TextColumn get createdBy => text().withDefault(const Constant('user'))();
 
-  // فهارس لتسريع البحث بمنشئ الملاحظة والتاريخ
+  // فهارس لتسريع البحث بمنشئ الملاحظة والتاريخ والأولوية
   List<Index> get indexes => [
     Index(
       'idx_shift_notes_created_by',
@@ -321,6 +333,14 @@ class ShiftNotes extends Table with SyncFields {
     Index(
       'idx_shift_notes_read',
       'CREATE INDEX idx_shift_notes_read ON shift_notes (is_read)',
+    ),
+    Index(
+      'idx_shift_notes_priority',
+      'CREATE INDEX idx_shift_notes_priority ON shift_notes (priority)',
+    ),
+    Index(
+      'idx_shift_notes_shift_type',
+      'CREATE INDEX idx_shift_notes_shift_type ON shift_notes (shift_type)',
     ),
   ];
 }
@@ -747,7 +767,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 34;
+  int get schemaVersion => 35;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1711,6 +1731,30 @@ class AppDatabase extends _$AppDatabase {
           name: 'db.migration',
         );
       }
+      // === Migration 35: فهارس إضافية للمدفوعات والمصروفات والموظفين والملاحظات ===
+      if (from < 35) {
+        const newIndexes = [
+          'CREATE INDEX IF NOT EXISTS idx_employees_status ON employees (status)',
+          'CREATE INDEX IF NOT EXISTS idx_shift_notes_priority ON shift_notes (priority)',
+          'CREATE INDEX IF NOT EXISTS idx_shift_notes_shift_type ON shift_notes (shift_type)',
+          'CREATE INDEX IF NOT EXISTS idx_payments_method ON payments (payment_method)',
+          'CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (date)',
+        ];
+        for (final sql in newIndexes) {
+          try {
+            await m.database.customStatement(sql);
+          } catch (e) {
+            developer.log(
+              'Migration 35: $sql failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 35: additional performance indexes created successfully',
+          name: 'db.migration',
+        );
+      }
     },
   );
 
@@ -1958,11 +2002,15 @@ class DatabaseManager {
     if (_onStopCallback != null) {
       try {
         await _onStopCallback!();
-      } catch (_) {}
+      } catch (e) {
+        developer.log('⚠️ Database stop callback error: $e', name: 'DatabaseManager');
+      }
     }
     try {
       await _instance?.close();
-    } catch (_) {}
+    } catch (e) {
+      developer.log('⚠️ Database close error: $e', name: 'DatabaseManager');
+    }
     _instance = null;
   }
 
@@ -1972,7 +2020,9 @@ class DatabaseManager {
     if (_onRestartCallback != null) {
       try {
         await _onRestartCallback!();
-      } catch (_) {}
+      } catch (e) {
+        developer.log('⚠️ Database restart callback error: $e', name: 'DatabaseManager');
+      }
     }
     _isRestoring = false;
   }

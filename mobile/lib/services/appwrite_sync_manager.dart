@@ -2924,7 +2924,7 @@ class AppwriteSyncManager {
     Map<String, dynamic> extra = {};
     try {
       extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (_) {}
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
 
     final now = Time.nowEpoch();
     // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)

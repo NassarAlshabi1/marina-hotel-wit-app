@@ -165,7 +165,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 6),
                             itemBuilder: (context, index) {
-                              return _buildPaymentCard(filtered[index]);
+                              return RepaintBoundary(
+                                child: _buildPaymentCard(filtered[index]),
+                              );
                             },
                           ),
                         ),

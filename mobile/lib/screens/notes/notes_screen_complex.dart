@@ -430,7 +430,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         itemCount: notes.length,
         itemBuilder: (context, index) {
           final note = notes[index];
-          return _buildNoteCard(context, note);
+          return RepaintBoundary(
+            child: _buildNoteCard(context, note),
+          );
         },
       ),
     );

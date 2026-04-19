@@ -95,7 +95,9 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                   ),
                 ),
               Expanded(
-                child: ListView.builder(
+                child: RefreshIndicator(
+                  onRefresh: () => _performSync(ref.read(syncServiceProvider)),
+                  child: ListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
@@ -288,6 +290,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                       ),
                     );
                   },
+                ),
                 ),
               ),
             ],

@@ -200,7 +200,25 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final roomsRepo = ref.watch(roomsRepoProvider);
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
-    return AppScaffold(
+    return PopScope(
+      canPop: !_isSavingPayment,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('جاري الحفظ'),
+            content: const Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('حسناً'),
+              ),
+            ],
+          ),
+        );
+      },
+      child: AppScaffold(
       title: 'معالجة المدفوعات',
       actions: [
         IconButton(
@@ -451,6 +469,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         );
         },
       ),
+    ),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
@@ -410,7 +411,7 @@ class AppwriteDeltaSync {
             if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
               continue;
             }
-          } catch (_) {}
+          } catch (e) { debugPrint('WARN: Cannot parse updatedAt: $e'); }
         }
 
         try {

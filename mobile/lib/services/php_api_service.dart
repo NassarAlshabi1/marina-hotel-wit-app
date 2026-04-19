@@ -147,7 +147,7 @@ class PhpApiService {
       try {
         final response = await _retryRequest(e.requestOptions);
         return handler.resolve(response);
-      } catch (_) {}
+      } catch (e) { debugPrint('API retry failed: $e'); }
     }
 
     handler.next(e);

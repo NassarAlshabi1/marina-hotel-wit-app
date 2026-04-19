@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,8 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../services/screen_sync_controller.dart';
+import '../../services/auto_backup_manager.dart';
+import '../../services/central_sync_coordinator.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -883,7 +886,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
     final db = ref.read(databaseProvider);
-    final roomsRepo = ref.read(roomsRepoProvider);
     final bookings = await (db.select(
       db.bookings,
     )..where((tbl) => tbl.deletedAt.isNull())).get();
@@ -897,16 +899,58 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final rooms = await (db.select(
       db.rooms,
     )..where((tbl) => tbl.deletedAt.isNull())).get();
+    final toBeOccupied = <Room>[];
+    final toBeAvailable = <Room>[];
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
       final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
-      final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
       if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
+        toBeOccupied.add(room);
       } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
+        toBeAvailable.add(room);
       }
+    }
+
+    final now = DateTime.now().toUtc().toIso8601String();
+    if (toBeOccupied.isNotEmpty) {
+      final occupiedStatus = StatusUtils.roomStatusForOccupancy(true);
+      await db.customUpdate(
+        'UPDATE rooms SET status = ?, updated_at = ?, last_modified = ? WHERE room_number IN (${toBeOccupied.map((_) => '?').join(',')})',
+        variables: [
+          Variable.withString(occupiedStatus),
+          Variable.withString(now),
+          Variable.withString(now),
+          ...toBeOccupied.map((r) => Variable.withString(r.roomNumber)),
+        ],
+        updates: {db.rooms},
+      );
+    }
+
+    if (toBeAvailable.isNotEmpty) {
+      final availableStatus = StatusUtils.roomStatusForOccupancy(false);
+      await db.customUpdate(
+        'UPDATE rooms SET status = ?, updated_at = ?, last_modified = ? WHERE room_number IN (${toBeAvailable.map((_) => '?').join(',')})',
+        variables: [
+          Variable.withString(availableStatus),
+          Variable.withString(now),
+          Variable.withString(now),
+          ...toBeAvailable.map((r) => Variable.withString(r.roomNumber)),
+        ],
+        updates: {db.rooms},
+      );
+    }
+
+    // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات
+    final allChanged = [...toBeOccupied, ...toBeAvailable];
+    if (allChanged.isNotEmpty) {
+      try {
+        await AutoBackupManager.instance.onDataChange('rooms', 'batch_update_status');
+        CentralSyncCoordinator.instance.notifyLocalChange(
+          table: 'rooms',
+          operation: 'batch_update_status',
+        );
+      } catch (_) {}
     }
   }
 

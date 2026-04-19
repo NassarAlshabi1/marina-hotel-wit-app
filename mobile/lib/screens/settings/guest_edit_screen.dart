@@ -42,6 +42,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   );
 
   bool _saving = false;
+  bool _hasUnsavedChanges = false;
   String _idType = 'بطاقة شخصية';
 
   final Map<int, String> _roomSelections = {};
@@ -79,6 +80,15 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       text: widget.guest.address ?? '',
     );
 
+    _nameController.addListener(_markUnsaved);
+    _phoneController.addListener(_markUnsaved);
+    _emailController.addListener(_markUnsaved);
+    _nationalityController.addListener(_markUnsaved);
+    _idNumberController.addListener(_markUnsaved);
+    _idIssueDateController.addListener(_markUnsaved);
+    _idIssuePlaceController.addListener(_markUnsaved);
+    _addressController.addListener(_markUnsaved);
+
     for (final booking in widget.guest.bookings) {
       _roomSelections[booking.id] = booking.roomNumber;
       _originalRooms[booking.id] = booking.roomNumber;
@@ -94,11 +104,22 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       );
       _adjustmentTypeSelections[booking.id] = AdjustmentType.discount;
       _adjustmentModeSelections[booking.id] = AdjustmentMode.perNight;
+      _discountControllers[booking.id]!.addListener(_markUnsaved);
+      _discountStartDateControllers[booking.id]!.addListener(_markUnsaved);
+      _checkinDateControllers[booking.id]!.addListener(_markUnsaved);
     }
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_markUnsaved);
+    _phoneController.removeListener(_markUnsaved);
+    _emailController.removeListener(_markUnsaved);
+    _nationalityController.removeListener(_markUnsaved);
+    _idNumberController.removeListener(_markUnsaved);
+    _idIssueDateController.removeListener(_markUnsaved);
+    _idIssuePlaceController.removeListener(_markUnsaved);
+    _addressController.removeListener(_markUnsaved);
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -108,12 +129,15 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _idIssuePlaceController.dispose();
     _addressController.dispose();
     for (final controller in _discountControllers.values) {
+      controller.removeListener(_markUnsaved);
       controller.dispose();
     }
     for (final controller in _discountStartDateControllers.values) {
+      controller.removeListener(_markUnsaved);
       controller.dispose();
     }
     for (final controller in _checkinDateControllers.values) {
+      controller.removeListener(_markUnsaved);
       controller.dispose();
     }
     super.dispose();
@@ -209,6 +233,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         await derivedService.refreshForBookingId(booking.id);
       }
 
+      _hasUnsavedChanges = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -311,29 +336,35 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تعديل بيانات الضيف'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _saveChanges,
-            child: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('حفظ', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      body: AbsorbPointer(
-        absorbing: _saving,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showDiscardDialog(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('تعديل بيانات الضيف'),
+          actions: [
+            TextButton(
+              onPressed: _saving ? null : _saveChanges,
+              child: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('حفظ', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+        body: AbsorbPointer(
+          absorbing: _saving,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.info_outline),
@@ -410,7 +441,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             )
                             .toList(),
                         onChanged: (value) =>
-                            setState(() => _idType = value ?? _idType),
+                            setState(() {
+                              _idType = value ?? _idType;
+                              _hasUnsavedChanges = true;
+                            }),
                         decoration: const InputDecoration(
                           labelText: 'نوع الهوية',
                           prefixIcon: Icon(Icons.badge),
@@ -491,6 +525,39 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    ),
+    );
+  }
+
+  void _markUnsaved() {
+    if (!_hasUnsavedChanges) {
+      setState(() => _hasUnsavedChanges = true);
+    }
+  }
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تغييرات غير محفوظة'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
+              },
+              child: const Text('مغادرة'),
+            ),
+          ],
         ),
       ),
     );
@@ -617,6 +684,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       onChanged: (value) {
                         setState(() {
                           _roomSelections[booking.id] = value ?? currentValue;
+                          _hasUnsavedChanges = true;
                         });
                       },
                       decoration: InputDecoration(
@@ -870,6 +938,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _adjustmentTypeSelections[booking.id] = value!;
+                                _hasUnsavedChanges = true;
                               });
                             },
                           ),
@@ -895,6 +964,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _adjustmentModeSelections[booking.id] = value!;
+                                _hasUnsavedChanges = true;
                               });
                             },
                           ),

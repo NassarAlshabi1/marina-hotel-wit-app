@@ -215,6 +215,15 @@ class BackgroundSyncService {
     }
   }
 
+  /// تنظيف آمن للمثيل Singleton
+  void dispose() {
+    _isInitialized = false;
+  }
+
+  static void disposeInstance() {
+    _instance.dispose();
+  }
+
   /// تشغيل المزامنة اليدوية في الخلفية
   static Future<bool> executeBackgroundSync() async {
     developer.log(

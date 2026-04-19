@@ -44,6 +44,9 @@ import 'services/unified_sync_orchestrator.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/central_sync_coordinator.dart';
+import 'services/background_sync_service.dart';
+import 'services/sync_conflict_event_bus.dart';
 import 'services/logging/log_models.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/sync_queue_service.dart';
@@ -395,6 +398,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         _sessionConfigured = true;
         _startRealtimeSync();
         _startLocalAutoSync(database);
+        _listenForSyncConflicts();
         if (!_initialLocalSyncDone) {
           _initialLocalSyncDone = true;
           unawaited(_runLocalAutoSync());
@@ -512,6 +516,39 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncSub = watch.watch().listen((_) => _scheduleLocalAutoSync());
   }
 
+  /// الاستماع لأحداث تضاربات المزامنة وعرض إشعارات للمستخدم
+  StreamSubscription<SyncConflictEvent>? _conflictSubscription;
+  void _listenForSyncConflicts() {
+    _conflictSubscription?.cancel();
+    _conflictSubscription = SyncConflictEventBus.instance.events.listen(
+      (event) {
+        if (!mounted || !_sessionConfigured) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger == null) return;
+        final tableNames = {
+          'bookings': 'حجوزات',
+          'payments': 'مدفوعات',
+          'debts': 'ديون',
+          'expenses': 'مصروفات',
+          'rooms': 'غرف',
+          'employees': 'موظفين',
+        };
+        final tableName = tableNames[event.table] ?? event.table;
+        final sideText = event.winnerSide == 'local'
+            ? 'الإصدار المحلي'
+            : 'إصدار السيرفر';
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('تضارب في $tableName: تم تفضيل $sideText'),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+    );
+  }
+
   void _scheduleLocalAutoSync() {
     if (_localAutoSyncRunning) {
       return;
@@ -599,6 +636,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   void dispose() {
     AppwriteRealtimeSync().stop();
     _localAutoSyncSub?.cancel();
+    _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
@@ -646,6 +684,21 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       await UnifiedSyncOrchestrator.disposeInstance();
     } catch (e) {
       debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
+    }
+    try {
+      await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
+    }
+    try {
+      CentralSyncCoordinator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
+    }
+    try {
+      BackgroundSyncService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
     }
     debugPrint('✅ All singleton services disposed');
   }

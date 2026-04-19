@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import '../../services/local_db.dart';
 import '../processors/outbox_processor.dart';
 import '../models/sync_models.dart';
@@ -21,7 +22,7 @@ class DriftOutboxStorage implements OutboxStorage {
       if (decoded is Map<String, dynamic>) {
         payloadMap = decoded;
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('WARN: Failed to parse outbox payload: $e'); }
 
     return DeltaChange(
       id: record.idempotencyKey ?? record.id.toString(),
