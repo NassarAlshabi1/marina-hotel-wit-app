@@ -19,6 +19,7 @@ import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'active_bookings_reminder_screen.dart';
+import 'telegram_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -234,6 +235,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const WhatsAppSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'Telegram',
+              subtitle: 'إعدادات البوت والإشعارات والتقارير',
+              icon: Icons.telegram,
+              color: Colors.lightBlue,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TelegramSettingsScreen(),
                 ),
               ),
             ),
