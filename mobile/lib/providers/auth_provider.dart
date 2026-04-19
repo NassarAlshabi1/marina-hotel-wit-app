@@ -168,7 +168,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final authType = await _store.getAuthType();
 
     // التحقق من صلاحية الجلسة عند الاستعادة
-    if (!_store._fixedAccounts.containsKey(user.username)) {
+    if (!_store.isFixedAccount(user.username)) {
       final valid = await _store.checkSessionValidity();
       if (!valid) {
         await _store.clearSession();
@@ -192,7 +192,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     // بدء فحص الجلسة للمستخدمين السحابيين
     try {
-      final accounts = await _store._loadCloudAccounts();
+      final accounts = await _store.loadCloudAccounts();
       if (accounts.containsKey(user.username)) {
         _startSessionCheck();
       }
@@ -231,7 +231,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     // بدء فحص الجلسة للمستخدمين السحابيين
     try {
-      final accounts = await _store._loadCloudAccounts();
+      final accounts = await _store.loadCloudAccounts();
       if (accounts.containsKey(user.username)) {
         _startSessionCheck();
       }

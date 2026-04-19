@@ -140,7 +140,7 @@ class AuthLocalStore {
 
   /// سحب المستخدمين من Appwrite Cloud (app_users collection)
   /// يعيد Map<username, account_data> أو فارغ عند الفشل
-  Future<Map<String, Map<String, dynamic>>> _loadCloudAccounts() async {
+  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts() async {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -194,7 +194,7 @@ class AuthLocalStore {
 
     // 2️⃣ البحث في Appwrite Cloud
     if (account == null) {
-      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts();
       account = cloudAccounts[normalized];
     }
 
@@ -427,7 +427,7 @@ class AuthLocalStore {
 
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts();
       final cloudAccount = cloudAccounts[username];
       if (cloudAccount == null) return true; // ليس مستخدم سحابي
 
@@ -489,7 +489,7 @@ class AuthLocalStore {
 
     // حسابات سحابية من Appwrite (app_users)
     try {
-      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts();
       final localUsernames = result
           .map((a) => a['username'].toString())
           .toSet();
@@ -580,7 +580,7 @@ class AuthLocalStore {
 
     // 1️⃣ محاولة سحب الصلاحيات من السحابة
     try {
-      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts();
       final cloudAccount = cloudAccounts[username];
       if (cloudAccount != null) {
         final permsJson = cloudAccount['permissions_json'] as String? ?? '[]';
@@ -641,7 +641,7 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts();
       final cloudAccount = cloudAccounts[username];
       if (cloudAccount == null) return;
       final docId = cloudAccount['doc_id'] as String?;
@@ -686,7 +686,7 @@ class AuthLocalStore {
     }
     // إضافة أسماء المستخدمين السحابيين
     try {
-      final cloudAccounts = await _loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts();
       names.addAll(cloudAccounts.keys);
     } catch (_) {}
     final list = names.toList();
@@ -697,5 +697,10 @@ class AuthLocalStore {
   Future<int> getUsersCount() async {
     final list = await getAllUsernames();
     return list.length;
+  }
+
+  /// التحقق مما إذا كان المستخدم من الحسابات الثابتة (hardcoded)
+  bool isFixedAccount(String username) {
+    return _fixedAccounts.containsKey(username);
   }
 }
