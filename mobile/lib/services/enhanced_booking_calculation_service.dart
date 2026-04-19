@@ -198,7 +198,24 @@ class EnhancedBookingCalculationService {
             endDate,
           );
           if (nightsInRange > 0) {
-            adjAmount = (rawAmount / nightsInRange).round();
+            // حساب المبلغ الموزع بدقة مع معالجة الباقي في آخر ليلة
+            final int basePart = rawAmount ~/ nightsInRange;
+            final int remainder = rawAmount % nightsInRange;
+            
+            // تحديد ترتيب الليلة الحالية ضمن النطاق المتأثر
+            int nightIndexInRange = 0;
+            for (final s in segments) {
+              final d = DateTime.parse(s.hotelDayKey);
+              if (!_isWithinRange(d, effectiveDate, endDate)) continue;
+              if (d.isBefore(nightDate)) {
+                nightIndexInRange++;
+              } else {
+                break;
+              }
+            }
+            
+            // إضافة 1 من الباقي لأول 'remainder' ليالي لضمان تطابق المجموع
+            adjAmount = basePart + (nightIndexInRange < remainder ? 1 : 0);
           }
         }
         

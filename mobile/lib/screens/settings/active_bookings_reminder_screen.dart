@@ -148,6 +148,35 @@ class _ActiveBookingsReminderScreenState
       title: 'تذكير المتبقي - حجوزات نشطة',
       actions: [
         IconButton(
+          onPressed: () async {
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            try {
+              final refreshedCount = await ref
+                  .read(bookingDerivedFieldsServiceProvider)
+                  .refreshAllActiveBookings();
+              if (mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('✅ تم تحديث بيانات $refreshedCount حجز نشط'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('❌ فشل تحديث البيانات: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.refresh),
+          tooltip: 'تحديث الحسابات',
+        ),
+        IconButton(
           onPressed: () => _showBulkSendConfirmation(context),
           icon: const Icon(Icons.send),
           tooltip: 'إرسال للمحدد',
