@@ -498,7 +498,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final items = _grouped[type]!;
       final subtotal = _typeSubtotals[type] ?? 0.0;
       final cfg = _configForType(type);
-      final pct = _totalAmount > 0 ? (subtotal / _totalAmount * 100) : 0;
+      final pct = _totalAmount > 0 ? (subtotal / _totalAmount * 100) : 0.0;
 
       // رأس المجموعة
       widgets.add(
@@ -637,7 +637,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   /// بطاقة المصروف المفصلة
   Widget _buildDetailedExpenseCard(_ExpenseReportRow row, {required int rowIndex}) {
     final cfg = _configForType(row.type);
-    final pct = _totalAmount > 0 ? (row.amount / _totalAmount * 100) : 0;
+    final pct = _totalAmount > 0 ? (row.amount / _totalAmount * 100) : 0.0;
     final hasDesc = row.description.isNotEmpty;
     final hasEmployee = row.employee != null;
 
@@ -891,7 +891,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               runSpacing: 6,
               children: _typeSubtotals.entries.map((entry) {
                 final cfg = _configForType(entry.key);
-                final pct = _totalAmount > 0 ? (entry.value / _totalAmount * 100) : 0;
+                final pct = _totalAmount > 0 ? (entry.value / _totalAmount * 100) : 0.0;
                 final count = _grouped[entry.key]?.length ?? 0;
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
