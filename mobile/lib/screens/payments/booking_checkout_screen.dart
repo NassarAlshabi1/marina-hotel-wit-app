@@ -343,61 +343,64 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Expanded(
-                                  child: ListView.builder(
-                                    itemCount: payments.length,
-                                    itemBuilder: (context, index) {
-                                      final payment = payments[index];
-                                      return Card(
-                                        child: ListTile(
-                                          leading: Icon(
-                                            payment.paymentMethod == 'تحويل'
-                                                ? Icons.account_balance
-                                                : Icons.money,
-                                            color:
-                                                payment.paymentMethod == 'تحويل'
-                                                ? Colors.blue
-                                                : Colors.green,
-                                          ),
-                                          title: Text(
-                                            CurrencyFormatter.formatAmount(
-                                              payment.amount,
+                                  child: RefreshIndicator(
+                                    onRefresh: _refreshBookingNights,
+                                    child: ListView.builder(
+                                      itemCount: payments.length,
+                                      itemBuilder: (context, index) {
+                                        final payment = payments[index];
+                                        return Card(
+                                          child: ListTile(
+                                            leading: Icon(
+                                              payment.paymentMethod == 'تحويل'
+                                                  ? Icons.account_balance
+                                                  : Icons.money,
+                                              color:
+                                                  payment.paymentMethod == 'تحويل'
+                                                  ? Colors.blue
+                                                  : Colors.green,
                                             ),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                            title: Text(
+                                              CurrencyFormatter.formatAmount(
+                                                payment.amount,
+                                              ),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'طريقة الدفع: ${payment.paymentMethod}',
-                                              ),
-                                              Text(
-                                                'النوع: ${payment.revenueType}',
-                                              ),
-                                              Text(
-                                                'التاريخ: ${payment.paymentDate}',
-                                              ),
-                                              if (payment.notes != null &&
-                                                  payment.notes!.isNotEmpty)
+                                            subtitle: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
                                                 Text(
-                                                  'ملاحظات: ${payment.notes}',
+                                                  'طريقة الدفع: ${payment.paymentMethod}',
                                                 ),
-                                            ],
-                                          ),
-                                          trailing: payment.roomNumber != null
-                                              ? Chip(
-                                                  label: Text(
-                                                    payment.roomNumber!,
+                                                Text(
+                                                  'النوع: ${payment.revenueType}',
+                                                ),
+                                                Text(
+                                                  'التاريخ: ${payment.paymentDate}',
+                                                ),
+                                                if (payment.notes != null &&
+                                                    payment.notes!.isNotEmpty)
+                                                  Text(
+                                                    'ملاحظات: ${payment.notes}',
                                                   ),
-                                                  backgroundColor:
-                                                      Colors.blue.shade50,
-                                                )
-                                              : null,
-                                        ),
-                                      );
-                                    },
+                                              ],
+                                            ),
+                                            trailing: payment.roomNumber != null
+                                                ? Chip(
+                                                    label: Text(
+                                                      payment.roomNumber!,
+                                                    ),
+                                                    backgroundColor:
+                                                        Colors.blue.shade50,
+                                                  )
+                                                : null,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ],

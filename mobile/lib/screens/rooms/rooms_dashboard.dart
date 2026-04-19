@@ -91,21 +91,28 @@ class RoomsDashboard extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedFloors.length,
-      itemBuilder: (context, index) {
-        final floorNumber = sortedFloors[index];
-        final floorRooms = floorMap[floorNumber]!;
-
-        return FloorSection(
-          floorNumber: floorNumber,
-          rooms: floorRooms,
-          onRoomTap: (room) => _handleRoomTap(context, ref, room),
-          isCollapsible: true,
-          initiallyExpanded: index < 2, // فتح أول طابقين بشكل افتراضي
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: sortedFloors.length,
+        itemBuilder: (context, index) {
+          final floorNumber = sortedFloors[index];
+          final floorRooms = floorMap[floorNumber]!;
+
+          return RepaintBoundary(
+            child: FloorSection(
+              floorNumber: floorNumber,
+              rooms: floorRooms,
+              onRoomTap: (room) => _handleRoomTap(context, ref, room),
+              isCollapsible: true,
+              initiallyExpanded: index < 2,
+            ),
+          );
+        },
+      ),
     );
   }
 

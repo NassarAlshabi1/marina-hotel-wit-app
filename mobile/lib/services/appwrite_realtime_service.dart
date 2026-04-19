@@ -413,4 +413,9 @@ class AppwriteRealtimeService {
     _initialized = false;
     _logger.info('Realtime service disposed', tag: 'REALTIME');
   }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
+  }
 }

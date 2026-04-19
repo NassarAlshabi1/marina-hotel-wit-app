@@ -968,55 +968,47 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       // إضافة الغرف
       final rooms = await db.select(db.rooms).get();
-      for (final room in rooms) {
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'upsert',
-          localUuid: room.localUuid,
-          serverId: room.serverId,
-          payload: {},
-          clientTs: now,
-        );
-      }
+      await Future.wait(rooms.map((room) => outboxDao.merge(
+        entity: 'rooms',
+        op: 'upsert',
+        localUuid: room.localUuid,
+        serverId: room.serverId,
+        payload: {},
+        clientTs: now,
+      )));
 
       // إضافة الحجوزات
       final bookings = await db.select(db.bookings).get();
-      for (final booking in bookings) {
-        await outboxDao.merge(
-          entity: 'bookings',
-          op: 'upsert',
-          localUuid: booking.localUuid,
-          serverId: booking.serverId,
-          payload: {},
-          clientTs: now,
-        );
-      }
+      await Future.wait(bookings.map((booking) => outboxDao.merge(
+        entity: 'bookings',
+        op: 'upsert',
+        localUuid: booking.localUuid,
+        serverId: booking.serverId,
+        payload: {},
+        clientTs: now,
+      )));
 
       // إضافة المصروفات
       final expenses = await db.select(db.expenses).get();
-      for (final expense in expenses) {
-        await outboxDao.merge(
-          entity: 'expenses',
-          op: 'upsert',
-          localUuid: expense.localUuid,
-          serverId: expense.serverId,
-          payload: {},
-          clientTs: now,
-        );
-      }
+      await Future.wait(expenses.map((expense) => outboxDao.merge(
+        entity: 'expenses',
+        op: 'upsert',
+        localUuid: expense.localUuid,
+        serverId: expense.serverId,
+        payload: {},
+        clientTs: now,
+      )));
 
       // إضافة الدفعات
       final payments = await db.select(db.payments).get();
-      for (final payment in payments) {
-        await outboxDao.merge(
-          entity: 'payments',
-          op: 'upsert',
-          localUuid: payment.localUuid,
-          serverId: payment.serverId,
-          payload: {},
-          clientTs: now,
-        );
-      }
+      await Future.wait(payments.map((payment) => outboxDao.merge(
+        entity: 'payments',
+        op: 'upsert',
+        localUuid: payment.localUuid,
+        serverId: payment.serverId,
+        payload: {},
+        clientTs: now,
+      )));
 
       debugPrint('✅ تم إضافة جميع البيانات إلى outbox للرفع');
     } catch (e) {

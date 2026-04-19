@@ -108,19 +108,25 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         final payments = snapshot.data!;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // الإحصائيات السريعة
-              _buildQuickStats(payments),
+        return RefreshIndicator(
+          onRefresh: () async {
+            // البيانات تتحدث تلقائياً من قاعدة البيانات المحلية
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // الإحصائيات السريعة
+                _buildQuickStats(payments),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // المدفوعات الأخيرة
-              _buildRecentPayments(payments),
-            ],
+                // المدفوعات الأخيرة
+                _buildRecentPayments(payments),
+              ],
+            ),
           ),
         );
       },
@@ -324,7 +330,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             ),
             const SizedBox(height: 8),
             ...recentPayments.map(
-              (payment) => ListTile(
+              (payment) => RepaintBoundary(
+                child: ListTile(
                 leading: Icon(
                   _getPaymentMethodIcon(payment.paymentMethod),
                   color: _getPaymentMethodColor(payment.paymentMethod),
@@ -339,6 +346,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                         backgroundColor: Colors.blue.shade50,
                       )
                     : null,
+              ),
               ),
             ),
           ],
@@ -397,81 +405,88 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: activeBookings.length,
-          itemBuilder: (context, index) {
-            final booking = activeBookings[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                dense: true,
-                visualDensity: VisualDensity.compact,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.orange.shade100,
-                  child: Text(
-                    booking.roomNumber,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  booking.guestName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'الهاتف: ${booking.guestPhone}',
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                    Text(
-                      'دخول: ${booking.checkinDate}',
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                    Text(
-                      'الجنسية: ${booking.guestNationality}',
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                  ],
-                ),
-                trailing: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            BookingCheckoutScreen(booking: booking),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.payment, size: 14),
-                  label: const Text('دفع', style: TextStyle(fontSize: 13)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+        return RefreshIndicator(
+          onRefresh: () async {
+            // البيانات تتحدث تلقائياً من قاعدة البيانات المحلية
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: activeBookings.length,
+            itemBuilder: (context, index) {
+              final booking = activeBookings[index];
+              return RepaintBoundary(
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  child: ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
                       vertical: 4,
                     ),
+                    leading: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.orange.shade100,
+                      child: Text(
+                        booking.roomNumber,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      booking.guestName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'الهاتف: ${booking.guestPhone}',
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                        Text(
+                          'دخول: ${booking.checkinDate}',
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                        Text(
+                          'الجنسية: ${booking.guestNationality}',
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                    trailing: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                BookingCheckoutScreen(booking: booking),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.payment, size: 14),
+                      label: const Text('دفع', style: TextStyle(fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                      ),
+                    ),
+                    isThreeLine: true,
                   ),
                 ),
-                isThreeLine: true,
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );

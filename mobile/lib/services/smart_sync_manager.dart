@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
 import '../utils/debug_logs.dart';
 import 'daos/outbox_dao.dart';
 import 'data_usage_manager.dart';
@@ -436,6 +437,11 @@ class SmartSyncManager {
       } else {
         _log(
           '📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}',
+        );
+        // المحلي أحدث — تسجيل تحذير لأن التغيير البعيد تم تجاهله
+        AppLogger.warning(
+          'تغيير السيرفر تم تجاهله (المحلي أحدث): ${conflict.tableName}/${conflict.recordId}',
+          tag: 'SYNC_CONFLICT',
         );
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
         await _removeRecordFromBackupData(
@@ -892,6 +898,12 @@ class SmartSyncManager {
   void dispose() {
     _stopSyncMonitoring();
     _log('🛑 مدير المزامنة الذكي: تم التنظيف');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance?.dispose();
+    _instance = null;
   }
 
   /// معالجة طلب حل التضارب اليدوي (placeholder)

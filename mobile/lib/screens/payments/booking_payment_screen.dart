@@ -904,13 +904,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'إضافة دفعة جديدة',
+    return RefreshIndicator(
+      onRefresh: _refreshBookingNights,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'إضافة دفعة جديدة',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
@@ -918,6 +921,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           // نموذج إضافة الدفعة
           _buildPaymentForm(summary, nights: nights, remainingAmount: remainingAmount, roomRate: roomRate),
         ],
+      ),
       ),
     );
   }

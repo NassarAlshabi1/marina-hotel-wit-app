@@ -19,6 +19,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'employees_list';
+  int _refreshCounter = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -43,18 +44,26 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
               return const Center(child: CircularProgressIndicator());
             }
             final list = snapshot.data!;
-            return ListView.builder(
-              itemCount: list.length,
-              itemBuilder: (c, i) {
-                final e = list[i];
-                return ListTile(
-                  title: Text(e.name),
-                  subtitle: Text(
-                    'الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}',
-                  ),
-                  onTap: () => _edit(context, ref, existing: e),
-                );
+            return RefreshIndicator(
+              onRefresh: () async {
+                setState(() => _refreshCounter++);
               },
+              child: ListView.builder(
+                key: ValueKey(_refreshCounter),
+                itemCount: list.length,
+                itemBuilder: (c, i) {
+                  final e = list[i];
+                  return RepaintBoundary(
+                    child: ListTile(
+                      title: Text(e.name),
+                      subtitle: Text(
+                        'الراتب: ${CurrencyFormatter.formatAmount(e.basicSalary)} • ${e.status}',
+                      ),
+                      onTap: () => _edit(context, ref, existing: e),
+                    ),
+                  );
+                },
+              ),
             );
           },
         ),

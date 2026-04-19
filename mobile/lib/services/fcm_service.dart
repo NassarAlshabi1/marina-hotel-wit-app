@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
 import 'appwrite_sync_manager.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
@@ -20,6 +21,7 @@ class FcmService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   String? _currentToken;
   bool _isInitialized = false;
+  StreamSubscription<String>? _tokenRefreshSubscription; // اشتراك تحديث التوكن — يجب إلغاؤه
 
   /// تهيئة FCM — تُستدعى من main.dart بعد تثبيت Appwrite
   Future<void> initialize() async {
@@ -42,8 +44,8 @@ class FcmService {
         await prefs.setString('fcm_token', _currentToken!);
       }
 
-      // 5. الاستماع لتغيير التوكن
-      _messaging.onTokenRefresh.listen((newToken) async {
+      // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
+      _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
         debugPrint('🔄 FCM token refreshed');
         _currentToken = newToken;
         final prefs = await SharedPreferences.getInstance();
@@ -171,7 +173,9 @@ class FcmService {
       final realtime = _getRealtimeSync();
       realtime?.hasRemoteChanges.value = true;
       realtime?.pendingRemoteChangesCount.value++;
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('فشل تشغيل المزامنة عبر FCM', tag: 'FCM', error: e, stackTrace: st);
+    }
 
     // سحب التغييرات
     try {
@@ -250,4 +254,18 @@ class FcmService {
 
   /// هل تم التهيئة
   bool get isInitialized => _isInitialized;
+
+  /// تنظيف الموارد — إلغاء اشتراك تحديث التوكن
+  void dispose() {
+    _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    _currentToken = null;
+    _isInitialized = false;
+    debugPrint('🛑 FCM Service disposed');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
+  }
 }

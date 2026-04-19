@@ -140,6 +140,14 @@ class Employees extends Table with SyncFields {
   TextColumn get phone => text().withDefault(const Constant(''))();
   TextColumn get hireDate => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
+
+  // فهرس لتسريع البحث بالاسم
+  List<Index> get indexes => [
+    Index(
+      'idx_employees_name',
+      'CREATE INDEX idx_employees_name ON employees (name)',
+    ),
+  ];
 }
 
 class Expenses extends Table with SyncFields {
@@ -178,6 +186,18 @@ class CashTransactions extends Table with SyncFields {
   TextColumn get description => text().nullable()();
   TextColumn get transactionTime => text()();
   IntColumn get createdBy => integer().nullable()();
+
+  // فهارس لتسريع البحث بوقت المعاملة والنوع
+  List<Index> get indexes => [
+    Index(
+      'idx_cash_trans_type_time',
+      'CREATE INDEX idx_cash_trans_type_time ON cash_transactions (transaction_type, transaction_time)',
+    ),
+    Index(
+      'idx_cash_trans_ref',
+      'CREATE INDEX idx_cash_trans_ref ON cash_transactions (reference_type, reference_id)',
+    ),
+  ];
 }
 
 class Payments extends Table with SyncFields {
@@ -287,6 +307,22 @@ class ShiftNotes extends Table with SyncFields {
   // createdAt موجود في SyncFields كـ integer
   TextColumn get expiresAt => text().nullable()();
   TextColumn get createdBy => text().withDefault(const Constant('user'))();
+
+  // فهارس لتسريع البحث بمنشئ الملاحظة والتاريخ
+  List<Index> get indexes => [
+    Index(
+      'idx_shift_notes_created_by',
+      'CREATE INDEX idx_shift_notes_created_by ON shift_notes (created_by)',
+    ),
+    Index(
+      'idx_shift_notes_date',
+      'CREATE INDEX idx_shift_notes_date ON shift_notes (created_at)',
+    ),
+    Index(
+      'idx_shift_notes_read',
+      'CREATE INDEX idx_shift_notes_read ON shift_notes (is_read)',
+    ),
+  ];
 }
 
 @DataClassName('BookingNight')
@@ -711,7 +747,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 33;
+  int get schemaVersion => 34;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1645,6 +1681,35 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         }
+      }
+
+      // === Migration 34: فهارس الأداء الجديدة ===
+      if (from < 34) {
+        const newIndexes = [
+          // Employees: فهرس البحث بالاسم
+          'CREATE INDEX IF NOT EXISTS idx_employees_name ON employees (name)',
+          // CashTransactions: فهارس البحث بالمعاملات
+          'CREATE INDEX IF NOT EXISTS idx_cash_trans_type_time ON cash_transactions (transaction_type, transaction_time)',
+          'CREATE INDEX IF NOT EXISTS idx_cash_trans_ref ON cash_transactions (reference_type, reference_id)',
+          // ShiftNotes: فهارس البحث بمنشئ الملاحظة والتاريخ والحالة
+          'CREATE INDEX IF NOT EXISTS idx_shift_notes_created_by ON shift_notes (created_by)',
+          'CREATE INDEX IF NOT EXISTS idx_shift_notes_date ON shift_notes (created_at)',
+          'CREATE INDEX IF NOT EXISTS idx_shift_notes_read ON shift_notes (is_read)',
+        ];
+        for (final sql in newIndexes) {
+          try {
+            await m.database.customStatement(sql);
+          } catch (e) {
+            developer.log(
+              'Migration 34: $sql failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 34: new performance indexes created successfully',
+          name: 'db.migration',
+        );
       }
     },
   );

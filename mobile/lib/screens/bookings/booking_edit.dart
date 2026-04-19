@@ -205,7 +205,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
     final roomsAsync = ref.watch(roomsListProvider);
-    return wrapWithSyncOnExit(
+    return PopScope(
+      canPop: !hasUnsyncedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showDiscardDialog(context);
+      },
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
@@ -949,4 +954,31 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   String? _optionalText(String text) =>
       text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لا'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await syncNow();
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text('نعم'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

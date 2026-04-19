@@ -138,9 +138,8 @@ class OutboxProcessor {
 
   /// تحديث حالة مجموعة تغييرات إلى "تم المزامنة"
   Future<void> markBatchAsSynced(List<String> ids) async {
-    for (final id in ids) {
-      await _storage.markAsSynced(id, DateTime.now());
-    }
+    // استخدام Future.wait لتنفيذ جميع التحديثات بالتوازي بدلاً من التسلسل
+    await Future.wait(ids.map((id) => _storage.markAsSynced(id, DateTime.now())));
     _notifyPendingCount();
     _notifyStatus();
   }
@@ -204,7 +203,8 @@ class OutboxProcessor {
     try {
       final retryable = await fetchReadyForRetry();
 
-      for (final change in retryable) {
+      // استخدام Future.wait لتحديث جميع المحاولات بالتوازي بدلاً من التسلسل
+      await Future.wait(retryable.map((change) async {
         // تحديث Vector Clock للمحاولة الجديدة
         final newClock = _clockManager.recordLocalEvent();
 
@@ -223,7 +223,7 @@ class OutboxProcessor {
         );
 
         await _storage.save(updatedChange);
-      }
+      }));
     } finally {
       _isProcessing = false;
       _notifyStatus();

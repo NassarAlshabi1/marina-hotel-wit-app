@@ -8,6 +8,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:device_info_plus/device_info_plus.dart';
+import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'appwrite_service.dart';
@@ -1035,7 +1036,9 @@ class AppwriteSyncManager {
                 return detailValue.toInt();
               }
             }
-          } catch (_) {}
+          } catch (e, st) {
+            AppLogger.warning('سياق مزامنة غير معروف', tag: 'SYNC', error: e, stackTrace: st);
+          }
         }
 
         return 0;

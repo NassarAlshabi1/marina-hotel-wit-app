@@ -10,6 +10,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'local_db.dart';
+import '../utils/app_logger.dart';
 import '../providers/repository_providers.dart';
 import 'google_drive_backup_service.dart';
 import 'backup_serializers.dart';
@@ -287,10 +288,14 @@ class LocalBackupService {
 
         try {
           await db.customSelect('PRAGMA wal_checkpoint(FULL)').get();
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.error('فشل تنفيذ WAL checkpoint', tag: 'BACKUP', error: e, stackTrace: st);
+        }
         try {
           await db.customStatement('VACUUM');
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.error('فشل تنفيذ VACUUM', tag: 'BACKUP', error: e, stackTrace: st);
+        }
 
         await File(dbPath).copy(destinationPath);
         final metadataFile = File(_metadataFilePath(destinationPath));
@@ -771,7 +776,10 @@ class LocalBackupService {
         } catch (e) {
           try {
             await File(newFilePath).delete();
-          } catch (_) {}
+          } catch (e, st) {
+            // تجاهل مقصود — تنظيف أفضل جهد
+            AppLogger.warning('فشل حذف ملف مؤقت أثناء الاستعادة', tag: 'BACKUP', error: e, stackTrace: st);
+          }
           rethrow;
         } finally {
           await tempDb?.close();

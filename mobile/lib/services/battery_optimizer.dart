@@ -101,6 +101,7 @@ class BatteryOptimizer extends ChangeNotifier {
   bool _isCharging = false;
   StreamSubscription<BatteryState>? _batterySubscription;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _batteryLevelTimer; // مؤقت فحص مستوى البطارية الدوري
 
   // Getters
   BatteryState get batteryState => _batteryState;
@@ -153,8 +154,8 @@ class BatteryOptimizer extends ChangeNotifier {
       );
     });
 
-    // مراقبة مستوى البطارية
-    Timer.periodic(const Duration(minutes: 1), (_) async {
+    // مراقبة مستوى البطارية — حفظ المؤقت في حقل لإلغائه لاحقاً
+    _batteryLevelTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
       final newLevel = await _battery.batteryLevel;
       if (newLevel != _batteryLevel) {
         _batteryLevel = newLevel;
@@ -175,13 +176,15 @@ class BatteryOptimizer extends ChangeNotifier {
     });
   }
 
-  /// إيقاف المراقبة
+  /// إيقاف المراقبة وإلغاء جميع الاشتراكات والمؤقتات
   void stopMonitoring() {
     _isMonitoring = false;
     _batterySubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _batteryLevelTimer?.cancel(); // إلغاء مؤقت فحص البطارية
     _batterySubscription = null;
     _connectivitySubscription = null;
+    _batteryLevelTimer = null;
   }
 
   /// تحديث مستوى التحسين بناءً على حالة البطارية
@@ -316,6 +319,11 @@ class BatteryOptimizer extends ChangeNotifier {
   void dispose() {
     stopMonitoring();
     super.dispose();
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
   }
 }
 

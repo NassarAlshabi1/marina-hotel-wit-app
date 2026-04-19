@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../utils/app_logger.dart';
 import 'api_config_service.dart';
 
 class ApiService {
@@ -39,7 +41,9 @@ class ApiService {
             try {
               final req = await _retryRequest(e.requestOptions);
               return handler.resolve(req);
-            } catch (_) {}
+            } catch (e, st) {
+              AppLogger.error('فشل إعادة محاولة الطلب', tag: 'API', error: e, stackTrace: st);
+            }
           }
           handler.next(e);
         },

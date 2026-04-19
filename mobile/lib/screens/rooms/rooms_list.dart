@@ -149,60 +149,76 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final floorMap = _groupByFloor(rooms);
     final sortedFloors = floorMap.keys.toList()..sort();
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      itemCount: sortedFloors.length,
-      itemBuilder: (context, index) {
-        final floorNumber = sortedFloors[index];
-        final floorRooms = floorMap[floorNumber]!;
-        final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.room.status)).length;
-        
-        return _FloorExpansionTile(
-          floorNumber: floorNumber,
-          totalRooms: floorRooms.length,
-          availableRooms: availableCount,
-          initiallyExpanded: index < 2,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 5 : 3,
-                  childAspectRatio: 0.85,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: floorRooms.length,
-                itemBuilder: (context, i) {
-                  final roomData = floorRooms[i];
-                  return _RoomGridCard(
-                    roomData: roomData,
-                    onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: sortedFloors.length,
+        itemBuilder: (context, index) {
+          final floorNumber = sortedFloors[index];
+          final floorRooms = floorMap[floorNumber]!;
+          final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.room.status)).length;
+          
+          return RepaintBoundary(
+            child: _FloorExpansionTile(
+              floorNumber: floorNumber,
+              totalRooms: floorRooms.length,
+              availableRooms: availableCount,
+              initiallyExpanded: index < 2,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 5 : 3,
+                      childAspectRatio: 0.85,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemCount: floorRooms.length,
+                    itemBuilder: (context, i) {
+                      final roomData = floorRooms[i];
+                      return RepaintBoundary(
+                        child: _RoomGridCard(
+                          roomData: roomData,
+                          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildListView(List<RoomWithPaymentStatus> rooms, bool canEdit) {
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: rooms.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final roomData = rooms[index];
-        return _RoomListCard(
-          roomData: roomData,
-          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
-          onEdit: canEdit ? () => _editRoom(context, ref, existing: roomData.room) : null,
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: rooms.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final roomData = rooms[index];
+          return RepaintBoundary(
+            child: _RoomListCard(
+              roomData: roomData,
+              onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+              onEdit: canEdit ? () => _editRoom(context, ref, existing: roomData.room) : null,
+            ),
+          );
+        },
+      ),
     );
   }
 

@@ -89,32 +89,39 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 }
                 final filteredExpenses = snapshot.data!;
 
-                return ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    _buildCompactFiltersCard(),
-                    const SizedBox(height: 8),
-                    _buildCompactSummaryCard(
-                      totalAmount: todayData.total,
-                      count: todayData.count,
-                    ),
-                    const SizedBox(height: 10),
-                    if (filteredExpenses.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 48),
-                        child: Center(
-                          child: Text('لا توجد مصروفات ضمن الفترة'),
-                        ),
-                      )
-                    else
-                      ...filteredExpenses.map(
-                        (expense) => _buildExpenseCard(
-                          expense,
-                          employeeNames[expense.relatedId],
-                          employees,
-                        ),
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    _refreshExpensesStream();
+                  },
+                  child: ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
+                      _buildCompactFiltersCard(),
+                      const SizedBox(height: 8),
+                      _buildCompactSummaryCard(
+                        totalAmount: todayData.total,
+                        count: todayData.count,
                       ),
-                  ],
+                      const SizedBox(height: 10),
+                      if (filteredExpenses.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 48),
+                          child: Center(
+                            child: Text('لا توجد مصروفات ضمن الفترة'),
+                          ),
+                        )
+                      else
+                        ...filteredExpenses.map(
+                          (expense) => RepaintBoundary(
+                            child: _buildExpenseCard(
+                              expense,
+                              employeeNames[expense.relatedId],
+                              employees,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 );
               },
             );

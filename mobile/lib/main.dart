@@ -54,6 +54,9 @@ import 'services/appwrite_realtime_sync.dart';
 import 'services/fcm_service.dart';
 import 'services/sync_service.dart';
 import 'services/sync_constants.dart';
+import 'services/battery_optimizer.dart';
+import 'services/sync_performance_optimizer.dart';
+import 'services/appwrite_realtime_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
@@ -600,8 +603,51 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
+    // تنظيف موارد الخدمات Singleton لمنع تسرب الذاكرة
+    unawaited(_disposeSingletonServices());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// تنظيف جميع الخدمات Singleton عند إغلاق التطبيق
+  static Future<void> _disposeSingletonServices() async {
+    debugPrint('🧹 Disposing singleton services...');
+    try {
+      await FcmService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing FcmService: $e');
+    }
+    try {
+      await BatteryOptimizer.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
+    }
+    try {
+      await AppwriteRealtimeService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
+    }
+    try {
+      await SyncPerformanceOptimizer.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
+    }
+    try {
+      await SmartSyncManager.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing SmartSyncManager: $e');
+    }
+    try {
+      await AutoSyncEngine.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
+    }
+    try {
+      await UnifiedSyncOrchestrator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
+    }
+    debugPrint('✅ All singleton services disposed');
   }
 
   @override

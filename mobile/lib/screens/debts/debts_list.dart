@@ -314,13 +314,20 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredDebts.length,
-      itemBuilder: (context, index) {
-        final debt = filteredDebts[index];
-        return _buildDebtCard(debt);
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(debtsListProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: filteredDebts.length,
+        itemBuilder: (context, index) {
+          final debt = filteredDebts[index];
+          return RepaintBoundary(
+            child: _buildDebtCard(debt),
+          );
+        },
+      ),
     );
   }
 

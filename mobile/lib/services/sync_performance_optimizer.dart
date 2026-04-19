@@ -402,4 +402,9 @@ class SyncPerformanceOptimizer {
     _isInitialized = false;
     debugPrint('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
   }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
+  }
 }

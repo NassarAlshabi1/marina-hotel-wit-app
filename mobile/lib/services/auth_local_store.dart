@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
+
 enum AuthType { local }
 
 class AuthLocalStore {
@@ -86,7 +88,9 @@ class AuthLocalStore {
           return MapEntry(key.toString(), <String, dynamic>{});
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('فشل قراءة الحسابات المخصصة المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+    }
     return {};
   }
 
@@ -308,7 +312,9 @@ class AuthLocalStore {
         if (decoded is Map) {
           map = decoded.map((k, v) => MapEntry(k.toString(), v));
         }
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.warning('فشل قراءة بيانات الأذونات المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+      }
     }
     map[username] = permissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
@@ -331,7 +337,9 @@ class AuthLocalStore {
             names.add(k.toString());
           }
         }
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.warning('فشل قراءة أسماء المستخدمين من الأذونات', tag: 'AUTH', error: e, stackTrace: st);
+      }
     }
     final list = names.toList();
     list.sort();

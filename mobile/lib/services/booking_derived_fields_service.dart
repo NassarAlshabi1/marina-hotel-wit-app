@@ -116,18 +116,23 @@ class BookingDerivedFieldsService {
 
     int refreshed = 0;
     int promoted = 0;
-    for (final booking in active) {
+    // معالجة الحجوزات بالتوازي باستخدام Future.wait بدلاً من التسلسل
+    final results = await Future.wait(active.map((booking) async {
       try {
+        bool didPromote = false;
         if (StatusUtils.isBookingProvisional(booking) && moment.hour >= 14) {
           await _promoteProvisionalBooking(booking.id);
-          promoted++;
+          didPromote = true;
         }
         await refreshForBooking(booking, now: moment, forceRebuild: true);
-        refreshed++;
+        return (promoted: didPromote, refreshed: true);
       } catch (e) {
         debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+        return (promoted: false, refreshed: false);
       }
-    }
+    }));
+    promoted = results.where((r) => r.promoted).length;
+    refreshed = results.where((r) => r.refreshed).length;
 
     if (promoted > 0) {
       debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
