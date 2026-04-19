@@ -26,6 +26,33 @@ class _ActiveBookingsReminderScreenState
   bool _isSending = false;
   int _sentCount = 0;
   int _failedCount = 0;
+  bool _isInitialLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // تحديث البيانات تلقائياً عند فتح الشاشة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoRefreshData();
+    });
+  }
+
+  /// تحديث تلقائي لبيانات الحجوزات النشطة عند فتح الشاشة
+  Future<void> _autoRefreshData() async {
+    if (!mounted) return;
+    try {
+      final db = ref.read(databaseProvider);
+      await BookingDerivedFieldsService(db).refreshAllActiveBookings();
+      if (mounted) {
+        setState(() => _isInitialLoading = false);
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في التحديث التلقائي: $e');
+      if (mounted) {
+        setState(() => _isInitialLoading = false);
+      }
+    }
+  }
 
   /// تنظيف وتنسيق رقم الهاتف ليمني/سعودي
   String _cleanAndFormatPhone(String phone) {
@@ -144,6 +171,30 @@ class _ActiveBookingsReminderScreenState
   @override
   Widget build(BuildContext context) {
     final bookingsAsync = ref.watch(bookingsListProvider);
+
+    // عرض مؤشر تحميل أثناء التحديث التلقائي الأولي
+    if (_isInitialLoading) {
+      return AppScaffold(
+        title: 'تذكير المتبقي - حجوزات نشطة',
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'جاري تحديث بيانات الحجوزات...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return AppScaffold(
       title: 'تذكير المتبقي - حجوزات نشطة',
