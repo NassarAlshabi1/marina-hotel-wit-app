@@ -36,7 +36,8 @@ const COLLECTIONS = [
     'guest_infos',
     'salary_withdrawals',
     'booking_price_adjustments',
-    'price_adjustments'
+    'price_adjustments',
+    'app_users',
 ];
 
 // Public permissions for testing (allow any user to read/write)

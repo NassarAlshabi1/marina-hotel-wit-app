@@ -771,6 +771,20 @@ const app_settings = {
 };
 
 
+// 23. APP_USERS — مستخدمو التطبيق (مزامنة بين الأجهزة)
+const app_users = {
+  attributes: [
+    { key: 'username',   type: 'string',  required: false, size: 100,  default: '' },
+    { key: 'password',   type: 'string',  required: false, size: 500,  default: '' },
+    { key: 'full_name',  type: 'string',  required: false, size: 200,  default: '' },
+    { key: 'user_type',  type: 'string',  required: false, size: 50,   default: 'employee' },
+    { key: 'permissions', type: 'string', required: false, size: 2000, default: '[]' },
+    { key: 'active',     type: 'boolean', required: false, default: true },
+    { key: 'last_login', type: 'integer', required: false, default: 0 },
+  ],
+};
+
+
 // ─── التشغيل الرئيسي ─────────────────────────────────────────────────────────
 
 async function main() {
@@ -820,6 +834,9 @@ async function main() {
 
     // إعدادات
     ['app_settings',           'إعدادات التطبيق',          app_settings],
+
+    // مستخدمين
+    ['app_users',              'مستخدمو التطبيق',          app_users],
   ];
 
   let success = 0;
