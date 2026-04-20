@@ -323,13 +323,12 @@ class AppwriteDeltaSync {
     try {
       int applied = 0;
 
-      // ✅ بناء استعلامات الفلترة فقط - بدون limit/offset
-      // لأن listDocuments → _listAllDocumentsInternal يتعامل مع Pagination داخلياً
+      // ✅ بناء استعلامات الفلترة - نستخدم الترتيب التصاعدي لمعالجة البيانات بالترتيب الصحيح
       final filterQueries = <String>[
         Query.orderAsc('\$createdAt'),
       ];
 
-      // تحويل lastPullTs من ثوانٍ إلى مللي ثانية للمقارنة مع $updatedAt (Appwrite يستخدم مللي)
+      // تحويل lastPullTs من ثوانٍ إلى مللي ثانية للمقارنة مع $updatedAt
       final lastPullMs = lastPullTs > 0 ? lastPullTs * 1000 : 0;
 
       List<models.Document> documents;
@@ -340,52 +339,44 @@ class AppwriteDeltaSync {
             .toUtc()
             .toIso8601String();
 
-        // محاولة الفلترة بـ syncTimestamp أولاً
+        // محاولة الفلترة بـ $createdAt أولاً لجلب الأحداث "الجديدة" فقط
         try {
-          final syncQueries = [
+          final newEventsQueries = [
             ...filterQueries,
-            Query.greaterThan('syncTimestamp', lastPullTs),
+            Query.greaterThan('\$createdAt', lastPullIso),
           ];
+          
+          _logger.debug('Pulling new $entity events after $lastPullIso', tag: 'DELTA_SYNC');
+          
           documents = await _appwriteService!.listDocuments(
             collectionId: collectionId,
-            queries: syncQueries,
+            queries: newEventsQueries,
             useCache: false,
           );
         } catch (e) {
-          // ✅ fallback: إذا syncTimestamp غير معرّف كـ attribute، استخدم $updatedAt
           _logger.warning(
-            'فشل فلترة $entity بـ syncTimestamp، استخدام \$updatedAt: $e',
+            'فشل فلترة $entity بـ \$createdAt، جلب كامل محدود: $e',
             tag: 'DELTA_SYNC',
           );
-          try {
-            final fallbackQueries = [
-              // Appwrite يتطلب ISO 8601 لحقول التاريخ/الوقت
-              Query.greaterThan('\$updatedAt', lastPullIso),
-              ...filterQueries,
-            ];
-            documents = await _appwriteService!.listDocuments(
-              collectionId: collectionId,
-              queries: fallbackQueries,
-              useCache: false,
-            );
-          } catch (e2) {
-            // ✅ fallback أخير: جلب كل شيء وفلترة يدوية
-            _logger.warning(
-              'فشل فلترة $entity بـ \$updatedAt، جلب كامل: $e2',
-              tag: 'DELTA_SYNC',
-            );
-            documents = await _appwriteService!.listDocuments(
-              collectionId: collectionId,
-              queries: filterQueries,
-              useCache: false,
-            );
-          }
+          
+          // في حال فشل الفلترة، نجلب آخر 100 سجل فقط بدلاً من الكل لتوفير البيانات
+          documents = await _appwriteService!.listDocuments(
+            collectionId: collectionId,
+            queries: [
+              Query.orderDesc('\$createdAt'),
+              Query.limit(100),
+            ],
+            useCache: false,
+          );
         }
       } else {
-        // أول سحب: جلب كل شيء بدون فلترة زمنية
+        // أول سحب: جلب كل شيء بحد أقصى معقول (مثلاً آخر 500 سجل)
         documents = await _appwriteService!.listDocuments(
           collectionId: collectionId,
-          queries: filterQueries,
+          queries: [
+            ...filterQueries,
+            Query.limit(500),
+          ],
           useCache: false,
         );
       }
@@ -398,20 +389,16 @@ class AppwriteDeltaSync {
         // تخطي المستندات التي أرسلها هذا الجهاز نفسه
         if (sourceDeviceId == _deviceId) continue;
 
-        // ✅ فلترة يدوية إضافية بالوقت (safety net)
+        // ✅ فلترة إضافية بالوقت للتأكد من أننا لا نعالج بيانات قديمة
         if (lastPullTs > 0) {
-          final syncTs = _asInt(data['syncTimestamp']);
-          if (syncTs != null && syncTs <= lastPullTs) {
-            continue;
-          }
-          // ✅ فحص $updatedAt من كائن Document مباشرة (ليس من doc.data)
-          // لأن $updatedAt حقل نظامي لا يظهر في doc.data
           try {
-            final updatedAt = DateTime.parse(doc.$updatedAt);
-            if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
+            final createdAt = DateTime.parse(doc.$createdAt);
+            if (createdAt.millisecondsSinceEpoch <= lastPullMs) {
               continue;
             }
-          } catch (e) { debugPrint('WARN: Cannot parse updatedAt: $e'); }
+          } catch (e) { 
+            _logger.warning('Cannot parse createdAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
+          }
         }
 
         try {
