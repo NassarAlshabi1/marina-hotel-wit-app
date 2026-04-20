@@ -10,6 +10,7 @@ import '../../utils/status_utils.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../services/booking_derived_fields_service.dart';
+import '../../utils/time.dart';
 
 /// تقرير تفصيلي لمدفوعات النزلاء مع حساب عدد الأيام والرصيد المتبقي للأيام القادمة
 class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
@@ -29,64 +30,68 @@ class _GuestPaymentsDetailReportScreenState
   bool _showOnlyActive = true;
   bool _isLoading = true;
 
-  /// حساب الأيام المقضية فعلياً (من تاريخ الوصول إلى اليوم أو المغادرة)
+  /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
   int _getActualDaysSpent(Booking b) {
-    return b.calculatedNights;
+    final checkin = DateTime.tryParse(b.checkinDate) ?? DateTime.now();
+    // إذا غادر بالفعل نستخدم تاريخ المغادرة الفعلي، وإلا نستخدم الوقت الحالي
+    final end = (b.actualCheckout != null && b.actualCheckout!.isNotEmpty)
+        ? DateTime.tryParse(b.actualCheckout!)
+        : DateTime.now();
+    
+    return Time.nightsWithCutoff(checkin, checkout: end);
   }
 
-  /// حساب الأيام المتبقية حتى تاريخ المغادرة المخطط
+  /// حساب الأيام المتبقية حتى تاريخ المغادرة المخطط (أو المتوقع)
   int _getDaysUntilCheckout(Booking b) {
     if (b.checkoutDate == null || b.checkoutDate!.isEmpty) return 0;
     final checkout = DateTime.tryParse(b.checkoutDate!);
     if (checkout == null) return 0;
+    
     final now = DateTime.now();
-    if (checkout.isBefore(now)) return 0; // انتهت المدة
-    return checkout.difference(now).inDays;
+    if (checkout.isBefore(now)) return 0; // انتهت المدة المخططة
+    
+    // حساب الأيام من الآن حتى موعد المغادرة المخطط
+    return Time.nightsWithCutoff(now, checkout: checkout);
   }
 
-  /// حساب متوسط سعر الليلة الواحدة
+  /// حساب متوسط سعر الليلة الواحدة للحجز
   double _getAverageNightlyRate(Booking b) {
-    if (b.calculatedNights <= 0) {
-      // إذا لم يكمل ليلة بعد، نستخدم سعر الغرفة الافتراضي
-      return b.totalDueCached; 
-    }
-    return b.totalDueCached / b.calculatedNights;
+    final nights = b.calculatedNights > 0 ? b.calculatedNights : 1;
+    return b.totalDueCached / nights;
   }
 
-  /// حساب عدد الأيام الممكنة بالرصيد المتبقي
-  int _getDaysCoveredByRemaining(Booking b) {
-    final remaining = b.remainingBalanceCached;
-    if (remaining <= 0) return 0;
+  /// حساب عدد الأيام التي يغطيها الرصيد المتبقي (المدفوع زيادة)
+  int _getDaysCoveredByCredit(Booking b) {
+    // إذا كان الرصيد المتبقي سالباً، فهذا يعني وجود مبلغ مدفوع زيادة (Credit)
+    final credit = -b.remainingBalanceCached;
+    if (credit <= 0) return 0;
+    
     final nightlyRate = _getAverageNightlyRate(b);
     if (nightlyRate <= 0) return 0;
-    return (remaining / nightlyRate).floor();
+    
+    return (credit / nightlyRate).floor();
   }
 
-  /// حساب تكلفة الأيام المتبقية حتى تاريخ المغادرة
+  /// حساب تكلفة الأيام القادمة حتى تاريخ المغادرة المخطط
   double _getUpcomingDaysCost(Booking b) {
     final daysLeft = _getDaysUntilCheckout(b);
     if (daysLeft <= 0) return 0;
-    final nightlyRate = _getAverageNightlyRate(b);
-    return nightlyRate * daysLeft;
+    return _getAverageNightlyRate(b) * daysLeft;
   }
 
-  /// هل الحجز تجاوز تاريخ المغادرة؟
+  /// هل الحجز تجاوز تاريخ المغادرة المخطط؟
   bool _isOverdue(Booking b) {
     return b.isOverdue;
   }
 
-  /// حساب عدد أيام التأخير
+  /// حساب عدد أيام التأخير (بعد موعد المغادرة المخطط)
   int _getOverdueDays(Booking b) {
     if (!_isOverdue(b)) return 0;
-    // إذا كان الحجز نشطاً وتجاوز تاريخ المغادرة
-    if (b.actualCheckout == null || b.actualCheckout!.isEmpty) {
-        final checkout = DateTime.tryParse(b.checkoutDate ?? '');
-        if (checkout != null) {
-            final now = DateTime.now();
-            return now.difference(checkout).inDays;
-        }
-    }
-    return 0;
+    final checkout = DateTime.tryParse(b.checkoutDate ?? '');
+    if (checkout == null) return 0;
+    
+    final now = DateTime.now();
+    return Time.nightsWithCutoff(checkout, checkout: now);
   }
 
   /// تكلفة أيام التأخير
@@ -104,11 +109,16 @@ class _GuestPaymentsDetailReportScreenState
 
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
-    final db = ref.read(databaseProvider);
-    final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshAllActiveBookings();
-    if (mounted) {
-      setState(() => _isLoading = false);
+    try {
+      final db = ref.read(databaseProvider);
+      final derivedService = BookingDerivedFieldsService(db);
+      await derivedService.refreshAllActiveBookings();
+    } catch (e) {
+      debugPrint('Error refreshing data: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -134,7 +144,7 @@ class _GuestPaymentsDetailReportScreenState
     } else if (_filterStatus == 'unpaid') {
       filtered = filtered.where((b) => b.totalPaidCached <= 0).toList();
     } else if (_filterStatus == 'overpaid') {
-      filtered = filtered.where((b) => b.totalPaidCached >= b.totalDueCached && b.remainingBalanceCached <= 0).toList();
+      filtered = filtered.where((b) => b.remainingBalanceCached < 0).toList();
     }
 
     // ترتيب
@@ -156,7 +166,7 @@ class _GuestPaymentsDetailReportScreenState
     final bookingsAsync = ref.watch(bookingsListProvider);
 
     return AppScaffold(
-      title: 'تقرير مدفوعات النزلاء',
+      title: 'تقرير مدفوعات النزلاء التفصيلي',
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
@@ -172,7 +182,7 @@ class _GuestPaymentsDetailReportScreenState
               ? const Center(child: CircularProgressIndicator())
               : bookingsAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('خطأ: $e')),
+                  error: (e, _) => Center(child: Text('خطأ في تحميل البيانات: $e')),
                   data: (bookings) => _buildReport(bookings),
                 ),
           ),
@@ -184,7 +194,12 @@ class _GuestPaymentsDetailReportScreenState
   Widget _buildSearchAndFilters() {
     return Container(
       padding: const EdgeInsets.all(12),
-      color: Colors.grey.shade50,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+        ],
+      ),
       child: Column(
         children: [
           // بحث
@@ -200,57 +215,86 @@ class _GuestPaymentsDetailReportScreenState
                       onPressed: () => setState(() => _searchQuery = ''),
                     )
                   : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               isDense: true,
+              filled: true,
+              fillColor: Colors.grey.shade50,
             ),
             onChanged: (v) => setState(() => _searchQuery = v),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // فلتر الحالة
-          Row(
-            children: [
-              Expanded(child: _buildFilterChip('الكل', 'all', Colors.blue)),
-              const SizedBox(width: 6),
-              Expanded(child: _buildFilterChip('جزئي', 'partial', Colors.orange)),
-              const SizedBox(width: 6),
-              Expanded(child: _buildFilterChip('لم يدفع', 'unpaid', Colors.red)),
-              const SizedBox(width: 6),
-              Expanded(child: _buildFilterChip('مسدد', 'overpaid', Colors.green)),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip('الكل', 'all', Colors.blue),
+                const SizedBox(width: 8),
+                _buildFilterChip('دفع جزئي', 'partial', Colors.orange),
+                const SizedBox(width: 8),
+                _buildFilterChip('غير مدفوع', 'unpaid', Colors.red),
+                const SizedBox(width: 8),
+                _buildFilterChip('مدفوع زيادة', 'overpaid', Colors.green),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // خيارات إضافية
           Row(
             children: [
               Expanded(
-                child: FilterChip(
-                  label: const Text('النشطة فقط', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  selected: _showOnlyActive,
-                  onSelected: (v) => setState(() => _showOnlyActive = v),
-                  selectedColor: Colors.blue.withOpacity(0.15),
-                  checkmarkColor: Colors.blue,
-                  labelStyle: TextStyle(color: _showOnlyActive ? Colors.blue : null, fontSize: 11),
+                child: InkWell(
+                  onTap: () => setState(() => _showOnlyActive = !_showOnlyActive),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _showOnlyActive ? Colors.blue.shade50 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _showOnlyActive ? Colors.blue.shade200 : Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _showOnlyActive ? Icons.check_circle : Icons.circle_outlined,
+                          size: 16,
+                          color: _showOnlyActive ? Colors.blue : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'النزلاء الحاليين فقط',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _showOnlyActive ? Colors.blue.shade700 : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _sortBy,
                   isDense: true,
-                  decoration: const InputDecoration(
-                    labelText: 'ترتيب',
-                    labelStyle: TextStyle(fontSize: 11),
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: InputDecoration(
+                    labelText: 'ترتيب حسب',
+                    labelStyle: const TextStyle(fontSize: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
                   ),
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold),
                   items: const [
-                    DropdownMenuItem(value: 'room', child: Text('الغرفة', style: TextStyle(fontSize: 11))),
-                    DropdownMenuItem(value: 'name', child: Text('الاسم', style: TextStyle(fontSize: 11))),
-                    DropdownMenuItem(value: 'remaining', child: Text('المتبقي', style: TextStyle(fontSize: 11))),
+                    DropdownMenuItem(value: 'room', child: Text('رقم الغرفة')),
+                    DropdownMenuItem(value: 'name', child: Text('اسم النزيل')),
+                    DropdownMenuItem(value: 'remaining', child: Text('المبلغ المتبقي')),
                   ],
                   onChanged: (v) {
                     if (v != null) setState(() => _sortBy = v);
@@ -267,12 +311,15 @@ class _GuestPaymentsDetailReportScreenState
   Widget _buildFilterChip(String label, String value, Color color) {
     final isSelected = _filterStatus == value;
     return FilterChip(
-      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
       selected: isSelected,
       onSelected: (_) => setState(() => _filterStatus = value),
-      selectedColor: color.withOpacity(0.15),
+      selectedColor: color.withOpacity(0.2),
       checkmarkColor: color,
-      labelStyle: TextStyle(color: isSelected ? color : null, fontSize: 11),
+      backgroundColor: Colors.grey.shade100,
+      labelStyle: TextStyle(color: isSelected ? color : Colors.grey.shade700),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 
@@ -280,31 +327,39 @@ class _GuestPaymentsDetailReportScreenState
     final filtered = _filterAndSort(allBookings);
 
     if (filtered.isEmpty) {
-      return const Center(child: Text('لا توجد بيانات تطابق البحث'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            const Text('لا توجد بيانات تطابق معايير البحث', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
     }
 
-    final totalRemaining = filtered.fold(0.0, (s, b) => s + b.remainingBalanceCached);
+    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
+    final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
 
     return Column(
       children: [
-        // ملخص سريع
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.blue.shade50,
+          padding: const EdgeInsets.all(16),
+          color: Colors.blue.shade900,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('العدد: ${filtered.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(
-                'إجمالي المتبقي: ${CurrencyFormatter.formatAmount(totalRemaining)} ريال',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
-              ),
+              _buildSummaryItem('النزلاء', '${filtered.length}', Colors.white),
+              const Spacer(),
+              _buildSummaryItem('إجمالي المحصل', CurrencyFormatter.formatAmount(totalPaid), Colors.green.shade300),
+              const Spacer(),
+              _buildSummaryItem('إجمالي المتبقي', CurrencyFormatter.formatAmount(totalRemaining), Colors.orange.shade300),
             ],
           ),
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             itemCount: filtered.length,
             itemBuilder: (context, index) => _buildBookingCard(filtered[index]),
           ),
@@ -313,30 +368,51 @@ class _GuestPaymentsDetailReportScreenState
     );
   }
 
+  Widget _buildSummaryItem(String label, String value, Color valueColor) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 14)),
+      ],
+    );
+  }
+
   Widget _buildBookingCard(Booking b) {
     final actualDays = _getActualDaysSpent(b);
     final daysLeft = _getDaysUntilCheckout(b);
     final nightlyRate = _getAverageNightlyRate(b);
-    final daysCovered = _getDaysCoveredByRemaining(b);
+    final creditDays = _getDaysCoveredByCredit(b);
     final isOverdue = _isOverdue(b);
     final overdueDays = _getOverdueDays(b);
     final overdueCost = _getOverdueCost(b);
-    final paidPercent = b.totalDueCached > 0 ? (b.totalPaidCached / b.totalDueCached * 100) : 0.0;
+    
+    // حساب النسبة المئوية للدفع بناءً على المبلغ المستحق حتى الآن (الأيام المقضية)
+    final costSoFar = actualDays * nightlyRate;
+    final paidPercent = costSoFar > 0 ? (b.totalPaidCached / costSoFar * 100) : 100.0;
+    
+    final remaining = b.remainingBalanceCached;
+    final isCredit = remaining < 0;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── الرأس ───
-            Row(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 4,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        children: [
+          // ─── رأس البطاقة ───
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade700,
                     borderRadius: BorderRadius.circular(8),
@@ -346,191 +422,269 @@ class _GuestPaymentsDetailReportScreenState
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    b.guestName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        b.guestName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'سعر الليلة: ${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
                   onPressed: () => _exportGuestStatementPdf(b),
-                  tooltip: 'تصدير كشف حساب PDF',
+                  tooltip: 'كشف حساب PDF',
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 10),
-
-            // ─── التواريخ ───
-            _buildInfoRow(Icons.calendar_today, 'الوصول: ${b.checkinDate.split(' ').first}',
-                Icons.event, 'المغادرة: ${b.checkoutDate?.split(' ').first ?? '---'}'),
-            const SizedBox(height: 8),
-
-            // ─── الأيام ───
-            Row(
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildDaysCard('الأيام المقضية', '$actualDays', Colors.blue)),
-                const SizedBox(width: 6),
-                Expanded(child: _buildDaysCard('الأيام المخططة', '${b.calculatedNights}', Colors.purple)),
-                const SizedBox(width: 6),
-                Expanded(child: _buildDaysCard('الأيام المتبقية', '$daysLeft', Colors.orange)),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // ─── المبالغ ───
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('تقدم الدفع', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                      Text('${paidPercent.toStringAsFixed(0)}%', 
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: paidPercent >= 100 ? Colors.green : Colors.orange)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  LinearProgressIndicator(
-                    value: (paidPercent / 100).clamp(0, 1),
-                    backgroundColor: Colors.grey.shade200,
-                    color: paidPercent >= 100 ? Colors.green : Colors.orange,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(child: _buildAmountCol('الإجمالي', b.totalDueCached, Colors.blue.shade800)),
-                      Expanded(child: _buildAmountCol('المدفوع', b.totalPaidCached, Colors.green.shade800)),
-                      Expanded(child: _buildAmountCol('المتبقي', b.remainingBalanceCached, Colors.red.shade800)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            if (isOverdue && overdueDays > 0) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(6)),
-                child: Row(
+                // ─── التواريخ ───
+                Row(
                   children: [
-                    const Icon(Icons.warning, size: 16, color: Colors.red),
-                    const SizedBox(width: 6),
-                    Text('تأخير $overdueDays يوم - التكلفة: ${CurrencyFormatter.formatAmount(overdueCost)} ريال',
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11)),
+                    Expanded(child: _buildInfoItem(Icons.login, 'الدخول', b.checkinDate.split(' ').first)),
+                    Expanded(child: _buildInfoItem(Icons.logout, 'المغادرة المتوقعة', b.checkoutDate?.split(' ').first ?? '---')),
                   ],
                 ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+                const Divider(height: 24),
 
-  Widget _buildInfoRow(IconData icon1, String text1, IconData icon2, String text2) {
-    return Row(
-      children: [
-        Icon(icon1, size: 14, color: Colors.grey),
-        const SizedBox(width: 4),
-        Expanded(child: Text(text1, style: const TextStyle(fontSize: 11))),
-        Icon(icon2, size: 14, color: Colors.grey),
-        const SizedBox(width: 4),
-        Expanded(child: Text(text2, style: const TextStyle(fontSize: 11))),
-      ],
-    );
-  }
+                // ─── الأيام ───
+                Row(
+                  children: [
+                    Expanded(child: _buildDaysStat('المقضية', '$actualDays', Colors.blue)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildDaysStat('المتبقية', '$daysLeft', Colors.purple)),
+                    const SizedBox(width: 8),
+                    if (isCredit)
+                      Expanded(child: _buildDaysStat('مغطاة بالرصيد', '$creditDays', Colors.green))
+                    else
+                      Expanded(child: _buildDaysStat('المخططة', '${b.calculatedNights}', Colors.grey)),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
-  Widget _buildDaysCard(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 9, color: Colors.black54)),
+                // ─── المبالغ والتقدم ───
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade100),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('تغطية التكاليف الحالية', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                          Text('${paidPercent.toStringAsFixed(0)}%', 
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: paidPercent >= 100 ? Colors.green : Colors.orange)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (paidPercent / 100).clamp(0, 1),
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: AlwaysStoppedAnimation<Color>(paidPercent >= 100 ? Colors.green : Colors.orange),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: _buildAmountDetail('إجمالي العقد', b.totalDueCached, Colors.blue.shade900)),
+                          Expanded(child: _buildAmountDetail('إجمالي المدفوع', b.totalPaidCached, Colors.green.shade800)),
+                          Expanded(
+                            child: _buildAmountDetail(
+                              isCredit ? 'رصيد للنزيل' : 'متبقي عليه', 
+                              isCredit ? -remaining : remaining, 
+                              isCredit ? Colors.green.shade800 : Colors.red.shade800
+                            )
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ─── تنبيهات التأخير ───
+                if (isOverdue && overdueDays > 0) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade100),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 20, color: Colors.red),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'تجاوز موعد المغادرة بـ $overdueDays يوم (تكلفة إضافية: ${CurrencyFormatter.formatAmount(overdueCost)} ريال)',
+                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAmountCol(String label, double value, Color color) {
-    return Column(
+  Widget _buildInfoItem(IconData icon, String label, String value) {
+    return Row(
       children: [
-        Text(CurrencyFormatter.formatAmount(value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: const TextStyle(fontSize: 9, color: Colors.black54)),
+        Icon(icon, size: 16, color: Colors.grey),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ],
     );
   }
 
-  /// تصدير كشف حساب النزيل بصيغة PDF
+  Widget _buildDaysStat(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: TextStyle(fontSize: 10, color: color.withOpacity(0.8), fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmountDetail(String label, double value, Color color) {
+    return Column(
+      children: [
+        Text(CurrencyFormatter.formatAmount(value), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 9, color: Colors.black54, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  /// تصدير كشف حساب النزيل بصيغة PDF احترافية
   Future<void> _exportGuestStatementPdf(Booking b) async {
     final payments = await ref.read(paymentsRepoProvider).paymentsByBooking(b.id).first;
+    final actualDays = _getActualDaysSpent(b);
+    final nightlyRate = _getAverageNightlyRate(b);
+    final costSoFar = actualDays * nightlyRate;
     
     final config = ReportPdfConfig(
-      title: 'كشف حساب نزيل',
+      title: 'كشف حساب نزيل تفصيلي',
       fileName: ReportPdfBuilder.generateFileName('كشف-حساب-${b.guestName}'),
       extraHeaderLine: 'النزيل: ${b.guestName} | غرفة: ${b.roomNumber}',
       buildContent: (fonts) {
         return [
-          // ملخص الحساب
+          // ملخص الحساب والمدة
           epdf.EnhancedPdfUtils.buildInfoCard(
-            title: 'ملخص الحساب والمدة',
+            title: '📊 ملخص الحساب والمدة الزمانية',
             fonts: fonts,
             content: [
               _buildPdfInfoRow(fonts, 'تاريخ الوصول:', b.checkinDate.split(' ').first),
-              _buildPdfInfoRow(fonts, 'تاريخ المغادرة:', b.checkoutDate?.split(' ').first ?? '---'),
-              _buildPdfInfoRow(fonts, 'الأيام المقضية:', '${b.calculatedNights} يوم'),
-              _buildPdfInfoRow(fonts, 'إجمالي المبلغ:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
-              _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال'),
-              _buildPdfInfoRow(fonts, 'الرصيد المتبقي:', '${CurrencyFormatter.formatAmount(b.remainingBalanceCached)} ريال'),
+              _buildPdfInfoRow(fonts, 'تاريخ المغادرة المتوقع:', b.checkoutDate?.split(' ').first ?? '---'),
+              _buildPdfInfoRow(fonts, 'عدد الأيام المقضية حتى الآن:', '$actualDays يوم'),
+              _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
+              pw.Divider(color: pw.PdfColors.grey300, thickness: 0.5),
+              _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(costSoFar)} ريال'),
+              _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال'),
+              _buildPdfInfoRow(
+                fonts, 
+                b.remainingBalanceCached < 0 ? 'الرصيد المتبقي (له):' : 'الرصيد المتبقي (عليه):', 
+                '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                valueColor: b.remainingBalanceCached < 0 ? pw.PdfColors.green : pw.PdfColors.red
+              ),
             ],
           ),
           pw.SizedBox(height: 20),
           
           // جدول المدفوعات
-          pw.Text('تفاصيل المدفوعات', style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
+          pw.Text('💳 سجل المدفوعات التفصيلي', style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: pw.PdfColors.blue900)),
           pw.SizedBox(height: 10),
           epdf.EnhancedPdfUtils.buildProfessionalTable(
             fonts: fonts,
-            headers: ['التاريخ', 'المبلغ', 'الطريقة', 'ملاحظات'],
+            headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'رقم المرجع', 'ملاحظات'],
             data: payments.map((p) => [
               p.paymentDate.split('T').first,
               CurrencyFormatter.formatAmount(p.amount),
               p.paymentMethod,
+              p.referenceNumber ?? '---',
               p.notes ?? '',
             ]).toList(),
             columnWidths: {
               0: const pw.FixedColumnWidth(80),
-              1: const pw.FixedColumnWidth(70),
+              1: const pw.FixedColumnWidth(80),
               2: const pw.FixedColumnWidth(70),
-              3: const pw.FlexColumnWidth(),
+              3: const pw.FixedColumnWidth(70),
+              4: const pw.FlexColumnWidth(),
             },
           ),
           
           pw.SizedBox(height: 30),
-          pw.Align(
-            alignment: pw.Alignment.centerLeft,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.Text('ختم الفندق', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
-                pw.SizedBox(height: 40),
-                pw.Container(width: 100, height: 1, color: pw.PdfColors.black),
-              ],
+          
+          // التذييل والختم
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('ملاحظات:', style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+                  pw.Text('يُحتسب اليوم الفندقي من الساعة 2:00 ظهراً.', style: pw.TextStyle(font: fonts.regular, fontSize: 9)),
+                  pw.Text('أي تأخير في المغادرة بعد هذا الوقت يُحتسب يوماً إضافياً.', style: pw.TextStyle(font: fonts.regular, fontSize: 9)),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text('ختم وتوقيع الإدارة', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                  pw.SizedBox(height: 40),
+                  pw.Container(width: 120, height: 1, color: pw.PdfColors.black),
+                ],
+              ),
+            ],
+          ),
+          
+          pw.SizedBox(height: 20),
+          pw.Center(
+            child: pw.Text(
+              'شكراً لاختياركم فندق مارينا - نتمنى لكم إقامة سعيدة',
+              style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: pw.PdfColors.grey700, italic: true)
             ),
           ),
         ];
@@ -540,14 +694,14 @@ class _GuestPaymentsDetailReportScreenState
     await ReportPdfBuilder.buildAndShare(config);
   }
 
-  pw.Widget _buildPdfInfoRow(epdf.ArabicPdfFonts fonts, String label, String value) {
+  pw.Widget _buildPdfInfoRow(epdf.ArabicPdfFonts fonts, String label, String value, {pw.PdfColor? valueColor}) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
-          pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+          pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: pw.PdfColors.grey800)),
+          pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: valueColor ?? pw.PdfColors.black)),
         ],
       ),
     );
