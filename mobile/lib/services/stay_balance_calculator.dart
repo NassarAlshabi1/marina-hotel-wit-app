@@ -161,44 +161,47 @@ class StayBalanceCalculator {
         ? roomRate
         : (booking.calculatedNights > 0 ? booking.totalDueCached / booking.calculatedNights : 0);
 
-    // الأيام المقضية فعلياً حتى الآن
+    // 1. حساب الأيام المقضية فعلياً حتى اللحظة الحالية (Consumed)
     final actualNightsSpent = Time.nightsWithCutoff(checkin, checkout: moment);
 
-    // تكلفة الأيام المقضية فعلياً
+    // 2. تكلفة الأيام المقضية فعلياً
     final consumedCost = actualNightsSpent * nightlyRate;
 
-    // إجمالي المدفوعات التراكمية
+    // 3. إجمالي المدفوعات التراكمية (الرصيد الكلي المدفوع)
     final totalPaid = booking.totalPaidCached;
 
-    // الرصيد الفعلي الفعّال = المدفوع - تكلفة ما استُهلك
+    // 4. الرصيد الفعلي الحالي (Effective Balance)
+    // هو الرصيد المتبقي بعد خصم تكلفة الأيام التي قضاها النزيل بالفعل
     final effectiveBalance = totalPaid - consumedCost;
 
-    // إجمالي الليالي التي يغطيها المدفوع التراكمي
+    // 5. حساب إجمالي الليالي التي يغطيها المبلغ المدفوع بالكامل منذ البداية
+    // منطق تراكمي: نأخذ كامل المبلغ المدفوع ونقسمه على سعر الليلة
     final int totalPaidNights = (nightlyRate > 0 && totalPaid > 0)
         ? (totalPaid / nightlyRate).floor()
         : 0;
 
-    // تاريخ المغادرة التلقائي = تاريخ الدخول + الليالي المدفوعة
+    // 6. تاريخ المغادرة التلقائي (Expected Check-out Date)
+    // يُحسب بناءً على إجمالي الليالي المدفوعة بدءاً من تاريخ الدخول
     final autoCheckout = DateTime(
       checkinDateOnly.year,
       checkinDateOnly.month,
       checkinDateOnly.day,
     ).add(Duration(days: totalPaidNights));
 
-    // الأيام المتبقية حتى تاريخ المغادرة اليدوي
+    // 7. الأيام المتبقية حتى تاريخ المغادرة اليدوي (من الآن)
     final int manualNightsRemaining = (manualCheckout != null && manualCheckout.isAfter(moment))
         ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
         : 0;
 
-    // هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟
+    // 8. هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟ (تغطية أيام مستقبلية)
     final bool isAutoExtended = manualCheckout != null && autoCheckout.isAfter(manualCheckout);
 
-    // الأيام الإضافية وراء تاريخ المغادرة اليدوي
+    // 9. عدد الأيام الإضافية المغطاة وراء تاريخ المغادرة اليدوي
     final int extraNightsBeyondManual = isAutoExtended
         ? Time.nightsWithCutoff(manualCheckout, checkout: autoCheckout)
         : 0;
 
-    // الفائض المالي بعد تغطية جميع الليالي
+    // 10. الفائض المالي بعد تغطية جميع الليالي المدفوعة بالكامل
     final double surplusAfterAllNights = (nightlyRate > 0 && totalPaid > 0)
         ? totalPaid - (totalPaidNights * nightlyRate)
         : 0;
