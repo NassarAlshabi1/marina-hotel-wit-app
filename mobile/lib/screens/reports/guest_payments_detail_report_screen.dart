@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart' hide PdfColors;
@@ -168,7 +170,13 @@ class _GuestPaymentsDetailReportScreenState
 
     return AppScaffold(
       title: 'تقرير مدفوعات النزلاء التفصيلي',
+      subtitle: 'مارينا هوتيل',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.print_outlined),
+          onPressed: () => _exportAllBookingsPdf(),
+          tooltip: 'طباعة التقرير',
+        ),
         IconButton(
           icon: const Icon(Icons.refresh),
           onPressed: _refreshData,
@@ -1011,5 +1019,93 @@ class _GuestPaymentsDetailReportScreenState
         ],
       ),
     );
+  }
+
+  // ───────────────────── تصدير التقرير العام PDF ─────────────────────
+
+  Future<void> _exportAllBookingsPdf() async {
+    final db = ref.read(databaseProvider);
+    final allBookings = await (db.select(db.bookings)
+          ..where((b) => b.deletedAt.isNull()))
+        .get();
+
+    final filtered = _filterAndSort(allBookings);
+    if (filtered.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا توجد بيانات للتصدير')),
+        );
+      }
+      return;
+    }
+
+    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
+    final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
+
+    final now = DateTime.now();
+    final dateStr = DateFormat('yyyy/MM/dd HH:mm').format(now);
+
+    final config = ReportPdfConfig(
+      title: 'تقرير مدفوعات النزلاء التفصيلي',
+      fileName: ReportPdfBuilder.generateFileName('تقرير-مدفوعات-النزلاء'),
+      extraHeaderLine: 'مارينا هوتيل | $dateStr',
+      buildContent: (fonts) {
+        final List<pw.Widget> pdfContent = [
+          // ─── ملخص عام ───
+          epdf.EnhancedPdfUtils.buildInfoCard(
+            title: 'ملخص التقرير',
+            fonts: fonts,
+            content: [
+              _buildPdfInfoRow(fonts, 'تاريخ التقرير:', dateStr),
+              _buildPdfInfoRow(fonts, 'عدد النزلاء:', '${filtered.length}', valueColor: PdfColor(0.0, 0.4, 0.8)),
+              _buildPdfInfoRow(fonts, 'إجمالي المحصل:', '${CurrencyFormatter.formatAmount(totalPaid)} ريال', valueColor: PdfColor(0.0, 0.6, 0.2)),
+              _buildPdfInfoRow(fonts, 'إجمالي المتبقي:', '${CurrencyFormatter.formatAmount(totalRemaining)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
+            ],
+          ),
+        ];
+
+        // ─── بطاقة لكل نزيل ───
+        for (final b in filtered) {
+          final actualDays = _getActualDaysSpent(b);
+          final coverage = _calculateCoverage(b);
+          final nightlyRate = _getAverageNightlyRate(b);
+
+          pdfContent.add(pw.SizedBox(height: 12));
+          pdfContent.add(
+            epdf.EnhancedPdfUtils.buildInfoCard(
+              title: 'غرفة ${b.roomNumber} — ${b.guestName}',
+              fonts: fonts,
+              content: [
+                _buildPdfInfoRow(fonts, 'تاريخ الوصول:', _dateFormatter.format(coverage.checkinDate)),
+                _buildPdfInfoRow(fonts, 'المغادرة المتوقعة:', coverage.formatDate(coverage.manualCheckoutDate)),
+                _buildPdfInfoRow(fonts, 'الأيام المقضية:', '$actualDays يوم'),
+                _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
+                _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
+                _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: PdfColor(0.0, 0.5, 0.2)),
+                _buildPdfInfoRow(
+                  fonts,
+                  b.remainingBalanceCached < 0 ? 'رصيد للنزيل:' : 'المتبقي عليه:',
+                  '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                  valueColor: b.remainingBalanceCached < 0 ? PdfColor(0.0, 0.6, 0.3) : PdfColor(0.9, 0.2, 0.2),
+                ),
+                if (coverage.hasPayments) ...[
+                  pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
+                  _buildPdfInfoRow(fonts, 'المغادرة التلقائية:', _dateFormatter.format(coverage.autoCheckoutDate), valueColor: PdfColor(0.0, 0.4, 0.7)),
+                  _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
+                  if (coverage.isAutoExtended)
+                    _buildPdfInfoRow(fonts, 'تمديد تلقائي:', '+${coverage.extraNightsBeyondManual} يوم', valueColor: PdfColor(0.0, 0.7, 0.3)),
+                  if (coverage.uncoveredDays > 0)
+                    _buildPdfInfoRow(fonts, 'أيام غير مغطاة:', '${coverage.uncoveredDays} ليلة', valueColor: PdfColor(0.9, 0.3, 0.1)),
+                ],
+              ],
+            ),
+          );
+        }
+
+        return pdfContent;
+      },
+    );
+
+    await ReportPdfBuilder.buildAndShare(config);
   }
 }

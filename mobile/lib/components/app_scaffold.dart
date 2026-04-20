@@ -12,11 +12,16 @@ class AppScaffold extends ConsumerWidget {
     required this.body,
     this.actions,
     this.fab,
+    this.subtitle,
   });
   final String title;
   final Widget body;
   final List<Widget>? actions;
   final Widget? fab;
+
+  /// عنوان ثانوي يظهر أسفل العنوان الرئيسي في الـ AppBar
+  /// (مثال: عنوان التقرير بخط أصغر وتوسيط)
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +36,31 @@ class AppScaffold extends ConsumerWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(title),
+          toolbarHeight: subtitle != null ? 64 : null,
+          title: subtitle != null
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(title),
           actions: [
             IconButton(
               onPressed: () {
