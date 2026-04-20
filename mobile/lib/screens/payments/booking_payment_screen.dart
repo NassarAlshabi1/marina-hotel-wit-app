@@ -1950,6 +1950,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     try {
       final totals = await _calculateCurrentTotals();
 
+      // ═══════════════════════════════════════════════════════
+      // حساب التمديد (قراءة + حوار تأكيد) — قبل الـ transaction
+      // ═══════════════════════════════════════════════════════
+      bool needsExtension = false;
+      DateTime? newCheckout;
+      int? newExpectedNights;
+      int? extraNights;
+
       if (!isPendingBalance && amount > totals.remaining) {
         // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
         final surplus = amount - totals.remaining;
@@ -1967,8 +1975,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        final extraNights = (surplus / rmRate).ceil();
-        if (extraNights <= 0) {
+        extraNights = (surplus / rmRate).ceil();
+        if (extraNights! <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
           );
@@ -2024,56 +2032,76 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
         if (confirmed != true) return;
 
-        // تمديد الحجز
+        // حساب بيانات التمديد
         final currentCheckout = widget.booking.checkoutDate != null
             ? DateTime.tryParse(widget.booking.checkoutDate!)
             : DateTime.now().add(const Duration(days: 1));
-        final newCheckout = (currentCheckout ?? DateTime.now()).add(
+        newCheckout = (currentCheckout ?? DateTime.now()).add(
           Duration(days: extraNights),
         );
-        final newExpectedNights = widget.booking.expectedNights + extraNights;
+        newExpectedNights = widget.booking.expectedNights + extraNights;
+        needsExtension = true;
+      }
 
+      // ═══════════════════════════════════════════════════════
+      // Transaction واحد يحمي من كارثة مالية:
+      // تمديد الحجز + تحديث الهاتف + إنشاء الدفعة
+      // لو التطبيق انهار في المنتصف → كل العمليات تتراجع معاً
+      // ═══════════════════════════════════════════════════════
+      final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
+      final database = ref.read(databaseProvider);
+      await database.transaction(() async {
+        // 1) تمديد الحجز (إذا لزم)
+        if (needsExtension) {
+          await bookingsRepo.update(
+            widget.booking.id,
+            checkoutDate: _formatDateTime(newCheckout!),
+            expectedNights: newExpectedNights!,
+            notes: widget.booking.notes != null
+                ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
+                : 'تمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}',
+          );
+          // إعادة حساب المبالغ بعد التمديد (قراءة داخل الـ tx)
+          await _calculateCurrentTotals();
+        }
+
+        // 2) تحديث رقم الهاتف الضيف
         await bookingsRepo.update(
           widget.booking.id,
-          checkoutDate: _formatDateTime(newCheckout),
-          expectedNights: newExpectedNights,
-          notes: widget.booking.notes != null
-              ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
-              : 'تمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}',
+          guestPhone: cleanedPhone,
         );
-
-        // إعادة حساب المبالغ بعد التمديد
-        await _calculateCurrentTotals();
-      }
-
-      final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
-
-      await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
-      if (mounted) {
-        setState(() {
+        if (mounted) {
+          setState(() {
+            _currentGuestPhone = cleanedPhone;
+            if (_phoneController.text != cleanedPhone) {
+              _phoneController.value = TextEditingValue(
+                text: cleanedPhone,
+                selection: TextSelection.collapsed(
+                  offset: cleanedPhone.length,
+                ),
+              );
+            }
+          });
+        } else {
           _currentGuestPhone = cleanedPhone;
-          if (_phoneController.text != cleanedPhone) {
-            _phoneController.value = TextEditingValue(
-              text: cleanedPhone,
-              selection: TextSelection.collapsed(offset: cleanedPhone.length),
-            );
-          }
-        });
-      } else {
-        _currentGuestPhone = cleanedPhone;
-      }
+        }
 
-      await paymentsRepo.create(
-        bookingLocalId: widget.booking.id,
-        serverBookingId: widget.booking.serverBookingId,
-        roomNumber: widget.booking.roomNumber,
-        amount: amount,
-        paymentDate: Time.nowIso(),
-        notes: notes.isEmpty ? null : notes,
-        paymentMethod: _mapUiMethodToDb(method),
-        revenueType: 'room',
-        isPendingBalance: false,
-      );
+        // 3) إنشاء الدفعة
+        await paymentsRepo.create(
+          bookingLocalId: widget.booking.id,
+          serverBookingId: widget.booking.serverBookingId,
+          roomNumber: widget.booking.roomNumber,
+          amount: amount,
+          paymentDate: Time.nowIso(),
+          notes: notes.isEmpty ? null : notes,
+          paymentMethod: _mapUiMethodToDb(method),
+          revenueType: 'room',
+          isPendingBalance: false,
+        );
+      });
+      // ═══════════════════════════════════════════════════════
+      // نهاية الـ Transaction — كل العمليات ناجحة أو لا شيء
+      // ═══════════════════════════════════════════════════════
 
       double newRemaining = totals.remaining - amount;
       if (newRemaining < 0) newRemaining = 0;
