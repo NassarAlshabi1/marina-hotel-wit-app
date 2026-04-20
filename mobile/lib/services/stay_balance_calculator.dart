@@ -1,6 +1,3 @@
-import 'package:flutter/foundation.dart';
-
-import '../utils/currency_formatter.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -12,9 +9,10 @@ import 'local_db.dart';
 ///
 /// القواعد الأساسية:
 ///   1. الرصيد التراكمي = إجمالي المدفوعات - تكلفة الأيام المقضية فعلياً
-///   2. تاريخ المغادرة التلقائي = تاريخ الدخول + (إجمالي المدفوع / سعر الليلة)
+///   2. تاريخ المغادرة التلقائي = تاريخ الدخول + عدد الليالي المغطاة بالمدفوع
 ///   3. لا يتم تغيير حالة الحجز أو تسجيل مغادرة تلقائياً أبداً
 ///   4. كل دفعة جديدة تُحدّث: الرصيد، التاريخ التلقائي، فترة التغطية فوراً
+///   5. تعديلات الأسعار من booking_price_adjustments فقط
 /// ─────────────────────────────────────────────────────────────────
 
 class StayBalanceResult {
@@ -24,6 +22,7 @@ class StayBalanceResult {
     required this.autoCheckoutDate,
     required this.totalPaid,
     required this.nightlyRate,
+    required this.effectiveNightlyRate,
     required this.actualNightsSpent,
     required this.totalPaidNights,
     required this.consumedCost,
@@ -33,6 +32,7 @@ class StayBalanceResult {
     required this.extraNightsBeyondManual,
     required this.surplusAfterAllNights,
     required this.rawRemainingBalance,
+    required this.coveredDates,
   });
 
   // ─── التواريخ ───
@@ -51,8 +51,11 @@ class StayBalanceResult {
   /// إجمالي المدفوعات التراكمية
   final double totalPaid;
 
-  /// سعر الليلة الواحدة
+  /// سعر الليلة الواحدة الأساسي (من جدول الغرف أو مشتق)
   final double nightlyRate;
+
+  /// متوسط سعر الليلة الفعلي بعد تطبيق تعديلات الأسعار
+  final double effectiveNightlyRate;
 
   /// تكلفة الأيام المقضية فعلياً حتى الآن
   final double consumedCost;
@@ -80,11 +83,14 @@ class StayBalanceResult {
   /// عدد الأيام الإضافية وراء تاريخ المغادرة اليدوي
   final int extraNightsBeyondManual;
 
-  /// الفائض بعد تغطية جميع الليالي المدفوعة
+  /// الفائض بعد تغطية جميع الليالي المدفوعة بالكامل
   final double surplusAfterAllNights;
 
   /// الرصيد المتبقي الخام من الحجز (من قاعدة البيانات)
   final double rawRemainingBalance;
+
+  /// قائمة التواريخ المغطاة بالكامل من المدفوعات التراكمية
+  final List<DateTime> coveredDates;
 
   // ─── computed properties ───
 
@@ -115,7 +121,7 @@ class StayBalanceResult {
   }
 
   /// تكلفة الأيام غير المغطاة
-  double get uncoveredCost => uncoveredDays * nightlyRate;
+  double get uncoveredCost => uncoveredDays * effectiveNightlyRate;
 
   /// تنسيق التاريخ
   String formatDate(DateTime? dt) {
@@ -130,21 +136,54 @@ class StayBalanceResult {
   String toString() {
     return 'StayBalanceResult(autoCheckout=${formatDate(autoCheckoutDate)}, '
         'paidNights=$totalPaidNights, effectiveBalance=$effectiveBalance, '
-        'isExtended=$isAutoExtended)';
+        'isExtended=$isAutoExtended, effectiveRate=$effectiveNightlyRate)';
   }
 }
 
 class StayBalanceCalculator {
   const StayBalanceCalculator();
 
+  /// ─── فلترة تعديلات الأسعار النشطة ───
+  /// منطق موحد يضمن أن الشاشتين تستخدمان نفس معايير الفلترة
+  /// (متوافق مع EnhancedBookingCalculationService._fetchActiveAdjustments)
+  static List<BookingPriceAdjustment> filterActiveAdjustments(
+    Booking booking,
+    List<BookingPriceAdjustment> adjustments,
+  ) {
+    final bookingDiscount = booking.discount;
+
+    return adjustments.where((adj) {
+      // ① استبعاد سجلات legacy_discount دائماً
+      if (adj.reason == 'legacy_discount') return false;
+
+      // ② التحقق من roomNumber — تجنب تطبيق تخفيض من حجز آخر
+      final adjRoom = adj.roomNumber?.trim();
+      if (adjRoom == null || adjRoom.isEmpty) return false;
+      final room = booking.roomNumber.trim();
+      if (adjRoom != room) return false;
+
+      // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
+      //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
+      if (bookingDiscount <= 0 &&
+          adj.adjustmentType == 0 &&
+          adj.reason == null) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
   /// حساب شامل للرصيد وتاريخ المغادرة التلقائي
   ///
   /// [booking] - بيانات الحجز من قاعدة البيانات
   /// [roomRate] - سعر الليلة الفعلي (من جدول الغرف)
+  /// [priceAdjustments] - تعديلات الأسعار النشطة (من booking_price_adjustments)
   /// [now] - الوقت الحالي (للاختبار، يُستخدم DateTime.now() تلقائياً)
   static StayBalanceResult calculate(
     Booking booking, {
     double? roomRate,
+    List<BookingPriceAdjustment>? priceAdjustments,
     DateTime? now,
   }) {
     final moment = now ?? DateTime.now();
@@ -152,68 +191,117 @@ class StayBalanceCalculator {
     final checkinDateOnly = DateTime(checkin.year, checkin.month, checkin.day);
 
     // تاريخ المغادرة اليدوي
-    final DateTime? manualCheckout = (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
-        ? DateTime.tryParse(booking.checkoutDate!)
-        : null;
+    final DateTime? manualCheckout =
+        (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
+            ? DateTime.tryParse(booking.checkoutDate!)
+            : null;
 
-    // سعر الليلة: يُفضّل السعر المُمرّر، وإلا يُحسب من إجمالي العقد
-    final double nightlyRate = (roomRate != null && roomRate > 0)
+    // سعر الليلة الأساسي: يُفضّل السعر المُمرّر، وإلا يُحسب من إجمالي العقد
+    final double baseRate = (roomRate != null && roomRate > 0)
         ? roomRate
-        : (booking.calculatedNights > 0 ? booking.totalDueCached / booking.calculatedNights : 0);
+        : (booking.calculatedNights > 0
+            ? booking.totalDueCached / booking.calculatedNights
+            : 0);
 
-    // 1. حساب الأيام المقضية فعلياً حتى اللحظة الحالية (Consumed)
-    final actualNightsSpent = Time.nightsWithCutoff(checkin, checkout: moment);
+    // ─── بناء خريطة تعديلات الأسعار لكل ليلة ───
+    final adjMap = _buildPerNightAdjustments(
+      priceAdjustments,
+      checkinDateOnly,
+      manualCheckout,
+    );
 
-    // 2. تكلفة الأيام المقضية فعلياً
-    final consumedCost = actualNightsSpent * nightlyRate;
+    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:00) ───
+    DateTime firstHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      14,
+    );
+    if (checkin.isBefore(firstHotelDay)) {
+      firstHotelDay = firstHotelDay.subtract(const Duration(days: 1));
+    }
 
-    // 3. إجمالي المدفوعات التراكمية (الرصيد الكلي المدفوع)
-    final totalPaid = booking.totalPaidCached;
+    // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
+    final coveredDates = <DateTime>[];
+    double remainingBalance = booking.totalPaidCached;
+    int totalCoveredNights = 0;
 
-    // 4. الرصيد الفعلي الحالي (Effective Balance)
-    // هو الرصيد المتبقي بعد خصم تكلفة الأيام التي قضاها النزيل بالفعل
-    final effectiveBalance = totalPaid - consumedCost;
+    DateTime currentNight = firstHotelDay;
+    for (int i = 0; i < 3650; i++) {
+      final key = Time.dateToString(currentNight);
+      final adjustment = adjMap[key] ?? 0.0;
+      final effectiveRate =
+          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0);
 
-    // 5. حساب إجمالي الليالي التي يغطيها المبلغ المدفوع بالكامل منذ البداية
-    // منطق تراكمي: نأخذ كامل المبلغ المدفوع ونقسمه على سعر الليلة
-    final int totalPaidNights = (nightlyRate > 0 && totalPaid > 0)
-        ? (totalPaid / nightlyRate).floor()
-        : 0;
+      if (effectiveRate <= 0) break;
 
-    // 6. تاريخ المغادرة التلقائي (Expected Check-out Date)
-    // يُحسب بناءً على إجمالي الليالي المدفوعة بدءاً من تاريخ الدخول
-    final autoCheckout = DateTime(
-      checkinDateOnly.year,
-      checkinDateOnly.month,
-      checkinDateOnly.day,
-    ).add(Duration(days: totalPaidNights));
+      if (remainingBalance >= effectiveRate) {
+        remainingBalance -= effectiveRate;
+        totalCoveredNights++;
+        coveredDates.add(currentNight);
+        currentNight = currentNight.add(const Duration(days: 1));
+      } else {
+        break;
+      }
+    }
 
-    // 7. الأيام المتبقية حتى تاريخ المغادرة اليدوي (من الآن)
-    final int manualNightsRemaining = (manualCheckout != null && manualCheckout.isAfter(moment))
-        ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
-        : 0;
+    // ─── حساب تكلفة الأيام المقضية فعلياً ───
+    final actualNightsSpent =
+        Time.nightsWithCutoff(checkin, checkout: moment);
 
-    // 8. هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟ (تغطية أيام مستقبلية)
-    final bool isAutoExtended = manualCheckout != null && autoCheckout.isAfter(manualCheckout);
+    double consumedCost = 0;
+    DateTime consumedNight = firstHotelDay;
+    for (int i = 0; i < actualNightsSpent && i < 3650; i++) {
+      final key = Time.dateToString(consumedNight);
+      final adjustment = adjMap[key] ?? 0.0;
+      consumedCost +=
+          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0);
+      consumedNight = consumedNight.add(const Duration(days: 1));
+    }
 
-    // 9. عدد الأيام الإضافية المغطاة وراء تاريخ المغادرة اليدوي
+    // ─── الرصيد الفعلي = إجمالي المدفوع - تكلفة الأيام المقضية ───
+    final effectiveBalance = booking.totalPaidCached - consumedCost;
+
+    // ─── تاريخ المغادرة التلقائي ───
+    final autoCheckout = checkinDateOnly.add(Duration(days: totalCoveredNights));
+
+    // ─── الأيام المتبقية حتى تاريخ المغادرة اليدوي ───
+    final int manualNightsRemaining =
+        (manualCheckout != null && manualCheckout.isAfter(moment))
+            ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
+            : 0;
+
+    // ─── هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟ ───
+    final bool isAutoExtended =
+        manualCheckout != null && autoCheckout.isAfter(manualCheckout);
+
+    // ─── عدد الأيام الإضافية وراء تاريخ المغادرة اليدوي ───
     final int extraNightsBeyondManual = isAutoExtended
         ? Time.nightsWithCutoff(manualCheckout, checkout: autoCheckout)
         : 0;
 
-    // 10. الفائض المالي بعد تغطية جميع الليالي المدفوعة بالكامل
-    final double surplusAfterAllNights = (nightlyRate > 0 && totalPaid > 0)
-        ? totalPaid - (totalPaidNights * nightlyRate)
-        : 0;
+    // ─── الفائض المالي بعد تغطية جميع الليالي ───
+    final double surplusAfterAllNights =
+        remainingBalance < 0 ? 0 : remainingBalance;
+
+    // ─── متوسط السعر الفعلي بعد التعديلات ───
+    double effectiveNightlyRate = baseRate;
+    if (totalCoveredNights > 0 && priceAdjustments != null && priceAdjustments.isNotEmpty) {
+      final totalCoveredCost = booking.totalPaidCached - surplusAfterAllNights;
+      if (totalCoveredCost > 0) {
+        effectiveNightlyRate = totalCoveredCost / totalCoveredNights;
+      }
+    }
 
     return StayBalanceResult(
       checkinDate: checkin,
       manualCheckoutDate: manualCheckout,
       autoCheckoutDate: autoCheckout,
-      totalPaid: totalPaid,
-      nightlyRate: nightlyRate,
+      totalPaid: booking.totalPaidCached,
+      nightlyRate: baseRate,
+      effectiveNightlyRate: effectiveNightlyRate,
       actualNightsSpent: actualNightsSpent,
-      totalPaidNights: totalPaidNights,
+      totalPaidNights: totalCoveredNights,
       consumedCost: consumedCost,
       effectiveBalance: effectiveBalance,
       manualNightsRemaining: manualNightsRemaining,
@@ -221,18 +309,98 @@ class StayBalanceCalculator {
       extraNightsBeyondManual: extraNightsBeyondManual,
       surplusAfterAllNights: surplusAfterAllNights,
       rawRemainingBalance: booking.remainingBalanceCached,
+      coveredDates: coveredDates,
     );
   }
 
   /// حساب سريع فقط لتاريخ المغادرة التلقائي
-  static DateTime calculateAutoCheckout(Booking booking, {double? nightlyRate}) {
-    final result = calculate(booking, roomRate: nightlyRate);
+  static DateTime calculateAutoCheckout(
+    Booking booking, {
+    double? nightlyRate,
+    List<BookingPriceAdjustment>? priceAdjustments,
+  }) {
+    final result =
+        calculate(booking, roomRate: nightlyRate, priceAdjustments: priceAdjustments);
     return result.autoCheckoutDate;
   }
 
   /// حساب سريع لعدد الليالي المدفوعة
-  static int calculatePaidNights(Booking booking, {double? nightlyRate}) {
-    final result = calculate(booking, roomRate: nightlyRate);
+  static int calculatePaidNights(
+    Booking booking, {
+    double? nightlyRate,
+    List<BookingPriceAdjustment>? priceAdjustments,
+  }) {
+    final result =
+        calculate(booking, roomRate: nightlyRate, priceAdjustments: priceAdjustments);
     return result.totalPaidNights;
+  }
+
+  /// ─── بناء خريطة التعديلات لكل ليلة ───
+  /// يحوّل قائمة التعديلات إلى Map<dateString, adjustmentAmount>
+  /// بحيث يمكن البlookup بسرعة أثناء المحاكاة اليومية
+  ///
+  /// يدعم وضعين:
+  ///   - per_night: يُطبّق المبلغ كاملاً على كل ليلة في النطاق
+  ///   - total: يُوزّع المبلغ بالتساوي على ليالي النطاق
+  static Map<String, double> _buildPerNightAdjustments(
+    List<BookingPriceAdjustment>? adjustments,
+    DateTime checkinDateOnly,
+    DateTime? manualCheckout,
+  ) {
+    if (adjustments == null || adjustments.isEmpty) return const {};
+
+    final map = <String, double>{};
+    final farFuture =
+        manualCheckout ?? checkinDateOnly.add(const Duration(days: 3650));
+
+    for (final adj in adjustments) {
+      final effectiveDate = DateTime.tryParse(adj.effectiveHotelDay);
+      if (effectiveDate == null) continue;
+
+      // تطبيع التواريخ إلى بداية اليوم فقط (تجنب مشاكل المنطقة الزمنية)
+      final effDateOnly = DateTime(
+        effectiveDate.year,
+        effectiveDate.month,
+        effectiveDate.day,
+      );
+
+      final endDate = adj.endHotelDay != null
+          ? DateTime.tryParse(adj.endHotelDay!)
+          : null;
+      final adjEnd = endDate != null
+          ? DateTime(endDate.year, endDate.month, endDate.day)
+          : farFuture;
+
+      final isDiscount = adj.adjustmentType == 0;
+      final rawAmount = adj.amount;
+
+      if (adj.adjustmentMode == 'total') {
+        // توزيع إجمالي المبلغ بالتساوي على ليالي النطاق
+        final daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
+        if (daysInRange <= 0) continue;
+
+        final amountPerNight = rawAmount / daysInRange;
+
+        for (int i = 0; i < daysInRange; i++) {
+          final night = effDateOnly.add(Duration(days: i));
+          final key = Time.dateToString(night);
+          final signed = isDiscount ? -amountPerNight : amountPerNight;
+          map[key] = (map[key] ?? 0.0) + signed;
+        }
+      } else {
+        // per_night: يُطبّق المبلغ كاملاً على كل ليلة في النطاق
+        DateTime night = effDateOnly;
+        int safetyCounter = 0;
+        while (!night.isAfter(adjEnd) && safetyCounter < 3650) {
+          final key = Time.dateToString(night);
+          final signed = isDiscount ? -rawAmount : rawAmount;
+          map[key] = (map[key] ?? 0.0) + signed;
+          night = night.add(const Duration(days: 1));
+          safetyCounter++;
+        }
+      }
+    }
+
+    return map;
   }
 }

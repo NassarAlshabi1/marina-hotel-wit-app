@@ -3,7 +3,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -283,6 +283,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 booking.discountStartDate,
           );
 
+          // ─── StreamBuilder لتعديلات الأسعار (booking_price_adjustments) ───
+          return StreamBuilder<List<db.BookingPriceAdjustment>>(
+            stream: (dbInstance.select(dbInstance.bookingPriceAdjustments)
+                  ..where((a) => (a.bookingLocalId.equals(booking.id) | a.bookingLocalUuid.equals(booking.localUuid)))
+                  ..where((a) => a.isActive.equals(true))
+                  ..where((a) => a.deletedAt.isNull()))
+                .watch(),
+            builder: (context, adjSnap) {
+              final rawAdjustments = adjSnap.data ?? const <db.BookingPriceAdjustment>[];
+              final filteredAdjustments = StayBalanceCalculator.filterActiveAdjustments(booking, rawAdjustments);
+
           return StreamBuilder<List<db.BookingNight>>(
             stream:
                 (dbInstance.select(dbInstance.bookingNights)
@@ -420,7 +431,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     children: [
                       _buildPaymentSummaryCard(
                         summary,
+                        liveBooking: booking,
                         roomRate: roomRate,
+                        priceAdjustments: filteredAdjustments,
                         expectedNights: expectedNights,
                         actualNights: nightsCount,
                         checkin: checkin,
@@ -479,6 +492,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               );
             },
           );
+            }, // نهاية StreamBuilder لتعديلات الأسعار
+          );
           },
         );
         },
@@ -489,7 +504,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildPaymentSummaryCard(
     BookingPaymentSummary summary, {
-    required double roomRate,
+    db.Booking? liveBooking,
+    double? roomRate,
+    List<db.BookingPriceAdjustment>? priceAdjustments,
     required int expectedNights,
     required int actualNights,
     required DateTime checkin,
@@ -596,7 +613,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                     // ─── تاريخ المغادرة التلقائي (محسوب من المدفوعات التراكمية) ───
                     Builder(builder: (context) {
-                      final balanceResult = StayBalanceCalculator.calculate(widget.booking);
+                      final balanceResult = StayBalanceCalculator.calculate(
+                        liveBooking ?? widget.booking,
+                        roomRate: roomRate,
+                        priceAdjustments: priceAdjustments,
+                      );
                       if (!balanceResult.hasPayments) return const SizedBox.shrink();
                       final autoFmt = DateFormat('dd/MM/yyyy', 'en');
                       final autoStr = autoFmt.format(balanceResult.autoCheckoutDate);

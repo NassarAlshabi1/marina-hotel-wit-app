@@ -36,6 +36,10 @@ class _GuestPaymentsDetailReportScreenState
   bool _showOnlyActive = true;
   bool _isLoading = true;
 
+  /// خريطة تعديلات الأسعار النشطة مجمّعة حسب معرّف الحجز
+  /// تُحدّث عند كل استدعاء لـ _refreshData()
+  Map<int, List<BookingPriceAdjustment>> _adjustmentsByBookingId = const {};
+
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
   /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
@@ -64,8 +68,11 @@ class _GuestPaymentsDetailReportScreenState
   }
 
   /// استخدام المحرك الموحد لحساب الرصيد والتاريخ التلقائي
+  /// يمرّر تعديلات الأسعار من booking_price_adjustments للمحرك
   StayBalanceResult _calculateCoverage(Booking b) {
-    return StayBalanceCalculator.calculate(b);
+    final adjustments = _adjustmentsByBookingId[b.id];
+    final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
+    return StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
   }
 
   /// هل الحجز تجاوز تاريخ المغادرة المخطط؟
@@ -98,6 +105,25 @@ class _GuestPaymentsDetailReportScreenState
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
       await derivedService.refreshAllActiveBookings();
+
+      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز
+      final allAdjustments = await (db.select(db.bookingPriceAdjustments)
+            ..where((a) => a.isActive.equals(true))
+            ..where((a) => a.deletedAt.isNull()))
+          .get();
+
+      final grouped = <int, List<BookingPriceAdjustment>>{};
+      for (final adj in allAdjustments) {
+        if (adj.bookingLocalId == null) continue;
+        grouped.putIfAbsent(adj.bookingLocalId!, () => []);
+        grouped[adj.bookingLocalId!]!.add(adj);
+      }
+
+      if (mounted) {
+        setState(() {
+          _adjustmentsByBookingId = grouped;
+        });
+      }
     } catch (e) {
       debugPrint('Error refreshing data: $e');
     } finally {
