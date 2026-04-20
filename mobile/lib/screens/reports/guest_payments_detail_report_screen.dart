@@ -419,10 +419,6 @@ class _GuestPaymentsDetailReportScreenState
 
                 const SizedBox(height: 10),
 
-                // ─── شريط التغطية ───
-                _buildDateDrivenCoverageBar(b, coverage),
-                const SizedBox(height: 10),
-
                 // ─── المبالغ والتقدم ───
                 _buildFinancialSection(b, nightlyRate, paidPercent, isCredit, remaining),
 
@@ -581,74 +577,6 @@ class _GuestPaymentsDetailReportScreenState
         const SizedBox(width: 8),
         Expanded(child: _buildDaysStat('المخططة', '${coverage.totalPaidNights}', Colors.grey)),
       ],
-    );
-  }
-
-  // ─── شريط التغطية: مبني على المدفوعات (المخطط = محسوب من المدفوعات) ───
-
-  Widget _buildDateDrivenCoverageBar(Booking b, StayBalanceResult coverage) {
-    final plannedCheckout = coverage.autoCheckoutDate;
-    final paidNights = coverage.totalPaidNights;
-    final totalPaid = coverage.totalPaid;
-    final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
-    final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
-    final autoOverdueCost = autoOverdueDays * nightlyRate;
-    final actualTotal = coverage.consumedCost + autoOverdueCost;
-    final actualRemaining = actualTotal - totalPaid;
-
-    Color barColor;
-    Color bgColor;
-    String titleText;
-    String description;
-    IconData icon;
-
-    if (isAutoOverdue && autoOverdueDays > 0) {
-      // تجاوز المغادرة المخططة المحسوبة → تمديد تلقائي
-      barColor = Colors.orange;
-      bgColor = Colors.orange.shade50;
-      icon = Icons.autorenew;
-      titleText = 'تمديد تلقائي (+$autoOverdueDays يوم)';
-      description = 'تجاوز المغادرة المخططة | تكلفة التمديد: ${CurrencyFormatter.formatAmount(autoOverdueCost)} ريال'
-          ' | إجمالي فعلي: ${CurrencyFormatter.formatAmount(actualTotal)} ريال';
-      if (actualRemaining > 0) {
-        description += ' | غير مدفوع: ${CurrencyFormatter.formatAmount(actualRemaining)} ريال';
-      }
-    } else if (coverage.effectiveBalance >= 0) {
-      barColor = Colors.green;
-      bgColor = Colors.green.shade50;
-      icon = Icons.check_circle;
-      titleText = 'مغطاة بالكامل';
-      description = 'المدفوع (${CurrencyFormatter.formatAmount(totalPaid)} ريال) يغطي $paidNights ليلة'
-          ' حتى ${coverage.formatDate(plannedCheckout)}';
-      if (coverage.surplusAfterAllNights > 0) {
-        description += ' | فائض ${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال';
-      }
-    } else {
-      barColor = Colors.teal;
-      bgColor = Colors.teal.shade50;
-      icon = Icons.info_outline;
-      titleText = 'تغطية جزئية - تحتاج دفع إضافي';
-      description = 'المدفوع ${CurrencyFormatter.formatAmount(totalPaid)} ريال يغطي $paidNights ليلة | '
-          'التكلفة المستهلكة: ${CurrencyFormatter.formatAmount(coverage.consumedCost)} ريال';
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: barColor),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text('$titleText — $description', style: TextStyle(fontSize: 10, color: barColor, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
