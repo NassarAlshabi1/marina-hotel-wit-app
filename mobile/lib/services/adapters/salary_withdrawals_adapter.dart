@@ -144,7 +144,6 @@ class SalaryWithdrawalsAdapter
       map['date'] = model.withdrawDate;
       map['action'] = model.withdrawalType;
       map['note'] = model.description;
-      map['notes'] = model.description;
       map['expenseId'] = expenseId;
     }
 
