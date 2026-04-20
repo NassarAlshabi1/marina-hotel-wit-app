@@ -49,15 +49,16 @@ class SalaryWithdrawalsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
-    // دعم الحقول القديمة من Appwrite (date, action, note, expenseId)
+    // دعم الحقول القديمة من Appwrite (date, action, note, notes, expenseId)
     // عند السحب من السيرفر، قد تأتي بالحقل القديم أو الجديد
     final appwriteDate = _asString(json, 'date', src);
     final appwriteAction = _asString(json, 'action', src);
     final appwriteNote = _asString(json, 'note', src);
+    final appwriteNotes = _asString(json, 'notes', src);
     final appwriteExpenseId = _asInt(json, 'expenseId', src);
     final wd = _asString(json, 'withdrawDate', src) ?? appwriteDate ?? '';
     final wt = _asString(json, 'withdrawalType', src) ?? appwriteAction;
-    final desc = _asString(json, 'description', src) ?? appwriteNote;
+    final desc = _asString(json, 'description', src) ?? appwriteNotes ?? appwriteNote;
     String? reasonVal = _asString(json, 'reason', src);
     if (reasonVal == null && appwriteExpenseId != null) {
       reasonVal = 'exp_$appwriteExpenseId';
@@ -143,6 +144,7 @@ class SalaryWithdrawalsAdapter
       map['date'] = model.withdrawDate;
       map['action'] = model.withdrawalType;
       map['note'] = model.description;
+      map['notes'] = model.description;
       map['expenseId'] = expenseId;
     }
 

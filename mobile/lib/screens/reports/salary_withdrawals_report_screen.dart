@@ -196,16 +196,22 @@ class _SalaryWithdrawalsReportScreenState
         : null;
 
     final headers = _selectedEmployeeId != null
-        ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الوصف']
-        : <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الوصف', 'الموظف'];
+        ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الملاحظات']
+        : <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الملاحظات', 'الموظف'];
 
     final dataRows = <List<String>>[];
     for (final row in rows) {
+      // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي، لا يُعرض
+      String displayReason = '-';
+      if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
+        displayReason = row.reason;
+      }
+
       final cells = <String>[
         _dateLabelFormat.format(row.date),
         EnhancedPdfUtils.formatNumber(row.amount),
         row.withdrawalType.isNotEmpty ? row.withdrawalType : 'سحب',
-        row.reason.isNotEmpty ? row.reason : '-',
+        displayReason,
         row.description.isNotEmpty ? row.description : '-',
       ];
       if (_selectedEmployeeId == null) {

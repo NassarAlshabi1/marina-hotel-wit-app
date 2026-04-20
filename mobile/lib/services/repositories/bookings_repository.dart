@@ -6,6 +6,7 @@ import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
 import '../telegram/telegram_notification_service.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
 class BookingsRepository {
@@ -46,6 +47,17 @@ class BookingsRepository {
     String discountType = 'per_night',
     String? discountStartDate,
   }) async {
+    // ─── منع الحجز المزدوج: غرفة واحدة = حجز نشط واحد فقط ───
+    if (StatusUtils.isActiveBooking(status)) {
+      final existing = await getActiveBookingForRoom(roomNumber);
+      if (existing != null) {
+        throw StateError(
+          'يوجد حجز نشط بالفعل للغرفة $roomNumber ' //
+          '(الضيف: ${existing.guestName})',
+        );
+      }
+    }
+
     final result = await dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -346,11 +358,12 @@ class BookingsRepository {
     );
   }
 
-  /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
+  /// الحصول على أي حجز نشط للغرفة (التحقق من جميع حالات الحجز النشط)
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('محجوزة'))
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();

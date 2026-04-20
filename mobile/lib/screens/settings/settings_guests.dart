@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -7,6 +6,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -945,9 +945,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
-    final active = guest.bookings
+    final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
-        .length;
+        .toList();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
@@ -955,7 +955,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         child: AlertDialog(
           title: const Text('تأكيد حذف الضيف وكل البيانات المرتبطة'),
           content: Text(
-            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟',
+            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${activeBookings.isNotEmpty ? '\n\nتحذير: هناك ${activeBookings.length} حجوزات نشطة سيتم عمل checkout ثم حذفها.' : ''}\n\nهل تريد المتابعة؟',
           ),
           actions: [
             TextButton(
@@ -975,73 +975,81 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if (confirmed != true) return;
 
     try {
-      final db = ref.read(databaseProvider);
+      final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final notesRepo = ref.read(notesRepoProvider);
 
-      // جمع كل معرفات الحجوزات دفعة واحدة بدلاً من الحلقات المتداخلة
-      final bookingIds = guest.bookings.map((b) => b.id).toList();
-      if (bookingIds.isEmpty) return;
+      if (guest.bookings.isEmpty) return;
 
-      final placeholders = bookingIds.map((_) => '?').join(', ');
-      final variables = bookingIds.map((id) => Variable.withInt(id)).toList();
+      // ─── 1. Checkout للحجوزات النشطة (مع مزامنة Appwrite) ───
+      final nowIso = Time.nowIso();
+      final freedRooms = <String>{};
+      for (final booking in activeBookings) {
+        await bookingsRepo.update(
+          booking.id,
+          status: 'مكتمل',
+          actualCheckout: nowIso,
+        );
+        if (booking.roomNumber.isNotEmpty) {
+          freedRooms.add(booking.roomNumber);
+        }
+      }
 
-      // 1. حذف الملاحظات المرتبطة بجميع الحجوزات
-      await db.customUpdate(
-        'DELETE FROM booking_notes WHERE booking_id IN ($placeholders)',
-        variables: variables,
-        updates: {db.bookingNotes},
-      );
-
-      // 2. حذف المعاملات النقدية المرتبطة بالحجوزات مباشرة عبر referenceType/referenceId
-      await db.customUpdate(
-        "DELETE FROM cash_transactions WHERE reference_type = 'booking' AND reference_id IN ($placeholders)",
-        variables: variables,
-        updates: {db.cashTransactions},
-      );
-
-      // 3. حذف المعاملات النقدية المرتبطة بالمدفوعات (قبل حذف المدفوعات نفسها)
-      await db.customUpdate(
-        'DELETE FROM cash_transactions WHERE id IN (SELECT cash_transaction_local_id FROM payments WHERE booking_local_id IN ($placeholders) AND cash_transaction_local_id IS NOT NULL)',
-        variables: variables,
-        updates: {db.cashTransactions},
-      );
-
-      // 4. حذف المدفوعات المرتبطة بجميع الحجوزات
-      await db.customUpdate(
-        'DELETE FROM payments WHERE booking_local_id IN ($placeholders)',
-        variables: variables,
-        updates: {db.payments},
-      );
-
-      // 5. حذف الديون المرتبطة بجميع الحجوزات
-      await db.customUpdate(
-        'DELETE FROM debts WHERE booking_local_id IN ($placeholders)',
-        variables: variables,
-        updates: {db.debts},
-      );
-
-      // 6. تحرير الغرف المرتبطة بالحجوزات (فقط الغرف الفعلية بدون تكرار)
-      final roomNumbers = guest.bookings
-          .where((b) => b.roomNumber.isNotEmpty)
-          .map((b) => b.roomNumber)
-          .toSet();
-      for (final roomNumber in roomNumbers) {
+      // ─── 2. تحرير الغرف ───
+      for (final roomNumber in freedRooms) {
         final room = await roomsRepo.watchByNumber(roomNumber).first;
         if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
           await roomsRepo.update(room.id, status: 'شاغرة');
         }
       }
 
-      // 7. حذف الحجوزات أنفسها
-      await db.customUpdate(
-        'DELETE FROM bookings WHERE id IN ($placeholders)',
-        variables: variables,
-        updates: {db.bookings},
-      );
+      // ─── 3. حذف الملاحظات (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final notes = await notesRepo.watchByBooking(booking.id).first;
+        for (final note in notes) {
+          await notesRepo.delete(note.id);
+        }
+      }
+
+      // ─── 4. حذف المدفوعات (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
+        for (final payment in payments) {
+          await paymentsRepo.delete(payment.id);
+        }
+      }
+
+      // ─── 5. حذف الديون (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
+        for (final debt in bookingDebts) {
+          await debtsRepo.delete(debt.id);
+        }
+      }
+
+      // ─── 6. حذف الحجوزات نفسها (soft delete مع outbox للمزامنة مع Appwrite) ───
+      for (final booking in guest.bookings) {
+        await bookingsRepo.delete(booking.id);
+      }
+
+      // ─── 7. تحرير الغرف المتبقية المرتبطة بالحجوزات غير النشطة ───
+      final allRoomNumbers = guest.bookings
+          .where((b) => b.roomNumber.isNotEmpty)
+          .map((b) => b.roomNumber)
+          .toSet()
+          .difference(freedRooms);
+      for (final roomNumber in allRoomNumbers) {
+        final room = await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')),
+        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة')),
       );
     } catch (e) {
       if (!mounted) return;
