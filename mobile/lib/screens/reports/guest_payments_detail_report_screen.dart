@@ -633,124 +633,22 @@ class _GuestPaymentsDetailReportScreenState
           'التكلفة المستهلكة: ${CurrencyFormatter.formatAmount(coverage.consumedCost)} ريال';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: barColor.withValues(alpha: 0.3)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: barColor),
-              const SizedBox(width: 8),
+              Icon(icon, size: 14, color: barColor),
+              const SizedBox(width: 4),
               Expanded(
-                child: Text(titleText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: barColor.shade900)),
+                child: Text('$titleText — $description', style: TextStyle(fontSize: 10, color: barColor.shade800, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          _buildTimelineVisualization(b, coverage, barColor),
-          const SizedBox(height: 6),
-          Text(description, style: TextStyle(fontSize: 11, color: barColor.shade800, fontWeight: FontWeight.w600)),
         ],
       ),
-    );
-  }
-
-  /// خط زمني مرئي: الدخول ← المغادرة المخططة (محسوبة من المدفوعات)
-  Widget _buildTimelineVisualization(Booking b, StayBalanceResult coverage, Color barColor) {
-    final checkinStr = _dateFormatter.format(coverage.checkinDate);
-    final plannedStr = _dateFormatter.format(coverage.autoCheckoutDate);
-    final paidNights = coverage.totalPaidNights;
-    final isAutoOverdue = DateTime.now().isAfter(coverage.autoCheckoutDate) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(coverage.autoCheckoutDate, checkout: DateTime.now()) : 0;
-    final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
-
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          // صف 1: الدخول → المغادرة المخططة (محسوبة)
-          Row(
-            children: [
-              Expanded(
-                child: _buildTimelineLabel('الدخول', checkinStr, Colors.blue),
-              ),
-              Expanded(
-                child: Center(
-                  child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey.shade400),
-                ),
-              ),
-              Expanded(
-                child: _buildTimelineLabel('المغادرة المخططة', plannedStr, isAutoOverdue ? Colors.orange : barColor),
-              ),
-            ],
-          ),
-
-          // شريط التقدم
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: coverage.hasPayments ? 1.0 : 0.0,
-              minHeight: 8,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(isAutoOverdue ? Colors.orange : barColor),
-            ),
-          ),
-
-          const SizedBox(height: 4),
-          Text(
-            '$paidNights ليلة مخططة (المدفوع ${CurrencyFormatter.formatAmount(coverage.totalPaid)} ريال ÷ ${CurrencyFormatter.formatAmount(nightlyRate)} ريال)',
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-          ),
-
-          // تمديد تلقائي عند التجاوز
-          if (isAutoOverdue && autoOverdueDays > 0) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.orange.shade100),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'تمديد تلقائي: +$autoOverdueDays يوم (تكلفة: ${CurrencyFormatter.formatAmount(autoOverdueDays * nightlyRate)} ريال) — المغادرة يدوياً فقط',
-                      style: const TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineLabel(String label, String date, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 2),
-        Text(date, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold)),
-      ],
     );
   }
 
