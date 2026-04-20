@@ -92,18 +92,31 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.isEmpty) {
-      return '';
-    }
-    if (digitsOnly.startsWith('00')) {
-      digitsOnly = digitsOnly.substring(2);
-    }
+    if (digitsOnly.isEmpty) return '';
+    // إزالة 00 الدولية
+    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    // سبق بإضافة +967
+    if (digitsOnly.startsWith('967')) return digitsOnly;
+    // 07xx → 967xx (محلي يمني)
     if (digitsOnly.startsWith('07')) {
       digitsOnly = '967${digitsOnly.substring(1)}';
-    } else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
+    }
+    // 7xx و 9 أرقام → 967xx (محلي يمني بدون صفر)
+    else if (digitsOnly.startsWith('7') && digitsOnly.length == 9) {
+      digitsOnly = '967$digitsOnly';
+    }
+    // سعودي: 5xx و 9 أرقام → 966xx
+    else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
       digitsOnly = '966$digitsOnly';
+    }
+    // سبق بإضافة +966
+    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
+    else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
+      digitsOnly = '967$digitsOnly';
     }
     return digitsOnly;
   }
