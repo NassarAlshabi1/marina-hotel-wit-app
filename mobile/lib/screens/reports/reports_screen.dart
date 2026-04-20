@@ -9,6 +9,7 @@ import 'payments_report_screen.dart';
 import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 import 'income_expense_report_screen.dart';
+import 'guest_payments_detail_report_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -49,6 +50,18 @@ class ReportsScreen extends ConsumerWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PaymentsReportScreen(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              _ReportShortcut(
+                icon: Icons.assignment,
+                label: 'تقرير تفصيلي - الأيام والمدفوعات',
+                color: Colors.indigo,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GuestPaymentsDetailReportScreen(),
                   ),
                 ),
               ),
