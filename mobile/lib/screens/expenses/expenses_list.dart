@@ -22,6 +22,35 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     with SyncOnExitMixin {
+  /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
+  String _cleanAndFormatPhone(String phone) {
+    var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.isEmpty) return '';
+    // إزالة 00 الدولية
+    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    // سبق بإضافة 967
+    if (digitsOnly.startsWith('967')) return digitsOnly;
+    // 07xx → 967xx (محلي يمني)
+    if (digitsOnly.startsWith('07')) {
+      digitsOnly = '967${digitsOnly.substring(1)}';
+    }
+    // 7xx و 9 أرقام → 967xx (محلي يمني بدون صفر)
+    else if (digitsOnly.startsWith('7') && digitsOnly.length == 9) {
+      digitsOnly = '967$digitsOnly';
+    }
+    // سعودي: 5xx و 9 أرقام → 966xx
+    else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
+      digitsOnly = '966$digitsOnly';
+    }
+    // سبق بإضافة 966
+    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
+    else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
+      digitsOnly = '967$digitsOnly';
+    }
+    return digitsOnly;
+  }
+
   @override
   String get screenId => 'expenses_list';
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
@@ -676,11 +705,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
       final whatsappService = ref.read(whatsappServiceProvider);
 
-      // تنظيف رقم الهاتف
-      String cleanedPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-      if (!cleanedPhone.startsWith('+')) {
-        cleanedPhone = '+$cleanedPhone';
-      }
+      // تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
+      String cleanedPhone = _cleanAndFormatPhone(phone);
 
       final actionText = action == _salaryDeductionAction ? 'خصم' : 'سحب';
 
