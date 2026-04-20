@@ -13,6 +13,7 @@ import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
+import 'whatsapp_templates_screen.dart';
 import 'diagnostics_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
@@ -235,6 +236,18 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const WhatsAppSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'نماذج الواتساب',
+              subtitle: 'تفعيل وتعديل نماذج الرسائل',
+              icon: Icons.drafts,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WhatsAppTemplatesScreen(),
                 ),
               ),
             ),

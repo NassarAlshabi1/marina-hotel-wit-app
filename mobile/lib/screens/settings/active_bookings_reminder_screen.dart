@@ -7,6 +7,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/whatsapp_template_manager.dart';
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة
 /// تعرض جميع الحجوزات النشطة التي لديها مبلغ متبقي مع إمكانية إرسال رسالة تذكير
@@ -92,7 +93,7 @@ class _ActiveBookingsReminderScreenState
   }
 
   /// بناء رسالة تذكير بالمبلغ المتبقي للحجز النشط
-  String _buildReminderMessage(Booking booking) {
+  Future<String> _buildReminderMessage(Booking booking) async {
     final checkin = booking.checkinDate.split(' ').first;
     final checkout = booking.checkoutDate?.split(' ').first ?? 'لم يحدد';
     final nights = booking.calculatedNights;
@@ -101,29 +102,35 @@ class _ActiveBookingsReminderScreenState
     final remaining = booking.remainingBalanceCached;
     final daysSinceCheckout = _getDaysSinceCheckout(booking);
 
-    String message = 'عزيزي/عزيزتي ${booking.guestName}\n';
-    message += '━━━━━━━━━━━━━━━\n\n';
-    message += 'تحية طيبة من فندق مارينا\n\n';
-    message += 'نتوجه لكم بتذكير بخصوص المبلغ المتبقي لإقامتكم:\n\n';
-    message += 'رقم الغرفة: ${booking.roomNumber}\n';
-    message += 'تاريخ الوصول: $checkin\n';
-    message += 'تاريخ المغادرة: $checkout\n';
-    message += 'عدد الليالي: $nights\n\n';
-    message += 'الإجمالي: ${CurrencyFormatter.formatAmount(total)} ريال\n';
-    message += 'المدفوع: ${CurrencyFormatter.formatAmount(paid)} ريال\n';
-    message += 'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال\n';
+    final overdueWarning = daysSinceCheckout > 0
+        ? '\nتنبيه: تجاوزتم موعد المغادرة بـ $daysSinceCheckout يوم\n'
+        : '';
 
-    if (daysSinceCheckout > 0) {
-      message += '\nتنبيه: تجاوزتم موعد المغادرة بـ $daysSinceCheckout يوم\n';
-    }
+    // استخدام النموذج المركزي
+    final message = await WhatsAppTemplateManager.buildMessage(
+      WhatsAppTemplateType.activeBookingReminder,
+      {
+        'guestName': booking.guestName,
+        'roomNumber': booking.roomNumber,
+        'checkin': checkin,
+        'checkout': checkout,
+        'nights': '$nights',
+        'total': CurrencyFormatter.formatAmount(total),
+        'paid': CurrencyFormatter.formatAmount(paid),
+        'remaining': CurrencyFormatter.formatAmount(remaining),
+        'overdueWarning': overdueWarning,
+      },
+    );
 
-    message += '\n';
-    message += 'نرجو منكم التكرم بتسديد المبلغ المتبقي في أقرب وقت ممكن.\n\n';
-    message += 'مع خالص التحية والتقدير\n';
-    message += 'فندق مارينا\n';
-    message += 'للاستفسار: 9677734587456';
+    return message ?? _buildFallbackMessage(booking);
+  }
 
-    return message;
+  /// رسالة بديلة إذا كان النموذج معطّل
+  String _buildFallbackMessage(Booking booking) {
+    return 'عزيزي/عزيزتي ${booking.guestName}\n'
+        'رقم الغرفة: ${booking.roomNumber}\n'
+        'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)} ريال\n'
+        'فندق مارينا';
   }
 
   /// إرسال رسالة واتساب لحجز واحد
@@ -132,7 +139,8 @@ class _ActiveBookingsReminderScreenState
     final phone = _cleanAndFormatPhone(booking.guestPhone);
     if (phone.isEmpty) return false;
 
-    final message = _buildReminderMessage(booking);
+    final message = await _buildReminderMessage(booking);
+    if (message.isEmpty) return false;
     final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
     if (result.quotaMessage != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -977,7 +985,7 @@ class _ActiveBookingsReminderScreenState
 
   /// إرسال تذكير فردي مع رسالة تأكيد ونتيجة
   Future<void> _sendSingleReminderWithFeedback(Booking booking) async {
-    final message = _buildReminderMessage(booking);
+    final message = await _buildReminderMessage(booking);
 
     final confirmed = await showDialog<bool>(
       context: context,
