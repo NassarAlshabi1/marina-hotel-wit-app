@@ -643,7 +643,7 @@ class _GuestPaymentsDetailReportScreenState
               Icon(icon, size: 14, color: barColor),
               const SizedBox(width: 4),
               Expanded(
-                child: Text('$titleText — $description', style: TextStyle(fontSize: 10, color: barColor.shade800, fontWeight: FontWeight.w600)),
+                child: Text('$titleText — $description', style: TextStyle(fontSize: 10, color: barColor, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -814,7 +814,6 @@ class _GuestPaymentsDetailReportScreenState
         final paidNights = coverage.totalPaidNights;
         final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
         final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
-        final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
         final autoOverdueCost = autoOverdueDays * nightlyRate;
 
         pdfContent.add(pw.SizedBox(height: 16));
