@@ -470,9 +470,12 @@ class _GuestPaymentsDetailReportScreenState
     );
   }
 
-  // ─── قسم التواريخ: الدخول + المغادرة المخططة (تلقائية) ───
+  // ─── قسم التواريخ: المغادرة التلقائية = المخططة، التمديد التلقائي عند التجاوز ───
 
   Widget _buildDatesSection(Booking b, StayBalanceResult coverage) {
+    final isOverdue = _isOverdue(b);
+    final overdueDays = _getOverdueDays(b);
+
     return Column(
       children: [
         // الصف الأول: الدخول + عدد الأيام المخططة
@@ -483,43 +486,61 @@ class _GuestPaymentsDetailReportScreenState
           ],
         ),
 
-        // الصف الثاني: المغادرة التلقائية (المخططة)
+        // الصف الثاني: المغادرة التلقائية (= المخططة)
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: isOverdue ? Colors.orange.shade50 : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.blue.shade200),
+            border: Border.all(
+              color: isOverdue ? Colors.orange.shade200 : Colors.blue.shade200,
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.event_available, size: 20, color: Colors.blue.shade700),
+              Icon(
+                isOverdue ? Icons.autorenew : Icons.event_available,
+                size: 20,
+                color: isOverdue ? Colors.orange.shade700 : Colors.blue.shade700,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'المغادرة التلقائية (المخططة)',
+                    Text(
+                      isOverdue ? 'المغادرة التلقائية (مُمدَّدة)' : 'المغادرة التلقائية (المخططة)',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
+                        color: isOverdue ? Colors.orange.shade700 : Colors.blue.shade700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       coverage.formatDate(coverage.manualCheckoutDate),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade900,
+                        color: isOverdue ? Colors.orange.shade900 : Colors.blue.shade900,
                       ),
                     ),
                   ],
                 ),
               ),
+              if (isOverdue && overdueDays > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade700,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '+$overdueDays يوم تمديد',
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
             ],
           ),
         ),
@@ -530,42 +551,70 @@ class _GuestPaymentsDetailReportScreenState
   // ─── قسم الأيام ───
 
   Widget _buildDaysSection(Booking b, int actualDays, StayBalanceResult coverage) {
+    final isOverdue = _isOverdue(b);
+    final overdueDays = _getOverdueDays(b);
+
     return Row(
       children: [
         Expanded(child: _buildDaysStat('المقضية', '$actualDays', Colors.blue)),
         const SizedBox(width: 8),
-        Expanded(child: _buildDaysStat('المتبقية', '${coverage.manualNightsRemaining}', Colors.purple)),
+        if (isOverdue && overdueDays > 0)
+          Expanded(child: _buildDaysStat('إضافية (تمديد)', '+$overdueDays', Colors.orange))
+        else
+          Expanded(child: _buildDaysStat('المتبقية', '${coverage.manualNightsRemaining}', Colors.purple)),
         const SizedBox(width: 8),
         Expanded(child: _buildDaysStat('المخططة', '${b.calculatedNights}', Colors.grey)),
       ],
     );
   }
 
-  // ─── شريط التغطية بناءً على المغادرة المخططة ───
+  // ─── شريط التغطية: مبني على المغادرة المخططة + التمديد التلقائي عند التجاوز ───
 
   Widget _buildDateDrivenCoverageBar(Booking b, StayBalanceResult coverage) {
     final totalPlanned = b.totalDueCached;
     final totalPaid = b.totalPaidCached;
     final remaining = b.remainingBalanceCached;
     final paidPercent = totalPlanned > 0 ? (totalPaid / totalPlanned * 100).clamp(0, 100) : 100.0;
-    final isPaidInFull = remaining <= 0;
-    final barColor = isPaidInFull ? Colors.green : Colors.teal;
-    final bgColor = isPaidInFull ? Colors.green.shade50 : Colors.teal.shade50;
+    final isOverdue = _isOverdue(b);
+    final overdueDays = _getOverdueDays(b);
+    final overdueCost = _getOverdueCost(b);
 
+    // إجمالي التكلفة الفعلية = العقد + التمديد
+    final actualTotal = totalPlanned + overdueCost;
+    final actualRemaining = actualTotal - totalPaid;
+    final actualPaidPercent = actualTotal > 0 ? (totalPaid / actualTotal * 100).clamp(0, 100) : 100.0;
+
+    Color barColor;
+    Color bgColor;
     String titleText;
     String description;
     IconData icon;
 
-    if (isPaidInFull) {
-      titleText = 'مغطاة بالكامل';
+    if (isOverdue && overdueDays > 0) {
+      // حالة التمديد التلقائي
+      barColor = Colors.orange;
+      bgColor = Colors.orange.shade50;
+      icon = Icons.autorenew;
+      titleText = 'تمديد تلقائي (+$overdueDays يوم)';
+      description = 'تجاوز المغادرة المخططة | تكلفة التمديد: ${CurrencyFormatter.formatAmount(overdueCost)} ريال'
+          ' | إجمالي فعلي: ${CurrencyFormatter.formatAmount(actualTotal)} ريال';
+      if (actualRemaining > 0) {
+        description += ' | غير مدفوع: ${CurrencyFormatter.formatAmount(actualRemaining)} ريال';
+      }
+    } else if (remaining <= 0) {
+      barColor = Colors.green;
+      bgColor = Colors.green.shade50;
       icon = Icons.check_circle;
+      titleText = 'مغطاة بالكامل';
       description = 'المدفوعات تغطي جميع الأيام المخططة (${b.calculatedNights} ليلة)';
       if (remaining < 0) {
         description += ' | فائض ${CurrencyFormatter.formatAmount(remaining.abs())} ريال';
       }
     } else {
-      titleText = 'تغطية جزئية - تحتاج دفع إضافي';
+      barColor = Colors.teal;
+      bgColor = Colors.teal.shade50;
       icon = Icons.info_outline;
+      titleText = 'تغطية جزئية - تحتاج دفع إضافي';
       description = 'المدفوع ${CurrencyFormatter.formatAmount(totalPaid)} ريال | '
           'متبقي ${CurrencyFormatter.formatAmount(remaining)} ريال';
     }
@@ -598,11 +647,13 @@ class _GuestPaymentsDetailReportScreenState
     );
   }
 
-  /// خط زمني مرئي يعرض الدخول ← المغادرة المخططة
+  /// خط زمني مرئي: الدخول ← المغادرة المخططة + التمديد عند التجاوز
   Widget _buildTimelineVisualization(Booking b, StayBalanceResult coverage, Color barColor) {
     final checkinStr = _dateFormatter.format(coverage.checkinDate);
     final manualStr = coverage.formatDate(coverage.manualCheckoutDate);
     final plannedNights = b.calculatedNights;
+    final isOverdue = _isOverdue(b);
+    final overdueDays = _getOverdueDays(b);
     final paidPercent = b.totalDueCached > 0
         ? (b.totalPaidCached / b.totalDueCached).clamp(0.0, 1.0)
         : 0.0;
@@ -616,7 +667,7 @@ class _GuestPaymentsDetailReportScreenState
       ),
       child: Column(
         children: [
-          // صف 1: تاريخ الدخول → تاريخ المغادرة المخططة
+          // صف 1: تاريخ الدخول → تاريخ المغادرة التلقائية (المخططة)
           Row(
             children: [
               Expanded(
@@ -628,12 +679,12 @@ class _GuestPaymentsDetailReportScreenState
                 ),
               ),
               Expanded(
-                child: _buildTimelineLabel('المغادرة المخططة', manualStr, barColor),
+                child: _buildTimelineLabel('المغادرة التلقائية', manualStr, isOverdue ? Colors.orange : barColor),
               ),
             ],
           ),
 
-          // شريط التقدم: نسبة الدفع من إجمالي العقد
+          // شريط التقدم: نسبة الدفع من إجمالي العقد المخطط
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -641,15 +692,40 @@ class _GuestPaymentsDetailReportScreenState
               value: paidPercent,
               minHeight: 8,
               backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              valueColor: AlwaysStoppedAnimation<Color>(isOverdue ? Colors.orange : barColor),
             ),
           ),
 
           const SizedBox(height: 4),
           Text(
-            '$plannedNights ليلة مخططة | ${paidPercent.toStringAsFixed(0)}% مدفوع',
+            '$plannedNights ليلة مخططة | ${paidPercent.toStringAsFixed(0)}% مدفوع من العقد',
             style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
           ),
+
+          // صف 2: يظهر فقط عند وجود تمديد تلقائي (تجاوز المغادرة المخططة)
+          if (isOverdue && overdueDays > 0) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orange.shade100),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'تمديد تلقائي: +$overdueDays يوم (تكلفة: ${CurrencyFormatter.formatAmount(_getOverdueCost(b))} ريال) — المغادرة يدوياً فقط',
+                      style: const TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -823,17 +899,38 @@ class _GuestPaymentsDetailReportScreenState
           ),
         ];
 
-        // ─── قسم المغادرة التلقائية (المخططة) ───
+        // ─── قسم المغادرة التلقائية (المخططة) + التمديد عند التجاوز ───
+        final isOverdue = _isOverdue(b);
+        final overdueDays = _getOverdueDays(b);
+        final overdueCost = _getOverdueCost(b);
+        final actualTotal = b.totalDueCached + overdueCost;
+
         pdfContent.add(pw.SizedBox(height: 16));
 
         pdfContent.add(
           epdf.EnhancedPdfUtils.buildInfoCard(
-            title: 'المغادرة التلقائية (المخططة)',
+            title: isOverdue
+                ? 'المغادرة التلقائية (مُمدَّدة تلقائياً)'
+                : 'المغادرة التلقائية (المخططة)',
             fonts: fonts,
             content: [
               _buildPdfInfoRow(fonts, 'الأيام المخططة:', '${b.calculatedNights} ليلة'),
-              _buildPdfInfoRow(fonts, 'تاريخ المغادرة المخططة:', coverage.formatDate(coverage.manualCheckoutDate), valueColor: PdfColor(0.0, 0.6, 0.3)),
+              _buildPdfInfoRow(
+                fonts,
+                'المغادرة التلقائية:',
+                coverage.formatDate(coverage.manualCheckoutDate),
+                valueColor: PdfColor(0.0, 0.6, 0.3),
+              ),
+              if (isOverdue && overdueDays > 0) ...[
+                pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
+                _buildPdfInfoRow(fonts, 'تمديد تلقائي:', '+$overdueDays يوم', valueColor: PdfColor(0.9, 0.5, 0.1)),
+                _buildPdfInfoRow(fonts, 'تكلفة التمديد:', '${CurrencyFormatter.formatAmount(overdueCost)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
+                _buildPdfInfoRow(fonts, 'ملاحظة:', 'المغادرة يدوياً فقط — لا يتم إخراج النزيل تلقائياً', valueColor: PdfColor(0.4, 0.4, 0.4)),
+              ],
+              pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
               _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
+              if (isOverdue && overdueDays > 0)
+                _buildPdfInfoRow(fonts, 'إجمالي فعلي (مع التمديد):', '${CurrencyFormatter.formatAmount(actualTotal)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
               _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: PdfColor(0.0, 0.5, 0.8)),
               if (b.remainingBalanceCached > 0)
                 _buildPdfInfoRow(fonts, 'المتبقي:', '${CurrencyFormatter.formatAmount(b.remainingBalanceCached)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
