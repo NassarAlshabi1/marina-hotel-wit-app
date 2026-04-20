@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// معرّف نوع النموذج
@@ -464,7 +464,7 @@ class WhatsAppTemplateManager {
       final list = jsonDecode(jsonString) as List;
       int count = 0;
       for (final item in list) {
-        final template = WhatsAppTemplate.fromJson(item);
+        final template = WhatsAppTemplate.fromJson(item as Map<String, dynamic>);
         await saveTemplateContent(template.type, template.content);
         await setTemplateEnabled(template.type, template.enabled);
         count++;
