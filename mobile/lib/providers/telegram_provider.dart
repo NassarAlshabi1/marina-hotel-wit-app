@@ -32,13 +32,13 @@ class TelegramState {
   const TelegramState({
     this.status = TelegramSetupStatus.idle,
     this.message,
-    this.isEnabled = false,
+    this.isEnabled = true,
     this.isConfigured = false,
-    this.isNotificationsEnabled = false,
-    this.isDailyReportEnabled = false,
+    this.isNotificationsEnabled = true,
+    this.isDailyReportEnabled = true,
     this.botToken = '',
     this.chatId = '',
-    this.dailyReportTime = '08:00',
+    this.dailyReportTime = '02:00',
     this.lastReportSent,
   });
 
@@ -82,12 +82,12 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('telegram_enabled') ?? false;
+      final enabled = prefs.getBool('telegram_enabled') ?? true;
       final botToken = prefs.getString('telegram_bot_token') ?? '';
       final chatId = prefs.getString('telegram_chat_id') ?? '';
       final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? true;
-      final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
-      final reportTime = prefs.getString('telegram_daily_report_time') ?? '08:00';
+      final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
+      final reportTime = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final lastReportSent = prefs.getString('telegram_last_report_sent');
       final configured = await TelegramConfig.isConfigured();
 

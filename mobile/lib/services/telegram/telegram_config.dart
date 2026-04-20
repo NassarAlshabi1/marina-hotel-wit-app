@@ -11,7 +11,7 @@ class TelegramConfig {
   static const String _lastReportSentKey = 'telegram_last_report_sent';
 
   // القيم الافتراضية
-  static const String defaultReportTime = '08:00';
+  static const String defaultReportTime = '02:00';
   static const String telegramApiBase = 'https://api.telegram.org';
 
   TelegramConfig._();
@@ -19,7 +19,7 @@ class TelegramConfig {
   /// التحقق من تفعيل Telegram
   static Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    return prefs.getBool(_enabledKey) ?? true;
   }
 
   static Future<void> setEnabled(bool enabled) async {
@@ -63,7 +63,7 @@ class TelegramConfig {
   /// تفعيل/تعطيل التقرير اليومي
   static Future<bool> isDailyReportEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_dailyReportEnabledKey) ?? false;
+    return prefs.getBool(_dailyReportEnabledKey) ?? true;
   }
 
   static Future<void> setDailyReportEnabled(bool enabled) async {
