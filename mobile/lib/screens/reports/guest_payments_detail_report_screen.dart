@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -23,7 +23,6 @@ class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
 
 class _GuestPaymentsDetailReportScreenState
     extends ConsumerState<GuestPaymentsDetailReportScreen> {
-  final DateFormat _dateFmt = DateFormat('yyyy/MM/dd');
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, partial, unpaid, overpaid
   String _sortBy = 'room'; // room, name, remaining
@@ -72,13 +71,6 @@ class _GuestPaymentsDetailReportScreenState
     return (credit / nightlyRate).floor();
   }
 
-  /// حساب تكلفة الأيام القادمة حتى تاريخ المغادرة المخطط
-  double _getUpcomingDaysCost(Booking b) {
-    final daysLeft = _getDaysUntilCheckout(b);
-    if (daysLeft <= 0) return 0;
-    return _getAverageNightlyRate(b) * daysLeft;
-  }
-
   /// هل الحجز تجاوز تاريخ المغادرة المخطط؟
   bool _isOverdue(Booking b) {
     return b.isOverdue;
@@ -125,7 +117,7 @@ class _GuestPaymentsDetailReportScreenState
   List<Booking> _filterAndSort(List<Booking> allBookings) {
     // فلترة حسب النشاط
     var filtered = _showOnlyActive
-        ? allBookings.where((b) => StatusUtils.isBookingActive(b.status)).toList()
+        ? allBookings.where((b) => StatusUtils.isBookingActive(b)).toList()
         : allBookings.where((b) => b.deletedAt == null).toList();
 
     // بحث
@@ -620,21 +612,21 @@ class _GuestPaymentsDetailReportScreenState
               _buildPdfInfoRow(fonts, 'تاريخ المغادرة المتوقع:', b.checkoutDate?.split(' ').first ?? '---'),
               _buildPdfInfoRow(fonts, 'عدد الأيام المقضية حتى الآن:', '$actualDays يوم'),
               _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
-              pw.Divider(color: pw.PdfColors.grey300, thickness: 0.5),
+              pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
               _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(costSoFar)} ريال'),
               _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال'),
               _buildPdfInfoRow(
                 fonts, 
                 b.remainingBalanceCached < 0 ? 'الرصيد المتبقي (له):' : 'الرصيد المتبقي (عليه):', 
                 '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                valueColor: b.remainingBalanceCached < 0 ? pw.PdfColors.green : pw.PdfColors.red
+                valueColor: b.remainingBalanceCached < 0 ? PdfColor(0.0, 0.7, 0.3) : PdfColor(0.9, 0.2, 0.2)
               ),
             ],
           ),
           pw.SizedBox(height: 20),
           
           // جدول المدفوعات
-          pw.Text('💳 سجل المدفوعات التفصيلي', style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: pw.PdfColors.blue900)),
+          pw.Text('سجل المدفوعات التفصيلي', style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColor(0.0, 0.12, 0.36))),
           pw.SizedBox(height: 10),
           epdf.EnhancedPdfUtils.buildProfessionalTable(
             fonts: fonts,
@@ -646,13 +638,7 @@ class _GuestPaymentsDetailReportScreenState
               p.referenceNumber ?? '---',
               p.notes ?? '',
             ]).toList(),
-            columnWidths: {
-              0: const pw.FixedColumnWidth(80),
-              1: const pw.FixedColumnWidth(80),
-              2: const pw.FixedColumnWidth(70),
-              3: const pw.FixedColumnWidth(70),
-              4: const pw.FlexColumnWidth(),
-            },
+            columnWidths: [80, 80, 70, 70, -1],
           ),
           
           pw.SizedBox(height: 30),
@@ -674,7 +660,7 @@ class _GuestPaymentsDetailReportScreenState
                 children: [
                   pw.Text('ختم وتوقيع الإدارة', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
                   pw.SizedBox(height: 40),
-                  pw.Container(width: 120, height: 1, color: pw.PdfColors.black),
+                  pw.Container(width: 120, height: 1, color: PdfColor(0, 0, 0)),
                 ],
               ),
             ],
@@ -684,7 +670,7 @@ class _GuestPaymentsDetailReportScreenState
           pw.Center(
             child: pw.Text(
               'شكراً لاختياركم فندق مارينا - نتمنى لكم إقامة سعيدة',
-              style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: pw.PdfColors.grey700, italic: true)
+              style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColor(0.4, 0.4, 0.4), fontStyle: pw.FontStyle.italic)
             ),
           ),
         ];
@@ -694,14 +680,14 @@ class _GuestPaymentsDetailReportScreenState
     await ReportPdfBuilder.buildAndShare(config);
   }
 
-  pw.Widget _buildPdfInfoRow(epdf.ArabicPdfFonts fonts, String label, String value, {pw.PdfColor? valueColor}) {
+  pw.Widget _buildPdfInfoRow(epdf.ArabicPdfFonts fonts, String label, String value, {PdfColor? valueColor}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: pw.PdfColors.grey800)),
-          pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: valueColor ?? pw.PdfColors.black)),
+          pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColor(0.15, 0.15, 0.15))),
+          pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: valueColor ?? PdfColor(0, 0, 0))),
         ],
       ),
     );
