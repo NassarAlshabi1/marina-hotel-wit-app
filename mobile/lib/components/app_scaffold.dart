@@ -13,6 +13,10 @@ class AppScaffold extends ConsumerWidget {
     this.actions,
     this.fab,
     this.subtitle,
+    this.appBarBackgroundColor,
+    this.titleColor,
+    this.subtitleColor,
+    this.titleAlign,
   });
   final String title;
   final Widget body;
@@ -23,6 +27,19 @@ class AppScaffold extends ConsumerWidget {
   /// (مثال: عنوان التقرير بخط أصغر وتوسيط)
   final String? subtitle;
 
+  /// لون خلفية الـ AppBar (إذا لم يُحدد يستخدم لون الثيم)
+  final Color? appBarBackgroundColor;
+
+  /// لون العنوان الرئيسي
+  final Color? titleColor;
+
+  /// لون العنوان الثانوي
+  final Color? subtitleColor;
+
+  /// محاذاة العنوان الرئيسي (الافتراضي: توسيط)
+  /// استخدم TextAlign.end للمحاذاة اليمنى في RTL
+  final TextAlign? titleAlign;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
@@ -32,30 +49,40 @@ class AppScaffold extends ConsumerWidget {
     );
     final hasUnread = unreadCount > 0;
 
+    final isLightBg = appBarBackgroundColor != null &&
+        appBarBackgroundColor!.computeLuminance() > 0.5;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: subtitle != null ? 64 : null,
+          backgroundColor: appBarBackgroundColor,
+          foregroundColor: isLightBg ? Colors.black87 : null,
+          elevation: appBarBackgroundColor != null ? 1 : null,
           title: subtitle != null
               ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: titleAlign == TextAlign.end
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      textAlign: titleAlign ?? TextAlign.center,
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
+                        color: titleColor ?? (isLightBg ? Colors.black : Colors.white),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white70,
+                        color: subtitleColor ?? (isLightBg ? Colors.black54 : Colors.white70),
                       ),
                     ),
                   ],
