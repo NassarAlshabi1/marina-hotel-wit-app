@@ -21,7 +21,7 @@ import '../../utils/time.dart';
 // التعريفات في: services/stay_balance_calculator.dart
 // ─────────────────────────────────────────────────────────────────
 
-/// تقرير تفصيلي لمدفوعات النزلاء مع حساب الأيام والمبالغ وتاريخ المغادرة التلقائي
+/// تقرير تفصيلي لمدفوعات النزلاء مع حساب الأيام والمبالغ والمغادرة المخططة
 class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
   const GuestPaymentsDetailReportScreen({super.key});
 
@@ -415,11 +415,9 @@ class _GuestPaymentsDetailReportScreenState
 
                 const SizedBox(height: 10),
 
-                // ─── شريط التغطية بالتواريخ (يظهر دائماً عند وجود مدفوعات) ───
-                if (coverage.hasPayments) ...[
-                  _buildDateDrivenCoverageBar(coverage),
-                  const SizedBox(height: 10),
-                ],
+                // ─── شريط التغطية بناءً على المغادرة المخططة ───
+                _buildDateDrivenCoverageBar(b, coverage),
+                const SizedBox(height: 10),
 
                 // ─── المبالغ والتقدم ───
                 _buildFinancialSection(b, nightlyRate, paidPercent, isCredit, remaining),
@@ -472,91 +470,59 @@ class _GuestPaymentsDetailReportScreenState
     );
   }
 
-  // ─── قسم التواريخ: يعرض 3 تواريخ (الدخول / اليدوية / التلقائية) ───
+  // ─── قسم التواريخ: الدخول + المغادرة المخططة (تلقائية) ───
 
   Widget _buildDatesSection(Booking b, StayBalanceResult coverage) {
     return Column(
       children: [
-        // الصف الأول: الدخول + المغادرة المتوقعة اليدوية
+        // الصف الأول: الدخول + عدد الأيام المخططة
         Row(
           children: [
             Expanded(child: _buildInfoItem(Icons.login, 'الدخول', _dateFormatter.format(coverage.checkinDate))),
-            Expanded(child: _buildInfoItem(Icons.event, 'المغادرة المتوقعة', coverage.formatDate(coverage.manualCheckoutDate))),
+            Expanded(child: _buildInfoItem(Icons.nights_stay, 'الأيام المخططة', '${b.calculatedNights} ليلة')),
           ],
         ),
 
-        // الصف الثاني: تاريخ المغادرة التلقائي (يظهر فقط عند وجود مدفوعات)
-        if (coverage.hasPayments) ...[
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: coverage.isAutoExtended ? Colors.green.shade50 : Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: coverage.isAutoExtended ? Colors.green.shade200 : Colors.blue.shade200,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  coverage.isAutoExtended ? Icons.autorenew : Icons.calculate_outlined,
-                  size: 20,
-                  color: coverage.isAutoExtended ? Colors.green.shade700 : Colors.blue.shade700,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'المغادرة التلقائية (محسوبة)',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: coverage.isAutoExtended ? Colors.green.shade700 : Colors.blue.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Text(
-                            _dateFormatter.format(coverage.autoCheckoutDate),
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: coverage.isAutoExtended ? Colors.green.shade900 : Colors.blue.shade900,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '(${coverage.totalPaidNights} ليلة مدفوعة)',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (coverage.isAutoExtended)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade700,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '+${coverage.extraNightsBeyondManual} يوم',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
+        // الصف الثاني: المغادرة التلقائية (المخططة)
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.blue.shade200),
           ),
-        ],
+          child: Row(
+            children: [
+              const Icon(Icons.event_available, size: 20, color: Colors.blue.shade700),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'المغادرة التلقائية (المخططة)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      coverage.formatDate(coverage.manualCheckoutDate),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -570,54 +536,38 @@ class _GuestPaymentsDetailReportScreenState
         const SizedBox(width: 8),
         Expanded(child: _buildDaysStat('المتبقية', '${coverage.manualNightsRemaining}', Colors.purple)),
         const SizedBox(width: 8),
-        if (coverage.isAutoExtended)
-          Expanded(child: _buildDaysStat('إضافية مغطاة', '+${coverage.extraNightsBeyondManual}', Colors.green))
-        else if (coverage.hasPayments && coverage.manualNightsRemaining > 0)
-          Expanded(child: _buildDaysStat('غير مغطاة', '${coverage.uncoveredDays}', Colors.orange))
-        else
-          Expanded(child: _buildDaysStat('المخططة', '${b.calculatedNights}', Colors.grey)),
+        Expanded(child: _buildDaysStat('المخططة', '${b.calculatedNights}', Colors.grey)),
       ],
     );
   }
 
-  // ─── شريط التغطية بالتواريخ الفعلية ───
+  // ─── شريط التغطية بناءً على المغادرة المخططة ───
 
-  Widget _buildDateDrivenCoverageBar(StayBalanceResult coverage) {
-    final isExtended = coverage.isAutoExtended;
-    final barColor = isExtended ? Colors.green : Colors.teal;
-    final bgColor = isExtended ? Colors.green.shade50 : Colors.teal.shade50;
+  Widget _buildDateDrivenCoverageBar(Booking b, StayBalanceResult coverage) {
+    final totalPlanned = b.totalDueCached;
+    final totalPaid = b.totalPaidCached;
+    final remaining = b.remainingBalanceCached;
+    final paidPercent = totalPlanned > 0 ? (totalPaid / totalPlanned * 100).clamp(0, 100) : 100.0;
+    final isPaidInFull = remaining <= 0;
+    final barColor = isPaidInFull ? Colors.green : Colors.teal;
+    final bgColor = isPaidInFull ? Colors.green.shade50 : Colors.teal.shade50;
 
-    // بناء النص التوضيحي حسب الحالة
     String titleText;
     String description;
     IconData icon;
 
-    if (isExtended) {
-      titleText = 'تغطية كاملة مع تمديد تلقائي';
-      icon = Icons.verified;
-      description = 'المدفوع التراكمي (${CurrencyFormatter.formatAmount(coverage.totalPaid)} ريال) يغطي ${coverage.totalPaidNights} ليلة '
-          'حتى ${coverage.formatDate(coverage.autoCheckoutDate)}';
-      if (coverage.surplusAfterAllNights > 0) {
-        description += ' | فائض ${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال';
-      }
-    } else if (coverage.rawRemainingBalance > 0 && coverage.manualNightsRemaining > 0) {
-      titleText = 'تغطية جزئية - تحتاج دفع إضافي';
-      icon = Icons.info_outline;
-      description = 'المدفوع يغطي ${coverage.totalPaidNights} ليلة | '
-          '${coverage.uncoveredDays} ليلة متبقية تحتاج ${CurrencyFormatter.formatAmount(coverage.uncoveredCost)} ريال';
-    } else if (coverage.rawRemainingBalance <= 0) {
+    if (isPaidInFull) {
       titleText = 'مغطاة بالكامل';
       icon = Icons.check_circle;
-      description = 'المدفوعات تغطي جميع الأيام حتى ${coverage.formatDate(coverage.manualCheckoutDate)}';
-      if (coverage.surplusAfterAllNights > 0) {
-        description += ' | فائض ${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال';
+      description = 'المدفوعات تغطي جميع الأيام المخططة (${b.calculatedNights} ليلة)';
+      if (remaining < 0) {
+        description += ' | فائض ${CurrencyFormatter.formatAmount(remaining.abs())} ريال';
       }
     } else {
-      titleText = 'حالة التغطية';
-      icon = Icons.account_balance_wallet;
-      description = coverage.isAutoExtended
-          ? 'المدفوعات تغطي ${coverage.extraNightsBeyondManual} يوم إضافي حتى ${coverage.formatDate(coverage.autoCheckoutDate)}'
-          : 'الرصيد الفعلي: ${CurrencyFormatter.formatAmount(coverage.effectiveBalance)} ريال';
+      titleText = 'تغطية جزئية - تحتاج دفع إضافي';
+      icon = Icons.info_outline;
+      description = 'المدفوع ${CurrencyFormatter.formatAmount(totalPaid)} ريال | '
+          'متبقي ${CurrencyFormatter.formatAmount(remaining)} ريال';
     }
 
     return Container(
@@ -630,7 +580,6 @@ class _GuestPaymentsDetailReportScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // العنوان
           Row(
             children: [
               Icon(icon, size: 18, color: barColor),
@@ -641,24 +590,23 @@ class _GuestPaymentsDetailReportScreenState
             ],
           ),
           const SizedBox(height: 6),
-
-          // الخط الزمني المرئي بالتواريخ
-          _buildTimelineVisualization(coverage, barColor),
-
+          _buildTimelineVisualization(b, coverage, barColor),
           const SizedBox(height: 6),
-
-          // النص التفصيلي
           Text(description, style: TextStyle(fontSize: 11, color: barColor.shade800, fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  /// خط زمني مرئي يعرض الفترة المغطاة والتواريخ الفعلية
-  Widget _buildTimelineVisualization(StayBalanceResult coverage, Color barColor) {
+  /// خط زمني مرئي يعرض الدخول ← المغادرة المخططة
+  Widget _buildTimelineVisualization(Booking b, StayBalanceResult coverage, Color barColor) {
     final checkinStr = _dateFormatter.format(coverage.checkinDate);
-    final autoStr = _dateFormatter.format(coverage.autoCheckoutDate);
     final manualStr = coverage.formatDate(coverage.manualCheckoutDate);
+    final plannedNights = b.calculatedNights;
+    final paidPercent = b.totalDueCached > 0
+        ? (b.totalPaidCached / b.totalDueCached).clamp(0.0, 1.0)
+        : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -668,7 +616,7 @@ class _GuestPaymentsDetailReportScreenState
       ),
       child: Column(
         children: [
-          // صف 1: تاريخ الدخول → تاريخ المغادرة التلقائية
+          // صف 1: تاريخ الدخول → تاريخ المغادرة المخططة
           Row(
             children: [
               Expanded(
@@ -680,67 +628,28 @@ class _GuestPaymentsDetailReportScreenState
                 ),
               ),
               Expanded(
-                child: _buildTimelineLabel('مغطى حتى', autoStr, barColor),
+                child: _buildTimelineLabel('المغادرة المخططة', manualStr, barColor),
               ),
             ],
           ),
 
-          // شريط التقدم: الفترة المدفوعة
+          // شريط التقدم: نسبة الدفع من إجمالي العقد
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: coverage.hasPayments ? (coverage.totalPaidNights / (coverage.totalPaidNights + coverage.uncoveredDays).clamp(1, 9999)).clamp(0.0, 1.0) : 0,
+              value: paidPercent,
               minHeight: 8,
               backgroundColor: Colors.grey.shade200,
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
 
-          // صف 2: يظهر فقط عند وجود تمديد
-          if (coverage.isAutoExtended) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTimelineLabel('متوقع يدوياً', manualStr, Colors.orange),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Icon(Icons.arrow_forward, size: 16, color: Colors.green.shade400),
-                  ),
-                ),
-                Expanded(
-                  child: _buildTimelineLabel('تمديد تلقائي (+${coverage.extraNightsBeyondManual})', autoStr, Colors.green),
-                ),
-              ],
-            ),
-          ],
-
-          // صف 3: يظهر عند وجود أيام غير مغطاة
-          if (!coverage.isAutoExtended && coverage.uncoveredDays > 0) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.orange.shade100),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${coverage.uncoveredDays} ليلة غير مغطاة تحتاج ${CurrencyFormatter.formatAmount(coverage.uncoveredCost)} ريال',
-                      style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          const SizedBox(height: 4),
+          Text(
+            '$plannedNights ليلة مخططة | ${paidPercent.toStringAsFixed(0)}% مدفوع',
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -914,42 +823,25 @@ class _GuestPaymentsDetailReportScreenState
           ),
         ];
 
-        // ─── قسم تاريخ المغادرة التلقائي (يظهر دائماً عند وجود مدفوعات) ───
-        if (coverage.hasPayments) {
-          pdfContent.add(pw.SizedBox(height: 16));
+        // ─── قسم المغادرة التلقائية (المخططة) ───
+        pdfContent.add(pw.SizedBox(height: 16));
 
-          pdfContent.add(
-            epdf.EnhancedPdfUtils.buildInfoCard(
-              title: coverage.isAutoExtended
-                  ? 'تاريخ المغادرة التلقائية - تمديد تلقائي'
-                  : 'تاريخ المغادرة التلقائية (محسوب من المدفوعات)',
-              fonts: fonts,
-              content: [
-                _buildPdfInfoRow(fonts, 'إجمالي المدفوع التراكمي:', '${CurrencyFormatter.formatAmount(coverage.totalPaid)} ريال', valueColor: PdfColor(0.0, 0.5, 0.8)),
-                _buildPdfInfoRow(fonts, 'عدد الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
-                _buildPdfInfoRow(
-                  fonts,
-                  'تاريخ المغادرة التلقائية:',
-                  _dateFormatter.format(coverage.autoCheckoutDate),
-                  valueColor: PdfColor(0.0, 0.6, 0.3),
-                ),
-                if (coverage.surplusAfterAllNights > 0)
-                  _buildPdfInfoRow(fonts, 'فائض بعد تغطية الليالي:', '${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال', valueColor: PdfColor(0.0, 0.5, 0.8)),
-                if (coverage.isAutoExtended) ...[
-                  pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-                  _buildPdfInfoRow(fonts, 'المغادرة المتوقعة (يدوي):', coverage.formatDate(coverage.manualCheckoutDate)),
-                  _buildPdfInfoRow(fonts, 'تمديد تلقائي:', '+${coverage.extraNightsBeyondManual} يوم', valueColor: PdfColor(0.0, 0.7, 0.3)),
-                  _buildPdfInfoRow(fonts, 'التاريخ بعد التمديد:', _dateFormatter.format(coverage.autoCheckoutDate), valueColor: PdfColor(0.0, 0.7, 0.3)),
-                ],
-                if (!coverage.isAutoExtended && coverage.uncoveredDays > 0) ...[
-                  pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-                  _buildPdfInfoRow(fonts, 'الأيام غير المغطاة:', '${coverage.uncoveredDays} ليلة', valueColor: PdfColor(0.9, 0.3, 0.1)),
-                  _buildPdfInfoRow(fonts, 'المبلغ المطلوب:', '${CurrencyFormatter.formatAmount(coverage.uncoveredCost)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
-                ],
-              ],
-            ),
-          );
-        }
+        pdfContent.add(
+          epdf.EnhancedPdfUtils.buildInfoCard(
+            title: 'المغادرة التلقائية (المخططة)',
+            fonts: fonts,
+            content: [
+              _buildPdfInfoRow(fonts, 'الأيام المخططة:', '${b.calculatedNights} ليلة'),
+              _buildPdfInfoRow(fonts, 'تاريخ المغادرة المخططة:', coverage.formatDate(coverage.manualCheckoutDate), valueColor: PdfColor(0.0, 0.6, 0.3)),
+              _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
+              _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: PdfColor(0.0, 0.5, 0.8)),
+              if (b.remainingBalanceCached > 0)
+                _buildPdfInfoRow(fonts, 'المتبقي:', '${CurrencyFormatter.formatAmount(b.remainingBalanceCached)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
+              if (b.remainingBalanceCached < 0)
+                _buildPdfInfoRow(fonts, 'فائض:', '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال', valueColor: PdfColor(0.0, 0.7, 0.3)),
+            ],
+          ),
+        );
 
         pdfContent.addAll([
           pw.SizedBox(height: 20),
