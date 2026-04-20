@@ -86,7 +86,7 @@ final blacklistRepoProvider = Provider<BlacklistRepository>(
 final whatsappSettingsProvider = FutureProvider<Map<String, String>>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   return {
-    'apiType': prefs.getString('wa_api_type') ?? 'greenapi',
+    'apiType': prefs.getString('wa_api_type') ?? 'sendzen',
     'baseUrl': prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
     'instanceId': prefs.getString('wa_api_instance_id') ?? 'waInstance7103894450',
     'token': prefs.getString('wa_api_token') ?? 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
@@ -103,7 +103,7 @@ WhatsAppApiType _parseApiType(String? type) {
     case 'sendzen':
       return WhatsAppApiType.sendzen;
     default:
-      return WhatsAppApiType.greenapi;
+      return WhatsAppApiType.sendzen;
   }
 }
 
@@ -111,7 +111,7 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
   (ref) {
     final settingsAsync = ref.watch(whatsappSettingsProvider);
     final settings = settingsAsync.valueOrNull ?? const {
-      'apiType': 'greenapi',
+      'apiType': 'sendzen',
       'baseUrl': 'https://7103.api.greenapi.com',
       'instanceId': 'waInstance7103894450',
       'token': 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',

@@ -38,7 +38,7 @@ class _WhatsAppSettingsScreenState
   bool _obscureToken = true;
   bool _obscureSendzenKey = true;
 
-  WhatsAppApiType _selectedApiType = WhatsAppApiType.greenapi;
+  WhatsAppApiType _selectedApiType = WhatsAppApiType.sendzen;
 
   static const _defaultBaseUrl = 'https://7103.api.greenapi.com';
   static const _defaultInstanceId = 'waInstance7103894450';
@@ -86,9 +86,9 @@ class _WhatsAppSettingsScreenState
       final typeStr = prefs.getString('wa_api_type');
       _selectedApiType = typeStr == 'custom'
           ? WhatsAppApiType.custom
-          : typeStr == 'sendzen'
-              ? WhatsAppApiType.sendzen
-              : WhatsAppApiType.greenapi;
+          : typeStr == 'greenapi'
+              ? WhatsAppApiType.greenapi
+              : WhatsAppApiType.sendzen;
       _isLoading = false;
     });
   }
@@ -155,7 +155,7 @@ class _WhatsAppSettingsScreenState
       _customUrlController.text = '';
       _sendzenApiKeyController.text = '';
       _sendzenFromController.text = '';
-      _selectedApiType = WhatsAppApiType.greenapi;
+      _selectedApiType = WhatsAppApiType.sendzen;
     });
   }
 
@@ -185,7 +185,7 @@ class _WhatsAppSettingsScreenState
       _customUrlController.text = '';
       _sendzenApiKeyController.text = '';
       _sendzenFromController.text = '';
-      _selectedApiType = WhatsAppApiType.greenapi;
+      _selectedApiType = WhatsAppApiType.sendzen;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
