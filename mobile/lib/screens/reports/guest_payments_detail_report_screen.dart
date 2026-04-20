@@ -12,6 +12,53 @@ import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../services/booking_derived_fields_service.dart';
 import '../../utils/time.dart';
 
+/// نموذج بيانات تغطية الرصيد الزائد للأيام المتبقية حتى المغادرة المتوقعة
+/// يحتسب بشكل تلقائي كم يوم من الأيام القادمة يغطيه المبلغ المدفوع زيادة
+class _CreditCoverageResult {
+  const _CreditCoverageResult({
+    required this.creditAmount,
+    required this.nightlyRate,
+    required this.daysCovered,
+    required this.daysUntilCheckout,
+    required this.fullyCovered,
+    required this.surplusAmount,
+  });
+
+  /// مبلغ الرصيد الزائد (المدفوع زيادة)
+  final double creditAmount;
+
+  /// متوسط سعر الليلة
+  final double nightlyRate;
+
+  /// عدد الأيام التي يغطيها الرصيد الزائد
+  final int daysCovered;
+
+  /// إجمالي الأيام المتبقية حتى تاريخ المغادرة المتوقع
+  final int daysUntilCheckout;
+
+  /// هل الرصيد الزائد يغطي جميع الأيام المتبقية بالكامل؟
+  final bool fullyCovered;
+
+  /// المبلغ المتبقي من الرصيد الزائد بعد تغطية جميع الأيام (إن وجد)
+  final double surplusAmount;
+
+  /// هل يوجد رصيد زائد فعلي؟
+  bool get hasCredit => creditAmount > 0;
+
+  /// نسبة التغطية من الأيام المتبقية (0.0 - 1.0)
+  double get coverageRatio => daysUntilCheckout > 0
+      ? (daysCovered / daysUntilCheckout).clamp(0.0, 1.0)
+      : (fullyCovered ? 1.0 : 0.0);
+
+  /// الأيام غير المغطاة (يحتاج دفع لها)
+  int get uncoveredDays => daysUntilCheckout > 0
+      ? (daysUntilCheckout - daysCovered).clamp(0, daysUntilCheckout)
+      : 0;
+
+  /// تكلفة الأيام غير المغطاة
+  double get uncoveredCost => uncoveredDays * nightlyRate;
+}
+
 /// تقرير تفصيلي لمدفوعات النزلاء مع حساب عدد الأيام والرصيد المتبقي للأيام القادمة
 class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
   const GuestPaymentsDetailReportScreen({super.key});
@@ -60,15 +107,48 @@ class _GuestPaymentsDetailReportScreenState
   }
 
   /// حساب عدد الأيام التي يغطيها الرصيد المتبقي (المدفوع زيادة)
-  int _getDaysCoveredByCredit(Booking b) {
+  /// يربط تلقائياً المبلغ الزائد بالأيام المتبقية حتى تاريخ المغادرة المتوقع
+  _CreditCoverageResult _getCreditCoverage(Booking b) {
     // إذا كان الرصيد المتبقي سالباً، فهذا يعني وجود مبلغ مدفوع زيادة (Credit)
     final credit = -b.remainingBalanceCached;
-    if (credit <= 0) return 0;
-    
+    if (credit <= 0) {
+      return const _CreditCoverageResult(
+        creditAmount: 0,
+        nightlyRate: 0,
+        daysCovered: 0,
+        daysUntilCheckout: 0,
+        fullyCovered: false,
+        surplusAmount: 0,
+      );
+    }
+
     final nightlyRate = _getAverageNightlyRate(b);
-    if (nightlyRate <= 0) return 0;
-    
-    return (credit / nightlyRate).floor();
+    if (nightlyRate <= 0) {
+      return const _CreditCoverageResult(
+        creditAmount: 0,
+        nightlyRate: 0,
+        daysCovered: 0,
+        daysUntilCheckout: 0,
+        fullyCovered: false,
+        surplusAmount: 0,
+      );
+    }
+
+    final daysUntilCheckout = _getDaysUntilCheckout(b);
+    final daysCovered = (credit / nightlyRate).floor();
+    final fullyCovered = daysUntilCheckout > 0 && daysCovered >= daysUntilCheckout;
+    final double surplusAmount = fullyCovered
+        ? credit - (daysUntilCheckout * nightlyRate)
+        : 0.0;
+
+    return _CreditCoverageResult(
+      creditAmount: credit,
+      nightlyRate: nightlyRate,
+      daysCovered: daysCovered,
+      daysUntilCheckout: daysUntilCheckout,
+      fullyCovered: fullyCovered,
+      surplusAmount: surplusAmount,
+    );
   }
 
   /// هل الحجز تجاوز تاريخ المغادرة المخطط؟
@@ -374,7 +454,7 @@ class _GuestPaymentsDetailReportScreenState
     final actualDays = _getActualDaysSpent(b);
     final daysLeft = _getDaysUntilCheckout(b);
     final nightlyRate = _getAverageNightlyRate(b);
-    final creditDays = _getDaysCoveredByCredit(b);
+    final coverage = _getCreditCoverage(b);
     final isOverdue = _isOverdue(b);
     final overdueDays = _getOverdueDays(b);
     final overdueCost = _getOverdueCost(b);
@@ -461,13 +541,21 @@ class _GuestPaymentsDetailReportScreenState
                     const SizedBox(width: 8),
                     Expanded(child: _buildDaysStat('المتبقية', '$daysLeft', Colors.purple)),
                     const SizedBox(width: 8),
-                    if (isCredit)
-                      Expanded(child: _buildDaysStat('مغطاة بالرصيد', '$creditDays', Colors.green))
+                    if (isCredit && coverage.hasCredit && coverage.daysUntilCheckout > 0)
+                      Expanded(child: _buildDaysStat('مغطاة بالرصيد', '${coverage.daysCovered}/${coverage.daysUntilCheckout}', Colors.green))
+                    else if (isCredit && coverage.hasCredit)
+                      Expanded(child: _buildDaysStat('مغطاة بالرصيد', '${coverage.daysCovered}', Colors.green))
                     else
                       Expanded(child: _buildDaysStat('المخططة', '${b.calculatedNights}', Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // ─── شريط تغطية الرصيد الزائد للأيام المتبقية (يظهر فقط عند وجود رصيد زائد وأيام متبقية) ───
+                if (coverage.hasCredit && coverage.daysUntilCheckout > 0) ...[
+                  _buildCreditCoverageBar(coverage),
+                  const SizedBox(height: 16),
+                ],
 
                 // ─── المبالغ والتقدم ───
                 Container(
@@ -590,27 +678,137 @@ class _GuestPaymentsDetailReportScreenState
     );
   }
 
+  /// شريط تغطية الرصيد الزائد - يعرض بشكل مرئي كم يوم من الأيام المتبقية مغطى بالرصيد
+  Widget _buildCreditCoverageBar(_CreditCoverageResult coverage) {
+    final isFull = coverage.fullyCovered;
+    final ratio = coverage.coverageRatio;
+    final totalDays = coverage.daysUntilCheckout;
+    final barColor = isFull ? Colors.green : Colors.teal;
+    final bgColor = isFull ? Colors.green.shade100 : Colors.teal.shade50;
+
+    // بناء النص التوضيحي حسب الحالة
+    String description;
+    IconData icon;
+    if (isFull) {
+      description = 'الرصيد الزائد يغطي جميع الأيام المتبقية (${coverage.daysUntilCheckout} يوم)';
+      icon = Icons.verified;
+      if (coverage.surplusAmount > 0) {
+        description += ' + رصيد فائض ${CurrencyFormatter.formatAmount(coverage.surplusAmount)} ريال';
+      }
+    } else if (coverage.uncoveredDays > 0) {
+      description = 'يغطي ${coverage.daysCovered} يوم من ${coverage.daysUntilCheckout} متبقي | '
+          '${coverage.uncoveredDays} يوم غير مغطاة (تحتاج ${CurrencyFormatter.formatAmount(coverage.uncoveredCost)} ريال)';
+      icon = Icons.info_outline;
+    } else {
+      description = 'يغطي ${coverage.daysCovered} يوم إضافي بالكامل';
+      icon = Icons.check_circle_outline;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: barColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // العنوان مع الأيقونة
+          Row(
+            children: [
+              Icon(icon, size: 18, color: barColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'تغطية الرصيد الزائد للأيام القادمة',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: barColor.shade900),
+                ),
+              ),
+              Text(
+                '${(ratio * 100).toStringAsFixed(0)}%',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: barColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // شريط التقدم المرئي - يمثل كل قسم يوماً
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Row(
+              children: List.generate(totalDays, (index) {
+                final isCovered = index < coverage.daysCovered;
+                return Expanded(
+                  flex: 1,
+                  child: Container(
+                    height: 10,
+                    margin: EdgeInsets.only(
+                      left: index < totalDays - 1 ? 2 : 0,
+                      right: index > 0 ? 2 : 0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isCovered ? barColor : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // تفسير مرئي: أيام مغطاة / أيام غير مغطاة
+          if (totalDays > 0 && !isFull)
+            Row(
+              children: [
+                Container(width: 12, height: 10, decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(width: 4),
+                Text('مغطاة (${coverage.daysCovered})', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Container(width: 12, height: 10, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(width: 4),
+                Text('غير مغطاة (${coverage.uncoveredDays})', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+              ],
+            ),
+
+          const SizedBox(height: 6),
+
+          // النص التفصيلي
+          Text(
+            description,
+            style: TextStyle(fontSize: 11, color: barColor.shade800, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// تصدير كشف حساب النزيل بصيغة PDF احترافية
   Future<void> _exportGuestStatementPdf(Booking b) async {
     final payments = await ref.read(paymentsRepoProvider).paymentsByBooking(b.id).first;
     final actualDays = _getActualDaysSpent(b);
     final nightlyRate = _getAverageNightlyRate(b);
     final costSoFar = actualDays * nightlyRate;
+    final coverage = _getCreditCoverage(b);
+    final daysLeft = _getDaysUntilCheckout(b);
     
     final config = ReportPdfConfig(
       title: 'كشف حساب نزيل تفصيلي',
       fileName: ReportPdfBuilder.generateFileName('كشف-حساب-${b.guestName}'),
       extraHeaderLine: 'النزيل: ${b.guestName} | غرفة: ${b.roomNumber}',
       buildContent: (fonts) {
-        return [
+        // بناء محتوى PDF ديناميكي حسب وجود رصيد زائد
+        final List<pw.Widget> pdfContent = [
           // ملخص الحساب والمدة
           epdf.EnhancedPdfUtils.buildInfoCard(
-            title: '📊 ملخص الحساب والمدة الزمانية',
+            title: 'ملخص الحساب والمدة الزمانية',
             fonts: fonts,
             content: [
               _buildPdfInfoRow(fonts, 'تاريخ الوصول:', b.checkinDate.split(' ').first),
               _buildPdfInfoRow(fonts, 'تاريخ المغادرة المتوقع:', b.checkoutDate?.split(' ').first ?? '---'),
               _buildPdfInfoRow(fonts, 'عدد الأيام المقضية حتى الآن:', '$actualDays يوم'),
+              _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '$daysLeft يوم'),
               _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
               pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
               _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(costSoFar)} ريال'),
@@ -623,6 +821,50 @@ class _GuestPaymentsDetailReportScreenState
               ),
             ],
           ),
+        ];
+
+        // إضافة قسم تغطية الرصيد الزائد فقط إذا وُجد رصيد زائد وأيام متبقية
+        if (coverage.hasCredit && coverage.daysUntilCheckout > 0) {
+          pdfContent.add(pw.SizedBox(height: 16));
+          
+          final coveragePercent = (coverage.coverageRatio * 100).toStringAsFixed(0);
+          String coverageText;
+          if (coverage.fullyCovered) {
+            coverageText = 'الرصيد الزائد (${CurrencyFormatter.formatAmount(coverage.creditAmount)} ريال) يغطي جميع الأيام المتبقية بالكامل (${coverage.daysUntilCheckout} يوم)';
+            if (coverage.surplusAmount > 0) {
+              coverageText += ' مع رصيد فائض قدره ${CurrencyFormatter.formatAmount(coverage.surplusAmount)} ريال';
+            }
+          } else {
+            coverageText = 'يغطي ${coverage.daysCovered} يوم من ${coverage.daysUntilCheckout} يوم متبقي ($coveragePercent%)'
+                ' | ${coverage.uncoveredDays} يوم غير مغطاة تحتاج ${CurrencyFormatter.formatAmount(coverage.uncoveredCost)} ريال';
+          }
+          
+          pdfContent.add(
+            epdf.EnhancedPdfUtils.buildInfoCard(
+              title: 'تغطية الرصيد الزائد للأيام القادمة',
+              fonts: fonts,
+              content: [
+                _buildPdfInfoRow(fonts, 'مبلغ الرصيد الزائد:', '${CurrencyFormatter.formatAmount(coverage.creditAmount)} ريال', valueColor: PdfColor(0.0, 0.6, 0.3)),
+                _buildPdfInfoRow(fonts, 'الأيام التي يغطيها:', '${coverage.daysCovered} يوم'),
+                _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '${coverage.daysUntilCheckout} يوم'),
+                _buildPdfInfoRow(fonts, 'نسبة التغطية:', '$coveragePercent%'),
+                if (!coverage.fullyCovered) ...[
+                  pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
+                  _buildPdfInfoRow(fonts, 'الأيام غير المغطاة:', '${coverage.uncoveredDays} يوم', valueColor: PdfColor(0.9, 0.3, 0.1)),
+                  _buildPdfInfoRow(fonts, 'المبلغ المطلوب للأيام غير المغطاة:', '${CurrencyFormatter.formatAmount(coverage.uncoveredCost)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
+                ],
+                if (coverage.fullyCovered && coverage.surplusAmount > 0) ...[
+                  pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
+                  _buildPdfInfoRow(fonts, 'رصيد فائض بعد التغطية الكاملة:', '${CurrencyFormatter.formatAmount(coverage.surplusAmount)} ريال', valueColor: PdfColor(0.0, 0.5, 0.8)),
+                ],
+                pw.SizedBox(height: 4),
+                pw.Text(coverageText, style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColor(0.2, 0.4, 0.2))),
+              ],
+            ),
+          );
+        }
+
+        pdfContent.addAll([
           pw.SizedBox(height: 20),
           
           // جدول المدفوعات
@@ -673,7 +915,9 @@ class _GuestPaymentsDetailReportScreenState
               style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColor(0.4, 0.4, 0.4), fontStyle: pw.FontStyle.italic)
             ),
           ),
-        ];
+        ]);
+        
+        return pdfContent;
       },
     );
 
