@@ -182,12 +182,19 @@ class ReportPdfBuilder {
             // المنتصف - عنوان التقرير
             pw.Expanded(
               child: pw.Center(
-                child: pw.Text(
-                  title,
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 16,
-                    color: PdfColor(0.4, 0.4, 0.4), // grey800
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor(1.0, 0.56, 0.0), // 0xFFFF8F00
+                    borderRadius: pw.BorderRadius.circular(6),
+                  ),
+                  child: pw.Text(
+                    title,
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 16,
+                      color: PdfColor(1.0, 1.0, 1.0), // white
+                    ),
                   ),
                 ),
               ),
