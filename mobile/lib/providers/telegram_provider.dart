@@ -6,6 +6,7 @@ import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_service.dart';
 import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
+import '../services/alarm_backup.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus {
@@ -156,6 +157,20 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
       status: TelegramSetupStatus.success,
       message: enabled ? 'تم تفعيل التقرير اليومي التلقائي' : 'تم تعطيل التقرير اليومي التلقائي',
     );
+    // جدولة/إلغاء إنذار التقرير اليومي
+    try {
+      if (enabled && state.isEnabled) {
+        final parts = state.dailyReportTime.split(':');
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+      } else {
+        await AlarmBackup.cancelTelegramReportAlarm();
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
+    }
     _clearMessageAfterDelay();
   }
 
@@ -163,6 +178,18 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<void> setDailyReportTime(String time) async {
     await TelegramConfig.setDailyReportTime(time);
     state = state.copyWith(dailyReportTime: time);
+    // إعادة جدولة إنذار التقرير بالوقت الجديد
+    try {
+      if (state.isDailyReportEnabled && state.isEnabled) {
+        final parts = time.split(':');
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
+    }
   }
 
   /// اختبار الاتصال

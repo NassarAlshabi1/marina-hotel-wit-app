@@ -59,6 +59,7 @@ import 'services/sync_service.dart';
 import 'services/sync_constants.dart';
 import 'services/battery_optimizer.dart';
 import 'services/sync_performance_optimizer.dart';
+import 'services/alarm_backup.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
@@ -68,6 +69,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
+
+  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
+  unawaited(AlarmBackup.initAlarmSystem());
 
   FlutterError.onError = (details) {
     DiagnosticsLogger.instance.recordFlutterError(details);

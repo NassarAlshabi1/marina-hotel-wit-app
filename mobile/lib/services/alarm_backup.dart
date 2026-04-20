@@ -4,11 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
 import 'lark/lark_report_service.dart';
+import 'telegram/telegram_report_service.dart';
+import 'telegram/telegram_config.dart';
 import 'package:flutter/widgets.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
   static const int larkReportAlarmId = 1;
+  static const int telegramReportAlarmId = 2;
 
   static final FlutterLocalNotificationsPlugin _notif =
       FlutterLocalNotificationsPlugin();
@@ -36,6 +39,9 @@ class AlarmBackup {
 
     // جدولة تقرير Lark اليومي إذا كان مفعّلاً
     await _scheduleLarkReportIfNeeded(prefs);
+
+    // جدولة تقرير Telegram اليومي إذا كان مفعّلاً
+    await _scheduleTelegramReportIfNeeded(prefs);
   }
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
     final now = DateTime.now();
@@ -186,6 +192,91 @@ class AlarmBackup {
     await Future.delayed(const Duration(milliseconds: 300));
     await scheduleLarkReportAlarm(hour, minute);
     debugPrint('♻️ Lark report alarm rescheduled to $hour:$minute');
+  }
+
+  /// جدولة تقرير Telegram اليومي إذا كان مفعّلاً
+  static Future<void> _scheduleTelegramReportIfNeeded(SharedPreferences prefs) async {
+    final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
+    final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
+
+    if (tgEnabled && reportEnabled) {
+      final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
+      final parts = timeString.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      await scheduleTelegramReportAlarm(hour, minute);
+    } else {
+      await AndroidAlarmManager.cancel(telegramReportAlarmId);
+    }
+  }
+
+  /// جدولة إنذار يومي لإرسال تقرير Telegram
+  static Future<void> scheduleTelegramReportAlarm(int hour, int minute) async {
+    final now = DateTime.now();
+    var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    await AndroidAlarmManager.oneShotAt(
+      scheduled,
+      telegramReportAlarmId,
+      _telegramReportCallback,
+      exact: true,
+      wakeup: true,
+      rescheduleOnReboot: true,
+      allowWhileIdle: true,
+    );
+
+    debugPrint('✅ Telegram report alarm scheduled at $scheduled');
+  }
+
+  /// إعادة جدولة تقرير Telegram
+  static Future<void> rescheduleTelegramReport(int hour, int minute) async {
+    await AndroidAlarmManager.cancel(telegramReportAlarmId);
+    await Future.delayed(const Duration(milliseconds: 300));
+    await scheduleTelegramReportAlarm(hour, minute);
+    debugPrint('♻️ Telegram report alarm rescheduled to $hour:$minute');
+  }
+
+  /// إلغاء إنذار تقرير Telegram
+  static Future<void> cancelTelegramReportAlarm() async {
+    await AndroidAlarmManager.cancel(telegramReportAlarmId);
+    debugPrint('🚫 Telegram report alarm cancelled');
+  }
+
+  /// Callback لإرسال تقرير Telegram اليومي
+  @pragma('vm:entry-point')
+  static Future<void> _telegramReportCallback() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    debugPrint('🔔 Telegram report alarm fired');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
+      final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
+
+      if (tgEnabled && reportEnabled) {
+        final configured = await TelegramConfig.isConfigured();
+        if (configured) {
+          final reportService = TelegramReportService.instance;
+          await reportService.sendDailyReport();
+          debugPrint('✅ Telegram daily report sent from alarm');
+        } else {
+          debugPrint('⚠️ Telegram report skipped: bot token or chat ID not configured');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Telegram report alarm error: $e');
+    } finally {
+      // أعد جدولة لليوم التالي
+      final prefs = await SharedPreferences.getInstance();
+      final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
+      final parts = timeString.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      await scheduleTelegramReportAlarm(hour, minute);
+    }
   }
 
   /// Callback لإرسال تقرير Lark اليومي
