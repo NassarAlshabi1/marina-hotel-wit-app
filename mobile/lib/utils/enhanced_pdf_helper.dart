@@ -11,6 +11,7 @@ import '../models/enhanced_payment_models.dart';
 import '../models/enhanced_reports.dart';
 import '../services/local_db.dart';
 import 'enhanced_pdf_utils.dart';
+import 'report_pdf_builder.dart';
 
 DateTime _safeParseDateTime(String? dateStr, {DateTime? fallback}) {
   if (dateStr == null || dateStr.trim().isEmpty) {
@@ -404,7 +405,7 @@ class EnhancedPdfHelper {
       ),
     );
 
-    await Printing.sharePdf(
+    await ReportPdfBuilder.savePdfToMyDocuments(
       bytes: await pdf.save(),
       filename:
           'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',

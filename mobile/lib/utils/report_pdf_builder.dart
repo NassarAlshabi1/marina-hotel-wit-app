@@ -4,6 +4,9 @@
 /// يوفر رأس التقرير الموحّد، تذييل الصفحات، واتجاه النص RTL.
 library;
 
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
@@ -92,15 +95,35 @@ class ReportPdfBuilder {
     return doc;
   }
 
-  /// بناء مستند PDF ومشاركته مباشرة
+  /// بناء مستند PDF وحفظه مباشرة في MyDocuments
   ///
-  /// يُنشئ التقرير ويعرض خيارات المشاركة (حفظ، مشاركة، طباعة).
+  /// يُنشئ التقرير ويحفظه في /storage/emulated/0/MyDocuments/
   static Future<void> buildAndShare(ReportPdfConfig config) async {
     final doc = await buildDocument(config);
-    await Printing.sharePdf(
+    await savePdfToMyDocuments(
       bytes: await doc.save(),
       filename: config.fileName,
     );
+  }
+
+  /// مسار حفظ التقارير
+  static const String pdfSaveDir = '/storage/emulated/0/MyDocuments';
+
+  /// حفظ ملف PDF في مجلد MyDocuments
+  ///
+  /// يُنشئ المجلد إذا لم يكن موجوداً، ثم يحفظ الملف ويعرض رسالة تأكيد.
+  static Future<String> savePdfToMyDocuments({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final dir = Directory(pdfSaveDir);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    debugPrint('📄 تم حفظ التقرير: ${file.path}');
+    return file.path;
   }
 
   /// بناء رأس التقرير الافتراضي

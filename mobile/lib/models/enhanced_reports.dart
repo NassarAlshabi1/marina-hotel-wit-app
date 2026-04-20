@@ -4,6 +4,7 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 
 import '../utils/enhanced_pdf_utils.dart';
+import '../utils/report_pdf_builder.dart';
 
 /// تقرير دفوعات محسّن
 class EnhancedPaymentsReport {
@@ -47,7 +48,7 @@ class EnhancedPaymentsReport {
       ),
     );
 
-    await Printing.sharePdf(
+    await ReportPdfBuilder.savePdfToMyDocuments(
       bytes: await pdf.save(),
       filename:
           'payments-report-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
@@ -434,7 +435,7 @@ class EnhancedExpensesReport {
       ),
     );
 
-    await Printing.sharePdf(
+    await ReportPdfBuilder.savePdfToMyDocuments(
       bytes: await pdf.save(),
       filename:
           'expenses-report-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
