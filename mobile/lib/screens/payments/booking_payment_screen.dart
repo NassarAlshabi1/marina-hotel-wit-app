@@ -19,6 +19,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/stay_balance_calculator.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -593,6 +594,63 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           color: Colors.grey,
                         ),
                       ),
+                    // ─── تاريخ المغادرة التلقائي (محسوب من المدفوعات التراكمية) ───
+                    Builder(builder: (context) {
+                      final balanceResult = StayBalanceCalculator.calculate(widget.booking);
+                      if (!balanceResult.hasPayments) return const SizedBox.shrink();
+                      final autoFmt = DateFormat('dd/MM/yyyy', 'en');
+                      final autoStr = autoFmt.format(balanceResult.autoCheckoutDate);
+                      return Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: balanceResult.isAutoExtended
+                              ? Colors.green.shade50
+                              : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: balanceResult.isAutoExtended
+                                ? Colors.green.shade300
+                                : Colors.blue.shade200,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              balanceResult.isAutoExtended
+                                  ? Icons.autorenew
+                                  : Icons.calculate_outlined,
+                              size: 14,
+                              color: balanceResult.isAutoExtended
+                                  ? Colors.green.shade700
+                                  : Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: balanceResult.isAutoExtended
+                                      ? Colors.green.shade800
+                                      : Colors.blue.shade800,
+                                ),
+                              ),
+                            ),
+                            if (balanceResult.isAutoExtended)
+                              Text(
+                                '+${balanceResult.extraNightsBeyondManual}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
                     if (actualText != null)
                       Text(
                         'المغادرة الفعلي: $actualText',
