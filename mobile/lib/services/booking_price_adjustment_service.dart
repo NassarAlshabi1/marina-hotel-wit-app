@@ -332,8 +332,27 @@ class BookingPriceAdjustmentService {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
+    // ─── الإنهاء الذكي: حصر التخفيض بالليالي السابقة فقط ───
+    // بدلاً من تعطيل التخفيض بالكامل (isActive=false) مما يُزيله من
+    // كل الليالي بما فيها القديمة، نضع endHotelDay = اليوم الفندقي الحالي.
+    // بهذا الشكل:
+    //   • الليالي قبل اليوم → تبقى بالسعر المخفّض (لأنها سبق واحتُسبت)
+    //   • الليالي من اليوم فصاعداً → السعر الكامل
+    final todayHotelDay = Time.hotelDayKey();
+
+    // إذا كان endHotelDay مُحدداً مسبقاً ولا يزال أقل من اليوم → نحترمه
+    final String? effectiveEnd;
+    if (adjustment.endHotelDay != null &&
+        adjustment.endHotelDay!.isNotEmpty &&
+        adjustment.endHotelDay!.compareTo(todayHotelDay) < 0) {
+      effectiveEnd = adjustment.endHotelDay;
+    } else {
+      effectiveEnd = todayHotelDay;
+    }
+
     final update = BookingPriceAdjustmentsCompanion(
-      isActive: const Value(false),
+      // نُبقي isActive=true لأن التخفيض مازال سارياً لليلي السابقة
+      endHotelDay: Value(effectiveEnd),
       cancelledAt: Value(nowIso),
       cancelledBy: Value(cancelledBy),
       updatedAt: Value(now),
@@ -352,7 +371,7 @@ class BookingPriceAdjustmentService {
       localUuid: adjustmentUuid,
       serverId: null,
       payload: {
-        'isActive': false,
+        'endHotelDay': effectiveEnd,
         'cancelledAt': nowIso,
         'cancelledBy': cancelledBy,
       },
@@ -369,7 +388,7 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    debugPrint('❌ تم إلغاء تعديل السعر: $adjustmentUuid');
+    debugPrint('⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)');
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(
