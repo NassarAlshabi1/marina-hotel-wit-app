@@ -4,11 +4,7 @@
 /// يوفر رأس التقرير الموحّد، تذييل الصفحات، واتجاه النص RTL.
 library;
 
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'enhanced_pdf_utils.dart';
@@ -95,35 +91,15 @@ class ReportPdfBuilder {
     return doc;
   }
 
-  /// بناء مستند PDF وحفظه مباشرة في MyDocuments
+  /// بناء مستند PDF ومشاركته مباشرة
   ///
-  /// يُنشئ التقرير ويحفظه في /storage/emulated/0/MyDocuments/
+  /// يُنشئ التقرير ويعرض خيارات المشاركة (حفظ، مشاركة، طباعة).
   static Future<void> buildAndShare(ReportPdfConfig config) async {
     final doc = await buildDocument(config);
-    await savePdfToMyDocuments(
+    await Printing.sharePdf(
       bytes: await doc.save(),
       filename: config.fileName,
     );
-  }
-
-  /// مسار حفظ التقارير
-  static const String pdfSaveDir = '/storage/emulated/0/MyDocuments';
-
-  /// حفظ ملف PDF في مجلد MyDocuments
-  ///
-  /// يُنشئ المجلد إذا لم يكن موجوداً، ثم يحفظ الملف ويعرض رسالة تأكيد.
-  static Future<String> savePdfToMyDocuments({
-    required Uint8List bytes,
-    required String filename,
-  }) async {
-    final dir = Directory(pdfSaveDir);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    final file = File('${dir.path}/$filename');
-    await file.writeAsBytes(bytes);
-    debugPrint('📄 تم حفظ التقرير: ${file.path}');
-    return file.path;
   }
 
   /// بناء رأس التقرير الافتراضي
@@ -144,106 +120,53 @@ class ReportPdfBuilder {
     required String periodText,
     String? extraHeaderLine,
   }) {
-    final printDate = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
-    return pw.Column(
-      mainAxisSize: pw.MainAxisSize.min,
-      children: [
-        // صف أفقي: اسم الفندق (يمين) | عنوان التقرير (وسط) | تاريخ (يسار)
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            // الجهة اليمنى - اسم الفندق والعنوان
-            pw.Expanded(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text(
-                    'فندق مارينا بلازا',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 18,
-                      color: PdfColor(0.0, 0.0, 0.55), // blue900
-                    ),
-                    textAlign: pw.TextAlign.right,
-                  ),
-                  pw.SizedBox(height: 2),
-                  pw.Text(
-                    'القاهرة - شارع أحمد قاسم',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 12,
-                      color: PdfColor(0.4, 0.4, 0.4), // grey800
-                    ),
-                    textAlign: pw.TextAlign.right,
-                  ),
-                ],
-              ),
-            ),
-            // المنتصف - عنوان التقرير
-            pw.Expanded(
-              child: pw.Center(
-                child: pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColor(1.0, 0.56, 0.0), // 0xFFFF8F00
-                    borderRadius: pw.BorderRadius.circular(6),
-                  ),
-                  child: pw.Text(
-                    title,
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 16,
-                      color: PdfColor(1.0, 1.0, 1.0), // white
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            // الجهة اليسرى - تاريخ التقرير
-            pw.Expanded(
-              child: pw.Align(
-                alignment: pw.Alignment.centerLeft,
-                child: pw.Text(
-                  'تاريخ التقرير: $printDate',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 12,
-                    color: PdfColor(0.4, 0.4, 0.4), // grey800
-                  ),
-                  textAlign: pw.TextAlign.left,
-                ),
-              ),
-            ),
-          ],
-        ),
-        // الفترة الزمنية
-        pw.SizedBox(height: 6),
-        pw.Text(
-          periodText,
-          style: pw.TextStyle(
-            font: fonts.regular,
-            fontSize: 11,
-            color: PdfColor(0.4, 0.4, 0.4),
-          ),
-          textAlign: pw.TextAlign.center,
-        ),
-        // سطر إضافي اختياري
-        if (extraHeaderLine != null && extraHeaderLine.isNotEmpty) ...[
-          pw.SizedBox(height: 4),
+    return pw.Container(
+      width: double.infinity,
+      decoration: const pw.BoxDecoration(color: PdfColors.primary),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
           pw.Text(
-            extraHeaderLine,
+            'فندق مارينا بلازا',
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 22,
+              color: PdfColors.textWhite,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 20,
+              color: PdfColors.textWhite,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            periodText,
             style: pw.TextStyle(
               font: fonts.regular,
-              fontSize: 11,
-              color: PdfColor(0.4, 0.4, 0.4),
+              fontSize: 12,
+              color: PdfColors.textWhite,
             ),
             textAlign: pw.TextAlign.center,
           ),
+          if (extraHeaderLine != null && extraHeaderLine.isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(
+              extraHeaderLine,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
+            ),
+          ],
         ],
-        pw.SizedBox(height: 10),
-        pw.Divider(color: PdfColor(0.75, 0.75, 0.75)), // grey400
-        pw.SizedBox(height: 10),
-      ],
+      ),
     );
   }
 

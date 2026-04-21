@@ -1010,29 +1010,16 @@ class _IncomeExpenseReportScreenState
   Future<void> _exportPdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
     final doc = await _buildPdfDocument();
-    final filePath = await ReportPdfBuilder.savePdfToMyDocuments(
-      bytes: await doc.save(),
-      filename: _getFilename(),
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حفظ الملف: $filePath'), duration: const Duration(seconds: 4)),
-      );
-    }
+    await Printing.sharePdf(bytes: await doc.save(), filename: _getFilename());
   }
 
   Future<void> _exportDetailedGroupedPdf(String groupBy) async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
     final doc = await _buildDetailedGroupedPdf(groupBy);
-    final filePath = await ReportPdfBuilder.savePdfToMyDocuments(
+    await Printing.sharePdf(
       bytes: await doc.save(),
       filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
     );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حفظ الملف: $filePath'), duration: const Duration(seconds: 4)),
-      );
-    }
   }
 
   Future<void> _printPdf() async {
@@ -1046,14 +1033,14 @@ class _IncomeExpenseReportScreenState
     final messenger = ScaffoldMessenger.of(context);
     try {
       final doc = await _buildPdfDocument();
-      final filePath = await ReportPdfBuilder.savePdfToMyDocuments(
-        bytes: await doc.save(),
-        filename: _getFilename(),
-      );
+      final bytes = await doc.save();
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/${_getFilename()}');
+      await file.writeAsBytes(bytes);
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('تم حفظ الملف: $filePath'),
+            content: Text('تم حفظ الملف: ${file.path}'),
             duration: const Duration(seconds: 5),
             action: SnackBarAction(label: 'إغلاق', onPressed: () {}),
           ),
