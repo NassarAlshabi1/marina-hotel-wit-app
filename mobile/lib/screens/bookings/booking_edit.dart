@@ -672,6 +672,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
                       await _refreshRoomOccupancy(ref);
                       // إجبار تحديث ألوان الغرف في الشاشة الرئيسية فوراً
+                      // نُبطِل بروفايدر الغرف أولاً حتى يستعلم عن البيانات الجديدة
+                      ref.invalidate(roomsListProvider);
+                      ref.invalidate(bookingsListProvider);
                       ref.invalidate(roomsWithPaymentStatusProvider);
 
                       await syncNow();
