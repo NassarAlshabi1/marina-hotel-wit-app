@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -271,6 +272,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required int bookingId,
     required String newRoomNumber,
   }) async {
+    // 1. نقل المدفوعات
     final payments =
         await (db.select(db.payments)
               ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
@@ -279,6 +281,24 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
     for (final payment in payments) {
       await paymentsRepo.update(payment.id, roomNumber: newRoomNumber);
+    }
+
+    // 2. نقل تعديلات السعر (التخفيضات والزيادات) — تحديث roomNumber
+    // مهم: بدون هذا التعديل، ستفقد التخفيضات/الزيادات صلاحيتها بعد النقل
+    // لأن enhanced_booking_calculation_service يتحقق أن adj.roomNumber == booking.roomNumber
+    final adjustments = await (db.select(db.bookingPriceAdjustments)
+          ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
+          ..where((tbl) => tbl.isActive.equals(true)))
+        .get();
+
+    for (final adj in adjustments) {
+      await (db.update(db.bookingPriceAdjustments)
+            ..where((tbl) => tbl.id.equals(adj.id)))
+          .write(
+        BookingPriceAdjustmentsCompanion(
+          roomNumber: Value(newRoomNumber),
+        ),
+      );
     }
   }
 
