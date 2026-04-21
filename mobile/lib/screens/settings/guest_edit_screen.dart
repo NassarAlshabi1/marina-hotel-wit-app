@@ -217,17 +217,30 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         );
 
         if (roomChanged) {
-          await _transferFinancialData(
+          // ─── نقل آمن داخل معاملة واحدة (Transaction) ───
+          // يضمن عدم تلف البيانات عند حدوث خطأ أو انقطاع
+          await db.transaction(() async {
+            await _transferFinancialData(
+              db: db,
+              paymentsRepo: paymentsRepo,
+              bookingId: booking.id,
+              newRoomNumber: newRoomNumber,
+            );
+
+            if (StatusUtils.isActiveBooking(booking.status)) {
+              await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
+              await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
+            }
+          });
+
+          // ─── سجل تدقيق للنقل ───
+          await _logRoomTransfer(
             db: db,
-            paymentsRepo: paymentsRepo,
             bookingId: booking.id,
+            guestName: name,
+            oldRoomNumber: oldRoomNumber,
             newRoomNumber: newRoomNumber,
           );
-
-          if (StatusUtils.isActiveBooking(booking.status)) {
-            await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
-            await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
-          }
         }
 
         final derivedService = BookingDerivedFieldsService(db);
@@ -293,13 +306,155 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     );
   }
 
-  Future<bool?> _showRoomChangeConfirmation() {
+  /// سجل تدقيق لنقل الغرفة — يُخزّن في جدول CashTransactions
+  Future<void> _logRoomTransfer({
+    required AppDatabase db,
+    required int bookingId,
+    required String guestName,
+    required String oldRoomNumber,
+    required String newRoomNumber,
+  }) async {
+    try {
+      final now = DateTime.now().toUtc();
+      final nowIso = now.toIso8601String();
+      final nowEpoch = now.millisecondsSinceEpoch;
+      final description = 'نقل غرفة الضيف "$guestName" (حجز #$bookingId) '
+          'من "$oldRoomNumber" إلى "$newRoomNumber"';
+
+      await db.into(db.cashTransactions).insert(
+        CashTransactionsCompanion.insert(
+          transactionType: 'room_transfer',
+          amount: 0,
+          transactionTime: nowIso,
+          description: Value(description),
+          referenceType: Value('booking'),
+          referenceId: Value(bookingId),
+          createdAt: Value(nowEpoch),
+          updatedAt: Value(nowEpoch),
+          lastModified: Value(nowEpoch),
+          createdAtIso: Value(nowIso),
+          updatedAtIso: Value(nowIso),
+        ),
+      );
+    } catch (_) {
+      // سجل التدقيق غير حرج — لا نوقف العملية إذا فشل
+    }
+  }
+
+  Future<bool?> _showRoomChangeConfirmation() async {
+    // ─── جمع بيانات النقل لعرض تحذير ذكي ───
+    final db = ref.read(databaseProvider);
+    final changedRooms = <Map<String, String>>[];
+    int totalAdjustments = 0;
+    int totalPayments = 0;
+    String? priceWarning;
+
+    for (final booking in widget.guest.bookings) {
+      final oldRoom = _originalRooms[booking.id]!;
+      final newRoom = _roomSelections[booking.id]!;
+      if (oldRoom == newRoom) continue;
+
+      changedRooms.add({'old': oldRoom, 'new': newRoom});
+
+      // عد التعديلات النشطة
+      final adjustments = await (db.select(db.bookingPriceAdjustments)
+            ..where((a) => a.bookingLocalId.equals(booking.id))
+            ..where((a) => a.isActive.equals(true))
+            ..where((a) => a.deletedAt.isNull()))
+          .get();
+      totalAdjustments += adjustments.length;
+
+      // عد المدفوعات
+      final payments = await (db.select(db.payments)
+            ..where((p) => p.bookingLocalId.equals(booking.id))
+            ..where((p) => p.deletedAt.isNull()))
+          .get();
+      totalPayments += payments.length;
+
+      // مقارنة أسعار الغرف
+      if (priceWarning == null) {
+        final oldRoomData = await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(oldRoom))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
+        final newRoomData = await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(newRoom))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
+
+        if (oldRoomData != null && newRoomData != null) {
+          final oldPrice = oldRoomData.price.toInt();
+          final newPrice = newRoomData.price.toInt();
+          if (oldPrice != newPrice) {
+            final diff = newPrice - oldPrice;
+            final sign = diff > 0 ? '+' : '';
+            priceWarning = 'سعر الغرفة يتغير: $oldPrice → $newPrice ريال ($sign$diff)';
+          }
+        }
+      }
+    }
+
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد تغيير الغرفة'),
-        content: const Text(
-          'سيتم نقل جميع البيانات المالية (المدفوعات والديون) إلى الغرفة الجديدة.\n\nهل تريد المتابعة؟',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'سيتم نقل البيانات المالية إلى الغرفة (الغرف) الجديدة:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• المدفوعات: $totalPayments عملية دفع',
+              style: const TextStyle(fontSize: 13),
+            ),
+            Text(
+              '• التعديلات النشطة (تخفيضات/زيادات): $totalAdjustments',
+              style: const TextStyle(fontSize: 13),
+            ),
+            Text(
+              '• الديون: مرتبطة بالحجز تلقائياً',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            if (changedRooms.length == 1) ...[
+              const SizedBox(height: 8),
+              Text(
+                'من: ${changedRooms.first['old']} → إلى: ${changedRooms.first['new']}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+            if (priceWarning != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber, size: 18, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        priceWarning,
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            const Text(
+              'هل تريد المتابعة؟',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         actions: [
           TextButton(
