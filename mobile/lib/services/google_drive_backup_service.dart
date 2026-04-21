@@ -429,8 +429,6 @@ class GoogleDriveBackupService {
         'wa_api_instance_id',
         'wa_api_token',
         'wa_custom_url_template',
-        'wa_sendzen_api_key',
-        'wa_sendzen_from_number',
         'whatsapp_template',
       ];
       for (final key in waKeys) {

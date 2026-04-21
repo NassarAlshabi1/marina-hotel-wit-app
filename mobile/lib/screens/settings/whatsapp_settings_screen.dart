@@ -28,15 +28,12 @@ class _WhatsAppSettingsScreenState
   final _instanceIdController = TextEditingController();
   final _tokenController = TextEditingController();
   final _customUrlController = TextEditingController();
-  final _sendzenApiKeyController = TextEditingController();
-  final _sendzenFromController = TextEditingController();
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSaving = false;
   bool _isSyncing = false;
   late TabController _tabController;
   bool _obscureToken = true;
-  bool _obscureSendzenKey = true;
 
   WhatsAppApiType _selectedApiType = WhatsAppApiType.custom;
 
@@ -59,8 +56,6 @@ class _WhatsAppSettingsScreenState
     _instanceIdController.dispose();
     _tokenController.dispose();
     _customUrlController.dispose();
-    _sendzenApiKeyController.dispose();
-    _sendzenFromController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -79,16 +74,10 @@ class _WhatsAppSettingsScreenState
           prefs.getString('wa_api_token') ?? _defaultToken;
       _customUrlController.text =
           prefs.getString('wa_custom_url_template') ?? '';
-      _sendzenApiKeyController.text =
-          prefs.getString('wa_sendzen_api_key') ?? '';
-      _sendzenFromController.text =
-          prefs.getString('wa_sendzen_from_number') ?? '';
       final typeStr = prefs.getString('wa_api_type');
-      _selectedApiType = typeStr == 'custom'
-          ? WhatsAppApiType.custom
-          : typeStr == 'greenapi'
-              ? WhatsAppApiType.greenapi
-              : WhatsAppApiType.sendzen;
+      _selectedApiType = typeStr == 'greenapi'
+          ? WhatsAppApiType.greenapi
+          : WhatsAppApiType.custom;
       _isLoading = false;
     });
   }
@@ -98,11 +87,7 @@ class _WhatsAppSettingsScreenState
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'wa_api_type',
-      _selectedApiType == WhatsAppApiType.custom
-          ? 'custom'
-          : _selectedApiType == WhatsAppApiType.sendzen
-              ? 'sendzen'
-              : 'greenapi',
+      _selectedApiType == WhatsAppApiType.greenapi ? 'greenapi' : 'custom',
     );
     await prefs.setString('wa_api_base_url', _baseUrlController.text.trim());
     await prefs.setString(
@@ -113,14 +98,6 @@ class _WhatsAppSettingsScreenState
     await prefs.setString(
       'wa_custom_url_template',
       _customUrlController.text.trim(),
-    );
-    await prefs.setString(
-      'wa_sendzen_api_key',
-      _sendzenApiKeyController.text.trim(),
-    );
-    await prefs.setString(
-      'wa_sendzen_from_number',
-      _sendzenFromController.text.trim(),
     );
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) return;
@@ -153,8 +130,6 @@ class _WhatsAppSettingsScreenState
       _instanceIdController.text = _defaultInstanceId;
       _tokenController.text = _defaultToken;
       _customUrlController.text = '';
-      _sendzenApiKeyController.text = '';
-      _sendzenFromController.text = '';
       _selectedApiType = WhatsAppApiType.custom;
     });
   }
@@ -172,8 +147,6 @@ class _WhatsAppSettingsScreenState
     await prefs.remove('wa_api_instance_id');
     await prefs.remove('wa_api_token');
     await prefs.remove('wa_custom_url_template');
-    await prefs.remove('wa_sendzen_api_key');
-    await prefs.remove('wa_sendzen_from_number');
     await prefs.remove('whatsapp_template');
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) return;
@@ -183,8 +156,6 @@ class _WhatsAppSettingsScreenState
       _tokenController.text = _defaultToken;
       _templateController.text = whatsappPaymentTemplate;
       _customUrlController.text = '';
-      _sendzenApiKeyController.text = '';
-      _sendzenFromController.text = '';
       _selectedApiType = WhatsAppApiType.custom;
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -204,8 +175,6 @@ class _WhatsAppSettingsScreenState
         instanceId: _instanceIdController.text.trim(),
         token: _tokenController.text.trim(),
         customUrlTemplate: _customUrlController.text.trim(),
-        sendzenApiKey: _sendzenApiKeyController.text.trim(),
-        sendzenFromNumber: _sendzenFromController.text.trim(),
       );
 
       final result = await testService.testConnection();
@@ -522,11 +491,6 @@ class _WhatsAppSettingsScreenState
                         icon: Icon(Icons.cloud, size: 16),
                       ),
                       ButtonSegment(
-                        value: WhatsAppApiType.sendzen,
-                        label: Text('SendZen', style: TextStyle(fontSize: 11)),
-                        icon: Icon(Icons.send, size: 16),
-                      ),
-                      ButtonSegment(
                         value: WhatsAppApiType.custom,
                         label: Text('مخصص', style: TextStyle(fontSize: 11)),
                         icon: Icon(Icons.link, size: 16),
@@ -555,8 +519,6 @@ class _WhatsAppSettingsScreenState
           // ─── حقول حسب النوع المختار ───
           if (_selectedApiType == WhatsAppApiType.greenapi)
             _buildGreenApiFields(),
-          if (_selectedApiType == WhatsAppApiType.sendzen)
-            _buildSendZenFields(),
           if (_selectedApiType == WhatsAppApiType.custom)
             _buildCustomApiFields(),
 
@@ -657,8 +619,6 @@ class _WhatsAppSettingsScreenState
     switch (_selectedApiType) {
       case WhatsAppApiType.greenapi:
         return Colors.green;
-      case WhatsAppApiType.sendzen:
-        return Colors.indigo;
       case WhatsAppApiType.custom:
         return Colors.teal;
     }
@@ -670,32 +630,6 @@ class _WhatsAppSettingsScreenState
         return Text(
           'GreenAPI — خدمة واتساب عبر حساب مجاني (3 أرقام فقط)',
           style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-        );
-      case WhatsAppApiType.sendzen:
-        return Row(
-          children: [
-            Expanded(
-              child: Text(
-                'SendZen — 600 رسالة مجانية/شهر | شراكة Meta رسمية',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              ),
-            ),
-            InkWell(
-              onTap: () => _openUrl('https://app.sendzen.io'),
-              child: Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  'فتح',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.indigo,
-                    fontWeight: FontWeight.bold,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ),
-          ],
         );
       case WhatsAppApiType.custom:
         return Text(
@@ -782,135 +716,6 @@ class _WhatsAppSettingsScreenState
             ),
             filled: true,
             fillColor: Colors.grey.shade50,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── حقول SendZen ───
-  Widget _buildSendZenFields() {
-    return Column(
-      children: [
-        Card(
-          color: Colors.indigo.shade50,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.indigo.shade200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.indigo, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'إعداد SendZen',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Colors.indigo,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _buildStepItem('1', 'سجّل في app.sendzen.io (مجاني، 600 رسالة/شهر)'),
-                _buildStepItem('2', 'اذهب إلى صفحة WhatsApp API في لوحة التحكم'),
-                _buildStepItem('3', 'انسخ Sandbox API Key'),
-                _buildStepItem('4', 'انسخ Sandbox Number وأدخله أدناه'),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildLabel('Sandbox API Key'),
-        TextField(
-          controller: _sendzenApiKeyController,
-          obscureText: _obscureSendzenKey,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            fontFamily: 'monospace',
-          ),
-          decoration: InputDecoration(
-            hintText: 'أدخل Sandbox API Key من صفحة WhatsApp API',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.vpn_key, size: 20),
-            suffixIcon: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _obscureSendzenKey ? Icons.visibility : Icons.visibility_off,
-                    size: 18,
-                  ),
-                  tooltip: _obscureSendzenKey ? 'إظهار' : 'إخفاء',
-                  onPressed: () =>
-                      setState(() => _obscureSendzenKey = !_obscureSendzenKey),
-                ),
-                _buildPasteButton(_sendzenApiKeyController),
-              ],
-            ),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-          ),
-          textDirection: TextDirection.ltr,
-          textAlign: TextAlign.left,
-        ),
-        const SizedBox(height: 14),
-        _buildLabel('Sandbox Number'),
-        TextField(
-          controller: _sendzenFromController,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            fontFamily: 'monospace',
-          ),
-          decoration: InputDecoration(
-            hintText: '967xxxxxxxxx',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.phone_android, size: 20),
-            suffixIcon: _buildPasteButton(_sendzenFromController),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            helperText: 'Sandbox Number من صفحة WhatsApp API في لوحة تحكم SendZen',
-            helperMaxLines: 1,
-          ),
-          textDirection: TextDirection.ltr,
-          textAlign: TextAlign.left,
-          keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: 12),
-        InkWell(
-          onTap: () => _openUrl('https://app.sendzen.io/whatsapp-api/'),
-          child: Card(
-            color: Colors.indigo.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: Colors.indigo.shade100),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.open_in_new, size: 16, color: Colors.indigo.shade400),
-                  const SizedBox(width: 6),
-                  Text(
-                    'فتح لوحة تحكم SendZen',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ],

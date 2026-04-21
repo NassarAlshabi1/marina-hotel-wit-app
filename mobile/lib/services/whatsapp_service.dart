@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 enum WhatsAppApiType {
   greenapi,
   custom,
-  sendzen,
 }
 
 class WhatsAppService {
@@ -17,8 +16,6 @@ class WhatsAppService {
     this.instanceId,
     this.token,
     this.customUrlTemplate,
-    this.sendzenApiKey,
-    this.sendzenFromNumber,
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -27,8 +24,6 @@ class WhatsAppService {
   final String? instanceId;
   final String? token;
   final String? customUrlTemplate;
-  final String? sendzenApiKey;
-  final String? sendzenFromNumber;
   final http.Client _client;
 
   /// HTTP client للعمليات الخارجية (اختبار الاتصال)
@@ -56,8 +51,6 @@ class WhatsAppService {
     switch (apiType) {
       case WhatsAppApiType.custom:
         return _sendViaCustom(phoneE164, trimmedMessage);
-      case WhatsAppApiType.sendzen:
-        return _sendViaSendZen(phoneE164, trimmedMessage);
       case WhatsAppApiType.greenapi:
         return _sendViaGreenApi(phoneE164, trimmedMessage);
     }
@@ -146,98 +139,11 @@ class WhatsAppService {
     }
   }
 
-  /// إرسال عبر SendZen API (POST مع Bearer token)
-  /// Endpoint: POST https://api.sendzen.io/v1/messages
-  /// Body: {"from": "sender", "to": "recipient", "type": "text", "text": {"body": "msg"}}
-  Future<({bool success, String? quotaMessage})> _sendViaSendZen(
-    String phoneE164,
-    String message,
-  ) async {
-    if (sendzenApiKey == null ||
-        sendzenApiKey!.isEmpty ||
-        sendzenFromNumber == null ||
-        sendzenFromNumber!.isEmpty) {
-      return (success: false, quotaMessage: 'إعدادات SendZen غير مكتملة');
-    }
-
-    final sanitizedPhone = phoneE164.startsWith('+')
-        ? phoneE164.substring(1)
-        : phoneE164;
-
-    final endpoint = Uri.parse('https://api.sendzen.io/v1/messages');
-
-    try {
-      final response = await _client.post(
-        endpoint,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sendzenApiKey',
-        },
-        body: jsonEncode({
-          'from': sendzenFromNumber,
-          'to': sanitizedPhone,
-          'type': 'text',
-          'text': {
-            'body': message,
-            'preview_url': false,
-          },
-        }),
-      ).timeout(const Duration(seconds: 15));
-
-      // SendZen يُرجع 202 Accepted عند النجاح (ليس 200 أو 201)
-      if (response.statusCode == 200 ||
-          response.statusCode == 201 ||
-          response.statusCode == 202) {
-        return (success: true, quotaMessage: null);
-      }
-
-      // 401 = API key غير صالح
-      if (response.statusCode == 401) {
-        return (success: false, quotaMessage: 'مفتاح API غير صالح أو منتهي');
-      }
-
-      // 402 أو 429 = تجاوز الحصة
-      if (response.statusCode == 402 || response.statusCode == 429) {
-        return (
-          success: false,
-          quotaMessage: 'تجاوز الحصة الشهرية (600 رسالة مجانية)',
-        );
-      }
-
-      // 400/422 = خطأ في البيانات — استخراج رسالة الخطأ من JSON
-      if (response.statusCode == 400 || response.statusCode == 422) {
-        try {
-          final json = jsonDecode(response.body) as Map<String, dynamic>;
-          final msg = json['message'] as String? ?? '';
-          final data = json['data'];
-          String detail = msg;
-          if (data is List && data.isNotEmpty) {
-            detail += ' (${data.join(', ')})';
-          }
-          return (success: false, quotaMessage: detail.isNotEmpty ? detail : null);
-        } catch (_) {
-          return (success: false, quotaMessage: null);
-        }
-      }
-
-      debugPrint(
-        'SendZen send failed: ${response.statusCode} ${response.body}',
-      );
-      return (success: false, quotaMessage: null);
-    } catch (error, stackTrace) {
-      debugPrint('SendZen send error: $error');
-      debugPrint('$stackTrace');
-      return (success: false, quotaMessage: null);
-    }
-  }
-
   /// اختبار الاتصال بـ API
   Future<({bool success, int statusCode, String body})> testConnection() async {
     switch (apiType) {
       case WhatsAppApiType.custom:
         return _testCustomConnection();
-      case WhatsAppApiType.sendzen:
-        return _testSendZenConnection();
       case WhatsAppApiType.greenapi:
         return _testGreenApiConnection();
     }
@@ -285,77 +191,6 @@ class WhatsAppService {
       final isReachable = response.statusCode < 500;
       return (
         success: isReachable,
-        statusCode: response.statusCode,
-        body: response.body,
-      );
-    } catch (e) {
-      return (success: false, statusCode: 0, body: e.toString());
-    }
-  }
-
-  /// اختبار SendZen عبر طلب POST لمحاكاة إرسال رسالة
-  /// يستخدم endpoint الرسائل لأنه يعمل مع مفاتيح Sandbox والإنتاج
-  /// لا يتم إرسال رسالة حقيقية — فقط التحقق من صحة المفتاح
-  Future<({bool success, int statusCode, String body})>
-      _testSendZenConnection() async {
-    if (sendzenApiKey == null || sendzenApiKey!.isEmpty) {
-      return (
-        success: false,
-        statusCode: 0,
-        body: 'مفتاح API غير موجود',
-      );
-    }
-
-    try {
-      final endpoint = Uri.parse('https://api.sendzen.io/v1/messages');
-      final response = await _client.post(
-        endpoint,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sendzenApiKey',
-        },
-        body: jsonEncode({
-          // بيانات اختبار — لن يتم إرسالها فعلياً لأن الرقم غير صالح
-          'from': sendzenFromNumber ?? '0000000000',
-          'to': '0000000000',
-          'type': 'text',
-          'text': {'body': 'test', 'preview_url': false},
-        }),
-      ).timeout(const Duration(seconds: 15));
-
-      // 200/201/202 = نجاح — SendZen يُرجع 202 Accepted عند القبول
-      if (response.statusCode == 200 ||
-          response.statusCode == 201 ||
-          response.statusCode == 202) {
-        return (
-          success: true,
-          statusCode: response.statusCode,
-          body: response.body,
-        );
-      }
-
-      // 400/422 = المفتاح صالح لكن البيانات غير صحيحة (متوقع مع بيانات اختبار)
-      // هذا يعني أن المفتاح معترف به من الخادم ✅
-      if (response.statusCode == 400 || response.statusCode == 422) {
-        return (
-          success: true,
-          statusCode: response.statusCode,
-          body: 'تم التحقق من المفتاح بنجاح — الخادم يعترف بالمفتاح',
-        );
-      }
-
-      // 401/403 = مفتاح غير صالح أو غير مصرح ❌
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        return (
-          success: false,
-          statusCode: response.statusCode,
-          body: response.body,
-        );
-      }
-
-      // أي شيء آخر (5xx الخ) = الخادم يواجه مشكلة
-      return (
-        success: false,
         statusCode: response.statusCode,
         body: response.body,
       );

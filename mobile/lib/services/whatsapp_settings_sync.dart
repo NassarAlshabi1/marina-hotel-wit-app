@@ -28,9 +28,6 @@ class WhatsAppSettingsSync {
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
         'wa_custom_url_template':
             prefs.getString('wa_custom_url_template') ?? '',
-        'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
-        'wa_sendzen_from_number':
-            prefs.getString('wa_sendzen_from_number') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
       };
 
@@ -86,8 +83,6 @@ class WhatsAppSettingsSync {
         'wa_api_instance_id',
         'wa_api_token',
         'wa_custom_url_template',
-        'wa_sendzen_api_key',
-        'wa_sendzen_from_number',
         'wa_template',
       ];
 
