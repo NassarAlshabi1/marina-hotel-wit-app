@@ -334,24 +334,41 @@ class BookingPriceAdjustmentService {
 
     // ─── الإنهاء الذكي: حصر التخفيض بالليالي السابقة فقط ───
     // بدلاً من تعطيل التخفيض بالكامل (isActive=false) مما يُزيله من
-    // كل الليالي بما فيها القديمة، نضع endHotelDay = اليوم الفندقي الحالي.
+    // كل الليالي بما فيها القديمة، نضع endHotelDay = أمس (اليوم الفندقي السابق).
     // بهذا الشكل:
-    //   • الليالي قبل اليوم → تبقى بالسعر المخفّض (لأنها سبق واحتُسبت)
-    //   • الليالي من اليوم فصاعداً → السعر الكامل
+    //   • الليالي السابقة → تبقى بالسعر المخفّض (سبق احتسابها)
+    //   • ليلة اليوم والقادمة → السعر الكامل
+    //
+    // ملاحظة: نضع أمس وليس اليوم لأن _isWithinRange يستخدم isAfter
+    // (تضميني على كلا الطرفين)، فلو وضعنا اليوم ستُحسب ليلة اليوم
+    // كمخفّضة وهذا خطأ لأن المستخدم أنهى التخفيض بنفس اليوم.
     final todayHotelDay = Time.hotelDayKey();
+    final yesterdayHotelDay = Time.dateToString(
+      DateTime.parse(todayHotelDay).subtract(const Duration(days: 1)),
+    );
 
-    // إذا كان endHotelDay مُحدداً مسبقاً ولا يزال أقل من اليوم → نحترمه
+    // لا يجوز أن يكون endHotelDay قبل effectiveHotelDay
+    final effectiveStart = adjustment.effectiveHotelDay;
     final String? effectiveEnd;
-    if (adjustment.endHotelDay != null &&
+    if (effectiveStart == null ||
+        yesterdayHotelDay.compareTo(effectiveStart) < 0) {
+      // التخفيض لم يبدأ بعد أو بدأ اليوم → لا ليالي مخفّضة
+      effectiveEnd = null; // سنتعامل معه بالتعطيل الكامل أدناه
+    } else if (adjustment.endHotelDay != null &&
         adjustment.endHotelDay!.isNotEmpty &&
-        adjustment.endHotelDay!.compareTo(todayHotelDay) < 0) {
+        adjustment.endHotelDay!.compareTo(yesterdayHotelDay) < 0) {
+      // endHotelDay مُحدد مسبقاً وأقل من أمس → نحترمه
       effectiveEnd = adjustment.endHotelDay;
     } else {
-      effectiveEnd = todayHotelDay;
+      effectiveEnd = yesterdayHotelDay;
     }
 
+    // إذا لم يتبقَّ أي ليلة مخفّضة → نعطّل التخفيض بالكامل
+    final bool fullyCancelled = effectiveEnd == null ||
+        effectiveEnd.compareTo(effectiveStart ?? '') < 0;
+
     final update = BookingPriceAdjustmentsCompanion(
-      // نُبقي isActive=true لأن التخفيض مازال سارياً لليلي السابقة
+      isActive: Value(!fullyCancelled),
       endHotelDay: Value(effectiveEnd),
       cancelledAt: Value(nowIso),
       cancelledBy: Value(cancelledBy),
