@@ -34,11 +34,11 @@ class TelegramState {
     this.status = TelegramSetupStatus.idle,
     this.message,
     this.isEnabled = true,
-    this.isConfigured = false,
+    this.isConfigured = true,
     this.isNotificationsEnabled = true,
     this.isDailyReportEnabled = true,
-    this.botToken = '',
-    this.chatId = '',
+    this.botToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
+    this.chatId = '5944227208',
     this.dailyReportTime = '02:00',
     this.lastReportSent,
   });
@@ -79,13 +79,13 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   final TelegramApiClient _api = TelegramApiClient.instance;
   final TelegramReportService _reports = TelegramReportService.instance;
 
-  /// تهيئة الحالة من SharedPreferences
+  /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('telegram_enabled') ?? true;
-      final botToken = prefs.getString('telegram_bot_token') ?? '';
-      final chatId = prefs.getString('telegram_chat_id') ?? '';
+      final botToken = prefs.getString('telegram_bot_token') ?? TelegramConfig.defaultBotToken;
+      final chatId = prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
       final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? true;
       final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
       final reportTime = prefs.getString('telegram_daily_report_time') ?? '02:00';
