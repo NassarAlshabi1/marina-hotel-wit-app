@@ -202,11 +202,12 @@ class WhatsAppService {
   }
 
   /// اقتصاص الرسالة لتتلاءم مع الحد الأقصى
+  /// يستخدم characters لضمان عدم تقطيع أحرف UTF-8/Arabic
   String _trimMessage(String message) {
-    if (message.length <= maxMessageLength) return message;
+    if (message.characters.length <= maxMessageLength) return message;
 
     debugPrint(
-      'WhatsApp message trimmed: ${message.length} → $maxMessageLength chars',
+      'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
     );
 
     final lines = message.split('\n');
@@ -230,10 +231,12 @@ class WhatsAppService {
 
     final availableSpace = maxMessageLength - footer.length - 10;
     if (availableSpace < 100) {
-      return message.substring(0, maxMessageLength - 3) + '...';
+      return message.characters
+          .take(maxMessageLength - 3)
+          .toString() + '...';
     }
 
-    final truncated = message.substring(0, availableSpace);
+    final truncated = message.characters.take(availableSpace).toString();
     return '$truncated...\n$footer';
   }
 }
