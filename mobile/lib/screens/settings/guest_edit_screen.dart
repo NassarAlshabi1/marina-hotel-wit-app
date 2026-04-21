@@ -326,15 +326,15 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       await db.into(db.cashTransactions).insert(
         CashTransactionsCompanion.insert(
           localUuid: localUuid,
+          createdAt: nowEpoch,
+          updatedAt: nowEpoch,
+          lastModified: nowEpoch,
           transactionType: 'room_transfer',
           amount: 0,
           transactionTime: nowIso,
           description: Value(description),
           referenceType: Value('booking'),
           referenceId: Value(bookingId),
-          createdAt: Value(nowEpoch),
-          updatedAt: Value(nowEpoch),
-          lastModified: Value(nowEpoch),
           createdAtIso: Value(nowIso),
           updatedAtIso: Value(nowIso),
         ),
