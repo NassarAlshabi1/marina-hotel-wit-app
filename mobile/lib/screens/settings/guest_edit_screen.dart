@@ -8,6 +8,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
 
@@ -318,11 +319,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       final now = DateTime.now().toUtc();
       final nowIso = now.toIso8601String();
       final nowEpoch = now.millisecondsSinceEpoch;
+      final localUuid = IdGen.uuid();
       final description = 'نقل غرفة الضيف "$guestName" (حجز #$bookingId) '
           'من "$oldRoomNumber" إلى "$newRoomNumber"';
 
       await db.into(db.cashTransactions).insert(
         CashTransactionsCompanion.insert(
+          localUuid: localUuid,
           transactionType: 'room_transfer',
           amount: 0,
           transactionTime: nowIso,
