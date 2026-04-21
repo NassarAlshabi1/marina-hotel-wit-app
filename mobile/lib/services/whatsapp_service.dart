@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:characters/characters.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
