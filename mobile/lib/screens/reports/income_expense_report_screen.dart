@@ -71,7 +71,12 @@ class _IncomeExpenseReportScreenState
       final fromStr = '${_dateFormat.format(_fromDate!)} 14:00:00';
       final toStr = '${_dateFormat.format(_toDate!)} 13:59:59';
 
-      final payments = await paymentsDao.list(from: fromStr, to: toStr);
+      final payments = await paymentsDao.list(
+        from: fromStr,
+        to: toStr,
+        excludeVoided: true,
+        excludePendingBalance: true,
+      );
       final expenses = await expensesDao.list(from: fromStr, to: toStr);
 
       final result = await compute(

@@ -22,9 +22,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     String? to,
     String? revenueType,
     bool includeDeleted = false,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
   }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (excludeVoided) q.where((t) => t.isVoided.equals(false));
+    if (excludePendingBalance) q.where((t) => t.isPendingBalance.equals(false));
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     }
@@ -52,6 +56,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }) async {
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    // استبعاد المدفوعات المُلغاة والمعلقة من التقارير المالية
+    q.where((t) => t.isVoided.equals(false));
+    q.where((t) => t.isPendingBalance.equals(false));
 
     if (from != null && to != null) {
       q.where(

@@ -5,9 +5,9 @@ class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
 
-  /// تقريب المبلغ بشكل صحيح (banker's rounding avoided, standard rounding)
+  /// تقريب المبلغ بشكل صحيح
   static int _roundAmount(double amount) {
-    return (amount + 0.5).floor();
+    return amount.round();
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)

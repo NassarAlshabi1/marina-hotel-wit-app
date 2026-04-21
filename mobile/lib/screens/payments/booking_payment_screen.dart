@@ -1000,7 +1000,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     double remainingAmount = 0,
     double roomRate = 0,
   }) {
-    final remaining = summary.remainingAmount.round();
+    final remaining = summary.remainingAmount.round().abs();
     return Column(
       children: [
         // حقل رقم الهاتف مخفي - للاستخدام الداخلي فقط
@@ -1053,7 +1053,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(
               child: _buildQuickPaymentButton(
                 '25%',
-                remaining * 25 ~/ 100,
+                (remaining * 25 / 100).round(),
                 summary,
               ),
             ),
@@ -1061,7 +1061,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(
               child: _buildQuickPaymentButton(
                 '50%',
-                remaining * 50 ~/ 100,
+                (remaining * 50 / 100).round(),
                 summary,
               ),
             ),
@@ -1069,7 +1069,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(
               child: _buildQuickPaymentButton(
                 '75%',
-                remaining * 75 ~/ 100,
+                (remaining * 75 / 100).round(),
                 summary,
               ),
             ),
@@ -1637,7 +1637,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final notesController = TextEditingController(
       text: nights == 1 ? 'دفع ليلة إضافية واحدة' : 'دفع $nights ليالي إضافية',
     );
-    final perNight = nights > 0 ? amount ~/ nights : 0;
+    final perNight = nights > 0 ? (amount / nights).round() : 0;
 
     showDialog(
       context: context,
