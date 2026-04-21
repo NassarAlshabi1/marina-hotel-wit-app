@@ -3504,7 +3504,7 @@ class AppwriteSyncManager {
         // ── مظهر ──
         'dark_mode': prefs.getBool('dark_mode') ?? false,
         // ── WhatsApp ──
-        'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
+        'wa_api_type': prefs.getString('wa_api_type') ?? 'custom',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
