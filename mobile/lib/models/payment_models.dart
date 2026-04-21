@@ -1105,7 +1105,7 @@ class Invoice {
         style: pw.TextStyle(
           font: fonts.bold,
           fontSize: 11,
-          color: PdfColors.textWhite,
+          color: PdfColors.textDark,
         ),
       ),
     );

@@ -871,9 +871,9 @@ class _IncomeExpenseReportScreenState
               pw.TableRow(
                 decoration: pw.BoxDecoration(color: headerColor),
                 children: [
-                  _miniCell('التاريخ', fonts.bold, PdfColors.textWhite),
-                  _miniCell('الوصف', fonts.bold, PdfColors.textWhite),
-                  _miniCell('المبلغ', fonts.bold, PdfColors.textWhite),
+                  _miniCell('التاريخ', fonts.bold, PdfColors.textDark),
+                  _miniCell('الوصف', fonts.bold, PdfColors.textDark),
+                  _miniCell('المبلغ', fonts.bold, PdfColors.textDark),
                 ],
               ),
               ...rows.asMap().entries.map((entry) {
