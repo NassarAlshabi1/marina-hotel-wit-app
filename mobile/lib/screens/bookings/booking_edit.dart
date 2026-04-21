@@ -891,72 +891,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
-    final db = ref.read(databaseProvider);
-    final bookings = await (db.select(
-      db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
-    final occupiedRooms = <String>{};
-    for (final booking in bookings) {
-      if (StatusUtils.isActiveBooking(booking.status)) {
-        occupiedRooms.add(booking.roomNumber);
-      }
-    }
+    try {
+      // استخدام المستودع الموحد لتحديث حالة الغرف بناءً على الحجوزات النشطة
+      final roomsRepo = ref.read(roomsRepoProvider);
+      await roomsRepo.refreshAllRoomOccupancy();
 
-    final rooms = await (db.select(
-      db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
-    final toBeOccupied = <Room>[];
-    final toBeAvailable = <Room>[];
-    for (final room in rooms) {
-      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
-      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
-      if (shouldBeOccupied && !isCurrentlyOccupied) {
-        toBeOccupied.add(room);
-      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        toBeAvailable.add(room);
-      }
-    }
-
-    final now = DateTime.now().toUtc().toIso8601String();
-    if (toBeOccupied.isNotEmpty) {
-      final occupiedStatus = StatusUtils.roomStatusForOccupancy(true);
-      await db.customUpdate(
-        'UPDATE rooms SET status = ?, updated_at = ?, last_modified = ? WHERE room_number IN (${toBeOccupied.map((_) => '?').join(',')})',
-        variables: [
-          Variable.withString(occupiedStatus),
-          Variable.withString(now),
-          Variable.withString(now),
-          ...toBeOccupied.map((r) => Variable.withString(r.roomNumber)),
-        ],
-        updates: {db.rooms},
+      // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات
+      await AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'batch_update_status',
       );
-    }
-
-    if (toBeAvailable.isNotEmpty) {
-      final availableStatus = StatusUtils.roomStatusForOccupancy(false);
-      await db.customUpdate(
-        'UPDATE rooms SET status = ?, updated_at = ?, last_modified = ? WHERE room_number IN (${toBeAvailable.map((_) => '?').join(',')})',
-        variables: [
-          Variable.withString(availableStatus),
-          Variable.withString(now),
-          Variable.withString(now),
-          ...toBeAvailable.map((r) => Variable.withString(r.roomNumber)),
-        ],
-        updates: {db.rooms},
+      CentralSyncCoordinator.instance.notifyLocalChange(
+        table: 'rooms',
+        operation: 'batch_update_status',
       );
-    }
-
-    // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات
-    final allChanged = [...toBeOccupied, ...toBeAvailable];
-    if (allChanged.isNotEmpty) {
-      try {
-        await AutoBackupManager.instance.onDataChange('rooms', 'batch_update_status');
-        CentralSyncCoordinator.instance.notifyLocalChange(
-          table: 'rooms',
-          operation: 'batch_update_status',
-        );
-      } catch (_) {}
+    } catch (e) {
+      debugPrint('Error refreshing room occupancy: $e');
     }
   }
 

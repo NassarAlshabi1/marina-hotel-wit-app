@@ -584,10 +584,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
 
       if (isAvailable) {
+        // الانتقال مباشرة إلى شاشة إضافة حجز جديد عند النقر على غرفة شاغرة
         _navigateToNewBooking(context, roomNumber);
       } else if (isOccupied) {
+        // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
         await _navigateToPaymentForRoom(context, roomNumber);
       } else {
+        // للحالات الأخرى مثل الصيانة
         _showRoomDetailsDialog(context, room);
       }
     } else {
@@ -683,15 +686,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Align(
       alignment: Alignment.centerRight,
       child: Directionality(
-        textDirection: ui.TextDirection.ltr,
+        textDirection: ui.TextDirection.rtl,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildInstructionDot(Colors.red.shade600, 'الغرفة محجوزة'),
+            _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
             const SizedBox(width: 12),
-            _buildInstructionDot(Colors.green.shade600, 'الغرفة متاحة'),
+            _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
             const SizedBox(width: 12),
-            _buildInstructionDot(const Color(0xFF795548), 'تأخر في السداد'),
+            _buildInstructionDot(const Color(0xFF795548), 'تأخر سداد'),
           ],
         ),
       ),
