@@ -427,6 +427,61 @@ class BookingPriceAdjustmentService {
         .get();
   }
 
+  /// نقل تعديلات السعر إلى غرفة جديدة عند نقل الضيف.
+  ///
+  /// يُحدّث roomNumber في جميع التعديلات النشطة المرتبطة بالحجز
+  /// وينشئ outbox entries للمزامنة.
+  ///
+  /// **لماذا هذا مهم؟**
+  /// `_fetchActiveAdjustments` في `EnhancedBookingCalculationService` تتحقق
+  /// أن `adj.roomNumber == booking.roomNumber`. بدون هذا التحديث ستُتجاهل
+  /// التعديلات بعد النقل ولن تُطبَّق على الحساب.
+  Future<void> transferAdjustmentsToRoom({
+    required int bookingId,
+    required String newRoomNumber,
+  }) async {
+    final adjustments = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
+
+    if (adjustments.isEmpty) return;
+
+    final now = Time.nowEpoch();
+    final outboxDao = OutboxDao(db);
+
+    for (final adj in adjustments) {
+      // تحديث رقم الغرفة مع timestamps للمزامنة
+      await (db.update(db.bookingPriceAdjustments)
+            ..where((a) => a.localUuid.equals(adj.localUuid)))
+          .write(
+        BookingPriceAdjustmentsCompanion(
+          roomNumber: Value(newRoomNumber),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
+
+      // إنشاء outbox entry للمزامنة (نفس نمط cancelAdjustment)
+      await outboxDao.merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: adj.localUuid,
+        serverId: null,
+        payload: {
+          'roomNumber': newRoomNumber,
+        },
+        clientTs: now,
+      );
+    }
+
+    debugPrint(
+      'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber '
+      'للحجز #$bookingId',
+    );
+  }
+
   Future<void> _recalculateBookingNights(int bookingId) async {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
