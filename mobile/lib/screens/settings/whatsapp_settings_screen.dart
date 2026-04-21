@@ -633,7 +633,7 @@ class _WhatsAppSettingsScreenState
         );
       case WhatsAppApiType.custom:
         return Text(
-          'رابط مخصص — أي خدمة واتساب تدعم GET مع [number] و [message]',
+          'رابط مخصص — أي خدمة واتساب تدعم GET مع [number] و [text] أو [message]',
           style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         );
     }
@@ -753,6 +753,7 @@ class _WhatsAppSettingsScreenState
                 ),
                 const SizedBox(height: 8),
                 _buildVariableChip('[number]', 'رقم الهاتف'),
+                _buildVariableChip('[text]', 'نص الرسالة'),
                 _buildVariableChip('[message]', 'نص الرسالة'),
                 const SizedBox(height: 8),
                 Container(

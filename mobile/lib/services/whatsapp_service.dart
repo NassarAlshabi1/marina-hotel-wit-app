@@ -117,6 +117,7 @@ class WhatsAppService {
     try {
       final urlStr = customUrlTemplate!
           .replaceAll('[number]', sanitizedPhone)
+          .replaceAll('[text]', Uri.encodeComponent(message))
           .replaceAll('[message]', Uri.encodeComponent(message));
 
       final endpoint = Uri.parse(urlStr);
@@ -181,6 +182,7 @@ class WhatsAppService {
     try {
       final testUrl = customUrlTemplate!
           .replaceAll('[number]', '000000000')
+          .replaceAll('[text]', Uri.encodeComponent('test'))
           .replaceAll('[message]', Uri.encodeComponent('test'));
 
       final endpoint = Uri.parse(testUrl);
