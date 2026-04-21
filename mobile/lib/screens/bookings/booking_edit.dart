@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/room_payment_status_provider.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -670,6 +671,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       }
 
                       await _refreshRoomOccupancy(ref);
+                      // إجبار تحديث ألوان الغرف في الشاشة الرئيسية فوراً
+                      ref.invalidate(roomsWithPaymentStatusProvider);
 
                       await syncNow();
                       if (mounted) Navigator.pop(context);
