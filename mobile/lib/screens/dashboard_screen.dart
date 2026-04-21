@@ -1,5 +1,4 @@
 import 'dart:ui' as ui;
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
 import '../providers/core_providers.dart';
-import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
@@ -17,6 +15,7 @@ import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_constants.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/room_payment_status_provider.dart';
+import '../services/local_db.dart';
 import 'bookings/booking_edit.dart';
 import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -43,42 +42,6 @@ const List<String> _dashboardRoomNumbers = [
   '503',
   '504',
 ];
-
-final todayPaymentsProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM payments '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
-        readsFrom: {db.payments},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
-});
-
-final todayExpensesProvider = StreamProvider<double>((ref) {
-  final db = ref.watch(dbProvider);
-  final todayKey = Time.hotelDayKey();
-  return db
-      .customSelect(
-        'SELECT COALESCE(SUM(amount), 0) as total FROM expenses '
-        'WHERE hotel_day_key = ? AND deleted_at IS NULL',
-        variables: [Variable.withString(todayKey)],
-        readsFrom: {db.expenses},
-      )
-      .watch()
-      .map(
-        (rows) => rows.isEmpty
-            ? 0.0
-            : (rows.first.data['total'] as num? ?? 0.0).toDouble(),
-      );
-});
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -110,11 +73,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
         final elapsed = DateTime.now().difference(lastPull);
         if (elapsed < SyncConstants.appOpenSyncInterval) {
-          final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-          debugPrint(
-            '⏭️ تخطي السحب التلقائي — مرت ${elapsed.inMinutes} دقيقة فقط '
-            '(متبقي ${remaining.inMinutes} دقيقة)',
-          );
           return;
         }
       }
@@ -141,7 +99,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '📥 جاري سحب البيانات من Appwrite...',
+                    '📥 جاري سحب البيانات...',
                     style: TextStyle(fontFamily: 'Tajawal'),
                   ),
                 ),
@@ -177,6 +135,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
 
       if (mounted && pulledCount > 0) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -273,11 +232,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final incomeAsync = ref.watch(todayPaymentsProvider);
               final expensesAsync = ref.watch(todayExpensesProvider);
-              final income = incomeAsync.valueOrNull ?? 0.0;
-              final expenses = expensesAsync.valueOrNull ?? 0.0;
-              final balance = income - expenses;
 
-              if (incomeAsync.isLoading || expensesAsync.isLoading) {
+              // التعامل مع حالة التحميل
+              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final hasError = incomeAsync.hasError || expensesAsync.hasError;
+
+              if (isLoading) {
                 return _buildStatCard(
                   'المتبقي',
                   '...',
@@ -285,6 +245,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Colors.indigo,
                 );
               }
+
+              if (hasError) {
+                return _buildStatCard(
+                  'المتبقي',
+                  '--',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
+              final income = incomeAsync.valueOrNull ?? 0.0;
+              final expenses = expensesAsync.valueOrNull ?? 0.0;
+              final balance = income - expenses;
 
               return _buildStatCard(
                 balance >= 0 ? 'المتبقي' : 'عجز',
