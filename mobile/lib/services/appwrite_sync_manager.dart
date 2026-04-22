@@ -3555,11 +3555,11 @@ class AppwriteSyncManager {
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── Telegram ──
-        'telegram_enabled': prefs.getBool('telegram_enabled') ?? true,
+        'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
         'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
         'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '5944227208',
-        'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? true,
-        'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? true,
+        'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
+        'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
         'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '02:00',
         // ── Lark ──
         'lark_enabled': prefs.getBool('lark_enabled') ?? false,

@@ -196,8 +196,8 @@ class AlarmBackup {
 
   /// جدولة تقرير Telegram اليومي إذا كان مفعّلاً
   static Future<void> _scheduleTelegramReportIfNeeded(SharedPreferences prefs) async {
-    final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
-    final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
+    final tgEnabled = prefs.getBool('telegram_enabled') ?? false;
+    final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
 
     if (tgEnabled && reportEnabled) {
       final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
@@ -253,8 +253,8 @@ class AlarmBackup {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
-      final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
+      final tgEnabled = prefs.getBool('telegram_enabled') ?? false;
+      final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
 
       if (tgEnabled && reportEnabled) {
         final configured = await TelegramConfig.isConfigured();
