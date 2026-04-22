@@ -210,11 +210,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final repo = ref.watch(bookingsRepoProvider);
     final roomsAsync = ref.watch(roomsListProvider);
     return PopScope(
-      canPop: !hasUnsyncedChanges,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        _showDiscardDialog(context);
-      },
+      canPop: true,
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
