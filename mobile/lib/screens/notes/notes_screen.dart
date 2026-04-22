@@ -221,8 +221,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
     switch (action) {
       case 'read':
-        await repo.markAsRead(note.id);
-        _refreshData();
+        try {
+          await repo.markAsRead(note.id);
+          _refreshData();
+        } catch (e) {
+          debugPrint('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
+        }
       case 'edit':
         _editNote(note);
       case 'delete':
@@ -259,8 +263,19 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
 
     if (confirmed ?? false) {
-      await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
-      _refreshData();
+      try {
+        await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
+        _refreshData();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل حذف الملاحظة: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -347,27 +362,38 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   ) async {
     final repo = ref.read(simpleNotesRepoProvider);
 
-    if (note == null) {
-      // إضافة جديدة
-      await repo.addNote(
-        title: title,
-        content: content,
-        priority: priority,
-        shiftType: shiftType,
-      );
-    } else {
-      // تحديث موجود
-      await repo.updateNote(
-        note.id,
-        title: title,
-        content: content,
-        priority: priority,
-        shiftType: shiftType,
+    try {
+      if (note == null) {
+        // إضافة جديدة
+        await repo.addNote(
+          title: title,
+          content: content,
+          priority: priority,
+          shiftType: shiftType,
+        );
+      } else {
+        // تحديث موجود
+        await repo.updateNote(
+          note.id,
+          title: title,
+          content: content,
+          priority: priority,
+          shiftType: shiftType,
+        );
+      }
+
+      markDataChanged();
+      _refreshData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ الملاحظة: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
-
-    markDataChanged();
-    _refreshData();
   }
 
   Future<void> _refreshData() async {

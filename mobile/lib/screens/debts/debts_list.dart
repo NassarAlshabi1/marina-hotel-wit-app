@@ -767,19 +767,30 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     );
 
     if (confirmed == true) {
-      final repo = ref.read(debtsRepoProvider);
-      await repo.update(
-        id: debt.id,
-        isSettled: 1,
-        paidAmount: debt.totalAmount,
-        remainingAmount: 0,
-        paymentDate: Time.nowDateString(),
-      );
-      markDataChanged();
+      try {
+        final repo = ref.read(debtsRepoProvider);
+        await repo.update(
+          id: debt.id,
+          isSettled: 1,
+          paidAmount: debt.totalAmount,
+          remainingAmount: 0,
+          paymentDate: Time.nowDateString(),
+        );
+        markDataChanged();
 
-      if (mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
+          SnackBar(
+            content: Text('فشل تسجيل السداد: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }
@@ -1269,14 +1280,25 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
     if (confirm != true) return;
 
-    final repo = ref.read(debtsRepoProvider);
-    await repo.delete(debt.id);
-    markDataChanged();
+    try {
+      final repo = ref.read(debtsRepoProvider);
+      await repo.delete(debt.id);
+      markDataChanged();
 
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف الدين: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 }

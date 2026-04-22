@@ -508,46 +508,57 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final repo = ref.read(roomsRepoProvider);
     final newPrice = CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0;
 
-    if (existing == null) {
-      await repo.create(
-        roomNumber: roomNumberCtrl.text.trim(),
-        type: typeCtrl.text.trim(),
-        price: newPrice,
-        status: status,
-        imageUrl: imageUrl,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
-            backgroundColor: AppColors.successColor,
-            behavior: SnackBarBehavior.floating,
-          ),
+    try {
+      if (existing == null) {
+        await repo.create(
+          roomNumber: roomNumberCtrl.text.trim(),
+          type: typeCtrl.text.trim(),
+          price: newPrice,
+          status: status,
+          imageUrl: imageUrl,
         );
-      }
-    } else {
-      final oldPrice = existing.price;
-      final priceChanged = (oldPrice - newPrice).abs() > 0.01;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
+              backgroundColor: AppColors.successColor,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        final oldPrice = existing.price;
+        final priceChanged = (oldPrice - newPrice).abs() > 0.01;
 
-      await repo.updateByRoomNumber(
-        existing.roomNumber,
-        type: typeCtrl.text.trim(),
-        price: newPrice,
-        status: status,
-        imageUrl: imageUrl,
-      );
-
-      if (priceChanged && context.mounted) {
-        await _handlePriceChange(
-          context,
-          ref,
-          roomNumber: existing.roomNumber,
-          oldPrice: oldPrice,
-          newPrice: newPrice,
+        await repo.updateByRoomNumber(
+          existing.roomNumber,
+          type: typeCtrl.text.trim(),
+          price: newPrice,
+          status: status,
+          imageUrl: imageUrl,
         );
+
+        if (priceChanged && context.mounted) {
+          await _handlePriceChange(
+            context,
+            ref,
+            roomNumber: existing.roomNumber,
+            oldPrice: oldPrice,
+            newPrice: newPrice,
+          );
+        }
       }
+      markDataChanged();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ الغرفة: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
-    markDataChanged();
   }
 
   Future<void> _handlePriceChange(

@@ -129,21 +129,31 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     if (ok != true) return;
 
     final repo = ref.read(employeesRepoProvider);
-    if (existing == null) {
-      await repo.create(
-        name: name.text.trim(),
-        basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
-        status: status,
-      );
-    } else {
-      await repo.update(
-        existing.id,
-        name: name.text.trim(),
-        basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
-        status: status,
+    try {
+      if (existing == null) {
+        await repo.create(
+          name: name.text.trim(),
+          basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
+          status: status,
+        );
+      } else {
+        await repo.update(
+          existing.id,
+          name: name.text.trim(),
+          basicSalary: CurrencyFormatter.parseAmount(salary.text) ?? 0,
+          status: status,
+        );
+      }
+      markDataChanged();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ الموظف: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
-
-    markDataChanged();
   }
 }

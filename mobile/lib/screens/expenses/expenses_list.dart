@@ -621,69 +621,80 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       return;
     }
 
-    if (existing == null) {
-      final newId = await repo.create(
-        expenseType: savedType,
-        relatedId: isSalaryExpense ? selectedEmployeeId : null,
-        description: trimmedDescription,
-        amount: parsedAmount,
-        date: trimmedDate,
-      );
-
-      if (isSalaryExpense && selectedEmployeeId != null) {
-        await salaryRepo.saveFromExpense(
-          expenseId: newId,
-          employeeId: selectedEmployeeId!,
-          action: savedType,
+    try {
+      if (existing == null) {
+        final newId = await repo.create(
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
           amount: parsedAmount,
           date: trimmedDate,
-          note: trimmedDescription,
-          hotelDayKey: trimmedDate,
         );
-      }
-    } else {
-      await repo.update(
-        existing.id,
-        expenseType: savedType,
-        relatedId: isSalaryExpense ? selectedEmployeeId : null,
-        description: trimmedDescription,
-        amount: parsedAmount,
-        date: trimmedDate,
-      );
 
-      if (isSalaryExpense && selectedEmployeeId != null) {
-        await salaryRepo.saveFromExpense(
-          expenseId: existing.id,
-          employeeId: selectedEmployeeId!,
-          action: savedType,
-          amount: parsedAmount,
-          date: trimmedDate,
-          note: trimmedDescription,
-          hotelDayKey: trimmedDate,
-        );
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          await salaryRepo.saveFromExpense(
+            expenseId: newId,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: parsedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            hotelDayKey: trimmedDate,
+          );
+        }
       } else {
-        await salaryRepo.deleteByExpenseId(existing.id);
+        await repo.update(
+          existing.id,
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
+          amount: parsedAmount,
+          date: trimmedDate,
+        );
+
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          await salaryRepo.saveFromExpense(
+            expenseId: existing.id,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: parsedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            hotelDayKey: trimmedDate,
+          );
+        } else {
+          await salaryRepo.deleteByExpenseId(existing.id);
+        }
       }
-    }
 
-    description.dispose();
-    amount.dispose();
-    date.dispose();
+      markDataChanged();
+      if (mounted) {
+        _refreshExpensesStream();
+      }
 
-    markDataChanged();
-    if (mounted) {
-      _refreshExpensesStream();
-    }
-
-    // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
-    if (isSalaryExpense && selectedEmployeeId != null && mounted) {
-      _sendSalaryExpenseWhatsApp(
-        employeeId: selectedEmployeeId!,
-        action: savedType,
-        amount: parsedAmount,
-        date: trimmedDate,
-        employees: availableEmployees,
+      // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
+      if (isSalaryExpense && selectedEmployeeId != null && mounted) {
+        _sendSalaryExpenseWhatsApp(
+          employeeId: selectedEmployeeId!,
+          action: savedType,
+          amount: parsedAmount,
+          date: trimmedDate,
+          employees: availableEmployees,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ المصروف: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
       );
+    } finally {
+      description.dispose();
+      amount.dispose();
+      date.dispose();
     }
   }
 
