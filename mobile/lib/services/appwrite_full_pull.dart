@@ -349,7 +349,7 @@ class AppwriteFullPull {
         if (room.deletedAt != null) continue;
 
         final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-        final newStatus = shouldBeOccupied ? 'مشغولة' : 'شاغرة';
+        final newStatus = shouldBeOccupied ? 'محجوزة' : 'شاغرة';
 
         if (room.status != newStatus) {
           final query = _database!.update(_database!.rooms)

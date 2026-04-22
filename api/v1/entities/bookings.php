@@ -235,6 +235,9 @@ function updateBooking($conn, $id, $user) {
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
     
+    // إعادة حساب حالات الغرف بعد تحديث الحجز
+    recalculateAllRoomStatuses($conn);
+    
     ApiLogger::info("حجز تم تحديثه: رقم {$existing['booking_id']}", ['user_id' => $user['id']]);
     
     ApiResponse::success(['affectedRows' => $stmt->affected_rows, 'message' => 'تم التحديث بنجاح']);
@@ -256,6 +259,9 @@ function deleteBooking($conn, $id, $user) {
     $updateRoom = $conn->prepare("UPDATE rooms SET status = 'شاغرة' WHERE room_number = ?");
     $updateRoom->bind_param('s', $existing['room_number']);
     $updateRoom->execute();
+    
+    // إعادة حساب حالات جميع الغرف كضمان إضافي
+    recalculateAllRoomStatuses($conn);
     
     ApiLogger::warning("حجز تم حذفه: رقم {$existing['booking_id']}", ['user_id' => $user['id']]);
     

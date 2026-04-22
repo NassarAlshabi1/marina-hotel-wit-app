@@ -13,6 +13,7 @@ import '../utils/time.dart';
 import '../utils/id.dart';
 import '../utils/hotel_date_helper.dart';
 import 'sync_locks.dart';
+import 'repositories/rooms_repository.dart';
 
 class AppwriteDeltaSyncResult {
   final bool success;
@@ -293,6 +294,20 @@ class AppwriteDeltaSync {
 
       if (pulledCount > 0) {
         await _updateLastPullSyncTimestamp();
+
+        // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
+        try {
+          await RoomsRepository(_database!).refreshAllRoomOccupancy();
+          _logger.info(
+            'تم تحديث حالة إشغال الغرف بعد المزامنة',
+            tag: 'DELTA_SYNC',
+          );
+        } catch (e) {
+          _logger.warning(
+            'فشل تحديث حالة الإشغال: $e',
+            tag: 'DELTA_SYNC',
+          );
+        }
       }
 
       _logger.info(
