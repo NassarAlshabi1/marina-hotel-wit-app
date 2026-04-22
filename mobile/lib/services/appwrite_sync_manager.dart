@@ -1027,7 +1027,7 @@ class AppwriteSyncManager {
         queries: [
           if (_currentDeviceId != null) Query.equal('deviceId', _currentDeviceId!),
           Query.orderDesc('timestamp'),
-          Query.limit(50), // جلب آخر 50 سجلاً فقط بدلاً من الكل
+          Query.limit(10), // جلب آخر 50 سجلاً فقط بدلاً من الكل
         ],
         useCache: false,
       );
