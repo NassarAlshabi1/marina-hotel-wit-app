@@ -1022,7 +1022,15 @@ class AppwriteSyncManager {
   Future<Map<String, dynamic>> getSyncStatistics() async {
     try {
       final outboxCount = await outboxDao.count();
-      final syncLogs = await appwriteService.listSyncLogs(useCache: false);
+      // جلب سجلات المزامنة الخاصة بهذا الجهاز فقط لتقليل حجم البيانات المسحوبة
+      final syncLogs = await appwriteService.listSyncLogs(
+        queries: [
+          if (_currentDeviceId != null) Query.equal('deviceId', _currentDeviceId!),
+          Query.orderDesc('timestamp'),
+          Query.limit(50), // جلب آخر 50 سجلاً فقط بدلاً من الكل
+        ],
+        useCache: false,
+      );
 
       int extractCount(Map<String, dynamic> data, String key) {
         final value = data[key];
