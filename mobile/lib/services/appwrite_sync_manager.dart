@@ -713,8 +713,19 @@ class AppwriteSyncManager {
 
           try {
             recordsPulled += await _timePhase('syncBookingNights', () async {
-              final bookingNights = await appwriteService.listBookingNights(queries: deltaQ, useCache: false);
+              // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
+              final nightsPullTs = await _getBookingNightsPullTs();
+              final nightsDeltaQ = _bookingNightsDeltaQueries(nightsPullTs);
+              if (nightsDeltaQ.isNotEmpty) {
+                _logger.info(
+                  '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs).toIso8601String()}',
+                  tag: 'SYNC',
+                );
+              }
+              final bookingNights = await appwriteService.listBookingNights(queries: nightsDeltaQ, useCache: false);
               final synced = await _syncBookingNights(bookingNights);
+              // تحديث lastPullTs الخاص بـ booking_nights بعد نجاح السحب
+              await _updateBookingNightsPullTs(Time.nowEpoch());
               _logger.debug('Synced $synced booking nights', tag: 'SYNC');
               return synced;
             }, phaseMs);
@@ -1965,6 +1976,27 @@ class AppwriteSyncManager {
 
   // ─── Delta Sync ────────────────────────────────────────────────────────
 
+  /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
+  Future<int> _getBookingNightsPullTs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('sync_last_pull_booking_nights') ?? 0;
+  }
+
+  /// تحديث آخر timestamp خاص بـ booking_nights
+  Future<void> _updateBookingNightsPullTs(int ts) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('sync_last_pull_booking_nights', ts);
+  }
+
+  /// بناء delta queries خاصة بـ booking_nights
+  List<String> _bookingNightsDeltaQueries(int lastPullTs) {
+    if (lastPullTs > 0) {
+      final cutoff = lastPullTs - 5;
+      return [Query.greaterThan('lastModified', cutoff)];
+    }
+    return []; // full fetch
+  }
+
   /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
   Future<int> _getLastPullTs() async {
     try {
@@ -2156,11 +2188,15 @@ class AppwriteSyncManager {
           }
 
           try {
+            // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
+            final nightsPullTs = await _getBookingNightsPullTs();
+            final nightsDeltaQ = _bookingNightsDeltaQueries(nightsPullTs);
             final bookingNights = await appwriteService.listBookingNights(
-              queries: deltaQ,
+              queries: nightsDeltaQ,
               useCache: false,
             );
             recordsPulled += await _syncBookingNights(bookingNights);
+            await _updateBookingNightsPullTs(Time.nowEpoch());
           } catch (e, st) {
             _logger.error('❌ فشل سحب booking_nights (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
