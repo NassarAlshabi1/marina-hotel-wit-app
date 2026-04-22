@@ -31,6 +31,9 @@ mixin SyncOnExitMixin<T extends StatefulWidget> on State<T> {
 
   Future<bool> syncNow() => _syncController.syncNow();
 
+  /// إعادة ضبط علم التغييرات بعد الحفظ الناجح محلياً
+  void markSaved() => _syncController.markSaved();
+
   Stream<SyncStatus> get syncStatusStream => _syncController.syncStatusStream;
 
   Widget wrapWithSyncOnExit({required Widget child}) {

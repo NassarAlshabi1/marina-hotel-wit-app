@@ -628,57 +628,84 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         // لا نوقف الحجز — نعرض التحذير فقط
                       }
 
-                      if (widget.existing == null) {
-                        await repo.create(
-                          roomNumber: roomNumber,
-                          guestName: name,
-                          guestPhone: phone,
-                          guestIdType: _idType,
-                          guestIdNumber: idNumber,
-                          guestIdIssueDate: idIssueDate,
-                          guestIdIssuePlace: idIssuePlace,
-                          guestNationality: nationality,
-                          guestEmail: email,
-                          guestAddress: address,
-                          checkinDate: checkin,
-                          checkoutDate: checkout,
-                          actualCheckout: null,
-                          status: _status,
-                          notes: notes,
-                          expectedNights: expectedNights,
-                          calculatedNights: calculatedNights,
-                        );
-                      } else {
-                        await repo.update(
-                          widget.existing!.id,
-                          roomNumber: roomNumber,
-                          guestName: name,
-                          guestPhone: phone,
-                          guestIdType: _idType,
-                          guestIdNumber: idNumber,
-                          guestIdIssueDate: idIssueDate,
-                          guestIdIssuePlace: idIssuePlace,
-                          guestNationality: nationality,
-                          guestEmail: email,
-                          guestAddress: address,
-                          checkinDate: checkin,
-                          checkoutDate: checkout,
-                          status: _status,
-                          notes: notes,
-                          expectedNights: expectedNights,
-                          calculatedNights: calculatedNights,
-                        );
+                      try {
+                        if (widget.existing == null) {
+                          await repo.create(
+                            roomNumber: roomNumber,
+                            guestName: name,
+                            guestPhone: phone,
+                            guestIdType: _idType,
+                            guestIdNumber: idNumber,
+                            guestIdIssueDate: idIssueDate,
+                            guestIdIssuePlace: idIssuePlace,
+                            guestNationality: nationality,
+                            guestEmail: email,
+                            guestAddress: address,
+                            checkinDate: checkin,
+                            checkoutDate: checkout,
+                            actualCheckout: null,
+                            status: _status,
+                            notes: notes,
+                            expectedNights: expectedNights,
+                            calculatedNights: calculatedNights,
+                          );
+                        } else {
+                          await repo.update(
+                            widget.existing!.id,
+                            roomNumber: roomNumber,
+                            guestName: name,
+                            guestPhone: phone,
+                            guestIdType: _idType,
+                            guestIdNumber: idNumber,
+                            guestIdIssueDate: idIssueDate,
+                            guestIdIssuePlace: idIssuePlace,
+                            guestNationality: nationality,
+                            guestEmail: email,
+                            guestAddress: address,
+                            checkinDate: checkin,
+                            checkoutDate: checkout,
+                            status: _status,
+                            notes: notes,
+                            expectedNights: expectedNights,
+                            calculatedNights: calculatedNights,
+                          );
+                        }
+
+                        // ✅ الحفظ نجح — نلغي حالة "تغييرات غير مزامنة"
+                        // حتى لا يمنع PopScope الخروج
+                        markSaved();
+
+                        await _refreshRoomOccupancy(ref);
+                        ref.invalidate(roomsListProvider);
+                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(roomsWithPaymentStatusProvider);
+
+                        await syncNow();
+                        if (mounted) Navigator.pop(context);
+                      } on StateError catch (e) {
+                        // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.message),
+                              backgroundColor: Colors.red.shade900,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        // أي خطأ آخر (قاعدة بيانات، شبكة، إلخ)
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل حفظ الحجز: $e'),
+                              backgroundColor: Colors.red.shade900,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                        debugPrint('❌ خطأ في حفظ الحجز: $e');
                       }
-
-                      await _refreshRoomOccupancy(ref);
-                      // إجبار تحديث ألوان الغرف في الشاشة الرئيسية فوراً
-                      // نُبطِل بروفايدر الغرف أولاً حتى يستعلم عن البيانات الجديدة
-                      ref.invalidate(roomsListProvider);
-                      ref.invalidate(bookingsListProvider);
-                      ref.invalidate(roomsWithPaymentStatusProvider);
-
-                      await syncNow();
-                      if (mounted) Navigator.pop(context);
                     },
                     icon: const Icon(Icons.save),
                     label: const Text('حفظ الحجز'),

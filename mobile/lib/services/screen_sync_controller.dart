@@ -61,6 +61,13 @@ class ScreenSyncController {
     _debounceTimer = null;
   }
 
+  /// إعادة ضبط علم التغييرات بعد الحفظ الناجح محلياً
+  void markSaved() {
+    _hasChanges = false;
+    cancelTimer();
+    _emitStatus(SyncStatus.synced);
+  }
+
   Future<bool> syncNow() async {
     if (!_hasChanges) {
       debugPrint('✓ [$screenId] لا توجد تغييرات للمزامنة');
