@@ -954,15 +954,26 @@ class AppwriteDeltaSync {
     final bookingLocalId = _asInt(data['bookingLocalId']);
     if (bookingLocalId == null) return;
 
+    final now = Time.nowEpoch();
+    final createdAt = _asInt(data['createdAt']) ?? now;
+    final updatedAt = _asInt(data['updatedAt']) ?? now;
+    final lastModified = _asInt(data['lastModified']) ?? createdAt;
+
     final companion = BookingNightsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
-      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(updatedAt),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      lastModified: d.Value(lastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? lastModified),
       bookingLocalId: d.Value(bookingLocalId),
       hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
       nightStart: d.Value(_asString(data['nightStart']) ?? ''),
