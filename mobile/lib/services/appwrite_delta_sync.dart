@@ -285,15 +285,21 @@ class AppwriteDeltaSync {
       };
 
       for (final entry in entitiesToPull.entries) {
+        // booking_nights يستخدم lastPullTs مستقل خاص به
+        final entityTs = entry.key == 'booking_nights'
+            ? await _getBookingNightsPullTs()
+            : lastPullTs;
         pulledCount += await _pullEntityChanges(
           entry.key,
           entry.value,
-          lastPullTs,
+          entityTs,
         );
       }
 
       if (pulledCount > 0) {
         await _updateLastPullSyncTimestamp();
+        // تحديث lastPullTs المستقل لـ booking_nights
+        await _updateBookingNightsPullTs(Time.nowEpoch());
 
         // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
         try {
@@ -354,14 +360,14 @@ class AppwriteDeltaSync {
             .toUtc()
             .toIso8601String();
 
-        // محاولة الفلترة بـ $createdAt أولاً لجلب الأحداث "الجديدة" فقط
+        // ✅ فلترة بـ $updatedAt لالتقاط الإنشاءات والتعديلات
         try {
           final newEventsQueries = [
             ...filterQueries,
-            Query.greaterThan('\$createdAt', lastPullIso),
+            Query.greaterThan('\$updatedAt', lastPullIso),
           ];
           
-          _logger.debug('Pulling new $entity events after $lastPullIso', tag: 'DELTA_SYNC');
+          _logger.debug('Pulling $entity changes updated after $lastPullIso', tag: 'DELTA_SYNC');
           
           documents = await _appwriteService!.listDocuments(
             collectionId: collectionId,
@@ -370,7 +376,7 @@ class AppwriteDeltaSync {
           );
         } catch (e) {
           _logger.warning(
-            'فشل فلترة $entity بـ \$createdAt، جلب كامل محدود: $e',
+            'فشل فلترة $entity بـ \$updatedAt، جلب كامل محدود: $e',
             tag: 'DELTA_SYNC',
           );
           
@@ -378,7 +384,7 @@ class AppwriteDeltaSync {
           documents = await _appwriteService!.listDocuments(
             collectionId: collectionId,
             queries: [
-              Query.orderDesc('\$createdAt'),
+              Query.orderDesc('\$updatedAt'),
               Query.limit(100),
             ],
             useCache: false,
@@ -407,12 +413,12 @@ class AppwriteDeltaSync {
         // ✅ فلترة إضافية بالوقت للتأكد من أننا لا نعالج بيانات قديمة
         if (lastPullTs > 0) {
           try {
-            final createdAt = DateTime.parse(doc.$createdAt);
-            if (createdAt.millisecondsSinceEpoch <= lastPullMs) {
+            final updatedAt = DateTime.parse(doc.$updatedAt);
+            if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
               continue;
             }
-          } catch (e) { 
-            _logger.warning('Cannot parse createdAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
+          } catch (e) {
+            _logger.warning('Cannot parse updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
           }
         }
 
@@ -1184,6 +1190,20 @@ class AppwriteDeltaSync {
       default:
         return null;
     }
+  }
+
+  // ─── booking_nights: lastPullTs مستقل ────────────────────────
+
+  /// قراءة آخر timestamp خاص بـ booking_nights
+  Future<int> _getBookingNightsPullTs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('delta_sync_last_pull_booking_nights') ?? 0;
+  }
+
+  /// تحديث آخر timestamp خاص بـ booking_nights
+  Future<void> _updateBookingNightsPullTs(int ts) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('delta_sync_last_pull_booking_nights', ts);
   }
 
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
