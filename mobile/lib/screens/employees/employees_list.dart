@@ -228,7 +228,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         TextEditingController(text: existing?.position ?? 'موظف');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
 
-    String status = existing?.status ?? 'active';
+    String status = existing?.status ?? 'نشط';
     DateTime? hireDate;
     if (existing != null && existing.hireDate.isNotEmpty) {
       hireDate = DateTime.tryParse(existing.hireDate);
@@ -399,7 +399,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                           ),
                           items: const [
                             DropdownMenuItem(
-                              value: 'active',
+                              value: 'نشط',
                               child: Row(
                                 children: [
                                   Icon(
@@ -413,7 +413,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                               ),
                             ),
                             DropdownMenuItem(
-                              value: 'inactive',
+                              value: 'غير نشط',
                               child: Row(
                                 children: [
                                   Icon(
@@ -536,7 +536,7 @@ class _EmployeeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = employee.status == 'active';
+    final isActive = employee.status == 'نشط';
     final statusColor = isActive ? AppColors.successColor : AppColors.dangerColor;
 
     return Card(
