@@ -1877,8 +1877,10 @@ class AppwriteSyncManager {
     data['remainingBalanceCached'] = booking.remainingBalanceCached;
     // حقول تواريخ ومشتقات
     data['totalNightsCached'] = booking.totalNightsCached;
+    data['isFullyPaid'] = booking.isFullyPaid;
     _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
     _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
+    _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
     return data;
   }
 
