@@ -300,6 +300,9 @@ class AppwriteSyncManager {
               'lastModified': nowEpoch,
               'version': _deviceVersion,
               'origin': 'mobile',
+              // ✅ الحقول المطلوبة في Appwrite Cloud
+              'deviceId': _deviceLocalUuid,
+              'isActive': true,
               // FCM token
               if (_fcmToken != null) 'fcmToken': _fcmToken,
             },
@@ -327,6 +330,9 @@ class AppwriteSyncManager {
           'lastModified': nowEpoch,
           'version': _deviceVersion,
           'origin': 'mobile',
+          // ✅ الحقول المطلوبة في Appwrite Cloud
+          'deviceId': _deviceLocalUuid,
+          'isActive': true,
           // FCM token
           if (_fcmToken != null) 'fcmToken': _fcmToken,
         });
