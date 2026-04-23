@@ -165,7 +165,8 @@ class GuestPaymentCalculationService {
     int creditDays = 0;
     if (hasCredit) {
       final credit = -remainingBalance;
-      creditDays = (credit / nightlyRate).floor();
+      // ✅ حماية من القسمة على صفر
+      creditDays = nightlyRate > 0 ? (credit / nightlyRate).floor() : 0;
     }
 
     return GuestPaymentCalculation(

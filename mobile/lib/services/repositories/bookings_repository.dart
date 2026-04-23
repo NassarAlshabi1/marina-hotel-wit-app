@@ -146,6 +146,17 @@ class BookingsRepository {
     String? discountType,
     String? discountStartDate,
   }) async {
+    // ✅ فحص الحجز المزدوج عند تغيير الغرفة
+    if (roomNumber != null) {
+      final existing = await getActiveBookingForRoom(roomNumber);
+      if (existing != null && existing.id != id) {
+        throw StateError(
+          'يوجد حجز نشط بالفعل للغرفة $roomNumber '
+          '(الضيف: ${existing.guestName})',
+        );
+      }
+    }
+
     final result = await dao.updateById(
       id,
       BookingsCompanion(
@@ -240,23 +251,21 @@ class BookingsRepository {
             expectedNights: booking.expectedNights,
           );
           break;
-        case 'شاغرة':
-          if (booking.actualCheckout != null) {
-            LarkNotificationService.instance.notifyCheckOut(
-              roomNumber: booking.roomNumber,
-              guestName: booking.guestName,
-              actualNights: booking.calculatedNights,
-              totalPaid: booking.totalPaidCached,
-              remaining: booking.remainingBalanceCached,
-            );
-            TelegramNotificationService.instance.notifyCheckOut(
-              roomNumber: booking.roomNumber,
-              guestName: booking.guestName,
-              actualNights: booking.calculatedNights,
-              totalPaid: booking.totalPaidCached,
-              remaining: booking.remainingBalanceCached,
-            );
-          }
+        case 'مكتمل':
+          LarkNotificationService.instance.notifyCheckOut(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            actualNights: booking.calculatedNights,
+            totalPaid: booking.totalPaidCached,
+            remaining: booking.remainingBalanceCached,
+          );
+          TelegramNotificationService.instance.notifyCheckOut(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            actualNights: booking.calculatedNights,
+            totalPaid: booking.totalPaidCached,
+            remaining: booking.remainingBalanceCached,
+          );
           break;
       }
     });

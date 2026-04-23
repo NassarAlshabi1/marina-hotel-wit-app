@@ -359,6 +359,21 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 
   Future<void> _quickStatusChange(Room room, String newStatus) async {
     final repo = ref.read(roomsRepoProvider);
+    // ✅ منع تحويل غرفة لشاغرة إذا كان عليها حجز نشط
+    if (newStatus == 'شاغرة') {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(room.roomNumber);
+      if (activeBooking != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('لا يمكن تحويل الغرفة ${room.roomNumber}: يوجد حجز نشط (${activeBooking.guestName})'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
     await repo.updateByRoomNumber(room.roomNumber, status: newStatus);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

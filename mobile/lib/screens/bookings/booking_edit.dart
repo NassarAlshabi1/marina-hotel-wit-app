@@ -50,6 +50,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
+  bool _isSaving = false;
 
   // متغيرات الدفع المتقدم
   bool _hasAdvancePayment = false;
@@ -529,7 +530,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
                   child: FilledButton.icon(
-                    onPressed: () async {
+                    onPressed: _isSaving ? null : () async {
                       if (!_formKey.currentState!.validate()) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -555,10 +556,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       final checkout = _optionalText(_checkout.text);
                       final expectedNights =
                           int.tryParse(_expectedNights.text.trim()) ?? 1;
+                      // ✅ فحص تسلسل التواريخ
                       final checkinDt = _parseDateTime(checkin);
                       final checkoutDt = checkout != null
                           ? _parseDateTime(checkout)
                           : null;
+                      if (checkinDt != null && checkoutDt != null && checkoutDt.isBefore(checkinDt)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
                       final calculatedNights = checkinDt == null
                           ? expectedNights
                           : (checkoutDt == null && widget.existing == null)
@@ -625,6 +636,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       }
 
                       try {
+                        setState(() => _isSaving = true);
+                        int? newBookingId;
                         if (widget.existing == null) {
                           await repo.create(
                             roomNumber: roomNumber,
@@ -645,7 +658,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             expectedNights: expectedNights,
                             calculatedNights: calculatedNights,
                           );
+                          newBookingId = result;
                         } else {
+                          newBookingId = widget.existing!.id;
                           await repo.update(
                             widget.existing!.id,
                             roomNumber: roomNumber,
@@ -670,6 +685,35 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         // ✅ الحفظ نجح — نلغي حالة "تغييرات غير مزامنة"
                         // حتى لا يمنع PopScope الخروج
                         markSaved();
+
+                        // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
+                        if (_hasAdvancePayment && newBookingId != null) {
+                          final advanceAmount = double.tryParse(_advancePayment.text.trim());
+                          if (advanceAmount != null && advanceAmount > 0) {
+                            try {
+                              final paymentsRepo = ref.read(paymentsRepoProvider);
+                              await paymentsRepo.create(
+                                bookingLocalId: newBookingId,
+                                roomNumber: roomNumber,
+                                amount: advanceAmount,
+                                paymentDate: Time.nowIso(),
+                                notes: _paymentNotes.text.trim().isEmpty ? null : _paymentNotes.text.trim(),
+                                paymentMethod: _paymentMethod,
+                                revenueType: 'deposit',
+                              );
+                            } catch (e) {
+                              debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        }
 
                         await _refreshRoomOccupancy(ref);
                         ref.invalidate(roomsListProvider);
@@ -701,6 +745,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           );
                         }
                         debugPrint('❌ خطأ في حفظ الحجز: $e');
+                      } finally {
+                        if (mounted) setState(() => _isSaving = false);
                       }
                     },
                     icon: const Icon(Icons.save),

@@ -59,18 +59,19 @@ class CashRepository {
   }) => dao.updateById(
     id,
     CashTransactionsCompanion(
-      registerId: d.Value(registerId),
+      // ✅ استخدام Value.absent() بدلاً من Value(null) لمنع مسح الحقول
+      registerId: registerId != null ? d.Value(registerId) : const d.Value.absent(),
       transactionType: type != null ? d.Value(type) : const d.Value.absent(),
       amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-      referenceType: d.Value(referenceType),
-      referenceId: d.Value(referenceId),
+      referenceType: referenceType != null ? d.Value(referenceType) : const d.Value.absent(),
+      referenceId: referenceId != null ? d.Value(referenceId) : const d.Value.absent(),
       description: description != null
           ? d.Value(description)
           : const d.Value.absent(),
       transactionTime: transactionTime != null
           ? d.Value(transactionTime)
           : const d.Value.absent(),
-      createdBy: d.Value(createdBy),
+      createdBy: createdBy != null ? d.Value(createdBy) : const d.Value.absent(),
     ),
   );
 

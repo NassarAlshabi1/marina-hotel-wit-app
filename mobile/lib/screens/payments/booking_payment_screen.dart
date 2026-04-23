@@ -399,10 +399,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 stream: paymentsRepo.paymentsByBooking(booking.id),
                 builder: (context, paySnap) {
                   final dbPayments = paySnap.data ?? const <db.Payment>[];
-                  final paidAmount = dbPayments.fold<double>(
-                    0,
-                    (s, p) => s + p.amount,
-                  );
+                  // ✅ استبعاد المدفوعات الملغاة من حساب الإجمالي المدفوع
+                  final paidAmount = dbPayments
+                      .where((p) => !p.isVoided)
+                      .fold<double>(0, (s, p) => s + p.amount);
                   // حساب المدفوعات في اليوم الفندقي الحالي لهذا الحجز
                   final hotelDay = Time.hotelDayKey();
                   final todayPaidAmount = dbPayments
@@ -2504,59 +2504,72 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     int unusedNights,
     int actualNights,
   ) async {
-    final bookingsRepo = ref.read(bookingsRepoProvider);
-    final roomsRepo = ref.read(roomsRepoProvider);
-    final paymentsRepo = ref.read(paymentsRepoProvider);
-    final nowIso = Time.nowIso();
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+      final nowIso = Time.nowIso();
 
-    // 1. تسجيل المغادرة
-    await bookingsRepo.update(
-      widget.booking.id,
-      status: 'مكتمل',
-      actualCheckout: nowIso,
-      calculatedNights: actualNights,
-    );
+      // 1. تسجيل المغادرة
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
+      );
 
-    // 2. تسجيل دفعة المردود (مبلغ سالب)
-    await paymentsRepo.create(
-      bookingLocalId: widget.booking.id,
-      serverBookingId: widget.booking.serverBookingId,
-      roomNumber: widget.booking.roomNumber,
-      amount: refundAmount.toDouble() * -1,
-      paymentDate: nowIso,
-      notes: 'مردود مغادرة مبكرة - $unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'} غير مستخدمة',
-      paymentMethod: 'نقدي',
-      revenueType: 'room',
-    );
+      // 2. تسجيل دفعة المردود (مبلغ سالب)
+      await paymentsRepo.create(
+        bookingLocalId: widget.booking.id,
+        serverBookingId: widget.booking.serverBookingId,
+        roomNumber: widget.booking.roomNumber,
+        amount: refundAmount.toDouble() * -1,
+        paymentDate: nowIso,
+        notes: 'مردود مغادرة مبكرة - $unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'} غير مستخدمة',
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
 
-    // 3. تحرير الغرفة
-    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    if (room != null) {
-      await roomsRepo.update(room.id, status: 'شاغرة');
-    }
+      // 3. تحرير الغرفة
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      if (room != null) {
+        await roomsRepo.update(room.id, status: 'شاغرة');
+      }
 
-    // 4. إرسال رسالة واتساب
-    final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
-    if (cleanedPhone.isNotEmpty) {
-      await _sendRefundConfirmation(refundAmount, unusedNights, cleanedPhone);
-    }
+      // 4. إرسال رسالة واتساب
+      final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
+      if (cleanedPhone.isNotEmpty) {
+        await _sendRefundConfirmation(refundAmount, unusedNights, cleanedPhone);
+      }
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'تم تسجيل مغادرة مبكرة — المردود: ${_currencyFmt.format(refundAmount)} ($unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'})',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم تسجيل مغادرة مبكرة — المردود: ${_currencyFmt.format(refundAmount)} ($unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'})',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            textColor: Colors.white,
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          ),
         ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في المغادرة المبكرة: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تسجيل المغادرة المبكرة: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   /// رسالة واتساب تأكيد المردود
@@ -2594,38 +2607,51 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// معالجة المغادرة العادية
   void _processCheckout() async {
-    final bookingsRepo = ref.read(bookingsRepoProvider);
-    final roomsRepo = ref.read(roomsRepoProvider);
-    final nowIso = Time.nowIso();
-    final checkin =
-        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final nowDate = DateTime.parse(nowIso);
-    final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
-    await bookingsRepo.update(
-      widget.booking.id,
-      status: 'مكتمل',
-      actualCheckout: nowIso,
-      calculatedNights: actualNights,
-    );
-    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
-    if (room != null) {
-      await roomsRepo.update(room.id, status: 'شاغرة');
-    }
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () => messenger.hideCurrentSnackBar(),
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final nowIso = Time.nowIso();
+      final checkin =
+          DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final nowDate = DateTime.parse(nowIso);
+      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
+      );
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      if (room != null) {
+        await roomsRepo.update(room.id, status: 'شاغرة');
+      }
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            textColor: Colors.white,
+            onPressed: () => messenger.hideCurrentSnackBar(),
+          ),
         ),
-      ),
-    );
-    Navigator.pop(context);
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('❌ خطأ في تسجيل المغادرة: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تسجيل المغادرة: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   void _sendAccountStatement(BookingPaymentSummary summary) {
@@ -3189,72 +3215,85 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return;
     }
 
-    final bookingsRepo = ref.read(bookingsRepoProvider);
-    final paymentsRepo = ref.read(paymentsRepoProvider);
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
 
-    // تحديث تاريخ المغادرة المخطط
-    final currentCheckout = widget.booking.checkoutDate != null
-        ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : DateTime.now().add(Duration(days: 1));
+      // تحديث تاريخ المغادرة المخطط
+      final currentCheckout = widget.booking.checkoutDate != null
+          ? DateTime.tryParse(widget.booking.checkoutDate!)
+          : DateTime.now().add(Duration(days: 1));
 
-    final newCheckout = (currentCheckout ?? DateTime.now()).add(
-      Duration(days: additionalNights),
-    );
-
-    final newExpectedNights = widget.booking.expectedNights + additionalNights;
-
-    // تحديث الحجز
-    await bookingsRepo.update(
-      widget.booking.id,
-      checkoutDate: _formatDateTime(newCheckout),
-      expectedNights: newExpectedNights,
-      notes: widget.booking.notes != null
-          ? '${widget.booking.notes}\nتمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}'
-          : 'تمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}',
-    );
-
-    // تسجيل دفعة الليالي الإضافية
-    final double amount = additionalNights * roomRate;
-    await paymentsRepo.create(
-      bookingLocalId: widget.booking.id,
-      serverBookingId: widget.booking.serverBookingId,
-      roomNumber: widget.booking.roomNumber,
-      amount: amount,
-      paymentDate: Time.nowIso(),
-      notes: notes.isEmpty
-          ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
-          : notes,
-      paymentMethod: 'نقدي',
-      revenueType: 'room',
-    );
-
-    // إرسال رسالة واتساب
-    final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
-    if (cleanedPhone.isNotEmpty) {
-      await _sendExtensionConfirmation(
-        additionalNights,
-        amount,
-        newCheckout,
-        cleanedPhone,
+      final newCheckout = (currentCheckout ?? DateTime.now()).add(
+        Duration(days: additionalNights),
       );
+
+      final newExpectedNights = widget.booking.expectedNights + additionalNights;
+
+      // تحديث الحجز
+      await bookingsRepo.update(
+        widget.booking.id,
+        checkoutDate: _formatDateTime(newCheckout),
+        expectedNights: newExpectedNights,
+        notes: widget.booking.notes != null
+            ? '${widget.booking.notes}\nتمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}'
+            : 'تمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}',
+      );
+
+      // تسجيل دفعة الليالي الإضافية
+      final double amount = additionalNights * roomRate;
+      await paymentsRepo.create(
+        bookingLocalId: widget.booking.id,
+        serverBookingId: widget.booking.serverBookingId,
+        roomNumber: widget.booking.roomNumber,
+        amount: amount,
+        paymentDate: Time.nowIso(),
+        notes: notes.isEmpty
+            ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
+            : notes,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      // إرسال رسالة واتساب
+      final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
+      if (cleanedPhone.isNotEmpty) {
+        await _sendExtensionConfirmation(
+          additionalNights,
+          amount,
+          newCheckout,
+          cleanedPhone,
+        );
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            textColor: Colors.white,
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في تمديد الإقامة: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تمديد الإقامة: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة',
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        ),
-      ),
-    );
   }
 
   /// رسالة تأكيد تمديد الإقامة

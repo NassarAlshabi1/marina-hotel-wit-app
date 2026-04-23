@@ -94,6 +94,8 @@ class DebtsRepository {
     final remaining =
         remainingAmount ??
         (newTotal - newPaid).clamp(0, double.infinity).toDouble();
+    // ✅ حساب تلقائي لـ isSettled بناءً على المبلغ المتبقي
+    final shouldSettle = remaining <= 0;
     final result = await dao.updateById(
       id,
       DebtsCompanion(
@@ -127,7 +129,7 @@ class DebtsRepository {
             : const d.Value.absent(),
         isSettled: isSettled != null
             ? d.Value(isSettled)
-            : const d.Value.absent(),
+            : d.Value(shouldSettle ? 1 : 0),
         pledge: pledge != null ? d.Value(pledge) : const d.Value.absent(),
         pledgeType: pledgeType != null
             ? d.Value(pledgeType)

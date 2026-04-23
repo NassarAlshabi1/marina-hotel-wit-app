@@ -115,24 +115,38 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final worker = workerId ?? _uuid.v4();
     final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    final pending = await (select(outbox)
-          ..where((t) => t.processingStatus.equals('pending'))
-          ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
-          ..limit(limit))
-        .get();
+    // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
+    // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
+    final claimed = await customSelect(
+      'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
+      'WHERE id IN ('
+      '  SELECT id FROM outbox WHERE processing_status = ? ORDER BY client_ts ASC LIMIT ?'
+      ') RETURNING *',
+      variables: [
+        Variable<String>('processing'),
+        Variable<int>(nowEpoch),
+        Variable<String>(worker),
+        Variable<String>('pending'),
+        Variable<int>(limit),
+      ],
+      readsFrom: {outbox},
+    ).map((row) => OutboxData(
+      id: row.read<int>('id'),
+      entity: row.read<String>('entity'),
+      op: row.read<String>('op'),
+      localUuid: row.read<String>('local_uuid'),
+      serverId: row.read<int?>('server_id'),
+      payload: row.read<String>('payload'),
+      clientTs: row.read<int>('client_ts'),
+      processingStatus: row.read<String>('processing_status'),
+      processingStartedAt: row.read<int?>('processing_started_at'),
+      processingWorker: row.read<String?>('processing_worker'),
+      lastError: row.read<String?>('last_error'),
+      attempts: row.read<int>('attempts'),
+      idempotencyKey: row.read<String?>('idempotency_key'),
+    )).get();
 
-    if (pending.isEmpty) return [];
-
-    final ids = pending.map((e) => e.id).toList();
-    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
-      OutboxCompanion(
-        processingStatus: const Value('processing'),
-        processingStartedAt: Value(nowEpoch),
-        processingWorker: Value(worker),
-      ),
-    );
-
-    return pending;
+    return claimed;
   }
 
   Future<void> removeById(int id) async {
