@@ -482,10 +482,24 @@ class AppwriteService {
       );
       
       Future<List<models.Document>> performOperation() async {
+        // ✅ إضافة limit و offset كـ Query مع تجنب التكرار
+        // إذا كانت queries تحتوي بالفعل على limit/offset، لا نضيفها مرة أخرى
+        final effectiveQueries = <String>[...?queries];
+
+        final hasLimit = effectiveQueries.any((q) => q.startsWith('limit('));
+        if (!hasLimit) {
+          effectiveQueries.add(Query.limit(effectiveLimit));
+        }
+
+        final hasOffset = effectiveQueries.any((q) => q.startsWith('offset('));
+        if (offset > 0 && !hasOffset) {
+          effectiveQueries.add(Query.offset(offset));
+        }
+
         final documentList = await _databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: collectionId,
-          queries: queries,
+          queries: effectiveQueries,
         );
         return documentList.documents;
       }
