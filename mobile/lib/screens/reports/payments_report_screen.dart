@@ -43,6 +43,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalRemaining = 0;
+  double _totalDue = 0;
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -100,6 +101,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
         _totalRemaining = result.totalRemaining;
+        _totalDue = result.totalDue;
       });
     } finally {
       if (mounted) {
@@ -176,14 +178,16 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
-    // حساب إجمالي المتبقي باستخدام القيم المحسوبة الموثوقة من الحجز
+    // حساب إجمالي المستحق والمتبقي باستخدام القيم المحسوبة الموثوقة من الحجز
     // (totalDueCached محسوب من تعديلات الأسعار + الخصومات الفعلية)
-    // (remainingBalanceCached = totalDueCached - totalPaidCached مع مراعاة الفلاتر)
+    // (remainingBalanceCached = totalDueCached - totalPaidCached)
+    double totalDue = 0;
     double totalRemaining = 0;
     if (relevantBookingIds.isNotEmpty) {
       for (final bookingId in relevantBookingIds) {
         final booking = bookingMap[bookingId];
         if (booking == null) continue;
+        totalDue += booking.totalDueCached;
         final remaining = booking.remainingBalanceCached;
         if (remaining > 0) {
           totalRemaining += remaining;
@@ -195,6 +199,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       rows: rows,
       totalPaid: totalPaid,
       totalRemaining: totalRemaining,
+      totalDue: totalDue,
     );
   }
 
@@ -464,30 +469,46 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _buildSummaryTile(
-                'المدفوع',
-                _currencyFmt.format(_totalPaid),
-                Colors.green,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryTile(
+                    'المدفوع (في الفترة)',
+                    _currencyFmt.format(_totalPaid),
+                    Colors.green,
+                  ),
+                ),
+                Container(width: 1, height: 28, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'عدد السجلات',
+                    _rows.length.toString(),
+                    Colors.blue,
+                  ),
+                ),
+              ],
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildSummaryTile(
-                'المتبقي',
-                _currencyFmt.format(_totalRemaining),
-                Colors.red,
-              ),
-            ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildSummaryTile(
-                'السجلات',
-                _rows.length.toString(),
-                Colors.blue,
-              ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryTile(
+                    'إجمالي المستحق',
+                    _currencyFmt.format(_totalDue),
+                    Colors.purple,
+                  ),
+                ),
+                Container(width: 1, height: 28, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'المتبقي المستحق',
+                    _currencyFmt.format(_totalRemaining),
+                    Colors.red,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -567,9 +588,11 @@ class _PaymentsReportResult {
     required this.rows,
     required this.totalPaid,
     required this.totalRemaining,
+    required this.totalDue,
   });
 
   final List<_PaymentReportRow> rows;
   final double totalPaid;
   final double totalRemaining;
+  final double totalDue;
 }

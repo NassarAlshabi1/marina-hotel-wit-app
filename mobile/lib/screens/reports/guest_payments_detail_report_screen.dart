@@ -335,8 +335,10 @@ class _GuestPaymentsDetailReportScreenState
       );
     }
 
-    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
+    final totalDue = filtered.fold(0.0, (s, b) => s + b.totalDueCached);
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
+    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
+    final totalCredit = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0));
 
     return Column(
       children: [
@@ -347,9 +349,15 @@ class _GuestPaymentsDetailReportScreenState
             children: [
               _buildSummaryItem('النزلاء', '${filtered.length}', Colors.white),
               const Spacer(),
-              _buildSummaryItem('إجمالي المحصل', CurrencyFormatter.formatAmount(totalPaid), Colors.green.shade300),
+              _buildSummaryItem('المستحق', CurrencyFormatter.formatAmount(totalDue), Colors.amber.shade300),
               const Spacer(),
-              _buildSummaryItem('إجمالي المتبقي', CurrencyFormatter.formatAmount(totalRemaining), Colors.orange.shade300),
+              _buildSummaryItem('المحصل', CurrencyFormatter.formatAmount(totalPaid), Colors.green.shade300),
+              const Spacer(),
+              _buildSummaryItem('المتبقي', CurrencyFormatter.formatAmount(totalRemaining), Colors.orange.shade300),
+              if (totalCredit > 0) ...[
+                const Spacer(),
+                _buildSummaryItem('زيادة', CurrencyFormatter.formatAmount(totalCredit), Colors.teal.shade300),
+              ],
             ],
           ),
         ),
@@ -869,8 +877,10 @@ class _GuestPaymentsDetailReportScreenState
       return;
     }
 
-    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
+    final totalDue = filtered.fold(0.0, (s, b) => s + b.totalDueCached);
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
+    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
+    final totalCredit = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0));
 
     final now = DateTime.now();
     final dateStr = DateFormat('yyyy/MM/dd HH:mm').format(now);
@@ -888,8 +898,11 @@ class _GuestPaymentsDetailReportScreenState
             content: [
               _buildPdfInfoRow(fonts, 'تاريخ التقرير:', dateStr),
               _buildPdfInfoRow(fonts, 'عدد النزلاء:', '${filtered.length}', valueColor: PdfColor(0.0, 0.4, 0.8)),
+              _buildPdfInfoRow(fonts, 'إجمالي المستحق:', '${CurrencyFormatter.formatAmount(totalDue)} ريال', valueColor: PdfColor(0.6, 0.4, 0.0)),
               _buildPdfInfoRow(fonts, 'إجمالي المحصل:', '${CurrencyFormatter.formatAmount(totalPaid)} ريال', valueColor: PdfColor(0.0, 0.6, 0.2)),
               _buildPdfInfoRow(fonts, 'إجمالي المتبقي:', '${CurrencyFormatter.formatAmount(totalRemaining)} ريال', valueColor: PdfColor(0.9, 0.3, 0.1)),
+              if (totalCredit > 0)
+                _buildPdfInfoRow(fonts, 'إجمالي الزيادة:', '${CurrencyFormatter.formatAmount(totalCredit)} ريال', valueColor: PdfColor(0.0, 0.6, 0.6)),
             ],
           ),
         ];

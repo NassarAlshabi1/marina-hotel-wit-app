@@ -186,11 +186,13 @@ class ReportsScreen extends ConsumerWidget {
       );
     });
 
-    // month revenue vs expense: placeholder from local
-    final incomes = await db.select(db.cashTransactions).get();
+    // month revenue vs expense: from actual payments and expenses tables
+    final allPayments = await db.select(db.payments).get();
     double income = 0;
-    for (final i in incomes as List) {
-      income += (i.amount as num).toDouble();
+    for (final p in allPayments as List) {
+      if (p.deletedAt != null) continue;
+      if (p.isVoided == true) continue;
+      income += (p.amount as num).toDouble();
     }
     final expenses = await db.select(db.expenses).get();
     double expense = 0;
