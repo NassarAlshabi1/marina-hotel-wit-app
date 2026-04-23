@@ -20,6 +20,7 @@ import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/stay_balance_calculator.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -33,7 +34,9 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+  @override
+  String get screenId => 'booking_payment';
   late TabController _tabController;
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
@@ -1185,6 +1188,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         Icons.currency_exchange,
         Colors.amber.shade700,
         () => _showEarlyCheckoutDialog(summary),
+      ),
+      _buildActionCard(
+        'إلغاء يوم إضافي',
+        'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
+        Icons.remove_circle_outline,
+        Colors.red.shade700,
+        () => _showCancelTodayPaymentDialog(summary),
       ),
       _buildActionCard(
         'إرسال كشف حساب',
@@ -2536,6 +2546,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
 
+      // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
+      markDataChanged();
+
       // 4. إرسال رسالة واتساب
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
       if (cleanedPhone.isNotEmpty) {
@@ -2625,6 +2638,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       if (room != null) {
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
+      // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
+      markDataChanged();
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
@@ -2646,6 +2661,210 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل المغادرة: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  /// نافذة تأكيد إلغاء دفعة اليوم الفندقي فقط (بدون تسجيل خروج)
+  /// تستخدم عندما يخرج النزيل قبل بداية اليوم الفندقي الجديد وينسى العامل
+  /// تسجيل خروجه فيتم احتساب يوم إضافي بالخطأ
+  void _showCancelTodayPaymentDialog(BookingPaymentSummary summary) {
+    final paymentsRepo = ref.read(paymentsRepoProvider);
+    final hotelDay = Time.hotelDayKey();
+
+    // عرض نافذة التأكيد مع تفاصيل الدفعات
+    showDialog(
+      context: context,
+      builder: (context) => FutureBuilder<List<db.Payment>>(
+        future: paymentsRepo.paymentsByBooking(widget.booking.id).first,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const AlertDialog(
+              content: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final allPayments = snapshot.data!;
+          final todayPayments = allPayments.where((p) =>
+              !p.isVoided &&
+              (p.hotelDayKey == hotelDay ||
+                  (p.hotelDayKey == null &&
+                      p.paymentDate.startsWith(hotelDay)))).toList();
+
+          if (todayPayments.isEmpty) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('لا توجد دفعات اليوم'),
+                ],
+              ),
+              content: const Text(
+                'لا توجد مدفوعات مسجلة في اليوم الفندقي الحالي لإلغائها.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
+                ),
+              ],
+            );
+          }
+
+          final todayTotal = todayPayments.fold<double>(
+              0, (s, p) => s + p.amount);
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.remove_circle_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text('إلغاء دفعة اليوم الفندقي'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'اليوم الفندقي: $hotelDay',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'عدد المدفوعات المراد إلغاؤها: ${todayPayments.length}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'إجمالي المبلغ المراد إلغاؤه: ${_currencyFmt.format(todayTotal)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '⚠️ سيتم حذف دفعات اليوم الفندقي فقط. سجل خروج النزيل منفصل عبر زر "تسجيل المغادرة".',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'تفاصيل المدفوعات المراد إلغاؤها:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...todayPayments.map((p) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${p.notes ?? p.paymentMethod}',
+                                style: const TextStyle(fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              '${_currencyFmt.format(p.amount)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _processCancelTodayPayments(todayPayments);
+                },
+                icon: const Icon(Icons.check_circle, size: 18),
+                label: const Text('تأكيد إلغاء الدفعات'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// معالجة إلغاء دفعات اليوم الفندقي فقط (بدون تسجيل خروج أو تحرير غرفة)
+  /// paymentsRepo.delete → dao.softDelete → _mergeOutbox → كتابة في outbox للمزامنة
+  Future<void> _processCancelTodayPayments(
+      List<db.Payment> paymentsToCancel) async {
+    try {
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+
+      // حذف (soft delete) دفعات اليوم الفندقي عبر PaymentsRepository
+      // الذي يكتب إلى outbox تلقائياً عبر dao.softDelete → _mergeOutbox
+      for (final p in paymentsToCancel) {
+        await paymentsRepo.delete(p.id);
+      }
+
+      // ✅ تسجيل تغيير المزامنة (نفس النمط الموجود في _processCheckout)
+      markDataChanged();
+
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم إلغاء ${paymentsToCancel.length} دفعة بنجاح',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            textColor: Colors.white,
+            onPressed: () => messenger.hideCurrentSnackBar(),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في إلغاء دفعات اليوم: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إلغاء الدفعات: $e'),
             backgroundColor: Colors.red.shade900,
             duration: const Duration(seconds: 5),
           ),

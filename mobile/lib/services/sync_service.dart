@@ -471,14 +471,48 @@ class SyncService {
                 guestPhone: data['guest_phone'] != null
                     ? d.Value(data['guest_phone'] as String)
                     : const d.Value.absent(),
+                guestIdType: data['guest_id_type'] != null
+                    ? d.Value(data['guest_id_type'] as String)
+                    : const d.Value.absent(),
+                guestIdNumber: data['guest_id_number'] != null
+                    ? d.Value(data['guest_id_number'] as String)
+                    : const d.Value.absent(),
+                guestIdIssueDate: data['guest_id_issue_date'] != null
+                    ? d.Value(data['guest_id_issue_date'] as String)
+                    : const d.Value.absent(),
+                guestIdIssuePlace: data['guest_id_issue_place'] != null
+                    ? d.Value(data['guest_id_issue_place'] as String)
+                    : const d.Value.absent(),
+                guestNationality: data['guest_nationality'] != null
+                    ? d.Value(data['guest_nationality'] as String)
+                    : const d.Value.absent(),
+                guestEmail: data['guest_email'] != null
+                    ? d.Value(data['guest_email'] as String?)
+                    : const d.Value.absent(),
+                guestAddress: data['guest_address'] != null
+                    ? d.Value(data['guest_address'] as String?)
+                    : const d.Value.absent(),
                 checkinDate: data['checkin_date'] != null
                     ? d.Value(data['checkin_date'] as String)
                     : const d.Value.absent(),
-                checkoutDate: d.Value(data['checkout_date'] as String?),
+                checkoutDate: data['checkout_date'] != null
+                    ? d.Value(data['checkout_date'] as String)
+                    : const d.Value.absent(),
+                actualCheckout: data['actual_checkout'] != null
+                    ? d.Value(data['actual_checkout'] as String)
+                    : const d.Value.absent(),
                 status: data['status'] != null
                     ? d.Value(data['status'] as String)
                     : const d.Value.absent(),
-                notes: d.Value(data['notes'] as String?),
+                notes: data['notes'] != null
+                    ? d.Value(data['notes'] as String?)
+                    : const d.Value.absent(),
+                expectedNights: data['expected_nights'] != null
+                    ? d.Value(_asInt(data['expected_nights'])!)
+                    : const d.Value.absent(),
+                calculatedNights: data['calculated_nights'] != null
+                    ? d.Value(_asInt(data['calculated_nights'])!)
+                    : const d.Value.absent(),
                 origin: const d.Value('server'),
               ),
               originIsServer: true,
@@ -491,13 +525,24 @@ class SyncService {
               roomNumber: d.Value(room ?? ''),
               guestName: d.Value(data['guest_name'] as String? ?? ''),
               guestPhone: d.Value(data['guest_phone'] as String? ?? ''),
+              guestIdType: d.Value(data['guest_id_type'] as String? ?? 'بطاقة شخصية'),
+              guestIdNumber: d.Value(data['guest_id_number'] as String? ?? ''),
+              guestIdIssueDate: d.Value(data['guest_id_issue_date'] as String?),
+              guestIdIssuePlace: d.Value(data['guest_id_issue_place'] as String?),
               guestNationality: d.Value(data['guest_nationality'] as String? ?? ''),
               guestEmail: d.Value(data['guest_email'] as String?),
               guestAddress: d.Value(data['guest_address'] as String?),
               checkinDate: d.Value(data['checkin_date'] as String? ?? Time.nowIso()),
               checkoutDate: d.Value(data['checkout_date'] as String?),
+              actualCheckout: d.Value(data['actual_checkout'] as String?),
               status: d.Value(data['status'] as String? ?? 'محجوزة'),
               notes: d.Value(data['notes'] as String?),
+              expectedNights: d.Value(
+                _asInt(data['expected_nights']) ?? 1,
+              ),
+              calculatedNights: d.Value(
+                _asInt(data['calculated_nights']),
+              ),
               serverId: d.Value(sbid),
             ),
             originIsServer: true,
