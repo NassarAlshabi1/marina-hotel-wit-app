@@ -541,7 +541,7 @@ class SyncService {
                 _asInt(data['expected_nights']) ?? 1,
               ),
               calculatedNights: d.Value(
-                _asInt(data['calculated_nights']),
+                _asInt(data['calculated_nights']) ?? 1,
               ),
               serverId: d.Value(sbid),
             ),
