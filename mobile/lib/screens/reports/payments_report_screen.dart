@@ -11,6 +11,7 @@ import '../../providers/core_providers.dart' as coreProviders;
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
+import '../../services/booking_derived_fields_service.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
@@ -61,6 +62,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     _fromDate = range.from;
     _toDate = range.to;
     await _loadRooms();
+    // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
+    // لضمان دقة المجاميع في التقرير
+    try {
+      final db = ref.read(coreProviders.dbProvider);
+      final derivedService = BookingDerivedFieldsService(db);
+      await derivedService.refreshAllActiveBookings();
+    } catch (_) {}
     await _fetchReport();
   }
 
@@ -135,12 +143,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
       if (bookingRoom != null) roomNumbers.add(bookingRoom);
     }
-    final rooms = roomNumbers.isEmpty
-        ? <Room>[]
-        : await (db.select(
-            db.rooms,
-          )..where((tbl) => tbl.roomNumber.isIn(roomNumbers.toList()))).get();
-    final roomsMap = {for (final r in rooms) r.roomNumber: r};
+    // rooms لم تعد مطلوبة للحساب لأننا نستخدم القيم المحسوبة من الحجز مباشرة
 
     final rows = <_PaymentReportRow>[];
     double totalPaid = 0;
@@ -173,35 +176,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
+    // حساب إجمالي المتبقي باستخدام القيم المحسوبة الموثوقة من الحجز
+    // (totalDueCached محسوب من تعديلات الأسعار + الخصومات الفعلية)
+    // (remainingBalanceCached = totalDueCached - totalPaidCached مع مراعاة الفلاتر)
     double totalRemaining = 0;
     if (relevantBookingIds.isNotEmpty) {
-      final bookingTotals = <int, double>{};
       for (final bookingId in relevantBookingIds) {
         final booking = bookingMap[bookingId];
         if (booking == null) continue;
-        final room = roomsMap[booking.roomNumber];
-        final nights = booking.expectedNights > 0 ? booking.expectedNights : 1;
-        final pricePerNight = room?.price ?? 0;
-        final discount = booking.discount;
-        final total = (nights * pricePerNight) - discount;
-        bookingTotals[bookingId] = total > 0 ? total : 0;
-      }
-
-      final allPaymentsForBookings =
-          await (db.select(db.payments)..where(
-                (tbl) => tbl.bookingLocalId.isIn(relevantBookingIds.toList()),
-              ))
-              .get();
-      final paidByBooking = <int, double>{};
-      for (final p in allPaymentsForBookings) {
-        final id = p.bookingLocalId;
-        if (id == null) continue;
-        paidByBooking[id] = (paidByBooking[id] ?? 0) + p.amount;
-      }
-
-      for (final entry in bookingTotals.entries) {
-        final paid = paidByBooking[entry.key] ?? 0;
-        final remaining = entry.value - paid;
+        final remaining = booking.remainingBalanceCached;
         if (remaining > 0) {
           totalRemaining += remaining;
         }
