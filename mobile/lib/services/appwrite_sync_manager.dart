@@ -512,12 +512,26 @@ class AppwriteSyncManager {
         throw Exception('No internet connection');
       }
 
+      // ✅ تسجيل الجهاز تلقائياً إذا لم يكن مسجلاً بعد
+      if (_currentDeviceId == null) {
+        try {
+          await registerDevice();
+        } catch (e) {
+          _logger.warning('تسجيل الجهاز فشل، سنستخدم معرف محلي: $e', tag: 'SYNC');
+        }
+      }
+
+      // ✅ استخدام معرف محلي كـ fallback إذا فشل تسجيل الجهاز
+      final effectiveDeviceId = _currentDeviceId ??
+          _getLocalDeviceId() ??
+          'unknown';
+
       // إنشاء سجل مزامنة
       syncLogLocalUuid = IdGen.uuid();
       syncLogCreatedEpoch = Time.nowEpoch();
 
       final syncLog = await appwriteService.createSyncLog({
-        'deviceId': _currentDeviceId ?? 'unknown',
+        'deviceId': effectiveDeviceId,
         'operation': push && pull
             ? 'full'
             : push
@@ -3311,6 +3325,12 @@ class AppwriteSyncManager {
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get currentDeviceId => _currentDeviceId;
   bool get isSyncing => _currentStatus == SyncStatus.syncing;
+
+  /// ✅ معرف الجهاز المحلي من SharedPreferences (fallback إذا لم يُسجَّل في Appwrite)
+  Future<String?> _getLocalDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('appwrite_delta_device_id');
+  }
 
   // ---------------------------------------------------------------------------
   // Sync Helpers for Additional Entities
