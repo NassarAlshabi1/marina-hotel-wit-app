@@ -391,15 +391,34 @@ class AppwriteDeltaSync {
           );
         }
       } else {
-        // أول سحب: جلب كل شيء بحد أقصى معقول (مثلاً آخر 500 سجل)
-        documents = await _appwriteService!.listDocuments(
-          collectionId: collectionId,
-          queries: [
-            ...filterQueries,
-            Query.limit(500),
-          ],
-          useCache: false,
-        );
+        // ✅ أول سحب: جلب كل شيء مع ترقيم صفحات (pagination)
+        // لضمان عدم فقدان أي بيانات عند وجود أكثر من 500 سجل
+        const pageSize = 500;
+        int offset = 0;
+        List<models.Document> allDocuments = [];
+
+        while (true) {
+          final page = await _appwriteService!.listDocuments(
+            collectionId: collectionId,
+            queries: [
+              ...filterQueries,
+              Query.limit(pageSize),
+              Query.offset(offset),
+            ],
+            useCache: false,
+          );
+
+          allDocuments.addAll(page);
+          _logger.info(
+            '📥 سحب أولي $entity: صفحة ${offset ~/ pageSize + 1} — ${page.length} سجل',
+            tag: 'DELTA_SYNC',
+          );
+
+          if (page.length < pageSize) break; // آخر صفحة
+          offset += pageSize;
+        }
+
+        documents = allDocuments;
       }
 
       // ✅ معالجة المستندات المسحوبة

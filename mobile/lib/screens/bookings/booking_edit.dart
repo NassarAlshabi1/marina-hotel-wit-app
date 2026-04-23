@@ -639,7 +639,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         setState(() => _isSaving = true);
                         int? newBookingId;
                         if (widget.existing == null) {
-                          await repo.create(
+                          newBookingId = await repo.create(
                             roomNumber: roomNumber,
                             guestName: name,
                             guestPhone: phone,
@@ -658,7 +658,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             expectedNights: expectedNights,
                             calculatedNights: calculatedNights,
                           );
-                          newBookingId = result;
                         } else {
                           newBookingId = widget.existing!.id;
                           await repo.update(

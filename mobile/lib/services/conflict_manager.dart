@@ -162,11 +162,32 @@ class ConflictManager {
     Map<String, dynamic> resolution,
   ) async {
     try {
+      // ✅ استخراج الجدول و UUID من conflictId
+      // الصيغة: ${table}_${uuid}_${timestamp}
+      // UUID لا يحتوي على '_' أبداً (يحتوي على '-' فقط)
+      // timestamp هو أرقام فقط
+      // لذلك: آخر عنصر = timestamp، العنصر الذي يحتوي '-' = UUID، والباقي = اسم الجدول
       final parts = conflictId.split('_');
-      if (parts.length < 2) return;
+      if (parts.length < 3) return;
 
-      final table = parts[0];
-      final uuid = parts[1];
+      // آخر عنصر هو الطابع الزمني (أرقام)
+      // نبحث عن UUID الذي يحتوي على '-' ولا يمكن أن يكون جزءاً من اسم الجدول
+      String table = '';
+      String uuid = '';
+      bool uuidFound = false;
+
+      for (int i = 0; i < parts.length - 1; i++) {
+        final part = parts[i];
+        // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (يحتوي '-' ولا يحتوي '_')
+        if (!uuidFound && part.contains('-') && part.length >= 20) {
+          uuid = part;
+          uuidFound = true;
+        } else if (!uuidFound) {
+          table += (table.isEmpty ? '' : '_') + part;
+        }
+      }
+
+      if (table.isEmpty || uuid.isEmpty) return;
 
       final query = db.select(db.syncConflicts)
         ..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
