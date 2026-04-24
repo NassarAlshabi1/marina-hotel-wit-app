@@ -33,18 +33,12 @@ class RoomWithPaymentStatus {
   }
 }
 
-/// بروفايدر لمراقبة الوقت الحالي (يحدث كل دقيقة)
-final currentTimeProvider = StreamProvider<DateTime>((ref) {
-  return Stream.periodic(const Duration(minutes: 1), (_) => DateTime.now())
-      .asyncMap((_) async => DateTime.now());
-});
-
 /// بروفايدر يدمج الغرف مع حالة تأخر السداد — يتحدث تلقائياً مع تغييرات DB
 final roomsWithPaymentStatusProvider =
     StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
-  final roomsStream = ref.watch(roomsListProvider).stream;
-  final bookingsStream = ref.watch(bookingsListProvider).stream;
-  final timeStream = ref.watch(currentTimeProvider).stream;
+  // استخدام الـ repositories مباشرة للحصول على Streams حقيقية
+  final roomsStream = ref.watch(roomsRepoProvider).watchAll();
+  final bookingsStream = ref.watch(bookingsRepoProvider).watch();
 
   // دمج الستريمان — أي تغيير في غرف، حجوزات، أو الوقت يُعيد حساب الحالات
   final controller = StreamController<List<RoomWithPaymentStatus>>();
@@ -107,12 +101,14 @@ final roomsWithPaymentStatusProvider =
     computeAndEmit();
   });
 
-  timeStream.listen((time) {
-    lastTime = time;
+  // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر (23:00-06:00)
+  final timer = Timer.periodic(const Duration(minutes: 1), (_) {
+    lastTime = DateTime.now();
     computeAndEmit();
   });
 
   ref.onDispose(() {
+    timer.cancel();
     controller.close();
   });
 
