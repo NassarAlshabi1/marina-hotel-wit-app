@@ -8,6 +8,7 @@ import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
+import '../../services/appwrite_models.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
@@ -555,7 +556,7 @@ class _AppwriteSettingsScreenState
                 Expanded(
                   child: _buildStatCard(
                     title: 'الحجم',
-                    value: '${cacheStats.totalSizeMB} MB',
+                    value: '${cacheStats.totalSizeMB}',
                     icon: Icons.data_usage,
                     color: Colors.green,
                   ),
@@ -760,7 +761,7 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== قسم الأجهزة المسجلة ====================
-  Widget _buildDevicesSection(BuildContext context, AsyncValue devicesAsync) {
+  Widget _buildDevicesSection(BuildContext context, AsyncValue<List<AppwriteDevice>> devicesAsync) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -781,8 +782,7 @@ class _AppwriteSettingsScreenState
 
             devicesAsync.when(
               data: (devices) {
-                final devicesList = devices as List;
-                if (devicesList.isEmpty) {
+                if (devices.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(16),
@@ -791,13 +791,12 @@ class _AppwriteSettingsScreenState
                   );
                 }
                 return Column(
-                  children: devicesList.map<Widget>((device) {
-                    final d = device as Map<String, dynamic>;
+                  children: devices.map<Widget>((device) {
                     return ListTile(
-                      leading: Icon(Icons.phone_android, color: Colors.teal),
-                      title: Text(d['deviceName'] as String? ?? ''),
+                      leading: const Icon(Icons.phone_android, color: Colors.teal),
+                      title: Text(device.deviceName),
                       subtitle: Text(
-                        '${d['deviceModel'] ?? ''} - ${d['osVersion'] ?? ''}',
+                        '${device.deviceModel} - ${device.osVersion}',
                       ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(
@@ -805,13 +804,13 @@ class _AppwriteSettingsScreenState
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: d['status'] == 'active'
+                          color: device.status == 'active'
                               ? Colors.green
                               : Colors.grey,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          d['status'] == 'active' ? 'نشط' : 'غير نشط',
+                          device.status == 'active' ? 'نشط' : 'غير نشط',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
