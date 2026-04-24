@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/local_db.dart';
@@ -187,15 +188,43 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
-// Daily Statistics Providers
-final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
+// Daily Statistics Providers — تحديث كل 30 ثانية للرد الفوري
+final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  return ref.watch(paymentsRepoProvider).getTotalByHotelDayKey(hotelDay);
+  final controller = StreamController<double>.broadcast();
+  Future<void> fetch() async {
+    try {
+      final total = await paymentsRepo.getTotalByHotelDayKey(hotelDay);
+      if (!controller.isClosed) controller.add(total);
+    } catch (_) {}
+  }
+  fetch();
+  final timer = Timer.periodic(const Duration(seconds: 30), (_) => fetch());
+  ref.onDispose(() {
+    timer.cancel();
+    controller.close();
+  });
+  return controller.stream;
 });
 
-final todayExpensesProvider = FutureProvider.autoDispose((ref) {
+final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
+  final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  return ref.watch(expensesRepoProvider).getTotalByHotelDayKey(hotelDay);
+  final controller = StreamController<double>.broadcast();
+  Future<void> fetch() async {
+    try {
+      final total = await expensesRepo.getTotalByHotelDayKey(hotelDay);
+      if (!controller.isClosed) controller.add(total);
+    } catch (_) {}
+  }
+  fetch();
+  final timer = Timer.periodic(const Duration(seconds: 30), (_) => fetch());
+  ref.onDispose(() {
+    timer.cancel();
+    controller.close();
+  });
+  return controller.stream;
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
