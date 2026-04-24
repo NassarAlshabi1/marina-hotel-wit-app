@@ -91,12 +91,12 @@ final roomsWithPaymentStatusProvider =
     }
   }
 
-  roomsStream.listen((rooms) {
+  final roomsSub = roomsStream.listen((rooms) {
     lastRooms = rooms;
     computeAndEmit();
   });
 
-  bookingsStream.listen((bookings) {
+  final bookingsSub = bookingsStream.listen((bookings) {
     lastBookings = bookings;
     computeAndEmit();
   });
@@ -108,6 +108,8 @@ final roomsWithPaymentStatusProvider =
   });
 
   ref.onDispose(() {
+    roomsSub.cancel();
+    bookingsSub.cancel();
     timer.cancel();
     controller.close();
   });
