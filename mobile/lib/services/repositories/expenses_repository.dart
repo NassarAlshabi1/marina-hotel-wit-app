@@ -15,6 +15,8 @@ class ExpensesRepository {
   final ExpensesDao dao;
 
   Stream<List<Expense>> watchAll() => dao.watchList();
+  Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) =>
+      dao.watchByHotelDayKey(hotelDayKey);
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
   Future<List<Expense>> listFiltered({
     String? from,

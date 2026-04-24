@@ -67,6 +67,19 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.watch();
   }
 
+  /// مراقبة المصروفات ليوم فندقي محدد (يتحدث فوراً عند الإضافة/التعديل)
+  Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) {
+    final q = select(expenses);
+    q.where((t) => t.deletedAt.isNull());
+
+    final byKey = expenses.hotelDayKey.equals(hotelDayKey);
+    final byDateFallback =
+        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+
+    q.where((t) => byKey | byDateFallback);
+    return q.watch();
+  }
+
   /// جلب المصروفات لتاريخ محدد
   Future<List<Expense>> listByDate(
     String date, {

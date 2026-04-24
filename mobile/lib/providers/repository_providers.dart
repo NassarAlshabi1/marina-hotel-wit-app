@@ -203,10 +203,11 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  return expensesRepo.watchAll().map((expenses) {
+  // Stream مباشر من DB مع فلترة hotelDayKey + fallback للتواريخ القديمة
+  return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
     double total = 0;
     for (final e in expenses) {
-      if (e.hotelDayKey == hotelDay) total += e.amount;
+      total += e.amount;
     }
     return total;
   });
