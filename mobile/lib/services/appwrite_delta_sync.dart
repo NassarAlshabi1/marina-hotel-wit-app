@@ -20,18 +20,20 @@ class AppwriteDeltaSyncResult {
   final String message;
   final int pushedCount;
   final int pulledCount;
+  final int skippedConflicts;
 
   AppwriteDeltaSyncResult({
     required this.success,
     required this.message,
     this.pushedCount = 0,
     this.pulledCount = 0,
+    this.skippedConflicts = 0,
   });
 
   /// Alias getters for compatibility
   int get recordsPulled => pulledCount;
   int get recordsPushed => pushedCount;
-  bool get hasConflicts => false; // TODO: Implement actual conflict detection
+  bool get hasConflicts => skippedConflicts > 0;
 }
 
 class AppwriteDeltaSync {
@@ -43,6 +45,7 @@ class AppwriteDeltaSync {
   AppDatabase? _database;
   String? _deviceId;
   bool _isSyncing = false;
+  int _skippedConflicts = 0;
 
   final _logger = AppwriteLogger();
 
@@ -260,6 +263,7 @@ class AppwriteDeltaSync {
 
       final lastPullTs = await _getLastPullSyncTimestamp();
       int pulledCount = 0;
+      _skippedConflicts = 0;
 
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
@@ -296,7 +300,7 @@ class AppwriteDeltaSync {
         );
       }
 
-      if (pulledCount > 0) {
+      if (pulledCount > 0 || _skippedConflicts > 0) {
         await _updateLastPullSyncTimestamp();
         // تحديث lastPullTs المستقل لـ booking_nights
         await _updateBookingNightsPullTs(Time.nowEpoch());
@@ -321,10 +325,14 @@ class AppwriteDeltaSync {
         tag: 'DELTA_SYNC',
       );
 
+      final conflictMsg = _skippedConflicts > 0
+          ? ' | تم تخطي $_skippedConflicts تعارض (الأحدث أولاً)'
+          : '';
       return AppwriteDeltaSyncResult(
         success: true,
-        message: 'تم سحب التغييرات بنجاح',
+        message: 'تم سحب التغييرات بنجاح$conflictMsg',
         pulledCount: pulledCount,
+        skippedConflicts: _skippedConflicts,
       );
     } catch (e) {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
@@ -429,6 +437,18 @@ class AppwriteDeltaSync {
           } catch (e) {
             _logger.warning('Cannot parse updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
           }
+        }
+
+        // ✅ فحص التعارضات: مقارنة lastModified المحلي مع البعيد — الأحدث أولاً
+        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
+        final shouldApply = await _shouldApplyRemote(entity, doc.$id, incomingLastModified);
+        if (!shouldApply) {
+          _skippedConflicts++;
+          _logger.debug(
+            '⚡ تعارض $entity/${doc.$id}: البيانات المحلية أحدث → تم تخطي السحب',
+            tag: 'DELTA_SYNC',
+          );
+          continue;
         }
 
         try {
@@ -554,9 +574,17 @@ class AppwriteDeltaSync {
             .getSingleOrNull();
 
     if (existingByUuid != null) {
-      await (db.update(
-        db.rooms,
-      )..where((t) => t.localUuid.equals(localUuid))).write(companion);
+      // فحص التعارض: الأحدث أولاً عند تطابق localUuid
+      if (incomingLastModified >= existingByUuid.lastModified) {
+        await (db.update(
+          db.rooms,
+        )..where((t) => t.localUuid.equals(localUuid))).write(companion);
+      } else {
+        _logger.debug(
+          '⚡ تعارض rooms/$localUuid: محلي (${existingByUuid.lastModified}) أحدث من السحابة ($incomingLastModified) → تجاهل',
+          tag: 'DELTA_SYNC',
+        );
+      }
       return;
     }
 
@@ -1144,6 +1172,149 @@ class AppwriteDeltaSync {
     await db.into(db.salaryPayments).insertOnConflictUpdate(companion);
   }
 
+
+  /// فحص التعارضات: هل يجب تطبيق البيانات البعيدة؟
+  /// يقارن lastModified البعيد مع lastModified المحلي — الأحدث يفوز
+  Future<bool> _shouldApplyRemote(
+    String entity,
+    String localUuid,
+    int incomingLastModified,
+  ) async {
+    final db = _database!;
+    final localLastModified = await _getLocalLastModified(db, entity, localUuid);
+
+    // لا يوجد سجل محلي → إدراج آمن
+    if (localLastModified == null) return true;
+
+    // البيانات المحلية أحدث → تجاهل البعيد (الأحدث أولاً)
+    if (localLastModified > incomingLastModified) {
+      return false;
+    }
+
+    // البعيد بنفس العمر أو أحدث → تطبيق
+    return true;
+  }
+
+  /// استخراج lastModified للسجل المحلي حسب الكيان و localUuid
+  Future<int?> _getLocalLastModified(
+    AppDatabase db,
+    String entity,
+    String localUuid,
+  ) async {
+    switch (entity) {
+      case 'rooms':
+        final row = await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'bookings':
+        final row = await (db.select(db.bookings)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'payments':
+        final row = await (db.select(db.payments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'expenses':
+        final row = await (db.select(db.expenses)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'debts':
+        final row = await (db.select(db.debts)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'employees':
+        final row = await (db.select(db.employees)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'booking_nights':
+        final row = await (db.select(db.bookingNights)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'booking_notes':
+        final row = await (db.select(db.bookingNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'cash_transactions':
+        final row = await (db.select(db.cashTransactions)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'shift_notes':
+        final row = await (db.select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'salary_cycles':
+        final row = await (db.select(db.salaryCycles)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'salary_payments':
+        final row = await (db.select(db.salaryPayments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'price_adjustments':
+        final row = await (db.select(db.priceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'booking_price_adjustments':
+        final row = await (db.select(db.bookingPriceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'audit_logs':
+        // audit_logs لا يحتوي على lastModified، نستخدم timestamp كبديل
+        final row = await (db.select(db.auditLogs)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.timestamp;
+      case 'payment_voids':
+        final row = await (db.select(db.paymentVoids)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'guest_infos':
+        final row = await (db.select(db.guestInfos)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'salary_withdrawals':
+        final row = await (db.select(db.salaryWithdrawals)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      default:
+        return null;
+    }
+  }
 
   bool? _asBool(dynamic value) {
     if (value == null) return null;
