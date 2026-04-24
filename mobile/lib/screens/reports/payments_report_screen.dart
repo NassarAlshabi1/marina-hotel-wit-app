@@ -42,6 +42,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final List<String> _availableRooms = [];
 
   double _totalPaid = 0;
+  double _totalOtherPaid = 0;
   double _totalRemaining = 0;
   double _totalDue = 0;
 
@@ -100,6 +101,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ..clear()
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
+        _totalOtherPaid = result.totalOtherPaid;
         _totalRemaining = result.totalRemaining;
         _totalDue = result.totalDue;
       });
@@ -148,7 +150,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     // rooms لم تعد مطلوبة للحساب لأننا نستخدم القيم المحسوبة من الحجز مباشرة
 
     final rows = <_PaymentReportRow>[];
-    double totalPaid = 0;
+    double totalRoomPaid = 0;
+    double totalOtherPaid = 0;
     final relevantBookingIds = <int>{};
 
     for (final payment in payments) {
@@ -160,7 +163,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final bookingCode = booking != null
           ? _formatBookingCode(booking.id)
           : null;
-      totalPaid += payment.amount;
+      if (_isRoomPayment(payment.revenueType)) {
+        totalRoomPaid += payment.amount;
+      } else {
+        totalOtherPaid += payment.amount;
+      }
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
@@ -197,7 +204,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
     return _PaymentsReportResult(
       rows: rows,
-      totalPaid: totalPaid,
+      totalPaid: totalRoomPaid,
+      totalOtherPaid: totalOtherPaid,
       totalRemaining: totalRemaining,
       totalDue: totalDue,
     );
@@ -475,7 +483,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               children: [
                 Expanded(
                   child: _buildSummaryTile(
-                    'المدفوع (في الفترة)',
+                    'مدفوعات الغرفة',
                     _currencyFmt.format(_totalPaid),
                     Colors.green,
                   ),
@@ -483,9 +491,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 Container(width: 1, height: 28, color: Colors.grey.shade200),
                 Expanded(
                   child: _buildSummaryTile(
-                    'عدد السجلات',
-                    _rows.length.toString(),
-                    Colors.blue,
+                    'مدفوعات أخرى',
+                    _currencyFmt.format(_totalOtherPaid),
+                    Colors.teal,
                   ),
                 ),
               ],
@@ -531,6 +539,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       return 'شيك';
     }
     return value;
+  }
+
+  /// هل الدفعة تُحسب ضمن رسوم الغرفة؟
+  /// يجب أن يتطابق هذا المنطق مع _getTotalPayments في
+  /// EnhancedBookingCalculationService لضمان تناسق المجاميع.
+  static bool _isRoomPayment(String? revenueType) {
+    if (revenueType == null || revenueType.isEmpty) return true;
+    final r = revenueType.toLowerCase();
+    return r == 'room' || r == 'غرفة' || r == 'إقامة';
   }
 
   Widget _buildSummaryTile(String label, String value, Color color) {
@@ -593,6 +610,7 @@ class _PaymentsReportResult {
 
   final List<_PaymentReportRow> rows;
   final double totalPaid;
+  final double totalOtherPaid;
   final double totalRemaining;
   final double totalDue;
 }
