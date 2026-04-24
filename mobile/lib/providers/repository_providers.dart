@@ -191,10 +191,21 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
   final hotelDay = Time.hotelDayKey();
+  final startIso = Time.hotelDayStartIso(hotelDay);
+  final endIso = Time.hotelDayEndIso(hotelDay);
+  // watchAll() Stream يتحدث فوراً عند أي تغيير في payments table
+  // الفلترة في Dart تتطابق مع منطق listByHotelDayKey الأصلي
   return paymentsRepo.watchAll().map((payments) {
     double total = 0;
     for (final p in payments) {
-      if (p.hotelDayKey == hotelDay) total += p.amount;
+      if (p.isVoided) continue;
+      if (p.hotelDayKey == hotelDay) {
+        total += p.amount;
+      } else if (p.hotelDayKey == null &&
+          p.paymentDate.compareTo(startIso) >= 0 &&
+          p.paymentDate.compareTo(endIso) < 0) {
+        total += p.amount;
+      }
     }
     return total;
   });
@@ -203,11 +214,16 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  // Stream مباشر من DB مع فلترة hotelDayKey + fallback للتواريخ القديمة
-  return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
+  // watchAll() Stream يتحدث فوراً عند أي تغيير في expenses table
+  // الفلترة في Dart تتطابق مع منطق listByHotelDayKey الأصلي
+  return expensesRepo.watchAll().map((expenses) {
     double total = 0;
     for (final e in expenses) {
-      total += e.amount;
+      if (e.hotelDayKey == hotelDay) {
+        total += e.amount;
+      } else if (e.hotelDayKey == null && e.date.startsWith(hotelDay)) {
+        total += e.amount;
+      }
     }
     return total;
   });
