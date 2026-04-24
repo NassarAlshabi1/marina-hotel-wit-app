@@ -427,25 +427,37 @@ class AppwriteDeltaSync {
         // تخطي المستندات التي أرسلها هذا الجهاز نفسه
         if (sourceDeviceId == _deviceId) continue;
 
+        // ✅ استخراج $updatedAt من Appwrite (متوفر دائماً في كل مستند)
+        // نستخدمه كمرجع زمني أساسي لفحص التعارضات
+        // $updatedAt يُحدَّث تلقائياً عند أي تعديل على المستند في Appwrite
+        int? remoteUpdatedAtSec;
+        try {
+          remoteUpdatedAtSec = (DateTime.parse(doc.$updatedAt).millisecondsSinceEpoch / 1000).round();
+        } catch (e) {
+          _logger.warning('Cannot parse \$updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
+        }
+
         // ✅ فلترة إضافية بالوقت للتأكد من أننا لا نعالج بيانات قديمة
-        if (lastPullTs > 0) {
-          try {
-            final updatedAt = DateTime.parse(doc.$updatedAt);
-            if (updatedAt.millisecondsSinceEpoch <= lastPullMs) {
-              continue;
-            }
-          } catch (e) {
-            _logger.warning('Cannot parse updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
+        if (lastPullTs > 0 && remoteUpdatedAtSec != null) {
+          if (remoteUpdatedAtSec * 1000 <= lastPullMs) {
+            continue;
           }
         }
 
         // ✅ فحص التعارضات: مقارنة lastModified المحلي مع البعيد — الأحدث أولاً
-        final incomingLastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
-        final shouldApply = await _shouldApplyRemote(entity, doc.$id, incomingLastModified);
+        // نستخدم data['lastModified'] كمرجع أساسي (متوفر في كل 17 مجموعة بعد الفحص)
+        // و $updatedAt كبديل موثوق في حال عدم وجود lastModified
+        int effectiveRemoteTs = remoteUpdatedAtSec ?? Time.nowEpoch();
+        final dataLastModified = _asInt(data['lastModified']);
+        if (dataLastModified != null && dataLastModified > effectiveRemoteTs) {
+          effectiveRemoteTs = dataLastModified;
+        }
+
+        final shouldApply = await _shouldApplyRemote(entity, doc.$id, effectiveRemoteTs);
         if (!shouldApply) {
           _skippedConflicts++;
           _logger.debug(
-            '⚡ تعارض $entity/${doc.$id}: البيانات المحلية أحدث → تم تخطي السحب',
+            '⚡ تعارض $entity/${doc.$id}: المحلية أحدث (local > $effectiveRemoteTs) → تخطي',
             tag: 'DELTA_SYNC',
           );
           continue;
@@ -1174,11 +1186,11 @@ class AppwriteDeltaSync {
 
 
   /// فحص التعارضات: هل يجب تطبيق البيانات البعيدة؟
-  /// يقارن lastModified البعيد مع lastModified المحلي — الأحدث يفوز
+  /// يقارن $updatedAt البعيد (من Appwrite) مع lastModified المحلي — الأحدث يفوز
   Future<bool> _shouldApplyRemote(
     String entity,
     String localUuid,
-    int incomingLastModified,
+    int remoteUpdatedAtSec,
   ) async {
     final db = _database!;
     final localLastModified = await _getLocalLastModified(db, entity, localUuid);
@@ -1186,8 +1198,10 @@ class AppwriteDeltaSync {
     // لا يوجد سجل محلي → إدراج آمن
     if (localLastModified == null) return true;
 
-    // البيانات المحلية أحدث → تجاهل البعيد (الأحدث أولاً)
-    if (localLastModified > incomingLastModified) {
+    // البيانات المحلية أحدث بفارق > 5 ثوانٍ → تجاهل البعيد (الأحدث أولاً)
+    // نستخدم هامش 5 ثوانٍ لتجنب التعارضات في حالات السباق
+    const toleranceSeconds = 5;
+    if (localLastModified > remoteUpdatedAtSec + toleranceSeconds) {
       return false;
     }
 
