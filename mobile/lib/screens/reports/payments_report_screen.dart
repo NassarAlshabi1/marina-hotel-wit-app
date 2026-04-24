@@ -604,6 +604,7 @@ class _PaymentsReportResult {
   _PaymentsReportResult({
     required this.rows,
     required this.totalPaid,
+    required this.totalOtherPaid,
     required this.totalRemaining,
     required this.totalDue,
   });
