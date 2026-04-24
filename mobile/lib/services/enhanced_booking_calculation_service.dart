@@ -248,7 +248,7 @@ class EnhancedBookingCalculationService {
         }
       }
 
-      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 3);
+      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100);
 
       breakdown.add(
         NightlyBreakdown(
