@@ -1019,8 +1019,8 @@ class AppwriteService {
   /// الحصول على معلومات المشروع
   Map<String, String> getProjectInfo() {
     return {
-      'endpoint': AppwriteConfig.endpoint,
-      'projectId': AppwriteConfig.projectId,
+      'endpoint': AppwriteConfigManager.endpoint,
+      'projectId': AppwriteConfigManager.projectId,
       'databaseId': AppwriteConfigManager.databaseId,
       'initialized': _initialized.toString(),
     };
