@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/local_db.dart';
@@ -188,43 +187,29 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
-// Daily Statistics Providers — تحديث كل 30 ثانية للرد الفوري
+// Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  final controller = StreamController<double>.broadcast();
-  Future<void> fetch() async {
-    try {
-      final total = await paymentsRepo.getTotalByHotelDayKey(hotelDay);
-      if (!controller.isClosed) controller.add(total);
-    } catch (_) {}
-  }
-  fetch();
-  final timer = Timer.periodic(const Duration(seconds: 30), (_) => fetch());
-  ref.onDispose(() {
-    timer.cancel();
-    controller.close();
+  return paymentsRepo.watchAll().map((payments) {
+    double total = 0;
+    for (final p in payments) {
+      if (p.hotelDayKey == hotelDay) total += p.amount;
+    }
+    return total;
   });
-  return controller.stream;
 });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  final controller = StreamController<double>.broadcast();
-  Future<void> fetch() async {
-    try {
-      final total = await expensesRepo.getTotalByHotelDayKey(hotelDay);
-      if (!controller.isClosed) controller.add(total);
-    } catch (_) {}
-  }
-  fetch();
-  final timer = Timer.periodic(const Duration(seconds: 30), (_) => fetch());
-  ref.onDispose(() {
-    timer.cancel();
-    controller.close();
+  return expensesRepo.watchAll().map((expenses) {
+    double total = 0;
+    for (final e in expenses) {
+      if (e.hotelDayKey == hotelDay) total += e.amount;
+    }
+    return total;
   });
-  return controller.stream;
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
