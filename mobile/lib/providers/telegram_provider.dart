@@ -37,8 +37,8 @@ class TelegramState {
     this.isConfigured = true,
     this.isNotificationsEnabled = true,
     this.isDailyReportEnabled = true,
-    this.botToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
-    this.chatId = '5944227208',
+    this.botToken = '7379268',
+    this.chatId = '967773749389',
     this.dailyReportTime = '02:00',
     this.lastReportSent,
   });

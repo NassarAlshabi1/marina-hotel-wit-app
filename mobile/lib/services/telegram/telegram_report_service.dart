@@ -44,7 +44,7 @@ class TelegramDailyReportData {
   });
 }
 
-/// خدمة التقارير اليومية عبر Telegram
+/// خدمة التقارير اليومية عبر WhatsApp (CallMeBot)
 class TelegramReportService {
   static TelegramReportService? _instance;
   static TelegramReportService get instance =>
@@ -64,7 +64,7 @@ class TelegramReportService {
       final hotelDayKey = Time.hotelDayKey();
       final lastSent = await TelegramConfig.getLastReportSent();
       if (lastSent == hotelDayKey) {
-        debugPrint('⏭️ Telegram: تم إرسال تقرير اليوم بالفعل');
+        debugPrint('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
         return true;
       }
 
@@ -76,12 +76,12 @@ class TelegramReportService {
 
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
-        debugPrint('✅ Telegram: تم إرسال التقرير اليومي بنجاح');
+        debugPrint('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في التقرير اليومي: $e');
+      debugPrint('❌ WhatsApp: خطأ في التقرير اليومي: $e');
       return false;
     }
   }
@@ -104,7 +104,7 @@ class TelegramReportService {
 
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في إرسال التقرير: $e');
+      debugPrint('❌ WhatsApp: خطأ في إرسال التقرير: $e');
       return false;
     }
   }
@@ -250,64 +250,64 @@ class TelegramReportService {
         alerts: alerts,
       );
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
+      debugPrint('❌ WhatsApp: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
   }
 
-  /// بناء رسالة التقرير
+  /// بناء رسالة التقرير — بدون HTML (WhatsApp لا يدعمه)
   String _buildReportMessage(TelegramDailyReportData data) {
     final buffer = StringBuffer();
 
     // العنوان
-    buffer.writeln('📊 <b>التقرير اليومي — Marina Hotel</b>');
+    buffer.writeln('📊 *التقرير اليومي — Marina Hotel*');
     buffer.writeln('📅 ${data.reportDate}');
     buffer.writeln('━━━━━━━━━━━━━━━━━');
 
     // حالة الغرف
     buffer.writeln('');
-    buffer.writeln('🏨 <b>حالة الغرف</b>');
-    buffer.writeln('┌ الإجمالي: <b>${data.totalRooms}</b>');
-    buffer.writeln('├ 🔴 مشغولة: <b>${data.occupiedRooms}</b>');
-    buffer.writeln('├ 🟢 متاحة: <b>${data.availableRooms}</b>');
-    buffer.writeln('├ 🟡 تنظيف: <b>${data.cleaningRooms}</b>');
-    buffer.writeln('└ 🔧 صيانة: <b>${data.maintenanceRooms}</b>');
+    buffer.writeln('🏨 *حالة الغرف*');
+    buffer.writeln('┌ الإجمالي: ${data.totalRooms}');
+    buffer.writeln('├ 🔴 مشغولة: ${data.occupiedRooms}');
+    buffer.writeln('├ 🟢 متاحة: ${data.availableRooms}');
+    buffer.writeln('├ 🟡 تنظيف: ${data.cleaningRooms}');
+    buffer.writeln('└ 🔧 صيانة: ${data.maintenanceRooms}');
     buffer.writeln(
-        '📈 نسبة الإشغال: <b>${data.occupancyRate.toStringAsFixed(1)}%</b>');
+        '📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%');
 
     // حجوزات اليوم
     buffer.writeln('');
-    buffer.writeln('📋 <b>حجوزات اليوم</b>');
-    buffer.writeln('┌ جديدة: <b>${data.newBookingsToday}</b>');
-    buffer.writeln('├ تسجيل دخول: <b>${data.checkInsToday}</b>');
-    buffer.writeln('├ تسجيل خروج: <b>${data.checkOutsToday}</b>');
-    buffer.writeln('└ نشطة حالياً: <b>${data.activeBookings}</b>');
+    buffer.writeln('📋 *حجوزات اليوم*');
+    buffer.writeln('┌ جديدة: ${data.newBookingsToday}');
+    buffer.writeln('├ تسجيل دخول: ${data.checkInsToday}');
+    buffer.writeln('├ تسجيل خروج: ${data.checkOutsToday}');
+    buffer.writeln('└ نشطة حالياً: ${data.activeBookings}');
 
     // ملخص مالي
     buffer.writeln('');
-    buffer.writeln('💰 <b>ملخص مالي</b>');
+    buffer.writeln('💰 *ملخص مالي*');
     buffer.writeln(
-        '┌ الإيرادات: <b>\$${data.todayRevenue.toStringAsFixed(2)}</b>');
+        '┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}');
     buffer.writeln(
-        '├ المصروفات: <b>\$${data.todayExpenses.toStringAsFixed(2)}</b>');
+        '├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}');
     buffer.writeln(
-        '└ صافي الربح: <b>\$${data.netProfit.toStringAsFixed(2)}</b>');
+        '└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}');
 
     // الديون
     buffer.writeln('');
-    buffer.writeln('💳 الديون غير المسددة: <b>${data.unsettledDebts}</b>');
+    buffer.writeln('💳 الديون غير المسددة: ${data.unsettledDebts}');
 
     // التنبيهات
     if (data.alerts.isNotEmpty) {
       buffer.writeln('');
-      buffer.writeln('⚠️ <b>تنبيهات</b>');
+      buffer.writeln('⚠️ *تنبيهات*');
       for (final alert in data.alerts) {
         buffer.writeln('• $alert');
       }
     }
 
     buffer.writeln('');
-    buffer.writeln('<i>Marina Hotel App 🏨</i>');
+    buffer.writeln('_Marina Hotel App_ 🏨');
 
     return buffer.toString().trimRight();
   }

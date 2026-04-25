@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// مفاتيح التخزين المحلي لإعدادات Telegram
+/// مفاتيح التخزين المحلي لإعدادات WhatsApp عبر CallMeBot
 class TelegramConfig {
   static const String _enabledKey = 'telegram_enabled';
   static const String _botTokenKey = 'telegram_bot_token';
@@ -10,15 +10,15 @@ class TelegramConfig {
   static const String _dailyReportTimeKey = 'telegram_daily_report_time';
   static const String _lastReportSentKey = 'telegram_last_report_sent';
 
-  // القيم الافتراضية — تُحمّل تلقائياً حتى بعد إلغاء التثبيت وإعادة التثبيت
+  // القيم الافتراضية — CallMeBot WhatsApp
   static const String defaultReportTime = '02:00';
-  static const String telegramApiBase = 'https://api.telegram.org';
-  static const String defaultBotToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac';
-  static const String defaultChatId = '5944227208';
+  static const String callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
+  static const String defaultBotToken = '7379268'; // CallMeBot API Key
+  static const String defaultChatId = '967773749389'; // رقم الهاتف بدون +
 
   TelegramConfig._();
 
-  /// التحقق من تفعيل Telegram
+  /// التحقق من تفعيل WhatsApp
   static Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_enabledKey) ?? false;
@@ -29,7 +29,7 @@ class TelegramConfig {
     await prefs.setBool(_enabledKey, enabled);
   }
 
-  /// Bot Token — يُحمّل القيمة الافتراضية تلقائياً
+  /// API Key — يُحمّل القيمة الافتراضية تلقائياً
   static Future<String> getBotToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_botTokenKey) ?? defaultBotToken;
@@ -40,7 +40,7 @@ class TelegramConfig {
     await prefs.setString(_botTokenKey, value);
   }
 
-  /// Chat ID — يُحمّل القيمة الافتراضية تلقائياً
+  /// رقم الهاتف — يُحمّل القيمة الافتراضية تلقائياً
   static Future<String> getChatId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_chatIdKey) ?? defaultChatId;
@@ -95,7 +95,7 @@ class TelegramConfig {
     await prefs.setString(_lastReportSentKey, dateKey);
   }
 
-  /// التحقق من اكتمال إعدادات Telegram — دائماً صحيح بالافتراضي
+  /// التحقق من اكتمال إعدادات CallMeBot — دائماً صحيح بالافتراضي
   static Future<bool> isConfigured() async {
     final token = await getBotToken();
     final chatId = await getChatId();

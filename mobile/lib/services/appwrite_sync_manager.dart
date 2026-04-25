@@ -3582,10 +3582,10 @@ class AppwriteSyncManager {
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
-        // ── Telegram ──
+        // ── WhatsApp (CallMeBot) ──
         'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
-        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
-        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '5944227208',
+        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '7379268',
+        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '967773749389',
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
         'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '02:00',
