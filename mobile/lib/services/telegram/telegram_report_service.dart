@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -78,6 +79,10 @@ class TelegramReportService {
       final data = await _gatherReportData();
       if (data == null) return false;
 
+      // 1) حفظ التقرير في Firebase RTDB
+      await _saveReportToFirebase(data);
+
+      // 2) إرسال عبر WhatsApp (CallMeBot)
       final message = _buildReportMessage(data);
       final success = await _sendViaCallMeBot(message);
 
@@ -101,6 +106,10 @@ class TelegramReportService {
       final data = await _gatherReportData();
       if (data == null) return false;
 
+      // 1) حفظ التقرير في Firebase RTDB
+      await _saveReportToFirebase(data);
+
+      // 2) إرسال عبر WhatsApp (CallMeBot)
       final message = _buildReportMessage(data);
       final success = await _sendViaCallMeBot(message);
 
@@ -259,6 +268,41 @@ class TelegramReportService {
     } catch (e) {
       debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
+    }
+  }
+
+  /// حفظ التقرير في Firebase Realtime Database — نفس الحقول
+  /// المسار: dailyReports/{YYYY-MM-DD}
+  Future<void> _saveReportToFirebase(TelegramDailyReportData data) async {
+    try {
+      final db = FirebaseDatabase.instance;
+      final ref = db.ref('dailyReports/${data.reportDate}');
+
+      await ref.set({
+        'reportDate': data.reportDate,
+        'totalRooms': data.totalRooms,
+        'occupiedRooms': data.occupiedRooms,
+        'availableRooms': data.availableRooms,
+        'cleaningRooms': data.cleaningRooms,
+        'maintenanceRooms': data.maintenanceRooms,
+        'occupancyRate': data.occupancyRate,
+        'newBookingsToday': data.newBookingsToday,
+        'checkInsToday': data.checkInsToday,
+        'checkOutsToday': data.checkOutsToday,
+        'activeBookings': data.activeBookings,
+        'todayRevenue': data.todayRevenue,
+        'todayExpenses': data.todayExpenses,
+        'netProfit': data.netProfit,
+        'unsettledDebts': data.unsettledDebts,
+        'alerts': data.alerts,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'source': 'marina_hotel_app',
+      });
+
+      debugPrint('✅ Firebase RTDB: تم حفظ التقرير في dailyReports/${data.reportDate}');
+    } catch (e) {
+      debugPrint('⚠️ Firebase RTDB: خطأ في حفظ التقرير: $e');
+      // لا نوقف التقرير إذا فشل الحفظ في Firebase
     }
   }
 
