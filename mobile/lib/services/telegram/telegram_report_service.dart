@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import '../local_db.dart';
 import 'telegram_config.dart';
@@ -44,7 +47,7 @@ class TelegramDailyReportData {
   });
 }
 
-/// خدمة التقارير اليومية عبر WhatsApp (CallMeBot)
+/// خدمة التقارير اليومية عبر Telegram
 class TelegramReportService {
   static TelegramReportService? _instance;
   static TelegramReportService get instance =>
@@ -52,9 +55,13 @@ class TelegramReportService {
 
   TelegramReportService._();
 
-  final TelegramApiClient _api = TelegramApiClient.instance;
+  // الإرسال عبر CallMeBot WhatsApp بدلاً من Telegram
+  static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
+  static const String _defaultPhone = '967773749389';
+  static const String _defaultApiKey = '7379268';
+  final http.Client _httpClient = http.Client();
 
-  /// إرسال التقرير اليومي
+  /// إرسال التقرير اليومي عبر WhatsApp (CallMeBot)
   Future<bool> sendDailyReport() async {
     try {
       if (!await TelegramConfig.isEnabled()) return false;
@@ -72,7 +79,7 @@ class TelegramReportService {
       if (data == null) return false;
 
       final message = _buildReportMessage(data);
-      final success = await _api.sendToDefaultChat(text: message);
+      final success = await _sendViaCallMeBot(message);
 
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
@@ -86,7 +93,7 @@ class TelegramReportService {
     }
   }
 
-  /// إرسال التقرير فوراً (تجريبي)
+  /// إرسال التقرير فوراً (تجريبي) عبر WhatsApp
   Future<bool> sendReportNow() async {
     try {
       if (!await TelegramConfig.isEnabled()) return false;
@@ -95,7 +102,7 @@ class TelegramReportService {
       if (data == null) return false;
 
       final message = _buildReportMessage(data);
-      final success = await _api.sendToDefaultChat(text: message);
+      final success = await _sendViaCallMeBot(message);
 
       if (success) {
         final hotelDayKey = Time.hotelDayKey();
@@ -250,23 +257,62 @@ class TelegramReportService {
         alerts: alerts,
       );
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في تجميع بيانات التقرير: $e');
+      debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
   }
 
-  /// بناء رسالة التقرير — بدون HTML (WhatsApp لا يدعمه)
+  /// إرسال رسالة عبر CallMeBot WhatsApp API
+  Future<bool> _sendViaCallMeBot(String message) async {
+    try {
+      final phone = _defaultPhone; // بدون +
+      final url = Uri.parse(
+        '$_callMeBotUrl'
+        '?phone=$phone'
+        '&text=${Uri.encodeComponent(message)}'
+        '&apikey=$_defaultApiKey',
+      );
+
+      final response = await _httpClient.get(url);
+      final body = response.body;
+
+      if (response.statusCode == 200) {
+        try {
+          final json = jsonDecode(body) as Map<String, dynamic>;
+          if (json['success'] == true || json['sent'] == true) {
+            debugPrint('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
+            return true;
+          }
+        } catch (_) {
+          if (body.toLowerCase().contains('sent') ||
+              body.toLowerCase().contains('ok') ||
+              body.toLowerCase().contains('success')) {
+            return true;
+          }
+        }
+        debugPrint('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
+        return false;
+      }
+      debugPrint('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
+      return false;
+    } catch (e) {
+      debugPrint('❌ WhatsApp (CallMeBot): خطأ — $e');
+      return false;
+    }
+  }
+
+  /// بناء رسالة التقرير — نص عادي (WhatsApp لا يدعم HTML)
   String _buildReportMessage(TelegramDailyReportData data) {
     final buffer = StringBuffer();
 
     // العنوان
-    buffer.writeln('📊 *التقرير اليومي — Marina Hotel*');
+    buffer.writeln('📊 التقرير اليومي — Marina Hotel');
     buffer.writeln('📅 ${data.reportDate}');
     buffer.writeln('━━━━━━━━━━━━━━━━━');
 
     // حالة الغرف
     buffer.writeln('');
-    buffer.writeln('🏨 *حالة الغرف*');
+    buffer.writeln('🏨 حالة الغرف');
     buffer.writeln('┌ الإجمالي: ${data.totalRooms}');
     buffer.writeln('├ 🔴 مشغولة: ${data.occupiedRooms}');
     buffer.writeln('├ 🟢 متاحة: ${data.availableRooms}');
@@ -277,7 +323,7 @@ class TelegramReportService {
 
     // حجوزات اليوم
     buffer.writeln('');
-    buffer.writeln('📋 *حجوزات اليوم*');
+    buffer.writeln('📋 حجوزات اليوم');
     buffer.writeln('┌ جديدة: ${data.newBookingsToday}');
     buffer.writeln('├ تسجيل دخول: ${data.checkInsToday}');
     buffer.writeln('├ تسجيل خروج: ${data.checkOutsToday}');
@@ -285,7 +331,7 @@ class TelegramReportService {
 
     // ملخص مالي
     buffer.writeln('');
-    buffer.writeln('💰 *ملخص مالي*');
+    buffer.writeln('💰 ملخص مالي');
     buffer.writeln(
         '┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}');
     buffer.writeln(
@@ -300,14 +346,14 @@ class TelegramReportService {
     // التنبيهات
     if (data.alerts.isNotEmpty) {
       buffer.writeln('');
-      buffer.writeln('⚠️ *تنبيهات*');
+      buffer.writeln('⚠️ تنبيهات');
       for (final alert in data.alerts) {
         buffer.writeln('• $alert');
       }
     }
 
     buffer.writeln('');
-    buffer.writeln('_Marina Hotel App_ 🏨');
+    buffer.writeln('Marina Hotel App 🏨');
 
     return buffer.toString().trimRight();
   }

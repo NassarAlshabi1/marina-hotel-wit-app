@@ -37,8 +37,8 @@ class TelegramState {
     this.isConfigured = true,
     this.isNotificationsEnabled = true,
     this.isDailyReportEnabled = true,
-    this.botToken = '7379268',
-    this.chatId = '967773749389',
+    this.botToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
+    this.chatId = '5944227208',
     this.dailyReportTime = '02:00',
     this.lastReportSent,
   });
@@ -83,7 +83,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('telegram_enabled') ?? true;
+      final enabled = prefs.getBool('telegram_enabled') ?? false;
       final botToken = prefs.getString('telegram_bot_token') ?? TelegramConfig.defaultBotToken;
       final chatId = prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
       final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? false;

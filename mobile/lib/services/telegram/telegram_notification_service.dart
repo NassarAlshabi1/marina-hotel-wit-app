@@ -41,7 +41,7 @@ class TelegramEvent {
   });
 }
 
-/// خدمة إشعارات WhatsApp الفورية عبر CallMeBot
+/// خدمة إشعارات Telegram الفورية
 class TelegramNotificationService {
   static TelegramNotificationService? _instance;
   static TelegramNotificationService get instance =>
@@ -84,21 +84,21 @@ class TelegramNotificationService {
       if (!await TelegramConfig.isNotificationsEnabled()) return false;
 
       final buffer = StringBuffer();
-      buffer.writeln('${_icon(event.type)} *${event.type.label}*');
+      buffer.writeln('${_icon(event.type)} <b>${event.type.label}</b>');
       buffer.writeln('━━━━━━━━━━━━━━━━━');
 
       if (event.guestName != null && event.guestName!.isNotEmpty) {
-        buffer.writeln('👤 الضيف: *${event.guestName}*');
+        buffer.writeln('👤 الضيف: <b>${event.guestName}</b>');
       }
 
-      buffer.writeln('🏨 الغرفة: *${event.roomNumber}*');
+      buffer.writeln('🏨 الغرفة: <b>${event.roomNumber}</b>');
 
       if (event.guestPhone != null && event.guestPhone!.isNotEmpty) {
         buffer.writeln('📞 الهاتف: ${event.guestPhone}');
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: *\$${event.amount!.toStringAsFixed(2)}*');
+        buffer.writeln('💵 المبلغ: <b>\$${event.amount!.toStringAsFixed(2)}</b>');
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -114,17 +114,17 @@ class TelegramNotificationService {
       }
 
       buffer.writeln('');
-      buffer.writeln('_Marina Hotel App_ 🏨');
+      buffer.writeln('<i>Marina Hotel App 🏨</i>');
 
       final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
 
       if (success) {
-        debugPrint('✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        debugPrint('✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
+      debugPrint('❌ Telegram: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }
