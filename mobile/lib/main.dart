@@ -55,6 +55,7 @@ import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_sync_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/fcm_service.dart';
+import 'services/crashlytics_service.dart';
 import 'services/sync_service.dart';
 import 'services/sync_constants.dart';
 import 'services/battery_optimizer.dart';
@@ -67,26 +68,39 @@ import 'components/admin_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Crashlytics: تهيئة قبل كل شيء ───
+  await CrashlyticsService.instance.initialize();
+
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
   unawaited(AlarmBackup.initAlarmSystem());
 
-  FlutterError.onError = (details) {
-    DiagnosticsLogger.instance.recordFlutterError(details);
-    FlutterError.presentError(details);
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'PLATFORM',
-      level: LogLevel.critical,
-    );
-    return true;
-  };
+  // ─── ربط Crashlytics + DiagnosticsLogger ───
+  CrashlyticsService.instance.setupErrorHandlers(
+    originalFlutterHandler: (details) {
+      DiagnosticsLogger.instance.recordFlutterError(details);
+      FlutterError.presentError(details);
+    },
+    originalPlatformHandler: (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'PLATFORM',
+        level: LogLevel.critical,
+      );
+    },
+    originalZonedHandler: (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
+  );
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -96,12 +110,21 @@ Future<void> main() async {
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
-    (error, stack) => DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'ZONED',
-      level: LogLevel.critical,
-    ),
+    (error, stack) async {
+      // إرسال الخطأ إلى Crashlytics
+      await CrashlyticsService.instance.recordUnexpectedError(
+        error: error,
+        stackTrace: stack,
+        context: 'runZonedGuarded',
+      );
+      // تسجيل محلي
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
   );
 
   unawaited(_initializeFullyAutomatedSyncSystem());

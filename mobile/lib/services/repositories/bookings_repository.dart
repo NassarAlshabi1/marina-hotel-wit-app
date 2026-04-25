@@ -5,7 +5,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
-import '../telegram/telegram_notification_service.dart';
+import '../telegram/whatsapp_notification_service.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
@@ -113,7 +113,7 @@ class BookingsRepository {
       checkoutDate: checkoutDate,
       nights: expectedNights,
     );
-    TelegramNotificationService.instance.notifyNewBooking(
+    WhatsAppNotificationService.instance.notifyNewBooking(
       roomNumber: roomNumber,
       guestName: guestName,
       guestPhone: guestPhone,
@@ -244,7 +244,7 @@ class BookingsRepository {
             guestPhone: booking.guestPhone,
             expectedNights: booking.expectedNights,
           );
-          TelegramNotificationService.instance.notifyCheckIn(
+          WhatsAppNotificationService.instance.notifyCheckIn(
             roomNumber: booking.roomNumber,
             guestName: booking.guestName,
             guestPhone: booking.guestPhone,
@@ -259,7 +259,7 @@ class BookingsRepository {
             totalPaid: booking.totalPaidCached,
             remaining: booking.remainingBalanceCached,
           );
-          TelegramNotificationService.instance.notifyCheckOut(
+          WhatsAppNotificationService.instance.notifyCheckOut(
             roomNumber: booking.roomNumber,
             guestName: booking.guestName,
             actualNights: booking.calculatedNights,

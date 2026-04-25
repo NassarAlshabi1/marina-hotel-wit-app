@@ -13,14 +13,13 @@ import 'google_drive_backup_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
-import 'whatsapp_templates_screen.dart';
-import 'diagnostics_screen.dart';
+
 import '../security/blacklist_screen.dart';
 import 'comprehensive_backup_screen.dart';
 import 'data_protection_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'active_bookings_reminder_screen.dart';
-import 'telegram_settings_screen.dart';
+import 'whatsapp_daily_report_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -239,27 +238,16 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
             _SettingsItem(
-              title: 'نماذج الواتساب',
-              subtitle: 'تفعيل وتعديل نماذج الرسائل',
-              icon: Icons.drafts,
-              color: Colors.teal,
+              title: 'واتساب',
+              subtitle: 'الإشعارات الفورية والتقارير اليومية',
+              icon: Icons.chat,
+              color: const Color(0xFF25D366),
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WhatsAppTemplatesScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'Telegram',
-              subtitle: 'إعدادات البوت والإشعارات والتقارير',
-              icon: Icons.telegram,
-              color: Colors.lightBlue,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TelegramSettingsScreen(),
+                  builder: (context) => const WhatsAppDailyReportScreen(),
                 ),
               ),
             ),
@@ -270,19 +258,6 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.purple,
               onTap: () => _showAppSettingsDialog(context),
             ),
-            _SettingsItem(
-              title: 'تشخيص شامل',
-              subtitle: 'تقارير شاملة عن النظام والبيانات',
-              icon: Icons.bug_report,
-              color: Colors.teal,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DiagnosticsScreen(),
-                ),
-              ),
-            ),
-
             _SettingsItem(
               title: 'معلومات التطبيق',
               subtitle: 'الإصدار ومعلومات المطور',

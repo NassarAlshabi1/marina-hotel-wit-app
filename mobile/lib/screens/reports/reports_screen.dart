@@ -12,6 +12,7 @@ import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 import 'income_expense_report_screen.dart';
 import 'guest_payments_detail_report_screen.dart';
+import '../../services/crashlytics_service.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -140,7 +141,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           };
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'ReportsScreen',
+        action: 'loadData',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.warning,
+        extra: {'forceRefresh': '$force'},
+      );
       if (mounted) {
         setState(() => _loading = false);
       }

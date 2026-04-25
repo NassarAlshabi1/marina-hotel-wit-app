@@ -6,7 +6,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
-import '../telegram/telegram_notification_service.dart';
+import '../telegram/whatsapp_notification_service.dart';
 import '../../utils/time.dart';
 
 class PaymentsRepository {
@@ -114,7 +114,7 @@ class PaymentsRepository {
         paymentMethod: paymentMethod,
         remaining: booking.remainingBalanceCached,
       );
-      TelegramNotificationService.instance.notifyPayment(
+      WhatsAppNotificationService.instance.notifyPayment(
         roomNumber: roomNumber ?? booking.roomNumber,
         guestName: booking.guestName,
         amount: amount,

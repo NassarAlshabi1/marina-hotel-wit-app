@@ -12,6 +12,7 @@ import '../../models/payment_models.dart';
 import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/crashlytics_service.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -31,6 +32,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen');
   }
 
   @override
@@ -726,7 +728,15 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'PaymentsMainScreen',
+        action: 'saveStandalonePayment',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'amount': amountText, 'method': method.name},
+      );
       if (mounted) {
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(

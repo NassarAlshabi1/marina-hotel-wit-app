@@ -1,6 +1,6 @@
 // lib/services/crashlytics_service.dart
-// خدمة Crashlytics لتتبع الأخطاء
-// crashlytics_service.dart - خدمة تتبع الأخطاء والتحطم
+// خدمة Crashlytics لتتبع الأخطاء والإبلاغ عنها
+// مرتبطة بـ Firebase Crashlytics + DiagnosticsLogger
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -9,55 +9,103 @@ import 'package:flutter/foundation.dart';
 
 /// مستويات الأهمية للأخطاء
 enum CrashlyticsSeverity {
-  fatal,      // خطأ قاتل - يوقف المزامنة
-  error,      // خطأ خطير - يجب الإصلاح
-  warning,    // تحذير - يمكن الاستمرار
-  info,       // معلومة - للتتبع فقط
+  fatal, // خطأ قاتل - يوقف المزامنة
+  error, // خطأ خطير - يجب الإصلاح
+  warning, // تحذير - يمكن الاستمرار
+  info, // معلومة - للتتبع فقط
 }
 
-/// خدمة Crashlytics لتتبع أخطاء المزامنة
+/// خدمة Crashlytics لتتبع أخطاء التطبيق والمزامنة
+///
+/// يستخدم:
+/// - Firebase Crashlytics لإرسال التقارير
+/// - DiagnosticsLogger للتسجيل المحلي
+///
+/// الاستخدام:
+/// ```dart
+/// await CrashlyticsService.instance.initialize();
+///
+/// // تسجيل خطأ في شاشة
+/// await CrashlyticsService.instance.recordScreenError(
+///   screen: 'PaymentsScreen',
+///   action: 'processPayment',
+///   error: e,
+///   stackTrace: stack,
+/// );
+///
+/// // تسجيل خطأ مزامنة
+/// await CrashlyticsService.instance.recordSyncError(
+///   operation: 'push_bookings',
+///   error: e.toString(),
+///   severity: CrashlyticsSeverity.error,
+/// );
+/// ```
 class CrashlyticsService {
   static final CrashlyticsService _instance = CrashlyticsService._internal();
   factory CrashlyticsService() => _instance;
+  static CrashlyticsService get instance => _instance;
   CrashlyticsService._internal();
 
   FirebaseCrashlytics? _crashlytics;
   bool _isEnabled = true;
+  bool _isInitialized = false;
   final List<Map<String, dynamic>> _errorHistory = [];
   static const int _maxHistorySize = 100;
 
-  /// تهيئة الخدمة
+  /// هل تم التهيئة؟
+  bool get isInitialized => _isInitialized;
+
+  /// تهيئة الخدمة — يجب استدعاؤها في main()
   Future<void> initialize() async {
-    if (!_isEnabled || kDebugMode) {
-      // في وضع التطوير، لا نفعل Crashlytics
-      developer.log(
-        '⚠️ Crashlytics disabled (debug mode)',
-        name: 'CrashlyticsService',
-      );
-      return;
-    }
+    if (_isInitialized) return;
 
     try {
       _crashlytics = FirebaseCrashlytics.instance;
+
+      // في وضع التطوير: نفعّل Crashlytics أيضاً للاختبار
+      // في وضع الإنتاج: يُفعّل دائماً
       await _crashlytics!.setCrashlyticsCollectionEnabled(true);
 
-      // التقاط الأخطاء غير المعالجة
-      FlutterError.onError = (errorDetails) {
-        _crashlytics?.recordFlutterFatalError(errorDetails);
-        // استدعاء المعالج الأصلي
-        FlutterError.presentError(errorDetails);
-      };
+      // إعداد مفاتيح مخصصة عامة
+      await _crashlytics!.setCustomKey('app_name', 'marina_hotel');
+      await _crashlytics!.setCustomKey('app_version', '1.0.0');
+      await _crashlytics!.log('CrashlyticsService initialized');
 
-      // التقاط الأخطاء في Isolate
-      PlatformDispatcher.instance.onError = (error, stack) {
-        _crashlytics?.recordError(error, stack, fatal: true);
-        return true;
-      };
+      _isInitialized = true;
 
-      developer.log('✅ CrashlyticsService initialized', name: 'CrashlyticsService');
+      developer.log(
+        '✅ CrashlyticsService initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
+        name: 'CrashlyticsService',
+      );
     } catch (e) {
-      developer.log('⚠️ Crashlytics initialization failed: $e', name: 'CrashlyticsService');
+      developer.log(
+        '⚠️ Crashlytics initialization failed: $e',
+        name: 'CrashlyticsService',
+      );
     }
+  }
+
+  /// تهيئة معالجات الأخطاء العامة — يُستدعى بعد initialize()
+  ///
+  /// يربط FlutterError.onError و PlatformDispatcher.onError بـ Crashlytics
+  /// مع الحفاظ على DiagnosticsLogger
+  void setupErrorHandlers({
+    required void Function(FlutterErrorDetails) originalFlutterHandler,
+    required void Function(Object error, StackTrace stack) originalPlatformHandler,
+    required void Function(Object error, StackTrace stack) originalZonedHandler,
+  }) {
+    // Flutter errors (تُرسل إلى Crashlytics + الأصلية)
+    FlutterError.onError = (details) {
+      _recordFlutterError(details);
+      originalFlutterHandler(details); // DiagnosticsLogger
+    };
+
+    // Platform errors (Isolate errors)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      _recordPlatformError(error, stack);
+      originalPlatformHandler(error, stack); // DiagnosticsLogger
+      return true;
+    };
   }
 
   /// تمكين/تعطيل الخدمة
@@ -65,6 +113,82 @@ class CrashlyticsService {
     _isEnabled = enabled;
     _crashlytics?.setCrashlyticsCollectionEnabled(enabled);
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل أخطاء الشاشات
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تسجيل خطأ في شاشة محددة
+  ///
+  /// يُستخدم داخل try-catch في أي شاشة:
+  /// ```dart
+  /// try {
+  ///   await processPayment();
+  /// } catch (e, stack) {
+  ///   await CrashlyticsService.instance.recordScreenError(
+  ///     screen: 'PaymentsScreen',
+  ///     action: 'processPayment',
+  ///     error: e,
+  ///     stackTrace: stack,
+  ///   );
+  /// }
+  /// ```
+  Future<void> recordScreenError({
+    required String screen,
+    required String action,
+    required dynamic error,
+    StackTrace? stackTrace,
+    CrashlyticsSeverity severity = CrashlyticsSeverity.error,
+    Map<String, dynamic> extra = const {},
+  }) async {
+    if (!_isEnabled || !_isInitialized) return;
+
+    final errorStr = error.toString();
+
+    // حفظ في التاريخ المحلي
+    _addToHistory('screen', screen, action, errorStr, severity);
+
+    // تسجيل في developer log
+    developer.log(
+      '💥 [$screen] $action: $errorStr',
+      name: 'Crashlytics',
+      error: error,
+      stackTrace: stackTrace,
+    );
+
+    // إرسال إلى Firebase Crashlytics
+    try {
+      await _crashlytics?.setCustomKey('screen', screen);
+      await _crashlytics?.setCustomKey('action', action);
+      await _crashlytics?.setCustomKey('severity', severity.name);
+
+      for (final entry in extra.entries) {
+        await _crashlytics?.setCustomKey(
+          'screen_${entry.key}',
+          entry.value.toString(),
+        );
+      }
+
+      await _crashlytics?.recordError(
+        error,
+        stackTrace ?? StackTrace.current,
+        reason: '$screen — $action',
+        fatal: severity == CrashlyticsSeverity.fatal,
+        information: [
+          'Screen: $screen',
+          'Action: $action',
+          'Severity: ${severity.name}',
+          ...extra.entries.map((e) => '${e.key}: ${e.value}'),
+        ],
+      );
+    } catch (_) {
+      // لا نوقف التطبيق بسبب فشل Crashlytics
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل أخطاء المزامنة
+  // ═══════════════════════════════════════════════════════════════
 
   /// تسجيل خطأ مزامنة
   Future<void> recordSyncError({
@@ -74,36 +198,21 @@ class CrashlyticsService {
     CrashlyticsSeverity severity = CrashlyticsSeverity.error,
     Map<String, dynamic> context = const {},
   }) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled || !_isInitialized) return;
 
-    final errorData = {
-      'operation': operation,
-      'error': error,
-      'severity': severity.name,
-      'timestamp': DateTime.now().toIso8601String(),
-      'context': context,
-    };
+    _addToHistory('sync', operation, '', error, severity);
 
-    // حفظ في التاريخ
-    _errorHistory.add(errorData);
-    if (_errorHistory.length > _maxHistorySize) {
-      _errorHistory.removeAt(0);
-    }
-
-    // تسجيل محلي
     developer.log(
       '💥 Sync Error [$severity]: $operation - $error',
-      name: 'CrashlyticsService',
+      name: 'Crashlytics',
       error: error,
       stackTrace: stackTrace,
     );
 
-    // إرسال إلى Crashlytics
     try {
       await _crashlytics?.setCustomKey('last_sync_operation', operation);
       await _crashlytics?.setCustomKey('sync_error_count', _errorHistory.length);
 
-      // إضافة سياق إضافي
       for (final entry in context.entries) {
         await _crashlytics?.setCustomKey(
           'sync_ctx_${entry.key}',
@@ -111,7 +220,6 @@ class CrashlyticsService {
         );
       }
 
-      // تسجيل الخطأ
       final isFatal = severity == CrashlyticsSeverity.fatal;
       await _crashlytics?.recordError(
         Exception('[$operation] $error'),
@@ -119,12 +227,12 @@ class CrashlyticsService {
         reason: operation,
         fatal: isFatal,
         information: [
+          'Operation: $operation',
+          'Severity: ${severity.name}',
           ...context.entries.map((e) => '${e.key}: ${e.value}'),
         ],
       );
-    } catch (e) {
-      // لا نوقف التطبيق بسبب فشل Crashlytics
-    }
+    } catch (_) {}
   }
 
   /// تسجيل خطأ قاتل في المزامنة
@@ -143,13 +251,17 @@ class CrashlyticsService {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل أخطاء عامة
+  // ═══════════════════════════════════════════════════════════════
+
   /// تسجيل خطأ غير متوقع
   Future<void> recordUnexpectedError({
     required dynamic error,
     StackTrace? stackTrace,
     String? context,
   }) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled || !_isInitialized) return;
 
     try {
       await _crashlytics?.recordError(
@@ -158,42 +270,83 @@ class CrashlyticsService {
         reason: context ?? 'unexpected_error',
         fatal: false,
       );
-    } catch (e) {
-      // تجاهل الأخطاء
-    }
+    } catch (_) {}
   }
 
-  /// تسجيل رسالة سجل
+  /// تسجيل رسالة سجل (log)
   Future<void> log(String message) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled || !_isInitialized) return;
 
     try {
       await _crashlytics?.log(message);
-    } catch (e) {
-      // تجاهل الأخطاء
-    }
+    } catch (_) {}
   }
+
+  /// تسجيل خطأ معزز مع سياق كامل
+  Future<void> recordErrorWithContext({
+    required String title,
+    required dynamic error,
+    StackTrace? stackTrace,
+    bool fatal = false,
+    Map<String, dynamic>? customKeys,
+  }) async {
+    if (!_isEnabled || !_isInitialized) return;
+
+    try {
+      if (customKeys != null) {
+        for (final entry in customKeys.entries) {
+          await _crashlytics?.setCustomKey(entry.key, entry.value.toString());
+        }
+      }
+
+      await _crashlytics?.recordError(
+        error,
+        stackTrace ?? StackTrace.current,
+        reason: title,
+        fatal: fatal,
+        information: customKeys?.entries.map((e) => '${e.key}: ${e.value}').toList() ?? [],
+      );
+    } catch (_) {}
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  إدارة المستخدم والسياق
+  // ═══════════════════════════════════════════════════════════════
 
   /// تسجيل معرف المستخدم
   Future<void> setUserIdentifier(String userId) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled || !_isInitialized) return;
 
     try {
       await _crashlytics?.setUserIdentifier(userId);
-    } catch (e) {
-      // تجاهل الأخطاء
-    }
+    } catch (_) {}
   }
 
   /// تعيين مفتاح مخصص
   Future<void> setCustomKey(String key, dynamic value) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled || !_isInitialized) return;
 
     try {
       await _crashlytics?.setCustomKey(key, value.toString());
-    } catch (e) {
-      // تجاهل الأخطاء
-    }
+    } catch (_) {}
+  }
+
+  /// تعيين اسم الشاشة الحالية (للتتبع)
+  Future<void> setCurrentScreen(String screenName) async {
+    await log('SCREEN: $screenName');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  إدارة التقارير
+  // ═══════════════════════════════════════════════════════════════
+
+  /// إجبار إرسال التقارير المعلقة
+  Future<void> sendUnsentReports() async {
+    if (!_isEnabled || !_isInitialized) return;
+
+    try {
+      await _crashlytics?.sendUnsentReports();
+    } catch (_) {}
   }
 
   /// الحصول على تاريخ الأخطاء
@@ -204,76 +357,47 @@ class CrashlyticsService {
     _errorHistory.clear();
   }
 
-  /// إجبار التقرير الفوري
-  Future<void> sendUnsentReports() async {
-    if (!_isEnabled) return;
+  /// عدد الأخطاء المسجلة
+  int get errorCount => _errorHistory.length;
+
+  // ═══════════════════════════════════════════════════════════════
+  //  دوال خاصة
+  // ═══════════════════════════════════════════════════════════════
+
+  void _recordFlutterError(FlutterErrorDetails details) {
+    if (!_isEnabled || !_isInitialized) return;
 
     try {
-      await _crashlytics?.sendUnsentReports();
-    } catch (e) {
-      // تجاهل الأخطاء
-    }
+      _crashlytics?.recordFlutterFatalError(details);
+    } catch (_) {}
   }
 
-  /// التحقق من وجود تقارير غير مرسلة
-  Future<bool> checkForUnsentReports() async {
-    if (!_isEnabled) return false;
+  void _recordPlatformError(Object error, StackTrace stack) {
+    if (!_isEnabled || !_isInitialized) return;
 
     try {
-      return await _crashlytics?.checkForUnsentReports() ?? false;
-    } catch (e) {
-      return false;
+      _crashlytics?.recordError(error, stack, fatal: true);
+    } catch (_) {}
+  }
+
+  void _addToHistory(
+    String category,
+    String source,
+    String action,
+    String error,
+    CrashlyticsSeverity severity,
+  ) {
+    _errorHistory.add({
+      'category': category,
+      'source': source,
+      'action': action,
+      'error': error,
+      'severity': severity.name,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+
+    if (_errorHistory.length > _maxHistorySize) {
+      _errorHistory.removeAt(0);
     }
-  }
-
-  /// حذف التقارير غير المرسلة
-  Future<void> deleteUnsentReports() async {
-    if (!_isEnabled) return;
-
-    try {
-      await _crashlytics?.deleteUnsentReports();
-    } catch (e) {
-      // تجاهل الأخطاء
-    }
-  }
-
-  /// تسجيل فشل في دفعة
-  Future<void> recordBatchFailure({
-    required String batchId,
-    required String error,
-    required int itemsCount,
-    required int attempt,
-    StackTrace? stackTrace,
-  }) async {
-    await recordSyncError(
-      operation: 'batch_push',
-      error: 'Batch $batchId failed: $error',
-      stackTrace: stackTrace,
-      severity: CrashlyticsSeverity.error,
-      context: {
-        'batch_id': batchId,
-        'items_count': itemsCount,
-        'attempt': attempt,
-      },
-    );
-  }
-
-  /// تسجيل فشل في conflict resolution
-  Future<void> recordConflictResolutionFailure({
-    required String operationId,
-    required String resolution,
-    required String error,
-    StackTrace? stackTrace,
-  }) async {
-    await recordSyncError(
-      operation: 'conflict_resolution',
-      error: 'Failed to resolve $operationId with $resolution: $error',
-      stackTrace: stackTrace,
-      severity: CrashlyticsSeverity.error,
-      context: {
-        'operation_id': operationId,
-        'resolution': resolution,
-      },
-    );
   }
 }
