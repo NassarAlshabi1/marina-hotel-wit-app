@@ -211,7 +211,7 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/blacklist'),
                     context: context,
                   ),
-                if (true)
+                if (can('information'))
                   _buildMenuItem(
                     icon: Icons.badge,
                     title: 'سجل المعلومية',

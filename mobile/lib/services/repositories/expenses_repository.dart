@@ -68,7 +68,9 @@ class ExpensesRepository {
         expenseType: expenseType != null
             ? d.Value(expenseType)
             : const d.Value.absent(),
-        relatedId: d.Value(relatedId),
+        relatedId: relatedId != null
+            ? d.Value(relatedId)
+            : const d.Value.absent(),
         description: description != null
             ? d.Value(description)
             : const d.Value.absent(),
@@ -144,16 +146,11 @@ class ExpensesRepository {
   }
 
   Future<double> getTotalByHotelDayKey(String hotelDayKey) async {
-    try {
-      final expenses = await dao.listByHotelDayKey(hotelDayKey);
-      double total = 0;
-      for (final expense in expenses) {
-        total += expense.amount;
-      }
-      return total;
-    } catch (e) {
-      debugPrint('Error calculating total expenses: $e');
-      return 0.0;
+    final expenses = await dao.listByHotelDayKey(hotelDayKey);
+    double total = 0;
+    for (final expense in expenses) {
+      total += expense.amount;
     }
+    return total;
   }
 }

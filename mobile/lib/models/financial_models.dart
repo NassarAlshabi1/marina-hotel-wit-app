@@ -125,14 +125,14 @@ class FinancialSummary {
 
 /// مساعد لتحليل التواريخ من JSON (يدعم String و DateTime)
 DateTime _parseDateTime(dynamic value) {
-  if (value == null) return DateTime.now();
+  if (value == null) return DateTime(1970);
   if (value is DateTime) return value;
   if (value is String) {
     try {
       return DateTime.parse(value);
     } catch (_) {
-      return DateTime.now();
+      return DateTime(1970);
     }
   }
-  return DateTime.now();
+  return DateTime(1970);
 }

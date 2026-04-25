@@ -178,14 +178,30 @@ class EnhancedPaymentReceipt {
   }
 
   pw.Widget _buildPaymentStatusBadge(ArabicPdfFonts fonts) {
+    final isVoided = payment.isVoided == true;
+    final isPending = payment.isPendingBalance == true;
+    final String statusText;
+    final PdfColor statusColor;
+
+    if (isVoided) {
+      statusText = 'ملغي';
+      statusColor = PdfColors.danger;
+    } else if (isPending) {
+      statusText = 'معلق';
+      statusColor = PdfColors.warning;
+    } else {
+      statusText = 'مدفوع';
+      statusColor = PdfColors.success;
+    }
+
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: pw.BoxDecoration(
-        color: PdfColors.success,
+        color: statusColor,
         borderRadius: pw.BorderRadius.circular(20),
       ),
       child: pw.Text(
-        '✅ مدفوع',
+        isVoided ? '❌ $statusText' : isPending ? '⏳ $statusText' : '✅ $statusText',
         style: pw.TextStyle(
           font: fonts.bold,
           fontSize: 12,

@@ -93,7 +93,7 @@ class AuthState {
   }) => AuthState(
     isAuthenticated: isAuthenticated ?? this.isAuthenticated,
     isRestoring: isRestoring ?? this.isRestoring,
-    error: error,
+    error: error, // null يمسح الخطأ
     currentUser: currentUser ?? this.currentUser,
     rememberMe: rememberMe ?? this.rememberMe,
     authType: authType ?? this.authType,

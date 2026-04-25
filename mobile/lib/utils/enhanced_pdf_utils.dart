@@ -523,9 +523,9 @@ class EnhancedPdfUtils {
     return '$day ${dateTime.day} $month ${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
-  /// تنسيق المبلغ بالعملة
+  /// تنسيق المبلغ بالعملة مع فواصل الآلاف
   static String formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(0)}';
+    return formatNumber(amount);
   }
 
   /// تنسيق الأرقام بالفواصل

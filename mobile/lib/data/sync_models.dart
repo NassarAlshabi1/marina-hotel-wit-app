@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 
 /// حالة المزامنة الحالية لبث التحديثات إلى الواجهة
 class SyncStatus {
@@ -24,7 +26,7 @@ class SyncStatus {
       phase: phase ?? this.phase,
       message: message ?? this.message,
       progress: progress ?? this.progress,
-      error: error ?? this.error,
+      error: error, // null يمسح الخطأ
     );
   }
 }
@@ -220,7 +222,9 @@ class SyncChecksum {
 
   static String compute(Map<String, dynamic> data) {
     final normalized = _normalize(data);
-    return base64Url.encode(utf8.encode(jsonEncode(normalized)));
+    final bytes = utf8.encode(jsonEncode(normalized));
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 
   static Map<String, dynamic> _normalize(Map<String, dynamic> input) {
@@ -228,12 +232,12 @@ class SyncChecksum {
     final result = <String, dynamic>{};
     for (final key in sortedKeys) {
       final value = input[key];
-      if (value is Map<String, dynamic>) {
-        result[key] = _normalize(value);
+      if (value is Map) {
+        result[key] = _normalize(Map<String, dynamic>.from(value));
       } else if (value is List) {
         result[key] = value.map((item) {
-          if (item is Map<String, dynamic>) {
-            return _normalize(item);
+          if (item is Map) {
+            return _normalize(Map<String, dynamic>.from(item));
           }
           return item;
         }).toList();
