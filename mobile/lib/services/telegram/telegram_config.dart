@@ -21,7 +21,7 @@ class TelegramConfig {
   /// التحقق من تفعيل WhatsApp
   static Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    return prefs.getBool(_enabledKey) ?? true;
   }
 
   static Future<void> setEnabled(bool enabled) async {

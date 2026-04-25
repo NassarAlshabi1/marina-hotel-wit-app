@@ -83,7 +83,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('telegram_enabled') ?? false;
+      final enabled = prefs.getBool('telegram_enabled') ?? true;
       final botToken = prefs.getString('telegram_bot_token') ?? TelegramConfig.defaultBotToken;
       final chatId = prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
       final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? false;

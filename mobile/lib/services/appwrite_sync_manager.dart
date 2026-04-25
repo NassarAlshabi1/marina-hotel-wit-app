@@ -3583,7 +3583,7 @@ class AppwriteSyncManager {
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── WhatsApp (CallMeBot) ──
-        'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
+        'telegram_enabled': prefs.getBool('telegram_enabled') ?? true,
         'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '7379268',
         'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '967773749389',
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
