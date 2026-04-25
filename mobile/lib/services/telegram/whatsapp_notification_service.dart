@@ -346,4 +346,79 @@ class WhatsAppNotificationService {
       eventTime: DateTime.now(),
     ));
   }
+
+  /// إشعار خطأ مزامنة حرج — يرسل فوراً عبر WhatsApp
+  /// لا يتطلب تفعيل الإشعارات (إشعارات خطأ دائماً مفعلة)
+  Future<bool> notifySyncError({
+    required String operation,
+    required String error,
+    int? recordsPushed,
+    int? recordsPulled,
+  }) async {
+    try {
+      final buffer = StringBuffer();
+      buffer.writeln('🔴 *خطأ مزامنة حرج*');
+      buffer.writeln('━━━━━━━━━━━━━━━━━');
+      buffer.writeln('⚙️ العملية: *$operation*');
+      buffer.writeln('❌ الخطأ: $error');
+      if (recordsPushed != null) buffer.writeln('📤 تم رفع: $recordsPushed');
+      if (recordsPulled != null) buffer.writeln('📥 تم سحب: $recordsPulled');
+      buffer.writeln('');
+      buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
+      buffer.writeln('');
+      buffer.writeln('Marina Hotel App — Crashlytics Alert');
+
+      final url = Uri.parse(
+        '$_callMeBotUrl'
+        '?phone=$_defaultPhone'
+        '&text=${Uri.encodeComponent(buffer.toString().trimRight())}'
+        '&apikey=$_defaultApiKey',
+      );
+
+      final response = await _httpClient.get(url);
+      final success = response.statusCode == 200;
+      if (success) {
+        debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
+      } else {
+        debugPrint('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
+      }
+      return success;
+    } catch (e) {
+      debugPrint('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
+      return false;
+    }
+  }
+
+  /// إشعار crash حرج في الشاشات — يرسل فوراً عبر WhatsApp
+  Future<bool> notifyCrash({
+    required String screen,
+    required String action,
+    required String error,
+  }) async {
+    try {
+      final buffer = StringBuffer();
+      buffer.writeln('🚨 *Crash Alert*');
+      buffer.writeln('━━━━━━━━━━━━━━━━━');
+      buffer.writeln('📱 الشاشة: *$screen*');
+      buffer.writeln('⚡ العملية: *$action*');
+      buffer.writeln('❌ الخطأ: $error');
+      buffer.writeln('');
+      buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
+      buffer.writeln('');
+      buffer.writeln('Marina Hotel App — Crashlytics Alert');
+
+      final url = Uri.parse(
+        '$_callMeBotUrl'
+        '?phone=$_defaultPhone'
+        '&text=${Uri.encodeComponent(buffer.toString().trimRight())}'
+        '&apikey=$_defaultApiKey',
+      );
+
+      final response = await _httpClient.get(url);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
+      return false;
+    }
+  }
 }

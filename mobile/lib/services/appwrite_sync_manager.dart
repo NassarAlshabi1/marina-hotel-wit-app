@@ -25,6 +25,8 @@ import 'sync_core/sync_metrics.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'repositories/bookings_repository.dart';
+import 'crashlytics_service.dart';
+import 'telegram/whatsapp_notification_service.dart';
 
 /// حالة المزامنة
 enum SyncStatus { idle, syncing, success, failed, partial }
@@ -138,6 +140,11 @@ class AppwriteSyncManager {
         stackTrace: stackTrace,
         tag: 'SYNC',
       );
+      await CrashlyticsService.instance.recordFatalSyncError(
+        operation: 'sync_initialize',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -166,6 +173,12 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: stackTrace,
         tag: 'SYNC',
+      );
+      await CrashlyticsService.instance.recordSyncError(
+        operation: 'initial_seed',
+        error: e.toString(),
+        stackTrace: stackTrace,
+        severity: CrashlyticsSeverity.error,
       );
     }
   }
@@ -627,6 +640,10 @@ class AppwriteSyncManager {
           } catch (e, st) {
             _failedCollections.add('rooms');
             _logger.error('❌ فشل سحب rooms', error: e, stackTrace: st, tag: 'SYNC');
+            await CrashlyticsService.instance.recordSyncError(
+              operation: 'pull_rooms', error: e.toString(), stackTrace: st,
+              severity: CrashlyticsSeverity.error, context: {'phase': 'sync'},
+            );
           }
 
           try {
@@ -639,6 +656,10 @@ class AppwriteSyncManager {
           } catch (e, st) {
             _failedCollections.add('bookings');
             _logger.error('❌ فشل سحب bookings', error: e, stackTrace: st, tag: 'SYNC');
+            await CrashlyticsService.instance.recordSyncError(
+              operation: 'pull_bookings', error: e.toString(), stackTrace: st,
+              severity: CrashlyticsSeverity.fatal, context: {'phase': 'sync'},
+            );
           }
 
           try {
@@ -654,6 +675,10 @@ class AppwriteSyncManager {
           } catch (e, st) {
             _failedCollections.add('employees');
             _logger.error('❌ فشل سحب employees', error: e, stackTrace: st, tag: 'SYNC');
+            await CrashlyticsService.instance.recordSyncError(
+              operation: 'pull_employees', error: e.toString(), stackTrace: st,
+              severity: CrashlyticsSeverity.error, context: {'phase': 'sync'},
+            );
           }
 
           try {
@@ -988,6 +1013,24 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: stackTrace,
         tag: 'SYNC',
+      );
+
+      // Crashlytics + WhatsApp alert على فشل المزامنة الرئيسي
+      await CrashlyticsService.instance.recordFatalSyncError(
+        operation: 'sync',
+        error: e,
+        stackTrace: stackTrace,
+        context: {
+          'recordsPushed': '$recordsPushed',
+          'recordsPulled': '$recordsPulled',
+          'errorMessage': errorMessage ?? '',
+        },
+      );
+      WhatsAppNotificationService.instance.notifySyncError(
+        operation: 'sync',
+        error: errorMessage ?? e.toString(),
+        recordsPushed: recordsPushed,
+        recordsPulled: recordsPulled,
       );
     }
 
@@ -2081,6 +2124,10 @@ class AppwriteSyncManager {
         stackTrace: stackTrace,
         tag: 'SYNC',
       );
+      await CrashlyticsService.instance.recordSyncError(
+        operation: 'pushLocalChanges', error: e.toString(), stackTrace: stackTrace,
+        severity: CrashlyticsSeverity.error,
+      );
       return false;
     }
   }
@@ -2305,6 +2352,11 @@ class AppwriteSyncManager {
           error: e,
           stackTrace: stackTrace,
           tag: 'SYNC',
+        );
+        await CrashlyticsService.instance.recordFatalSyncError(
+          operation: 'pullRemoteChanges',
+          error: e,
+          stackTrace: stackTrace,
         );
         return false;
       }
@@ -2704,6 +2756,15 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: stackTrace,
         tag: 'SYNC',
+      );
+      await CrashlyticsService.instance.recordFatalSyncError(
+        operation: 'pushAllLocalDataToAppwrite',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      WhatsAppNotificationService.instance.notifySyncError(
+        operation: 'bulk_push',
+        error: e.toString(),
       );
       rethrow;
     }

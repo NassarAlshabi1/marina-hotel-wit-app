@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'telegram/whatsapp_notification_service.dart';
 
 /// مستويات الأهمية للأخطاء
 enum CrashlyticsSeverity {
@@ -248,6 +249,11 @@ class CrashlyticsService {
       stackTrace: stackTrace,
       severity: CrashlyticsSeverity.fatal,
       context: context,
+    );
+    // إرسال تنبيه WhatsApp فوري للأخطاء القاتلة
+    WhatsAppNotificationService.instance.notifySyncError(
+      operation: operation,
+      error: error.toString().substring(0, error.toString().length > 200 ? 200 : error.toString().length),
     );
   }
 

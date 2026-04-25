@@ -7,6 +7,7 @@ import '../daos/payments_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import '../crashlytics_service.dart';
 import '../../utils/time.dart';
 
 class PaymentsRepository {
@@ -56,6 +57,7 @@ class PaymentsRepository {
     required String revenueType,
     bool isPendingBalance = false,
   }) async {
+    try {
     final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
 
     String? bookingUuidCache;
@@ -92,6 +94,17 @@ class PaymentsRepository {
     // إشعار Lark عند استلام دفعة (fire-and-forget)
     _notifyLarkPayment(roomNumber, amount, paymentMethod, bookingLocalId);
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'PaymentsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'amount': '$amount', 'method': paymentMethod, 'bookingId': '$bookingLocalId'},
+      );
+      rethrow;
+    }
   }
 
   /// إرسال إشعار Lark عند استلام دفعة

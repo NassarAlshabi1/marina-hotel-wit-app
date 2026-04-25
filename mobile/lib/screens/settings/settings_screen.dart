@@ -5,6 +5,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/status_utils.dart';
+import '../../services/crashlytics_service.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_users.dart';
@@ -259,6 +260,13 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _showAppSettingsDialog(context),
             ),
             _SettingsItem(
+              title: 'Crashlytics',
+              subtitle: 'مراقبة الأخطاء والأعطال',
+              icon: Icons.bug_report,
+              color: Colors.red.shade700,
+              onTap: () => _showCrashlyticsDialog(context),
+            ),
+            _SettingsItem(
               title: 'معلومات التطبيق',
               subtitle: 'الإصدار ومعلومات المطور',
               icon: Icons.info,
@@ -481,6 +489,193 @@ class SettingsScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showCrashlyticsDialog(BuildContext context) {
+    final crashlytics = CrashlyticsService.instance;
+    final isInitialized = crashlytics.isInitialized;
+    final errorCount = crashlytics.errorCount;
+    final history = crashlytics.getErrorHistory();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.bug_report, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Firebase Crashlytics'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // حالة الخدمة
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isInitialized
+                        ? Colors.green.shade50
+                        : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isInitialized ? Icons.check_circle : Icons.error,
+                        color: isInitialized ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isInitialized
+                            ? 'الخدمة مفعلة وتعمل'
+                            : 'الخدمة غير مهيأة',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isInitialized ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // إحصائيات
+                Text(
+                  'الأخطاء المسجلة: $errorCount',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // قائمة الأخطاء الأخيرة
+                if (history.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'لا توجد أخطاء مسجلة',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  )
+                else
+                  ...history.reversed.take(10).map((entry) {
+                    final severity = entry['severity'] as String;
+                    final color = severity == 'fatal'
+                        ? Colors.red
+                        : severity == 'error'
+                            ? Colors.orange
+                            : Colors.amber;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: color.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  severity.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${entry['source']} — ${entry['action']}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${entry['error']}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            entry['timestamp']?.toString() ?? '',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await crashlytics.sendUnsentReports();
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم إرسال التقارير المعلقة'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            child: const Text('إرسال التقارير'),
+          ),
+          if (history.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                crashlytics.clearErrorHistory();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم مسح سجل الأخطاء'),
+                  ),
+                );
+              },
+              child: const Text('مسح السجل', style: TextStyle(color: Colors.red)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }

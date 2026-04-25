@@ -6,6 +6,7 @@ import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import '../crashlytics_service.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
@@ -58,6 +59,7 @@ class BookingsRepository {
       }
     }
 
+    try {
     final result = await dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -94,6 +96,17 @@ class BookingsRepository {
     // إشعار Lark (غير متزامن — لا يبطئ العملية)
     _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'BookingsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'room': roomNumber, 'guest': guestName, 'status': status},
+      );
+      rethrow;
+    }
   }
 
   /// إرسال إشعار Lark و Telegram لحجز جديد (fire-and-forget)
@@ -157,6 +170,7 @@ class BookingsRepository {
       }
     }
 
+    try {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
@@ -228,6 +242,17 @@ class BookingsRepository {
       _notifyLarkBookingUpdate(id, status);
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'BookingsRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id', 'newStatus': status ?? '', 'newRoom': roomNumber ?? ''},
+      );
+      rethrow;
+    }
   }
 
   /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
