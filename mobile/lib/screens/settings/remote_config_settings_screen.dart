@@ -270,8 +270,28 @@ class _RemoteConfigSettingsScreenState
 
   Widget _buildStatusCard(Map<String, dynamic> diag) {
     final isInit = diag['isInitialized'] == true;
+    final isFirebaseConnected = diag['isFirebaseConnected'] == true;
     final lastFetch = diag['lastFetchTime'] as String?;
     final status = diag['lastFetchStatus'] as String?;
+
+    // تحديد النص والأيقونة واللون حسب الحالة
+    final String statusText;
+    final IconData statusIcon;
+    final Color statusColor;
+
+    if (!isInit) {
+      statusText = 'لم يتم التهيئة';
+      statusIcon = Icons.cloud_off;
+      statusColor = Colors.red;
+    } else if (isFirebaseConnected) {
+      statusText = 'متصل بـ Firebase';
+      statusIcon = Icons.cloud_done;
+      statusColor = Colors.green;
+    } else {
+      statusText = 'يعمل بالإعدادات المحلية';
+      statusIcon = Icons.cloud_queue;
+      statusColor = Colors.orange;
+    }
 
     return Card(
       elevation: 4,
@@ -283,23 +303,30 @@ class _RemoteConfigSettingsScreenState
             Row(
               children: [
                 Icon(
-                  isInit ? Icons.cloud_done : Icons.cloud_off,
-                  color: isInit ? Colors.green : Colors.red,
+                  statusIcon,
+                  color: statusColor,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    isInit ? 'متصل بـ Firebase' : 'غير متصل',
+                    statusText,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isInit ? Colors.green : Colors.red,
+                      color: statusColor,
                     ),
                   ),
                 ),
               ],
             ),
+            if (!isFirebaseConnected && isInit) ...[
+              const SizedBox(height: 8),
+              Text(
+                'جميع القيم تعمل بالقيم الافتراضية المُعرّفة مسبقاً. الاتصال بـ Firebase غير متوفر حالياً.',
+                style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+              ),
+            ],
             if (lastFetch != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -310,7 +337,7 @@ class _RemoteConfigSettingsScreenState
             if (status != null) ...[
               const SizedBox(height: 4),
               Text(
-                'الحالة: $status',
+                'الحالة: $_translateStatus(status)',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
               ),
             ],
@@ -400,6 +427,21 @@ class _RemoteConfigSettingsScreenState
         return 'إجمالي';
       default:
         return type;
+    }
+  }
+
+  String _translateStatus(String status) {
+    switch (status) {
+      case 'true':
+        return 'تم التحديث من السيرفر';
+      case 'false':
+        return 'لم تتغير القيم';
+      case 'fetch_failed':
+        return 'فشل الجلب — يُستخدم الافتراضي';
+      case 'local_defaults':
+        return 'يعمل بالإعدادات المحلية';
+      default:
+        return status;
     }
   }
 

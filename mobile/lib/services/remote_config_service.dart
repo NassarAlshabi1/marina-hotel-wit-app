@@ -24,11 +24,15 @@ class RemoteConfigService {
 
   FirebaseRemoteConfig? _remoteConfig;
   bool _isInitialized = false;
+  bool _isFirebaseConnected = false;
   DateTime? _lastFetchTime;
   String? _lastFetchStatus;
 
-  /// هل تم التهيئة؟
+  /// هل تم التهيئة؟ (دائماً true بعد التهيئة — يعمل بالقيم الافتراضية على الأقل)
   bool get isInitialized => _isInitialized;
+
+  /// هل Firebase متصل بنجاح؟
+  bool get isFirebaseConnected => _isFirebaseConnected;
 
   /// وقت آخر جلب
   DateTime? get lastFetchTime => _lastFetchTime;
@@ -41,6 +45,7 @@ class RemoteConfigService {
   // ═══════════════════════════════════════════════════════════════
 
   /// تهيئة Remote Config — يُستدعى من main()
+  /// يعمل دائماً حتى لو فشل Firebase — يستخدم القيم الافتراضية
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -55,6 +60,8 @@ class RemoteConfigService {
 
       // تعيين القيم الافتراضية
       await _remoteConfig!.setDefaults(_defaults);
+
+      _isFirebaseConnected = true;
 
       // جلب القيم فوراً (مع إنتاجية)
       try {
@@ -80,10 +87,14 @@ class RemoteConfigService {
       );
     } catch (e) {
       developer.log(
-        'Remote Config initialization failed: $e',
+        'Remote Config Firebase failed — using local defaults: $e',
         name: 'RemoteConfig',
         error: e,
       );
+      // حتى لو فشل Firebase، الخدمة تعمل بالقيم الافتراضية
+      _isFirebaseConnected = false;
+      _lastFetchStatus = 'local_defaults';
+      _isInitialized = true;
     }
   }
 
@@ -347,12 +358,15 @@ class RemoteConfigService {
   /// معلومات التشخيص
   Map<String, dynamic> get diagnostics => {
     'isInitialized': _isInitialized,
+    'isFirebaseConnected': _isFirebaseConnected,
     'lastFetchTime': _lastFetchTime?.toIso8601String(),
     'lastFetchStatus': _lastFetchStatus,
-    'settings': _remoteConfig?.settings.toString(),
-    'valueSource': _defaults.keys.map((key) {
-      final source = _remoteConfig?.getValue(key).source.toString().split('.').last;
-      return '$key=$source';
-    }).join(', '),
+    if (_remoteConfig != null)
+      'settings': _remoteConfig!.settings.toString(),
+    if (_isFirebaseConnected)
+      'valueSource': _defaults.keys.map((key) {
+        final source = _remoteConfig?.getValue(key).source.toString().split('.').last;
+        return '$key=$source';
+      }).join(', '),
   };
 }
