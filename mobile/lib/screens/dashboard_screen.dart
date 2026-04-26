@@ -13,6 +13,7 @@ import '../widgets/dashboard_sync_button.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_constants.dart';
+import '../services/remote_config_service.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/local_db.dart';
@@ -163,6 +164,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } catch (e) {
       debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
     }
+  }
+
+  /// لون الغرفة المتأخرة عن السداد — يُقرأ من Remote Config
+  Color _overdueColor() {
+    final hex = RemoteConfigService.instance.overdueRoomColor;
+    return Color(int.parse('FF$hex', radix: 16));
   }
 
   @override
@@ -423,7 +430,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendItem('متأخر', const Color(0xFF795548)),
+              _buildLegendItem('متأخر', _overdueColor()),
               const SizedBox(width: 8),
               _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
@@ -694,7 +701,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(width: 12),
             _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
             const SizedBox(width: 12),
-            _buildInstructionDot(const Color(0xFF795548), 'تأخر سداد'),
+            _buildInstructionDot(_overdueColor(), 'تأخر سداد'),
           ],
         ),
       ),

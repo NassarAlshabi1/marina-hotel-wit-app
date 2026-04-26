@@ -211,6 +211,12 @@ class RemoteConfigService {
   int get latePaymentThresholdDays =>
       _remoteConfig?.getInt('late_payment_threshold_days') ?? 30;
 
+  /// لون الغرفة المتأخرة عن السداد (كود Hex بدون 0xFF)
+  /// الافتراضي: '795548' (بني)
+  /// الملف المرتبط: room_payment_status_provider.dart:29
+  String get overdueRoomColor =>
+      _remoteConfig?.getString('overdue_room_color') ?? '795548';
+
   /// هل الدفعات يجب أن تكون أعداداً صحيحة فقط؟ (بدون كسور)
   /// الافتراضي: true
   /// الملف المرتبط: booking_checkout_screen.dart:588
@@ -302,6 +308,7 @@ class RemoteConfigService {
     // قواعد الحجوزات
     'checkout_hour': 14,
     'late_payment_threshold_days': 30,
+    'overdue_room_color': '795548',
     'whole_number_payments_only': true,
 
     // الحسابات
@@ -346,6 +353,7 @@ class RemoteConfigService {
       // قواعد الحجوزات
       'checkout_hour': checkoutHour,
       'late_payment_threshold_days': latePaymentThresholdDays,
+      'overdue_room_color': overdueRoomColor,
       'whole_number_payments_only': wholeNumberPaymentsOnly,
 
       // الحسابات

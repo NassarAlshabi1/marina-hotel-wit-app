@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/local_db.dart';
+import '../services/remote_config_service.dart';
 import '../utils/status_utils.dart';
 import 'repository_providers.dart';
 
@@ -26,7 +27,8 @@ class RoomWithPaymentStatus {
 
     // إذا كانت الغرفة محجوزة، نتحقق من حالة تأخر السداد
     if (isPaymentOverdue) {
-      return const Color(0xFF795548); // اللون البني (Brown)
+      final hex = RemoteConfigService.instance.overdueRoomColor;
+      return Color(int.parse('FF$hex', radix: 16));
     }
 
     return Colors.red.shade600; // اللون الأحمر الافتراضي للمحجوز
