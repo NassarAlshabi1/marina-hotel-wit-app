@@ -175,7 +175,7 @@ extension PaginatedCache on LayeredCacheService {
     Duration? ttl,
   }) async {
     final pageKey = '${baseKey}_page_1'; // Simplifed to first page
-    return await get<List<T>>(
+    return await LayeredCacheService.get<List<T>>(
       pageKey,
       () => fetcher(1),
       ttl: ttl ?? Duration(minutes: 2),

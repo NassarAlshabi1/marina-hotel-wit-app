@@ -1,17 +1,17 @@
-/// ============================================================
-/// Marina Hotel - Optimized Queries
-/// ============================================================
-/// Pre-optimized queries for common operations
-/// Single-query alternatives to multiple queries
-/// ============================================================
+// ============================================================
+// Marina Hotel - Optimized Queries
+// ============================================================
+// Pre-optimized queries for common operations
+// Single-query alternatives to multiple queries
+// ============================================================
 
 import 'package:drift/drift.dart';
 import '../local_db.dart' as local_db;
 
 class OptimizedQueries {
-  final local_db.AppDatabase db;
-  
   OptimizedQueries(this.db);
+
+  final local_db.AppDatabase db;
   
   // ─── DASHBOARD: Single query instead of 4-5 queries ───
   
@@ -36,19 +36,29 @@ class OptimizedQueries {
       LEFT JOIN expenses e ON e.hotel_day_key = ?
       LEFT JOIN bookings b ON b.status NOT IN ('checked_out', 'cancelled')
         AND b.hotel_day_checkin = ?
-    ''', variables: [today, today, today]).getSingle();
+    ''', variables: [
+      Variable<String>(today),
+      Variable<String>(today),
+      Variable<String>(today),
+    ]).getSingle();
+    
+    final data = result.data;
+    final totalRooms = data['total_rooms'] as int;
+    final occupiedRooms = data['occupied_rooms'] as int;
+    final totalIncome = (data['total_income'] as num).toDouble();
+    final totalExpenses = (data['total_expenses'] as num).toDouble();
     
     return {
-      'totalRooms': result.total_rooms,
-      'occupiedRooms': result.occupied_rooms,
-      'cleanRooms': result.clean_rooms,
-      'totalIncome': result.total_income,
-      'totalExpenses': result.total_expenses,
-      'totalBookings': result.total_bookings,
-      'occupancyRate': result.total_rooms > 0
-          ? (result.occupied_rooms / result.total_rooms * 100)
+      'totalRooms': totalRooms,
+      'occupiedRooms': occupiedRooms,
+      'cleanRooms': data['clean_rooms'] as int,
+      'totalIncome': totalIncome,
+      'totalExpenses': totalExpenses,
+      'totalBookings': data['total_bookings'] as int,
+      'occupancyRate': totalRooms > 0
+          ? (occupiedRooms / totalRooms * 100)
           : 0.0,
-      'netProfit': result.total_income - result.total_expenses,
+      'netProfit': totalIncome - totalExpenses,
     };
   }
   
@@ -62,7 +72,7 @@ class OptimizedQueries {
     final from = '$year-${month.toString().padLeft(2, '0')}-01';
     final to = '$year-${month.toString().padLeft(2, '0')}-31';
     
-    return await db.customSelect('''
+    final rows = await db.customSelect('''
       SELECT 
         date(payment_date) as day,
         SUM(amount) as income,
@@ -82,7 +92,14 @@ class OptimizedQueries {
       GROUP BY date(date)
       
       ORDER BY day
-    ''', variables: [from, to, from, to]).get();
+    ''', variables: [
+      Variable<String>(from),
+      Variable<String>(to),
+      Variable<String>(from),
+      Variable<String>(to),
+    ]).get();
+    
+    return rows.map((row) => row.data).toList();
   }
   
   /// Get top rooms by revenue (covering index query)
@@ -92,12 +109,14 @@ class OptimizedQueries {
     String? toDate,
   }) async {
     final where = fromDate != null ? 'WHERE p.payment_date >= ?' : '';
-    final params = fromDate != null ? [fromDate] : [];
+    final params = fromDate != null
+        ? <Variable<Object>>[Variable<String>(fromDate)]
+        : <Variable<Object>>[];
     if (toDate != null) {
-      params.add(toDate);
+      params.add(Variable<String>(toDate));
     }
     
-    return await db.customSelect('''
+    final rows = await db.customSelect('''
       SELECT 
         r.room_number,
         COUNT(p.id) as payment_count,
@@ -109,12 +128,14 @@ class OptimizedQueries {
       GROUP BY r.room_number, r.id
       ORDER BY total_revenue DESC
       LIMIT ?
-    ''', variables: [...params, limit]).get();
+    ''', variables: [...params, Variable<int>(limit)]).get();
+    
+    return rows.map((row) => row.data).toList();
   }
   
   /// Get occupancy trend (last 7 days) - optimized
   Future<List<Map<String, dynamic>>> getOccupancyTrend({int days = 7}) async {
-    return await db.customSelect('''
+    final rows = await db.customSelect('''
       SELECT 
         date(hotel_day_checkin) as day,
         COUNT(DISTINCT room_number) as occupied,
@@ -129,16 +150,18 @@ class OptimizedQueries {
       GROUP BY date(hotel_day_checkin)
       ORDER BY day
     ''').get();
+    
+    return rows.map((row) => row.data).toList();
   }
   
   /// Get guest debts - optimized with index hint
   Future<List<local_db.Debt>> getOverdueDebts() async {
-    return await db.select(db.debts)
-      .where((d) => d.isSettled.equals(0) &
-                    d.remainingAmount.biggerThan(0))
-      .orderBy([(d) => OrderingTerm.desc(d.id)])
-      .limit(100) // Prevent loading too many
-      .get();
+    final query = db.select(db.debts)
+      ..where((d) => d.isSettled.equals(0) &
+                    d.remainingAmount.isBiggerThanValue(0))
+      ..orderBy([(d) => OrderingTerm.desc(d.id)])
+      ..limit(100);
+    return query.get();
   }
   
   /// Get employee salary summary
@@ -153,13 +176,14 @@ class OptimizedQueries {
       LEFT JOIN salary_cycles sc ON sc.employee_id = e.id
       WHERE e.id = ?
       GROUP BY e.id
-    ''', variables: [employeeId]).getSingle();
+    ''', variables: [Variable<int>(employeeId)]).getSingle();
     
+    final r = result.data;
     return {
-      'name': result.name,
-      'basicSalary': result.basic_salary,
-      'totalPaid': result.total_paid,
-      'totalRemaining': result.total_remaining,
+      'name': r['name'],
+      'basicSalary': r['basic_salary'],
+      'totalPaid': r['total_paid'],
+      'totalRemaining': r['total_remaining'],
     };
   }
   
@@ -180,14 +204,17 @@ class OptimizedQueries {
         AND b.room_number = ?
       WHERE r.room_number = ?
       LIMIT 1
-    ''', variables: [roomNumber, roomNumber]).getSingleOrNull();
+    ''', variables: [
+      Variable<String>(roomNumber),
+      Variable<String>(roomNumber),
+    ]).getSingleOrNull();
     
-    return result;
+    return result?.data;
   }
   
   /// Get room occupancy rate quickly
   Future<double> getOccupancyRate(String? hotelDay) async {
-    final day = hotelDay ?? _todayKey();
+    // hotelDay parameter reserved for future date-specific queries
     
     final result = await db.customSelect('''
       SELECT 
@@ -199,7 +226,7 @@ class OptimizedQueries {
       FROM rooms
     ''').getSingle();
     
-    return result.rate ?? 0.0;
+    return (result.data['rate'] as num?)?.toDouble() ?? 0.0;
   }
   
   // ─── PAYMENTS: Aggregations ───
@@ -207,11 +234,10 @@ class OptimizedQueries {
   /// Get today's total payments (uses index on payment_date)
   Future<double> getTodayPayments() async {
     final today = _todayKey();
-    final result = await db.select(db.payments)
-      .where((p) => p.paymentDate.equals(today) &
-                    p.isVoided.equals(false))
-      .watch()
-      .get();
+    final query = db.select(db.payments)
+      ..where((p) => p.paymentDate.equals(today) &
+                    p.isVoided.equals(false));
+    final result = await query.get();
     
     return result.fold<double>(0, (sum, p) => sum + p.amount);
   }
@@ -229,11 +255,14 @@ class OptimizedQueries {
       WHERE payment_date BETWEEN ? AND ?
         AND is_voided = 0
       GROUP BY revenue_type
-    ''', variables: [from, to]).get();
+    ''', variables: [
+      Variable<String>(from),
+      Variable<String>(to),
+    ]).get();
     
     return {
       for (final r in results)
-        r.revenue_type as String: r.total as double,
+        r.read<String>('revenue_type'): r.read<double>('total'),
     };
   }
   
@@ -254,11 +283,14 @@ class OptimizedQueries {
       FROM expenses
       WHERE date BETWEEN ? AND ?
       GROUP BY expense_type
-    ''', variables: [from, to]).get();
+    ''', variables: [
+      Variable<String>(from),
+      Variable<String>(to),
+    ]).get();
     
     return {
       for (final r in results)
-        r.expense_type as String: r.total as double,
+        r.read<String>('expense_type'): r.read<double>('total'),
     };
   }
   
@@ -269,25 +301,36 @@ class OptimizedQueries {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
   
-  /// Generic method for paginated queries with optimized limit
-  Future<List<T>> getPaginated<T extends Table>(
-    TableInfo<dynamic, T> table, {
+  /// Generic method for paginated queries with optimized limit.
+  /// Uses raw SQL since Drift's typed select API requires compile-time
+  /// table types, which is incompatible with a generic parameter.
+  Future<List<Map<String, dynamic>>> getPaginated(
+    String tableName, {
     required int page,
     required int limit,
-    Expression? where,
-    OrderingTerm? orderBy,
+    String? whereSql,
+    List<Variable<Object>>? variables,
+    String? orderBySql,
   }) async {
     final offset = (page - 1) * limit;
-    var query = db.select(table);
-    
-    if (where != null) {
-      query = query.where((t) => where);
+    final params = <Variable<Object>>[...?variables];
+
+    var sql = 'SELECT * FROM $tableName';
+
+    if (whereSql != null) {
+      sql += ' WHERE $whereSql';
     }
-    
-    if (orderBy != null) {
-      query = query.orderBy([orderBy]);
+
+    if (orderBySql != null) {
+      sql += ' ORDER BY $orderBySql';
     }
-    
-    return await query.limit(limit, offset: offset).get();
+
+    sql += ' LIMIT ? OFFSET ?';
+    params
+      ..add(Variable<int>(limit))
+      ..add(Variable<int>(offset));
+
+    final rows = await db.customSelect(sql, variables: params).get();
+    return rows.map((row) => row.data).toList();
   }
 }

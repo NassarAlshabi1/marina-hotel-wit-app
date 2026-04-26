@@ -579,7 +579,7 @@ class GoogleDriveBackupService {
 
         // JSON مضغوط بدون مسافات + gzip أقصى ضغط
         final jsonBytes = utf8.encode(jsonEncode(backupData));
-        final compressedBytes = gzip.encode(jsonBytes, level: 6);
+        final compressedBytes = GZipCodec(level: 6).encode(jsonBytes);
 
         final timestamp = DateTime.now();
 

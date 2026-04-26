@@ -24,54 +24,52 @@ class DatabaseOptimizer {
   
   /// 1. Composite Indexes for common WHERE clauses
   Future<void> _createCompositeIndexes() async {
-    final executor = db.executor;
-    
     // ─── Bookings: Most queried table ───
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_bookings_composite_1 
       ON bookings(status, hotel_day_checkin, guest_name)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_bookings_composite_2 
       ON bookings(room_number, status, checkin_date)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_bookings_dates 
       ON bookings(checkin_date, checkout_date)
     ''');
     
     // ─── Payments: Financial reports ───
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_composite_1 
       ON payments(hotel_day_key, revenue_type, payment_date)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_composite_2 
       ON payments(booking_local_id, payment_date, amount)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_date_amt 
       ON payments(payment_date DESC, amount)
     ''');
     
     // ─── Expenses ───
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_expenses_composite 
       ON expenses(hotel_day_key, expense_type, date)
     ''');
     
     // ─── Rooms: Status queries ───
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_rooms_status_price 
       ON rooms(status, price)
     ''');
     
     // ─── Debts: Collections tracking ───
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_debts_composite 
       ON debts(is_settled, remaining_amount, guest_name)
     ''');
@@ -83,22 +81,20 @@ class DatabaseOptimizer {
   
   /// 2. Covering Indexes (include all queried columns)
   Future<void> _createCoveringIndexes() async {
-    final executor = db.executor;
-    
     // Bookings covering index for list view
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_bookings_covering 
       ON bookings(room_number, guest_name, checkin_date, status, id)
     ''');
     
     // Payments covering for reports
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_covering 
       ON payments(payment_date, amount, payment_method, revenue_type)
     ''');
     
     // Rooms covering for room list
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_rooms_covering 
       ON rooms(room_number, type, price, status, image_url)
     ''');
@@ -112,26 +108,24 @@ class DatabaseOptimizer {
   Future<void> _analyzeQueryPatterns() async {
     // This would query the drift query planner in real usage
     // For now, add commonly needed indexes
-    
-    final executor = db.executor;
-    
+
     // Foreign key indexes (often missing)
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_bookings_server_id 
       ON bookings(server_booking_id)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_server_id 
       ON payments(server_payment_id)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_cash_tx 
       ON payments(cash_transaction_local_id)
     ''');
     
-    await executor.execute('''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_expenses_cash_tx 
       ON expenses(cash_transaction_id)
     ''');
@@ -143,16 +137,14 @@ class DatabaseOptimizer {
   
   /// 4. Database maintenance
   Future<void> _vacuumAndOptimize() async {
-    final executor = db.executor;
-    
     // Rebuild indexes
-    await executor.execute('REINDEX');
+    await db.customStatement('REINDEX');
     
     // Vacuum (reclaims space, defragments)
-    await executor.execute('VACUUM');
+    await db.customStatement('VACUUM');
     
     // Analyze for query planner
-    await executor.execute('ANALYZE');
+    await db.customStatement('ANALYZE');
     
     if (kDebugMode) {
       print('✅ Database optimized (VACUUM + REINDEX)');

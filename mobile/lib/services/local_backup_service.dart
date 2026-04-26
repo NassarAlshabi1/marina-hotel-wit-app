@@ -13,6 +13,7 @@ import 'local_db.dart';
 import '../utils/app_logger.dart';
 import '../providers/repository_providers.dart';
 import 'google_drive_backup_service.dart';
+export 'google_drive_backup_service.dart' show BackupFormat;
 import 'backup_serializers.dart';
 
 class LocalBackupFile {
@@ -253,7 +254,7 @@ class LocalBackupService {
 
         // JSON مضغوط بدون مسافات + gzip level 6
         final jsonBytes = utf8.encode(jsonEncode(backupData));
-        final compressedBytes = gzip.encode(jsonBytes, level: 6);
+        final compressedBytes = GZipCodec(level: 6).encode(jsonBytes);
         await file.writeAsBytes(compressedBytes);
 
         debugPrint(

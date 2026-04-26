@@ -618,7 +618,7 @@ class _UnifiedBackupSettingsScreenState
     );
 
     if (confirmed == true) {
-      await ref.read(backupStatusProvider.notifier).cleanOldBackups();
+      await ref.read(backupStatusProvider.notifier).cleanOldLocalBackups();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

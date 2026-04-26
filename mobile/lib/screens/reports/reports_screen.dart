@@ -95,7 +95,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
       final daily = List.generate(7, (i) {
         final busy =
-            rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).length;
+            rooms.where((r) => StatusUtils.isRoomOccupied(r.status as String)).length;
         final occ = (busy * 100 / total).round().toDouble();
         return BarChartGroupData(
           x: i,
@@ -106,11 +106,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final revExp = [
         BarChartGroupData(
           x: 0,
-          barRods: [BarChartRodData(toY: finData['income'], color: Colors.green)],
+          barRods: [BarChartRodData(toY: (finData['income'] as num).toDouble(), color: Colors.green)],
         ),
         BarChartGroupData(
           x: 1,
-          barRods: [BarChartRodData(toY: finData['expense'], color: Colors.red)],
+          barRods: [BarChartRodData(toY: (finData['expense'] as num).toDouble(), color: Colors.red)],
         ),
       ];
 
@@ -118,7 +118,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final topBars = <BarChartGroupData>[];
       for (var i = 0; i < topRooms.length; i++) {
         final r = topRooms[i];
-        final v = StatusUtils.isRoomOccupied(r.status) ? 100.0 : 20.0;
+        final v = StatusUtils.isRoomOccupied(r.status as String) ? 100.0 : 20.0;
         topBars.add(
           BarChartGroupData(
             x: i,

@@ -334,7 +334,7 @@ class _SettingsMaintenanceScreenState
         _infoRow(Icons.verified, 'إصدار التطبيق', info.appVersion),
         _infoRow(Icons.devices, 'الجهاز', '${info.deviceModel} · ${info.osVersion}'),
         _infoRow(
-          Icons.database,
+          Icons.storage,
           'قاعدة البيانات',
           info.dbConnected
               ? 'متصلة (إصدار ${info.dbSchemaVersion})'
@@ -444,11 +444,11 @@ class _SettingsMaintenanceScreenState
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.red.withOpacity(0.2)),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber, color: Colors.red, size: 20),
-          SizedBox(width: 8),
+          const Icon(Icons.warning_amber, color: Colors.red, size: 20),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'استخدام أدوات الصيانة المتقدمة قد يؤثر على البيانات. '
@@ -527,7 +527,7 @@ class _SettingsMaintenanceScreenState
               _showLoading('جاري التنظيف...');
               try {
                 await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
-                await DiagnosticsLogger.instance.clear();
+                DiagnosticsLogger.instance.clear();
                 _hideLoading();
                 _showSnack('تم التنظيف بنجاح', color: Colors.green);
                 _loadSystemInfo();

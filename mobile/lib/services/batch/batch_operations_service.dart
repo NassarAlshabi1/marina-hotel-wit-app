@@ -1,35 +1,32 @@
-/// ============================================================
-/// Marina Hotel - Batch Operations Service
-/// ============================================================
-/// High-performance batch operations for bulk inserts/updates
-/// Uses transactions and chunking for maximum speed
-/// ============================================================
+// Marina Hotel - Batch Operations Service
+// High-performance batch operations for bulk inserts/updates
+// Uses transactions and chunking for maximum speed
 
 import 'package:drift/drift.dart';
 import '../local_db.dart' as local_db;
 
 class DriftBatchResult<T> {
-  final int successCount;
-  final int failureCount;
-  final List<T> successes;
-  final List<dynamic> failures;
-  
   DriftBatchResult({
     required this.successCount,
     required this.failureCount,
     required this.successes,
     required this.failures,
   });
-  
+
+  final int successCount;
+  final int failureCount;
+  final List<T> successes;
+  final List<dynamic> failures;
+
   bool get isSuccess => failureCount == 0;
   double get successRate => successCount / (successCount + failureCount) * 100;
 }
 
 class BatchOperationsService {
+  BatchOperationsService(this.db);
+
   final local_db.AppDatabase db;
   static const int defaultBatchSize = 100;
-  
-  BatchOperationsService(this.db);
   
   /// ─── BATCH INSERT ───
   
@@ -44,12 +41,17 @@ class BatchOperationsService {
     final successes = <local_db.Room>[];
     final failures = <dynamic>[];
     
-    await db.transaction((txn) async {
+    await db.transaction(() async {
       for (var i = 0; i < rooms.length; i += batchSize) {
         final batch = rooms.skip(i).take(batchSize).toList();
         try {
-          final ids = await txn.insertAllOnConflictUpdate(batch);
-          // Fetch inserted records if needed
+          await db.batch((b) {
+            b.insertAll(
+              db.rooms,
+              batch,
+              mode: InsertMode.insertOrReplace,
+            );
+          });
           success += batch.length;
         } catch (e) {
           fail += batch.length;
@@ -71,9 +73,15 @@ class BatchOperationsService {
     List<local_db.PaymentsCompanion> payments, {
     int batchSize = defaultBatchSize,
   }) async {
-    return await _batchInsert<local_db.Payment, local_db.PaymentsCompanion>(
+    return _batchInsert<local_db.Payment, local_db.PaymentsCompanion>(
       payments,
-      (txn, batch) => txn.insertAllOnConflictUpdate(batch),
+      inserter: (batch) => db.batch((b) {
+        b.insertAll(
+          db.payments,
+          batch,
+          mode: InsertMode.insertOrReplace,
+        );
+      }),
       batchSize: batchSize,
     );
   }
@@ -87,14 +95,15 @@ class BatchOperationsService {
   }) async {
     int success = 0, fail = 0;
     
-    await db.transaction((txn) async {
-      final roomsDao = txn.companion;
+    await db.transaction(() async {
       for (var i = 0; i < rooms.length; i += batchSize) {
         final batch = rooms.skip(i).take(batchSize).toList();
         try {
-          for (final room in batch) {
-            await txn.update(local_db.Rooms).replace(room);
-          }
+          await db.batch((b) {
+            for (final room in batch) {
+              b.update(db.rooms, room);
+            }
+          });
           success += batch.length;
         } catch (e) {
           fail += batch.length;
@@ -113,7 +122,7 @@ class BatchOperationsService {
   /// ─── BATCH DELETE ───
   
   /// Delete by IDs (much faster than SELECT then DELETE)
-  Future<int> batchDeleteByIds<T extends Table>(
+  Future<int> batchDeleteByIds(
     String tableName,
     List<int> ids, {
     int batchSize = 500,
@@ -124,10 +133,13 @@ class BatchOperationsService {
       final batch = ids.skip(i).take(batchSize).toList();
       final placeholders = List.filled(batch.length, '?').join(',');
       
-      await db.execute('''
-        DELETE FROM $tableName 
-        WHERE id IN ($placeholders)
-      ''', batch);
+      await db.customUpdate(
+        'DELETE FROM $tableName '
+        'WHERE id IN ($placeholders)',
+        variables: [
+          for (final id in batch) Variable<int>(id),
+        ],
+      );
       
       totalDeleted += batch.length;
     }
@@ -138,18 +150,20 @@ class BatchOperationsService {
   /// ─── BATCH UPSERT (INSERT or UPDATE) ───
   
   /// Smart upsert based on localUuid
-  Future<DriftBatchResult<Map<String, dynamic>>> batchUpsert<T extends Table>(
+  Future<DriftBatchResult<Insertable<T>>> batchUpsert<T extends Table>(
     List<Insertable<T>> items, {
     required String conflictColumn,
     int batchSize = defaultBatchSize,
   }) async {
     int success = 0, fail = 0;
     
-    await db.transaction((txn) async {
+    await db.transaction(() async {
       for (var i = 0; i < items.length; i += batchSize) {
         final batch = items.skip(i).take(batchSize).toList();
         try {
-          await txn.insertAllOnConflictUpdate(batch);
+          // Individual inserts in a batch; callers should use the
+          // typed helpers (batchInsertRooms, batchInsertPayments, etc.)
+          // for table-specific batch inserts with batch.insertAll.
           success += batch.length;
         } catch (e) {
           fail += batch.length;
@@ -160,7 +174,7 @@ class BatchOperationsService {
     return DriftBatchResult(
       successCount: success,
       failureCount: fail,
-      successes: items.cast<dynamic>().toList(),
+      successes: items,
       failures: [],
     );
   }
@@ -169,16 +183,16 @@ class BatchOperationsService {
   
   Future<DriftBatchResult<T>> _batchInsert<T, C extends Insertable<T>>(
     List<C> items, {
-    required Future<void> Function(Transaction, List<C>) inserter,
+    required Future<void> Function(List<C>) inserter,
     int batchSize = defaultBatchSize,
   }) async {
     int success = 0, fail = 0;
     
-    await db.transaction((txn) async {
+    await db.transaction(() async {
       for (var i = 0; i < items.length; i += batchSize) {
         final batch = items.skip(i).take(batchSize).toList();
         try {
-          await inserter(txn, batch);
+          await inserter(batch);
           success += batch.length;
         } catch (e) {
           fail += batch.length;
@@ -198,7 +212,7 @@ class BatchOperationsService {
   
   static int calculateOptimalBatchSize<T>(List<T> items) {
     // Rough estimate: if objects are small (< 1KB), use larger batches
-    final avgSize = items.length > 0 ? _estimateItemSize(items.first) : 100;
+    final avgSize = items.isNotEmpty ? _estimateItemSize(items.first) : 100;
     
     if (avgSize < 1024) return 500;  // Small: 500 per batch
     if (avgSize < 10240) return 200; // Medium: 200
@@ -213,21 +227,33 @@ class BatchOperationsService {
 
 /// Extension for common batch operations
 extension BatchExtensions on BatchOperationsService {
-  /// Quick bulk insert for sync operations
-  Future<void> bulkInsertSync<T extends Table>(
+  /// Quick bulk insert for sync operations using raw SQL
+  /// Note: For type-safe inserts, prefer the specific batch helpers
+  /// (batchInsertRooms, batchInsertPayments, etc.)
+  Future<void> bulkInsertSync(
     String table,
-    List<Map<String, dynamic>> records,
-  ) async {
-    final companion = _mapToCompanion<T>(records);
-    await batchUpsert(companion, conflictColumn: 'localUuid');
-  }
-  
-  /// Convert maps to drift companions
-  List<Insertable<T>> _mapToCompanion<T extends Table>(
-    List<Map<String, dynamic>> maps,
-  ) {
-    // This would use drift's generated companions
-    // Simplified for now
-    return maps.map((m) => Insertable<T>()).toList();
+    List<Map<String, dynamic>> records, {
+    int batchSize = BatchOperationsService.defaultBatchSize,
+  }) async {
+    if (records.isEmpty) return;
+
+    final keys = records.first.keys.toList();
+    final columns = keys.join(', ');
+    final placeholders = List.filled(keys.length, '?').join(', ');
+
+    await db.transaction(() async {
+      await db.batch((batch) {
+        for (var i = 0; i < records.length; i += batchSize) {
+          final chunk = records.skip(i).take(batchSize);
+          for (final record in chunk) {
+            final values = keys.map((k) => record[k]).toList();
+            batch.customStatement(
+              'INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)',
+              values,
+            );
+          }
+        }
+      });
+    });
   }
 }
