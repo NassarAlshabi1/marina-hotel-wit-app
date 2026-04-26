@@ -248,12 +248,19 @@ class LocalBackupService {
               : {},
         };
 
-        final filePath = '${backupDir.path}/$baseName.json';
+        final filePath = '${backupDir.path}/$baseName.json.gz';
         final file = File(filePath);
-        final jsonString = const JsonEncoder.withIndent(
-          '  ',
-        ).convert(backupData);
-        await file.writeAsString(jsonString);
+
+        // JSON مضغوط بدون مسافات + gzip level 6
+        final jsonBytes = utf8.encode(jsonEncode(backupData));
+        final compressedBytes = gzip.encode(jsonBytes, level: 6);
+        await file.writeAsBytes(compressedBytes);
+
+        debugPrint(
+          '✅ نسخة محلية مضغوطة: '
+          '${(jsonBytes.length / 1024).toStringAsFixed(1)} KB → '
+          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
+        );
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
@@ -394,7 +401,8 @@ class LocalBackupService {
           .where(
             (entity) =>
                 entity is File &&
-                (entity.path.endsWith('.json') ||
+                (entity.path.endsWith('.json.gz') ||
+                    entity.path.endsWith('.json') ||
                     entity.path.endsWith('.sqlite')) &&
                 entity.path.contains(_backupFilePrefix),
           )
@@ -467,7 +475,7 @@ class LocalBackupService {
         return;
       }
 
-      if (extension == '.json') {
+      if (extension == '.json' || extension == '.gz') {
         await _restoreFromJsonBackup(filePath);
         return;
       }
@@ -487,7 +495,16 @@ class LocalBackupService {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
-    final jsonString = await file.readAsString();
+    // فك الضغط تلقائياً مع دعم النسخ القديمة غير المضغوطة
+    final List<int> rawBytes = await file.readAsBytes();
+    List<int> decodedBytes;
+    if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
+      decodedBytes = gzip.decode(rawBytes);
+      debugPrint('📦 فك ضغط gzip: ${(rawBytes.length / 1024).toStringAsFixed(1)} KB → ${(decodedBytes.length / 1024).toStringAsFixed(1)} KB');
+    } else {
+      decodedBytes = rawBytes;
+    }
+    final jsonString = utf8.decode(decodedBytes);
     final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
     if (!backupData.containsKey('metadata')) {
