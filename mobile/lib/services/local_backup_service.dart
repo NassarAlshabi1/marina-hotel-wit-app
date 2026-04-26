@@ -416,12 +416,20 @@ class LocalBackupService {
         final format = extension == '.sqlite'
             ? BackupFormat.sqlite
             : BackupFormat.json;
+        final isGz = extension == '.gz';
 
         try {
           BackupMetadata? metadata;
 
           if (format == BackupFormat.json) {
-            final content = await file.readAsString();
+            // قراءة مع دعم فك ضغط gzip
+            final List<int> rawBytes = await file.readAsBytes();
+            String content;
+            if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
+              content = utf8.decode(gzip.decode(rawBytes));
+            } else {
+              content = utf8.decode(rawBytes);
+            }
             final jsonData = jsonDecode(content) as Map<String, dynamic>;
             if (jsonData.containsKey('metadata')) {
               final metadataSource = jsonData['metadata'];
@@ -718,7 +726,7 @@ class LocalBackupService {
 
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json', 'sqlite'],
+        allowedExtensions: ['json', 'sqlite', 'gz'],
         allowMultiple: false,
       );
 
@@ -738,15 +746,26 @@ class LocalBackupService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final baseName = '$_backupFilePrefixImported$timestamp';
 
-      if (extension == '.json') {
-        final content = await sourceFile.readAsString();
+      if (extension == '.json' || extension == '.gz') {
+        // فك الضغط تلقائياً إن كان مضغوطاً
+        final rawBytes = await sourceFile.readAsBytes();
+        String content;
+        List<int> copyBytes;
+        if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
+          copyBytes = rawBytes;
+          content = utf8.decode(gzip.decode(rawBytes));
+        } else {
+          copyBytes = rawBytes;
+          content = utf8.decode(rawBytes);
+        }
         final jsonData = jsonDecode(content) as Map<String, dynamic>;
         if (!jsonData.containsKey('metadata')) {
           throw Exception('الملف المختار ليس نسخة احتياطية صالحة');
         }
 
-        final newFilePath = '${backupDir.path}/$baseName.json';
-        await sourceFile.copy(newFilePath);
+        final ext = extension == '.gz' ? '.json.gz' : '.json';
+        final newFilePath = '${backupDir.path}/$baseName$ext';
+        await File(newFilePath).writeAsBytes(copyBytes);
         debugPrint('✅ تم استيراد النسخة الاحتياطية (JSON): $newFilePath');
         return newFilePath;
       }
