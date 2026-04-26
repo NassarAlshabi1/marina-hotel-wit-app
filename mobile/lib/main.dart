@@ -56,6 +56,7 @@ import 'services/appwrite_sync_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/fcm_service.dart';
 import 'services/crashlytics_service.dart';
+import 'services/remote_config_service.dart';
 import 'services/sync_service.dart';
 import 'services/sync_constants.dart';
 import 'services/battery_optimizer.dart';
@@ -71,6 +72,9 @@ Future<void> main() async {
 
   // ─── Crashlytics: تهيئة قبل كل شيء ───
   await CrashlyticsService.instance.initialize();
+
+  // ─── Remote Config: تهيئة مبكراً ───
+  await RemoteConfigService.instance.initialize();
 
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();

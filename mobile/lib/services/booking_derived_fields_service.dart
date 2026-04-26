@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
+import '../remote_config_service.dart';
+
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -120,7 +122,8 @@ class BookingDerivedFieldsService {
     final results = await Future.wait(active.map((booking) async {
       try {
         bool didPromote = false;
-        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= 14) {
+        final cutoffHour = RemoteConfigService.instance.checkoutHour;
+        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= cutoffHour) {
           await _promoteProvisionalBooking(booking.id);
           didPromote = true;
         }
@@ -355,8 +358,9 @@ class BookingDerivedFieldsService {
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
-    int cutoffHour = 14,
+    int? cutoffHour,
   }) {
+    cutoffHour ??= RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00

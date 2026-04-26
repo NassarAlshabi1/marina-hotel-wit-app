@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../utils/app_logger.dart';
+import '../remote_config_service.dart';
 import 'telegram_config.dart';
 
 /// أنواع أحداث الفندق
@@ -53,8 +55,10 @@ class WhatsAppNotificationService {
 
   // CallMeBot WhatsApp API
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
-  static const String _defaultPhone = '967773749389';
-  static const String _defaultApiKey = '7379268';
+
+  // Remote Config — القيم تُحمّل من Firebase Console
+  String get _phone => RemoteConfigService.instance.whatsappPhone;
+  String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
   final http.Client _httpClient = http.Client();
 
   /// أيقونات لكل نوع حدث
@@ -88,9 +92,9 @@ class WhatsAppNotificationService {
     try {
       final url = Uri.parse(
         '$_callMeBotUrl'
-        '?phone=$_defaultPhone'
+        '?phone=$_phone'
         '&text=${Uri.encodeComponent(message)}'
-        '&apikey=$_defaultApiKey',
+        '&apikey=$_apiKey',
       );
 
       final response = await _httpClient.get(url);
@@ -123,6 +127,8 @@ class WhatsAppNotificationService {
   /// إرسال إشعار عن حدث فندقي
   Future<bool> sendEventNotification(WhatsAppEvent event) async {
     try {
+      // فحص Remote Config أولاً (تفعيل/تعطيل عام)
+      if (!RemoteConfigService.instance.whatsappEnabled) return false;
       if (!await TelegramConfig.isEnabled()) return false;
       if (!await TelegramConfig.isNotificationsEnabled()) return false;
 
@@ -370,9 +376,9 @@ class WhatsAppNotificationService {
 
       final url = Uri.parse(
         '$_callMeBotUrl'
-        '?phone=$_defaultPhone'
+        '?phone=$_phone'
         '&text=${Uri.encodeComponent(buffer.toString().trimRight())}'
-        '&apikey=$_defaultApiKey',
+        '&apikey=$_apiKey',
       );
 
       final response = await _httpClient.get(url);
@@ -409,9 +415,9 @@ class WhatsAppNotificationService {
 
       final url = Uri.parse(
         '$_callMeBotUrl'
-        '?phone=$_defaultPhone'
+        '?phone=$_phone'
         '&text=${Uri.encodeComponent(buffer.toString().trimRight())}'
-        '&apikey=$_defaultApiKey',
+        '&apikey=$_apiKey',
       );
 
       final response = await _httpClient.get(url);

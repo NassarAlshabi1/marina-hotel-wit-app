@@ -21,6 +21,7 @@ import 'data_protection_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
+import 'remote_config_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -265,6 +266,18 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.bug_report,
               color: Colors.red.shade700,
               onTap: () => _showCrashlyticsDialog(context),
+            ),
+            _SettingsItem(
+              title: 'Remote Config',
+              subtitle: 'تحكم عن بُعد بالإعدادات',
+              icon: Icons.cloud_sync,
+              color: Colors.blue.shade700,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RemoteConfigSettingsScreen(),
+                ),
+              ),
             ),
             _SettingsItem(
               title: 'معلومات التطبيق',

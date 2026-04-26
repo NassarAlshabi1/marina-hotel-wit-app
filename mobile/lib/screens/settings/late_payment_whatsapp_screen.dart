@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/remote_config_service.dart';
 import '../../utils/currency_formatter.dart';
 
 /// شاشة إرسال تنبيه واتساب للمبالغ المتأخرة
@@ -89,7 +90,7 @@ class _LatePaymentWhatsAppScreenState
     message += 'نرجو منكم التكرم بتسديد المبلغ المتبقي في أقرب وقت ممكن.\n\n';
     message += 'مع خالص التحية والتقدير\n';
     message += 'فندق مارينا\n';
-    message += 'للاستفسار: 9677734587456';
+    message += 'للاستفسار: ${RemoteConfigService.instance.hotelContactPhone}';
 
     return message;
   }
@@ -103,7 +104,8 @@ class _LatePaymentWhatsAppScreenState
   }
 
   bool _isOverdue(Debt debt) {
-    return _getDaysPassed(debt) > 30 && debt.isSettled == 0;
+    final threshold = RemoteConfigService.instance.latePaymentThresholdDays;
+    return _getDaysPassed(debt) > threshold && debt.isSettled == 0;
   }
 
   /// إرسال رسالة واتساب لدين واحد

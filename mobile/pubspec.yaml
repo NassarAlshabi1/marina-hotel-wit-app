@@ -46,6 +46,7 @@ dependencies:
   firebase_crashlytics: ^4.3.0
   firebase_analytics: ^11.4.0
   firebase_messaging: ^15.2.0
+  firebase_remote_config: ^5.4.2
 
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1
