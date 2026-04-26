@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
-import '../remote_config_service.dart';
+import 'remote_config_service.dart';
 
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
@@ -360,18 +360,18 @@ class BookingDerivedFieldsService {
     DateTime checkout, {
     int? cutoffHour,
   }) {
-    cutoffHour ??= RemoteConfigService.instance.checkoutHour;
+    final int resolvedCutoffHour = cutoffHour ?? RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
+    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(
       checkin.year,
       checkin.month,
       checkin.day,
-      cutoffHour,
+      resolvedCutoffHour,
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
