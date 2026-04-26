@@ -509,8 +509,32 @@ class SettingsScreen extends ConsumerWidget {
   void _showCrashlyticsDialog(BuildContext context) {
     final crashlytics = CrashlyticsService.instance;
     final isInitialized = crashlytics.isInitialized;
+    final isFirebaseConnected = crashlytics.isFirebaseConnected;
     final errorCount = crashlytics.errorCount;
     final history = crashlytics.getErrorHistory();
+
+    // تحديد النص والأيقونة واللون حسب الحالة
+    final String statusText;
+    final IconData statusIcon;
+    final Color statusColor;
+    final Color bgColor;
+
+    if (!isInitialized) {
+      statusText = 'الخدمة غير مهيأة';
+      statusIcon = Icons.error;
+      statusColor = Colors.red;
+      bgColor = Colors.red.shade50;
+    } else if (isFirebaseConnected) {
+      statusText = 'الخدمة مفعلة وتعمل';
+      statusIcon = Icons.check_circle;
+      statusColor = Colors.green;
+      bgColor = Colors.green.shade50;
+    } else {
+      statusText = 'الخدمة تعمل بالتسجيل المحلي';
+      statusIcon = Icons.cloud_queue;
+      statusColor = Colors.orange;
+      bgColor = Colors.orange.shade50;
+    }
 
     showDialog(
       context: context,
@@ -533,30 +557,32 @@ class SettingsScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isInitialized
-                        ? Colors.green.shade50
-                        : Colors.red.shade50,
+                    color: bgColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        isInitialized ? Icons.check_circle : Icons.error,
-                        color: isInitialized ? Colors.green : Colors.red,
-                      ),
+                      Icon(statusIcon, color: statusColor),
                       const SizedBox(width: 8),
-                      Text(
-                        isInitialized
-                            ? 'الخدمة مفعلة وتعمل'
-                            : 'الخدمة غير مهيأة',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isInitialized ? Colors.green : Colors.red,
+                      Expanded(
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                if (isInitialized && !isFirebaseConnected) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'الاتصال بـ Firebase غير متوفر. الأخطاء تُسجل محلياً فقط.',
+                    style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 // إحصائيات

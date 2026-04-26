@@ -50,13 +50,18 @@ class CrashlyticsService {
   FirebaseCrashlytics? _crashlytics;
   bool _isEnabled = true;
   bool _isInitialized = false;
+  bool _isFirebaseConnected = false;
   final List<Map<String, dynamic>> _errorHistory = [];
   static const int _maxHistorySize = 100;
 
-  /// هل تم التهيئة؟
+  /// هل تم التهيئة؟ (دائماً true بعد التهيئة)
   bool get isInitialized => _isInitialized;
 
+  /// هل Firebase متصل بنجاح؟
+  bool get isFirebaseConnected => _isFirebaseConnected;
+
   /// تهيئة الخدمة — يجب استدعاؤها في main()
+  /// يعمل دائماً حتى لو فشل Firebase — التسجيل المحلي متاح
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -72,6 +77,7 @@ class CrashlyticsService {
       await _crashlytics!.setCustomKey('app_version', '1.0.0');
       await _crashlytics!.log('CrashlyticsService initialized');
 
+      _isFirebaseConnected = true;
       _isInitialized = true;
 
       developer.log(
@@ -80,9 +86,12 @@ class CrashlyticsService {
       );
     } catch (e) {
       developer.log(
-        '⚠️ Crashlytics initialization failed: $e',
+        '⚠️ Crashlytics Firebase failed — local logging active: $e',
         name: 'CrashlyticsService',
       );
+      // حتى لو فشل Firebase، الخدمة تعمل بالتسجيل المحلي
+      _isFirebaseConnected = false;
+      _isInitialized = true;
     }
   }
 
