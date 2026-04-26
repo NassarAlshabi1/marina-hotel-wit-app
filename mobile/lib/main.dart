@@ -249,7 +249,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await SyncQueueService.instance.initialize();
 
-    _setupEngineMonitoring(autoSyncEngine);
+    _startEngineMonitoring(autoSyncEngine);
 
     debugPrint('✅ Auto Sync Engine started');
 
@@ -343,6 +343,19 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('✅ Configuration complete');
 }
 
+/// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
+StreamSubscription? _globalEngineMonitoringSub;
+
+void _startEngineMonitoring(AutoSyncEngine engine) {
+  _globalEngineMonitoringSub?.cancel();
+  _globalEngineMonitoringSub = engine.stateStream.listen((state) {
+    debugPrint('📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+        'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+        'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+        'Pending: ${state.pendingChangesCount}');
+  });
+}
+
 class App extends ConsumerStatefulWidget {
   const App({super.key});
 
@@ -359,41 +372,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   DateTime? _lastLocalAutoSync;
   bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
-  StreamSubscription? _engineMonitoringSub;
-
-  void _setupEngineMonitoring(AutoSyncEngine engine) {
-    debugPrint('📊 Setting up engine state monitoring...');
-
-    _engineMonitoringSub?.cancel();
-    _engineMonitoringSub = engine.stateStream.listen((state) {
-      final statusIcon = state.isRunning ? '🟢' : '🔴';
-      final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
-      final authIcon = state.isSignedIn ? '🔐' : '🔓';
-
-      debugPrint('📊 ENGINE STATE UPDATE');
-      debugPrint('$statusIcon Running: ${state.isRunning}');
-      debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
-      debugPrint('$authIcon Signed in: ${state.isSignedIn}');
-      debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
-      debugPrint(
-        '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
-      );
-      debugPrint('❌ Failed attempts: ${state.failedAttempts}');
-
-      if (state.nextRetryAt != null) {
-        final secondsUntil = state.nextRetryAt!
-            .difference(DateTime.now())
-            .inSeconds;
-        debugPrint('⏰ Next retry in: ${secondsUntil}s');
-      }
-
-      if (state.lastError != null) {
-        debugPrint('⚠️ Last error: ${state.lastError}');
-      }
-    });
-
-    debugPrint('✅ Monitoring setup complete');
-  }
 
   @override
   void initState() {
@@ -676,7 +654,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
-    _engineMonitoringSub?.cancel();
+    _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
