@@ -581,6 +581,7 @@ class GoogleDriveBackupService {
           '  ',
         ).convert(backupData);
         final jsonBytes = utf8.encode(jsonString);
+        final compressedBytes = gzip.encode(jsonBytes);
 
         final timestamp = DateTime.now();
 
@@ -607,17 +608,24 @@ class GoogleDriveBackupService {
         }
 
         final fileName =
-            '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json';
+            '${prefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.json.gz';
 
         final driveFile = drive.File()
           ..name = fileName
           ..parents = [folderId]
           ..appProperties = _buildAppProperties(metadata, timestamp);
 
-        final media = drive.Media(Stream.value(jsonBytes), jsonBytes.length);
+        final media = drive.Media(
+          Stream.value(compressedBytes),
+          compressedBytes.length,
+        );
 
+        final compressionRatio = compressedBytes.length / jsonBytes.length;
         _log(
-          '📤 بدء رفع $typeLabel: $fileName (${(jsonBytes.length / 1024).toStringAsFixed(2)} KB)',
+          '📤 بدء رفع $typeLabel: $fileName '
+          '(${(jsonBytes.length / 1024).toStringAsFixed(2)} KB → '
+          '${(compressedBytes.length / 1024).toStringAsFixed(2)} KB, '
+          '${(compressionRatio * 100).toStringAsFixed(1)}%)',
         );
 
         final uploadedFile = await _driveApi!.files.create(
@@ -630,7 +638,7 @@ class GoogleDriveBackupService {
         // التحقق من اكتمال الرفع
         final verifyResult = await _verifyUploadedBackup(
           uploadedFile.id!,
-          jsonBytes.length,
+          compressedBytes.length,
         );
         if (!(verifyResult['is_complete'] as bool? ?? false)) {
           _log('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
@@ -758,6 +766,7 @@ class GoogleDriveBackupService {
     addIfPresent('device_id', metadata['device_id']); // معرف الجهاز للمزامنة
     addIfPresent('backup_type', metadata['backup_type']);
     addIfPresent('changes_count', metadata['changes_count']);
+    props['compression'] = 'gzip';
 
     return props;
   }
@@ -815,7 +824,23 @@ class GoogleDriveBackupService {
         dataStore.addAll(data);
       }
 
-      final jsonString = utf8.decode(dataStore);
+      // محاولة فك ضغط gzip — مع دعم التوافق مع النسخ القديمة غير المضغوطة
+      List<int> decodedBytes;
+      if (dataStore.length >= 2 &&
+          dataStore[0] == 0x1f &&
+          dataStore[1] == 0x8b) {
+        // magic bytes gzip → ملف مضغوط
+        decodedBytes = gzip.decode(dataStore);
+        _log(
+          '📦 فك ضغط gzip: ${(dataStore.length / 1024).toStringAsFixed(2)} KB → '
+          '${(decodedBytes.length / 1024).toStringAsFixed(2)} KB',
+        );
+      } else {
+        // نسخة قديمة بدون ضغط
+        decodedBytes = dataStore;
+      }
+
+      final jsonString = utf8.decode(decodedBytes);
       final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
       _log('✅ تم تنزيل النسخة الاحتياطية: $fileId');
