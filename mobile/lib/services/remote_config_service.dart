@@ -85,16 +85,27 @@ class RemoteConfigService {
         'Remote Config initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
         name: 'RemoteConfig',
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       developer.log(
         'Remote Config Firebase failed — using local defaults: $e',
         name: 'RemoteConfig',
         error: e,
+        stackTrace: stackTrace,
       );
       // حتى لو فشل Firebase، الخدمة تعمل بالقيم الافتراضية
       _isFirebaseConnected = false;
       _lastFetchStatus = 'local_defaults';
       _isInitialized = true;
+    } finally {
+      // ضمان أن الخدمة مهيأة دائماً
+      if (!_isInitialized) {
+        _isInitialized = true;
+        _lastFetchStatus ??= 'local_defaults';
+        developer.log(
+          'Remote Config force-initialized with defaults',
+          name: 'RemoteConfig',
+        );
+      }
     }
   }
 

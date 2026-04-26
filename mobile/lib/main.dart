@@ -58,6 +58,7 @@ import 'services/fcm_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/sync_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'services/sync_constants.dart';
 import 'services/battery_optimizer.dart';
 import 'services/sync_performance_optimizer.dart';
@@ -69,6 +70,15 @@ import 'components/admin_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
+  try {
+    await Firebase.initializeApp();
+    debugPrint('✅ Firebase Core initialized');
+  } catch (e) {
+    debugPrint('⚠️ Firebase Core initialization failed: $e');
+    debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+  }
 
   // ─── Crashlytics: تهيئة قبل كل شيء ───
   await CrashlyticsService.instance.initialize();

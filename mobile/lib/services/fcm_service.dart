@@ -28,8 +28,8 @@ class FcmService {
     if (_isInitialized) return;
 
     try {
-      // 1. إعداد Firebase (إذا لم يتم بعد)
-      await Firebase.initializeApp();
+      // 1. Firebase تم تهيئته بالفعل في main.dart
+      // لا حاجة لاستدعاء Firebase.initializeApp() هنا
 
       // 2. طلب إذن الإشعارات
       await _requestPermission();
