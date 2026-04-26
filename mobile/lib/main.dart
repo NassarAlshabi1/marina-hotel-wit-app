@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'utils/theme.dart';
 import 'utils/env.dart';
+import 'utils/hotel_day_ticker.dart';
 
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
@@ -344,7 +345,8 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
 void _setupEngineMonitoring(AutoSyncEngine engine) {
   debugPrint('📊 Setting up engine state monitoring...');
 
-  engine.stateStream.listen((state) {
+  _engineMonitoringSub?.cancel();
+  _engineMonitoringSub = engine.stateStream.listen((state) {
     final statusIcon = state.isRunning ? '🟢' : '🔴';
     final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
     final authIcon = state.isSignedIn ? '🔐' : '🔓';
@@ -394,6 +396,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   DateTime? _lastLocalAutoSync;
   bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
+  StreamSubscription? _engineMonitoringSub;
 
   @override
   void initState() {
@@ -676,6 +679,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
+    _engineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
@@ -715,6 +719,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       await SmartSyncManager.disposeInstance();
     } catch (e) {
       debugPrint('⚠️ Error disposing SmartSyncManager: $e');
+    }
+    try {
+      ConnectivityService.instance.dispose();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing ConnectivityService: $e');
+    }
+    try {
+      HotelDayTicker.instance.dispose();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing HotelDayTicker: $e');
     }
     try {
       await AutoSyncEngine.disposeInstance();
@@ -848,20 +862,20 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
 
-  final Map<String, Widget> _routes = {
-    '/dashboard': const DashboardScreen(),
-    '/rooms': const RoomsListScreen(),
-    '/bookings': const BookingsListScreen(),
-    '/payments': const PaymentsMainScreen(),
-    '/debts': const DebtsListScreen(),
-    '/employees': const EmployeesListScreen(),
-    '/expenses': const ExpensesListScreen(),
-    '/finance': const FinanceScreen(),
-    '/reports': const ReportsScreen(),
-    '/notes': const NotesScreen(),
-    '/blacklist': const BlacklistScreen(),
-    '/information': const InformationScreen(),
-    '/settings': const SettingsScreen(),
+  final Map<String, WidgetBuilder> _routes = {
+    '/dashboard': (_) => const DashboardScreen(),
+    '/rooms': (_) => const RoomsListScreen(),
+    '/bookings': (_) => const BookingsListScreen(),
+    '/payments': (_) => const PaymentsMainScreen(),
+    '/debts': (_) => const DebtsListScreen(),
+    '/employees': (_) => const EmployeesListScreen(),
+    '/expenses': (_) => const ExpensesListScreen(),
+    '/finance': (_) => const FinanceScreen(),
+    '/reports': (_) => const ReportsScreen(),
+    '/notes': (_) => const NotesScreen(),
+    '/blacklist': (_) => const BlacklistScreen(),
+    '/information': (_) => const InformationScreen(),
+    '/settings': (_) => const SettingsScreen(),
   };
 
   bool _can(String key) {
@@ -877,7 +891,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed
-        ? (_routes[_currentRoute] ?? const DashboardScreen())
+        ? (_routes[_currentRoute]?.call(context) ?? const DashboardScreen())
         : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);

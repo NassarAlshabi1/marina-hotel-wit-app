@@ -46,6 +46,19 @@ class PaymentsRepository {
       dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
+  /// مراقبة مدفوعات يوم فندقي محدد (فلتر على مستوى قاعدة البيانات - أداء أفضل)
+  Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
+    final startIso = Time.hotelDayStartIso(hotelDayKey);
+    final endIso = Time.hotelDayEndIso(hotelDayKey);
+    return dao.watchByHotelDayKey(hotelDayKey).map((payments) {
+      double total = 0;
+      for (final p in payments) {
+        total += p.amount;
+      }
+      return total;
+    });
+  }
+
   Future<int> create({
     int? bookingLocalId,
     int? serverBookingId,

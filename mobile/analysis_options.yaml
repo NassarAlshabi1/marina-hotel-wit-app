@@ -18,6 +18,13 @@ analyzer:
 
 linter:
   rules:
+    # Code quality rules
+    avoid_print: true
+    always_declare_return_types: true
+    avoid_empty_else: true
+    directives_ordering: true
+    overridden_fields: true
+
     # Style rules
     avoid_single_cascade_in_expression_statements: true
     avoid_unnecessary_containers: true

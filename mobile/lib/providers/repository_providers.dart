@@ -191,24 +191,8 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  final startIso = Time.hotelDayStartIso(hotelDay);
-  final endIso = Time.hotelDayEndIso(hotelDay);
-  // watchAll() Stream يتحدث فوراً عند أي تغيير في payments table
-  // الفلترة في Dart تتطابق مع منطق listByHotelDayKey الأصلي
-  return paymentsRepo.watchAll().map((payments) {
-    double total = 0;
-    for (final p in payments) {
-      if (p.isVoided) continue;
-      if (p.hotelDayKey == hotelDay) {
-        total += p.amount;
-      } else if (p.hotelDayKey == null &&
-          p.paymentDate.compareTo(startIso) >= 0 &&
-          p.paymentDate.compareTo(endIso) < 0) {
-        total += p.amount;
-      }
-    }
-    return total;
-  });
+  // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
+  return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
 });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {

@@ -8,13 +8,13 @@
 import 'package:drift/drift.dart';
 import '../local_db.dart' as local_db;
 
-class BatchResult<T> {
+class DriftBatchResult<T> {
   final int successCount;
   final int failureCount;
   final List<T> successes;
   final List<dynamic> failures;
   
-  BatchResult({
+  DriftBatchResult({
     required this.successCount,
     required this.failureCount,
     required this.successes,
@@ -34,7 +34,7 @@ class BatchOperationsService {
   /// ─── BATCH INSERT ───
   
   /// Insert many records with transaction
-  Future<BatchResult<local_db.Room>> batchInsertRooms(
+  Future<DriftBatchResult<local_db.Room>> batchInsertRooms(
     List<local_db.RoomsCompanion> rooms, {
     int batchSize = defaultBatchSize,
     bool onConflict = true,
@@ -58,7 +58,7 @@ class BatchOperationsService {
       }
     });
     
-    return BatchResult(
+    return DriftBatchResult(
       successCount: success,
       failureCount: fail,
       successes: successes,
@@ -67,7 +67,7 @@ class BatchOperationsService {
   }
   
   /// Insert payments in batch (15x faster than individual)
-  Future<BatchResult<local_db.Payment>> batchInsertPayments(
+  Future<DriftBatchResult<local_db.Payment>> batchInsertPayments(
     List<local_db.PaymentsCompanion> payments, {
     int batchSize = defaultBatchSize,
   }) async {
@@ -81,7 +81,7 @@ class BatchOperationsService {
   /// ─── BATCH UPDATE ───
   
   /// Update multiple records efficiently
-  Future<BatchResult<local_db.Room>> batchUpdateRooms(
+  Future<DriftBatchResult<local_db.Room>> batchUpdateRooms(
     List<local_db.Room> rooms, {
     int batchSize = defaultBatchSize,
   }) async {
@@ -102,7 +102,7 @@ class BatchOperationsService {
       }
     });
     
-    return BatchResult(
+    return DriftBatchResult(
       successCount: success,
       failureCount: fail,
       successes: rooms,
@@ -138,7 +138,7 @@ class BatchOperationsService {
   /// ─── BATCH UPSERT (INSERT or UPDATE) ───
   
   /// Smart upsert based on localUuid
-  Future<BatchResult<Map<String, dynamic>>> batchUpsert<T extends Table>(
+  Future<DriftBatchResult<Map<String, dynamic>>> batchUpsert<T extends Table>(
     List<Insertable<T>> items, {
     required String conflictColumn,
     int batchSize = defaultBatchSize,
@@ -157,7 +157,7 @@ class BatchOperationsService {
       }
     });
     
-    return BatchResult(
+    return DriftBatchResult(
       successCount: success,
       failureCount: fail,
       successes: items.cast<dynamic>().toList(),
@@ -167,7 +167,7 @@ class BatchOperationsService {
   
   /// ─── HELPER ───
   
-  Future<BatchResult<T>> _batchInsert<T, C extends Insertable<T>>(
+  Future<DriftBatchResult<T>> _batchInsert<T, C extends Insertable<T>>(
     List<C> items, {
     required Future<void> Function(Transaction, List<C>) inserter,
     int batchSize = defaultBatchSize,
@@ -186,7 +186,7 @@ class BatchOperationsService {
       }
     });
     
-    return BatchResult(
+    return DriftBatchResult(
       successCount: success,
       failureCount: fail,
       successes: <T>[],

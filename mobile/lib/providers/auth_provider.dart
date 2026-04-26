@@ -196,7 +196,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (accounts.containsKey(user.username)) {
         _startSessionCheck();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error loading cloud accounts: \$e');
+    }
   }
 
   Future<void> login(
@@ -235,7 +237,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (accounts.containsKey(user.username)) {
         _startSessionCheck();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error loading cloud accounts: \$e');
+    }
   }
 
   Future<void> logout() async {

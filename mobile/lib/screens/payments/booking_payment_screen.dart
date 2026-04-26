@@ -16,6 +16,7 @@ import '../../services/booking_derived_fields_service.dart';
 
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../providers/repository_providers.dart';
@@ -168,20 +169,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     await derivedService.refreshForBookingId(widget.booking.id);
   }
 
-  DateTime? _parseDateTime(String? value) {
-    if (value == null) return null;
-    final v = value.trim();
-    if (v.isEmpty) return null;
-    final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
-        : normalized;
-    try {
-      return DateTime.parse(withSeconds);
-    } catch (_) {
-      return null;
-    }
-  }
+  DateTime? _parseDateTime(String? value) => DateParser.parse(value);
 
   int _countNightsWithDiscount(
     DateTime checkin,

@@ -90,6 +90,18 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return q.watch();
   }
 
+  /// مراقبة المدفوعات ليوم فندقي محدد (فلتر على مستوى قاعدة البيانات)
+  Stream<List<Payment>> watchByHotelDayKey(
+    String hotelDayKey, {
+    bool includeVoided = false,
+  }) {
+    final q = select(payments);
+    q.where((t) => t.deletedAt.isNull());
+    q.where((t) => t.isVoided.equals(false));
+    q.where((t) => t.hotelDayKey.equals(hotelDayKey));
+    return q.watch();
+  }
+
   /// جلب المدفوعات لتاريخ محدد
   Future<List<Payment>> listByDate(
     String date, {
