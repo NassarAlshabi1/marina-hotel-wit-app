@@ -47,9 +47,8 @@ class PaymentsRepository {
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   /// مراقبة مدفوعات يوم فندقي محدد (فلتر على مستوى قاعدة البيانات - أداء أفضل)
+  /// يتضمن المدفوعات التي لها hotelDayKey مطابق أو التي hotelDayKey فارغ وتاريخها ضمن اليوم
   Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
-    final startIso = Time.hotelDayStartIso(hotelDayKey);
-    final endIso = Time.hotelDayEndIso(hotelDayKey);
     return dao.watchByHotelDayKey(hotelDayKey).map((payments) {
       double total = 0;
       for (final p in payments) {

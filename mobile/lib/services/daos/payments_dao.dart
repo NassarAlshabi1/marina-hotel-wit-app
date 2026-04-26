@@ -91,14 +91,26 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// مراقبة المدفوعات ليوم فندقي محدد (فلتر على مستوى قاعدة البيانات)
+  ///
+  /// يتضمن المدفوعات التي:
+  /// 1. hotelDayKey == [hotelDayKey]
+  /// 2. hotelDayKey == null وتاريخها ضمن نطاق اليوم الفندقي
   Stream<List<Payment>> watchByHotelDayKey(
     String hotelDayKey, {
     bool includeVoided = false,
   }) {
     final q = select(payments);
     q.where((t) => t.deletedAt.isNull());
-    q.where((t) => t.isVoided.equals(false));
-    q.where((t) => t.hotelDayKey.equals(hotelDayKey));
+    if (!includeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
+    // حالة 1: hotelDayKey يطابق اليوم
+    q.where(
+      (t) => t.hotelDayKey.equals(hotelDayKey) |
+          // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.like('${hotelDayKey}%')),
+    );
     return q.watch();
   }
 
