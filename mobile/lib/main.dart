@@ -60,6 +60,7 @@ import 'services/crashlytics_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/sync_service.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'services/connectivity_service.dart';
 import 'services/sync_constants.dart';
 import 'services/battery_optimizer.dart';
 import 'services/sync_performance_optimizer.dart';
@@ -342,44 +343,6 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('✅ Configuration complete');
 }
 
-void _setupEngineMonitoring(AutoSyncEngine engine) {
-  debugPrint('📊 Setting up engine state monitoring...');
-
-  _engineMonitoringSub?.cancel();
-  _engineMonitoringSub = engine.stateStream.listen((state) {
-    final statusIcon = state.isRunning ? '🟢' : '🔴';
-    final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
-    final authIcon = state.isSignedIn ? '🔐' : '🔓';
-
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    debugPrint('📊 ENGINE STATE UPDATE');
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━====');
-    debugPrint('$statusIcon Running: ${state.isRunning}');
-    debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
-    debugPrint('$authIcon Signed in: ${state.isSignedIn}');
-    debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
-    debugPrint(
-      '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
-    );
-    debugPrint('❌ Failed attempts: ${state.failedAttempts}');
-
-    if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!
-          .difference(DateTime.now())
-          .inSeconds;
-      debugPrint('⏰ Next retry in: ${secondsUntil}s');
-    }
-
-    if (state.lastError != null) {
-      debugPrint('⚠️ Last error: ${state.lastError}');
-    }
-
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  });
-
-  debugPrint('✅ Monitoring setup complete');
-}
-
 class App extends ConsumerStatefulWidget {
   const App({super.key});
 
@@ -397,6 +360,40 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
   StreamSubscription? _engineMonitoringSub;
+
+  void _setupEngineMonitoring(AutoSyncEngine engine) {
+    debugPrint('📊 Setting up engine state monitoring...');
+
+    _engineMonitoringSub?.cancel();
+    _engineMonitoringSub = engine.stateStream.listen((state) {
+      final statusIcon = state.isRunning ? '🟢' : '🔴';
+      final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
+      final authIcon = state.isSignedIn ? '🔐' : '🔓';
+
+      debugPrint('📊 ENGINE STATE UPDATE');
+      debugPrint('$statusIcon Running: ${state.isRunning}');
+      debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
+      debugPrint('$authIcon Signed in: ${state.isSignedIn}');
+      debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
+      debugPrint(
+        '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
+      );
+      debugPrint('❌ Failed attempts: ${state.failedAttempts}');
+
+      if (state.nextRetryAt != null) {
+        final secondsUntil = state.nextRetryAt!
+            .difference(DateTime.now())
+            .inSeconds;
+        debugPrint('⏰ Next retry in: ${secondsUntil}s');
+      }
+
+      if (state.lastError != null) {
+        debugPrint('⚠️ Last error: ${state.lastError}');
+      }
+    });
+
+    debugPrint('✅ Monitoring setup complete');
+  }
 
   @override
   void initState() {
