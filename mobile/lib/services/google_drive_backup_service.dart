@@ -577,9 +577,9 @@ class GoogleDriveBackupService {
       try {
         final folderId = await getOrCreateBackupFolder();
 
-        // JSON مضغوط بدون مسافات + gzip أسرع ضغط
+        // JSON مضغوط بدون مسافات + gzip أقصى ضغط
         final jsonBytes = utf8.encode(jsonEncode(backupData));
-        final compressedBytes = gzip.encode(jsonBytes, level: 1);
+        final compressedBytes = gzip.encode(jsonBytes, level: 6);
 
         final timestamp = DateTime.now();
 
