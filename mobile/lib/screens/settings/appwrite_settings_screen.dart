@@ -12,7 +12,7 @@ import '../../services/appwrite_models.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
-import 'comprehensive_backup_screen.dart';
+import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -666,7 +666,7 @@ class _AppwriteSettingsScreenState
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ComprehensiveBackupScreen(),
+                      builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
                     ),
                   );
                 },

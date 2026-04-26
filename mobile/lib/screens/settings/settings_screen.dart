@@ -16,7 +16,7 @@ import 'php_api_settings_screen.dart';
 import 'whatsapp_settings_screen.dart';
 
 import '../security/blacklist_screen.dart';
-import 'comprehensive_backup_screen.dart';
+import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 import 'data_protection_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'active_bookings_reminder_screen.dart';
@@ -174,14 +174,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'نسخة شاملة',
-              subtitle: 'تصدير ورفع كل البيانات إلى Appwrite',
+              title: 'النسخ الاحتياطي',
+              subtitle: 'محلي · Google Drive · Appwrite',
               icon: Icons.backup,
               color: Colors.deepOrange,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ComprehensiveBackupScreen(),
+                  builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
                 ),
               ),
             ),
