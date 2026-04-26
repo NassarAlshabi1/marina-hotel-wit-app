@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_sync_manager.dart';
-import 'appwrite_service.dart';
-import 'appwrite_config.dart';
 
 /// خدمة Firebase Cloud Messaging
 /// تُستخدم لإرسال إشعارات push بين الأجهزة عند حدوث تغييرات في Appwrite
@@ -51,17 +48,19 @@ class FcmService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', newToken);
 
-        // تحديث التوكن في Appwrite
-        await _updateFcmTokenOnServer(newToken);
+        // تحديث التوكن في Appwrite عبر SyncManager (المُحقن)
+        final syncManager = _getSyncManager();
+        if (syncManager != null) {
+          await syncManager.setFcmToken(newToken);
+        }
       });
 
       // 6. الاستماع للرسائل الواردة
       _setupMessageHandlers();
 
-      // 7. تحديث التوكن على السيرفر عند فتح التطبيق
-      if (_currentToken != null) {
-        await _updateFcmTokenOnServer(_currentToken!);
-      }
+      // 7. ملاحظة: تحديث التوكن على السيرفر يتم عبر
+      //    AppwriteSyncManager.setFcmToken() في _initializeFcm() في main.dart
+      //    لتجنب تكرار الطلب
 
       _isInitialized = true;
       debugPrint('✅ FCM Service initialized');
@@ -186,27 +185,6 @@ class FcmService {
       }
     } catch (e) {
       debugPrint('⚠️ FCM: pull error: $e');
-    }
-  }
-
-  /// تحديث توكن FCM على سيرفر Appwrite
-  Future<void> _updateFcmTokenOnServer(String token) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final deviceId = prefs.getString('appwrite_device_id');
-      if (deviceId == null || deviceId.isEmpty) return;
-
-      await AppwriteService().updateDocument(
-        collectionId: AppwriteConfig.devicesCollectionId,
-        documentId: deviceId,
-        data: {
-          'fcmToken': token,
-          'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        },
-      );
-      debugPrint('✅ FCM token updated on server for device: $deviceId');
-    } catch (e) {
-      debugPrint('⚠️ Failed to update FCM token on server: $e');
     }
   }
 
