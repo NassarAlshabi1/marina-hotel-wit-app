@@ -581,7 +581,7 @@ class GoogleDriveBackupService {
           '  ',
         ).convert(backupData);
         final jsonBytes = utf8.encode(jsonString);
-        final compressedBytes = gzip.encode(jsonBytes);
+        final compressedBytes = gzip.encode(jsonBytes, level: 1);
 
         final timestamp = DateTime.now();
 
