@@ -287,6 +287,19 @@ class RemoteConfigService {
   int get apiTimeoutSeconds =>
       _remoteConfig?.getInt('api_timeout_seconds') ?? 30;
 
+  /// مفتاح Google Gemini API
+  /// يُخزّن محلياً في SharedPreferences
+  Future<String> get geminiApiKey async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('gemini_api_key') ?? '';
+  }
+
+  /// حفظ مفتاح Gemini API
+  Future<void> setGeminiApiKey(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('gemini_api_key', key);
+  }
+
   // ═══════════════════════════════════════════════════════════════
   //  القيم الافتراضية
   // ═══════════════════════════════════════════════════════════════
@@ -326,6 +339,7 @@ class RemoteConfigService {
     // إعدادات عامة
     'country_code_default': '967',
     'api_timeout_seconds': 30,
+    'gemini_api_key': '',
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -371,6 +385,7 @@ class RemoteConfigService {
       // إعدادات عامة
       'country_code_default': countryCodeDefault,
       'api_timeout_seconds': apiTimeoutSeconds,
+      'gemini_api_key': geminiApiKey,
     };
   }
 

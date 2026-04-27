@@ -22,6 +22,7 @@ import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/ai/ai_chat_screen.dart';
 import 'screens/security/blacklist_screen.dart';
 import 'screens/information/information_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
@@ -851,6 +852,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     '/blacklist': (_) => const BlacklistScreen(),
     '/information': (_) => const InformationScreen(),
     '/settings': (_) => const SettingsScreen(),
+    '/ai': (_) => const AiChatScreen(),
   };
 
   bool _can(String key) {

@@ -111,10 +111,16 @@ class GuestPaymentCalculationService {
           ..where((r) => r.deletedAt.isNull()))
         .getSingleOrNull();
     
-    // جلب جميع المدفوعات للحجز
+    // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة وغير المتعلقة بالغرف)
     final payments = await (db.select(db.payments)
           ..where((p) => p.bookingLocalId.equals(booking.id))
           ..where((p) => p.deletedAt.isNull())
+          ..where((p) => p.isVoided.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false))
+          ..where((p) =>
+              p.revenueType.equals('room') |
+              p.revenueType.equals('') |
+              p.revenueType.isNull())
           ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate, mode: d.OrderingMode.asc)]))
         .get();
 

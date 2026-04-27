@@ -64,9 +64,19 @@ class _GuestPaymentsDetailReportScreenState
   }
 
   /// حساب متوسط سعر الليلة الواحدة للحجز
+  /// يُفضّل السعر الفعلي من الغرفة، وإلا يُحسب من إجمالي العقد
   double _getAverageNightlyRate(Booking b) {
     final nights = b.calculatedNights > 0 ? b.calculatedNights : 1;
-    return b.totalDueCached / nights;
+    // استخدام السعر الأساسي من الغرفة بدلاً من المتوسط الذي قد يتضمن خصومات
+    // المتوسط يُستخدم فقط كاحتياطي عندما لا يتوفر سعر الغرفة
+    return b.totalDueCached > 0 ? (b.totalDueCached / nights) : 0;
+  }
+
+  /// حساب التكلفة الفعلية حتى الآن (مع مراعاة تعديلات الأسعار)
+  /// يُستخدم consumedCost من StayBalanceCalculator بدلاً من حساب بسيط
+  double _getConsumedCost(Booking b) {
+    final coverage = _calculateCoverage(b);
+    return coverage.consumedCost;
   }
 
   /// استخدام المحرك الموحد لحساب الرصيد والتاريخ التلقائي
@@ -388,8 +398,6 @@ class _GuestPaymentsDetailReportScreenState
     final actualDays = _getActualDaysSpent(b);
     final coverage = _calculateCoverage(b);
     final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
-
-    // المغادرة المخططة = المحسوبة من المدفوعات (autoCheckoutDate)
     final plannedCheckout = coverage.autoCheckoutDate;
     final paidNights = coverage.totalPaidNights;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
@@ -397,8 +405,8 @@ class _GuestPaymentsDetailReportScreenState
     final autoOverdueCost = autoOverdueDays * nightlyRate;
 
     // حساب النسبة المئوية لتغطية التكاليف الحالية
-    final costSoFar = actualDays * nightlyRate;
-    final paidPercent = costSoFar > 0 ? (b.totalPaidCached / costSoFar * 100) : 100.0;
+    final consumedCost = coverage.consumedCost;
+    final paidPercent = consumedCost > 0 ? (b.totalPaidCached / consumedCost * 100) : 100.0;
 
     final remaining = b.remainingBalanceCached;
     final isCredit = remaining < 0;
@@ -712,9 +720,8 @@ class _GuestPaymentsDetailReportScreenState
   Future<void> _exportGuestStatementPdf(Booking b) async {
     final payments = await ref.read(paymentsRepoProvider).paymentsByBooking(b.id).first;
     final actualDays = _getActualDaysSpent(b);
-    final nightlyRate = _getAverageNightlyRate(b);
-    final costSoFar = actualDays * nightlyRate;
     final coverage = _calculateCoverage(b);
+    final consumedCost = coverage.consumedCost;
 
     final config = ReportPdfConfig(
       title: 'كشف حساب نزيل تفصيلي',
@@ -733,7 +740,7 @@ class _GuestPaymentsDetailReportScreenState
               _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '${coverage.manualNightsRemaining} يوم'),
               _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
               pw.Divider(color: PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-              _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(costSoFar)} ريال'),
+              _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(consumedCost)} ريال'),
               _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال'),
               _buildPdfInfoRow(
                 fonts,
