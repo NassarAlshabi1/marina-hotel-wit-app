@@ -229,6 +229,7 @@ class GeminiService {
   static const _uuid = Uuid();
   static final _random = Random();
   GenerativeModel? _model;
+  ChatSession? _chat;
   bool _isInitialized = false;
 
   /// مؤقت لمنع الإرسال السريع ( cooldown بين الطلبات )
@@ -242,10 +243,8 @@ class GeminiService {
   final List<AiAuditLog> _auditLog = [];
   List<AiAuditLog> get auditLog => List.unmodifiable(_auditLog);
 
-  /// محادثة سابقة للمتابعة
-  final List<Content> _conversationHistory = [];
-
   /// تهيئة Gemini AI عبر Firebase AI Logic (بدون مفتاح API في الكود)
+  /// يستخدم ChatSession لإدارة المحادثة تلقائياً — حسب نمط Firebase AI Logic الرسمي
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -262,8 +261,10 @@ class GeminiService {
           maxOutputTokens: 2048,
         ),
       );
+      // إنشاء جلسة محادثة — startChat يدير سجل المحادثة تلقائياً
+      _chat = _model!.startChat();
       _isInitialized = true;
-      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic');
+      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
     } catch (e) {
       debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
       debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
@@ -272,15 +273,17 @@ class GeminiService {
 
   void reset() {
     _model = null;
+    _chat = null;
     _isInitialized = false;
-    _conversationHistory.clear();
   }
 
-  bool get isAvailable => _model != null && _isInitialized;
+  bool get isAvailable => _model != null && _chat != null && _isInitialized;
 
-  /// مسح سجل المحادثة
+  /// مسح سجل المحادثة — إنشاء جلسة جديدة
   void clearHistory() {
-    _conversationHistory.clear();
+    if (_model != null && _isInitialized) {
+      _chat = _model!.startChat();
+    }
   }
 
   /// مسح سجل التدقيق
@@ -401,11 +404,12 @@ class GeminiService {
   // ───────────────────────────────────────────────────────────
 
   /// إرسال رسالة مع retry تلقائي عند تجاوز حد الطلبات
-  /// يستخدم generateContent مباشرة (أبسط وأكثر موثوقية من startChat)
+  /// يستخدم ChatSession.sendMessage — النمط الرسمي من Firebase AI Logic
+  /// ChatSession يدير سجل المحادثة تلقائياً (لا حاجة لإدارة يدوية)
   Future<GeminiResponse> chat(String userMessage) async {
     if (!isAvailable) {
       return GeminiResponse(
-        text: 'المساعد الذكي غير متاح. يرجى إدخال مفتاح Gemini API من الإعدادات.',
+        text: 'المساعد الذكي غير متاح. تأكد من تفعيل AI Logic في Firebase Console.',
         command: null,
         requiresConfirmation: false,
       );
@@ -425,29 +429,16 @@ class GeminiService {
       // بناء السياق الحي من قاعدة البيانات
       final hotelContext = await _buildHotelContext();
 
-      // أخذ آخر 6 رسائل فقط (تقليل الـ tokens لتفادي تجاوز الحد)
-      final recentHistory = _conversationHistory.length > 6
-          ? _conversationHistory.sublist(_conversationHistory.length - 6)
-          : List<Content>.from(_conversationHistory);
-
-      // بناء قائمة المحتوى: التاريخ + رسالة المستخدم مع سياق الفندق
+      // دمج سياق الفندق مع رسالة المستخدم
       final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$userMessage';
-      final allContents = [
-        ...recentHistory,
-        Content.text(fullMessage),
-      ];
 
-      // ── إرسال مع Retry عند 429 باستخدام generateContent مباشرة ──
+      // ── إرسال عبر ChatSession — يدير التاريخ تلقائياً ──
       final response = await _sendWithRetry(
-        () => _model!.generateContent(allContents),
+        () => _chat!.sendMessage(Content.text(fullMessage)),
       );
       _lastRequestTime = DateTime.now();
 
       final responseText = response.text ?? '';
-
-      // حفظ في سجل المحادثة بأدوار صحيحة
-      _conversationHistory.add(Content.text(userMessage));
-      _conversationHistory.add(Content.model([TextPart(responseText)]));
 
       // تحليل الأمر من الرد
       final command = _parseCommand(responseText);
@@ -472,11 +463,11 @@ class GeminiService {
       );
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
-      // مسح سجل المحادثة التالف عند خطأ الأدوار
+      // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
-        debugPrint('⚠️ مسح سجل المحادثة التالف');
-        _conversationHistory.clear();
+        debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
+        _chat = _model!.startChat();
       }
       return GeminiResponse(
         text: _friendlyErrorMessage(e),
@@ -487,19 +478,25 @@ class GeminiService {
 
   /// تحديد رسالة الخطأ المناسبة حسب نوع الاستثناء
   String _friendlyErrorMessage(Object e) {
-    if (e is QuotaExceeded) {
+    final msg = e.toString();
+    // فحص نوع الاستثناء + نص الرسالة للتعامل مع جميع الإصدارات
+    if (e is QuotaExceeded ||
+        msg.contains('QUOTA') ||
+        msg.contains('RESOURCE_EXHAUSTED') ||
+        msg.contains('429') ||
+        msg.contains('rate limit')) {
       return 'تم تجاوز حد الطلبات. انتظر 30 ثانية ثم حاول مجدداً.';
-    } else if (e is InvalidApiKey) {
+    } else if (e is InvalidApiKey || msg.contains('API_KEY') || msg.contains('api key')) {
       return 'مفتاح Gemini API غير صالح. تأكد من تفعيل AI Logic في Firebase Console.';
-    } else if (e is ServiceApiNotEnabled) {
+    } else if (e is ServiceApiNotEnabled || msg.contains('not enabled') || msg.contains('NOT_FOUND')) {
       return 'خدمة AI Logic غير مفعلة في Firebase Console. راجع الإعدادات.';
-    } else if (e is UnsupportedUserLocation) {
+    } else if (e is UnsupportedUserLocation || msg.contains('location') || msg.contains('region')) {
       return 'خدمة Gemini غير متاحة في منطقتك حالياً.';
     } else if (e is FirebaseAIException) {
-      final msg = e.message;
-      if (msg.contains('SAFETY') || msg.contains('blocked')) {
+      final firebaseMsg = e.message;
+      if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
         return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
-      } else if (msg.contains('role') || msg.contains('alternat')) {
+      } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
         return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
       }
     }
@@ -507,6 +504,7 @@ class GeminiService {
   }
 
   /// إعادة محاولة تلقائية مع exponential backoff عند تجاوز حد الطلبات
+  /// يعمل مع أي نوع استثناء (QuotaExceeded, ServerException, أو عام)
   Future<GenerateContentResponse> _sendWithRetry(
     Future<GenerateContentResponse> Function() sendFn,
   ) async {
@@ -516,24 +514,28 @@ class GeminiService {
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       try {
         return await sendFn();
-      } on QuotaExceeded catch (e) {
-        if (attempt >= _maxRetries) rethrow;
+      } catch (e) {
+        final msg = e.toString();
+        // فحص إذا كان الخطأ قابلاً لإعادة المحاولة
+        final isRetryable = e is QuotaExceeded ||
+            e is ServerException ||
+            msg.contains('QUOTA') ||
+            msg.contains('RESOURCE_EXHAUSTED') ||
+            msg.contains('429') ||
+            msg.contains('500') ||
+            msg.contains('503');
+
+        if (!isRetryable || attempt >= _maxRetries) rethrow;
+
         // حساب jitter عشوائي لمنع thundering herd
         final jitterMs = (_random.nextDouble() * delay.inMilliseconds * 0.3).round();
         final actualDelay = Duration(milliseconds: delay.inMilliseconds + jitterMs);
 
-        debugPrint('⚠️ تجاوز حد الطلبات — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
+        debugPrint('⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
 
         await Future.delayed(actualDelay);
 
         // مضاعفة التأخير للمحاولة التالية
-        delay = Duration(
-          milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds),
-        );
-      } on ServerException catch (e) {
-        if (attempt >= _maxRetries) rethrow;
-        debugPrint('⚠️ خطأ في الخادم — محاولة ${attempt + 1}/$_maxRetries...');
-        await Future.delayed(delay);
         delay = Duration(
           milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds),
         );
