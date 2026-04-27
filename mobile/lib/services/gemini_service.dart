@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:uuid/uuid.dart';
 import 'local_db.dart';
 import 'remote_config_service.dart';
+import 'price_adjustment_service.dart';
+import 'booking_derived_fields_service.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  أوامر AI
@@ -19,13 +22,47 @@ class AiQueryCommand extends AiCommand {
   const AiQueryCommand({required super.description});
 }
 
-/// تغيير سعر غرفة
+/// تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة)
 class AiUpdateRoomPriceCommand extends AiCommand {
   final String roomNumber;
   final double newPrice;
+  final String? reason;
   const AiUpdateRoomPriceCommand({
     required this.roomNumber,
     required this.newPrice,
+    this.reason,
+    required super.description,
+  });
+}
+
+/// تخفيض/زيادة سعر بنسبة لجميع غرف نوع معين
+/// مثال: زيادة 10% على غرف doubles
+/// مثال: تخفيض 5000 ريال من جميع الغرف
+class AiBulkPriceAdjustCommand extends AiCommand {
+  final String? roomType;
+  final String mode; // 'percent_increase', 'percent_decrease', 'fixed_increase', 'fixed_decrease'
+  final double value;
+  final String? reason;
+  const AiBulkPriceAdjustCommand({
+    this.roomType,
+    required this.mode,
+    required this.value,
+    this.reason,
+    required super.description,
+  });
+}
+
+/// تخفيض على حجز معين (خصم ليلي أو إجمالي)
+class AiBookingDiscountCommand extends AiCommand {
+  final String roomNumber;
+  final double discountAmount;
+  final String discountType; // 'per_night' أو 'total'
+  final String? reason;
+  const AiBookingDiscountCommand({
+    required this.roomNumber,
+    required this.discountAmount,
+    required this.discountType,
+    this.reason,
     required super.description,
   });
 }
@@ -125,6 +162,19 @@ class AiUpdateBookingGuestCommand extends AiCommand {
   });
 }
 
+/// طلب تقرير (يُنفذ فوراً بدون تأكيد)
+class AiReportCommand extends AiCommand {
+  final String reportType; // daily, revenue, occupancy, debts, expenses, room_prices
+  final String? dateFrom;
+  final String? dateTo;
+  const AiReportCommand({
+    required this.reportType,
+    this.dateFrom,
+    this.dateTo,
+    required super.description,
+  });
+}
+
 /// لا يوجد إجراء مطلوب
 class AiNoActionCommand extends AiCommand {
   const AiNoActionCommand({required super.description});
@@ -176,6 +226,7 @@ class GeminiService {
   static GeminiService get instance => _instance;
   GeminiService._();
 
+  static const _uuid = Uuid();
   GenerativeModel? _model;
   bool _isInitialized = false;
 
@@ -237,16 +288,23 @@ class GeminiService {
     try {
       // --- إحصائيات سريعة ---
       final allRooms = await db.select(db.rooms).get();
-      final available = allRooms.where((r) => r.status == 'available').length;
-      final occupied = allRooms.where((r) => r.status == 'occupied').length;
-      final maintenance = allRooms.where((r) => r.status == 'maintenance').length;
-      final cleaning = allRooms.where((r) => r.status == 'cleaning').length;
-      lines.add('إجمالي الغرف: ${allRooms.length}');
-      lines.add('شاغرة: $available | محجوزة: $occupied | تنظيف: $cleaning | صيانة: $maintenance');
+      final available =
+          allRooms.where((r) => r.status == 'available' && r.deletedAt == null).length;
+      final occupied =
+          allRooms.where((r) => r.status == 'occupied' && r.deletedAt == null).length;
+      final maintenance =
+          allRooms.where((r) => r.status == 'maintenance' && r.deletedAt == null).length;
+      final cleaning =
+          allRooms.where((r) => r.status == 'cleaning' && r.deletedAt == null).length;
+      final total = allRooms.where((r) => r.deletedAt == null).length;
+      lines.add('إجمالي الغرف: $total');
+      lines.add(
+          'شاغرة: $available | محجوزة: $occupied | تنظيف: $cleaning | صيانة: $maintenance');
 
       // --- الحجوزات النشطة ---
       final activeBookings = await (db.select(db.bookings)
             ..where((b) => b.status.equals('checked_in'))
+            ..where((b) => b.deletedAt.isNull())
             ..orderBy([(b) => OrderingTerm.asc(b.roomNumber)]))
           .get();
 
@@ -255,11 +313,13 @@ class GeminiService {
         lines.add('الحجوزات النشطة (${activeBookings.length}):');
         for (final b in activeBookings) {
           final paid = await (db.select(db.payments)
-                ..where((p) => p.bookingLocalId.equals(b.id)))
+                ..where((p) => p.bookingLocalId.equals(b.id))
+                ..where((p) => p.isVoided.equals(false)))
               .get();
           final totalPaid = paid.fold<double>(0, (s, p) => s + p.amount);
           final nights = b.expectedNights;
-          final room = allRooms.where((r) => r.roomNumber == b.roomNumber).firstOrNull;
+          final room =
+              allRooms.where((r) => r.roomNumber == b.roomNumber).firstOrNull;
           final pricePerNight = room?.price ?? 0;
           final due = pricePerNight * nights;
           final remaining = due - totalPaid;
@@ -271,18 +331,22 @@ class GeminiService {
       }
 
       // --- الغرف الشاغرة مع أسعارها ---
-      final availableRooms = allRooms.where((r) => r.status == 'available').toList();
+      final availableRooms = allRooms
+          .where((r) => r.status == 'available' && r.deletedAt == null)
+          .toList();
       if (availableRooms.isNotEmpty) {
         lines.add('');
         lines.add('الغرف الشاغرة:');
         for (final r in availableRooms) {
-          lines.add('- ${r.roomNumber}: ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
+          lines.add(
+              '- ${r.roomNumber}: ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
         }
       }
 
       // --- الديون غير المسددة ---
       final debts = await (db.select(db.debts)
             ..where((d) => d.isSettled.equals(0))
+            ..where((d) => d.deletedAt.isNull())
             ..orderBy([(d) => OrderingTerm.desc(d.dateRecorded)]))
           .get();
       if (debts.isNotEmpty) {
@@ -298,13 +362,15 @@ class GeminiService {
       // --- إيرادات ومصروفات اليوم ---
       final today = DateTime.now().toIso8601String().split('T')[0];
       final todayPayments = await (db.select(db.payments)
-            ..where((p) => p.paymentDate.equals(today)))
+            ..where((p) => p.paymentDate.equals(today))
+            ..where((p) => p.isVoided.equals(false)))
           .get();
       final todayExpenses = await (db.select(db.expenses)
             ..where((e) => e.date.equals(today)))
           .get();
       final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
-      final totalExpenses = todayExpenses.fold<double>(0, (s, e) => s + e.amount);
+      final totalExpenses =
+          todayExpenses.fold<double>(0, (s, e) => s + e.amount);
 
       lines.add('');
       lines.add('ملخص اليوم ($today):');
@@ -362,6 +428,16 @@ class GeminiService {
       final command = _parseCommand(responseText);
       final cleanText = _stripJsonFromResponse(responseText);
 
+      // التقارير تُنفذ فوراً بدون تأكيد
+      if (command is AiReportCommand) {
+        final reportResult = await executeCommand(command);
+        return GeminiResponse(
+          text: reportResult,
+          command: null,
+          requiresConfirmation: false,
+        );
+      }
+
       return GeminiResponse(
         text: cleanText,
         command: command,
@@ -394,7 +470,15 @@ class GeminiService {
         case AiQueryCommand():
           result = command.description;
 
-        case AiUpdateRoomPriceCommand(:final roomNumber, :final newPrice):
+        // ═══════════════════════════════════════════════════
+        //  تغيير سعر غرفة — باستخدام PriceAdjustmentService
+        //  (إعادة حساب حجوزات الغرفة النشطة تلقائياً)
+        // ═══════════════════════════════════════════════════
+        case AiUpdateRoomPriceCommand(
+            :final roomNumber,
+            :final newPrice,
+            :final reason
+          ):
           final rooms = await (db.select(db.rooms)
             ..where((r) => r.roomNumber.equals(roomNumber))).get();
           if (rooms.isEmpty) {
@@ -402,18 +486,137 @@ class GeminiService {
             break;
           }
           final oldPrice = rooms.first.price;
-          await (db.update(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).write(
-            RoomsCompanion(
-              price: Value(newPrice),
+
+          final priceResult = await PriceAdjustmentService(db)
+              .applyRoomPriceChange(
+            roomNumber: roomNumber,
+            oldPrice: oldPrice,
+            newPrice: newPrice,
+            appliedBy: 'AI - Gemini',
+            reason: reason,
+          );
+
+          if (!priceResult.success) {
+            result = 'فشل تغيير السعر: ${priceResult.error}';
+            break;
+          }
+
+          final details = <String>[];
+          details.add(
+              'سعر الغرفة $roomNumber: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)} ريال');
+          if (priceResult.bookingsAffected > 0) {
+            details.add('حجوزات متأثرة: ${priceResult.bookingsAffected}');
+            details.add('ليالي مُعاد حسابها: ${priceResult.nightsUpdated}');
+          }
+          result = details.join(' | ');
+
+        // ═══════════════════════════════════════════════════
+        //  تخفيض/زيادة جماعية — لجميع الغرف أو نوع معين
+        // ═══════════════════════════════════════════════════
+        case AiBulkPriceAdjustCommand(
+            :final roomType,
+            :final mode,
+            :final value,
+            :final reason
+          ):
+          final allRooms = await db.select(db.rooms).get();
+          var targetRooms = allRooms.where((r) => r.deletedAt == null).toList();
+          if (roomType != null && roomType.isNotEmpty) {
+            targetRooms =
+                targetRooms.where((r) => r.type == roomType).toList();
+          }
+          if (targetRooms.isEmpty) {
+            result = roomType != null
+                ? 'لا توجد غرف من نوع "$roomType"'
+                : 'لا توجد غرف';
+            break;
+          }
+
+          int updated = 0;
+          final details = <String>[];
+          for (final room in targetRooms) {
+            final oldPrice = room.price;
+            double newPrice;
+            switch (mode) {
+              case 'percent_increase':
+                newPrice = oldPrice * (1 + value / 100);
+              case 'percent_decrease':
+                newPrice = (oldPrice * (1 - value / 100))
+                    .clamp(0.0, double.infinity);
+              case 'fixed_increase':
+                newPrice = oldPrice + value;
+              case 'fixed_decrease':
+                newPrice = (oldPrice - value).clamp(0.0, double.infinity);
+              default:
+                newPrice = oldPrice;
+            }
+
+            final priceResult = await PriceAdjustmentService(db)
+                .applyRoomPriceChange(
+              roomNumber: room.roomNumber,
+              oldPrice: oldPrice,
+              newPrice: newPrice,
+              appliedBy: 'AI - Gemini',
+              reason: reason ??
+                  'تعديل جماعي: $mode ${value.toStringAsFixed(0)}',
+            );
+            if (priceResult.success) {
+              updated++;
+              details.add(
+                  '${room.roomNumber}: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)}');
+            }
+          }
+
+          final modeArabic = _modeToArabic(mode);
+          result =
+              'تم تعديل $updated غرفة ($modeArabic ${value.toStringAsFixed(0)})\n${details.take(5).join("\n")}${details.length > 5 ? "\n... و${details.length - 5} غرف أخرى" : ""}';
+
+        // ═══════════════════════════════════════════════════
+        //  تخفيض على حجز معين (خصم ليلي أو إجمالي)
+        // ═══════════════════════════════════════════════════
+        case AiBookingDiscountCommand(
+            :final roomNumber,
+            :final discountAmount,
+            :final discountType,
+          ):
+          final bookings = await (db.select(db.bookings)
+                ..where((b) => b.roomNumber.equals(roomNumber))
+                ..where((b) => b.status.equals('checked_in'))
+                ..where((b) => b.deletedAt.isNull()))
+              .get();
+          if (bookings.isEmpty) {
+            result = 'لا يوجد حجز نشط للغرفة $roomNumber';
+            break;
+          }
+          final booking = bookings.first;
+
+          await (db.update(db.bookings)
+            ..where((b) => b.id.equals(booking.id))).write(
+            BookingsCompanion(
+              discount: Value(discountAmount),
+              discountType: Value(discountType),
               updatedAt: Value(now.millisecondsSinceEpoch),
               lastModified: Value(now.millisecondsSinceEpoch),
               updatedAtIso: Value(now.toIso8601String()),
             ),
           );
-          result =
-              'تم تغيير سعر الغرفة $roomNumber من ${oldPrice.toStringAsFixed(0)} إلى ${newPrice.toStringAsFixed(0)} ريال';
 
+          // إعادة حساب الليالي عبر BookingDerivedFieldsService
+          try {
+            await BookingDerivedFieldsService(db)
+                .refreshForBookingId(booking.id, forceRebuild: true);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+          }
+
+          final typeLabel =
+              discountType == 'per_night' ? 'لكل ليلة' : 'إجمالي';
+          result =
+              'تم تطبيق خصم ${discountAmount.toStringAsFixed(0)} ريال ($typeLabel) على حجز الغرفة $roomNumber - ${booking.guestName}';
+
+        // ═══════════════════════════════════════════════════
+        //  تغيير حالة غرفة
+        // ═══════════════════════════════════════════════════
         case AiUpdateRoomStatusCommand(:final roomNumber, :final newStatus):
           final rooms = await (db.select(db.rooms)
             ..where((r) => r.roomNumber.equals(roomNumber))).get();
@@ -434,8 +637,15 @@ class GeminiService {
           result =
               'تم تغيير حالة الغرفة $roomNumber من $oldStatus إلى $newStatus';
 
-        case AiAddExpenseCommand(:final expenseType, :final desc, :final amount):
-          final uuid = now.microsecondsSinceEpoch.toString();
+        // ═══════════════════════════════════════════════════
+        //  إضافة مصروف
+        // ═══════════════════════════════════════════════════
+        case AiAddExpenseCommand(
+            :final expenseType,
+            :final desc,
+            :final amount
+          ):
+          final uuid = _uuid.v4();
           await db.into(db.expenses).insert(
             ExpensesCompanion(
               expenseType: Value(expenseType),
@@ -452,7 +662,14 @@ class GeminiService {
           );
           result = 'تم إضافة مصروف: $desc - ${amount.toStringAsFixed(0)} ريال';
 
-        case AiAddPaymentCommand(:final roomNumber, :final amount, :final notes):
+        // ═══════════════════════════════════════════════════
+        //  تسجيل دفعة
+        // ═══════════════════════════════════════════════════
+        case AiAddPaymentCommand(
+            :final roomNumber,
+            :final amount,
+            :final notes
+          ):
           final bookings = await (db.select(db.bookings)
             ..where((b) => b.roomNumber.equals(roomNumber))).get();
           final activeBooking =
@@ -462,7 +679,7 @@ class GeminiService {
             break;
           }
 
-          final uuid = now.microsecondsSinceEpoch.toString();
+          final uuid = _uuid.v4();
           await db.into(db.payments).insert(
             PaymentsCompanion(
               bookingLocalId: Value(activeBooking.id),
@@ -480,8 +697,12 @@ class GeminiService {
               updatedAtIso: Value(now.toIso8601String()),
             ),
           );
-          result = 'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
+          result =
+              'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
 
+        // ═══════════════════════════════════════════════════
+        //  إنهاء حجز (تسجيل خروج)
+        // ═══════════════════════════════════════════════════
         case AiCheckoutCommand(:final roomNumber):
           final bookings = await (db.select(db.bookings)
             ..where((b) => b.roomNumber.equals(roomNumber))).get();
@@ -514,22 +735,25 @@ class GeminiService {
               updatedAtIso: Value(now.toIso8601String()),
             ),
           );
-          result = 'تم إنهاء حجز الغرفة $roomNumber وتسجيل خروج الضيف ${activeBooking.guestName}';
+          result =
+              'تم إنهاء حجز الغرفة $roomNumber وتسجيل خروج الضيف ${activeBooking.guestName}';
 
+        // ═══════════════════════════════════════════════════
+        //  تسوية دين
+        // ═══════════════════════════════════════════════════
         case AiSettleDebtCommand(
             :final debtId,
             :final guestName,
             :final amount
           ):
-          // البحث عن الدين
           Debt? targetDebt;
           if (debtId != null) {
             targetDebt = await (db.select(db.debts)
               ..where((d) => d.id.equals(debtId))).getSingleOrNull();
           } else {
             final debts = await (db.select(db.debts)
-              ..where((d) =>
-                  d.isSettled.equals(0) & d.guestName.contains(guestName)))
+                  ..where((d) =>
+                      d.isSettled.equals(0) & d.guestName.contains(guestName)))
                 .get();
             targetDebt = debts.firstOrNull;
           }
@@ -547,7 +771,8 @@ class GeminiService {
             DebtsCompanion(
               paidAmount: Value(newPaid),
               remainingAmount: Value(
-                (targetDebt.totalAmount - newPaid).clamp(0.0, double.infinity),
+                (targetDebt.totalAmount - newPaid)
+                    .clamp(0.0, double.infinity),
               ),
               isSettled: Value(isFullySettled ? 1 : 0),
               paymentDate: Value(now.toIso8601String().split('T')[0]),
@@ -560,6 +785,9 @@ class GeminiService {
               ? 'تم تسوية دين $guestName بالكامل (${targetDebt.totalAmount.toStringAsFixed(0)} ريال)'
               : 'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال من دين $guestName. المتبقي: ${(targetDebt.totalAmount - newPaid).toStringAsFixed(0)} ريال';
 
+        // ═══════════════════════════════════════════════════
+        //  إضافة حجز جديد
+        // ═══════════════════════════════════════════════════
         case AiAddBookingCommand(
             :final roomNumber,
             :final guestName,
@@ -567,9 +795,8 @@ class GeminiService {
             :final guestNationality,
             :final checkinDate,
             :final expectedNights,
-            :final price,
+            :final price
           ):
-          // التحقق من توفر الغرفة
           final rooms = await (db.select(db.rooms)
             ..where((r) => r.roomNumber.equals(roomNumber))).get();
           if (rooms.isEmpty) {
@@ -577,14 +804,14 @@ class GeminiService {
             break;
           }
           if (rooms.first.status != 'available') {
-            result = 'الغرفة $roomNumber غير متاحة حالياً. حالتها: ${rooms.first.status}';
+            result =
+                'الغرفة $roomNumber غير متاحة حالياً. حالتها: ${rooms.first.status}';
             break;
           }
 
           final roomPrice = price ?? rooms.first.price;
-          final uuid = now.microsecondsSinceEpoch.toString();
+          final uuid = _uuid.v4();
 
-          // إنشاء الحجز
           await db.into(db.bookings).insert(
             BookingsCompanion(
               roomNumber: Value(roomNumber),
@@ -606,7 +833,6 @@ class GeminiService {
             ),
           );
 
-          // تحديث حالة الغرفة
           await (db.update(db.rooms)
             ..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
@@ -621,11 +847,14 @@ class GeminiService {
           result =
               'تم حجز الغرفة $roomNumber للضيف $guestName لمدة $expectedNights ليلة (${roomPrice.toStringAsFixed(0)} ريال/ليلة)';
 
+        // ═══════════════════════════════════════════════════
+        //  تحديث بيانات ضيف
+        // ═══════════════════════════════════════════════════
         case AiUpdateBookingGuestCommand(
             :final roomNumber,
             :final guestName,
             :final guestPhone,
-            :final extendNights,
+            :final extendNights
           ):
           final bookings = await (db.select(db.bookings)
             ..where((b) => b.roomNumber.equals(roomNumber))).get();
@@ -675,8 +904,16 @@ class GeminiService {
             ),
           );
 
-          final changes = updates.entries.map((e) => '${e.key}: ${e.value}').join(' | ');
+          final changes =
+              updates.entries.map((e) => '${e.key}: ${e.value}').join(' | ');
           result = 'تم تحديث بيانات الغرفة $roomNumber: $changes';
+
+        // ═══════════════════════════════════════════════════
+        //  التقارير
+        // ═══════════════════════════════════════════════════
+        case AiReportCommand(:final reportType):
+          result = await _generateReport(
+              db, reportType, command.dateFrom, command.dateTo);
 
         case AiNoActionCommand():
           result = command.description;
@@ -726,35 +963,53 @@ class GeminiService {
 - لا تنفذ أوامر خطيرة (تعديل/حذف) بدون تأكيد المستخدم
 - الصيغة: ردك المكتوب أولاً، ثم JSON للأمر في سطر منفصل
 - لا تضع JSON بين ``` فقط أرسله مباشرة
+- أوامر التقارير تُنفذ فوراً بدون تأكيد
 
 صيغ JSON للأوامر المدعومة:
 
-1. تغيير سعر غرفة:
-{"action": "update_room_price", "room_number": "101", "new_price": 50000}
+1. تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة تلقائياً):
+{"action": "update_room_price", "room_number": "101", "new_price": 50000, "reason": "زيادة بسبب الموسم"}
 
-2. تغيير حالة غرفة:
+2. تخفيض/زيادة جماعية لجميع الغرف أو نوع معين:
+{"action": "bulk_price_adjust", "room_type": "double", "mode": "percent_increase", "value": 10, "reason": "زيادة موسمية"}
+- mode: percent_increase, percent_decrease, fixed_increase, fixed_decrease
+- room_type اختياري (إذا لم يُحدد يُطبق على جميع الغرف)
+- أمثلة: "زِد جميع الأسعار 10%" | "خفّض غرف doubles 5000 ريال" | "زِد سعر الغرف 20%"
+
+3. تخفيض على حجز معين (خصم ليلي أو إجمالي):
+{"action": "booking_discount", "room_number": "101", "discount_amount": 5000, "discount_type": "per_night", "reason": "خصم خاص"}
+- discount_type: per_night (لكل ليلة) أو total (إجمالي)
+- أمثلة: "خفّض 5000 لكل ليلة للغرفة 101" | "خصم 10000 إجمالي على حجز الغرفة 202"
+
+4. تغيير حالة غرفة:
 {"action": "update_room_status", "room_number": "101", "new_status": "available"}
 
-3. إضافة مصروف:
+5. إضافة مصروف:
 {"action": "add_expense", "expense_type": "صيانة", "description": "صيانة مكيف", "amount": 20000}
 
-4. تسجيل دفعة:
+6. تسجيل دفعة:
 {"action": "add_payment", "room_number": "101", "amount": 50000, "notes": "دفعة نقدية"}
 
-5. إنهاء حجز (تسجيل خروج):
+7. إنهاء حجز (تسجيل خروج):
 {"action": "checkout", "room_number": "101"}
 
-6. تسوية دين:
+8. تسوية دين:
 {"action": "settle_debt", "guest_name": "أحمد", "amount": 30000}
 
-7. إضافة حجز جديد:
+9. إضافة حجز جديد:
 {"action": "add_booking", "room_number": "101", "guest_name": "أحمد محمد", "guest_phone": "777123456", "guest_nationality": "يمني", "checkin_date": "2025-01-15", "expected_nights": 2}
 
-8. تحديث بيانات ضيف:
+10. تحديث بيانات ضيف:
 {"action": "update_booking_guest", "room_number": "101", "guest_name": "الاسم الجديد", "extend_nights": 1}
+
+11. طلب تقرير (يُنفذ فوراً بدون تأكيد):
+{"action": "report", "report_type": "daily"}
+- report_type: daily (يومي), revenue (إيرادات), occupancy (إشغال), debts (ديون), expenses (مصروفات), room_prices (أسعار الغرف)
+- أمثلة: "أعطني تقرير اليوم" | "كم الإيرادات هذا الشهر" | "كم نسبة الإشغال" | "تقرير الديون"
 
 حالات الغرف: available, occupied, cleaning, maintenance, reserved
 أنواع المصروفات: صيانة, طعام, كهرباء, ماء, تنظيف, نقل, أخرى
+أنواع الغرف: single, double, triple, suite, family
 المبالغ بالريال اليمني
 الأرقام بدون فواصل (50000 وليس 50,000)
 تاريخ اليوم الحالي: ${DateTime.now().toIso8601String().split('T')[0]}''';
@@ -779,8 +1034,29 @@ class GeminiService {
           return AiUpdateRoomPriceCommand(
             roomNumber: json['room_number'] as String? ?? '',
             newPrice: (json['new_price'] as num).toDouble(),
+            reason: json['reason'] as String?,
             description:
-                'تغيير سعر الغرفة ${json['room_number']} إلى ${json['new_price']}',
+                'تغيير سعر الغرفة ${json['room_number']} إلى ${json['new_price']} (مع إعادة حساب الحجوزات)',
+          );
+
+        case 'bulk_price_adjust':
+          return AiBulkPriceAdjustCommand(
+            roomType: json['room_type'] as String?,
+            mode: json['mode'] as String? ?? 'percent_increase',
+            value: (json['value'] as num).toDouble(),
+            reason: json['reason'] as String?,
+            description:
+                'تعديل جماعي: ${json['mode']} ${json['value']}${json['room_type'] != null ? ' على غرف ${json['room_type']}' : ''}',
+          );
+
+        case 'booking_discount':
+          return AiBookingDiscountCommand(
+            roomNumber: json['room_number'] as String? ?? '',
+            discountAmount: (json['discount_amount'] as num).toDouble(),
+            discountType: json['discount_type'] as String? ?? 'per_night',
+            reason: json['reason'] as String?,
+            description:
+                'خصم ${(json['discount_amount'] as num).toDouble().toStringAsFixed(0)} (${json['discount_type']}) على الغرفة ${json['room_number']}',
           );
 
         case 'update_room_status':
@@ -829,7 +1105,8 @@ class GeminiService {
             roomNumber: json['room_number'] as String? ?? '',
             guestName: json['guest_name'] as String? ?? '',
             guestPhone: json['guest_phone'] as String? ?? '',
-            guestNationality: json['guest_nationality'] as String? ?? 'يمني',
+            guestNationality:
+                json['guest_nationality'] as String? ?? 'يمني',
             checkinDate: json['checkin_date'] as String? ??
                 DateTime.now().toIso8601String().split('T')[0],
             expectedNights: json['expected_nights'] as int? ?? 1,
@@ -850,6 +1127,14 @@ class GeminiService {
                 'تحديث بيانات الغرفة ${json['room_number']}',
           );
 
+        case 'report':
+          return AiReportCommand(
+            reportType: json['report_type'] as String? ?? 'daily',
+            dateFrom: json['date_from'] as String?,
+            dateTo: json['date_to'] as String?,
+            description: 'تقرير ${json['report_type']}',
+          );
+
         default:
           return null;
       }
@@ -864,6 +1149,345 @@ class GeminiService {
         .replaceAll(RegExp(r'```json?\n?'), '')
         .replaceAll(RegExp(r'```'), '')
         .trim();
+  }
+
+  // ───────────────────────────────────────────────────────────
+  //  توليد التقارير من قاعدة البيانات
+  // ───────────────────────────────────────────────────────────
+
+  Future<String> _generateReport(
+    AppDatabase db,
+    String reportType,
+    String? dateFrom,
+    String? dateTo,
+  ) async {
+    try {
+      switch (reportType) {
+        case 'daily':
+          return await _generateDailyReport(db);
+        case 'revenue':
+          return await _generateRevenueReport(db, dateFrom, dateTo);
+        case 'occupancy':
+          return await _generateOccupancyReport(db);
+        case 'debts':
+          return await _generateDebtsReport(db);
+        case 'expenses':
+          return await _generateExpensesReport(db, dateFrom, dateTo);
+        case 'room_prices':
+          return await _generateRoomPricesReport(db);
+        default:
+          return 'نوع التقرير غير معروف: $reportType';
+      }
+    } catch (e) {
+      debugPrint('خطأ في توليد التقرير: $e');
+      return 'فشل توليد التقرير: $e';
+    }
+  }
+
+  Future<String> _generateDailyReport(AppDatabase db) async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final lines = <String>['📊 تقرير يومي - $today', ''];
+
+    // الإيرادات
+    final todayPayments = await (db.select(db.payments)
+          ..where((p) => p.paymentDate.equals(today))
+          ..where((p) => p.isVoided.equals(false)))
+        .get();
+    final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
+
+    // المصروفات
+    final todayExpenses = await (db.select(db.expenses)
+          ..where((e) => e.date.equals(today)))
+        .get();
+    final totalExpenses =
+        todayExpenses.fold<double>(0, (s, e) => s + e.amount);
+
+    // الغرف
+    final allRooms = await db.select(db.rooms).get();
+    final available =
+        allRooms.where((r) => r.status == 'available' && r.deletedAt == null).length;
+    final occupied =
+        allRooms.where((r) => r.status == 'occupied' && r.deletedAt == null).length;
+    final total = allRooms.where((r) => r.deletedAt == null).length;
+    final occRate =
+        total > 0 ? (occupied * 100 / total).toStringAsFixed(1) : '0';
+
+    lines.add(
+        '💰 الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} دفعة)');
+    lines.add(
+        '📉 المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} مصروف)');
+    lines.add(
+        '📊 صافي الربح: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+    lines.add('');
+    lines.add(
+        '🏠 إجمالي الغرف: $total | شاغرة: $available | مشغولة: $occupied');
+    lines.add('📈 نسبة الإشغال: $occRate%');
+
+    // حجوزات جديدة اليوم
+    final todayBookings = await (db.select(db.bookings)
+          ..where((b) => b.checkinDate.equals(today))
+          ..where((b) => b.deletedAt.isNull()))
+        .get();
+    lines.add('📋 حجوزات جديدة اليوم: ${todayBookings.length}');
+
+    // خروج اليوم
+    final todayCheckouts = await (db.select(db.bookings)
+          ..where((b) => b.actualCheckout.equals(today))
+          ..where((b) => b.deletedAt.isNull()))
+        .get();
+    lines.add('🚪 تسجيلات خروج اليوم: ${todayCheckouts.length}');
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generateRevenueReport(
+      AppDatabase db, String? from, String? to) async {
+    final now = DateTime.now();
+    final dateFrom =
+        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateTo = to ?? now.toIso8601String().split('T')[0];
+
+    final lines =
+        <String>['💰 تقرير الإيرادات: $dateFrom إلى $dateTo', ''];
+
+    final payments = await (db.select(db.payments)
+          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateTo))
+          ..where((p) => p.isVoided.equals(false)))
+        .get();
+
+    final totalIncome =
+        payments.fold<double>(0, (s, p) => s + p.amount);
+
+    // تجميع حسب طريقة الدفع
+    final byMethod = <String, double>{};
+    for (final p in payments) {
+      byMethod[p.paymentMethod] =
+          (byMethod[p.paymentMethod] ?? 0) + p.amount;
+    }
+
+    // تجميع حسب النوع
+    final byType = <String, double>{};
+    for (final p in payments) {
+      byType[p.revenueType] = (byType[p.revenueType] ?? 0) + p.amount;
+    }
+
+    lines.add(
+        'إجمالي الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${payments.length} دفعة)');
+    lines.add('');
+    lines.add('حسب طريقة الدفع:');
+    for (final entry in byMethod.entries) {
+      lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+    }
+    lines.add('');
+    lines.add('حسب النوع:');
+    for (final entry in byType.entries) {
+      lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+    }
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generateOccupancyReport(AppDatabase db) async {
+    final lines = <String>['📈 تقرير نسبة الإشغال', ''];
+
+    final allRooms = await db.select(db.rooms).get();
+    final activeRooms = allRooms.where((r) => r.deletedAt == null).toList();
+    final total = activeRooms.length;
+
+    if (total == 0) return 'لا توجد غرف مسجلة';
+
+    final occupied =
+        activeRooms.where((r) => r.status == 'occupied').length;
+    final available =
+        activeRooms.where((r) => r.status == 'available').length;
+    final cleaning =
+        activeRooms.where((r) => r.status == 'cleaning').length;
+    final maintenance =
+        activeRooms.where((r) => r.status == 'maintenance').length;
+    final occRate = (occupied * 100 / total).toStringAsFixed(1);
+
+    lines.add('إجمالي الغرف: $total');
+    lines.add(
+        'مشغولة: $occupied (${(occupied * 100 / total).toStringAsFixed(1)}%)');
+    lines.add(
+        'شاغرة: $available (${(available * 100 / total).toStringAsFixed(1)}%)');
+    lines.add(
+        'تنظيف: $cleaning (${(cleaning * 100 / total).toStringAsFixed(1)}%)');
+    lines.add(
+        'صيانة: $maintenance (${(maintenance * 100 / total).toStringAsFixed(1)}%)');
+    lines.add('');
+    lines.add('نسبة الإشغال: $occRate%');
+
+    // تجميع حسب نوع الغرفة
+    final byType = <String, int>{};
+    final occupiedByType = <String, int>{};
+    for (final r in activeRooms) {
+      byType[r.type] = (byType[r.type] ?? 0) + 1;
+      if (r.status == 'occupied') {
+        occupiedByType[r.type] = (occupiedByType[r.type] ?? 0) + 1;
+      }
+    }
+    lines.add('');
+    lines.add('حسب نوع الغرفة:');
+    for (final entry in byType.entries) {
+      final occ = occupiedByType[entry.key] ?? 0;
+      final rate = (occ * 100 / entry.value).toStringAsFixed(0);
+      lines.add('  ${entry.key}: $occ/${entry.value} ($rate%)');
+    }
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generateDebtsReport(AppDatabase db) async {
+    final lines = <String>['📋 تقرير الديون غير المسددة', ''];
+
+    final debts = await (db.select(db.debts)
+          ..where((d) => d.isSettled.equals(0))
+          ..where((d) => d.deletedAt.isNull())
+          ..orderBy([(d) => OrderingTerm.desc(d.remainingAmount)]))
+        .get();
+
+    if (debts.isEmpty) {
+      lines.add('لا توجد ديون غير مسددة.');
+      return lines.join('\n');
+    }
+
+    final totalDebt =
+        debts.fold<double>(0, (s, d) => s + d.remainingAmount);
+    final totalPaid =
+        debts.fold<double>(0, (s, d) => s + d.paidAmount);
+
+    lines.add('عدد الديون: ${debts.length}');
+    lines.add(
+        'إجمالي المبالغ المتبقية: ${totalDebt.toStringAsFixed(0)} ريال');
+    lines.add(
+        'إجمالي المدفوع: ${totalPaid.toStringAsFixed(0)} ريال');
+    lines.add('');
+    lines.add('تفاصيل (الأعلى أولاً):');
+    for (final d in debts.take(15)) {
+      lines.add(
+        '  ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال متبقي | من أصل ${d.totalAmount.toStringAsFixed(0)} | ${d.debtReason}',
+      );
+    }
+    if (debts.length > 15) {
+      lines.add('  ... و${debts.length - 15} ديون أخرى');
+    }
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generateExpensesReport(
+      AppDatabase db, String? from, String? to) async {
+    final now = DateTime.now();
+    final dateFrom =
+        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateTo = to ?? now.toIso8601String().split('T')[0];
+
+    final lines =
+        <String>['📉 تقرير المصروفات: $dateFrom إلى $dateTo', ''];
+
+    final expenses = await (db.select(db.expenses)
+          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
+          ..where((e) => e.date.isSmallerOrEqualValue(dateTo)))
+        .get();
+
+    if (expenses.isEmpty) {
+      lines.add('لا توجد مصروفات في الفترة المحددة.');
+      return lines.join('\n');
+    }
+
+    final totalExpenses =
+        expenses.fold<double>(0, (s, e) => s + e.amount);
+
+    // تجميع حسب النوع
+    final byType = <String, double>{};
+    for (final e in expenses) {
+      byType[e.expenseType] = (byType[e.expenseType] ?? 0) + e.amount;
+    }
+
+    lines.add(
+        'إجمالي المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${expenses.length} مصروف)');
+    lines.add('');
+    lines.add('حسب النوع:');
+    final sorted = byType.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    for (final entry in sorted) {
+      final pct = (entry.value * 100 / totalExpenses).toStringAsFixed(1);
+      lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال ($pct%)');
+    }
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generateRoomPricesReport(AppDatabase db) async {
+    final lines = <String>['🏨 تقرير أسعار الغرف', ''];
+
+    final allRooms = await db.select(db.rooms).get();
+    final activeRooms = allRooms.where((r) => r.deletedAt == null).toList();
+
+    if (activeRooms.isEmpty) {
+      lines.add('لا توجد غرف مسجلة.');
+      return lines.join('\n');
+    }
+
+    // تجميع حسب النوع
+    final byType = <String, List<Room>>{};
+    for (final r in activeRooms) {
+      byType.putIfAbsent(r.type, () => []).add(r);
+    }
+
+    double minPrice = double.infinity;
+    double maxPrice = 0;
+    double totalPrice = 0;
+
+    for (final r in activeRooms) {
+      if (r.price < minPrice) minPrice = r.price;
+      if (r.price > maxPrice) maxPrice = r.price;
+      totalPrice += r.price;
+    }
+    final avgPrice =
+        activeRooms.isNotEmpty ? totalPrice / activeRooms.length : 0;
+
+    lines.add('إجمالي الغرف: ${activeRooms.length}');
+    lines.add('أقل سعر: ${minPrice.toStringAsFixed(0)} ريال');
+    lines.add('أعلى سعر: ${maxPrice.toStringAsFixed(0)} ريال');
+    lines.add('متوسط السعر: ${avgPrice.toStringAsFixed(0)} ريال');
+    lines.add('');
+
+    for (final entry in byType.entries) {
+      final rooms = entry.value;
+      final typeTotal = rooms.fold<double>(0, (s, r) => s + r.price);
+      final typeAvg = rooms.isNotEmpty ? typeTotal / rooms.length : 0;
+      lines.add(
+          '${entry.key} (${rooms.length} غرف — متوسط ${typeAvg.toStringAsFixed(0)}):');
+      for (final r
+          in rooms..sort((a, b) => a.roomNumber.compareTo(b.roomNumber))) {
+        final statusEmoji = r.status == 'available'
+            ? '✅'
+            : (r.status == 'occupied' ? '🔴' : '⚪');
+        lines.add(
+            '  $statusEmoji ${r.roomNumber}: ${r.price.toStringAsFixed(0)} ريال (${r.status})');
+      }
+      lines.add('');
+    }
+
+    return lines.join('\n');
+  }
+
+  String _modeToArabic(String mode) {
+    switch (mode) {
+      case 'percent_increase':
+        return 'زيادة بنسبة';
+      case 'percent_decrease':
+        return 'تخفيض بنسبة';
+      case 'fixed_increase':
+        return 'زيادة قدرها';
+      case 'fixed_decrease':
+        return 'تخفيض قدره';
+      default:
+        return mode;
+    }
   }
 }
 
