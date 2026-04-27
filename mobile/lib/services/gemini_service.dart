@@ -249,7 +249,7 @@ class GeminiService {
     _model = GenerativeModel(
       model: 'gemini-2.0-flash',
       apiKey: apiKey,
-      systemInstruction: Content.text(_buildSystemPrompt()),
+      systemInstruction: Content.system(_buildSystemPrompt()),
       generationConfig: GenerationConfig(
         temperature: 0.3,
         topP: 0.8,
@@ -403,19 +403,22 @@ class GeminiService {
       // بناء السياق الحي من قاعدة البيانات
       final hotelContext = await _buildHotelContext();
 
-      // إضافة المحادثة السابقة (آخر 10 رسائل) — يجب التبديل بين user/model
+      // أخذ آخر 10 رسائل من سجل المحادثة
+      // يجب أن تتناوب الأدوار: user → model → user → model ...
       final recentHistory = _conversationHistory.length > 10
           ? _conversationHistory.sublist(_conversationHistory.length - 10)
-          : _conversationHistory;
+          : List<Content>.from(_conversationHistory);
 
+      // إنشاء جلسة محادثة مع التاريخ
       final chat = _model!.startChat(history: recentHistory);
 
-      // إرسال رسالة المستخدم مع سياق الفندق الحي
-      final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$request: $userMessage';
+      // إرسال رسالة المستخدم مع سياق الفندق الحي (بيانات محدثة كل مرة)
+      final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$userMessage';
       final response = await chat.sendMessage(Content.text(fullMessage));
       final responseText = response.text ?? '';
 
-      // حفظ في سجل المحادثة بأدوار صحيحة (user/model)
+      // حفظ في سجل المحادثة بأدوار صحيحة
+      // Content.text() → role='user' | Content.model() → role='model'
       _conversationHistory.add(Content.text(userMessage));
       _conversationHistory.add(Content.model([TextPart(responseText)]));
 
@@ -442,8 +445,25 @@ class GeminiService {
       );
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
+      // مسح سجل المحادثة التالف عند الخطأ
+      if (e.toString().contains('role') ||
+          e.toString().contains('alternat')) {
+        debugPrint('⚠️ مسح سجل المحادثة التالف');
+        _conversationHistory.clear();
+      }
+      final errorMsg = e.toString();
+      String friendlyMessage;
+      if (errorMsg.contains('API key') || errorMsg.contains('401')) {
+        friendlyMessage = 'مفتاح Gemini API غير صالح. يرجى إدخال مفتاح جديد من الإعدادات.';
+      } else if (errorMsg.contains('429') || errorMsg.contains('quota')) {
+        friendlyMessage = 'تم تجاوز حد الطلبات. انتظر قليلاً ثم حاول مجدداً.';
+      } else if (errorMsg.contains('SAFETY')) {
+        friendlyMessage = 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
+      } else {
+        friendlyMessage = 'حدث خطأ أثناء معالجة طلبك. حاول مجدداً.';
+      }
       return GeminiResponse(
-        text: 'عذراً، حدث خطأ أثناء معالجة طلبك ($e). يرجى المحاولة مرة أخرى.',
+        text: friendlyMessage,
         command: null,
         requiresConfirmation: false,
       );
