@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
-import '../../services/remote_config_service.dart';
 
 /// شاشة المساعد الذكي - Gemini AI
 class AiChatScreen extends StatefulWidget {
@@ -178,89 +177,6 @@ class _AiChatScreenState extends State<AiChatScreen>
         }
       });
     }
-  }
-
-  void _showApiKeyDialog() async {
-    final key = await RemoteConfigService.instance.geminiApiKey;
-    final keyController = TextEditingController(text: key);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.key, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('مفتاح Gemini API'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'أدخل مفتاح API المجاني من aistudio.google.com',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-              textDirection: TextDirection.rtl,
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'النموذج المستخدم: Gemini 2.0 Flash (مجاني)\nالحد: 15 طلب/دقيقة',
-                style: TextStyle(fontSize: 11, color: Colors.blue),
-                textDirection: TextDirection.rtl,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: keyController,
-              decoration: const InputDecoration(
-                labelText: 'API Key',
-                hintText: 'AIza...',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.vpn_key),
-              ),
-              obscureText: true,
-              textDirection: TextDirection.ltr,
-              textAlign: TextAlign.left,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton.icon(
-            onPressed: () async {
-              final key = keyController.text.trim();
-              if (key.isNotEmpty) {
-                await RemoteConfigService.instance.setGeminiApiKey(key);
-                GeminiService.instance.reset();
-                await GeminiService.instance.initialize();
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم حفظ المفتاح وتهيئة Gemini'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  setState(() {});
-                }
-              }
-            },
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('حفظ وتهيئة'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showAuditLog() {
@@ -456,12 +372,6 @@ class _AiChatScreenState extends State<AiChatScreen>
             tooltip: 'سجل العمليات',
             onPressed: _showAuditLog,
           ),
-          // إعداد API Key
-          IconButton(
-            icon: const Icon(Icons.key),
-            tooltip: 'إعداد API Key',
-            onPressed: _showApiKeyDialog,
-          ),
         ],
       ),
       body: Column(
@@ -483,25 +393,10 @@ class _AiChatScreenState extends State<AiChatScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'المساعد الذكي غير متاح — يحتاج مفتاح API مجاني من Google',
+                      'المساعد الذكي غير متاح — تأكد من تفعيل AI Logic في Firebase Console',
                       style: TextStyle(
                         color: Colors.orange.shade800,
                         fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _showApiKeyDialog,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      backgroundColor: Colors.orange.shade100,
-                    ),
-                    child: Text(
-                      'إعداد',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.orange.shade800,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),

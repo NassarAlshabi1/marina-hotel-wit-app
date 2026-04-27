@@ -47,9 +47,7 @@ dependencies:
   firebase_analytics: ^11.4.0
   firebase_messaging: ^15.2.0
   firebase_remote_config: ^5.4.2
-
-  # Google Gemini AI
-  google_generative_ai: ^0.4.6
+  firebase_ai: ^1.0.0
 
   # Required for file-based SQLite backup/restore helpers
   sqflite: ^2.3.3+1

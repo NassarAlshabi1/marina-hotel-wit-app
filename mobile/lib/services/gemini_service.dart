@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:drift/drift.dart' hide Column;
+import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:uuid/uuid.dart';
 import 'local_db.dart';
-import 'remote_config_service.dart';
 import 'price_adjustment_service.dart';
 import 'booking_derived_fields_service.dart';
 
@@ -246,27 +245,29 @@ class GeminiService {
   /// محادثة سابقة للمتابعة
   final List<Content> _conversationHistory = [];
 
+  /// تهيئة Gemini AI عبر Firebase AI Logic (بدون مفتاح API في الكود)
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final apiKey = await RemoteConfigService.instance.geminiApiKey;
-    if (apiKey.isEmpty) {
-      debugPrint('⚠️ مفتاح Gemini API غير مضبوط');
-      return;
+    try {
+      // FirebaseAI.googleAI() يستخدم مفتاح API المُدار من Firebase Console
+      // لا حاجة لتخزين مفتاح API في الكود أو Remote Config
+      final ai = FirebaseAI.googleAI();
+      _model = ai.generativeModel(
+        model: 'gemini-2.0-flash',
+        systemInstruction: Content.system(_buildSystemPrompt()),
+        generationConfig: GenerationConfig(
+          temperature: 0.3,
+          topP: 0.8,
+          maxOutputTokens: 2048,
+        ),
+      );
+      _isInitialized = true;
+      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic');
+    } catch (e) {
+      debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
+      debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
     }
-
-    _model = GenerativeModel(
-      model: 'gemini-2.0-flash',
-      apiKey: apiKey,
-      systemInstruction: Content.system(_buildSystemPrompt()),
-      generationConfig: GenerationConfig(
-        temperature: 0.3,
-        topP: 0.8,
-        maxOutputTokens: 2048,
-      ),
-    );
-    _isInitialized = true;
-    debugPrint('✅ تم تهيئة Gemini AI');
   }
 
   void reset() {
@@ -472,30 +473,37 @@ class GeminiService {
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
       // مسح سجل المحادثة التالف عند خطأ الأدوار
-      if (e.toString().contains('role') ||
-          e.toString().contains('alternat')) {
+      final msg = e.toString();
+      if (msg.contains('role') || msg.contains('alternat')) {
         debugPrint('⚠️ مسح سجل المحادثة التالف');
         _conversationHistory.clear();
       }
-      final errorMsg = e.toString();
-      String friendlyMessage;
-      if (errorMsg.contains('API key') || errorMsg.contains('401')) {
-        friendlyMessage = 'مفتاح Gemini API غير صالح. يرجى إدخال مفتاح جديد من الإعدادات.';
-      } else if (errorMsg.contains('429') ||
-          errorMsg.contains('quota') ||
-          errorMsg.contains('RESOURCE_EXHAUSTED')) {
-        friendlyMessage = 'تم تجاوز حد الطلبات. انتظر 30 ثانية ثم حاول مجدداً.';
-      } else if (errorMsg.contains('SAFETY')) {
-        friendlyMessage = 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
-      } else {
-        friendlyMessage = 'حدث خطأ أثناء معالجة طلبك. حاول مجدداً.';
-      }
       return GeminiResponse(
-        text: friendlyMessage,
+        text: _friendlyErrorMessage(e),
         command: null,
         requiresConfirmation: false,
       );
     }
+
+  /// تحديد رسالة الخطأ المناسبة حسب نوع الاستثناء
+  String _friendlyErrorMessage(Object e) {
+    if (e is QuotaExceeded) {
+      return 'تم تجاوز حد الطلبات. انتظر 30 ثانية ثم حاول مجدداً.';
+    } else if (e is InvalidApiKey) {
+      return 'مفتاح Gemini API غير صالح. تأكد من تفعيل AI Logic في Firebase Console.';
+    } else if (e is ServiceApiNotEnabled) {
+      return 'خدمة AI Logic غير مفعلة في Firebase Console. راجع الإعدادات.';
+    } else if (e is UnsupportedUserLocation) {
+      return 'خدمة Gemini غير متاحة في منطقتك حالياً.';
+    } else if (e is FirebaseAIException) {
+      final msg = e.message;
+      if (msg.contains('SAFETY') || msg.contains('blocked')) {
+        return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
+      } else if (msg.contains('role') || msg.contains('alternat')) {
+        return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
+      }
+    }
+    return 'حدث خطأ أثناء معالجة طلبك. حاول مجدداً.';
   }
 
   /// إعادة محاولة تلقائية مع exponential backoff عند تجاوز حد الطلبات
@@ -508,17 +516,8 @@ class GeminiService {
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       try {
         return await sendFn();
-      } catch (e) {
-        final msg = e.toString();
-
-        // إعادة محاولة فقط عند تجاوز حد الطلبات
-        final isRateLimit = msg.contains('429') ||
-            msg.contains('quota') ||
-            msg.contains('RESOURCE_EXHAUSTED') ||
-            msg.contains('rate');
-
-        if (!isRateLimit || attempt >= _maxRetries) rethrow;
-
+      } on QuotaExceeded catch (e) {
+        if (attempt >= _maxRetries) rethrow;
         // حساب jitter عشوائي لمنع thundering herd
         final jitterMs = (_random.nextDouble() * delay.inMilliseconds * 0.3).round();
         final actualDelay = Duration(milliseconds: delay.inMilliseconds + jitterMs);
@@ -528,6 +527,13 @@ class GeminiService {
         await Future.delayed(actualDelay);
 
         // مضاعفة التأخير للمحاولة التالية
+        delay = Duration(
+          milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds),
+        );
+      } on ServerException catch (e) {
+        if (attempt >= _maxRetries) rethrow;
+        debugPrint('⚠️ خطأ في الخادم — محاولة ${attempt + 1}/$_maxRetries...');
+        await Future.delayed(delay);
         delay = Duration(
           milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds),
         );
