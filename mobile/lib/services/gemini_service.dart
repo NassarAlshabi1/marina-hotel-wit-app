@@ -249,6 +249,7 @@ class GeminiService {
     _model = GenerativeModel(
       model: 'gemini-2.0-flash',
       apiKey: apiKey,
+      systemInstruction: Content.text(_buildSystemPrompt()),
       generationConfig: GenerationConfig(
         temperature: 0.3,
         topP: 0.8,
@@ -401,28 +402,22 @@ class GeminiService {
     try {
       // بناء السياق الحي من قاعدة البيانات
       final hotelContext = await _buildHotelContext();
-      final systemPrompt = _buildSystemPrompt();
 
-      // إنشاء محادثة جديدة مع السياق
-      final chatHistory = <Content>[
-        Content.text(systemPrompt),
-        Content.text('بيانات الفندق الحالية:\n$hotelContext'),
-      ];
-
-      // إضافة المحادثة السابقة (آخر 10 رسائل)
+      // إضافة المحادثة السابقة (آخر 10 رسائل) — يجب التبديل بين user/model
       final recentHistory = _conversationHistory.length > 10
           ? _conversationHistory.sublist(_conversationHistory.length - 10)
           : _conversationHistory;
-      chatHistory.addAll(recentHistory);
 
-      final chat = _model!.startChat(history: chatHistory);
+      final chat = _model!.startChat(history: recentHistory);
 
-      final response = await chat.sendMessage(Content.text(userMessage));
+      // إرسال رسالة المستخدم مع سياق الفندق الحي
+      final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$request: $userMessage';
+      final response = await chat.sendMessage(Content.text(fullMessage));
       final responseText = response.text ?? '';
 
-      // حفظ في سجل المحادثة
-      _conversationHistory.add(Content.text('المستخدم: $userMessage'));
-      _conversationHistory.add(Content.text(responseText));
+      // حفظ في سجل المحادثة بأدوار صحيحة (user/model)
+      _conversationHistory.add(Content.text(userMessage));
+      _conversationHistory.add(Content.model([TextPart(responseText)]));
 
       // تحليل الأمر من الرد
       final command = _parseCommand(responseText);
@@ -448,7 +443,7 @@ class GeminiService {
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
       return GeminiResponse(
-        text: 'عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.',
+        text: 'عذراً، حدث خطأ أثناء معالجة طلبك ($e). يرجى المحاولة مرة أخرى.',
         command: null,
         requiresConfirmation: false,
       );
