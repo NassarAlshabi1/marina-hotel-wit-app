@@ -784,7 +784,7 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   Widget _buildInputField(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
@@ -795,12 +795,12 @@ class _AiChatScreenState extends State<AiChatScreen>
           // زر مسح المحادثة
           if (_messages.length > 2)
             SizedBox(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               child: IconButton(
                 onPressed: _clearChat,
                 icon: Icon(Icons.delete_outline,
-                    size: 16, color: Colors.grey.shade500),
+                    size: 18, color: Colors.grey.shade500),
                 tooltip: 'مسح المحادثة',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -809,56 +809,56 @@ class _AiChatScreenState extends State<AiChatScreen>
 
           Expanded(
             child: Container(
-              constraints: const BoxConstraints(maxHeight: 80),
+              constraints: const BoxConstraints(maxHeight: 120),
               child: TextField(
                 controller: _controller,
-                style: const TextStyle(fontSize: 13, height: 1.35),
+                style: const TextStyle(fontSize: 16, height: 1.4),
                 decoration: InputDecoration(
-                  hintText: 'اكتب سؤالك أو أمرك هنا...',
-                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                  hintText: 'اكتب هنا...',
+                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(22),
                     borderSide: BorderSide(color: Colors.grey.shade200),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(22),
                     borderSide: BorderSide(color: Colors.grey.shade200),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(color: theme.colorScheme.primary.withOpacity(0.4), width: 1),
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(color: theme.colorScheme.primary.withOpacity(0.5), width: 1.5),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   isDense: true,
                   filled: true,
                   fillColor: theme.scaffoldBackgroundColor,
                 ),
                 onSubmitted: (_) => _sendMessage(),
                 minLines: 1,
-                maxLines: 3,
+                maxLines: 4,
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 34,
-            height: 34,
+            width: 42,
+            height: 42,
             child: IconButton.filled(
               onPressed: _isLoading ? null : _sendMessage,
               icon: _isLoading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.send, size: 16),
+                  : const Icon(Icons.send, size: 20),
               style: IconButton.styleFrom(
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
