@@ -22,6 +22,7 @@ import 'late_payment_whatsapp_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'remote_config_settings_screen.dart';
+import '../ai/ai_chat_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -259,6 +260,18 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.palette,
               color: Colors.purple,
               onTap: () => _showAppSettingsDialog(context),
+            ),
+            _SettingsItem(
+              title: 'المساعد الذكي',
+              subtitle: 'Gemini AI - تحكم ذكي بالبيانات',
+              icon: Icons.smart_toy,
+              color: Colors.amber.shade700,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AiChatScreen(),
+                ),
+              ),
             ),
             _SettingsItem(
               title: 'Crashlytics',
