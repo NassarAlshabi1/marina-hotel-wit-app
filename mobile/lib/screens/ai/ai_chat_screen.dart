@@ -19,6 +19,8 @@ class _AiChatScreenState extends State<AiChatScreen>
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
   String? _lastUserMessage;
+  String _loadingText = 'يفكر...';
+  int? _cooldownSeconds;
 
   @override
   void initState() {
@@ -76,6 +78,8 @@ class _AiChatScreenState extends State<AiChatScreen>
         isUser: true,
       ));
       _isLoading = true;
+      _loadingText = 'يفكر...';
+      _cooldownSeconds = null;
     });
     _scrollToBottom();
 
@@ -92,6 +96,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                 response.requiresConfirmation ? response.command : null,
           ));
           _isLoading = false;
+          _cooldownSeconds = null;
         });
         _scrollToBottom();
       }
@@ -739,7 +744,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             ),
             const SizedBox(width: 8),
             Text(
-              'يفكر...',
+              _loadingText,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
           ],

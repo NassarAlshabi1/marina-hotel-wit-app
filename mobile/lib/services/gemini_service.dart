@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -227,8 +228,16 @@ class GeminiService {
   GeminiService._();
 
   static const _uuid = Uuid();
+  static final _random = Random();
   GenerativeModel? _model;
   bool _isInitialized = false;
+
+  /// مؤقت لمنع الإرسال السريع ( cooldown بين الطلبات )
+  DateTime? _lastRequestTime;
+  static const _minRequestInterval = Duration(seconds: 2);
+
+  /// عدد المحاولات عند تجاوز الحد
+  static const _maxRetries = 3;
 
   /// سجل التدقيق
   final List<AiAuditLog> _auditLog = [];
@@ -390,6 +399,7 @@ class GeminiService {
   //  إرسال رسالة والحصول على رد + أمر
   // ───────────────────────────────────────────────────────────
 
+  /// إرسال رسالة مع retry تلقائي عند تجاوز حد الطلبات
   Future<GeminiResponse> chat(String userMessage) async {
     if (!isAvailable) {
       return GeminiResponse(
@@ -399,26 +409,40 @@ class GeminiService {
       );
     }
 
+    // ── Cooldown: منع الإرسال السريع ──
+    if (_lastRequestTime != null) {
+      final elapsed = DateTime.now().difference(_lastRequestTime!);
+      if (elapsed < _minRequestInterval) {
+        final waitTime = _minRequestInterval - elapsed;
+        debugPrint('⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...');
+        await Future.delayed(waitTime);
+      }
+    }
+
     try {
       // بناء السياق الحي من قاعدة البيانات
       final hotelContext = await _buildHotelContext();
 
-      // أخذ آخر 10 رسائل من سجل المحادثة
-      // يجب أن تتناوب الأدوار: user → model → user → model ...
-      final recentHistory = _conversationHistory.length > 10
-          ? _conversationHistory.sublist(_conversationHistory.length - 10)
+      // أخذ آخر 6 رسائل فقط (تقليل الـ tokens لتفادي تجاوز الحد)
+      final recentHistory = _conversationHistory.length > 6
+          ? _conversationHistory.sublist(_conversationHistory.length - 6)
           : List<Content>.from(_conversationHistory);
 
       // إنشاء جلسة محادثة مع التاريخ
       final chat = _model!.startChat(history: recentHistory);
 
-      // إرسال رسالة المستخدم مع سياق الفندق الحي (بيانات محدثة كل مرة)
+      // إرسال رسالة المستخدم مع سياق الفندق الحي
       final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$userMessage';
-      final response = await chat.sendMessage(Content.text(fullMessage));
+
+      // ── إرسال مع Retry عند 429 ──
+      final response = await _sendWithRetry(
+        () => chat.sendMessage(Content.text(fullMessage)),
+      );
+      _lastRequestTime = DateTime.now();
+
       final responseText = response.text ?? '';
 
       // حفظ في سجل المحادثة بأدوار صحيحة
-      // Content.text() → role='user' | Content.model() → role='model'
       _conversationHistory.add(Content.text(userMessage));
       _conversationHistory.add(Content.model([TextPart(responseText)]));
 
@@ -445,7 +469,7 @@ class GeminiService {
       );
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
-      // مسح سجل المحادثة التالف عند الخطأ
+      // مسح سجل المحادثة التالف عند خطأ الأدوار
       if (e.toString().contains('role') ||
           e.toString().contains('alternat')) {
         debugPrint('⚠️ مسح سجل المحادثة التالف');
@@ -455,8 +479,10 @@ class GeminiService {
       String friendlyMessage;
       if (errorMsg.contains('API key') || errorMsg.contains('401')) {
         friendlyMessage = 'مفتاح Gemini API غير صالح. يرجى إدخال مفتاح جديد من الإعدادات.';
-      } else if (errorMsg.contains('429') || errorMsg.contains('quota')) {
-        friendlyMessage = 'تم تجاوز حد الطلبات. انتظر قليلاً ثم حاول مجدداً.';
+      } else if (errorMsg.contains('429') ||
+          errorMsg.contains('quota') ||
+          errorMsg.contains('RESOURCE_EXHAUSTED')) {
+        friendlyMessage = 'تم تجاوز حد الطلبات. انتظر 30 ثانية ثم حاول مجدداً.';
       } else if (errorMsg.contains('SAFETY')) {
         friendlyMessage = 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
       } else {
@@ -468,6 +494,44 @@ class GeminiService {
         requiresConfirmation: false,
       );
     }
+  }
+
+  /// إعادة محاولة تلقائية مع exponential backoff عند تجاوز حد الطلبات
+  Future<GenerateContentResponse> _sendWithRetry(
+    Future<GenerateContentResponse> Function() sendFn,
+  ) async {
+    var delay = const Duration(seconds: 4);
+    const maxDelay = Duration(seconds: 30);
+
+    for (var attempt = 0; attempt <= _maxRetries; attempt++) {
+      try {
+        return await sendFn();
+      } catch (e) {
+        final msg = e.toString();
+
+        // إعادة محاولة فقط عند تجاوز حد الطلبات
+        final isRateLimit = msg.contains('429') ||
+            msg.contains('quota') ||
+            msg.contains('RESOURCE_EXHAUSTED') ||
+            msg.contains('rate');
+
+        if (!isRateLimit || attempt >= _maxRetries) rethrow;
+
+        // حساب jitter عشوائي لمنع thundering herd
+        final jitterMs = (_random.nextDouble() * delay.inMilliseconds * 0.3).round();
+        final actualDelay = Duration(milliseconds: delay.inMilliseconds + jitterMs);
+
+        debugPrint('⚠️ تجاوز حد الطلبات — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
+
+        await Future.delayed(actualDelay);
+
+        // مضاعفة التأخير للمحاولة التالية
+        delay = Duration(
+          milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds),
+        );
+      }
+    }
+    throw StateError('Unreachable');
   }
 
   // ───────────────────────────────────────────────────────────
