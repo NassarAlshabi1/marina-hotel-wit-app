@@ -722,6 +722,7 @@ class _GuestPaymentsDetailReportScreenState
     final actualDays = _getActualDaysSpent(b);
     final coverage = _calculateCoverage(b);
     final consumedCost = coverage.consumedCost;
+    final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
 
     final config = ReportPdfConfig(
       title: 'كشف حساب نزيل تفصيلي',
@@ -757,7 +758,7 @@ class _GuestPaymentsDetailReportScreenState
         final paidNights = coverage.totalPaidNights;
         final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
         final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
-        final autoOverdueCost = autoOverdueDays * nightlyRate;
+        final autoOverdueCost = (autoOverdueDays * nightlyRate).toDouble();
 
         pdfContent.add(pw.SizedBox(height: 16));
 
