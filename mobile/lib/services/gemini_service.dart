@@ -400,6 +400,7 @@ class GeminiService {
   // ───────────────────────────────────────────────────────────
 
   /// إرسال رسالة مع retry تلقائي عند تجاوز حد الطلبات
+  /// يستخدم generateContent مباشرة (أبسط وأكثر موثوقية من startChat)
   Future<GeminiResponse> chat(String userMessage) async {
     if (!isAvailable) {
       return GeminiResponse(
@@ -428,15 +429,16 @@ class GeminiService {
           ? _conversationHistory.sublist(_conversationHistory.length - 6)
           : List<Content>.from(_conversationHistory);
 
-      // إنشاء جلسة محادثة مع التاريخ
-      final chat = _model!.startChat(history: recentHistory);
-
-      // إرسال رسالة المستخدم مع سياق الفندق الحي
+      // بناء قائمة المحتوى: التاريخ + رسالة المستخدم مع سياق الفندق
       final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$userMessage';
+      final allContents = [
+        ...recentHistory,
+        Content.text(fullMessage),
+      ];
 
-      // ── إرسال مع Retry عند 429 ──
+      // ── إرسال مع Retry عند 429 باستخدام generateContent مباشرة ──
       final response = await _sendWithRetry(
-        () => chat.sendMessage(Content.text(fullMessage)),
+        () => _model!.generateContent(allContents),
       );
       _lastRequestTime = DateTime.now();
 
