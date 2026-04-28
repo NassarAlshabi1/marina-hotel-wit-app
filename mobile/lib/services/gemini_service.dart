@@ -243,12 +243,30 @@ class GeminiService {
   final List<AiAuditLog> _auditLog = [];
   List<AiAuditLog> get auditLog => List.unmodifiable(_auditLog);
 
+  /// آخر خطأ في التهيئة (لعرضه في الواجهة)
+  String? _initError;
+  String? get initError => _initError;
+
+  /// آخر خطأ في الإرسال
+  String? _lastError;
+  String? get lastError => _lastError;
+
   /// تهيئة Gemini AI عبر Firebase AI Logic (بدون مفتاح API في الكود)
   /// يستخدم ChatSession لإدارة المحادثة تلقائياً — حسب نمط Firebase AI Logic الرسمي
-  Future<void> initialize() async {
-    if (_isInitialized) return;
+  /// [forceRetry] = true لإجبار إعادة التهيئة حتى لو نجحت سابقاً
+  Future<void> initialize({bool forceRetry = false}) async {
+    if (_isInitialized && !forceRetry) return;
+
+    // إعادة تعيين الحالة عند إعادة المحاولة
+    if (forceRetry) {
+      _model = null;
+      _chat = null;
+      _isInitialized = false;
+      _initError = null;
+    }
 
     try {
+      _initError = null;
       // FirebaseAI.googleAI() يستخدم مفتاح API المُدار من Firebase Console
       // لا حاجة لتخزين مفتاح API في الكود أو Remote Config
       final ai = FirebaseAI.googleAI();
@@ -264,11 +282,31 @@ class GeminiService {
       // إنشاء جلسة محادثة — startChat يدير سجل المحادثة تلقائياً
       _chat = _model!.startChat();
       _isInitialized = true;
+      _lastError = null;
       debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
     } catch (e) {
       debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
       debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
+      _initError = _describeInitError(e);
+      _lastError = _initError;
     }
+  }
+
+  /// وصف خطأ التهيئة بلغة واضحة
+  String _describeInitError(Object e) {
+    final msg = e.toString();
+    if (msg.contains('[core/no-app') || msg.contains('No Firebase')) {
+      return 'Firebase غير مهيأ — تأكد من استدعاء Firebase.initializeApp() في main()';
+    } else if (msg.contains('API_KEY') || msg.contains('api.key')) {
+      return 'مفتاح API غير صالح — تحقق من Firebase Console > Project Settings';
+    } else if (msg.contains('not enabled') || msg.contains('NOT_FOUND')) {
+      return 'Firebase AI غير مفعّل — فعّله من Firebase Console > AI Logic';
+    } else if (msg.contains('location') || msg.contains('region')) {
+      return 'الخدمة غير متاحة في منطقتك — تأكد أن Firebase AI مفعّل';
+    } else if (msg.contains('network') || msg.contains('socket') || msg.contains('connection')) {
+      return 'خطأ في الاتصال بالشبكة — تأكد من الإنترنت';
+    }
+    return 'فشل التهيئة: $e';
   }
 
   void reset() {
@@ -438,7 +476,29 @@ class GeminiService {
       );
       _lastRequestTime = DateTime.now();
 
-      final responseText = response.text ?? '';
+      // ⚠️ response.text يرمي FirebaseAIException عند الحظر (لا يُرجع null!)
+      String responseText;
+      try {
+        responseText = response.text ?? '';
+      } on FirebaseAIException catch (e) {
+        debugPrint('⚠️ response.text رمى استثناء: $e');
+        // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
+        if (e.message?.contains('SAFETY') == true ||
+            e.message?.contains('blocked') == true) {
+          debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
+          try {
+            final retryResponse = await _sendWithRetry(
+              () => _chat!.sendMessage(Content.text(userMessage)),
+            );
+            responseText = retryResponse.text ?? '';
+          } catch (retryE) {
+            responseText = _friendlyErrorMessage(retryE);
+          }
+        } else {
+          responseText = _friendlyErrorMessage(e);
+        }
+      }
+      _lastError = null;
 
       // تحليل الأمر من الرد
       final command = _parseCommand(responseText);
@@ -463,6 +523,7 @@ class GeminiService {
       );
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
+      _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
@@ -495,13 +556,19 @@ class GeminiService {
       return 'خدمة Gemini غير متاحة في منطقتك حالياً.';
     } else if (e is FirebaseAIException) {
       final firebaseMsg = e.message;
-      if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
-        return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
-      } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
-        return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
+      // e.message قد يكون null — فحص أمان
+      if (firebaseMsg != null) {
+        if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
+          return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
+        } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
+          return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
+        } else if (firebaseMsg.contains('No content') || firebaseMsg.contains('empty')) {
+          return 'لم يتم توليد رد. حاول إعادة صياغة السؤال.';
+        }
       }
+      return 'خطأ من خدمة AI: ${firebaseMsg ?? "غير معروف"}';
     }
-    return 'حدث خطأ أثناء معالجة طلبك. حاول مجدداً.';
+    return 'حدث خطأ أثناء معالجة طلبك: $e';
   }
 
   /// إعادة محاولة تلقائية مع exponential backoff عند تجاوز حد الطلبات

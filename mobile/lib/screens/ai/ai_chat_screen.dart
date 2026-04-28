@@ -33,6 +33,15 @@ class _AiChatScreenState extends State<AiChatScreen>
     if (mounted) setState(() {});
   }
 
+  /// إعادة تهيئة Gemini AI (عند الفشل)
+  Future<void> _retryInitGemini() async {
+    setState(() => _isLoading = true);
+    await GeminiService.instance.initialize(forceRetry: true);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
   void _addWelcomeMessage() {
     _messages.add(ChatMessage(
       id: 'welcome',
@@ -376,7 +385,7 @@ class _AiChatScreenState extends State<AiChatScreen>
       ),
       body: Column(
         children: [
-          // شريط تحذير إذا لم يكن متاحاً
+          // شريط تحذير إذا لم يكن متاحاً — مع تفاصيل الخطأ وزر إعادة المحاولة
           if (!isAvailable)
             Container(
               width: double.infinity,
@@ -388,16 +397,61 @@ class _AiChatScreenState extends State<AiChatScreen>
                 ),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      'المساعد الذكي غير متاح — تأكد من تفعيل AI Logic في Firebase Console',
-                      style: TextStyle(
-                        color: Colors.orange.shade800,
-                        fontSize: 13,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'المساعد الذكي غير متاح',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (GeminiService.instance.initError != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            GeminiService.instance.initError!,
+                            style: TextStyle(
+                              color: Colors.orange.shade700,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'تأكد من تفعيل AI Logic في Firebase Console',
+                            style: TextStyle(
+                              color: Colors.orange.shade700,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 28,
+                          child: ElevatedButton.icon(
+                            onPressed: _retryInitGemini,
+                            icon: const Icon(Icons.refresh, size: 14),
+                            label: const Text('إعادة المحاولة',
+                                style: TextStyle(fontSize: 11)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
