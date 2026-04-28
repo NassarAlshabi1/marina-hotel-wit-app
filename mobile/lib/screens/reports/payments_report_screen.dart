@@ -43,8 +43,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalOtherPaid = 0;
-  double _totalRemaining = 0;
-  double _totalDue = 0;
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -59,10 +57,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _initializeDefaults() async {
-    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
-    final range = DateFilterController.getDefaultHotelDayRange();
-    _fromDate = range.from;
-    _toDate = range.to;
+    // الافتراضي: من بداية اليوم إلى نهاية اليوم التالي
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, now.day);
+    _toDate = DateTime(now.year, now.month, now.day + 1, 23, 59, 59);
     await _loadRooms();
     // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
     // لضمان دقة المجاميع في التقرير
@@ -102,8 +100,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
         _totalOtherPaid = result.totalOtherPaid;
-        _totalRemaining = result.totalRemaining;
-        _totalDue = result.totalDue;
       });
     } finally {
       if (mounted) {
@@ -472,51 +468,36 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Widget _buildSummary() {
+    final totalAll = _totalPaid + _totalOtherPaid;
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Column(
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryTile(
-                    'مدفوعات الغرفة',
-                    _currencyFmt.format(_totalPaid),
-                    Colors.green,
-                  ),
-                ),
-                Container(width: 1, height: 28, color: Colors.grey.shade200),
-                Expanded(
-                  child: _buildSummaryTile(
-                    'مدفوعات أخرى',
-                    _currencyFmt.format(_totalOtherPaid),
-                    Colors.teal,
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _buildSummaryTile(
+                'مدفوعات الغرفة',
+                _currencyFmt.format(_totalPaid),
+                Colors.green,
+              ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryTile(
-                    'إجمالي المستحق',
-                    _currencyFmt.format(_totalDue),
-                    Colors.purple,
-                  ),
-                ),
-                Container(width: 1, height: 28, color: Colors.grey.shade200),
-                Expanded(
-                  child: _buildSummaryTile(
-                    'المتبقي المستحق',
-                    _currencyFmt.format(_totalRemaining),
-                    Colors.red,
-                  ),
-                ),
-              ],
+            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Expanded(
+              child: _buildSummaryTile(
+                'مدفوعات أخرى',
+                _currencyFmt.format(_totalOtherPaid),
+                Colors.teal,
+              ),
+            ),
+            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Expanded(
+              child: _buildSummaryTile(
+                'إجمالي المدفوعات',
+                _currencyFmt.format(totalAll),
+                Colors.indigo,
+              ),
             ),
           ],
         ),

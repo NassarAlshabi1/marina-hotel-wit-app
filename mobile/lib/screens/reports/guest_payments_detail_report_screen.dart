@@ -218,7 +218,7 @@ class _GuestPaymentsDetailReportScreenState
 
   Widget _buildSearchAndFilters() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -237,7 +237,7 @@ class _GuestPaymentsDetailReportScreenState
                   ? IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setState(() => _searchQuery = ''))
                   : null,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               isDense: true,
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -250,16 +250,16 @@ class _GuestPaymentsDetailReportScreenState
             child: Row(
               children: [
                 _buildFilterChip('الكل', 'all', Colors.blue),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _buildFilterChip('دفع جزئي', 'partial', Colors.orange),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _buildFilterChip('غير مدفوع', 'unpaid', Colors.red),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _buildFilterChip('مدفوع زيادة', 'overpaid', Colors.green),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Row(
             children: [
               Expanded(
@@ -337,8 +337,8 @@ class _GuestPaymentsDetailReportScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
+            Icon(Icons.search_off, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
             const Text('لا توجد بيانات تطابق معايير البحث', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -353,7 +353,7 @@ class _GuestPaymentsDetailReportScreenState
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           color: Colors.blue.shade900,
           child: Row(
             children: [
@@ -373,7 +373,7 @@ class _GuestPaymentsDetailReportScreenState
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             itemCount: filtered.length,
             itemBuilder: (context, index) => _buildBookingCard(filtered[index]),
           ),
@@ -385,9 +385,9 @@ class _GuestPaymentsDetailReportScreenState
   Widget _buildSummaryItem(String label, String value, Color valueColor) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 12)),
       ],
     );
   }
@@ -404,43 +404,31 @@ class _GuestPaymentsDetailReportScreenState
     final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
     final autoOverdueCost = autoOverdueDays * nightlyRate;
 
-    // حساب النسبة المئوية لتغطية التكاليف الحالية
     final consumedCost = coverage.consumedCost;
     final paidPercent = consumedCost > 0 ? (b.totalPaidCached / consumedCost * 100) : 100.0;
-
     final remaining = b.remainingBalanceCached;
     final isCredit = remaining < 0;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 4),
+      elevation: 2,
       shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Column(
         children: [
-          // ─── رأس البطاقة ───
           _buildCardHeader(b, nightlyRate),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── التواريخ: الدخول + المغادرة المخططة (محسوبة من المدفوعات) ───
                 _buildDatesSection(b, coverage),
-
-                const Divider(height: 16),
-
-                // ─── الأيام ───
+                const Divider(height: 8),
                 _buildDaysSection(b, actualDays, coverage),
-
-                const SizedBox(height: 10),
-
-                // ─── المبالغ والتقدم ───
+                const SizedBox(height: 5),
                 _buildFinancialSection(b, nightlyRate, paidPercent, isCredit, remaining),
-
-                // ─── تنبيه التمديد التلقائي عند تجاوز المغادرة المحسوبة ───
                 if (isAutoOverdue && autoOverdueDays > 0) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 5),
                   _buildOverdueAlert(autoOverdueDays, autoOverdueCost),
                 ],
               ],
@@ -453,33 +441,35 @@ class _GuestPaymentsDetailReportScreenState
 
   Widget _buildCardHeader(Booking b, double nightlyRate) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(8)),
-            child: Text('غرفة ${b.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            child: Text('غرفة ${b.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(b.guestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis),
-                Text('سعر الليلة: ${CurrencyFormatter.formatAmount(nightlyRate)} ريال', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text(b.guestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                Text('سعر الليلة: ${CurrencyFormatter.formatAmount(nightlyRate)} ريال', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
             onPressed: () => _exportGuestStatementPdf(b),
             tooltip: 'كشف حساب PDF',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         ],
       ),
@@ -489,7 +479,6 @@ class _GuestPaymentsDetailReportScreenState
   // ─── قسم التواريخ: المغادرة المخططة = محسوبة من المدفوعات والتكلفة ───
 
   Widget _buildDatesSection(Booking b, StayBalanceResult coverage) {
-    // المغادرة المخططة محسوبة: المدفوع ÷ سعر الليلة = عدد الليالي المغطاة
     final plannedCheckout = coverage.autoCheckoutDate;
     final paidNights = coverage.totalPaidNights;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
@@ -497,21 +486,18 @@ class _GuestPaymentsDetailReportScreenState
 
     return Column(
       children: [
-        // الصف الأول: الدخول + عدد الليالي المدفوعة
         Row(
           children: [
             Expanded(child: _buildInfoItem(Icons.login, 'الدخول', _dateFormatter.format(coverage.checkinDate))),
             Expanded(child: _buildInfoItem(Icons.nights_stay, 'الليالي المدفوعة', '$paidNights ليلة')),
           ],
         ),
-
-        // الصف الثاني: المغادرة المخططة (محسوبة من المدفوعات)
-        const SizedBox(height: 6),
+        const SizedBox(height: 3),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: isAutoOverdue ? Colors.orange.shade50 : Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isAutoOverdue ? Colors.orange.shade200 : Colors.blue.shade200,
             ),
@@ -520,10 +506,10 @@ class _GuestPaymentsDetailReportScreenState
             children: [
               Icon(
                 isAutoOverdue ? Icons.autorenew : Icons.event_available,
-                size: 20,
+                size: 18,
                 color: isAutoOverdue ? Colors.orange.shade700 : Colors.blue.shade700,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,18 +517,18 @@ class _GuestPaymentsDetailReportScreenState
                     Text(
                       isAutoOverdue ? 'المغادرة المخططة (مُمدَّدة)' : 'المغادرة المخططة (محسوبة)',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.bold,
                         color: isAutoOverdue ? Colors.orange.shade700 : Colors.blue.shade700,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Row(
                       children: [
                         Text(
                           _dateFormatter.format(plannedCheckout),
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: isAutoOverdue ? Colors.orange.shade900 : Colors.blue.shade900,
                           ),
@@ -554,14 +540,14 @@ class _GuestPaymentsDetailReportScreenState
               ),
               if (isAutoOverdue && autoOverdueDays > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade700,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
                     '+$autoOverdueDays يوم تمديد',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
             ],
@@ -577,7 +563,6 @@ class _GuestPaymentsDetailReportScreenState
     final plannedCheckout = coverage.autoCheckoutDate;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
-    // الأيام المتبقية حتى المغادرة المخططة المحسوبة
     final nightsUntilPlanned = !isAutoOverdue && plannedCheckout.isAfter(DateTime.now())
         ? Time.nightsWithCutoff(DateTime.now(), checkout: plannedCheckout)
         : 0;
@@ -585,12 +570,12 @@ class _GuestPaymentsDetailReportScreenState
     return Row(
       children: [
         Expanded(child: _buildDaysStat('المقضية', '$actualDays', Colors.blue)),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         if (isAutoOverdue && autoOverdueDays > 0)
           Expanded(child: _buildDaysStat('إضافية (تمديد)', '+$autoOverdueDays', Colors.orange))
         else
           Expanded(child: _buildDaysStat('المتبقية', '$nightsUntilPlanned', Colors.purple)),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         Expanded(child: _buildDaysStat('المخططة', '${coverage.totalPaidNights}', Colors.grey)),
       ],
     );
@@ -600,10 +585,10 @@ class _GuestPaymentsDetailReportScreenState
 
   Widget _buildFinancialSection(Booking b, double nightlyRate, double paidPercent, bool isCredit, double remaining) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
@@ -611,22 +596,22 @@ class _GuestPaymentsDetailReportScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('تغطية التكاليف الحالية', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+              Text('تغطية التكاليف الحالية', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
               Text('${paidPercent.toStringAsFixed(0)}%',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: paidPercent >= 100 ? Colors.green : Colors.orange)),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: paidPercent >= 100 ? Colors.green : Colors.orange)),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: (paidPercent / 100).clamp(0, 1),
-              minHeight: 6,
+              minHeight: 4,
               backgroundColor: Colors.grey.shade200,
               valueColor: AlwaysStoppedAnimation<Color>(paidPercent >= 100 ? Colors.green : Colors.orange),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(child: _buildAmountDetail('إجمالي العقد', b.totalDueCached, Colors.blue.shade900)),
@@ -649,20 +634,20 @@ class _GuestPaymentsDetailReportScreenState
 
   Widget _buildOverdueAlert(int overdueDays, double overdueCost) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.red.shade100),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, size: 20, color: Colors.red),
-          const SizedBox(width: 10),
+          const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               'تجاوز موعد المغادرة بـ $overdueDays يوم (تكلفة إضافية: ${CurrencyFormatter.formatAmount(overdueCost)} ريال)',
-              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10),
             ),
           ),
         ],
@@ -675,13 +660,13 @@ class _GuestPaymentsDetailReportScreenState
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey),
-        const SizedBox(width: 8),
+        Icon(icon, size: 14, color: Colors.grey),
+        const SizedBox(width: 6),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+            Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
           ],
         ),
       ],
@@ -690,16 +675,16 @@ class _GuestPaymentsDetailReportScreenState
 
   Widget _buildDaysStat(String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -708,9 +693,9 @@ class _GuestPaymentsDetailReportScreenState
   Widget _buildAmountDetail(String label, double value, Color color) {
     return Column(
       children: [
-        Text(CurrencyFormatter.formatAmount(value), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 9, color: Colors.black54, fontWeight: FontWeight.w500)),
+        Text(CurrencyFormatter.formatAmount(value), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 1),
+        Text(label, style: const TextStyle(fontSize: 8, color: Colors.black54, fontWeight: FontWeight.w500)),
       ],
     );
   }
