@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
@@ -9,6 +10,7 @@ class RoomCard extends StatelessWidget {
   final VoidCallback? onTap;
   final bool compact;
   final Color? customColor; // إضافة لون مخصص
+  final bool isPaymentOverdue; // حالة تأخر السداد للوميض
 
   const RoomCard({
     super.key,
@@ -16,6 +18,7 @@ class RoomCard extends StatelessWidget {
     this.onTap,
     this.compact = false,
     this.customColor,
+    this.isPaymentOverdue = false,
   });
 
   @override
@@ -24,7 +27,7 @@ class RoomCard extends StatelessWidget {
     // استخدام اللون المخصص إذا وجد، وإلا استخدام الألوان الافتراضية
     final cardColor = customColor ?? (isAvailable ? Colors.green : Colors.red);
 
-    return GestureDetector(
+    Widget cardContent = GestureDetector(
       onTap: onTap,
       child: Card(
         elevation: compact ? 2 : 4,
@@ -99,6 +102,23 @@ class RoomCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (isPaymentOverdue) {
+      return cardContent
+          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+          .tint(
+            color: Colors.red.withOpacity(0.2),
+            duration: 800.ms,
+          )
+          .scale(
+            begin: const Offset(1.0, 1.0),
+            end: const Offset(1.03, 1.03),
+            duration: 800.ms,
+            curve: Curves.easeInOut,
+          );
+    }
+
+    return cardContent;
   }
 }
 
@@ -290,13 +310,14 @@ class RoomsGrid extends StatelessWidget {
         final roomData = rooms[index];
         Room room;
         Color? customColor;
+        bool isPaymentOverdue = false;
 
         // التحقق مما إذا كانت البيانات مدمجة مع حالة الدفع
         try {
-          // محاولة التعامل معها كـ RoomWithPaymentStatus (التي سنعرفها لاحقاً أو نمررها)
-          // بما أننا لا نستطيع استيراد البروفايدر هنا لتجنب التعارض الدائري، سنستخدم dynamic
+          // محاولة التعامل معها كـ RoomWithPaymentStatus
           room = roomData.room as Room;
           customColor = roomData.roomColor as Color?;
+          isPaymentOverdue = roomData.isPaymentOverdue as bool;
         } catch (_) {
           room = roomData as Room;
         }
@@ -306,6 +327,7 @@ class RoomsGrid extends StatelessWidget {
           onTap: () => onRoomTap(room),
           compact: true,
           customColor: customColor,
+          isPaymentOverdue: isPaymentOverdue,
         );
       },
     );

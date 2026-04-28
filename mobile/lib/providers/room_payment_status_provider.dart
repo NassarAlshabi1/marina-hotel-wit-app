@@ -26,12 +26,8 @@ class RoomWithPaymentStatus {
     }
 
     // إذا كانت الغرفة محجوزة، نتحقق من حالة تأخر السداد
-    if (isPaymentOverdue) {
-      final hex = RemoteConfigService.instance.overdueRoomColor;
-      return Color(int.parse('FF$hex', radix: 16));
-    }
-
-    return Colors.red.shade600; // اللون الأحمر الافتراضي للمحجوز
+    // ملاحظة: تم إلغاء اللون البني (overdueRoomColor) والاعتماد على الوميض في الواجهة
+    return Colors.red.shade600; // اللون الأحمر للمحجوز والمتأخر في السداد
   }
 }
 
@@ -76,7 +72,8 @@ final roomsWithPaymentStatusProvider =
 
           if (hasRemainingBalance) {
             final hour = currentTime.hour;
-            if (hour >= 23 || hour < 6) {
+            // تأخر السداد يبدأ من الساعة 11 مساءً إلى 5 صباحاً
+            if (hour >= 23 || hour < 5) {
               isPaymentOverdue = true;
             }
           }

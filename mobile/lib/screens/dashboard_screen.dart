@@ -701,7 +701,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(width: 12),
             _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
             const SizedBox(width: 12),
-            _buildInstructionDot(_overdueColor(), 'تأخر سداد'),
+            _buildInstructionDot(Colors.red.shade600, 'وميض: تأخر سداد (11م-5ص)'),
           ],
         ),
       ),
