@@ -109,11 +109,19 @@ class _AiChatScreenState extends State<AiChatScreen>
         _scrollToBottom();
       }
     } catch (e) {
+      debugPrint('❌ Chat Error: $e');
       if (mounted) {
+        String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
+        if (e.toString().contains('API_KEY')) {
+          errorMsg = 'خطأ في مفتاح API. يرجى التحقق من إعدادات Firebase.';
+        } else if (e.toString().contains('QUOTA')) {
+          errorMsg = 'تم تجاوز حد الطلبات المسموح به لـ Gemini.';
+        }
+
         setState(() {
           _messages.add(ChatMessage(
             id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-            text: 'عذراً، حدث خطأ أثناء الاتصال. تأكد من اتصالك بالإنترنت.',
+            text: '$errorMsg\nتأكد من اتصالك بالإنترنت وتفعيل AI Logic.',
             isUser: false,
           ));
           _isLoading = false;
