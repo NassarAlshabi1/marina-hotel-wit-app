@@ -68,8 +68,9 @@ class _IncomeExpenseReportScreenState
       final paymentsDao = PaymentsDao(db, outboxDao);
       final expensesDao = ExpensesDao(db, outboxDao);
 
-      final fromStr = '${_dateFormat.format(_fromDate!)} 14:00:00';
-      final toStr = '${_dateFormat.format(_toDate!)} 13:59:59';
+    final hotelDayRange = HotelTimeEngine.getHotelDayRange(_fromDate!);
+    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['start']!);
+    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['end']!);
 
       final payments = await paymentsDao.list(
         from: fromStr,

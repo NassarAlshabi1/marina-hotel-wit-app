@@ -59,8 +59,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<void> _initializeDefaults() async {
     // الافتراضي: من بداية اليوم إلى نهاية اليوم التالي
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day);
-    _toDate = DateTime(now.year, now.month, now.day + 1, 23, 59, 59);
+    final range = DateFilterController.getDefaultHotelDayRange();
+    _fromDate = range.from;
+    _toDate = range.to;
     await _loadRooms();
     // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
     // لضمان دقة المجاميع في التقرير
@@ -113,12 +114,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? '${DateFormat('yyyy-MM-dd HH:mm:ss').format(_fromDate!)}'
-        : null;
-    final toStr = _toDate != null
-        ? '${DateFormat('yyyy-MM-dd HH:mm:ss').format(_toDate!)}'
-        : null;
+      // استخدام HotelTimeEngine لتحديد بداية ونهاية اليوم الفندقي بدقة
+      final hotelDayRange = HotelTimeEngine.getHotelDayRange(_fromDate!);
+      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['start']!);
+      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['end']!);
     final payments = await paymentsDao.listForReport(
       from: fromStr,
       to: toStr,

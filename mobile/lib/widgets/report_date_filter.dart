@@ -47,12 +47,8 @@ class DateFilterController {
 
   /// النطاق الافتراضي لليوم الفندقي الحالي (14:00 → 13:59 من اليوم التالي)
   static DateRange getDefaultHotelDayRange() {
-    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
-    final from = DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
-    final to = from
-        .add(const Duration(days: 1))
-        .subtract(const Duration(seconds: 1));
-    return DateRange(from: from, to: to);
+    final range = HotelTimeEngine.getHotelDayRange(DateTime.now());
+    return DateRange(from: range["start"], to: range["end"]);
   }
 
   /// حساب نطاق زمني لفلتر سريع محدد
@@ -60,15 +56,8 @@ class DateFilterController {
     final now = DateTime.now();
     switch (type) {
       case 'hotelDay':
-        final hotelDay = HotelTimeEngine.getHotelDay(now);
-        final from =
-            DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
-        return DateRange(
-          from: from,
-          to: from
-              .add(const Duration(days: 1))
-              .subtract(const Duration(seconds: 1)),
-        );
+        final range = HotelTimeEngine.getHotelDayRange(now);
+        return DateRange(from: range["start"], to: range["end"]);
       case 'week':
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
         final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
