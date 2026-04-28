@@ -79,7 +79,11 @@ class _IncomeExpenseReportScreenState
         excludeVoided: true,
         excludePendingBalance: true,
       );
-      final expenses = await expensesDao.list(from: fromStr, to: toStr);
+      // المصروفات تُخزن بتاريخ بدون وقت (yyyy-MM-dd)
+      // لذلك نُرسل التاريخ بدون وقت لتجنب فشل المقارنة النصية في SQLite
+      final expenseFromStr = DateFormat('yyyy-MM-dd').format(hotelDayRange['start']!);
+      final expenseToStr = DateFormat('yyyy-MM-dd').format(hotelDayRange['end']!);
+      final expenses = await expensesDao.list(from: expenseFromStr, to: expenseToStr);
 
       final result = await compute(
         _processReportData,
@@ -1737,16 +1741,45 @@ class _ReportResult {
 }
 
 _ReportResult _processReportData(_ReportParams params) {
+  // نطاق اليوم الفندقي: من fromDate (14:00) إلى toDate (13:59 اليوم التالي)
+  final hotelStart = DateTime(
+    params.fromDate.year,
+    params.fromDate.month,
+    params.fromDate.day,
+    14,
+    0,
+    0,
+  );
+  final hotelEnd = DateTime(
+    params.toDate.year,
+    params.toDate.month,
+    params.toDate.day,
+    13,
+    59,
+    59,
+  );
+
   bool isWithinRange(DateTime date) {
-    final endOfDay = DateTime(
-      params.toDate.year,
-      params.toDate.month,
-      params.toDate.day,
-      23,
-      59,
-      59,
+    // دعم تواريخ بدون وقت (كما في المصروفات) ومع وقت (كما في المدفوعات)
+    final normalizedDate = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      date.hour,
+      date.minute,
+      date.second,
     );
-    return !date.isBefore(params.fromDate) && !date.isAfter(endOfDay);
+    // المصروفات بتاريخ بدون وقت تعتبر ضمن يوم الفندق إذا تطابق التاريخ
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final hotelStartDateOnly = DateTime(hotelStart.year, hotelStart.month, hotelStart.day);
+    final hotelEndDateOnly = DateTime(hotelEnd.year, hotelEnd.month, hotelEnd.day);
+    final isDateOnly = date.hour == 0 && date.minute == 0 && date.second == 0;
+    if (isDateOnly) {
+      // تاريخ بدون وقت: يتضمن إذا كان ضمن أي يوم من أيام الفندق
+      return !dateOnly.isBefore(hotelStartDateOnly) && !dateOnly.isAfter(hotelEndDateOnly);
+    }
+    // تاريخ مع وقت: فحص دقيق ضمن نطاق 14:00 → 13:59
+    return !normalizedDate.isBefore(hotelStart) && !normalizedDate.isAfter(hotelEnd);
   }
 
   bool isSalaryExpense(String type) {
