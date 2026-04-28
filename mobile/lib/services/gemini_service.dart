@@ -657,6 +657,86 @@ class GeminiService {
         s.writeln('إجمالي الحجوزات النشطة: ${activeBookings.length}');
       }
 
+      // ═══════════════════════════════════════════════════════════
+      //  12. التحقق من صحة الحسابات — 4 فحوصات شاملة
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ التحقق من صحة الحسابات ═══');
+
+      // --- فحص 1: هل المتبقي = التكلفة - المدفوع ---
+      final balanceErrors = <String>[];
+      for (final b in activeBookings) {
+        final due = b.totalDueCached;
+        final paid = b.totalPaidCached;
+        final remaining = b.remainingBalanceCached;
+        final expectedRemaining = due - paid;
+        final diff = (remaining - expectedRemaining).abs();
+        if (diff > 0.5) {
+          // فرق أكبر من 0.5 ريال يُعتبر خطأ
+          balanceErrors.add(
+            '[${b.roomNumber}] ${b.guestName}: المتبقي المسجل ${remaining.toStringAsFixed(0)} ≠ المتوقع ${expectedRemaining.toStringAsFixed(0)} (تكلفة ${due.toStringAsFixed(0)} - مدفوع ${paid.toStringAsFixed(0)}) | فرق ${diff.toStringAsFixed(0)} ريال',
+          );
+        }
+      }
+      if (balanceErrors.isEmpty) {
+        s.writeln('✓ فحص توازن الحسابات: جميع الحسابات صحيحة — المتبقي = التكلفة - المدفوع');
+      } else {
+        s.writeln('✗ فحص توازن الحسابات: ${balanceErrors.length} خطأ في توازن الحسابات:');
+        for (final err in balanceErrors) {
+          s.writeln('  ✗ $err');
+        }
+      }
+
+      // --- فحص 2: هل يوجد رصيد سالب (مدفوع أكبر من التكلفة) ---
+      final negativeBalance = activeBookings.where((b) => b.remainingBalanceCached < -0.5).toList();
+      if (negativeBalance.isEmpty) {
+        s.writeln('✓ فحص الرصيد السالب: لا يوجد أرصدة سالبة');
+      } else {
+        s.writeln('✗ فحص الرصيد السالب: ${negativeBalance.length} حجز برصيد سالب (المدفوع exceeds التكلفة):');
+        for (final b in negativeBalance) {
+          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال (مدفوع ${b.totalPaidCached.toStringAsFixed(0)} exceeds مستحق ${b.totalDueCached.toStringAsFixed(0)})');
+        }
+      }
+
+      // --- فحص 3: هل يوجد دفعات أكبر من إجمالي التكلفة ---
+      final overpayments = activeBookings.where((b) => b.totalPaidCached > b.totalDueCached + 0.5).toList();
+      if (overpayments.isEmpty) {
+        s.writeln('✓ فحص الدفعات الزائدة: لا توجد دفعات تتجاوز التكلفة');
+      } else {
+        s.writeln('✗ فحص الدفعات الزائدة: ${overpayments.length} حجز بدفعات تتجاوز التكلفة:');
+        for (final b in overpayments) {
+          final overpay = b.totalPaidCached - b.totalDueCached;
+          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مدفوع ${b.totalPaidCached.toStringAsFixed(0)} > مستحق ${b.totalDueCached.toStringAsFixed(0)} | زيادة ${overpay.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // --- فحص 4: هل توجد غرفة محجوزة بدون أي دفعة ---
+      final noPayments = activeBookings.where((b) => b.totalPaidCached < 0.5).toList();
+      if (noPayments.isEmpty) {
+        s.writeln('✓ فحص الغرف بدون دفعات: جميع الغرف المحجوزة لديها دفعات مسجلة');
+      } else {
+        s.writeln('✗ فحص الغرف بدون دفعات: ${noPayments.length} غرفة محجوزة بدون أي دفعة:');
+        for (final b in noPayments) {
+          final stayDays = b.checkinDate.isNotEmpty
+              ? now.difference(DateTime.parse(b.checkinDate)).inDays
+              : 0;
+          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مستحق ${b.totalDueCached.toStringAsFixed(0)} ريال | مدفوع 0 | أقام $stayDays يوم ${stayDays >= 3 ? "⚠️ فترة طويلة بدون دفع!" : ""}');
+        }
+      }
+
+      // --- ملخص التحقق ---
+      final totalIssues = balanceErrors.length + negativeBalance.length + overpayments.length + noPayments.length;
+      s.writeln('');
+      if (totalIssues == 0) {
+        s.writeln('✓ ملخص التحقق: جميع الحسابات صحيحة — لا توجد مشاكل');
+      } else {
+        s.writeln('✗ ملخص التحقق: $totalIssues مشكلة تحتاج مراجعة');
+        s.writeln('  - أخطاء التوازن: ${balanceErrors.length}');
+        s.writeln('  - أرصدة سالبة: ${negativeBalance.length}');
+        s.writeln('  - دفعات زائدة: ${overpayments.length}');
+        s.writeln('  - غرف بدون دفعات: ${noPayments.length}');
+      }
+
     } catch (e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
@@ -1378,6 +1458,11 @@ class GeminiService {
 5. التنبؤات: تنبيه لمغادرة الضيوف، تنبيه للغرف المتأخرة، توقعات الإيرادات
 6. تحسين الإيرادات: اقتراح تعديل الأسعار بناءً على الطلب والإشغال
 7. إدارة المخاطر: تنبيه للحوادث المالية، اكتشاف الأنماط غير الطبيعية
+8. التحقق من الحسابات: مراجعة تلقائية لصحة الحسابات — تكتشف:
+   - عدم توازن الحسابات (المتبقي ≠ التكلفة - المدفوع)
+   - الأرصدة السالبة (المدفوع أكبر من المستحق)
+   - الدفعات الزائدة عن التكلفة
+   - الغرف المحجوزة بدون أي دفعة (مع تنبيه حسب مدة الإقامة)
 
 ═══ تنسيق البيانات ═══
 يتم تزويدك ببيانات حية من الفندق تتضمن:
@@ -1390,6 +1475,7 @@ class GeminiService {
 - دفتر اليوم الفندقي: ملخص يومي شامل
 - ملاحظات الوردية: تنبيهات وملاحظات من الموظفين
 - تعديلات الأسعار: سجل التغييرات الأخيرة
+- التحقق من صحة الحسابات: 4 فحوصات تلقائية (توازن، رصيد سالب، دفعات زائدة، غرف بدون دفعات)
 
 ═══ صيغ JSON للأوامر المدعومة ═══
 
