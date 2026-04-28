@@ -253,12 +253,12 @@ class GeminiService {
       // لا حاجة لتخزين مفتاح API في الكود أو Remote Config
       final ai = FirebaseAI.googleAI();
       _model = ai.generativeModel(
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash', // تم التحديث إلى Gemini 2.5 Flash
         systemInstruction: Content.system(_buildSystemPrompt()),
         generationConfig: GenerationConfig(
-          temperature: 0.3,
-          topP: 0.8,
-          maxOutputTokens: 2048,
+          temperature: 0.2, // تقليل الـ temperature لزيادة الدقة في الأوامر
+          topP: 0.9,
+          maxOutputTokens: 4096, // زيادة الحد الأقصى للتوكنز للتقارير الطويلة
         ),
       );
       // إنشاء جلسة محادثة — startChat يدير سجل المحادثة تلقائياً
@@ -430,11 +430,18 @@ class GeminiService {
       final hotelContext = await _buildHotelContext();
 
       // دمج سياق الفندق مع رسالة المستخدم
-      final fullMessage = 'بيانات الفندق الحالية:\n$hotelContext\n\n$userMessage';
+      // ملاحظة: Gemini 2.5 Flash يتعامل بشكل أفضل مع السياق المنظم
+      final fullMessage = 'سياق الفندق الحالي:\n$hotelContext\n\nطلب المستخدم: $userMessage';
 
       // ── إرسال عبر ChatSession — يدير التاريخ تلقائياً ──
+      // تم تحسين _sendWithRetry للتعامل مع Gemini 2.5 Flash
       final response = await _sendWithRetry(
-        () => _chat!.sendMessage(Content.text(fullMessage)),
+        () {
+          if (_chat == null) {
+            _chat = _model!.startChat();
+          }
+          return _chat!.sendMessage(Content.text(fullMessage));
+        },
       );
       _lastRequestTime = DateTime.now();
 
