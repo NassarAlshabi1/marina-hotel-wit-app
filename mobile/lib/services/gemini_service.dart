@@ -349,99 +349,156 @@ class GeminiService {
     }
 
     final db = DatabaseManager.instance;
-    final lines = <String>[];
+    final s = StringBuffer();
+    final now = DateTime.now();
+    final today = now.toIso8601String().split('T')[0];
 
     try {
-      // --- استعلام موحد: جلب الغرف + الحجوزات النشطة في استعلام واحد ---
+      // ═══════════════════════════════════════════════════════════
+      //  1. بيانات الغرف الشاملة
+      // ═══════════════════════════════════════════════════════════
       final allRooms = await (db.select(db.rooms)
             ..where((r) => r.deletedAt.isNull()))
           .get();
-
       final roomMap = {for (final r in allRooms) r.roomNumber: r};
 
+      final available = allRooms.where((r) => r.status == 'available').length;
+      final occupied = allRooms.where((r) => r.status == 'occupied').length;
+      final maintenance = allRooms.where((r) => r.status == 'maintenance').length;
+      final cleaning = allRooms.where((r) => r.status == 'cleaning').length;
+      final total = allRooms.length;
+
+      // توزيع أنواع الغرف مع متوسط الأسعار
+      final typeStats = <String, List<double>>{};
+      for (final r in allRooms) {
+        typeStats.putIfAbsent(r.type, () => []).add(r.price);
+      }
+
+      s.writeln('═══ بيانات الغرف ($total غرفة) ═══');
+      s.writeln('الحالات: شاغرة $available | محجوزة $occupied | تنظيف $cleaning | صيانة $maintenance');
+      s.writeln('أنواع الغرف:');
+      for (final entry in typeStats.entries) {
+        final avg = entry.value.reduce((a, b) => a + b) / entry.value.length;
+        final min = entry.value.reduce((a, b) => a < b ? a : b);
+        final max = entry.value.reduce((a, b) => a > b ? a : b);
+        s.writeln('  ${entry.key}: ${entry.value.length} غرفة | متوسط ${avg.toStringAsFixed(0)} | أقل ${min.toStringAsFixed(0)} | أعلى ${max.toStringAsFixed(0)} ريال');
+      }
+
+      // الغرف الشاغرة مرتبة بالسعر
+      final availableRooms = allRooms.where((r) => r.status == 'available').toList()
+        ..sort((a, b) => a.price.compareTo(b.price));
+      if (availableRooms.isNotEmpty) {
+        s.writeln('');
+        s.writeln('الغرف الشاغرة (${availableRooms.length}):');
+        for (final r in availableRooms) {
+          s.writeln('  ${r.roomNumber}: ${r.type} | ${r.price.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  2. الحجوزات النشطة — بيانات شاملة ومُفصّلة
+      // ═══════════════════════════════════════════════════════════
       final activeBookings = await (db.select(db.bookings)
             ..where((b) => b.status.equals('checked_in'))
             ..where((b) => b.deletedAt.isNull())
             ..orderBy([(b) => OrderingTerm.asc(b.roomNumber)]))
           .get();
 
-      // --- إحصائيات الغرف ---
-      final available = allRooms.where((r) => r.status == 'available').length;
-      final occupied = allRooms.where((r) => r.status == 'occupied').length;
-      final maintenance = allRooms.where((r) => r.status == 'maintenance').length;
-      final cleaning = allRooms.where((r) => r.status == 'cleaning').length;
-      final total = allRooms.length;
-      lines.add('إجمالي الغرف: $total');
-      lines.add(
-          'شاغرة: $available | محجوزة: $occupied | تنظيف: $cleaning | صيانة: $maintenance');
-
-      // --- الحجوزات النشطة (بدون N+1 — استخدام القيم المحسوبة) ---
       if (activeBookings.isNotEmpty) {
-        lines.add('');
-        lines.add('الحجوزات النشطة (${activeBookings.length}):');
+        s.writeln('');
+        s.writeln('═══ الحجوزات النشطة (${activeBookings.length}) ═══');
         for (final b in activeBookings) {
-          // استخدام القيم المحسوبة المخزّنة بدل استعلام المدفوعات
           final totalPaid = b.totalPaidCached;
           final totalDue = b.totalDueCached;
           final remaining = b.remainingBalanceCached;
           final nights = b.calculatedNights;
           final checkin = b.checkinDate.split('T').first;
           final checkout = b.checkoutDate?.split('T').first ?? 'غير محدد';
+          final discount = b.discount;
+          final hasDiscount = discount > 0;
+          final room = roomMap[b.roomNumber];
+          final roomType = room?.type ?? '';
+          final roomPrice = room?.price ?? 0;
+          final nationality = b.guestNationality;
+          final isFullyPaid = b.isFullyPaid;
+          final isOverdue = b.isOverdue;
+          final stayDays = checkin != 'غير محدد'
+              ? now.difference(DateTime.parse(checkin)).inDays
+              : 0;
 
-          lines.add(
-            '- غرفة ${b.roomNumber}: ${b.guestName} | ${b.guestPhone} | دخول: $checkin | مغادرة: $checkout | $nights ليلة | مدفوع: ${totalPaid.toStringAsFixed(0)} | مستحق: ${totalDue.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)}',
-          );
+          s.writeln('  [${b.roomNumber}] ${b.guestName} | $nationality | ${b.guestPhone}');
+          s.writeln('    النوع: $roomType | السعر: ${roomPrice.toStringAsFixed(0)} ريال/ليلة');
+          s.writeln('    دخول: $checkin | مغادرة: $checkout | $nights ليلة | أقام $stayDays يوم');
+          s.writeln('    مدفوع: ${totalPaid.toStringAsFixed(0)} | مستحق: ${totalDue.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)} ${isFullyPaid ? "(مكتمل)" : "(غير مكتمل)"}${isOverdue ? " ⚠️ متأخر" : ""}');
+          if (hasDiscount) {
+            final discountLabel = b.discountType == 'per_night' ? 'ل كل ليلة' : 'إجمالي';
+            s.writeln('    خصم: ${discount.toStringAsFixed(0)} ريال ($discountLabel)');
+          }
+        }
+
+        // إحصائيات الضيوف الحاليين
+        final nationalities = <String, int>{};
+        for (final b in activeBookings) {
+          nationalities[b.guestNationality] = (nationalities[b.guestNationality] ?? 0) + 1;
+        }
+        s.writeln('');
+        s.writeln('توزيع الجنسيات: ${nationalities.entries.map((e) => "${e.key}(${e.value})").join(", ")}');
+
+        // إحصائيات الدفع
+        final fullyPaid = activeBookings.where((b) => b.isFullyPaid).length;
+        final partialPaid = activeBookings.where((b) => b.totalPaidCached > 0 && !b.isFullyPaid).length;
+        final notPaid = activeBookings.where((b) => b.totalPaidCached == 0).length;
+        final overdueCount = activeBookings.where((b) => b.isOverdue).length;
+        s.writeln('حالة الدفع: مكتمل $fullyPaid | جزئي $partialPaid | لم يدفع $notPaid | متأخر $overdueCount');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  3. تنبيهات المغادرة — ضيوف يجب مغادرتهم اليوم أو غداً
+      // ═══════════════════════════════════════════════════════════
+      final tomorrow = now.add(const Duration(days: 1)).toIso8601String().split('T')[0];
+      final checkoutToday = activeBookings.where((b) => b.checkoutDate?.split('T').first == today).toList();
+      final checkoutTomorrow = activeBookings.where((b) => b.checkoutDate?.split('T').first == tomorrow).toList();
+
+      if (checkoutToday.isNotEmpty || checkoutTomorrow.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ تنبيهات المغادرة ═══');
+        if (checkoutToday.isNotEmpty) {
+          s.writeln('مغادرة اليوم (${checkoutToday.length}):');
+          for (final b in checkoutToday) {
+            final rem = b.remainingBalanceCached;
+            s.writeln('  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}');
+          }
+        }
+        if (checkoutTomorrow.isNotEmpty) {
+          s.writeln('مغادرة غداً (${checkoutTomorrow.length}):');
+          for (final b in checkoutTomorrow) {
+            final rem = b.remainingBalanceCached;
+            s.writeln('  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}');
+          }
         }
       }
 
-      // --- الغرف الشاغرة مع أسعارها ---
-      final availableRooms = allRooms
-          .where((r) => r.status == 'available')
-          .toList();
-      if (availableRooms.isNotEmpty) {
-        lines.add('');
-        lines.add('الغرف الشاغرة (${availableRooms.length}):');
-        for (final r in availableRooms) {
-          lines.add(
-              '- ${r.roomNumber}: ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
-        }
-      }
-
-      // --- الغرف المحجوزة مع تفاصيل الضيوف ---
-      final occupiedRooms = allRooms
-          .where((r) => r.status == 'occupied')
-          .toList();
-      if (occupiedRooms.isNotEmpty) {
-        lines.add('');
-        lines.add('الغرف المحجوزة:');
-        for (final r in occupiedRooms) {
-          final booking = activeBookings
-              .where((b) => b.roomNumber == r.roomNumber)
-              .firstOrNull;
-          final guestName = booking?.guestName ?? 'غير محدد';
-          lines.add(
-              '- ${r.roomNumber}: ${guestName} | ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
-        }
-      }
-
-      // --- الديون غير المسددة ---
+      // ═══════════════════════════════════════════════════════════
+      //  4. الديون غير المسددة — مع تفاصيل الرهن
+      // ═══════════════════════════════════════════════════════════
       final debts = await (db.select(db.debts)
             ..where((d) => d.isSettled.equals(0))
             ..where((d) => d.deletedAt.isNull())
             ..orderBy([(d) => OrderingTerm.desc(d.dateRecorded)]))
           .get();
       if (debts.isNotEmpty) {
-        lines.add('');
-        lines.add('الديون غير المسددة (${debts.length}):');
-        for (final d in debts.take(10)) {
-          lines.add(
-            '- ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال متبقي من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}',
-          );
+        final totalDebt = debts.fold<double>(0, (s, d) => s + d.remainingAmount);
+        s.writeln('');
+        s.writeln('═══ الديون غير المسددة (${debts.length}) | إجمالي: ${totalDebt.toStringAsFixed(0)} ريال ═══');
+        for (final d in debts.take(15)) {
+          final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
+          s.writeln('  ${d.guestName}: متبقي ${d.remainingAmount.toStringAsFixed(0)} من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
         }
       }
 
-      // --- إيرادات ومصروفات اليوم ---
-      final today = DateTime.now().toIso8601String().split('T')[0];
+      // ═══════════════════════════════════════════════════════════
+      //  5. الإيرادات والمصروفات اليوم — مع تفصيل حسب النوع
+      // ═══════════════════════════════════════════════════════════
       final todayPayments = await (db.select(db.payments)
             ..where((p) => p.paymentDate.like('$today%'))
             ..where((p) => p.isVoided.equals(false)))
@@ -450,33 +507,163 @@ class GeminiService {
             ..where((e) => e.date.like('$today%'))
             ..where((e) => e.deletedAt.isNull()))
           .get();
+
       final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
-      final totalExpenses =
-          todayExpenses.fold<double>(0, (s, e) => s + e.amount);
+      final totalExpenses = todayExpenses.fold<double>(0, (s, e) => s + e.amount);
 
-      lines.add('');
-      lines.add('ملخص اليوم ($today):');
-      lines.add('عدد المدفوعات: ${todayPayments.length}');
-      lines.add('الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال');
-      lines.add('المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال');
-      lines.add('صافي: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+      s.writeln('');
+      s.writeln('═══ ملخص اليوم ($today) ═══');
+      s.writeln('الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} عملية)');
+      s.writeln('المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} عملية)');
+      s.writeln('صافي اليوم: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
 
-      // --- نسبة الإشغال ---
-      final occupancyRate = total > 0 ? (occupied / total * 100).toStringAsFixed(0) : 0;
-      lines.add('نسبة الإشغال: $occupancyRate%');
+      // تفصيل المدفوعات حسب نوع الإيراد
+      final revenueByType = <String, double>{};
+      for (final p in todayPayments) {
+        final type = p.revenueType;
+        revenueByType[type] = (revenueByType[type] ?? 0) + p.amount;
+      }
+      if (revenueByType.isNotEmpty) {
+        s.writeln('توزيع الإيرادات:');
+        for (final entry in revenueByType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
 
-      // --- إجمالي المتبقي من الحجوزات النشطة ---
+      // تفصيل المدفوعات حسب طريقة الدفع
+      final paymentsByMethod = <String, double>{};
+      for (final p in todayPayments) {
+        final method = p.paymentMethod;
+        paymentsByMethod[method] = (paymentsByMethod[method] ?? 0) + p.amount;
+      }
+      if (paymentsByMethod.isNotEmpty) {
+        s.writeln('طرق الدفع:');
+        for (final entry in paymentsByMethod.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // تفصيل المصروفات حسب الفئة
+      final expensesByType = <String, double>{};
+      for (final e in todayExpenses) {
+        final type = e.expenseType;
+        expensesByType[type] = (expensesByType[type] ?? 0) + e.amount;
+      }
+      if (expensesByType.isNotEmpty) {
+        s.writeln('توزيع المصروفات:');
+        for (final entry in expensesByType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  6. المؤشرات المالية الأساسية
+      // ═══════════════════════════════════════════════════════════
+      final occupancyRate = total > 0 ? (occupied / total * 100) : 0.0;
       final totalRemaining = activeBookings.fold<double>(
         0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
       );
-      lines.add('إجمالي المتبقي المستحق: ${totalRemaining.toStringAsFixed(0)} ريال');
+      final avgPayment = todayPayments.isNotEmpty ? totalIncome / todayPayments.length : 0.0;
+      final totalDueAll = activeBookings.fold<double>(0, (s, b) => s + b.totalDueCached);
+      final totalPaidAll = activeBookings.fold<double>(0, (s, b) => s + b.totalPaidCached);
+      final collectionRate = totalDueAll > 0 ? (totalPaidAll / totalDueAll * 100) : 0.0;
+
+      s.writeln('');
+      s.writeln('═══ المؤشرات المالية ═══');
+      s.writeln('نسبة الإشغال: ${occupancyRate.toStringAsFixed(0)}%');
+      s.writeln('إجمالي المتبقي المستحق: ${totalRemaining.toStringAsFixed(0)} ريال');
+      s.writeln('إجمالي المستحقات: ${totalDueAll.toStringAsFixed(0)} ريال');
+      s.writeln('إجمالي المحصّل: ${totalPaidAll.toStringAsFixed(0)} ريال');
+      s.writeln('نسبة التحصيل: ${collectionRate.toStringAsFixed(0)}%');
+      s.writeln('متوسط قيمة العملية اليوم: ${avgPayment.toStringAsFixed(0)} ريال');
+
+      // ═══════════════════════════════════════════════════════════
+      //  7. الإيرادات التاريخية — آخر 7 أيام (اتجاه الإيرادات)
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ اتجاه الإيرادات (آخر 7 أيام) ═══');
+      for (var i = 6; i >= 0; i--) {
+        final pastDate = now.subtract(Duration(days: i)).toIso8601String().split('T')[0];
+        final dayPayments = await (db.select(db.payments)
+              ..where((p) => p.paymentDate.like('$pastDate%'))
+              ..where((p) => p.isVoided.equals(false)))
+            .get();
+        final dayExpenses = await (db.select(db.expenses)
+              ..where((e) => e.date.like('$pastDate%'))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
+        final dayIncome = dayPayments.fold<double>(0, (s, p) => s + p.amount);
+        final dayExpense = dayExpenses.fold<double>(0, (s, e) => s + e.amount);
+        final dayNet = dayIncome - dayExpense;
+        final isToday = i == 0;
+        final marker = isToday ? ' ◄' : '';
+        s.writeln('  $pastDate: إيرادات ${dayIncome.toStringAsFixed(0)} | مصروفات ${dayExpense.toStringAsFixed(0)} | صافي ${dayNet.toStringAsFixed(0)}$marker');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  8. دفتر اليوم الفندقي — آخر 5 أيام
+      // ═══════════════════════════════════════════════════════════
+      final ledgerEntries = await (db.select(db.hotelDayLedger)
+            ..orderBy([(l) => OrderingTerm.desc(l.hotelDayKey)]))
+          .get();
+      if (ledgerEntries.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ دفتر اليوم الفندقي (آخر ${ledgerEntries.length.clamp(0, 5)} أيام) ═══');
+        for (final l in ledgerEntries.take(5)) {
+          s.writeln('  ${l.hotelDayKey}: دخل ${l.totalIncome.toStringAsFixed(0)} | مصروفات ${l.totalExpenses.toStringAsFixed(0)} | إشغال ${l.occupancyRate.toStringAsFixed(0)}% | حجوزات ${l.bookingsProcessed} | مدفوعات ${l.paymentsProcessed}');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  9. ملاحظات الوردية النشطة
+      // ═══════════════════════════════════════════════════════════
+      final activeNotes = await (db.select(db.shiftNotes)
+            ..where((n) => n.isRead.equals(0)))
+          .get();
+      if (activeNotes.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ ملاحظات وردية غير مقروءة (${activeNotes.length}) ═══');
+        for (final n in activeNotes.take(10)) {
+          final priorityLabel = n.priority == 'high' ? '🔴' : n.priority == 'medium' ? '🟡' : '🟢';
+          s.writeln('  $priorityLabel [${n.shiftType}] ${n.title}: ${n.content}');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  10. تعديلات الأسعار الأخيرة
+      // ═══════════════════════════════════════════════════════════
+      final recentAdjustments = await (db.select(db.priceAdjustments)
+            ..where((a) => a.isReversed.equals(false))
+            ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
+          .get();
+      if (recentAdjustments.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ تعديلات أسعار حديثة (آخر ${recentAdjustments.length.clamp(0, 5)}) ═══');
+        for (final a in recentAdjustments.take(5)) {
+          s.writeln('  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  11. المتوسطات والإحصائيات العامة
+      // ═══════════════════════════════════════════════════════════
+      if (activeBookings.isNotEmpty) {
+        final avgNights = activeBookings.fold<int>(0, (s, b) => s + b.calculatedNights) / activeBookings.length;
+        final avgDue = activeBookings.fold<double>(0, (s, b) => s + b.totalDueCached) / activeBookings.length;
+        s.writeln('');
+        s.writeln('═══ إحصائيات عامة ═══');
+        s.writeln('متوسط مدة الإقامة: ${avgNights.toStringAsFixed(1)} ليلة');
+        s.writeln('متوسط الفاتورة: ${avgDue.toStringAsFixed(0)} ريال');
+        s.writeln('إجمالي الحجوزات النشطة: ${activeBookings.length}');
+      }
+
     } catch (e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
-      lines.add('(تعذر تحميل بعض البيانات)');
+      s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
 
     // تخزين السياق في الذاكرة المؤقتة
-    _cachedContext = lines.join('\n');
+    _cachedContext = s.toString();
     _contextBuiltAt = DateTime.now();
 
     return _cachedContext!;
@@ -1161,20 +1348,50 @@ class GeminiService {
   // ───────────────────────────────────────────────────────────
 
   String _buildSystemPrompt() {
-    return '''أنت مساعد ذكي لنظام إدارة فندق Marina. تتحدث باللغة العربية فقط.
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return '''أنت "ماريانا" — مساعد ذكي متقدم لنظام إدارة فندق Marina Hotel. أنت مستشار فندقي محترف يتحدث باللغة العربية فقط.
 
-مهمتك: فهم طلبات المستخدم باللغة العربية الطبيعية والرد بمعلومات مفيدة أو تنفيذ أوامر على النظام.
+═══ هويتك ومهمتك ═══
+أنت مساعد فندقي ذكي يعمل كمستشار مالي وإداري للفندق. تفهم بيانات الفندق في الوقت الفعلي وتقدم:
+- إجابات دقيقة على الأسئلة بناءً على البيانات الحية
+- تحليلات مالية وإحصائية ذكية
+- نصائح لتحسين الإيرادات وإدارة الغرف
+- تنبيهات تلقائية للمشاكل والفرص
+- تنفيذ الأوامر على النظام عند طلب المستخدم
 
-قواعد مهمة:
-- كن مختصراً ومفيداً — لا تزد على 3 أسطر إلا عند الحاجة
-- استخدم البيانات الحالية المقدمة لك للإجابة بدقة
+═══ قواعد الاستجابة ═══
+- كن مختصراً ومفيداً — أجب بتركيز عالٍ دون إطالة
+- استخدم البيانات الحالية المقدمة لك في كل طلب — لا تتخيل أرقاماً
+- عند تقديم نصائح، استخدم الأرقام الفعلية من البيانات
 - إذا طلب المستخدم تعديل بيانات، أجب بالشرح المختصر ثم أضف JSON للأمر في نهاية رسالتك
 - لا تنفذ أوامر خطيرة (تعديل/حذف) بدون تأكيد المستخدم
-- الصيغة: ردك المكتوب أولاً، ثم JSON للأمر في سطر منفصل
-- لا تضع JSON بين ``` فقط أرسله مباشرة
 - أوامر التقارير تُنفذ فوراً بدون تأكيد
+- لا تضع JSON بين ``` فقط أرسله مباشرة في سطر منفصل
+- المبالغ بالريال اليمني — الأرقام بدون فواصل (50000 وليس 50,000)
 
-صيغ JSON للأوامر المدعومة:
+═══ قدراتك التحليلية ═══
+بناءً على البيانات المقدمة لك، يمكنك:
+1. تحليل الأداء المالي: مقارنة الإيرادات اليومية، حساب متوسط الإيرادات، تحليل الصافي
+2. تحليل الإشغال: تحديد أنماط الإشغال، اقتراح أسعار ديناميكية
+3. إدارة الديون: تحديد الديون الخطرة، اقتراح أولويات التحصيل
+4. تحليل الضيوف: أنماط الجنسيات، متوسط مدة الإقامة، قيمة كل ضيف
+5. التنبؤات: تنبيه لمغادرة الضيوف، تنبيه للغرف المتأخرة، توقعات الإيرادات
+6. تحسين الإيرادات: اقتراح تعديل الأسعار بناءً على الطلب والإشغال
+7. إدارة المخاطر: تنبيه للحوادث المالية، اكتشاف الأنماط غير الطبيعية
+
+═══ تنسيق البيانات ═══
+يتم تزويدك ببيانات حية من الفندق تتضمن:
+- بيانات الغرف: الأنواع والأسعار والحالات وتوزيع الأسعار
+- الحجوزات النشطة: تفاصيل كاملة لكل ضيف مع الجنسية والمدفوعات
+- الديون: إجمالي وتفاصيل كل دين مع معلومات الرهن
+- الإيرادات والمصروفات: تفصيل حسب النوع وطريقة الدفع
+- المؤشرات المالية: نسبة الإشغال، نسبة التحصيل، المتوسطات
+- اتجاه الإيرادات: آخر 7 أيام لمقارنة الأداء
+- دفتر اليوم الفندقي: ملخص يومي شامل
+- ملاحظات الوردية: تنبيهات وملاحظات من الموظفين
+- تعديلات الأسعار: سجل التغييرات الأخيرة
+
+═══ صيغ JSON للأوامر المدعومة ═══
 
 1. تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة تلقائياً):
 {"action": "update_room_price", "room_number": "101", "new_price": 50000, "reason": "زيادة بسبب الموسم"}
@@ -1183,12 +1400,10 @@ class GeminiService {
 {"action": "bulk_price_adjust", "room_type": "double", "mode": "percent_increase", "value": 10, "reason": "زيادة موسمية"}
 - mode: percent_increase, percent_decrease, fixed_increase, fixed_decrease
 - room_type اختياري (إذا لم يُحدد يُطبق على جميع الغرف)
-- أمثلة: "زِد جميع الأسعار 10%" | "خفّض غرف doubles 5000 ريال" | "زِد سعر الغرف 20%"
 
 3. تخفيض على حجز معين (خصم ليلي أو إجمالي):
 {"action": "booking_discount", "room_number": "101", "discount_amount": 5000, "discount_type": "per_night", "reason": "خصم خاص"}
 - discount_type: per_night (لكل ليلة) أو total (إجمالي)
-- أمثلة: "خفّض 5000 لكل ليلة للغرفة 101" | "خصم 10000 إجمالي على حجز الغرفة 202"
 
 4. تغيير حالة غرفة:
 {"action": "update_room_status", "room_number": "101", "new_status": "available"}
@@ -1213,15 +1428,15 @@ class GeminiService {
 
 11. طلب تقرير (يُنفذ فوراً بدون تأكيد):
 {"action": "report", "report_type": "daily"}
-- report_type: daily (يومي), revenue (إيرادات), occupancy (إشغال), debts (ديون), expenses (مصروفات), room_prices (أسعار الغرف)
-- أمثلة: "أعطني تقرير اليوم" | "كم الإيرادات هذا الشهر" | "كم نسبة الإشغال" | "تقرير الديون"
+- report_type: daily, revenue, occupancy, debts, expenses, room_prices
 
-حالات الغرف: available, occupied, cleaning, maintenance, reserved
-أنواع المصروفات: صيانة, طعام, كهرباء, ماء, تنظيف, نقل, أخرى
-أنواع الغرف: single, double, triple, suite, family
-المبالغ بالريال اليمني
-الأرقام بدون فواصل (50000 وليس 50,000)
-تاريخ اليوم الحالي: ${DateTime.now().toIso8601String().split('T')[0]}''';
+═══ مرجع البيانات ═══
+- حالات الغرف: available (شاغرة), occupied (محجوزة), cleaning (تنظيف), maintenance (صيانة), reserved (محجوزة مسبقاً)
+- أنواع المصروفات: صيانة, طعام, كهرباء, ماء, تنظيف, نقل, أخرى
+- أنواع الغرف: single, double, triple, suite, family
+- طرق الدفع: cash (نقدي), transfer (تحويل), card (بطاقة), other (أخرى)
+- أنواع الإيرادات: room_rent (إيجار غرفة), extra_services (خدمات إضافية), penalty (غرامات), other (أخرى)
+- تاريخ اليوم: $today''';
   }
 
   // ───────────────────────────────────────────────────────────
