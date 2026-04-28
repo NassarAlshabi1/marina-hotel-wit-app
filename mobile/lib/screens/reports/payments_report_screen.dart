@@ -114,10 +114,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-      // استخدام _fromDate و _toDate مباشرة من الفلتر (مضبوطة: 14:00 و 13:59:59)
-      // بدون إعادة حساب عبر getHotelDayRange لتجنب أي تحويل مزدوج
-      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(_fromDate!);
-      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(_toDate!);
+      // استخدام نطاق اليوم الفندقي لضمان تطابق البيانات مع تقرير الدخل
+    final hotelDayRangeFrom = HotelTimeEngine.getHotelDayRange(_fromDate!);
+    final hotelDayRangeTo = HotelTimeEngine.getHotelDayRange(_toDate!);
+    
+    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRangeFrom['start']!);
+    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRangeTo['end']!);
+
     // استخدام list() نفسها المستخدمة في تقرير الدخل والخرج لضمان تناسق النتائج
     final payments = await paymentsDao.list(
       from: fromStr,
@@ -479,30 +482,33 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _buildSummaryTile(
-                'مدفوعات الغرفة',
-                _currencyFmt.format(_totalPaid),
-                Colors.green,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryTile(
+                    'مدفوعات الغرفة',
+                    _currencyFmt.format(_totalPaid),
+                    Colors.green,
+                  ),
+                ),
+                Container(width: 1, height: 28, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'مدفوعات أخرى',
+                    _currencyFmt.format(_totalOtherPaid),
+                    Colors.teal,
+                  ),
+                ),
+              ],
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildSummaryTile(
-                'مدفوعات أخرى',
-                _currencyFmt.format(_totalOtherPaid),
-                Colors.teal,
-              ),
-            ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildSummaryTile(
-                'إجمالي المدفوعات',
-                _currencyFmt.format(totalAll),
-                Colors.indigo,
-              ),
+            const Divider(height: 16),
+            _buildSummaryTile(
+              'إجمالي المدفوعات (الدخل)',
+              _currencyFmt.format(totalAll),
+              Colors.indigo,
+              isLarge: true,
             ),
           ],
         ),
@@ -536,17 +542,25 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     return r == 'room' || r == 'غرفة' || r == 'إقامة';
   }
 
-  Widget _buildSummaryTile(String label, String value, Color color) {
+  Widget _buildSummaryTile(String label, String value, Color color, {bool isLarge = false}) {
     return Column(
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: isLarge ? 18 : 13, 
+            color: color
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(fontSize: 10, color: Colors.grey),
+          style: TextStyle(
+            fontSize: isLarge ? 12 : 10, 
+            color: isLarge ? Colors.black87 : Colors.grey,
+            fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
       ],
     );
