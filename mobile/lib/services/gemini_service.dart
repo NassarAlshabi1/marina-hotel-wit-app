@@ -113,6 +113,15 @@ class AiCheckoutCommand extends AiCommand {
   });
 }
 
+/// إصلاح دفعات غرفة — إعادة حساب الليالي والمستحقات والمدفوعات المخزّنة
+class AiFixPaymentsCommand extends AiCommand {
+  final String roomNumber;
+  const AiFixPaymentsCommand({
+    required this.roomNumber,
+    required super.description,
+  });
+}
+
 /// تسوية دين
 class AiSettleDebtCommand extends AiCommand {
   final int? debtId;
@@ -823,8 +832,8 @@ class GeminiService {
       final command = _parseCommand(responseText);
       final cleanText = _stripJsonFromResponse(responseText);
 
-      // التقارير تُنفذ فوراً بدون تأكيد
-      if (command is AiReportCommand) {
+      // التقارير وإصلاح الدفعات تُنفذ فوراً بدون تأكيد
+      if (command is AiReportCommand || command is AiFixPaymentsCommand) {
         final reportResult = await executeCommand(command);
         return GeminiResponse(
           text: reportResult,
@@ -1215,6 +1224,70 @@ class GeminiService {
               'تم إنهاء حجز الغرفة $roomNumber وتسجيل خروج الضيف ${activeBooking.guestName}';
 
         // ═══════════════════════════════════════════════════
+        //  إصلاح دفعات غرفة — إعادة حساب كاملة
+        // ═══════════════════════════════════════════════════
+        case AiFixPaymentsCommand(:final roomNumber):
+          final bookings = await (db.select(db.bookings)
+            ..where((b) => b.roomNumber.equals(roomNumber))).get();
+          final activeBooking =
+              bookings.where((b) => b.status == 'checked_in').firstOrNull;
+          if (activeBooking == null) {
+            result = 'لا يوجد حجز نشط للغرفة $roomNumber';
+            break;
+          }
+
+          // حفظ القيم قبل الإصلاح
+          final oldPaid = activeBooking.totalPaidCached;
+          final oldDue = activeBooking.totalDueCached;
+          final oldRemaining = activeBooking.remainingBalanceCached;
+          final oldNights = activeBooking.calculatedNights;
+
+          // إعادة حساب كاملة عبر BookingDerivedFieldsService
+          try {
+            await BookingDerivedFieldsService(db)
+                .refreshForBookingId(activeBooking.id, forceRebuild: true);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            result = 'فشل إعادة حساب الحجز $roomNumber: $e';
+            break;
+          }
+
+          // قراءة القيم الجديدة بعد الإصلاح
+          final refreshed = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(activeBooking.id)))
+              .getSingleOrNull();
+
+          if (refreshed == null) {
+            result = 'فشل قراءة الحجد بعد الإصلاح';
+            break;
+          }
+
+          final newPaid = refreshed.totalPaidCached;
+          final newDue = refreshed.totalDueCached;
+          final newRemaining = refreshed.remainingBalanceCached;
+          final newNights = refreshed.calculatedNights;
+
+          final changes = <String>[];
+          if (oldNights != newNights) {
+            changes.add('الليالي: $oldNights -> $newNights');
+          }
+          if ((oldDue - newDue).abs() > 0.5) {
+            changes.add('المستحق: ${oldDue.toStringAsFixed(0)} -> ${newDue.toStringAsFixed(0)}');
+          }
+          if ((oldPaid - newPaid).abs() > 0.5) {
+            changes.add('المدفوع: ${oldPaid.toStringAsFixed(0)} -> ${newPaid.toStringAsFixed(0)}');
+          }
+          if ((oldRemaining - newRemaining).abs() > 0.5) {
+            changes.add('المتبقي: ${oldRemaining.toStringAsFixed(0)} -> ${newRemaining.toStringAsFixed(0)}');
+          }
+
+          if (changes.isEmpty) {
+            result = 'تم فحص الغرفة $roomNumber — الحسابات صحيحة لا تحتاج إصلاح';
+          } else {
+            result = 'تم إصلاح حسابات الغرفة $roomNumber (${refreshed.guestName}):\n${changes.join('\n')}';
+          }
+
+        // ═══════════════════════════════════════════════════
         //  تسوية دين
         // ═══════════════════════════════════════════════════
         case AiSettleDebtCommand(
@@ -1503,16 +1576,22 @@ class GeminiService {
 7. إنهاء حجز (تسجيل خروج):
 {"action": "checkout", "room_number": "101"}
 
-8. تسوية دين:
+8. إصلاح دفعات غرفة (إعادة حساب كاملة — لا يحتاج تأكيد):
+{"action": "fix_payments", "room_number": "101"}
+- يعيد حساب: الليالي، المستحقات، المدفوعات المخزّنة، المتبقي
+- يُنفذ فوراً بدون تأكيد لأنه عملية مراجعة وليست تغييراً
+- مثال: "أصلح دفعات غرفة 101" | "راجع حسابات 202" | "فحص دفعات الغرفة 303"
+
+9. تسوية دين:
 {"action": "settle_debt", "guest_name": "أحمد", "amount": 30000}
 
-9. إضافة حجز جديد:
+10. إضافة حجز جديد:
 {"action": "add_booking", "room_number": "101", "guest_name": "أحمد محمد", "guest_phone": "777123456", "guest_nationality": "يمني", "checkin_date": "2025-01-15", "expected_nights": 2}
 
-10. تحديث بيانات ضيف:
+11. تحديث بيانات ضيف:
 {"action": "update_booking_guest", "room_number": "101", "guest_name": "الاسم الجديد", "extend_nights": 1}
 
-11. طلب تقرير (يُنفذ فوراً بدون تأكيد):
+12. طلب تقرير (يُنفذ فوراً بدون تأكيد):
 {"action": "report", "report_type": "daily"}
 - report_type: daily, revenue, occupancy, debts, expenses, room_prices
 
@@ -1599,6 +1678,12 @@ class GeminiService {
           return AiCheckoutCommand(
             roomNumber: json['room_number'] as String? ?? '',
             description: 'إنهاء حجز الغرفة ${json['room_number']}',
+          );
+
+        case 'fix_payments':
+          return AiFixPaymentsCommand(
+            roomNumber: json['room_number'] as String? ?? '',
+            description: 'إصلاح دفعات الغرفة ${json['room_number']} — إعادة حساب كاملة',
           );
 
         case 'settle_debt':
