@@ -37,10 +37,20 @@ class AlarmBackup {
       await scheduleDailyAlarm(21, 0);
     }
 
+    // تهيئة أولية لإعدادات تقرير WhatsApp/Telegram اليومي
+    // مثل إنذار النسخ الاحتياطي — يُفعّل تلقائياً عند التثبيت لأول مرة
+    if (prefs.getBool('telegram_enabled') == null) {
+      debugPrint('🚀 First run: Enable WhatsApp/Telegram report by default');
+      await prefs.setBool('telegram_enabled', true);
+      await prefs.setBool('telegram_notifications_enabled', true);
+      await prefs.setBool('telegram_daily_report_enabled', true);
+      await prefs.setString('telegram_daily_report_time', '02:00');
+    }
+
     // جدولة تقرير Lark اليومي إذا كان مفعّلاً
     await _scheduleLarkReportIfNeeded(prefs);
 
-    // جدولة تقرير Telegram اليومي إذا كان مفعّلاً
+    // جدولة تقرير WhatsApp/Telegram اليومي إذا كان مفعّلاً
     await _scheduleTelegramReportIfNeeded(prefs);
   }
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
@@ -194,10 +204,11 @@ class AlarmBackup {
     debugPrint('♻️ Lark report alarm rescheduled to $hour:$minute');
   }
 
-  /// جدولة تقرير Telegram اليومي إذا كان مفعّلاً
+  /// جدولة تقرير Telegram/WhatsApp اليومي إذا كان مفعّلاً
+  /// القيم الافتراضية = true لتتطابق مع TelegramConfig.isEnabled() و isDailyReportEnabled()
   static Future<void> _scheduleTelegramReportIfNeeded(SharedPreferences prefs) async {
-    final tgEnabled = prefs.getBool('telegram_enabled') ?? false;
-    final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
+    final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
+    final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
 
     if (tgEnabled && reportEnabled) {
       final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
@@ -253,8 +264,8 @@ class AlarmBackup {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final tgEnabled = prefs.getBool('telegram_enabled') ?? false;
-      final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
+      final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
+      final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
 
       if (tgEnabled && reportEnabled) {
         final configured = await TelegramConfig.isConfigured();
