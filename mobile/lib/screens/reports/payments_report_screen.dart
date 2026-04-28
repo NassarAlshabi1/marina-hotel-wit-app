@@ -14,7 +14,6 @@ import '../../services/local_db.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
-import '../../utils/hotel_time_engine.dart';
 import '../../widgets/report_date_filter.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
@@ -115,17 +114,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-      // استخدام HotelTimeEngine لتحديد بداية ونهاية اليوم الفندقي بدقة
-      final hotelDayRange = HotelTimeEngine.getHotelDayRange(_fromDate!);
-      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['start']!);
-      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['end']!);
-    final payments = await paymentsDao.listForReport(
+      // استخدام _fromDate و _toDate مباشرة من الفلتر (مضبوطة: 14:00 و 13:59:59)
+      // بدون إعادة حساب عبر getHotelDayRange لتجنب أي تحويل مزدوج
+      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(_fromDate!);
+      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(_toDate!);
+    // استخدام list() نفسها المستخدمة في تقرير الدخل والخرج لضمان تناسق النتائج
+    final payments = await paymentsDao.list(
       from: fromStr,
       to: toStr,
-      roomNumber: _selectedRoom,
+      excludeVoided: true,
+      excludePendingBalance: true,
     );
+    // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
+    final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
+        ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
+        : payments;
 
-    final bookingIds = payments
+    final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)
         .whereType<int>()
         .toSet();
@@ -137,7 +142,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final roomNumbers = <String>{};
-    for (final payment in payments) {
+    for (final payment in filteredPayments) {
       final room = payment.roomNumber;
       if (room != null) roomNumbers.add(room);
       final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
@@ -150,7 +155,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     double totalOtherPaid = 0;
     final relevantBookingIds = <int>{};
 
-    for (final payment in payments) {
+    for (final payment in filteredPayments) {
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
