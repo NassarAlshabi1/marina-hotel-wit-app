@@ -192,7 +192,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   icon: Icons.receipt_long,
                   label: 'تقرير دفوعات النزلاء',
                   color: Colors.green,
-                  onTap: () => _navigate(const PaymentsReportScreen()),
+                  onTap: () => _navigate((_) => const PaymentsReportScreen()),
                 ),
                 const SizedBox(height: 4),
                 _ReportShortcut(
@@ -200,21 +200,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   label: 'تقرير تفصيلي - الأيام والمدفوعات',
                   color: Colors.indigo,
                   onTap: () =>
-                      _navigate(const GuestPaymentsDetailReportScreen()),
+                      _navigate((_) => const GuestPaymentsDetailReportScreen()),
                 ),
                 const SizedBox(height: 4),
                 _ReportShortcut(
                   icon: Icons.account_balance_wallet,
                   label: 'تقرير المصروفات',
                   color: Colors.orange,
-                  onTap: () => _navigate(const ExpensesReportScreen()),
+                  onTap: () => _navigate((_) => const ExpensesReportScreen()),
                 ),
                 const SizedBox(height: 4),
                 _ReportShortcut(
                   icon: Icons.stacked_line_chart,
                   label: 'تقرير الدخل والخرج',
                   color: Colors.teal,
-                  onTap: () => _navigate(const IncomeExpenseReportScreen()),
+                  onTap: () => _navigate((_) => const IncomeExpenseReportScreen()),
                 ),
                 const SizedBox(height: 4),
                 _ReportShortcut(
@@ -222,7 +222,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   label: 'تقرير سحبيات الرواتب',
                   color: Colors.blue,
                   onTap: () =>
-                      _navigate(const SalaryWithdrawalsReportScreen()),
+                      _navigate((_) => const SalaryWithdrawalsReportScreen()),
                 ),
                 const SizedBox(height: 10),
 
@@ -239,7 +239,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   icon: Icons.pie_chart,
                   label: 'تقرير الديون',
                   color: Colors.purple,
-                  onTap: () => _navigate(const DebtsReportScreen()),
+                  onTap: () => _navigate((_) => const DebtsReportScreen()),
                 ),
                 const SizedBox(height: 14),
 
@@ -381,8 +381,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  void _navigate(Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  /// التنقل بأسلوب lazy — الـ WidgetBuilder لا يُنفذ إلا عند التنقل الفعلي
+  void _navigate(WidgetBuilder builder) {
+    Navigator.push(context, MaterialPageRoute(builder: builder));
   }
 }
 

@@ -791,13 +791,23 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               GlobalWidgetsLocalizations.delegate,
             ],
             supportedLocales: const [Locale('ar')],
-            routes: {
-              '/employees': (_) => const EmployeesListScreen(),
-              '/expenses': (_) => const ExpensesListScreen(),
-              '/finance/cash-register': (_) => const FinanceScreen(),
-              '/finance/cash-transactions': (_) => const FinanceScreen(),
-              '/debts': (_) => const DebtsListScreen(),
-              '/reports': (_) => const ReportsScreen(),
+            onGenerateRoute: (settings) {
+              // إنشاء المسارات بأسلوب lazy — الصفحة لا تُنشأ إلا عند التنقل إليها
+              switch (settings.name) {
+                case '/employees':
+                  return MaterialPageRoute(builder: (_) => const EmployeesListScreen());
+                case '/expenses':
+                  return MaterialPageRoute(builder: (_) => const ExpensesListScreen());
+                case '/finance/cash-register':
+                case '/finance/cash-transactions':
+                  return MaterialPageRoute(builder: (_) => const FinanceScreen());
+                case '/debts':
+                  return MaterialPageRoute(builder: (_) => const DebtsListScreen());
+                case '/reports':
+                  return MaterialPageRoute(builder: (_) => const ReportsScreen());
+                default:
+                  return null;
+              }
             },
             home: const RootRouter(),
           );
@@ -838,22 +848,34 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
 
-  final Map<String, WidgetBuilder> _routes = {
-    '/dashboard': (_) => const DashboardScreen(),
-    '/rooms': (_) => const RoomsListScreen(),
-    '/bookings': (_) => const BookingsListScreen(),
-    '/payments': (_) => const PaymentsMainScreen(),
-    '/debts': (_) => const DebtsListScreen(),
-    '/employees': (_) => const EmployeesListScreen(),
-    '/expenses': (_) => const ExpensesListScreen(),
-    '/finance': (_) => const FinanceScreen(),
-    '/reports': (_) => const ReportsScreen(),
-    '/notes': (_) => const NotesScreen(),
-    '/blacklist': (_) => const BlacklistScreen(),
-    '/information': (_) => const InformationScreen(),
-    '/settings': (_) => const SettingsScreen(),
-    '/ai': (_) => const AiChatScreen(),
-  };
+  /// قائمة بالمسارات الصالحة (للتحقق من الصلاحيات)
+  static const _validRoutes = [
+    '/dashboard', '/rooms', '/bookings', '/payments',
+    '/debts', '/employees', '/expenses', '/finance',
+    '/reports', '/notes', '/blacklist', '/information',
+    '/settings', '/ai',
+  ];
+
+  /// إنشاء الصفحة المطلوبة بأسلوب lazy — لا تُنشأ أي صفحة حتى يتم طلبها
+  Widget _buildRoute(String route) {
+    switch (route) {
+      case '/dashboard': return const DashboardScreen();
+      case '/rooms': return const RoomsListScreen();
+      case '/bookings': return const BookingsListScreen();
+      case '/payments': return const PaymentsMainScreen();
+      case '/debts': return const DebtsListScreen();
+      case '/employees': return const EmployeesListScreen();
+      case '/expenses': return const ExpensesListScreen();
+      case '/finance': return const FinanceScreen();
+      case '/reports': return const ReportsScreen();
+      case '/notes': return const NotesScreen();
+      case '/blacklist': return const BlacklistScreen();
+      case '/information': return const InformationScreen();
+      case '/settings': return const SettingsScreen();
+      case '/ai': return const AiChatScreen();
+      default: return const DashboardScreen();
+    }
+  }
 
   bool _can(String key) {
     final auth = ref.read(authProvider);
@@ -868,7 +890,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed
-        ? (_routes[_currentRoute]?.call(context) ?? const DashboardScreen())
+        ? _buildRoute(_currentRoute)
         : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);
@@ -935,7 +957,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   void _navigateToRoute(String route) {
-    if (_routes.containsKey(route)) {
+    if (_validRoutes.contains(route)) {
       setState(() {
         _currentRoute = route;
       });
