@@ -198,18 +198,9 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  // watchAll() Stream يتحدث فوراً عند أي تغيير في expenses table
-  // الفلترة في Dart تتطابق مع منطق listByHotelDayKey الأصلي
-  return expensesRepo.watchAll().map((expenses) {
-    double total = 0;
-    for (final e in expenses) {
-      if (e.hotelDayKey == hotelDay) {
-        total += e.amount;
-      } else if (e.hotelDayKey == null && e.date.startsWith(hotelDay)) {
-        total += e.amount;
-      }
-    }
-    return total;
+  // الفلتر على مستوى قاعدة البيانات — لا نحمّل جميع المصروفات
+  return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
+    return expenses.fold<double>(0, (sum, e) => sum + e.amount);
   });
 });
 
@@ -223,26 +214,18 @@ final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
-final pendingDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
-        (debts) => debts
-            .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
-            .toList(),
-      ),
-);
-final settledDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
-        (debts) => debts
-            .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
-            .toList(),
-      ),
-);
+final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
+      .toList();
+});
+final settledDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
+      .toList();
+});
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;

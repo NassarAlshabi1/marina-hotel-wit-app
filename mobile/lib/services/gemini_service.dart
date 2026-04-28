@@ -331,67 +331,96 @@ class GeminiService {
 
   // ───────────────────────────────────────────────────────────
   //  بناء سياق الفندق من قاعدة البيانات
+  //  محسّن: استعلام واحد موحد بدل N+1 + cache لمدة 30 ثانية
   // ───────────────────────────────────────────────────────────
 
+  /// ذاكرة مؤقتة للسياق — تُحدّث كل 30 ثانية فقط
+  String? _cachedContext;
+  DateTime? _contextBuiltAt;
+  static const _contextCacheDuration = Duration(seconds: 30);
+
   Future<String> _buildHotelContext() async {
+    // إعادة استخدام السياق المخزّن مؤقتاً
+    if (_cachedContext != null && _contextBuiltAt != null) {
+      final elapsed = DateTime.now().difference(_contextBuiltAt!);
+      if (elapsed < _contextCacheDuration) {
+        return _cachedContext!;
+      }
+    }
+
     final db = DatabaseManager.instance;
     final lines = <String>[];
 
     try {
-      // --- إحصائيات سريعة ---
-      final allRooms = await db.select(db.rooms).get();
-      final available =
-          allRooms.where((r) => r.status == 'available' && r.deletedAt == null).length;
-      final occupied =
-          allRooms.where((r) => r.status == 'occupied' && r.deletedAt == null).length;
-      final maintenance =
-          allRooms.where((r) => r.status == 'maintenance' && r.deletedAt == null).length;
-      final cleaning =
-          allRooms.where((r) => r.status == 'cleaning' && r.deletedAt == null).length;
-      final total = allRooms.where((r) => r.deletedAt == null).length;
-      lines.add('إجمالي الغرف: $total');
-      lines.add(
-          'شاغرة: $available | محجوزة: $occupied | تنظيف: $cleaning | صيانة: $maintenance');
+      // --- استعلام موحد: جلب الغرف + الحجوزات النشطة في استعلام واحد ---
+      final allRooms = await (db.select(db.rooms)
+            ..where((r) => r.deletedAt.isNull()))
+          .get();
 
-      // --- الحجوزات النشطة ---
+      final roomMap = {for (final r in allRooms) r.roomNumber: r};
+
       final activeBookings = await (db.select(db.bookings)
             ..where((b) => b.status.equals('checked_in'))
             ..where((b) => b.deletedAt.isNull())
             ..orderBy([(b) => OrderingTerm.asc(b.roomNumber)]))
           .get();
 
+      // --- إحصائيات الغرف ---
+      final available = allRooms.where((r) => r.status == 'available').length;
+      final occupied = allRooms.where((r) => r.status == 'occupied').length;
+      final maintenance = allRooms.where((r) => r.status == 'maintenance').length;
+      final cleaning = allRooms.where((r) => r.status == 'cleaning').length;
+      final total = allRooms.length;
+      lines.add('إجمالي الغرف: $total');
+      lines.add(
+          'شاغرة: $available | محجوزة: $occupied | تنظيف: $cleaning | صيانة: $maintenance');
+
+      // --- الحجوزات النشطة (بدون N+1 — استخدام القيم المحسوبة) ---
       if (activeBookings.isNotEmpty) {
         lines.add('');
         lines.add('الحجوزات النشطة (${activeBookings.length}):');
         for (final b in activeBookings) {
-          final paid = await (db.select(db.payments)
-                ..where((p) => p.bookingLocalId.equals(b.id))
-                ..where((p) => p.isVoided.equals(false)))
-              .get();
-          final totalPaid = paid.fold<double>(0, (s, p) => s + p.amount);
-          final nights = b.expectedNights;
-          final room =
-              allRooms.where((r) => r.roomNumber == b.roomNumber).firstOrNull;
-          final pricePerNight = room?.price ?? 0;
-          final due = pricePerNight * nights;
-          final remaining = due - totalPaid;
+          // استخدام القيم المحسوبة المخزّنة بدل استعلام المدفوعات
+          final totalPaid = b.totalPaidCached;
+          final totalDue = b.totalDueCached;
+          final remaining = b.remainingBalanceCached;
+          final nights = b.calculatedNights;
+          final checkin = b.checkinDate.split('T').first;
+          final checkout = b.checkoutDate?.split('T').first ?? 'غير محدد';
 
           lines.add(
-            '- غرفة ${b.roomNumber}: ${b.guestName} | ${b.guestPhone} | $nights ليلة | مدفوع: ${totalPaid.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)}',
+            '- غرفة ${b.roomNumber}: ${b.guestName} | ${b.guestPhone} | دخول: $checkin | مغادرة: $checkout | $nights ليلة | مدفوع: ${totalPaid.toStringAsFixed(0)} | مستحق: ${totalDue.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)}',
           );
         }
       }
 
       // --- الغرف الشاغرة مع أسعارها ---
       final availableRooms = allRooms
-          .where((r) => r.status == 'available' && r.deletedAt == null)
+          .where((r) => r.status == 'available')
           .toList();
       if (availableRooms.isNotEmpty) {
         lines.add('');
-        lines.add('الغرف الشاغرة:');
+        lines.add('الغرف الشاغرة (${availableRooms.length}):');
         for (final r in availableRooms) {
           lines.add(
               '- ${r.roomNumber}: ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // --- الغرف المحجوزة مع تفاصيل الضيوف ---
+      final occupiedRooms = allRooms
+          .where((r) => r.status == 'occupied')
+          .toList();
+      if (occupiedRooms.isNotEmpty) {
+        lines.add('');
+        lines.add('الغرف المحجوزة:');
+        for (final r in occupiedRooms) {
+          final booking = activeBookings
+              .where((b) => b.roomNumber == r.roomNumber)
+              .firstOrNull;
+          final guestName = booking?.guestName ?? 'غير محدد';
+          lines.add(
+              '- ${r.roomNumber}: ${guestName} | ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
         }
       }
 
@@ -406,7 +435,7 @@ class GeminiService {
         lines.add('الديون غير المسددة (${debts.length}):');
         for (final d in debts.take(10)) {
           lines.add(
-            '- ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال متبقي | سبب: ${d.debtReason}',
+            '- ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال متبقي من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}',
           );
         }
       }
@@ -414,11 +443,12 @@ class GeminiService {
       // --- إيرادات ومصروفات اليوم ---
       final today = DateTime.now().toIso8601String().split('T')[0];
       final todayPayments = await (db.select(db.payments)
-            ..where((p) => p.paymentDate.equals(today))
+            ..where((p) => p.paymentDate.like('$today%'))
             ..where((p) => p.isVoided.equals(false)))
           .get();
       final todayExpenses = await (db.select(db.expenses)
-            ..where((e) => e.date.equals(today)))
+            ..where((e) => e.date.like('$today%'))
+            ..where((e) => e.deletedAt.isNull()))
           .get();
       final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
       final totalExpenses =
@@ -426,15 +456,30 @@ class GeminiService {
 
       lines.add('');
       lines.add('ملخص اليوم ($today):');
+      lines.add('عدد المدفوعات: ${todayPayments.length}');
       lines.add('الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال');
       lines.add('المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال');
       lines.add('صافي: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+
+      // --- نسبة الإشغال ---
+      final occupancyRate = total > 0 ? (occupied / total * 100).toStringAsFixed(0) : 0;
+      lines.add('نسبة الإشغال: $occupancyRate%');
+
+      // --- إجمالي المتبقي من الحجوزات النشطة ---
+      final totalRemaining = activeBookings.fold<double>(
+        0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+      );
+      lines.add('إجمالي المتبقي المستحق: ${totalRemaining.toStringAsFixed(0)} ريال');
     } catch (e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
       lines.add('(تعذر تحميل بعض البيانات)');
     }
 
-    return lines.join('\n');
+    // تخزين السياق في الذاكرة المؤقتة
+    _cachedContext = lines.join('\n');
+    _contextBuiltAt = DateTime.now();
+
+    return _cachedContext!;
   }
 
   // ───────────────────────────────────────────────────────────
