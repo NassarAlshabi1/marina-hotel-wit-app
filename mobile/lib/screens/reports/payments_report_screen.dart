@@ -114,14 +114,16 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-      // استخدام نطاق اليوم الفندقي لضمان تطابق البيانات مع تقرير الدخل
-    final hotelDayRangeFrom = HotelTimeEngine.getHotelDayRange(_fromDate!);
-    final hotelDayRangeTo = HotelTimeEngine.getHotelDayRange(_toDate!);
-    
-    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRangeFrom['start']!);
-    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRangeTo['end']!);
 
-    // استخدام list() نفسها المستخدمة في تقرير الدخل والخرج لضمان تناسق النتائج
+    // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
+    // وينتهي في 13:59:59 في تاريخ النهاية.
+    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14, 0, 0);
+    final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
+    
+    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
+    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+
+    // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
     final payments = await paymentsDao.list(
       from: fromStr,
       to: toStr,
@@ -159,22 +161,32 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final relevantBookingIds = <int>{};
 
     for (final payment in filteredPayments) {
+      final paymentDate = _parseDateTime(payment.paymentDate);
+      
+      // التحقق الهندسي: هل التاريخ يقع فعلياً ضمن النطاق الفندقي؟
+      // (نفس منطق isWithinRange في تقرير الدخل)
+      if (paymentDate.isBefore(hotelStart) || paymentDate.isAfter(hotelEnd)) {
+        continue;
+      }
+
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
-      final paymentDate = _parseDateTime(payment.paymentDate);
       final bookingCode = booking != null
           ? _formatBookingCode(booking.id)
           : null;
+          
       if (_isRoomPayment(payment.revenueType)) {
         totalRoomPaid += payment.amount;
       } else {
         totalOtherPaid += payment.amount;
       }
+      
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
+      
       rows.add(
         _PaymentReportRow(
           paymentDate: paymentDate,
