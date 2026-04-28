@@ -746,6 +746,214 @@ class GeminiService {
         s.writeln('  - غرف بدون دفعات: ${noPayments.length}');
       }
 
+      // ═══════════════════════════════════════════════════════════
+      //  13. مفهوم اليوم الفندقي — كيفية الاحتساب
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ اليوم الفندقي (Hotel Day) ═══');
+      s.writeln('قاعدة الحسم: الساعة 14:00 (ظهراً)');
+      s.writeln('اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي');
+      s.writeln('التاريخ/الوقت الحالي: ${now.toIso8601String()}');
+      final currentHotelDay = today; // مبسّط — التطبيق يحسب بال HotelTimeEngine
+      s.writeln('اليوم الفندقي الحالي: $currentHotelDay');
+
+      // الغرف التي يتغير يومها الفندقي قريباً (تنبيه)
+      final timeToNext = DateTime(now.year, now.month, now.day, 14);
+      final actualNext = now.isAfter(timeToNext)
+          ? timeToNext.add(const Duration(days: 1))
+          : timeToNext;
+      final remaining = actualNext.difference(now);
+      s.writeln('الوقت المتبقي لبداية يوم فندقي جديد: ${remaining.inHours} ساعة و${remaining.inMinutes % 60} دقيقة');
+
+      // توزيع الحجوزات على أيام فندقية
+      final hotelDayMap = <String, int>{};
+      for (final b in activeBookings) {
+        final hd = b.hotelDayCheckin;
+        if (hd != null && hd.isNotEmpty) {
+          hotelDayMap[hd] = (hotelDayMap[hd] ?? 0) + 1;
+        }
+      }
+      if (hotelDayMap.isNotEmpty) {
+        s.writeln('');
+        s.writeln('توزيع الحجوزات حسب يوم الدخول الفندقي:');
+        for (final entry in hotelDayMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key))) {
+          s.writeln('  $entry.key: ${entry.value} حجز');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  14. الموظفين والرواتب
+      // ═══════════════════════════════════════════════════════════
+      final employees = await (db.select(db.employees)
+            ..where((e) => e.deletedAt.isNull()))
+          .get();
+
+      if (employees.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ الموظفين والرواتب (${employees.length}) ═══');
+
+        final activeEmp = employees.where((e) => e.status == 'active').length;
+        final inactiveEmp = employees.where((e) => e.status != 'active').length;
+        s.writeln('نشط: $activeEmp | غير نشط: $inactiveEmp');
+
+        // رواتب الموظفين النشطين
+        for (final emp in employees.where((e) => e.status == 'active')) {
+          s.writeln('  [${emp.id}] ${emp.name} | ${emp.position} | الراتب: ${emp.basicSalary.toStringAsFixed(0)} ريال | ${emp.phone}');
+        }
+
+        // دورات الرواتب النشطة
+        final salaryCycles = await (db.select(db.salaryCycles)
+              ..where((c) => c.status.equals('draft')))
+            .get();
+        if (salaryCycles.isNotEmpty) {
+          s.writeln('');
+          s.writeln('دورات رواتب غير مكتملة (${salaryCycles.length}):');
+          for (final c in salaryCycles) {
+            final emp = employees.where((e) => e.id == c.employeeId).firstOrNull;
+            final empName = emp?.name ?? 'موظف محذوف';
+            s.writeln('  $empName | الدورة: ${c.cycleKey} | مستحق: ${c.expectedAmount} | مدفوع: ${c.actualPaid} | متبقي: ${c.remainingAmount}');
+          }
+        }
+
+        // المسحوبات الأخيرة
+        final recentWithdrawals = await (db.select(db.salaryWithdrawals)
+              ..orderBy([(w) => OrderingTerm.desc(w.id)]))
+            .get();
+        if (recentWithdrawals.isNotEmpty) {
+          s.writeln('');
+          s.writeln('آخر المسحوبات (${recentWithdrawals.length.clamp(0, 5)}):');
+          for (final w in recentWithdrawals.take(5)) {
+            final emp = employees.where((e) => e.id == w.employeeId).firstOrNull;
+            final empName = emp?.name ?? 'موظف محذوف';
+            s.writeln('  $empName | ${w.amount.toStringAsFixed(0)} ريال | ${w.withdrawalType ?? "عادي"} | ${w.reason ?? ""} | ${w.withdrawDate}');
+          }
+        }
+
+        // إجمالي الرواتب المستحقة
+        final totalSalaries = employees.where((e) => e.status == 'active')
+            .fold<double>(0, (s, e) => s + e.basicSalary);
+        s.writeln('');
+        s.writeln('إجمالي الرواتب الشهرية: ${totalSalaries.toStringAsFixed(0)} ريال');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  15. التسويات المالية والاستحقاقات
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ التسويات المالية والاستحقاقات ═══');
+
+      // حركات الصندوق اليوم
+      final todayCashTransactions = await (db.select(db.cashTransactions)
+            ..where((t) => t.transactionTime.like('$today%')))
+          .get();
+      final cashIn = todayCashTransactions.where((t) => t.transactionType == 'income')
+          .fold<double>(0, (s, t) => s + t.amount);
+      final cashOut = todayCashTransactions.where((t) => t.transactionType == 'expense')
+          .fold<double>(0, (s, t) => s + t.amount);
+      s.writeln('حركة الصندوق اليوم: دخول ${cashIn.toStringAsFixed(0)} | خروج ${cashOut.toStringAsFixed(0)} | صافي ${(cashIn - cashOut).toStringAsFixed(0)} ريال');
+
+      // المدفوعات المعلقة (غير مُطابقة)
+      final pendingPayments = todayPayments.where((p) => p.isPendingBalance == true).toList();
+      if (pendingPayments.isNotEmpty) {
+        s.writeln('مدفوعات معلقة (غير مُطابقة): ${pendingPayments.length}');
+        for (final p in pendingPayments) {
+          s.writeln('  ${p.roomNumber ?? "?"} | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.notes ?? ""}');
+        }
+      } else {
+        s.writeln('مدفوعات معلقة: لا توجد');
+      }
+
+      // المدفوعات الملغاة اليوم
+      final voidedPayments = await (db.select(db.paymentVoids)
+            ..where((v) => v.voidedAtIso.like('$today%')))
+          .get();
+      if (voidedPayments.isNotEmpty) {
+        s.writeln('مدفوعات ملغاة اليوم: ${voidedPayments.length}');
+        for (final v in voidedPayments) {
+          s.writeln('  حجز ${v.bookingUuid} | ${v.voidedAmount} ريال | سبب: ${v.voidReason}');
+        }
+      }
+
+      // أرصدة الديون حسب الجنسية
+      if (debts.isNotEmpty) {
+        final debtByReason = <String, double>{};
+        for (final d in debts) {
+          final reason = d.debtReason.isNotEmpty ? d.debtReason : 'أخرى';
+          debtByReason[reason] = (debtByReason[reason] ?? 0) + d.remainingAmount;
+        }
+        s.writeln('');
+        s.writeln('توزيع الديون حسب السبب:');
+        for (final entry in debtByReason.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // استحقاقات الحجوزات (المتبقي المحصّل vs غير المحصّل)
+      final collectedRemaining = activeBookings
+          .where((b) => b.totalPaidCached > 0 && b.remainingBalanceCached < 0.5)
+          .length;
+      final uncollectedRemaining = activeBookings
+          .where((b) => b.remainingBalanceCached >= 0.5)
+          .length;
+      s.writeln('');
+      s.writeln('استحقاقات الحجوزات: مكتملة $collectedRemaining | غير مكتملة $uncollectedRemaining');
+
+      // ═══════════════════════════════════════════════════════════
+      //  16. ترحيل البيانات (Data Rollover & Sync)
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ ترحيل البيانات والمزامنة ═══');
+
+      // حالة دفتر اليوم الفندقي
+      final todayLedger = await (db.select(db.hotelDayLedger)
+            ..where((l) => l.hotelDayKey.equals(today)))
+          .getSingleOrNull();
+      if (todayLedger != null) {
+        s.writeln('دفتر اليوم ($today):');
+        s.writeln('  الحالة: ${todayLedger.status} | الدخل: ${todayLedger.totalIncome.toStringAsFixed(0)} | المصروفات: ${todayLedger.totalExpenses.toStringAsFixed(0)}');
+        s.writeln('  الأرصدة المعلقة: ${todayLedger.pendingBalances.toStringAsFixed(0)} | الإشغال: ${todayLedger.occupancyRate.toStringAsFixed(0)}%');
+        s.writeln('  حجوزات: ${todayLedger.bookingsProcessed} | مدفوعات: ${todayLedger.paymentsProcessed} | ديون: ${todayLedger.debtsProcessed} | مصروفات: ${todayLedger.expensesProcessed}');
+      } else {
+        s.writeln('دفتر اليوم ($today): لم يُرحّل بعد — يحتاج ترحيل');
+      }
+
+      // آخر عمليات AutoFix
+      final recentAutoFix = await (db.select(db.autoFixRuns)
+            ..orderBy([(a) => OrderingTerm.desc(a.startedAtEpoch)]))
+          .get();
+      if (recentAutoFix.isNotEmpty) {
+        s.writeln('');
+        s.writeln('آخر عمليات الإصلاح التلقائي:');
+        for (final run in recentAutoFix.take(3)) {
+          final statusLabel = run.status == 'completed' ? '✓' : run.status == 'running' ? '⟳' : '✗';
+          s.writeln('  $statusLabel ${run.source}: ${run.status} | ${run.startedAtIso}');
+        }
+      }
+
+      // حالة المزامنة
+      final pendingOutbox = await (db.select(db.outbox)
+            ..where((o) => o.processingStatus.equals('pending')))
+          .get();
+      final failedOutbox = await (db.select(db.outbox)
+            ..where((o) => o.processingStatus.equals('failed')))
+          .get();
+      s.writeln('');
+      s.writeln('حالة ترحيل البيانات للسيرفر:');
+      s.writeln('  بانتظار الرفع: ${pendingOutbox.length}');
+      s.writeln('  فشل الرفع: ${failedOutbox.length}');
+
+      // BookingNights — ليالي مرحّلة
+      final recentNights = await (db.select(db.bookingNights)
+            ..orderBy([(n) => OrderingTerm.desc(n.hotelDayKey)]))
+          .get();
+      if (recentNights.isNotEmpty) {
+        s.writeln('');
+        s.writeln('آخر الليالي المُرحّلة (أول 3):');
+        for (final n in recentNights.take(3)) {
+          s.writeln('  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال');
+        }
+      }
+
     } catch (e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
@@ -834,7 +1042,7 @@ class GeminiService {
 
       // التقارير وإصلاح الدفعات تُنفذ فوراً بدون تأكيد
       if (command is AiReportCommand || command is AiFixPaymentsCommand) {
-        final reportResult = await executeCommand(command);
+        final reportResult = await executeCommand(command!);
         return GeminiResponse(
           text: reportResult,
           command: null,
@@ -1548,7 +1756,11 @@ class GeminiService {
 - دفتر اليوم الفندقي: ملخص يومي شامل
 - ملاحظات الوردية: تنبيهات وملاحظات من الموظفين
 - تعديلات الأسعار: سجل التغييرات الأخيرة
-- التحقق من صحة الحسابات: 4 فحوصات تلقائية (توازن، رصيد سالب، دفعات زائدة، غرف بدون دفعات)
+- التحقق من صحة الحسابات: 4 فحوصات تلقائية
+- اليوم الفندقي: قاعدة 14:00 وتوزيع الحجوزات حسب الأيام
+- الموظفين والرواتب: بيانات الموظفين ودورات الرواتب والمسحوبات
+- التسويات المالية: حركات الصندوق والمدفوعات المعلقة والملغاة
+- ترحيل البيانات: دفتر اليوم وAutoFix والمزامنة مع السيرفر
 
 ═══ صيغ JSON للأوامر المدعومة ═══
 
@@ -1601,6 +1813,13 @@ class GeminiService {
 - أنواع الغرف: single, double, triple, suite, family
 - طرق الدفع: cash (نقدي), transfer (تحويل), card (بطاقة), other (أخرى)
 - أنواع الإيرادات: room_rent (إيجار غرفة), extra_services (خدمات إضافية), penalty (غرامات), other (أخرى)
+- اليوم الفندقي: يبدأ من 14:00 ظهراً وينتهي 14:00 من اليوم التالي (قاعدة الحسم 14:00)
+  - دخول قبل 14:00 يُحسب ضمن اليوم الفندقي السابق
+  - دخول بعد 14:00 يُحسب ضمن يوم فندقي جديد
+  - خروج بعد 14:00 يُحتسب كليالي إضافية
+  - المفتاح بصيغة YYYY-MM-DD (مثال: 2025-01-15)
+- ترحيل البيانات: كل يوم فندقي يُرحّل في دفتر اليوم (HotelDayLedger) الذي يخزن إجمالي الدخل والمصروفات والإشغال
+- AutoFix: إصلاح تلقائي يُعيد حساب الليالي والمدفوعات عند تغيير الأسعار أو detect أخطاء
 - تاريخ اليوم: $today''';
   }
 
