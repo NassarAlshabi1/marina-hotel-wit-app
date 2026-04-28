@@ -8,10 +8,11 @@ import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/restore_fix_service.dart';
 import '../../services/local_db.dart';
+import '../../services/appwrite_models.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
-import 'comprehensive_backup_screen.dart';
+import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -450,7 +451,7 @@ class _AppwriteSettingsScreenState
         if (stats['lastSyncTime'] != null) ...[
           const SizedBox(height: 8),
           Text(
-            'آخر مزامنة: ${_formatDateTime(stats['lastSyncTime'])}',
+            'آخر مزامنة: ${_formatDateTime(stats['lastSyncTime'] as String?)}',
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
@@ -555,7 +556,7 @@ class _AppwriteSettingsScreenState
                 Expanded(
                   child: _buildStatCard(
                     title: 'الحجم',
-                    value: '${cacheStats.totalSizeMB} MB',
+                    value: '${cacheStats.totalSizeMB}',
                     icon: Icons.data_usage,
                     color: Colors.green,
                   ),
@@ -665,7 +666,7 @@ class _AppwriteSettingsScreenState
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ComprehensiveBackupScreen(),
+                      builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
                     ),
                   );
                 },
@@ -760,7 +761,7 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== قسم الأجهزة المسجلة ====================
-  Widget _buildDevicesSection(BuildContext context, AsyncValue devicesAsync) {
+  Widget _buildDevicesSection(BuildContext context, AsyncValue<List<AppwriteDevice>> devicesAsync) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -792,7 +793,7 @@ class _AppwriteSettingsScreenState
                 return Column(
                   children: devices.map<Widget>((device) {
                     return ListTile(
-                      leading: Icon(Icons.phone_android, color: Colors.teal),
+                      leading: const Icon(Icons.phone_android, color: Colors.teal),
                       title: Text(device.deviceName),
                       subtitle: Text(
                         '${device.deviceModel} - ${device.osVersion}',

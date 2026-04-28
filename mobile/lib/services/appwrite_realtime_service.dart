@@ -292,7 +292,7 @@ class AppwriteRealtimeService {
     RealtimeEventHandler handler,
   ) {
     try {
-      final events = response.events;
+      final events = response.events as List;
 
       if (events.isEmpty) {
         _logger.debug(
@@ -304,17 +304,17 @@ class AppwriteRealtimeService {
 
       // تحديد نوع الحدث
       RealtimeEventType eventType = RealtimeEventType.unknown;
-      if (events.any((e) => e.contains('create'))) {
+      if (events.any((e) => (e as String).contains('create'))) {
         eventType = RealtimeEventType.create;
-      } else if (events.any((e) => e.contains('update'))) {
+      } else if (events.any((e) => (e as String).contains('update'))) {
         eventType = RealtimeEventType.update;
-      } else if (events.any((e) => e.contains('delete'))) {
+      } else if (events.any((e) => (e as String).contains('delete'))) {
         eventType = RealtimeEventType.delete;
       }
 
       // استخراج البيانات
-      final payload = response.payload;
-      final documentId = payload['\$id'] ?? '';
+      final payload = (response.payload as Map<String, dynamic>?) ?? {};
+      final documentId = (payload['\$id'] ?? '') as String;
 
       _logger.debug(
         'Realtime event: $eventType on $collectionId/$documentId',
@@ -326,7 +326,7 @@ class AppwriteRealtimeService {
         type: eventType,
         collection: collectionId,
         documentId: documentId,
-        data: payload,
+        data: payload as Map<String, dynamic>?,
       );
 
       // تحديث الذاكرة المؤقتة
@@ -412,5 +412,10 @@ class AppwriteRealtimeService {
     unsubscribeAll();
     _initialized = false;
     _logger.info('Realtime service disposed', tag: 'REALTIME');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
   }
 }

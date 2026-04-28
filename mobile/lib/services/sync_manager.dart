@@ -21,6 +21,7 @@ import 'sync_mutex.dart';
 import 'sync_enums.dart';
 import 'sync_config.dart';
 import 'conflict_resolver.dart';
+import 'sync_conflict_event_bus.dart';
 import 'vector_clock.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
@@ -772,9 +773,23 @@ class SyncManager {
           if (localUpdatedTs.isAfter(remoteUpdatedTs)) {
             winner = localRow;
             operation = 'update';
+            // إشعار: تغيير السيرفر تم تجاهله (المحلي أحدث)
+            SyncConflictEventBus.instance.emitSimple(
+              table: table,
+              localUuid: key,
+              winnerSide: 'local',
+              reason: 'البيانات المحلية أحدث من السيرفر',
+            );
           } else if (remoteUpdatedTs.isAfter(localUpdatedTs)) {
             winner = remoteRow;
             operation = 'remote';
+            // إشعار: البيانات المحلية تم تجاهلها (السيرفر أحدث)
+            SyncConflictEventBus.instance.emitSimple(
+              table: table,
+              localUuid: key,
+              winnerSide: 'remote',
+              reason: 'بيانات السيرفر أحدث من المحلية',
+            );
           } else {
             final equality = const DeepCollectionEquality().equals(
               remoteRow,
@@ -809,7 +824,9 @@ class SyncManager {
                 if (remoteVc != null && remoteVc.isNotEmpty) {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
-              } catch (_) {}
+              } catch (e) {
+                debugPrint('⚠️ VectorClock parse error for $table/$key: $e');
+              }
 
               final context = ConflictContext(
                 table: table,
@@ -850,6 +867,14 @@ class SyncManager {
 
               debugPrint(
                 '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}',
+              );
+
+              // إشعار: تضارب تم حله تلقائياً
+              SyncConflictEventBus.instance.emitSimple(
+                table: table,
+                localUuid: key,
+                winnerSide: isLocalWinner ? 'local' : 'remote',
+                reason: 'تضارب حقيقي - استراتيجية ${resolution.strategy.name}',
               );
             }
           }

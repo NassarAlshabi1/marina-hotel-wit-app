@@ -84,13 +84,18 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
               // قائمة الموظفين
               Expanded(
-                child: ListView.builder(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(employeesListProvider);
+                  },
+                  child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: employees.length,
                   itemBuilder: (context, index) {
                     final employee = employees[index];
                     return _buildEmployeeCard(context, ref, employee);
                   },
+                  ),
                 ),
               ),
             ],

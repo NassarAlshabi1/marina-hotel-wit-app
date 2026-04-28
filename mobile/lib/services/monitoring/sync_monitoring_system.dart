@@ -71,7 +71,7 @@ class SyncEvent {
     ),
     message: json['message'] as String?,
     metadata: json['metadata'] != null
-        ? Map<String, dynamic>.from(json['metadata'])
+        ? Map<String, dynamic>.from(json['metadata'] as Map)
         : null,
     errorStack: json['errorStack'] as String?,
   );
@@ -466,7 +466,7 @@ class SyncMonitoringSystem {
       final jsonList = prefs.getStringList(key) ?? [];
 
       for (final jsonStr in jsonList) {
-        final event = SyncEvent.fromJson(jsonDecode(jsonStr));
+        final event = SyncEvent.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
         _events.add(event);
       }
 

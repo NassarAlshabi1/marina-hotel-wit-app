@@ -262,6 +262,7 @@ class BookingPriceAdjustmentService {
       localUuid: Value(uuid),
       bookingLocalUuid: Value(bookingLocalUuid),
       bookingLocalId: Value(booking.id),
+      roomNumber: Value(booking.roomNumber),
       adjustmentType: Value(type.value),
       adjustmentMode: Value(mode.value),
       amount: Value(amount.toDouble()),
@@ -287,6 +288,7 @@ class BookingPriceAdjustmentService {
       payload: {
         'bookingLocalUuid': bookingLocalUuid,
         'bookingLocalId': booking.id,
+        'roomNumber': booking.roomNumber,
         'adjustmentType': type.value,
         'adjustmentMode': mode.value,
         'amount': amount.toDouble(),
@@ -330,8 +332,44 @@ class BookingPriceAdjustmentService {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
+    // ─── الإنهاء الذكي: حصر التخفيض بالليالي السابقة فقط ───
+    // بدلاً من تعطيل التخفيض بالكامل (isActive=false) مما يُزيله من
+    // كل الليالي بما فيها القديمة، نضع endHotelDay = أمس (اليوم الفندقي السابق).
+    // بهذا الشكل:
+    //   • الليالي السابقة → تبقى بالسعر المخفّض (سبق احتسابها)
+    //   • ليلة اليوم والقادمة → السعر الكامل
+    //
+    // ملاحظة: نضع أمس وليس اليوم لأن _isWithinRange يستخدم isAfter
+    // (تضميني على كلا الطرفين)، فلو وضعنا اليوم ستُحسب ليلة اليوم
+    // كمخفّضة وهذا خطأ لأن المستخدم أنهى التخفيض بنفس اليوم.
+    final todayHotelDay = Time.hotelDayKey();
+    final yesterdayHotelDay = Time.dateToString(
+      DateTime.parse(todayHotelDay).subtract(const Duration(days: 1)),
+    );
+
+    // لا يجوز أن يكون endHotelDay قبل effectiveHotelDay
+    final effectiveStart = adjustment.effectiveHotelDay;
+    final String? effectiveEnd;
+    if (effectiveStart == null ||
+        yesterdayHotelDay.compareTo(effectiveStart) < 0) {
+      // التخفيض لم يبدأ بعد أو بدأ اليوم → لا ليالي مخفّضة
+      effectiveEnd = null; // سنتعامل معه بالتعطيل الكامل أدناه
+    } else if (adjustment.endHotelDay != null &&
+        adjustment.endHotelDay!.isNotEmpty &&
+        adjustment.endHotelDay!.compareTo(yesterdayHotelDay) < 0) {
+      // endHotelDay مُحدد مسبقاً وأقل من أمس → نحترمه
+      effectiveEnd = adjustment.endHotelDay;
+    } else {
+      effectiveEnd = yesterdayHotelDay;
+    }
+
+    // إذا لم يتبقَّ أي ليلة مخفّضة → نعطّل التخفيض بالكامل
+    final bool fullyCancelled = effectiveEnd == null ||
+        effectiveEnd.compareTo(effectiveStart ?? '') < 0;
+
     final update = BookingPriceAdjustmentsCompanion(
-      isActive: const Value(false),
+      isActive: Value(!fullyCancelled),
+      endHotelDay: Value(effectiveEnd),
       cancelledAt: Value(nowIso),
       cancelledBy: Value(cancelledBy),
       updatedAt: Value(now),
@@ -350,7 +388,7 @@ class BookingPriceAdjustmentService {
       localUuid: adjustmentUuid,
       serverId: null,
       payload: {
-        'isActive': false,
+        'endHotelDay': effectiveEnd,
         'cancelledAt': nowIso,
         'cancelledBy': cancelledBy,
       },
@@ -367,7 +405,7 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    debugPrint('❌ تم إلغاء تعديل السعر: $adjustmentUuid');
+    debugPrint('⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)');
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(
@@ -387,6 +425,61 @@ class BookingPriceAdjustmentService {
           ..where((a) => a.deletedAt.isNull())
           ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
         .get();
+  }
+
+  /// نقل تعديلات السعر إلى غرفة جديدة عند نقل الضيف.
+  ///
+  /// يُحدّث roomNumber في جميع التعديلات النشطة المرتبطة بالحجز
+  /// وينشئ outbox entries للمزامنة.
+  ///
+  /// **لماذا هذا مهم؟**
+  /// `_fetchActiveAdjustments` في `EnhancedBookingCalculationService` تتحقق
+  /// أن `adj.roomNumber == booking.roomNumber`. بدون هذا التحديث ستُتجاهل
+  /// التعديلات بعد النقل ولن تُطبَّق على الحساب.
+  Future<void> transferAdjustmentsToRoom({
+    required int bookingId,
+    required String newRoomNumber,
+  }) async {
+    final adjustments = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
+
+    if (adjustments.isEmpty) return;
+
+    final now = Time.nowEpoch();
+    final outboxDao = OutboxDao(db);
+
+    for (final adj in adjustments) {
+      // تحديث رقم الغرفة مع timestamps للمزامنة
+      await (db.update(db.bookingPriceAdjustments)
+            ..where((a) => a.localUuid.equals(adj.localUuid)))
+          .write(
+        BookingPriceAdjustmentsCompanion(
+          roomNumber: Value(newRoomNumber),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
+      );
+
+      // إنشاء outbox entry للمزامنة (نفس نمط cancelAdjustment)
+      await outboxDao.merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: adj.localUuid,
+        serverId: null,
+        payload: {
+          'roomNumber': newRoomNumber,
+        },
+        clientTs: now,
+      );
+    }
+
+    debugPrint(
+      'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber '
+      'للحجز #$bookingId',
+    );
   }
 
   Future<void> _recalculateBookingNights(int bookingId) async {

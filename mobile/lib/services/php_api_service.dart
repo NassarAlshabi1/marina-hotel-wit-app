@@ -147,7 +147,7 @@ class PhpApiService {
       try {
         final response = await _retryRequest(e.requestOptions);
         return handler.resolve(response);
-      } catch (_) {}
+      } catch (e) { debugPrint('API retry failed: $e'); }
     }
 
     handler.next(e);
@@ -224,7 +224,7 @@ class PhpApiService {
 
       _updateStatus(PhpApiStatus.error);
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل تسجيل الدخول',
+        (response.data['message'] as String?) ?? 'فشل تسجيل الدخول',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -264,7 +264,7 @@ class PhpApiService {
       final response = await _dio.get('/info.php');
       if (response.statusCode == 200) {
         return PhpApiResult.success(
-          Map<String, dynamic>.from(response.data),
+          Map<String, dynamic>.from(response.data as Map),
           message: 'تم جلب معلومات السيرفر',
         );
       }
@@ -304,7 +304,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل جلب البيانات',
+        (response.data['message'] as String?) ?? 'فشل جلب البيانات',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -327,7 +327,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'العنصر غير موجود',
+        (response.data['message'] as String?) ?? 'العنصر غير موجود',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -365,7 +365,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل إنشاء العنصر',
+        (response.data['message'] as String?) ?? 'فشل إنشاء العنصر',
         statusCode: response.statusCode,
         errors: response.data['errors'] as Map<String, dynamic>?,
       );
@@ -395,7 +395,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل تحديث العنصر',
+        (response.data['message'] as String?) ?? 'فشل تحديث العنصر',
         statusCode: response.statusCode,
         errors: response.data['errors'] as Map<String, dynamic>?,
       );
@@ -414,7 +414,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل حذف العنصر',
+        (response.data['message'] as String?) ?? 'فشل حذف العنصر',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -444,13 +444,13 @@ class PhpApiService {
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         return PhpApiResult.success(
-          Map<String, dynamic>.from(response.data),
+          Map<String, dynamic>.from(response.data as Map),
           message: 'تمت المزامنة بنجاح',
         );
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل دفع التغييرات',
+        (response.data['message'] as String?) ?? 'فشل دفع التغييرات',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -484,7 +484,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل سحب البيانات',
+        (response.data['message'] as String?) ?? 'فشل سحب البيانات',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -513,7 +513,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل رفع الصورة',
+        (response.data['message'] as String?) ?? 'فشل رفع الصورة',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -552,7 +552,7 @@ class PhpApiService {
           response = await _dio.get(endpoint, queryParameters: queryParams);
       }
 
-      return PhpApiResult.success(Map<String, dynamic>.from(response.data));
+      return PhpApiResult.success(Map<String, dynamic>.from(response.data as Map));
     } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }

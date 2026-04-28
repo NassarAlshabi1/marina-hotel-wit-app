@@ -36,7 +36,7 @@ Future<void> checkAppwriteSchema() async {
       debugPrint('❌ Attributes ناقصة:');
       missingAttrs.forEach((collection, attrs) {
         debugPrint('  📂 $collection:');
-        for (final attr in attrs) {
+        for (final attr in attrs as Iterable) {
           debugPrint('    - $attr');
         }
       });
@@ -98,7 +98,7 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
           buffer.writeln('❌ Attributes ناقصة:');
           missingAttrs.forEach((collection, attrs) {
             buffer.writeln('  📂 $collection:');
-            for (final attr in attrs) {
+            for (final attr in attrs as Iterable) {
               buffer.writeln('    • $attr');
             }
           });

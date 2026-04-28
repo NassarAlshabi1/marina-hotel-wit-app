@@ -84,7 +84,6 @@ class LarkNotifier extends StateNotifier<LarkState> {
   }
 
   final LarkApiClient _api = LarkApiClient.instance;
-  final LarkNotificationService _notifications = LarkNotificationService.instance;
   final LarkReportService _reports = LarkReportService.instance;
 
   /// تهيئة الحالة من SharedPreferences

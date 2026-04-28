@@ -257,7 +257,7 @@ class FieldMapper {
     List<dynamic> phpList,
   ) {
     return phpList
-        .map((m) => toFlutterMap(entity, Map<String, dynamic>.from(m)))
+        .map((m) => toFlutterMap(entity, Map<String, dynamic>.from(m as Map)))
         .toList();
   }
 

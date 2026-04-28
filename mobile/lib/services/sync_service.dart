@@ -118,7 +118,7 @@ class SyncService {
       }
 
       final results = List<Map<String, dynamic>>.from(
-        response['data']['results'],
+        response['data']['results'] as List,
       );
       await db.transaction(() async {
         var allSucceeded = true;
@@ -200,7 +200,7 @@ class SyncService {
         .syncPull(since)
         .timeout(Duration(seconds: pullTimeoutSeconds));
     if (res['success'] != true) return;
-    final data = List<Map<String, dynamic>>.from(res['data']['data']);
+    final data = List<Map<String, dynamic>>.from(res['data']['data'] as List);
 
     const Map<String, int> _entityPriority = {
       'rooms': 0,
@@ -410,16 +410,16 @@ class SyncService {
               rn,
               RoomsCompanion(
                 type: data['type'] != null
-                    ? d.Value(data['type'])
+                    ? d.Value(data['type'] as String)
                     : const d.Value.absent(),
                 price: data['price'] != null
                     ? d.Value((data['price'] as num).toDouble())
                     : const d.Value.absent(),
                 status: data['status'] != null
-                    ? d.Value(data['status'])
+                    ? d.Value(data['status'] as String)
                     : const d.Value.absent(),
                 imageUrl: data['image_url'] != null
-                    ? d.Value(data['image_url'])
+                    ? d.Value(data['image_url'] as String?)
                     : const d.Value.absent(),
                 serverId: d.Value(_asInt(serverId)),
                 origin: const d.Value('server'),
@@ -431,10 +431,10 @@ class SyncService {
           await roomsDao.insertOne(
             RoomsCompanion(
               roomNumber: d.Value(rn),
-              type: d.Value(data['type'] ?? ''),
+              type: d.Value(data['type'] as String? ?? ''),
               price: d.Value((data['price'] as num?)?.toDouble() ?? 0),
-              status: d.Value(data['status'] ?? 'شاغرة'),
-              imageUrl: d.Value(data['image_url']),
+              status: d.Value(data['status'] as String? ?? 'شاغرة'),
+              imageUrl: d.Value(data['image_url'] as String?),
               serverId: d.Value(serverId is int ? serverId : null),
             ),
             originIsServer: true,
@@ -466,19 +466,53 @@ class SyncService {
                     ? d.Value(room)
                     : const d.Value.absent(),
                 guestName: data['guest_name'] != null
-                    ? d.Value(data['guest_name'])
+                    ? d.Value(data['guest_name'] as String)
                     : const d.Value.absent(),
                 guestPhone: data['guest_phone'] != null
-                    ? d.Value(data['guest_phone'])
+                    ? d.Value(data['guest_phone'] as String)
+                    : const d.Value.absent(),
+                guestIdType: data['guest_id_type'] != null
+                    ? d.Value(data['guest_id_type'] as String)
+                    : const d.Value.absent(),
+                guestIdNumber: data['guest_id_number'] != null
+                    ? d.Value(data['guest_id_number'] as String)
+                    : const d.Value.absent(),
+                guestIdIssueDate: data['guest_id_issue_date'] != null
+                    ? d.Value(data['guest_id_issue_date'] as String)
+                    : const d.Value.absent(),
+                guestIdIssuePlace: data['guest_id_issue_place'] != null
+                    ? d.Value(data['guest_id_issue_place'] as String)
+                    : const d.Value.absent(),
+                guestNationality: data['guest_nationality'] != null
+                    ? d.Value(data['guest_nationality'] as String)
+                    : const d.Value.absent(),
+                guestEmail: data['guest_email'] != null
+                    ? d.Value(data['guest_email'] as String?)
+                    : const d.Value.absent(),
+                guestAddress: data['guest_address'] != null
+                    ? d.Value(data['guest_address'] as String?)
                     : const d.Value.absent(),
                 checkinDate: data['checkin_date'] != null
-                    ? d.Value(data['checkin_date'])
+                    ? d.Value(data['checkin_date'] as String)
                     : const d.Value.absent(),
-                checkoutDate: d.Value(data['checkout_date']),
+                checkoutDate: data['checkout_date'] != null
+                    ? d.Value(data['checkout_date'] as String)
+                    : const d.Value.absent(),
+                actualCheckout: data['actual_checkout'] != null
+                    ? d.Value(data['actual_checkout'] as String)
+                    : const d.Value.absent(),
                 status: data['status'] != null
-                    ? d.Value(data['status'])
+                    ? d.Value(data['status'] as String)
                     : const d.Value.absent(),
-                notes: d.Value(data['notes']),
+                notes: data['notes'] != null
+                    ? d.Value(data['notes'] as String?)
+                    : const d.Value.absent(),
+                expectedNights: data['expected_nights'] != null
+                    ? d.Value(_asInt(data['expected_nights'])!)
+                    : const d.Value.absent(),
+                calculatedNights: data['calculated_nights'] != null
+                    ? d.Value(_asInt(data['calculated_nights'])!)
+                    : const d.Value.absent(),
                 origin: const d.Value('server'),
               ),
               originIsServer: true,
@@ -489,15 +523,26 @@ class SyncService {
             BookingsCompanion(
               serverBookingId: d.Value(sbid),
               roomNumber: d.Value(room ?? ''),
-              guestName: d.Value(data['guest_name'] ?? ''),
-              guestPhone: d.Value(data['guest_phone'] ?? ''),
-              guestNationality: d.Value(data['guest_nationality'] ?? ''),
-              guestEmail: d.Value(data['guest_email']),
-              guestAddress: d.Value(data['guest_address']),
-              checkinDate: d.Value(data['checkin_date'] ?? Time.nowIso()),
-              checkoutDate: d.Value(data['checkout_date']),
-              status: d.Value(data['status'] ?? 'محجوزة'),
-              notes: d.Value(data['notes']),
+              guestName: d.Value(data['guest_name'] as String? ?? ''),
+              guestPhone: d.Value(data['guest_phone'] as String? ?? ''),
+              guestIdType: d.Value(data['guest_id_type'] as String? ?? 'بطاقة شخصية'),
+              guestIdNumber: d.Value(data['guest_id_number'] as String? ?? ''),
+              guestIdIssueDate: d.Value(data['guest_id_issue_date'] as String?),
+              guestIdIssuePlace: d.Value(data['guest_id_issue_place'] as String?),
+              guestNationality: d.Value(data['guest_nationality'] as String? ?? ''),
+              guestEmail: d.Value(data['guest_email'] as String?),
+              guestAddress: d.Value(data['guest_address'] as String?),
+              checkinDate: d.Value(data['checkin_date'] as String? ?? Time.nowIso()),
+              checkoutDate: d.Value(data['checkout_date'] as String?),
+              actualCheckout: d.Value(data['actual_checkout'] as String?),
+              status: d.Value(data['status'] as String? ?? 'محجوزة'),
+              notes: d.Value(data['notes'] as String?),
+              expectedNights: d.Value(
+                _asInt(data['expected_nights']) ?? 1,
+              ),
+              calculatedNights: d.Value(
+                _asInt(data['calculated_nights']) ?? 1,
+              ),
               serverId: d.Value(sbid),
             ),
             originIsServer: true,
@@ -528,9 +573,9 @@ class SyncService {
               ln.id,
               BookingNotesCompanion(
                 bookingId: d.Value(ln.bookingId),
-                noteText: d.Value(data['note_text'] ?? ln.noteText),
-                alertType: d.Value(data['alert_type'] ?? ln.alertType),
-                alertUntil: d.Value(data['alert_until']),
+                noteText: d.Value(data['note_text'] as String? ?? ln.noteText),
+                alertType: d.Value(data['alert_type'] as String? ?? ln.alertType),
+                alertUntil: d.Value(data['alert_until'] as String?),
                 isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
                 serverId: d.Value(nid),
                 origin: const d.Value('server'),
@@ -542,9 +587,9 @@ class SyncService {
           await notesDao.insertOne(
             BookingNotesCompanion(
               bookingId: d.Value(data['booking_id'] as int? ?? 0),
-              noteText: d.Value(data['note_text'] ?? ''),
-              alertType: d.Value(data['alert_type'] ?? 'low'),
-              alertUntil: d.Value(data['alert_until']),
+              noteText: d.Value(data['note_text'] as String? ?? ''),
+              alertType: d.Value(data['alert_type'] as String? ?? 'low'),
+              alertUntil: d.Value(data['alert_until'] as String?),
               isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
               serverId: d.Value(nid),
             ),
@@ -575,11 +620,11 @@ class SyncService {
             await employeesDao.updateById(
               le.id,
               EmployeesCompanion(
-                name: d.Value(data['name'] ?? le.name),
+                name: d.Value(data['name'] as String? ?? le.name),
                 basicSalary: d.Value(
                   (data['basic_salary'] as num?)?.toDouble() ?? le.basicSalary,
                 ),
-                status: d.Value(data['status'] ?? le.status),
+                status: d.Value(data['status'] as String? ?? le.status),
                 serverId: d.Value(sid),
                 origin: const d.Value('server'),
               ),
@@ -589,11 +634,11 @@ class SyncService {
         } else {
           await employeesDao.insertOne(
             EmployeesCompanion(
-              name: d.Value(data['name'] ?? ''),
+              name: d.Value(data['name'] as String? ?? ''),
               basicSalary: d.Value(
                 (data['basic_salary'] as num?)?.toDouble() ?? 0,
               ),
-              status: d.Value(data['status'] ?? 'active'),
+              status: d.Value(data['status'] as String? ?? 'active'),
               serverId: d.Value(sid),
             ),
             originIsServer: true,
@@ -623,13 +668,13 @@ class SyncService {
             await expensesDao.updateById(
               lx.id,
               ExpensesCompanion(
-                expenseType: d.Value(data['expense_type'] ?? lx.expenseType),
+                expenseType: d.Value(data['expense_type'] as String? ?? lx.expenseType),
                 relatedId: d.Value((data['related_id'] as num?)?.toInt()),
-                description: d.Value(data['description'] ?? lx.description),
+                description: d.Value(data['description'] as String? ?? lx.description),
                 amount: d.Value(
                   (data['amount'] as num?)?.toDouble() ?? lx.amount,
                 ),
-                date: d.Value(data['date'] ?? lx.date),
+                date: d.Value(data['date'] as String? ?? lx.date),
                 serverId: d.Value(xid),
                 origin: const d.Value('server'),
               ),
@@ -639,12 +684,12 @@ class SyncService {
         } else {
           await expensesDao.insertOne(
             ExpensesCompanion(
-              expenseType: d.Value(data['expense_type'] ?? 'other'),
+              expenseType: d.Value(data['expense_type'] as String? ?? 'other'),
               relatedId: d.Value(data['related_id'] as int?),
-              description: d.Value(data['description'] ?? ''),
+              description: d.Value(data['description'] as String? ?? ''),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
               date: d.Value(
-                data['date'] ?? Time.safeIsoToDateString(Time.nowIso()),
+                data['date'] as String? ?? Time.safeIsoToDateString(Time.nowIso()),
               ),
               serverId: d.Value(xid),
             ),
@@ -676,16 +721,16 @@ class SyncService {
               CashTransactionsCompanion(
                 registerId: d.Value((data['register_id'] as num?)?.toInt()),
                 transactionType: d.Value(
-                  data['transaction_type'] ?? lc.transactionType,
+                  data['transaction_type'] as String? ?? lc.transactionType,
                 ),
                 amount: d.Value(
                   (data['amount'] as num?)?.toDouble() ?? lc.amount,
                 ),
-                referenceType: d.Value(data['reference_type']),
+                referenceType: d.Value(data['reference_type'] as String?),
                 referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
-                description: d.Value(data['description']),
+                description: d.Value(data['description'] as String?),
                 transactionTime: d.Value(
-                  data['transaction_time'] ?? lc.transactionTime,
+                  data['transaction_time'] as String? ?? lc.transactionTime,
                 ),
                 serverId: d.Value(cid),
                 origin: const d.Value('server'),
@@ -697,13 +742,13 @@ class SyncService {
           await cashDao.insertOne(
             CashTransactionsCompanion(
               registerId: d.Value((data['register_id'] as num?)?.toInt()),
-              transactionType: d.Value(data['transaction_type'] ?? 'income'),
+              transactionType: d.Value(data['transaction_type'] as String? ?? 'income'),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
-              referenceType: d.Value(data['reference_type']),
+              referenceType: d.Value(data['reference_type'] as String?),
               referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
-              description: d.Value(data['description']),
+              description: d.Value(data['description'] as String?),
               transactionTime: d.Value(
-                data['transaction_time'] ?? Time.nowIso(),
+                data['transaction_time'] as String? ?? Time.nowIso(),
               ),
               serverId: d.Value(cid),
             ),
@@ -739,12 +784,12 @@ class SyncService {
                 amount: d.Value(
                   (data['amount'] as num?)?.toDouble() ?? lp.amount,
                 ),
-                paymentDate: d.Value(data['payment_date'] ?? lp.paymentDate),
+                paymentDate: d.Value(data['payment_date'] as String? ?? lp.paymentDate),
                 notes: d.Value(data['notes'] as String?),
                 paymentMethod: d.Value(
-                  data['payment_method'] ?? lp.paymentMethod,
+                  data['payment_method'] as String? ?? lp.paymentMethod,
                 ),
-                revenueType: d.Value(data['revenue_type'] ?? lp.revenueType),
+                revenueType: d.Value(data['revenue_type'] as String? ?? lp.revenueType),
                 cashTransactionServerId: d.Value(
                   (data['cash_transaction_id'] as num?)?.toInt(),
                 ),
@@ -761,10 +806,10 @@ class SyncService {
               serverBookingId: d.Value((data['booking_id'] as num?)?.toInt()),
               roomNumber: d.Value(data['room_number'] as String?),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
-              paymentDate: d.Value(data['payment_date'] ?? Time.nowIso()),
+              paymentDate: d.Value(data['payment_date'] as String? ?? Time.nowIso()),
               notes: d.Value(data['notes'] as String?),
-              paymentMethod: d.Value(data['payment_method'] ?? 'نقدي'),
-              revenueType: d.Value(data['revenue_type'] ?? 'room'),
+              paymentMethod: d.Value(data['payment_method'] as String? ?? 'نقدي'),
+              revenueType: d.Value(data['revenue_type'] as String? ?? 'room'),
               cashTransactionServerId: d.Value(
                 (data['cash_transaction_id'] as num?)?.toInt(),
               ),

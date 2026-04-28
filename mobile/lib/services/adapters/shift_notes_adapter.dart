@@ -120,7 +120,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'updatedAt': model.updatedAt, // integer epoch — مطلوب
         'createdBy': model.createdBy,
         'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
-        'note': model.content ?? model.title ?? '', // مطلوب — يوازي content
+        'note': model.content, // مطلوب — يوازي content
         if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
           'expiresAt': model.expiresAt,
       };

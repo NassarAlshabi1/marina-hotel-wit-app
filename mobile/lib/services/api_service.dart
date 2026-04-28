@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../utils/app_logger.dart';
 import 'api_config_service.dart';
 
 class ApiService {
@@ -39,7 +41,9 @@ class ApiService {
             try {
               final req = await _retryRequest(e.requestOptions);
               return handler.resolve(req);
-            } catch (_) {}
+            } catch (e, st) {
+              AppLogger.error('فشل إعادة محاولة الطلب', tag: 'API', error: e, stackTrace: st);
+            }
           }
           handler.next(e);
         },
@@ -127,12 +131,12 @@ class ApiService {
       if (filter != null && filter.isNotEmpty) 'filter': filter,
     };
     final res = await _dio.get('/$entity.php', queryParameters: qp);
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> getEntity(String entity, dynamic id) async {
     final res = await _dio.get('/$entity.php/$id');
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> createEntity(
@@ -140,7 +144,7 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     final res = await _dio.post('/$entity.php', data: jsonEncode(data));
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> updateEntity(
@@ -149,12 +153,12 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     final res = await _dio.put('/$entity.php/$id', data: jsonEncode(data));
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> deleteEntity(String entity, dynamic id) async {
     final res = await _dio.delete('/$entity.php/$id');
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> syncPush(
@@ -164,7 +168,7 @@ class ApiService {
       '/sync/push.php',
       data: jsonEncode({'changes': changes}),
     );
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> syncPull(int since) async {
@@ -172,7 +176,7 @@ class ApiService {
       '/sync/pull.php',
       queryParameters: {'since': since},
     );
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<String?> uploadRoomImage(String roomNumber, String filePath) async {

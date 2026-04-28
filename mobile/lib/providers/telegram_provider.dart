@@ -6,6 +6,7 @@ import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_service.dart';
 import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
+import '../services/alarm_backup.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus {
@@ -32,13 +33,13 @@ class TelegramState {
   const TelegramState({
     this.status = TelegramSetupStatus.idle,
     this.message,
-    this.isEnabled = false,
-    this.isConfigured = false,
-    this.isNotificationsEnabled = false,
-    this.isDailyReportEnabled = false,
-    this.botToken = '',
-    this.chatId = '',
-    this.dailyReportTime = '08:00',
+    this.isEnabled = true,
+    this.isConfigured = true,
+    this.isNotificationsEnabled = true,
+    this.isDailyReportEnabled = true,
+    this.botToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
+    this.chatId = '5944227208',
+    this.dailyReportTime = '02:00',
     this.lastReportSent,
   });
 
@@ -76,19 +77,18 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   }
 
   final TelegramApiClient _api = TelegramApiClient.instance;
-  final TelegramNotificationService _notifications = TelegramNotificationService.instance;
   final TelegramReportService _reports = TelegramReportService.instance;
 
-  /// تهيئة الحالة من SharedPreferences
+  /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('telegram_enabled') ?? false;
-      final botToken = prefs.getString('telegram_bot_token') ?? '';
-      final chatId = prefs.getString('telegram_chat_id') ?? '';
-      final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? true;
+      final botToken = prefs.getString('telegram_bot_token') ?? TelegramConfig.defaultBotToken;
+      final chatId = prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
+      final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? false;
       final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
-      final reportTime = prefs.getString('telegram_daily_report_time') ?? '08:00';
+      final reportTime = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final lastReportSent = prefs.getString('telegram_last_report_sent');
       final configured = await TelegramConfig.isConfigured();
 
@@ -157,6 +157,20 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
       status: TelegramSetupStatus.success,
       message: enabled ? 'تم تفعيل التقرير اليومي التلقائي' : 'تم تعطيل التقرير اليومي التلقائي',
     );
+    // جدولة/إلغاء إنذار التقرير اليومي
+    try {
+      if (enabled && state.isEnabled) {
+        final parts = state.dailyReportTime.split(':');
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+      } else {
+        await AlarmBackup.cancelTelegramReportAlarm();
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
+    }
     _clearMessageAfterDelay();
   }
 
@@ -164,6 +178,18 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<void> setDailyReportTime(String time) async {
     await TelegramConfig.setDailyReportTime(time);
     state = state.copyWith(dailyReportTime: time);
+    // إعادة جدولة إنذار التقرير بالوقت الجديد
+    try {
+      if (state.isDailyReportEnabled && state.isEnabled) {
+        final parts = time.split(':');
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
+    }
   }
 
   /// اختبار الاتصال

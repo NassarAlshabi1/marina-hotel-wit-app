@@ -5,8 +5,9 @@ import '../daos/outbox_dao.dart';
 import '../daos/bookings_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
-import '../telegram/telegram_notification_service.dart';
-import '../../utils/id.dart';
+import '../telegram/whatsapp_notification_service.dart';
+import '../crashlytics_service.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
 class BookingsRepository {
@@ -47,6 +48,18 @@ class BookingsRepository {
     String discountType = 'per_night',
     String? discountStartDate,
   }) async {
+    // ─── منع الحجز المزدوج: غرفة واحدة = حجز نشط واحد فقط ───
+    if (StatusUtils.isActiveBooking(status)) {
+      final existing = await getActiveBookingForRoom(roomNumber);
+      if (existing != null) {
+        throw StateError(
+          'يوجد حجز نشط بالفعل للغرفة $roomNumber ' //
+          '(الضيف: ${existing.guestName})',
+        );
+      }
+    }
+
+    try {
     final result = await dao.insertOne(
       BookingsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -83,6 +96,17 @@ class BookingsRepository {
     // إشعار Lark (غير متزامن — لا يبطئ العملية)
     _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'BookingsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'room': roomNumber, 'guest': guestName, 'status': status},
+      );
+      rethrow;
+    }
   }
 
   /// إرسال إشعار Lark و Telegram لحجز جديد (fire-and-forget)
@@ -102,7 +126,7 @@ class BookingsRepository {
       checkoutDate: checkoutDate,
       nights: expectedNights,
     );
-    TelegramNotificationService.instance.notifyNewBooking(
+    WhatsAppNotificationService.instance.notifyNewBooking(
       roomNumber: roomNumber,
       guestName: guestName,
       guestPhone: guestPhone,
@@ -135,6 +159,18 @@ class BookingsRepository {
     String? discountType,
     String? discountStartDate,
   }) async {
+    // ✅ فحص الحجز المزدوج عند تغيير الغرفة
+    if (roomNumber != null) {
+      final existing = await getActiveBookingForRoom(roomNumber);
+      if (existing != null && existing.id != id) {
+        throw StateError(
+          'يوجد حجز نشط بالفعل للغرفة $roomNumber '
+          '(الضيف: ${existing.guestName})',
+        );
+      }
+    }
+
+    try {
     final result = await dao.updateById(
       id,
       BookingsCompanion(
@@ -206,6 +242,17 @@ class BookingsRepository {
       _notifyLarkBookingUpdate(id, status);
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'BookingsRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id', 'newStatus': status ?? '', 'newRoom': roomNumber ?? ''},
+      );
+      rethrow;
+    }
   }
 
   /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
@@ -222,30 +269,28 @@ class BookingsRepository {
             guestPhone: booking.guestPhone,
             expectedNights: booking.expectedNights,
           );
-          TelegramNotificationService.instance.notifyCheckIn(
+          WhatsAppNotificationService.instance.notifyCheckIn(
             roomNumber: booking.roomNumber,
             guestName: booking.guestName,
             guestPhone: booking.guestPhone,
             expectedNights: booking.expectedNights,
           );
           break;
-        case 'شاغرة':
-          if (booking.actualCheckout != null) {
-            LarkNotificationService.instance.notifyCheckOut(
-              roomNumber: booking.roomNumber,
-              guestName: booking.guestName,
-              actualNights: booking.calculatedNights,
-              totalPaid: booking.totalPaidCached,
-              remaining: booking.remainingBalanceCached,
-            );
-            TelegramNotificationService.instance.notifyCheckOut(
-              roomNumber: booking.roomNumber,
-              guestName: booking.guestName,
-              actualNights: booking.calculatedNights,
-              totalPaid: booking.totalPaidCached,
-              remaining: booking.remainingBalanceCached,
-            );
-          }
+        case 'مكتمل':
+          LarkNotificationService.instance.notifyCheckOut(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            actualNights: booking.calculatedNights,
+            totalPaid: booking.totalPaidCached,
+            remaining: booking.remainingBalanceCached,
+          );
+          WhatsAppNotificationService.instance.notifyCheckOut(
+            roomNumber: booking.roomNumber,
+            guestName: booking.guestName,
+            actualNights: booking.calculatedNights,
+            totalPaid: booking.totalPaidCached,
+            remaining: booking.remainingBalanceCached,
+          );
           break;
       }
     });
@@ -277,7 +322,7 @@ class BookingsRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
+        List<Map<String, dynamic>>.from(data['data'] as List),
         clearExisting: false,
       );
     }
@@ -293,6 +338,16 @@ class BookingsRepository {
     return await dao.getRecordCount();
   }
 
+  /// مزامنة التخفيض القديم (legacy discount) مع جدول التعديلات.
+  ///
+  /// ─── ملاحظة مهمة (BUG #2 + #3): ───
+  /// سجلات legacy_discount في booking_price_adjustments هي سجلات ميتة لا تُستخدم
+  /// في الحساب الفعلي. EnhancedBookingCalculationService يستبعدها دائماً في
+  /// _fetchActiveAdjustments ويطبق التخفيض القديم مباشرة عبر booking.discount.
+  ///
+  /// لذلك هذه الدالة تقوم بـ:
+  /// 1. إلغاء أي سجلات legacy_discount يتيمة (عند عدم وجود تخفيض)
+  /// 2. عدم إنشاء سجلات جديدة (كانت ميتة ولا فائدة منها)
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
@@ -301,56 +356,48 @@ class BookingsRepository {
 
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {
+      // لا يوجد تخفيض — ألغِ أي سجلات يتيمة
+      await _cancelLegacyDiscountAdjustments(bookingId);
       return;
     }
 
-    final effectiveHotelDay = Time.hotelDayKeyFromIso(
-      booking.discountStartDate ?? booking.checkinDate,
-    );
+    // التخفيض موجود — لا حاجة لإنشاء سجل legacy_discount لأن:
+    // 1. EnhancedBookingCalculationService يستبعدها دائماً
+    // 2. التخفيض يُطبق مباشرة عبر booking.discount في المسار القديم
+    // فقط تأكد من تنظيف أي سجلات يتيمة بمبلغ مختلف
+    await _cancelLegacyDiscountAdjustments(bookingId);
+  }
 
-    final existing = await (db.select(db.bookingPriceAdjustments)
-          ..where((a) => a.bookingLocalId.equals(bookingId))
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.deletedAt.isNull()))
-        .get();
-
-    final hasMatch = existing.any(
-      (a) => a.adjustmentType == 0 &&
-          a.amount == discount &&
-          a.effectiveHotelDay == effectiveHotelDay,
-    );
-
-    if (hasMatch) return;
-
+  /// إلغاء جميع سجلات legacy_discount النشطة لحجز معين.
+  /// تُستدعى عندما يُزال التخفيض من الحجز (discount <= 0) لمنع سجلات يتيمة.
+  Future<void> _cancelLegacyDiscountAdjustments(int bookingId) async {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    await db.into(db.bookingPriceAdjustments).insert(
-          BookingPriceAdjustmentsCompanion(
-            localUuid: d.Value(IdGen.uuid()),
-            bookingLocalUuid: d.Value(booking.localUuid),
-            bookingLocalId: d.Value(booking.id),
-            adjustmentType: const d.Value(0),
-            amount: d.Value(discount.toDouble()),
-            effectiveHotelDay: d.Value(effectiveHotelDay),
-            isActive: const d.Value(true),
-            reason: const d.Value('legacy_discount'),
-            createdAt: d.Value(now),
-            updatedAt: d.Value(now),
-            lastModified: d.Value(now),
-            createdAtIso: d.Value(nowIso),
-            updatedAtIso: d.Value(nowIso),
-            createdAtEpoch: d.Value(now),
-            lastModifiedEpoch: d.Value(now),
-          ),
-        );
+    await (db.update(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull())
+          ..where((a) => a.reason.equals('legacy_discount')))
+        .write(
+      BookingPriceAdjustmentsCompanion(
+        isActive: const d.Value(false),
+        cancelledAt: d.Value(nowIso),
+        cancelledBy: const d.Value('auto_cleanup'),
+        updatedAt: d.Value(now),
+        lastModified: d.Value(now),
+        updatedAtIso: d.Value(nowIso),
+        lastModifiedEpoch: d.Value(now),
+      ),
+    );
   }
 
-  /// الحصول على الحجز النشط (المحجوز) للغرفة كما هو مخزن في SQLite
+  /// الحصول على أي حجز نشط للغرفة (التحقق من جميع حالات الحجز النشط)
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
     return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.status.equals('محجوزة'))
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();

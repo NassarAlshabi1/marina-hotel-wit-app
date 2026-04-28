@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 
 enum IssueType {
@@ -390,24 +391,25 @@ class SyncIntegrityChecker {
   Future<void> _fixAmountMismatch(AppDatabase db, IntegrityIssue issue) async {
     if (issue.table != 'bookings' || issue.uuid == null) return;
 
-    final actualPaid = issue.metadata?['actual_paid'] as double? ?? 0.0;
-
     final booking = await (db.select(
       db.bookings,
     )..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
 
     if (booking == null) return;
 
-    final totalDue = booking.totalDueCached;
-    final remaining = totalDue - actualPaid;
+    // إعادة حساب كاملة بدلاً من الاعتماد على القيم المخزنة مؤقتاً (stale)
+    final calcService = EnhancedBookingCalculationService(db);
+    final calculation = await calcService.calculateForBooking(booking);
+    final summary = calculation.financialSummary;
 
     await (db.update(
       db.bookings,
     )..where((t) => t.localUuid.equals(issue.uuid!))).write(
       BookingsCompanion(
-        totalPaidCached: Value(actualPaid),
-        remainingBalanceCached: Value(remaining),
-        isFullyPaid: Value(remaining <= 0.01),
+        totalDueCached: Value(summary.totalDue.toDouble()),
+        totalPaidCached: Value(summary.totalPaid.toDouble()),
+        remainingBalanceCached: Value(summary.remainingBalance.toDouble()),
+        isFullyPaid: Value(summary.isFullyPaid),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
       ),
     );

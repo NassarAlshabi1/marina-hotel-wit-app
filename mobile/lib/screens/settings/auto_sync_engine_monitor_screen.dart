@@ -805,19 +805,19 @@ class _AutoSyncEngineMonitorScreenState
                           backgroundColor: Colors.purple.shade100,
                           child: Text('${index + 1}'),
                         ),
-                        title: Text('${entry['table']} / ${entry['uuid']}'),
+                        title: Text('${entry['table'] as String} / ${entry['uuid'] as String}'),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(entry['resolution'] ?? ''),
+                            Text(entry['resolution'] as String? ?? ''),
                             Text(
-                              'الفرق الزمني: ${entry['time_diff_seconds']} ثانية',
+                              'الفرق الزمني: ${entry['time_diff_seconds'] as String? ?? ''} ثانية',
                               style: const TextStyle(fontSize: 11),
                             ),
                           ],
                         ),
                         trailing: Text(
-                          _formatTimestamp(entry['timestamp']),
+                          _formatTimestamp(entry['timestamp'] as String?),
                           style: const TextStyle(fontSize: 11),
                         ),
                       );

@@ -401,7 +401,7 @@ class GoogleDriveConflictResolver {
   }
 
   String? _extractDeviceId(Map<String, dynamic> record) {
-    return record['device_id'] ?? record['deviceId'];
+    return (record['device_id'] ?? record['deviceId']) as String?;
   }
 
   String? _findTableName(
@@ -457,8 +457,8 @@ class GoogleDriveConflictResolver {
     final decoded = <Map<String, dynamic>>[];
     for (final entry in history.take(limit)) {
       try {
-        decoded.add(jsonDecode(entry));
-      } catch (_) {}
+        decoded.add(jsonDecode(entry) as Map<String, dynamic>);
+      } catch (e) { debugPrint('WARN: Failed to parse conflict history: $e'); }
     }
 
     return decoded;

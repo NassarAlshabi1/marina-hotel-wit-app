@@ -542,11 +542,11 @@ class SyncOrchestrator {
       final json = prefs.getString('sync_orchestrator_metrics');
       if (json != null) {
         final data = jsonDecode(json) as Map<String, dynamic>;
-        _metrics.totalSyncs = data['totalSyncs'] ?? 0;
-        _metrics.successfulSyncs = data['successfulSyncs'] ?? 0;
-        _metrics.failedSyncs = data['failedSyncs'] ?? 0;
-        _metrics.totalRecordsProcessed = data['totalRecordsProcessed'] ?? 0;
-        _metrics.totalConflicts = data['totalConflicts'] ?? 0;
+        _metrics.totalSyncs = (data['totalSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.successfulSyncs = (data['successfulSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.failedSyncs = (data['failedSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.totalRecordsProcessed = (data['totalRecordsProcessed'] as num?)?.toInt() ?? 0;
+        _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');

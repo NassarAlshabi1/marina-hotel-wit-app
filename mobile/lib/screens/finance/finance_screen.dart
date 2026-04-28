@@ -8,7 +8,6 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../../models/payment_models.dart';
-import '../payments/payment_history_screen.dart';
 import '../payments/booking_checkout_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
@@ -59,7 +58,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildBody(dynamic paymentsRepo, double income, double expenses, double balance) {
     return StreamBuilder<List<db.Payment>>(
-      stream: paymentsRepo.watchAll(),
+      stream: (paymentsRepo.watchAll() as Stream<List<db.Payment>>),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -111,8 +110,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final now = DateTime.now();
     final hotelDay = Time.hotelDayKey();
     final cutoff = now.hour >= 14;
-    final dateFmt = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -499,25 +496,31 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       padding: const EdgeInsets.only(left: 15, right: 40, top: 4, bottom: 4),
       child: Row(
         children: [
-          Icon(_getMethodIcon(p.paymentMethod), size: 12, color: Colors.grey.shade600),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.notes?.isNotEmpty == true ? p.notes! : p.paymentMethod,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                ),
-              ],
+          if (p.notes?.isNotEmpty == true)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.notes!,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            )
+          else
+            Expanded(
+              child: Text(
+                p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
             ),
-          ),
           Text(
             CurrencyFormatter.formatAmount(p.amount),
             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
@@ -575,7 +578,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildBookingTile(db.Booking booking) {
     final isPaid = booking.isFullyPaid;
-    final hasBalance = (booking.remainingBalanceCached ?? 0) > 0;
+    final hasBalance = booking.remainingBalanceCached > 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -635,7 +638,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 ),
                 if (hasBalance)
                   Text(
-                    'متبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached ?? 0)}',
+                    'متبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)}',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -668,46 +671,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ],
       ),
     );
-  }
-
-  // ─── أدوات مساعدة ───
-
-  Color _getMethodColor(String method) {
-    switch (method) {
-      case 'نقدي':
-        return Colors.green;
-      case 'بطاقة':
-      case 'بطاقة ائتمان':
-        return Colors.blue;
-      case 'تحويل':
-      case 'تحويل بنكي':
-        return Colors.orange;
-      case 'شيك':
-        return Colors.purple;
-      case 'تقسيط':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getMethodIcon(String method) {
-    switch (method) {
-      case 'نقدي':
-        return Icons.money;
-      case 'بطاقة':
-      case 'بطاقة ائتمان':
-        return Icons.credit_card;
-      case 'تحويل':
-      case 'تحويل بنكي':
-        return Icons.account_balance;
-      case 'شيك':
-        return Icons.receipt_long;
-      case 'تقسيط':
-        return Icons.calendar_view_month;
-      default:
-        return Icons.payment;
-    }
   }
 
   // ─── إضافة دفعة جديدة تراكمية ───
@@ -892,6 +855,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         revenueType: 'other',
       );
 
+      // إرسال إشعار واتساب
+      _sendPaymentWhatsAppNotification(
+        amount: parsedAmount.toDouble(),
+        method: dbMethod,
+        notes: notes.trim(),
+      );
+
       if (mounted) {
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -917,6 +887,35 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       if (mounted) {
         setState(() => _isSavingPayment = false);
       }
+    }
+  }
+
+  Future<void> _sendPaymentWhatsAppNotification({
+    required double amount,
+    required String method,
+    required String notes,
+  }) async {
+    try {
+      final whatsappService = ref.read(whatsappServiceProvider);
+
+      final message = StringBuffer()
+        ..writeln('إشعار دفعة جديدة')
+        ..writeln('━━━━━━━━━━━━━━━')
+        ..writeln('المبلغ: ${CurrencyFormatter.formatAmount(amount)}')
+        ..writeln('طريقة الدفع: $method')
+        ..writeln('التاريخ: ${Time.nowIso()}')
+        ..writeln('اليوم الفندقي: ${Time.hotelDayKey()}')
+        ..writeln(notes.isNotEmpty ? 'ملاحظات: $notes' : '');
+
+      final result = await whatsappService.sendMessage(
+        phoneE164: '9677734587456',
+        message: message.toString(),
+      );
+      if (result.quotaMessage != null) {
+        debugPrint('تجاوز حصة الواتساب: ${result.quotaMessage}');
+      }
+    } catch (_) {
+      debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
     }
   }
 }

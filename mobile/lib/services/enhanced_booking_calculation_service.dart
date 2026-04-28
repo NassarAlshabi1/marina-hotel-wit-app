@@ -198,7 +198,24 @@ class EnhancedBookingCalculationService {
             endDate,
           );
           if (nightsInRange > 0) {
-            adjAmount = (rawAmount / nightsInRange).round();
+            // حساب المبلغ الموزع بدقة مع معالجة الباقي في آخر ليلة
+            final int basePart = rawAmount ~/ nightsInRange;
+            final int remainder = rawAmount % nightsInRange;
+            
+            // تحديد ترتيب الليلة الحالية ضمن النطاق المتأثر
+            int nightIndexInRange = 0;
+            for (final s in segments) {
+              final d = DateTime.parse(s.hotelDayKey);
+              if (!_isWithinRange(d, effectiveDate, endDate)) continue;
+              if (d.isBefore(nightDate)) {
+                nightIndexInRange++;
+              } else {
+                break;
+              }
+            }
+            
+            // إضافة 1 من الباقي لأول 'remainder' ليالي لضمان تطابق المجموع
+            adjAmount = basePart + (nightIndexInRange < remainder ? 1 : 0);
           }
         }
         
@@ -231,7 +248,7 @@ class EnhancedBookingCalculationService {
         }
       }
 
-      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 3);
+      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100);
 
       breakdown.add(
         NightlyBreakdown(
@@ -314,6 +331,7 @@ class EnhancedBookingCalculationService {
                     p.bookingUuidCache.equals(booking.localUuid)),
               )
               ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false))
               ..where((p) => p.isPendingBalance.equals(false))
               ..where(
                 (p) =>
@@ -329,7 +347,7 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    final raw = await (db.select(db.bookingPriceAdjustments)
           ..where(
             (a) =>
                 (a.bookingLocalId.equals(booking.id) |
@@ -338,6 +356,38 @@ class EnhancedBookingCalculationService {
           ..where((a) => a.isActive.equals(true))
           ..where((a) => a.deletedAt.isNull()))
         .get();
+
+    // ─── حماية متعددة الطبقات ضد التعديلات الوهمية ───
+
+    final bookingDiscount = _asInt(booking.discount);
+
+    return raw.where((adj) {
+      // ① استبعاد سجلات legacy_discount دائماً
+      //    يتم تطبيق التخفيض القديم عبر المسار المخصص في
+      //    _buildNightlyBreakdown (سطور 218-232).
+      //    تمرير هذه السجلات هنا يُسبب تخفيضاً مزدوجاً (BUG #2).
+      if (adj.reason == 'legacy_discount') {
+        return false;
+      }
+
+      // ② التحقق من roomNumber — تجنب تطبيق تخفيض من حجز آخر
+      final adjRoom = adj.roomNumber?.trim();
+      if (adjRoom == null || adjRoom.isEmpty) return false;
+      final room = booking.roomNumber.trim();
+      if (adjRoom != room) return false;
+
+      // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
+      //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
+      if (bookingDiscount <= 0 &&
+          adj.adjustmentType == 0 &&
+          adj.reason == null) {
+        // سجل تخفيض يدوي بدون سبب + لا يوجد تخفيض على الحجز
+        // = سجل يتيم محتمل → تجاهله للحماية
+        return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   Future<void> _replaceBookingNights({

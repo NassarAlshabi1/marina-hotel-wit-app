@@ -96,6 +96,19 @@ class RoomsRepository {
   }
 
   Future<int> delete(String roomNumber) async {
+    // ✅ فحص وجود حجوزات نشطة قبل الحذف
+    final activeBooking = await (db.select(db.bookings)
+          ..where((b) => b.roomNumber.equals(roomNumber))
+          ..where((b) => b.deletedAt.isNull())
+          ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
+          ..limit(1))
+        .getSingleOrNull();
+    if (activeBooking != null) {
+      throw StateError(
+        'لا يمكن حذف الغرفة $roomNumber: يوجد حجز نشط '
+        '(الضيف: ${activeBooking.guestName})',
+      );
+    }
     final result = await dao.softDelete(roomNumber);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange(
@@ -125,7 +138,7 @@ class RoomsRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
+        List<Map<String, dynamic>>.from(data['data'] as List),
         clearExisting: false,
       );
     }

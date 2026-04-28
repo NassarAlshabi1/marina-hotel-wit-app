@@ -1,14 +1,18 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/room_payment_status_provider.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../services/screen_sync_controller.dart';
+import '../../services/auto_backup_manager.dart';
+import '../../services/central_sync_coordinator.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -46,6 +50,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   String _status = 'محجوزة';
   String _idType = 'بطاقة شخصية';
   bool _roomInitialized = false;
+  bool _isSaving = false;
 
   // متغيرات الدفع المتقدم
   bool _hasAdvancePayment = false;
@@ -205,7 +210,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   Widget build(BuildContext context) {
     final repo = ref.watch(bookingsRepoProvider);
     final roomsAsync = ref.watch(roomsListProvider);
-    return wrapWithSyncOnExit(
+    return PopScope(
+      canPop: true,
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
@@ -524,7 +530,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
                   child: FilledButton.icon(
-                    onPressed: () async {
+                    onPressed: _isSaving ? null : () async {
                       if (!_formKey.currentState!.validate()) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -550,10 +556,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                       final checkout = _optionalText(_checkout.text);
                       final expectedNights =
                           int.tryParse(_expectedNights.text.trim()) ?? 1;
+                      // ✅ فحص تسلسل التواريخ
                       final checkinDt = _parseDateTime(checkin);
                       final checkoutDt = checkout != null
                           ? _parseDateTime(checkout)
                           : null;
+                      if (checkinDt != null && checkoutDt != null && checkoutDt.isBefore(checkinDt)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
                       final calculatedNights = checkinDt == null
                           ? expectedNights
                           : (checkoutDt == null && widget.existing == null)
@@ -619,52 +635,118 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         // لا نوقف الحجز — نعرض التحذير فقط
                       }
 
-                      if (widget.existing == null) {
-                        await repo.create(
-                          roomNumber: roomNumber,
-                          guestName: name,
-                          guestPhone: phone,
-                          guestIdType: _idType,
-                          guestIdNumber: idNumber,
-                          guestIdIssueDate: idIssueDate,
-                          guestIdIssuePlace: idIssuePlace,
-                          guestNationality: nationality,
-                          guestEmail: email,
-                          guestAddress: address,
-                          checkinDate: checkin,
-                          checkoutDate: checkout,
-                          actualCheckout: null,
-                          status: _status,
-                          notes: notes,
-                          expectedNights: expectedNights,
-                          calculatedNights: calculatedNights,
-                        );
-                      } else {
-                        await repo.update(
-                          widget.existing!.id,
-                          roomNumber: roomNumber,
-                          guestName: name,
-                          guestPhone: phone,
-                          guestIdType: _idType,
-                          guestIdNumber: idNumber,
-                          guestIdIssueDate: idIssueDate,
-                          guestIdIssuePlace: idIssuePlace,
-                          guestNationality: nationality,
-                          guestEmail: email,
-                          guestAddress: address,
-                          checkinDate: checkin,
-                          checkoutDate: checkout,
-                          status: _status,
-                          notes: notes,
-                          expectedNights: expectedNights,
-                          calculatedNights: calculatedNights,
-                        );
+                      try {
+                        setState(() => _isSaving = true);
+                        int? newBookingId;
+                        if (widget.existing == null) {
+                          newBookingId = await repo.create(
+                            roomNumber: roomNumber,
+                            guestName: name,
+                            guestPhone: phone,
+                            guestIdType: _idType,
+                            guestIdNumber: idNumber,
+                            guestIdIssueDate: idIssueDate,
+                            guestIdIssuePlace: idIssuePlace,
+                            guestNationality: nationality,
+                            guestEmail: email,
+                            guestAddress: address,
+                            checkinDate: checkin,
+                            checkoutDate: checkout,
+                            actualCheckout: null,
+                            status: _status,
+                            notes: notes,
+                            expectedNights: expectedNights,
+                            calculatedNights: calculatedNights,
+                          );
+                        } else {
+                          newBookingId = widget.existing!.id;
+                          await repo.update(
+                            widget.existing!.id,
+                            roomNumber: roomNumber,
+                            guestName: name,
+                            guestPhone: phone,
+                            guestIdType: _idType,
+                            guestIdNumber: idNumber,
+                            guestIdIssueDate: idIssueDate,
+                            guestIdIssuePlace: idIssuePlace,
+                            guestNationality: nationality,
+                            guestEmail: email,
+                            guestAddress: address,
+                            checkinDate: checkin,
+                            checkoutDate: checkout,
+                            status: _status,
+                            notes: notes,
+                            expectedNights: expectedNights,
+                            calculatedNights: calculatedNights,
+                          );
+                        }
+
+                        // ✅ الحفظ نجح — نلغي حالة "تغييرات غير مزامنة"
+                        // حتى لا يمنع PopScope الخروج
+                        markSaved();
+
+                        // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
+                        if (_hasAdvancePayment && newBookingId != null) {
+                          final advanceAmount = double.tryParse(_advancePayment.text.trim());
+                          if (advanceAmount != null && advanceAmount > 0) {
+                            try {
+                              final paymentsRepo = ref.read(paymentsRepoProvider);
+                              await paymentsRepo.create(
+                                bookingLocalId: newBookingId,
+                                roomNumber: roomNumber,
+                                amount: advanceAmount,
+                                paymentDate: Time.nowIso(),
+                                notes: _paymentNotes.text.trim().isEmpty ? null : _paymentNotes.text.trim(),
+                                paymentMethod: _paymentMethod,
+                                revenueType: 'deposit',
+                              );
+                            } catch (e) {
+                              debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        }
+
+                        await _refreshRoomOccupancy(ref);
+                        ref.invalidate(roomsListProvider);
+                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(roomsWithPaymentStatusProvider);
+
+                        await syncNow();
+                        if (mounted) Navigator.pop(context);
+                      } on StateError catch (e) {
+                        // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.message),
+                              backgroundColor: Colors.red.shade900,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        // أي خطأ آخر (قاعدة بيانات، شبكة، إلخ)
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل حفظ الحجز: $e'),
+                              backgroundColor: Colors.red.shade900,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                        debugPrint('❌ خطأ في حفظ الحجز: $e');
+                      } finally {
+                        if (mounted) setState(() => _isSaving = false);
                       }
-
-                      await _refreshRoomOccupancy(ref);
-
-                      await syncNow();
-                      if (mounted) Navigator.pop(context);
                     },
                     icon: const Icon(Icons.save),
                     label: const Text('حفظ الحجز'),
@@ -877,31 +959,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   Future<void> _refreshRoomOccupancy(WidgetRef ref) async {
-    final db = ref.read(databaseProvider);
-    final roomsRepo = ref.read(roomsRepoProvider);
-    final bookings = await (db.select(
-      db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
-    final occupiedRooms = <String>{};
-    for (final booking in bookings) {
-      if (StatusUtils.isActiveBooking(booking.status)) {
-        occupiedRooms.add(booking.roomNumber);
-      }
-    }
+    try {
+      // استخدام المستودع الموحد لتحديث حالة الغرف بناءً على الحجوزات النشطة
+      final roomsRepo = ref.read(roomsRepoProvider);
+      await roomsRepo.refreshAllRoomOccupancy();
 
-    final rooms = await (db.select(
-      db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
-    for (final room in rooms) {
-      final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
-      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
-      final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
-      if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
-      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await roomsRepo.updateByRoomNumber(room.roomNumber, status: target);
-      }
+      // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات
+      await AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'batch_update_status',
+      );
+      CentralSyncCoordinator.instance.notifyLocalChange(
+        table: 'rooms',
+        operation: 'batch_update_status',
+      );
+    } catch (e) {
+      debugPrint('Error refreshing room occupancy: $e');
     }
   }
 
@@ -949,4 +1022,31 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   String? _optionalText(String text) =>
       text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لا'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await syncNow();
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text('نعم'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

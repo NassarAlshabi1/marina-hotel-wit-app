@@ -131,8 +131,8 @@ class OptimisticLockManager {
             d.Variable.withInt(newVersion),
           ],
         );
-      } catch (_) {
-        // Ignore rollback failure to avoid masking the original error.
+      } catch (e) {
+        debugPrint('⚠️ Version rollback failed after optimistic lock conflict: $e');
       }
       rethrow;
     }

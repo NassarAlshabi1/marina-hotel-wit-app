@@ -356,49 +356,6 @@ class SyncSafetyLayer {
         .toLowerCase();
   }
 
-  Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
-    try {
-      final content = await File(snapshotPath).readAsString();
-      final decoded = jsonDecode(content) as Map<String, dynamic>;
-      final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
-      final sqliteBackupPath = tables['sqliteBackupPath'] as String?;
-
-      if (sqliteBackupPath == null || !await File(sqliteBackupPath).exists()) {
-        debugPrint('❌ لا توجد نسخة احتياطية من ملف SQLite');
-        return false;
-      }
-
-      final dbPath = await _getDatabasePath();
-      if (dbPath == null) {
-        debugPrint('❌ لم يتم العثور على مسار قاعدة البيانات');
-        return false;
-      }
-
-      await DatabaseManager.close();
-      await File(sqliteBackupPath).copy(dbPath);
-      await DatabaseManager.reopen();
-      debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
-
-      await _appendLog({
-        'event': 'file-restore-success',
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-        'source': sqliteBackupPath,
-        'target': dbPath,
-      });
-
-      return true;
-    } catch (e, stack) {
-      debugPrint('❌ فشلت استعادة ملف SQLite: $e');
-      await _appendLog({
-        'event': 'file-restore-error',
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-        'error': e.toString(),
-        'stack': stack.toString(),
-      });
-      return false;
-    }
-  }
-
   Future<String?> _getDatabasePath() async {
     try {
       final dbDir = await sqflite.getDatabasesPath();

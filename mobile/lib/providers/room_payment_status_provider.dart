@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/local_db.dart';
+import '../services/remote_config_service.dart';
 import '../utils/status_utils.dart';
 import 'repository_providers.dart';
 
@@ -19,75 +20,101 @@ class RoomWithPaymentStatus {
     if (StatusUtils.isRoomAvailable(room.status)) {
       return Colors.green.shade600;
     }
-    
+
     if (room.status == 'صيانة') {
       return Colors.orange.shade600;
     }
 
     // إذا كانت الغرفة محجوزة، نتحقق من حالة تأخر السداد
     if (isPaymentOverdue) {
-      return const Color(0xFF795548); // اللون البني (Brown)
+      final hex = RemoteConfigService.instance.overdueRoomColor;
+      return Color(int.parse('FF$hex', radix: 16));
     }
-    
+
     return Colors.red.shade600; // اللون الأحمر الافتراضي للمحجوز
   }
 }
 
-/// بروفايدر لمراقبة الوقت الحالي (يحدث كل دقيقة)
-final currentTimeProvider = StreamProvider<DateTime>((ref) {
-  return Stream.periodic(const Duration(minutes: 1), (_) => DateTime.now())
-      .asyncMap((_) async => DateTime.now());
-});
+/// بروفايدر يدمج الغرف مع حالة تأخر السداد — يتحدث تلقائياً مع تغييرات DB
+final roomsWithPaymentStatusProvider =
+    StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
+  // استخدام الـ repositories مباشرة للحصول على Streams حقيقية
+  final roomsStream = ref.watch(roomsRepoProvider).watchAll();
+  final bookingsStream = ref.watch(bookingsRepoProvider).watch();
 
-/// بروفايدر يدمج الغرف مع حالة تأخر السداد بناءً على الوقت وحالة الحجز
-final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
-  final roomsAsync = ref.watch(roomsListProvider);
-  final bookingsAsync = ref.watch(bookingsListProvider);
-  final currentTime = ref.watch(currentTimeProvider).value ?? DateTime.now();
+  // دمج الستريمان — أي تغيير في غرف، حجوزات، أو الوقت يُعيد حساب الحالات
+  final controller = StreamController<List<RoomWithPaymentStatus>>();
 
-  // ننتظر حتى تتوفر البيانات من كلا الستريمين
-  if (roomsAsync.value == null || bookingsAsync.value == null) {
-    return const Stream.empty();
-  }
+  // التتبع الأخير لكل ستيرام لتجنب التكرار
+  List<Room>? lastRooms;
+  List<Booking>? lastBookings;
+  DateTime lastTime = DateTime.now();
 
-  final rooms = roomsAsync.value!;
-  final bookings = bookingsAsync.value!;
+  void computeAndEmit() {
+    if (lastRooms == null || lastBookings == null) return;
 
-  final result = rooms.map((room) {
-    bool isPaymentOverdue = false;
+    final currentTime = lastTime;
+    final rooms = lastRooms!;
+    final bookings = lastBookings!;
 
-    // إذا كانت الغرفة محجوزة، نبحث عن الحجز النشط لها
-    if (StatusUtils.isRoomOccupied(room.status)) {
-      // البحث عن الحجز النشط للغرفة (الحالة 'محجوزة')
-      final activeBooking = bookings.where((b) => 
-        b.roomNumber == room.roomNumber && 
-        StatusUtils.isActiveBooking(b.status)
-      ).toList();
+    final result = rooms.map((room) {
+      bool isPaymentOverdue = false;
 
-      if (activeBooking.isNotEmpty) {
-        final booking = activeBooking.first;
-        // التحقق من وجود مبلغ متبقي (لم يسدد بالكامل)
-        final hasRemainingBalance = booking.remainingBalanceCached > 0.1;
-        
-        if (hasRemainingBalance) {
-          final hour = currentTime.hour;
-          
-          // المنطق المطلوب:
-          // يتحول للون البني في حال تأخر النزيل عن السداد إلى الساعة 23 مساءً
-          // ويستمر بني حتى يقوم بالسداد أو يتجاوز الوقت الساعة 6 صباحاً (حيث يعود للأحمر)
-          // ملاحظة: "يتجاوز الوقت الساعة 6 صباحاً يرجع إلى الأحمر" تعني أن الفترة البنية هي [23:00 - 06:00]
-          if (hour >= 23 || hour < 6) {
-            isPaymentOverdue = true;
+      if (StatusUtils.isRoomOccupied(room.status)) {
+        final activeBooking = bookings
+            .where(
+              (b) =>
+                  b.roomNumber == room.roomNumber &&
+                  StatusUtils.isActiveBooking(b.status),
+            )
+            .toList();
+
+        if (activeBooking.isNotEmpty) {
+          final booking = activeBooking.first;
+          final hasRemainingBalance = booking.remainingBalanceCached > 0.1;
+
+          if (hasRemainingBalance) {
+            final hour = currentTime.hour;
+            if (hour >= 23 || hour < 6) {
+              isPaymentOverdue = true;
+            }
           }
         }
       }
+
+      return RoomWithPaymentStatus(
+        room: room,
+        isPaymentOverdue: isPaymentOverdue,
+      );
+    }).toList();
+
+    if (!controller.isClosed) {
+      controller.add(result);
     }
+  }
 
-    return RoomWithPaymentStatus(
-      room: room,
-      isPaymentOverdue: isPaymentOverdue,
-    );
-  }).toList();
+  final roomsSub = roomsStream.listen((rooms) {
+    lastRooms = rooms;
+    computeAndEmit();
+  });
 
-  return Stream.value(result);
+  final bookingsSub = bookingsStream.listen((bookings) {
+    lastBookings = bookings;
+    computeAndEmit();
+  });
+
+  // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر (23:00-06:00)
+  final timer = Timer.periodic(const Duration(minutes: 1), (_) {
+    lastTime = DateTime.now();
+    computeAndEmit();
+  });
+
+  ref.onDispose(() {
+    roomsSub.cancel();
+    bookingsSub.cancel();
+    timer.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });

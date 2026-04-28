@@ -147,7 +147,7 @@ class BatchOperationsService {
           try {
             final doc = await _appwriteService.createDocument(
               collectionId: collectionId,
-              documentId: data['localUuid'] ?? 'unique()',
+              documentId: (data['localUuid'] as String?) ?? 'unique()',
               data: data,
             );
             return {'index': index, 'success': true, 'document': doc};
@@ -175,7 +175,7 @@ class BatchOperationsService {
         try {
           final doc = await _appwriteService.createDocument(
             collectionId: collectionId,
-            documentId: documents[i]['localUuid'] ?? 'unique()',
+            documentId: (documents[i]['localUuid'] as String?) ?? 'unique()',
             data: documents[i],
           );
           successfulItems.add(doc);

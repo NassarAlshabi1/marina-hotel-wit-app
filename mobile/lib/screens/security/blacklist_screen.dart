@@ -95,7 +95,9 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                   ),
                 ),
               Expanded(
-                child: ListView.builder(
+                child: RefreshIndicator(
+                  onRefresh: () => _performSync(ref.read(syncServiceProvider)),
+                  child: ListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
@@ -216,32 +218,52 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                     _openEntryDialog(context, repo, entry: e);
                                     break;
                                   case 'toggle':
-                                    await repo.updateActive(e.id, !e.active);
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          e.active
-                                              ? 'تم تعطيل: ${e.name}'
-                                              : 'تم تفعيل: ${e.name}',
+                                    try {
+                                      await repo.updateActive(e.id, !e.active);
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            e.active
+                                                ? 'تم تعطيل: ${e.name}'
+                                                : 'تم تفعيل: ${e.name}',
+                                          ),
+                                          backgroundColor:
+                                              e.active ? Colors.orange : Colors.green,
                                         ),
-                                        backgroundColor:
-                                            e.active ? Colors.orange : Colors.green,
-                                      ),
-                                    );
+                                      );
+                                    } catch (err) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('فشل تحديث الحالة: $err'),
+                                          backgroundColor: Colors.red.shade900,
+                                        ),
+                                      );
+                                    }
                                     break;
                                   case 'delete':
                                     final confirmed =
                                         await _showDeleteConfirmDialog(context, e.name);
                                     if (confirmed == true) {
-                                      await repo.delete(e.id);
-                                      if (!mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('تم حذف: ${e.name}'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                      try {
+                                        await repo.delete(e.id);
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('تم حذف: ${e.name}'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      } catch (err) {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('فشل الحذف: $err'),
+                                            backgroundColor: Colors.red.shade900,
+                                          ),
+                                        );
+                                      }
                                     }
                                     break;
                                 }
@@ -288,6 +310,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                       ),
                     );
                   },
+                ),
                 ),
               ),
             ],

@@ -323,9 +323,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   }
 
   Widget _buildDataTransferCard(Map<String, dynamic> stats) {
-    final recordsPushed = stats['totalRecordsPushed'] ?? 0;
-    final recordsPulled = stats['totalRecordsPulled'] ?? 0;
-    final conflicts = stats['totalConflicts'] ?? 0;
+    final recordsPushed = (stats['totalRecordsPushed'] as num?)?.toInt() ?? 0;
+    final recordsPulled = (stats['totalRecordsPulled'] as num?)?.toInt() ?? 0;
+    final conflicts = (stats['totalConflicts'] as num?)?.toInt() ?? 0;
 
     final maxValue = [
       recordsPushed,
@@ -484,7 +484,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   }
 
   Widget _buildLastSyncCard(Map<String, dynamic> stats) {
-    final lastSyncTime = stats['lastSyncTime'];
+    final lastSyncTime = stats['lastSyncTime'] as String?;
 
     return Card(
       child: Padding(

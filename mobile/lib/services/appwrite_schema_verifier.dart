@@ -563,7 +563,7 @@ class AppwriteSchemaVerifier {
 
     if (missingCollections > 0) {
       debugPrint('⚠️  الجداول الناقصة:');
-      for (final missing in results['missing']) {
+      for (final missing in (results['missing'] as List)) {
         debugPrint('   - $missing');
       }
       debugPrint('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');

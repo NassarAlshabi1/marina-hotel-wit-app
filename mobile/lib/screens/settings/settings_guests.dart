@@ -6,6 +6,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -98,13 +99,21 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
                   // قائمة الضيوف
                   Expanded(
-                    child: ListView.builder(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(roomsListProvider);
+                      },
+                      child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: filteredGuests.length,
                       itemBuilder: (context, index) {
                         final guest = filteredGuests[index];
-                        return _buildGuestCard(context, guest, roomPrices);
+                        return RepaintBoundary(
+                          child: _buildGuestCard(context, guest, roomPrices),
+                        );
                       },
+                      ),
                     ),
                   ),
                 ],
@@ -936,9 +945,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
-    final active = guest.bookings
+    final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
-        .length;
+        .toList();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
@@ -946,7 +955,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         child: AlertDialog(
           title: const Text('تأكيد حذف الضيف وكل البيانات المرتبطة'),
           content: Text(
-            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟',
+            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${activeBookings.isNotEmpty ? '\n\nتحذير: هناك ${activeBookings.length} حجوزات نشطة سيتم عمل checkout ثم حذفها.' : ''}\n\nهل تريد المتابعة؟',
           ),
           actions: [
             TextButton(
@@ -967,54 +976,80 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final paymentsRepo = ref.read(paymentsRepoProvider);
-      final notesRepo = ref.read(notesRepoProvider);
-      final debtsRepo = ref.read(debtsRepoProvider);
-      final cashRepo = ref.read(cashRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final notesRepo = ref.read(notesRepoProvider);
 
-      for (final b in guest.bookings) {
-        final bookingId = b.id;
-        // حذف الملاحظات المرتبطة بالحجز
-        final notes = await notesRepo.dao.list(bookingId: bookingId);
-        for (final n in notes) {
-          await notesRepo.delete(n.id);
-        }
-        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
-        final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
-        for (final p in pays) {
-          if (p.cashTransactionLocalId != null) {
-            await cashRepo.delete(p.cashTransactionLocalId!);
-          }
-          await paymentsRepo.delete(p.id);
-        }
-        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
-        final relatedCash = await cashRepo.listByReference(
-          referenceType: 'booking',
-          referenceId: bookingId,
+      if (guest.bookings.isEmpty) return;
+
+      // ─── 1. Checkout للحجوزات النشطة (مع مزامنة Appwrite) ───
+      final nowIso = Time.nowIso();
+      final freedRooms = <String>{};
+      for (final booking in activeBookings) {
+        await bookingsRepo.update(
+          booking.id,
+          status: 'مكتمل',
+          actualCheckout: nowIso,
         );
-        for (final tx in relatedCash) {
-          await cashRepo.delete(tx.id);
+        if (booking.roomNumber.isNotEmpty) {
+          freedRooms.add(booking.roomNumber);
         }
-        // حذف الديون المرتبطة بالحجز
-        final debts = await debtsRepo.listByBookingLocalId(bookingId);
-        for (final d in debts) {
-          await debtsRepo.delete(d.id);
+      }
+
+      // ─── 2. تحرير الغرف ───
+      for (final roomNumber in freedRooms) {
+        final room = await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
         }
-        // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
-        if (b.roomNumber.isNotEmpty) {
-          final room = await roomsRepo.watchByNumber(b.roomNumber).first;
-          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-            await roomsRepo.update(room.id, status: 'شاغرة');
-          }
+      }
+
+      // ─── 3. حذف الملاحظات (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final notes = await notesRepo.watchByBooking(booking.id).first;
+        for (final note in notes) {
+          await notesRepo.delete(note.id);
         }
-        // حذف الحجز نفسه
-        await bookingsRepo.delete(bookingId);
+      }
+
+      // ─── 4. حذف المدفوعات (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
+        for (final payment in payments) {
+          await paymentsRepo.delete(payment.id);
+        }
+      }
+
+      // ─── 5. حذف الديون (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
+        for (final debt in bookingDebts) {
+          await debtsRepo.delete(debt.id);
+        }
+      }
+
+      // ─── 6. حذف الحجوزات نفسها (soft delete مع outbox للمزامنة مع Appwrite) ───
+      for (final booking in guest.bookings) {
+        await bookingsRepo.delete(booking.id);
+      }
+
+      // ─── 7. تحرير الغرف المتبقية المرتبطة بالحجوزات غير النشطة ───
+      final allRoomNumbers = guest.bookings
+          .where((b) => b.roomNumber.isNotEmpty)
+          .map((b) => b.roomNumber)
+          .toSet()
+          .difference(freedRooms);
+      for (final roomNumber in allRoomNumbers) {
+        final room = await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')),
+        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة')),
       );
     } catch (e) {
       if (!mounted) return;

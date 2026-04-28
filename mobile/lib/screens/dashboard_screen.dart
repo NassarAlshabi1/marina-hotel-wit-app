@@ -13,6 +13,7 @@ import '../widgets/dashboard_sync_button.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/sync_constants.dart';
+import '../services/remote_config_service.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/local_db.dart';
@@ -163,6 +164,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } catch (e) {
       debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
     }
+  }
+
+  /// لون الغرفة المتأخرة عن السداد — يُقرأ من Remote Config
+  Color _overdueColor() {
+    final hex = RemoteConfigService.instance.overdueRoomColor;
+    return Color(int.parse('FF$hex', radix: 16));
   }
 
   @override
@@ -423,7 +430,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendItem('متأخر', const Color(0xFF795548)),
+              _buildLegendItem('متأخر', _overdueColor()),
               const SizedBox(width: 8),
               _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
@@ -584,10 +591,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
 
       if (isAvailable) {
+        // الانتقال مباشرة إلى شاشة إضافة حجز جديد عند النقر على غرفة شاغرة
         _navigateToNewBooking(context, roomNumber);
       } else if (isOccupied) {
+        // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
         await _navigateToPaymentForRoom(context, roomNumber);
       } else {
+        // للحالات الأخرى مثل الصيانة
         _showRoomDetailsDialog(context, room);
       }
     } else {
@@ -683,15 +693,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Align(
       alignment: Alignment.centerRight,
       child: Directionality(
-        textDirection: ui.TextDirection.ltr,
+        textDirection: ui.TextDirection.rtl,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildInstructionDot(Colors.red.shade600, 'الغرفة محجوزة'),
+            _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
             const SizedBox(width: 12),
-            _buildInstructionDot(Colors.green.shade600, 'الغرفة متاحة'),
+            _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
             const SizedBox(width: 12),
-            _buildInstructionDot(const Color(0xFF795548), 'تأخر في السداد'),
+            _buildInstructionDot(_overdueColor(), 'تأخر سداد'),
           ],
         ),
       ),

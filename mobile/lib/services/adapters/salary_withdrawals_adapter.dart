@@ -49,6 +49,21 @@ class SalaryWithdrawalsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+    // دعم الحقول القديمة من Appwrite (date, action, note, notes, expenseId)
+    // عند السحب من السيرفر، قد تأتي بالحقل القديم أو الجديد
+    final appwriteDate = _asString(json, 'date', src);
+    final appwriteAction = _asString(json, 'action', src);
+    final appwriteNote = _asString(json, 'note', src);
+    final appwriteNotes = _asString(json, 'notes', src);
+    final appwriteExpenseId = _asInt(json, 'expenseId', src);
+    final wd = _asString(json, 'withdrawDate', src) ?? appwriteDate ?? '';
+    final wt = _asString(json, 'withdrawalType', src) ?? appwriteAction;
+    final desc = _asString(json, 'description', src) ?? appwriteNotes ?? appwriteNote;
+    String? reasonVal = _asString(json, 'reason', src);
+    if (reasonVal == null && appwriteExpenseId != null) {
+      reasonVal = 'exp_$appwriteExpenseId';
+    }
+
     return SalaryWithdrawalsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -59,27 +74,16 @@ class SalaryWithdrawalsAdapter
       serverId: _vInt(json, 'serverId', src),
       employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: _vDouble(json, 'amount', src, fallback: 0),
-      withdrawDate: _vStr(
-        json,
-        'withdrawDate',
-        src,
-        altKey: 'withdraw_date',
-        fallback: '',
-      ),
-      reason: _vStr(json, 'reason', src),
+      withdrawDate: d.Value(wd),
+      reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(
         json,
         'hotelDayKey',
         src,
         altKey: 'hotel_day_key',
       ),
-      withdrawalType: _vStr(
-        json,
-        'withdrawalType',
-        src,
-        altKey: 'withdrawal_type',
-      ),
-      description: _vStr(json, 'description', src),
+      withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
+      description: desc != null ? d.Value(desc) : const d.Value.absent(),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -108,7 +112,13 @@ class SalaryWithdrawalsAdapter
 
   @override
   Map<String, dynamic> toJson(SalaryWithdrawal model, {required Source src}) {
-    return {
+    // استخراج expenseId من حقل reason (الصيغة: "exp_123")
+    int? expenseId;
+    if (model.reason != null && model.reason!.startsWith('exp_')) {
+      expenseId = int.tryParse(model.reason!.substring(4));
+    }
+
+    final map = <String, dynamic>{
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
@@ -127,6 +137,17 @@ class SalaryWithdrawalsAdapter
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
+
+    // حقول إضافية مطلوبة من Appwrite Schema
+    // الحقول date و action مطلوبة (REQUIRED) في Appwrite
+    if (src == Source.appwrite) {
+      map['date'] = model.withdrawDate;
+      map['action'] = model.withdrawalType;
+      map['note'] = model.description;
+      map['expenseId'] = expenseId;
+    }
+
+    return map;
   }
 }
 

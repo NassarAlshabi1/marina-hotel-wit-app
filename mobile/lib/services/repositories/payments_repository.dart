@@ -6,7 +6,8 @@ import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
-import '../telegram/telegram_notification_service.dart';
+import '../telegram/whatsapp_notification_service.dart';
+import '../crashlytics_service.dart';
 import '../../utils/time.dart';
 
 class PaymentsRepository {
@@ -45,6 +46,18 @@ class PaymentsRepository {
       dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
+  /// مراقبة مدفوعات يوم فندقي محدد (فلتر على مستوى قاعدة البيانات - أداء أفضل)
+  /// يتضمن المدفوعات التي لها hotelDayKey مطابق أو التي hotelDayKey فارغ وتاريخها ضمن اليوم
+  Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
+    return dao.watchByHotelDayKey(hotelDayKey).map((payments) {
+      double total = 0;
+      for (final p in payments) {
+        total += p.amount;
+      }
+      return total;
+    });
+  }
+
   Future<int> create({
     int? bookingLocalId,
     int? serverBookingId,
@@ -56,6 +69,7 @@ class PaymentsRepository {
     required String revenueType,
     bool isPendingBalance = false,
   }) async {
+    try {
     final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
 
     String? bookingUuidCache;
@@ -92,6 +106,17 @@ class PaymentsRepository {
     // إشعار Lark عند استلام دفعة (fire-and-forget)
     _notifyLarkPayment(roomNumber, amount, paymentMethod, bookingLocalId);
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'PaymentsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'amount': '$amount', 'method': paymentMethod, 'bookingId': '$bookingLocalId'},
+      );
+      rethrow;
+    }
   }
 
   /// إرسال إشعار Lark عند استلام دفعة
@@ -114,7 +139,7 @@ class PaymentsRepository {
         paymentMethod: paymentMethod,
         remaining: booking.remainingBalanceCached,
       );
-      TelegramNotificationService.instance.notifyPayment(
+      WhatsAppNotificationService.instance.notifyPayment(
         roomNumber: roomNumber ?? booking.roomNumber,
         guestName: booking.guestName,
         amount: amount,
@@ -230,7 +255,7 @@ class PaymentsRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
+        List<Map<String, dynamic>>.from(data['data'] as List),
         clearExisting: false,
       );
     }
@@ -260,19 +285,14 @@ class PaymentsRepository {
     String hotelDayKey, {
     String? revenueType,
   }) async {
-    try {
-      final payments = await dao.listByHotelDayKey(
-        hotelDayKey,
-        revenueType: revenueType,
-      );
-      double total = 0;
-      for (final payment in payments) {
-        total += payment.amount;
-      }
-      return total;
-    } catch (e) {
-      debugPrint('Error calculating total payments: $e');
-      return 0.0;
+    final payments = await dao.listByHotelDayKey(
+      hotelDayKey,
+      revenueType: revenueType,
+    );
+    double total = 0;
+    for (final payment in payments) {
+      total += payment.amount;
     }
+    return total;
   }
 }

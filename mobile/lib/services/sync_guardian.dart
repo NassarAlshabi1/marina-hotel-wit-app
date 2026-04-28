@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
 import '../tasks/auto_sync_task.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
@@ -109,7 +110,9 @@ class SyncGuardian {
         debugPrint('⚠️ فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.warning('فشل فحص حماية المزامنة', tag: 'SYNC_GUARD', error: e, stackTrace: st);
+        }
       } finally {
         _emitHealth();
       }

@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 /// ألوان مخصصة للـ PDF
 class PdfColors {
-  static const primary = PdfColor(1.0, 0.8, 0.502);
+  static const primary = PdfColor(0.706, 0.420, 0.0);  // #b46b00
   static const secondary = PdfColor(0.85, 0.65, 0.13);
   static const accent = PdfColor(0.0, 0.48, 0.65);
   static const textDark = PdfColor(0.15, 0.15, 0.15);
@@ -72,7 +72,7 @@ class PdfTextStyles {
     font: font,
     fontSize: 11,
     fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textWhite,
+    color: PdfColors.textDark,
   );
 
   static pw.TextStyle tableCell(pw.Font font) =>
@@ -523,9 +523,9 @@ class EnhancedPdfUtils {
     return '$day ${dateTime.day} $month ${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
-  /// تنسيق المبلغ بالعملة
+  /// تنسيق المبلغ بالعملة مع فواصل الآلاف
   static String formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(0)}';
+    return formatNumber(amount);
   }
 
   /// تنسيق الأرقام بالفواصل

@@ -5,9 +5,9 @@ class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
 
-  /// تقريب المبلغ بشكل صحيح (banker's rounding avoided, standard rounding)
+  /// تقريب المبلغ بشكل صحيح
   static int _roundAmount(double amount) {
-    return (amount + 0.5).floor();
+    return amount.round();
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
@@ -18,34 +18,24 @@ class CurrencyFormatter {
     return _intFormatter.format(_roundAmount(amount));
   }
 
-  /// تنسيق المبلغ بالفواصل فقط (5,000)
-  static String formatAmount(double amount, {bool showDecimals = false}) {
-    if (showDecimals) {
-      return _decimalFormatter.format(amount);
-    }
-    return _intFormatter.format(_roundAmount(amount));
-  }
+  /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
+  static String formatAmount(double amount, {bool showDecimals = false}) =>
+      formatCurrency(amount, showDecimals: showDecimals);
 
-  /// تنسيق المبلغ بالفواصل الإنجليزية (للأنظمة التي لا تدعم الفواصل العربية)
+  /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
   static String formatCurrencyEnglish(
     double amount, {
     bool showDecimals = false,
-  }) {
-    if (showDecimals) {
-      return _decimalFormatter.format(amount);
-    }
-    return _intFormatter.format(_roundAmount(amount));
-  }
+  }) =>
+      formatCurrency(amount, showDecimals: showDecimals);
 
-  /// تنسيق المبلغ للعرض في واجهة المستخدم (أرقام فقط)
-  static String formatForDisplay(double amount, {bool showDecimals = false}) {
-    return formatAmount(amount, showDecimals: showDecimals);
-  }
+  /// تنسيق المبلغ للعرض — مرادف لـ formatCurrency
+  static String formatForDisplay(double amount, {bool showDecimals = false}) =>
+      formatCurrency(amount, showDecimals: showDecimals);
 
-  /// تنسيق المبلغ للرسائل النصية (أرقام فقط)
-  static String formatForMessage(double amount, {bool showDecimals = false}) {
-    return formatAmount(amount, showDecimals: showDecimals);
-  }
+  /// تنسيق المبلغ للرسائل — مرادف لـ formatCurrency
+  static String formatForMessage(double amount, {bool showDecimals = false}) =>
+      formatCurrency(amount, showDecimals: showDecimals);
 
   /// تحويل المبلغ من النص إلى رقم
   static double? parseAmount(String text) {

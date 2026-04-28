@@ -139,7 +139,7 @@ class RetryStrategy {
       }
     }
 
-    throw lastError ?? Exception('فشلت جميع المحاولات');
+    throw lastError as Object;
   }
 
   Future<T?> executeWithFallback<T>({

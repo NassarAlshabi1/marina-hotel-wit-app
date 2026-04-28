@@ -5,6 +5,7 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "**/generated_plugin_registrant.dart"
+    - "test/**"
   errors:
     invalid_annotation_target: ignore
     
@@ -18,6 +19,13 @@ analyzer:
 
 linter:
   rules:
+    # Code quality rules
+    avoid_print: true
+    always_declare_return_types: true
+    avoid_empty_else: true
+    directives_ordering: true
+    overridden_fields: true
+
     # Style rules
     avoid_single_cascade_in_expression_statements: true
     avoid_unnecessary_containers: true
@@ -39,7 +47,6 @@ linter:
     noop_primitive_operations: true
     null_check_on_nullable_type_parameter: true
     only_throw_errors: true
-    package_api_docs: true
     prefer_asserts_in_initializer_lists: true
     prefer_const_constructors: true
     prefer_const_constructors_in_immutables: true
@@ -75,7 +82,6 @@ linter:
     unnecessary_string_escapes: true
     unnecessary_string_interpolations: true
     unnecessary_to_list_in_spreads: true
-    unsafe_html: true
     use_colored_box: true
     use_decorated_box: true
     use_enums: true

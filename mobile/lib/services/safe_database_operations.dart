@@ -156,7 +156,7 @@ class SafeDatabaseOperations {
                 controller.add(data);
               }
             },
-            onError: (error, stackTrace) {
+            onError: (Object error, StackTrace stackTrace) {
               final errorStr = error.toString();
               if (errorStr.contains('connection was closed') ||
                   errorStr.contains('isolate channel') ||

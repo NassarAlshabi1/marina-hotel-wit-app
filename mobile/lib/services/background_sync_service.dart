@@ -91,7 +91,7 @@ class BackgroundSyncService {
           requiresBatteryNotLow: requiresBatteryNotLow,
           requiresStorageNotLow: _requiresStorageNotLow,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
       developer.log(
@@ -130,7 +130,7 @@ class BackgroundSyncService {
         constraints: Constraints(
           networkType: requireNetwork
               ? NetworkType.connected
-              : NetworkType.not_required,
+              : NetworkType.connected,
           requiresCharging: requireCharging,
         ),
         existingWorkPolicy: ExistingWorkPolicy.replace,
@@ -167,7 +167,7 @@ class BackgroundSyncService {
           requiresCharging: !settings.syncOnBattery,
           requiresBatteryNotLow: settings.minBatteryPercentage > 20,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
       developer.log(
@@ -215,6 +215,15 @@ class BackgroundSyncService {
     }
   }
 
+  /// تنظيف آمن للمثيل Singleton
+  void dispose() {
+    _isInitialized = false;
+  }
+
+  static void disposeInstance() {
+    _instance.dispose();
+  }
+
   /// تشغيل المزامنة اليدوية في الخلفية
   static Future<bool> executeBackgroundSync() async {
     developer.log(
@@ -247,9 +256,8 @@ class BackgroundSyncService {
       }
 
       // تنفيذ المزامنة
-      final syncManager = SmartSyncManager();
-      await syncManager.initialize();
-      await syncManager.syncNow(null);
+      final syncManager = SmartSyncManager.instance;
+      await syncManager.syncNow();
 
       stopwatch.stop();
 

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
-import '../../models/payment_models.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 
 class PaymentsListScreen extends ConsumerStatefulWidget {
@@ -23,7 +22,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   String? _filterMethod;
   String? _filterType;
   String _sortOrder = 'desc';
-  bool _isLoading = false;
 
   final List<String> _methods = ['نقدي', 'تحويل', 'بطاقة', 'شيك', 'تقسيط'];
   final List<MapEntry<String, String>> _types = const [
@@ -167,7 +165,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 6),
                             itemBuilder: (context, index) {
-                              return _buildPaymentCard(filtered[index]);
+                              return RepaintBoundary(
+                                child: _buildPaymentCard(filtered[index]),
+                              );
                             },
                           ),
                         ),
@@ -220,8 +220,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   Widget _buildFilterChips() {
-    final hasFilters = _filterMethod != null || _filterType != null;
-
     return Container(
       height: 44,
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -315,23 +313,23 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   Widget _buildStatsBar(List payments) {
-    final total = payments.fold<double>(0, (s, p) => s + p.amount);
+    final total = payments.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
     final now = DateTime.now();
     final today = payments.where((p) {
       try {
-        final d = DateTime.parse(p.paymentDate);
+        final d = DateTime.parse(p.paymentDate as String);
         return d.year == now.year && d.month == now.month && d.day == now.day;
       } catch (_) {
         return false;
       }
     });
-    final todayTotal = today.fold<double>(0, (s, p) => s + p.amount);
+    final todayTotal = today.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
     final cashTotal = payments
         .where((p) => p.paymentMethod == 'نقدي')
-        .fold<double>(0, (s, p) => s + p.amount);
+        .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
     final transferTotal = payments
         .where((p) => p.paymentMethod == 'تحويل')
-        .fold<double>(0, (s, p) => s + p.amount);
+        .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
 
     return Container(
       margin: const EdgeInsets.all(12),
@@ -425,11 +423,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   Widget _buildPaymentCard(dynamic payment) {
-    final methodColor = _getMethodColor(payment.paymentMethod);
-    final methodIcon = _getMethodIcon(payment.paymentMethod);
-    final revenueLabel = _getRevenueLabel(payment.revenueType);
-    final formattedDate = _formatDate(payment.paymentDate);
-    final isToday = _isToday(payment.paymentDate);
+    final methodColor = _getMethodColor(payment.paymentMethod as String);
+    final methodIcon = _getMethodIcon(payment.paymentMethod as String);
+    final revenueLabel = _getRevenueLabel(payment.revenueType as String);
+    final formattedDate = _formatDate(payment.paymentDate as String);
+    final isToday = _isToday(payment.paymentDate as String);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -465,7 +463,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     Row(
                       children: [
                         Text(
-                          CurrencyFormatter.formatAmount(payment.amount),
+                          CurrencyFormatter.formatAmount((payment.amount as num).toDouble()),
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -516,7 +514,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                         Icon(Icons.payment, size: 13, color: Colors.grey.shade500),
                         const SizedBox(width: 3),
                         Text(
-                          payment.paymentMethod,
+                          payment.paymentMethod as String,
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade600,
@@ -538,7 +536,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     ),
                     // الصف الثالث: ملاحظات
                     if (payment.notes != null &&
-                        payment.notes!.trim().isNotEmpty) ...[
+                        (payment.notes as String).trim().isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Row(
                         children: [
@@ -547,7 +545,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
-                              payment.notes!,
+                              payment.notes as String,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -566,7 +564,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
               const SizedBox(width: 8),
               // رقم الغرفة
               if (payment.roomNumber != null &&
-                  payment.roomNumber!.trim().isNotEmpty)
+                  (payment.roomNumber as String).trim().isNotEmpty)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -582,7 +580,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                           size: 12, color: Colors.blue.shade400),
                       const SizedBox(height: 1),
                       Text(
-                        payment.roomNumber!,
+                        payment.roomNumber as String,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -594,7 +592,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                 ),
               // سهم التنقل
               if (payment.roomNumber == null ||
-                  payment.roomNumber!.trim().isEmpty)
+                  (payment.roomNumber as String).trim().isEmpty)
                 Icon(Icons.chevron_left, color: Colors.grey.shade400, size: 20),
             ],
           ),
@@ -608,10 +606,10 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   void _showPaymentDetails(dynamic payment) {
-    final methodColor = _getMethodColor(payment.paymentMethod);
-    final revenueLabel = _getRevenueLabel(payment.revenueType);
-    final formattedDate = _formatDate(payment.paymentDate);
-    final isToday = _isToday(payment.paymentDate);
+    final methodColor = _getMethodColor(payment.paymentMethod as String);
+    final revenueLabel = _getRevenueLabel(payment.revenueType as String);
+    final formattedDate = _formatDate(payment.paymentDate as String);
+    final isToday = _isToday(payment.paymentDate as String);
 
     showDialog(
       context: context,
@@ -631,7 +629,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  _getMethodIcon(payment.paymentMethod),
+                  _getMethodIcon(payment.paymentMethod as String),
                   color: methodColor,
                   size: 18,
                 ),
@@ -644,25 +642,25 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _detailDivider('المبلغ', CurrencyFormatter.formatAmount(payment.amount),
+              _detailDivider('المبلغ', CurrencyFormatter.formatAmount((payment.amount as num).toDouble()),
                   icon: Icons.payments_outlined, color: Colors.green),
-              _detailDivider('طريقة الدفع', payment.paymentMethod,
-                  icon: _getMethodIcon(payment.paymentMethod),
+              _detailDivider('طريقة الدفع', payment.paymentMethod as String,
+                  icon: _getMethodIcon(payment.paymentMethod as String),
                   color: methodColor),
               _detailDivider('نوع الإيراد', revenueLabel,
                   icon: Icons.category, color: Colors.amber.shade700),
               _detailDivider('التاريخ', isToday ? '$formattedDate (اليوم)' : formattedDate,
                   icon: Icons.event, color: isToday ? Colors.green : Colors.blue),
               if (payment.roomNumber != null &&
-                  payment.roomNumber!.trim().isNotEmpty)
-                _detailDivider('رقم الغرفة', payment.roomNumber!,
+                  (payment.roomNumber as String).trim().isNotEmpty)
+                _detailDivider('رقم الغرفة', payment.roomNumber as String,
                     icon: Icons.hotel, color: Colors.indigo),
               if (payment.referenceNumber != null &&
-                  payment.referenceNumber!.trim().isNotEmpty)
-                _detailDivider('رقم المرجع', payment.referenceNumber!,
+                  (payment.referenceNumber as String).trim().isNotEmpty)
+                _detailDivider('رقم المرجع', payment.referenceNumber as String,
                     icon: Icons.numbers, color: Colors.purple),
-              if (payment.notes != null && payment.notes!.trim().isNotEmpty)
-                _detailDivider('ملاحظات', payment.notes!,
+              if (payment.notes != null && (payment.notes as String).trim().isNotEmpty)
+                _detailDivider('ملاحظات', payment.notes as String,
                     icon: Icons.notes, color: Colors.grey),
             ],
           ),
@@ -759,20 +757,20 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
         final amountMatch =
-            CurrencyFormatter.formatAmount(p.amount).contains(q);
-        final methodMatch = p.paymentMethod.toLowerCase().contains(q);
-        final roomMatch = (p.roomNumber ?? '').toLowerCase().contains(q);
-        final notesMatch = (p.notes ?? '').toLowerCase().contains(q);
+            CurrencyFormatter.formatAmount((p.amount as num).toDouble()).contains(q);
+        final methodMatch = (p.paymentMethod as String).toLowerCase().contains(q);
+        final roomMatch = ((p.roomNumber as String?) ?? '').toLowerCase().contains(q);
+        final notesMatch = ((p.notes as String?) ?? '').toLowerCase().contains(q);
         if (!amountMatch && !methodMatch && !roomMatch && !notesMatch) {
           return false;
         }
       }
       // فلتر طريقة الدفع
-      if (_filterMethod != null && p.paymentMethod != _filterMethod) {
+      if (_filterMethod != null && (p.paymentMethod as String) != _filterMethod) {
         return false;
       }
       // فلتر نوع الإيراد
-      if (_filterType != null && p.revenueType != _filterType) {
+      if (_filterType != null && (p.revenueType as String) != _filterType) {
         return false;
       }
       return true;
@@ -781,8 +779,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     // ترتيب حسب التاريخ
     result.sort((a, b) {
       try {
-        final dateA = DateTime.parse(a.paymentDate);
-        final dateB = DateTime.parse(b.paymentDate);
+        final dateA = DateTime.parse(a.paymentDate as String);
+        final dateB = DateTime.parse(b.paymentDate as String);
         return _sortOrder == 'desc'
             ? dateB.compareTo(dateA)
             : dateA.compareTo(dateB);

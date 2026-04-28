@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'utils/theme.dart';
 import 'utils/env.dart';
+import 'utils/hotel_day_ticker.dart';
 
 import 'screens/dashboard_screen.dart';
 import 'screens/rooms/rooms_list.dart';
@@ -21,6 +22,7 @@ import 'screens/payments/payments_main_screen.dart';
 import 'screens/debts/debts_list.dart';
 import 'screens/notes/notes_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/ai/ai_chat_screen.dart';
 import 'screens/security/blacklist_screen.dart';
 import 'screens/information/information_screen.dart';
 import 'screens/auth/google_drive_login_screen.dart';
@@ -44,38 +46,78 @@ import 'services/unified_sync_orchestrator.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/central_sync_coordinator.dart';
+import 'services/background_sync_service.dart';
+import 'services/sync_conflict_event_bus.dart';
 import 'services/logging/log_models.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/sync_queue_service.dart';
 import 'services/api_config_service.dart';
 import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_sync_manager.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/fcm_service.dart';
+import 'services/crashlytics_service.dart';
+import 'services/remote_config_service.dart';
 import 'services/sync_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'services/connectivity_service.dart';
 import 'services/sync_constants.dart';
+import 'services/battery_optimizer.dart';
+import 'services/sync_performance_optimizer.dart';
+import 'services/alarm_backup.dart';
+import 'services/appwrite_realtime_service.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 
 import 'components/admin_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
+  try {
+    await Firebase.initializeApp();
+    debugPrint('✅ Firebase Core initialized');
+  } catch (e) {
+    debugPrint('⚠️ Firebase Core initialization failed: $e');
+    debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+  }
+
+  // ─── Crashlytics: تهيئة قبل كل شيء ───
+  await CrashlyticsService.instance.initialize();
+
+  // ─── Remote Config: تهيئة مبكراً ───
+  await RemoteConfigService.instance.initialize();
+
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
 
-  FlutterError.onError = (details) {
-    DiagnosticsLogger.instance.recordFlutterError(details);
-    FlutterError.presentError(details);
-  };
+  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
+  unawaited(AlarmBackup.initAlarmSystem());
 
-  PlatformDispatcher.instance.onError = (error, stack) {
-    DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'PLATFORM',
-      level: LogLevel.critical,
-    );
-    return true;
-  };
+  // ─── ربط Crashlytics + DiagnosticsLogger ───
+  CrashlyticsService.instance.setupErrorHandlers(
+    originalFlutterHandler: (details) {
+      DiagnosticsLogger.instance.recordFlutterError(details);
+      FlutterError.presentError(details);
+    },
+    originalPlatformHandler: (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'PLATFORM',
+        level: LogLevel.critical,
+      );
+    },
+    originalZonedHandler: (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
+  );
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -85,12 +127,21 @@ Future<void> main() async {
   debugPrint('BASE_API_URL=' + Env.baseApiUrl);
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
-    (error, stack) => DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'ZONED',
-      level: LogLevel.critical,
-    ),
+    (error, stack) async {
+      // إرسال الخطأ إلى Crashlytics
+      await CrashlyticsService.instance.recordUnexpectedError(
+        error: error,
+        stackTrace: stack,
+        context: 'runZonedGuarded',
+      );
+      // تسجيل محلي
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
   );
 
   unawaited(_initializeFullyAutomatedSyncSystem());
@@ -199,7 +250,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await SyncQueueService.instance.initialize();
 
-    _setupEngineMonitoring(autoSyncEngine);
+    _startEngineMonitoring(autoSyncEngine);
 
     debugPrint('✅ Auto Sync Engine started');
 
@@ -293,41 +344,17 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('✅ Configuration complete');
 }
 
-void _setupEngineMonitoring(AutoSyncEngine engine) {
-  debugPrint('📊 Setting up engine state monitoring...');
+/// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
+StreamSubscription? _globalEngineMonitoringSub;
 
-  engine.stateStream.listen((state) {
-    final statusIcon = state.isRunning ? '🟢' : '🔴';
-    final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
-    final authIcon = state.isSignedIn ? '🔐' : '🔓';
-
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    debugPrint('📊 ENGINE STATE UPDATE');
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━====');
-    debugPrint('$statusIcon Running: ${state.isRunning}');
-    debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
-    debugPrint('$authIcon Signed in: ${state.isSignedIn}');
-    debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
-    debugPrint(
-      '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
-    );
-    debugPrint('❌ Failed attempts: ${state.failedAttempts}');
-
-    if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!
-          .difference(DateTime.now())
-          .inSeconds;
-      debugPrint('⏰ Next retry in: ${secondsUntil}s');
-    }
-
-    if (state.lastError != null) {
-      debugPrint('⚠️ Last error: ${state.lastError}');
-    }
-
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+void _startEngineMonitoring(AutoSyncEngine engine) {
+  _globalEngineMonitoringSub?.cancel();
+  _globalEngineMonitoringSub = engine.stateStream.listen((state) {
+    debugPrint('📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+        'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+        'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+        'Pending: ${state.pendingChangesCount}');
   });
-
-  debugPrint('✅ Monitoring setup complete');
 }
 
 class App extends ConsumerStatefulWidget {
@@ -341,7 +368,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
   bool _initialLocalSyncDone = false;
-  DateTime? _lastAppwriteAutoPull;
   StreamSubscription? _localAutoSyncSub;
   Timer? _localAutoSyncDebounce;
   DateTime? _lastLocalAutoSync;
@@ -392,6 +418,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         _sessionConfigured = true;
         _startRealtimeSync();
         _startLocalAutoSync(database);
+        _listenForSyncConflicts();
         if (!_initialLocalSyncDone) {
           _initialLocalSyncDone = true;
           unawaited(_runLocalAutoSync());
@@ -509,6 +536,39 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncSub = watch.watch().listen((_) => _scheduleLocalAutoSync());
   }
 
+  /// الاستماع لأحداث تضاربات المزامنة وعرض إشعارات للمستخدم
+  StreamSubscription<SyncConflictEvent>? _conflictSubscription;
+  void _listenForSyncConflicts() {
+    _conflictSubscription?.cancel();
+    _conflictSubscription = SyncConflictEventBus.instance.events.listen(
+      (event) {
+        if (!mounted || !_sessionConfigured) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger == null) return;
+        final tableNames = {
+          'bookings': 'حجوزات',
+          'payments': 'مدفوعات',
+          'debts': 'ديون',
+          'expenses': 'مصروفات',
+          'rooms': 'غرف',
+          'employees': 'موظفين',
+        };
+        final tableName = tableNames[event.table] ?? event.table;
+        final sideText = event.winnerSide == 'local'
+            ? 'الإصدار المحلي'
+            : 'إصدار السيرفر';
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('تضارب في $tableName: تم تفضيل $sideText'),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+    );
+  }
+
   void _scheduleLocalAutoSync() {
     if (_localAutoSyncRunning) {
       return;
@@ -540,16 +600,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _autoPullLatestFromAppwrite() async {
-    try {
-      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await syncManager.initialize();
-      await syncManager.pullRemoteChanges();
-      _lastAppwriteAutoPull = DateTime.now();
-    } catch (e) {
-      debugPrint('❌ Appwrite auto-pull error: $e');
-    }
-  }
 
   /// تهيئة FCM للإشعارات بين الأجهزة
   Future<void> _initializeFcm(dynamic syncManager) async {
@@ -557,7 +607,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
-      syncManager: syncManager,
+      syncManager: syncManager as AppwriteSyncManager,
       realtimeSync: AppwriteRealtimeSync(),
     );
 
@@ -571,15 +621,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('✅ FCM ready — cross-device notifications enabled');
   }
 
-  Future<void> _autoPullAppwriteOnResume() async {
-    final last = _lastAppwriteAutoPull;
-    if (last != null &&
-        DateTime.now().difference(last) < const Duration(seconds: 30)) {
-      return;
-    }
-    await _autoPullLatestFromAppwrite();
-  }
-
   /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
   Future<void> _syncOnResume() async {
     try {
@@ -587,7 +628,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // push: رفع أي تغييرات معلقة في الـ outbox
       // pull: سحب أي تغييرات جديدة من السيرفر
       await syncManager.sync(push: true, pull: true);
-      _lastAppwriteAutoPull = DateTime.now();
       debugPrint('✅ Sync on resume completed (push + pull)');
     } catch (e) {
       debugPrint('⚠️ Sync on resume error: $e');
@@ -615,13 +655,83 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
+    _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
+    _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
+    // تنظيف موارد الخدمات Singleton لمنع تسرب الذاكرة
+    unawaited(_disposeSingletonServices());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// تنظيف جميع الخدمات Singleton عند إغلاق التطبيق
+  static Future<void> _disposeSingletonServices() async {
+    debugPrint('🧹 Disposing singleton services...');
+    try {
+      await FcmService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing FcmService: $e');
+    }
+    try {
+      await BatteryOptimizer.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
+    }
+    try {
+      await AppwriteRealtimeService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
+    }
+    try {
+      await SyncPerformanceOptimizer.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
+    }
+    try {
+      await SmartSyncManager.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing SmartSyncManager: $e');
+    }
+    try {
+      ConnectivityService.instance.dispose();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing ConnectivityService: $e');
+    }
+    try {
+      HotelDayTicker.instance.dispose();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing HotelDayTicker: $e');
+    }
+    try {
+      await AutoSyncEngine.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
+    }
+    try {
+      await UnifiedSyncOrchestrator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
+    }
+    try {
+      await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
+    }
+    try {
+      CentralSyncCoordinator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
+    }
+    try {
+      BackgroundSyncService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
+    }
+    debugPrint('✅ All singleton services disposed');
   }
 
   @override
@@ -728,20 +838,21 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
 
-  final Map<String, Widget> _routes = {
-    '/dashboard': const DashboardScreen(),
-    '/rooms': const RoomsListScreen(),
-    '/bookings': const BookingsListScreen(),
-    '/payments': const PaymentsMainScreen(),
-    '/debts': const DebtsListScreen(),
-    '/employees': const EmployeesListScreen(),
-    '/expenses': const ExpensesListScreen(),
-    '/finance': const FinanceScreen(),
-    '/reports': const ReportsScreen(),
-    '/notes': const NotesScreen(),
-    '/blacklist': const BlacklistScreen(),
-    '/information': const InformationScreen(),
-    '/settings': const SettingsScreen(),
+  final Map<String, WidgetBuilder> _routes = {
+    '/dashboard': (_) => const DashboardScreen(),
+    '/rooms': (_) => const RoomsListScreen(),
+    '/bookings': (_) => const BookingsListScreen(),
+    '/payments': (_) => const PaymentsMainScreen(),
+    '/debts': (_) => const DebtsListScreen(),
+    '/employees': (_) => const EmployeesListScreen(),
+    '/expenses': (_) => const ExpensesListScreen(),
+    '/finance': (_) => const FinanceScreen(),
+    '/reports': (_) => const ReportsScreen(),
+    '/notes': (_) => const NotesScreen(),
+    '/blacklist': (_) => const BlacklistScreen(),
+    '/information': (_) => const InformationScreen(),
+    '/settings': (_) => const SettingsScreen(),
+    '/ai': (_) => const AiChatScreen(),
   };
 
   bool _can(String key) {
@@ -757,7 +868,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed
-        ? (_routes[_currentRoute] ?? const DashboardScreen())
+        ? (_routes[_currentRoute]?.call(context) ?? const DashboardScreen())
         : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_service.dart';
 import 'appwrite_config.dart';
+import 'crashlytics_service.dart';
 
 class AppwriteRealtimeSync {
   static final AppwriteRealtimeSync _instance =
@@ -81,6 +82,12 @@ class AppwriteRealtimeSync {
       _onEvent,
       onError: (e) {
         debugPrint('❌ Realtime error: $e');
+        CrashlyticsService.instance.recordSyncError(
+          operation: 'realtime_listen',
+          error: e.toString(),
+          severity: CrashlyticsSeverity.warning,
+          context: {'deviceId': _currentDeviceId ?? 'unknown'},
+        );
         _isListening = false;
         _reconnect();
       },
@@ -114,7 +121,7 @@ class AppwriteRealtimeSync {
     final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
     if (updatedAt != null) {
       try {
-        final serverTime = DateTime.parse(updatedAt);
+        final serverTime = DateTime.parse(updatedAt as String);
         if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
@@ -159,11 +166,17 @@ class AppwriteRealtimeSync {
     debugPrint('📡 Realtime: remote changes flag reset - count cleared');
   }
 
-  void _reconnect() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!_isListening) start();
-    });
-  }
+    void _reconnect() {
+      CrashlyticsService.instance.recordSyncError(
+        operation: 'realtime_reconnect',
+        error: 'Connection lost — reconnecting in 5s',
+        severity: CrashlyticsSeverity.info,
+        context: {'deviceId': _currentDeviceId ?? 'unknown'},
+      );
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!_isListening) start();
+      });
+    }
 
   Future<void> stop() async {
     _subscription?.close();

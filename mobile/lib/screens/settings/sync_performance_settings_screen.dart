@@ -386,7 +386,7 @@ class _SyncPerformanceSettingsScreenState
                   ],
                 ),
 
-                if (stats['consecutive_failures'] > 0) ...[
+                if ((stats['consecutive_failures'] as int? ?? 0) > 0) ...[
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

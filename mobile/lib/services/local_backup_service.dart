@@ -10,8 +10,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'local_db.dart';
+import '../utils/app_logger.dart';
 import '../providers/repository_providers.dart';
 import 'google_drive_backup_service.dart';
+export 'google_drive_backup_service.dart' show BackupFormat;
 import 'backup_serializers.dart';
 
 class LocalBackupFile {
@@ -247,12 +249,19 @@ class LocalBackupService {
               : {},
         };
 
-        final filePath = '${backupDir.path}/$baseName.json';
+        final filePath = '${backupDir.path}/$baseName.json.gz';
         final file = File(filePath);
-        final jsonString = const JsonEncoder.withIndent(
-          '  ',
-        ).convert(backupData);
-        await file.writeAsString(jsonString);
+
+        // JSON مضغوط بدون مسافات + gzip level 6
+        final jsonBytes = utf8.encode(jsonEncode(backupData));
+        final compressedBytes = GZipCodec(level: 6).encode(jsonBytes);
+        await file.writeAsBytes(compressedBytes);
+
+        debugPrint(
+          '✅ نسخة محلية مضغوطة: '
+          '${(jsonBytes.length / 1024).toStringAsFixed(1)} KB → '
+          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
+        );
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
@@ -287,10 +296,14 @@ class LocalBackupService {
 
         try {
           await db.customSelect('PRAGMA wal_checkpoint(FULL)').get();
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.error('فشل تنفيذ WAL checkpoint', tag: 'BACKUP', error: e, stackTrace: st);
+        }
         try {
           await db.customStatement('VACUUM');
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.error('فشل تنفيذ VACUUM', tag: 'BACKUP', error: e, stackTrace: st);
+        }
 
         await File(dbPath).copy(destinationPath);
         final metadataFile = File(_metadataFilePath(destinationPath));
@@ -389,7 +402,8 @@ class LocalBackupService {
           .where(
             (entity) =>
                 entity is File &&
-                (entity.path.endsWith('.json') ||
+                (entity.path.endsWith('.json.gz') ||
+                    entity.path.endsWith('.json') ||
                     entity.path.endsWith('.sqlite')) &&
                 entity.path.contains(_backupFilePrefix),
           )
@@ -403,12 +417,20 @@ class LocalBackupService {
         final format = extension == '.sqlite'
             ? BackupFormat.sqlite
             : BackupFormat.json;
+        final isGz = extension == '.gz';
 
         try {
           BackupMetadata? metadata;
 
           if (format == BackupFormat.json) {
-            final content = await file.readAsString();
+            // قراءة مع دعم فك ضغط gzip
+            final List<int> rawBytes = await file.readAsBytes();
+            String content;
+            if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
+              content = utf8.decode(gzip.decode(rawBytes));
+            } else {
+              content = utf8.decode(rawBytes);
+            }
             final jsonData = jsonDecode(content) as Map<String, dynamic>;
             if (jsonData.containsKey('metadata')) {
               final metadataSource = jsonData['metadata'];
@@ -462,7 +484,7 @@ class LocalBackupService {
         return;
       }
 
-      if (extension == '.json') {
+      if (extension == '.json' || extension == '.gz') {
         await _restoreFromJsonBackup(filePath);
         return;
       }
@@ -482,7 +504,16 @@ class LocalBackupService {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
-    final jsonString = await file.readAsString();
+    // فك الضغط تلقائياً مع دعم النسخ القديمة غير المضغوطة
+    final List<int> rawBytes = await file.readAsBytes();
+    List<int> decodedBytes;
+    if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
+      decodedBytes = gzip.decode(rawBytes);
+      debugPrint('📦 فك ضغط gzip: ${(rawBytes.length / 1024).toStringAsFixed(1)} KB → ${(decodedBytes.length / 1024).toStringAsFixed(1)} KB');
+    } else {
+      decodedBytes = rawBytes;
+    }
+    final jsonString = utf8.decode(decodedBytes);
     final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
 
     if (!backupData.containsKey('metadata')) {
@@ -696,7 +727,7 @@ class LocalBackupService {
 
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json', 'sqlite'],
+        allowedExtensions: ['json', 'sqlite', 'gz'],
         allowMultiple: false,
       );
 
@@ -716,15 +747,26 @@ class LocalBackupService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final baseName = '$_backupFilePrefixImported$timestamp';
 
-      if (extension == '.json') {
-        final content = await sourceFile.readAsString();
+      if (extension == '.json' || extension == '.gz') {
+        // فك الضغط تلقائياً إن كان مضغوطاً
+        final rawBytes = await sourceFile.readAsBytes();
+        String content;
+        List<int> copyBytes;
+        if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
+          copyBytes = rawBytes;
+          content = utf8.decode(gzip.decode(rawBytes));
+        } else {
+          copyBytes = rawBytes;
+          content = utf8.decode(rawBytes);
+        }
         final jsonData = jsonDecode(content) as Map<String, dynamic>;
         if (!jsonData.containsKey('metadata')) {
           throw Exception('الملف المختار ليس نسخة احتياطية صالحة');
         }
 
-        final newFilePath = '${backupDir.path}/$baseName.json';
-        await sourceFile.copy(newFilePath);
+        final ext = extension == '.gz' ? '.json.gz' : '.json';
+        final newFilePath = '${backupDir.path}/$baseName$ext';
+        await File(newFilePath).writeAsBytes(copyBytes);
         debugPrint('✅ تم استيراد النسخة الاحتياطية (JSON): $newFilePath');
         return newFilePath;
       }
@@ -771,7 +813,10 @@ class LocalBackupService {
         } catch (e) {
           try {
             await File(newFilePath).delete();
-          } catch (_) {}
+          } catch (e, st) {
+            // تجاهل مقصود — تنظيف أفضل جهد
+            AppLogger.warning('فشل حذف ملف مؤقت أثناء الاستعادة', tag: 'BACKUP', error: e, stackTrace: st);
+          }
           rethrow;
         } finally {
           await tempDb?.close();

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:flutter/foundation.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_service.dart';
@@ -9,6 +11,7 @@ import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/salary_entitlement_service.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -19,6 +22,35 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
 
 class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     with SyncOnExitMixin {
+  /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
+  String _cleanAndFormatPhone(String phone) {
+    var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.isEmpty) return '';
+    // إزالة 00 الدولية
+    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    // سبق بإضافة 967
+    if (digitsOnly.startsWith('967')) return digitsOnly;
+    // 07xx → 967xx (محلي يمني)
+    if (digitsOnly.startsWith('07')) {
+      digitsOnly = '967${digitsOnly.substring(1)}';
+    }
+    // 7xx و 9 أرقام → 967xx (محلي يمني بدون صفر)
+    else if (digitsOnly.startsWith('7') && digitsOnly.length == 9) {
+      digitsOnly = '967$digitsOnly';
+    }
+    // سعودي: 5xx و 9 أرقام → 966xx
+    else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
+      digitsOnly = '966$digitsOnly';
+    }
+    // سبق بإضافة 966
+    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
+    else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
+      digitsOnly = '967$digitsOnly';
+    }
+    return digitsOnly;
+  }
+
   @override
   String get screenId => 'expenses_list';
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
@@ -87,32 +119,39 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 }
                 final filteredExpenses = snapshot.data!;
 
-                return ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    _buildCompactFiltersCard(),
-                    const SizedBox(height: 8),
-                    _buildCompactSummaryCard(
-                      totalAmount: todayData.total,
-                      count: todayData.count,
-                    ),
-                    const SizedBox(height: 10),
-                    if (filteredExpenses.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 48),
-                        child: Center(
-                          child: Text('لا توجد مصروفات ضمن الفترة'),
-                        ),
-                      )
-                    else
-                      ...filteredExpenses.map(
-                        (expense) => _buildExpenseCard(
-                          expense,
-                          employeeNames[expense.relatedId],
-                          employees,
-                        ),
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    _refreshExpensesStream();
+                  },
+                  child: ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
+                      _buildCompactFiltersCard(),
+                      const SizedBox(height: 8),
+                      _buildCompactSummaryCard(
+                        totalAmount: todayData.total,
+                        count: todayData.count,
                       ),
-                  ],
+                      const SizedBox(height: 10),
+                      if (filteredExpenses.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 48),
+                          child: Center(
+                            child: Text('لا توجد مصروفات ضمن الفترة'),
+                          ),
+                        )
+                      else
+                        ...filteredExpenses.map(
+                          (expense) => RepaintBoundary(
+                            child: _buildExpenseCard(
+                              expense,
+                              employeeNames[expense.relatedId],
+                              employees,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 );
               },
             );
@@ -410,7 +449,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
-    final availableEmployees =
+    List<Employee> availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
 
@@ -582,58 +621,163 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       return;
     }
 
-    if (existing == null) {
-      final newId = await repo.create(
-        expenseType: savedType,
-        relatedId: isSalaryExpense ? selectedEmployeeId : null,
-        description: trimmedDescription,
-        amount: parsedAmount,
-        date: trimmedDate,
-      );
-
-      if (isSalaryExpense && selectedEmployeeId != null) {
-        await salaryRepo.saveFromExpense(
-          expenseId: newId,
-          employeeId: selectedEmployeeId!,
-          action: savedType,
+    try {
+      if (existing == null) {
+        final newId = await repo.create(
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
           amount: parsedAmount,
           date: trimmedDate,
-          note: trimmedDescription,
-          hotelDayKey: trimmedDate,
         );
-      }
-    } else {
-      await repo.update(
-        existing.id,
-        expenseType: savedType,
-        relatedId: isSalaryExpense ? selectedEmployeeId : null,
-        description: trimmedDescription,
-        amount: parsedAmount,
-        date: trimmedDate,
-      );
 
-      if (isSalaryExpense && selectedEmployeeId != null) {
-        await salaryRepo.saveFromExpense(
-          expenseId: existing.id,
-          employeeId: selectedEmployeeId!,
-          action: savedType,
-          amount: parsedAmount,
-          date: trimmedDate,
-          note: trimmedDescription,
-          hotelDayKey: trimmedDate,
-        );
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          await salaryRepo.saveFromExpense(
+            expenseId: newId,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: parsedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            hotelDayKey: trimmedDate,
+          );
+        }
       } else {
-        await salaryRepo.deleteByExpenseId(existing.id);
+        await repo.update(
+          existing.id,
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
+          amount: parsedAmount,
+          date: trimmedDate,
+        );
+
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          await salaryRepo.saveFromExpense(
+            expenseId: existing.id,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: parsedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            hotelDayKey: trimmedDate,
+          );
+        } else {
+          await salaryRepo.deleteByExpenseId(existing.id);
+        }
       }
+
+      markDataChanged();
+      if (mounted) {
+        _refreshExpensesStream();
+      }
+
+      // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
+      if (isSalaryExpense && selectedEmployeeId != null && mounted) {
+        _sendSalaryExpenseWhatsApp(
+          employeeId: selectedEmployeeId!,
+          action: savedType,
+          amount: parsedAmount,
+          date: trimmedDate,
+          employees: availableEmployees,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ المصروف: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      description.dispose();
+      amount.dispose();
+      date.dispose();
     }
+  }
 
-    description.dispose();
-    amount.dispose();
-    date.dispose();
+  /// إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
+  Future<void> _sendSalaryExpenseWhatsApp({
+    required int employeeId,
+    required String action,
+    required double amount,
+    required String date,
+    required List<Employee> employees,
+  }) async {
+    try {
+      // البحث عن الموظف للحصول على رقم الهاتف والاسم
+      final employee = employees.where((e) => e.id == employeeId).firstOrNull;
+      if (employee == null) return;
 
-    markDataChanged();
-    if (mounted) {
-      _refreshExpensesStream();
+      final phone = employee.phone.trim();
+      if (phone.isEmpty) return;
+
+      final whatsappService = ref.read(whatsappServiceProvider);
+
+      // تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
+      String cleanedPhone = _cleanAndFormatPhone(phone);
+
+      final actionText = action == _salaryDeductionAction ? 'خصم' : 'سحب';
+
+      // حساب الراتب المتبقي
+      String remainingText = '';
+      try {
+        final entitlementService = SalaryEntitlementService(
+          DatabaseManager.instance,
+        );
+        final entitlement = await entitlementService
+            .calculateEmployeeEntitlement(employee);
+        remainingText =
+            'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
+      } catch (e) {
+        debugPrint('Error calculating remaining salary: $e');
+      }
+
+      final message = StringBuffer()
+        ..writeln('مرحباً ${employee.name}')
+        ..writeln('')
+        ..writeln('تم تسجيل $actionText راتب بقيمة ${CurrencyFormatter.formatAmount(amount)}')
+        ..writeln('التاريخ: $date');
+
+      if (remainingText.isNotEmpty) {
+        message.writeln(remainingText);
+      }
+
+      message
+        ..writeln('')
+        ..writeln('فندق مارينا')
+        ..write('للاستفسار: 9677734587456');
+
+      final result = await whatsappService.sendMessage(
+        phoneE164: cleanedPhone,
+        message: message.toString(),
+      );
+
+      if (mounted) {
+        if (result.quotaMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.quotaMessage!),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.success
+                  ? 'تم إرسال إشعار واتساب لـ ${employee.name}'
+                  : 'تعذّر إرسال إشعار واتساب لـ ${employee.name}'),
+              backgroundColor: result.success ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('WhatsApp salary notification error: $e');
     }
   }
 

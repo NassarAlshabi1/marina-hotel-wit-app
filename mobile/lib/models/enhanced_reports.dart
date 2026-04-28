@@ -210,26 +210,26 @@ class EnhancedPaymentsReport {
               'نقداً',
               payments.where((p) => p.method == 'cash').length.toString(),
               EnhancedPdfUtils.formatCurrency(cashPayments),
-              '${((cashPayments / totalAmount) * 100).toStringAsFixed(1)}%',
+              totalAmount > 0 ? '${((cashPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
             ],
             [
               'بطاقة ائتمانية',
               payments.where((p) => p.method == 'card').length.toString(),
               EnhancedPdfUtils.formatCurrency(cardPayments),
-              '${((cardPayments / totalAmount) * 100).toStringAsFixed(1)}%',
+              totalAmount > 0 ? '${((cardPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
             ],
             [
               'تحويل بنكي',
               payments.where((p) => p.method == 'transfer').length.toString(),
               EnhancedPdfUtils.formatCurrency(transferPayments),
-              '${((transferPayments / totalAmount) * 100).toStringAsFixed(1)}%',
+              totalAmount > 0 ? '${((transferPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
             ],
             if (checkPayments > 0)
               [
                 'شيك',
                 payments.where((p) => p.method == 'check').length.toString(),
                 EnhancedPdfUtils.formatCurrency(checkPayments),
-                '${((checkPayments / totalAmount) * 100).toStringAsFixed(1)}%',
+                totalAmount > 0 ? '${((checkPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
               ],
           ],
           fonts: fonts,
@@ -313,7 +313,9 @@ class EnhancedPaymentsReport {
                     summary.transactionCount.toString(),
                     EnhancedPdfUtils.formatCurrency(summary.totalAmount),
                     EnhancedPdfUtils.formatCurrency(
-                      summary.totalAmount / summary.transactionCount,
+                      summary.transactionCount > 0
+                          ? summary.totalAmount / summary.transactionCount
+                          : 0,
                     ),
                   ],
                 )
@@ -573,7 +575,7 @@ class EnhancedExpensesReport {
                     cat.category,
                     cat.count.toString(),
                     EnhancedPdfUtils.formatCurrency(cat.totalAmount),
-                    '${((cat.totalAmount / totalAmount) * 100).toStringAsFixed(1)}%',
+                    totalAmount > 0 ? '${((cat.totalAmount / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
                   ],
                 )
                 .toList(),

@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
+import 'remote_config_service.dart';
+
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -116,18 +118,24 @@ class BookingDerivedFieldsService {
 
     int refreshed = 0;
     int promoted = 0;
-    for (final booking in active) {
+    // معالجة الحجوزات بالتوازي باستخدام Future.wait بدلاً من التسلسل
+    final results = await Future.wait(active.map((booking) async {
       try {
-        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= 14) {
+        bool didPromote = false;
+        final cutoffHour = RemoteConfigService.instance.checkoutHour;
+        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= cutoffHour) {
           await _promoteProvisionalBooking(booking.id);
-          promoted++;
+          didPromote = true;
         }
         await refreshForBooking(booking, now: moment, forceRebuild: true);
-        refreshed++;
+        return (promoted: didPromote, refreshed: true);
       } catch (e) {
         debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+        return (promoted: false, refreshed: false);
       }
-    }
+    }));
+    promoted = results.where((r) => r.promoted).length;
+    refreshed = results.where((r) => r.refreshed).length;
 
     if (promoted > 0) {
       debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
@@ -350,19 +358,20 @@ class BookingDerivedFieldsService {
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
-    int cutoffHour = 14,
+    int? cutoffHour,
   }) {
+    final int resolvedCutoffHour = cutoffHour ?? RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
+    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(
       checkin.year,
       checkin.month,
       checkin.day,
-      cutoffHour,
+      resolvedCutoffHour,
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));

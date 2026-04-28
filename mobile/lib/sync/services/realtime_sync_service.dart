@@ -53,7 +53,7 @@ class RealtimeSyncService {
     // الاستماع لتغيرات الاتصال
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
-        .listen(_handleConnectivityChange);
+        .listen(_handleConnectivityChangeList);
 
     // محاولة الاتصال الأولى
     await _connect();
@@ -159,6 +159,9 @@ class RealtimeSyncService {
           _lastPing = DateTime.now();
           _sendPong();
           break;
+        case RealtimeEventType.pong:
+          //pong received, no action needed
+          break;
         case RealtimeEventType.authSuccess:
           developer.log('Authentication successful', name: 'RealtimeSync');
           break;
@@ -167,6 +170,9 @@ class RealtimeSyncService {
           break;
         case RealtimeEventType.error:
           developer.log('Server error: ${event.payload}', name: 'RealtimeSync');
+          break;
+        case RealtimeEventType.unknown:
+          developer.log('Unknown event received', name: 'RealtimeSync');
           break;
       }
     } catch (e, stackTrace) {
@@ -241,8 +247,8 @@ class RealtimeSyncService {
   }
 
   /// معالجة تغير الاتصال
-  void _handleConnectivityChange(ConnectivityResult result) {
-    if (result == ConnectivityResult.none) {
+  void _handleConnectivityChangeList(List<ConnectivityResult> results) {
+    if (results.contains(ConnectivityResult.none)) {
       // فقدان الاتصال - قطع WebSocket
       _disconnect();
     } else if (!_isConnected && !_isConnecting) {

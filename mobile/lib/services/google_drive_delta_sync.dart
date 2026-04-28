@@ -11,6 +11,7 @@ import '../utils/id.dart';
 import 'sync_locks.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'repositories/rooms_repository.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -190,6 +191,16 @@ class GoogleDriveDeltaSync {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_prefsLastPullTsKey, maxProcessedTsSec);
+
+      // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
+      if (appliedChanges > 0) {
+        try {
+          await RoomsRepository(_database!).refreshAllRoomOccupancy();
+          debugPrint('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
+        } catch (e) {
+          debugPrint('⚠️ فشل تحديث حالة الإشغال: $e');
+        }
+      }
 
       return DeltaSyncResult(
         success: true,

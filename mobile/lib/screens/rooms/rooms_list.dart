@@ -11,7 +11,6 @@ import '../../utils/status_utils.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../providers/core_providers.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -150,60 +149,76 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final floorMap = _groupByFloor(rooms);
     final sortedFloors = floorMap.keys.toList()..sort();
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      itemCount: sortedFloors.length,
-      itemBuilder: (context, index) {
-        final floorNumber = sortedFloors[index];
-        final floorRooms = floorMap[floorNumber]!;
-        final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.room.status)).length;
-        
-        return _FloorExpansionTile(
-          floorNumber: floorNumber,
-          totalRooms: floorRooms.length,
-          availableRooms: availableCount,
-          initiallyExpanded: index < 2,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 5 : 3,
-                  childAspectRatio: 0.85,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: floorRooms.length,
-                itemBuilder: (context, i) {
-                  final roomData = floorRooms[i];
-                  return _RoomGridCard(
-                    roomData: roomData,
-                    onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: sortedFloors.length,
+        itemBuilder: (context, index) {
+          final floorNumber = sortedFloors[index];
+          final floorRooms = floorMap[floorNumber]!;
+          final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.room.status)).length;
+          
+          return RepaintBoundary(
+            child: _FloorExpansionTile(
+              floorNumber: floorNumber,
+              totalRooms: floorRooms.length,
+              availableRooms: availableCount,
+              initiallyExpanded: index < 2,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 5 : 3,
+                      childAspectRatio: 0.85,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemCount: floorRooms.length,
+                    itemBuilder: (context, i) {
+                      final roomData = floorRooms[i];
+                      return RepaintBoundary(
+                        child: _RoomGridCard(
+                          roomData: roomData,
+                          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildListView(List<RoomWithPaymentStatus> rooms, bool canEdit) {
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: rooms.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final roomData = rooms[index];
-        return _RoomListCard(
-          roomData: roomData,
-          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
-          onEdit: canEdit ? () => _editRoom(context, ref, existing: roomData.room) : null,
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: rooms.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final roomData = rooms[index];
+          return RepaintBoundary(
+            child: _RoomListCard(
+              roomData: roomData,
+              onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+              onEdit: canEdit ? () => _editRoom(context, ref, existing: roomData.room) : null,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -344,6 +359,21 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 
   Future<void> _quickStatusChange(Room room, String newStatus) async {
     final repo = ref.read(roomsRepoProvider);
+    // ✅ منع تحويل غرفة لشاغرة إذا كان عليها حجز نشط
+    if (newStatus == 'شاغرة') {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(room.roomNumber);
+      if (activeBooking != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('لا يمكن تحويل الغرفة ${room.roomNumber}: يوجد حجز نشط (${activeBooking.guestName})'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
     await repo.updateByRoomNumber(room.roomNumber, status: newStatus);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -493,46 +523,57 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final repo = ref.read(roomsRepoProvider);
     final newPrice = CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0;
 
-    if (existing == null) {
-      await repo.create(
-        roomNumber: roomNumberCtrl.text.trim(),
-        type: typeCtrl.text.trim(),
-        price: newPrice,
-        status: status,
-        imageUrl: imageUrl,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
-            backgroundColor: AppColors.successColor,
-            behavior: SnackBarBehavior.floating,
-          ),
+    try {
+      if (existing == null) {
+        await repo.create(
+          roomNumber: roomNumberCtrl.text.trim(),
+          type: typeCtrl.text.trim(),
+          price: newPrice,
+          status: status,
+          imageUrl: imageUrl,
         );
-      }
-    } else {
-      final oldPrice = existing.price;
-      final priceChanged = (oldPrice - newPrice).abs() > 0.01;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
+              backgroundColor: AppColors.successColor,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        final oldPrice = existing.price;
+        final priceChanged = (oldPrice - newPrice).abs() > 0.01;
 
-      await repo.updateByRoomNumber(
-        existing.roomNumber,
-        type: typeCtrl.text.trim(),
-        price: newPrice,
-        status: status,
-        imageUrl: imageUrl,
-      );
-
-      if (priceChanged && context.mounted) {
-        await _handlePriceChange(
-          context,
-          ref,
-          roomNumber: existing.roomNumber,
-          oldPrice: oldPrice,
-          newPrice: newPrice,
+        await repo.updateByRoomNumber(
+          existing.roomNumber,
+          type: typeCtrl.text.trim(),
+          price: newPrice,
+          status: status,
+          imageUrl: imageUrl,
         );
+
+        if (priceChanged && context.mounted) {
+          await _handlePriceChange(
+            context,
+            ref,
+            roomNumber: existing.roomNumber,
+            oldPrice: oldPrice,
+            newPrice: newPrice,
+          );
+        }
       }
+      markDataChanged();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ الغرفة: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
-    markDataChanged();
   }
 
   Future<void> _handlePriceChange(

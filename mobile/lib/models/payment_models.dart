@@ -117,19 +117,19 @@ class Payment {
 
   factory Payment.fromJson(Map<String, dynamic> json) {
     return Payment(
-      id: json['id'],
-      bookingId: json['bookingId'],
-      amount: json['amount'],
-      method: PaymentMethod.values.byName(json['method']),
-      status: PaymentStatus.values.byName(json['status']),
-      paymentDate: DateTime.parse(json['paymentDate']),
-      notes: json['notes'],
-      referenceNumber: json['referenceNumber'],
-      cardLastFourDigits: json['cardLastFourDigits'],
-      bankName: json['bankName'],
-      receivedBy: json['receivedBy'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      id: json['id'] as String,
+      bookingId: json['bookingId'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      method: PaymentMethod.values.byName(json['method'] as String),
+      status: PaymentStatus.values.byName(json['status'] as String),
+      paymentDate: DateTime.parse(json['paymentDate'] as String),
+      notes: json['notes'] as String?,
+      referenceNumber: json['referenceNumber'] as String?,
+      cardLastFourDigits: json['cardLastFourDigits'] as String?,
+      bankName: json['bankName'] as String?,
+      receivedBy: json['receivedBy'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
   }
 }
@@ -1105,7 +1105,7 @@ class Invoice {
         style: pw.TextStyle(
           font: fonts.bold,
           fontSize: 11,
-          color: PdfColors.textWhite,
+          color: PdfColors.textDark,
         ),
       ),
     );

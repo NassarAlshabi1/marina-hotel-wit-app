@@ -19,6 +19,8 @@ import '../../services/daos/payments_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/report_pdf_builder.dart';
+import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
@@ -32,9 +34,10 @@ class _IncomeExpenseReportScreenState
     extends ConsumerState<IncomeExpenseReportScreen> {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
+  final _filterController = DateFilterController();
 
-  DateTime _toDate = DateTime.now();
-  late DateTime _fromDate;
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   bool _loading = false;
   bool _detailedMode = false;
@@ -50,8 +53,10 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    _fromDate = DateTime(_toDate.year, _toDate.month, 1);
-    _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day, 23, 59, 59);
+    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    final range = DateFilterController.getDefaultHotelDayRange();
+    _fromDate = range.from;
+    _toDate = range.to;
     _fetchReport();
   }
 
@@ -63,10 +68,15 @@ class _IncomeExpenseReportScreenState
       final paymentsDao = PaymentsDao(db, outboxDao);
       final expensesDao = ExpensesDao(db, outboxDao);
 
-      final fromStr = '${_dateFormat.format(_fromDate)} 00:00:00';
-      final toStr = '${_dateFormat.format(_toDate)} 23:59:59';
+      final fromStr = '${_dateFormat.format(_fromDate!)} 14:00:00';
+      final toStr = '${_dateFormat.format(_toDate!)} 13:59:59';
 
-      final payments = await paymentsDao.list(from: fromStr, to: toStr);
+      final payments = await paymentsDao.list(
+        from: fromStr,
+        to: toStr,
+        excludeVoided: true,
+        excludePendingBalance: true,
+      );
       final expenses = await expensesDao.list(from: fromStr, to: toStr);
 
       final result = await compute(
@@ -92,8 +102,8 @@ class _IncomeExpenseReportScreenState
                 },
               )
               .toList(),
-          fromDate: _fromDate,
-          toDate: _toDate,
+          fromDate: _fromDate!,
+          toDate: _toDate!,
         ),
       );
 
@@ -111,111 +121,6 @@ class _IncomeExpenseReportScreenState
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom ? _fromDate : _toDate;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isFrom) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
-          if (_fromDate.isAfter(_toDate)) {
-            _toDate = DateTime(
-              picked.year,
-              picked.month,
-              picked.day,
-              23,
-              59,
-              59,
-            );
-          }
-        } else {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-          if (_toDate.isBefore(_fromDate)) {
-            _fromDate = DateTime(
-              picked.year,
-              picked.month,
-              picked.day,
-              0,
-              0,
-              0,
-            );
-          }
-        }
-      });
-      _fetchReport();
-    }
-  }
-
-  bool _isToday() {
-    final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == now.month &&
-        _fromDate.day == now.day &&
-        _toDate.year == now.year &&
-        _toDate.month == now.month &&
-        _toDate.day == now.day;
-  }
-
-  bool _isThisWeek() {
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    return _fromDate.year == weekStart.year &&
-        _fromDate.month == weekStart.month &&
-        _fromDate.day == weekStart.day;
-  }
-
-  bool _isThisMonth() {
-    final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == now.month &&
-        _fromDate.day == 1;
-  }
-
-  bool _isThisYear() {
-    final now = DateTime.now();
-    return _fromDate.year == now.year &&
-        _fromDate.month == 1 &&
-        _fromDate.day == 1;
-  }
-
-  void _setQuickFilter(String type) {
-    final now = DateTime.now();
-    setState(() {
-      switch (type) {
-        case 'today':
-          _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-          break;
-        case 'week':
-          final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          _fromDate = DateTime(
-            weekStart.year,
-            weekStart.month,
-            weekStart.day,
-            0,
-            0,
-            0,
-          );
-          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-          break;
-        case 'month':
-          _fromDate = DateTime(now.year, now.month, 1, 0, 0, 0);
-          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-          break;
-        case 'year':
-          _fromDate = DateTime(now.year, 1, 1, 0, 0, 0);
-          _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-          break;
-      }
-    });
-    _fetchReport();
   }
 
   // ===== أسماء الأيام والشهور بالعربي =====
@@ -317,119 +222,114 @@ class _IncomeExpenseReportScreenState
 
   // ===== بناء PDF التقرير العادي =====
   Future<pw.Document> _buildPdfDocument() async {
-    final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final doc = pw.Document();
+    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate!);
+    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate!);
 
-    pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
-      return pw.Container(
-        padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          border: pw.Border.all(color: color, width: 0.6),
-        ),
+    return ReportPdfBuilder.buildDocument(ReportPdfConfig(
+      title: 'تقرير الدخل والمصروفات',
+      fromDate: _fromDate,
+      toDate: _toDate,
+      customHeader: (fonts) => pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(color: PdfColors.primary),
+        padding: const pw.EdgeInsets.all(20),
         child: pw.Column(
           children: [
             pw.Text(
-              title,
+              'تقرير الدخل والمصروفات',
               style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 11,
-                color: PdfColors.textDark,
+                font: fonts.bold,
+                fontSize: 20,
+                color: PdfColors.textWhite,
               ),
             ),
-            pw.SizedBox(height: 4),
+            pw.SizedBox(height: 8),
             pw.Text(
-              value,
-              style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: color),
+              'الفترة من $fromLabel إلى $toLabel',
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
             ),
           ],
         ),
-      );
-    }
-
-    pw.Widget buildDetailTable(String title, List<List<String>> rows) {
-      if (!_detailedMode || rows.isEmpty) return pw.Container();
-      return pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(title, style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
-          pw.SizedBox(height: 6),
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: ['التاريخ', 'الوصف', 'المبلغ'],
-            data: rows,
-            fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-          ),
-          pw.SizedBox(height: 12),
-        ],
-      );
-    }
-
-    final incomeRows = _detailedMode
-        ? _incomeEntries
-              .map(
-                (e) => [
-                  _dateFormat.format(e.date),
-                  e.description,
-                  EnhancedPdfUtils.formatNumber(e.amount),
-                ],
-              )
-              .toList()
-        : const <List<String>>[];
-    final expenseRows = _detailedMode
-        ? _expenseEntries
-              .map(
-                (e) => [
-                  _dateFormat.format(e.date),
-                  e.description.isNotEmpty ? e.description : e.type,
-                  EnhancedPdfUtils.formatNumber(e.amount),
-                ],
-              )
-              .toList()
-        : const <List<String>>[];
-
-    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate);
-    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate);
-
-    doc.addPage(
-      pw.MultiPage(
-        textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-        footer: (context) => pw.Align(
-          alignment: pw.Alignment.center,
-          child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
-          ),
-        ),
-        build: (context) => [
-          pw.Container(
-            width: double.infinity,
-            decoration: const pw.BoxDecoration(color: PdfColors.primary),
-            padding: const pw.EdgeInsets.all(20),
+      ),
+      buildContent: (fonts) {
+        pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.backgroundLight,
+              border: pw.Border.all(color: color, width: 0.6),
+            ),
             child: pw.Column(
               children: [
                 pw.Text(
-                  'تقرير الدخل والمصروفات',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 20,
-                    color: PdfColors.textWhite,
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'الفترة من $fromLabel إلى $toLabel',
+                  title,
                   style: pw.TextStyle(
                     font: fonts.regular,
-                    fontSize: 12,
-                    color: PdfColors.textWhite,
+                    fontSize: 11,
+                    color: PdfColors.textDark,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  value,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 16,
+                    color: color,
                   ),
                 ),
               ],
             ),
-          ),
+          );
+        }
+
+        pw.Widget buildDetailTable(String title, List<List<String>> rows) {
+          if (!_detailedMode || rows.isEmpty) return pw.Container();
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(title, style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
+              pw.SizedBox(height: 6),
+              EnhancedPdfUtils.buildProfessionalTable(
+                headers: ['التاريخ', 'الوصف', 'المبلغ'],
+                data: rows,
+                fonts: fonts,
+                headerColor: PdfColors.primary,
+                alternateRowColor: PdfColors.backgroundLight,
+              ),
+              pw.SizedBox(height: 12),
+            ],
+          );
+        }
+
+        final incomeRows = _detailedMode
+            ? _incomeEntries
+                .map(
+                  (e) => [
+                    _dateFormat.format(e.date),
+                    e.description,
+                    EnhancedPdfUtils.formatNumber(e.amount),
+                  ],
+                )
+                .toList()
+            : const <List<String>>[];
+        final expenseRows = _detailedMode
+            ? _expenseEntries
+                .map(
+                  (e) => [
+                    _dateFormat.format(e.date),
+                    e.description.isNotEmpty ? e.description : e.type,
+                    EnhancedPdfUtils.formatNumber(e.amount),
+                  ],
+                )
+                .toList()
+            : const <List<String>>[];
+
+        return [
           pw.SizedBox(height: 16),
           pw.Row(
             children: [
@@ -473,11 +373,10 @@ class _IncomeExpenseReportScreenState
           pw.SizedBox(height: 16),
           buildDetailTable('تفاصيل الدخل', incomeRows),
           buildDetailTable('تفاصيل المصروفات', expenseRows),
-        ],
-      ),
-    );
-
-    return doc;
+        ];
+      },
+      fileName: _getFilename(),
+    ));
   }
 
   // ===== بناء PDF التقرير التفصيلي المجمع =====
@@ -486,8 +385,8 @@ class _IncomeExpenseReportScreenState
     final doc = pw.Document();
     final groupedData = _buildGroupedData(groupBy);
     final groupTypeLabel = _getGroupTypeLabel(groupBy);
-    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate);
-    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate);
+    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate!);
+    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate!);
 
     /// بناء صندوق ملخص ملون
     pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
@@ -972,9 +871,9 @@ class _IncomeExpenseReportScreenState
               pw.TableRow(
                 decoration: pw.BoxDecoration(color: headerColor),
                 children: [
-                  _miniCell('التاريخ', fonts.bold, PdfColors.textWhite),
-                  _miniCell('الوصف', fonts.bold, PdfColors.textWhite),
-                  _miniCell('المبلغ', fonts.bold, PdfColors.textWhite),
+                  _miniCell('التاريخ', fonts.bold, PdfColors.textDark),
+                  _miniCell('الوصف', fonts.bold, PdfColors.textDark),
+                  _miniCell('المبلغ', fonts.bold, PdfColors.textDark),
                 ],
               ),
               ...rows.asMap().entries.map((entry) {
@@ -1193,7 +1092,7 @@ class _IncomeExpenseReportScreenState
         });
       }
       allEntries.sort((a, b) =>
-          DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+          DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)));
 
       for (final entry in allEntries) {
         buffer.writeln(
@@ -1472,62 +1371,43 @@ class _IncomeExpenseReportScreenState
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
+                  // فلتر التاريخ المشترك
+                  ReportDateFilterWidget(
+                    controller: _filterController,
+                    onDateRangeChanged: (range) {
+                      setState(() {
+                        _fromDate = range.from;
+                        _toDate = range.to;
+                      });
+                      _fetchReport();
+                    },
+                    dateButtonsFirst: true,
+                    dateButtonsBuilder: (context, onPickFrom, onPickTo) => [
                       Expanded(
                         child: NeuDateButton(
                           icon: Icons.calendar_month_rounded,
-                          label: 'من: ${_dateFormat.format(_fromDate)}',
-                          onTap: () => _pickDate(isFrom: true),
+                          label: 'من: ${_dateFormat.format(_fromDate!)}',
+                          onTap: onPickFrom,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: NeuDateButton(
                           icon: Icons.event_rounded,
-                          label: 'إلى: ${_dateFormat.format(_toDate)}',
-                          onTap: () => _pickDate(isFrom: false),
+                          label: 'إلى: ${_dateFormat.format(_toDate!)}',
+                          onTap: onPickTo,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        NeuQuickFilterChip(
-                          label: 'اليوم',
-                          selected: _isToday(),
-                          onTap: () => _setQuickFilter('today'),
-                        ),
-                        const SizedBox(width: 6),
-                        NeuQuickFilterChip(
-                          label: 'الأسبوع',
-                          selected: _isThisWeek(),
-                          onTap: () => _setQuickFilter('week'),
-                        ),
-                        const SizedBox(width: 6),
-                        NeuQuickFilterChip(
-                          label: 'الشهر',
-                          selected: _isThisMonth(),
-                          onTap: () => _setQuickFilter('month'),
-                        ),
-                        const SizedBox(width: 6),
-                        NeuQuickFilterChip(
-                          label: 'السنة',
-                          selected: _isThisYear(),
-                          onTap: () => _setQuickFilter('year'),
-                        ),
-                        const SizedBox(width: 10),
-                        NeuQuickFilterChip(
-                          label: _detailedMode ? 'تفصيلي' : 'ملخص',
-                          selected: _detailedMode,
-                          onTap: () =>
-                              setState(() => _detailedMode = !_detailedMode),
-                        ),
-                      ],
-                    ),
+                    extraChips: [
+                      const SizedBox(width: 10),
+                      NeuQuickFilterChip(
+                        label: _detailedMode ? 'تفصيلي' : 'ملخص',
+                        selected: _detailedMode,
+                        onTap: () =>
+                            setState(() => _detailedMode = !_detailedMode),
+                      ),
+                    ],
                   ),
                 ],
               ),

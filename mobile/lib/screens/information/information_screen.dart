@@ -53,7 +53,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       orElse: () => const <GuestInfo>[],
     );
 
-    return wrapWithSyncOnExit(
+    return PopScope(
+      canPop: !hasUnsyncedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showDiscardDialog(context);
+      },
       child: AppScaffold(
         title: 'سجل المعلومية',
         actions: [
@@ -82,6 +87,29 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           error: (error, _) =>
               Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
         ),
+      ),
+    );
+  }
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تغييرات غير محفوظة'),
+        content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
+            },
+            child: const Text('مغادرة'),
+          ),
+        ],
       ),
     );
   }
@@ -217,7 +245,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     ],
                   ),
                 ),
-                DataCell(Text(info.roomNumber)),
+                DataCell(Text(
+                  info.roomNumber,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                )),
                 DataCell(Text(info.guestName)),
                 DataCell(Text(info.nationality)),
                 DataCell(Text(info.idNumber)),
@@ -382,39 +413,50 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     if (confirmed != true) return;
 
     final repo = ref.read(guestInfoRepoProvider);
-    if (existing == null) {
-      await repo.create(
-        roomNumber: roomController.text,
-        guestName: guestNameController.text,
-        nationality: nationalityController.text,
-        idNumber: idNumberController.text,
-        idType: selectedIdType,
-        issueDate: issueDateController.text.isEmpty
-            ? null
-            : issueDateController.text,
-        issuePlace: issuePlaceController.text,
-        governorate: governorateController.text,
-        notes: notesController.text,
-      );
-      _showSnack('تم حفظ السجل بنجاح');
-    } else {
-      await repo.update(
-        existing.id,
-        roomNumber: roomController.text,
-        guestName: guestNameController.text,
-        nationality: nationalityController.text,
-        idNumber: idNumberController.text,
-        idType: selectedIdType,
-        issueDate: issueDateController.text,
-        issuePlace: issuePlaceController.text,
-        governorate: governorateController.text,
-        notes: notesController.text,
-      );
-      _showSnack('تم تحديث السجل بنجاح');
-    }
+    try {
+      if (existing == null) {
+        await repo.create(
+          roomNumber: roomController.text,
+          guestName: guestNameController.text,
+          nationality: nationalityController.text,
+          idNumber: idNumberController.text,
+          idType: selectedIdType,
+          issueDate: issueDateController.text.isEmpty
+              ? null
+              : issueDateController.text,
+          issuePlace: issuePlaceController.text,
+          governorate: governorateController.text,
+          notes: notesController.text,
+        );
+        _showSnack('تم حفظ السجل بنجاح');
+      } else {
+        await repo.update(
+          existing.id,
+          roomNumber: roomController.text,
+          guestName: guestNameController.text,
+          nationality: nationalityController.text,
+          idNumber: idNumberController.text,
+          idType: selectedIdType,
+          issueDate: issueDateController.text,
+          issuePlace: issuePlaceController.text,
+          governorate: governorateController.text,
+          notes: notesController.text,
+        );
+        _showSnack('تم تحديث السجل بنجاح');
+      }
 
-    markDataChanged();
-    _pushToAppwrite();
+      markDataChanged();
+      _pushToAppwrite();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ السجل: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Future<void> _confirmDelete(GuestInfo info) async {
@@ -439,10 +481,21 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     if (shouldDelete != true) return;
 
-    await ref.read(guestInfoRepoProvider).delete(info.id);
-    markDataChanged();
-    _showSnack('تم حذف السجل');
-    _pushToAppwrite();
+    try {
+      await ref.read(guestInfoRepoProvider).delete(info.id);
+      markDataChanged();
+      _showSnack('تم حذف السجل');
+      _pushToAppwrite();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف السجل: $e'),
+          backgroundColor: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Future<void> _pickIssueDate(TextEditingController controller) async {
@@ -493,7 +546,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           info.issuePlace ?? '-',
           info.issueDate ?? '-',
           info.idNumber,
-          info.idType ?? '-',
+          info.idType,
           info.nationality,
           info.guestName,
           info.roomNumber,

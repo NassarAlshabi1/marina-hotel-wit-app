@@ -255,9 +255,9 @@ class ComprehensiveAppwriteBackupService {
             // استخراج المعرفات
             String? documentId;
             if (docData.containsKey('localUuid')) {
-              documentId = docData['localUuid'];
+              documentId = docData['localUuid'] as String?;
             } else if (docData.containsKey('\$id')) {
-              documentId = docData['\$id'];
+              documentId = docData['\$id'] as String?;
             } else {
               documentId = ID.unique();
             }

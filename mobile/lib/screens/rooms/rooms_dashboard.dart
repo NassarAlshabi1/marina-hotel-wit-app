@@ -91,35 +91,84 @@ class RoomsDashboard extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedFloors.length,
-      itemBuilder: (context, index) {
-        final floorNumber = sortedFloors[index];
-        final floorRooms = floorMap[floorNumber]!;
-
-        return FloorSection(
-          floorNumber: floorNumber,
-          rooms: floorRooms,
-          onRoomTap: (room) => _handleRoomTap(context, ref, room),
-          isCollapsible: true,
-          initiallyExpanded: index < 2, // فتح أول طابقين بشكل افتراضي
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: sortedFloors.length,
+        itemBuilder: (context, index) {
+          final floorNumber = sortedFloors[index];
+          final floorRooms = floorMap[floorNumber]!;
+
+          return RepaintBoundary(
+            child: FloorSection(
+              floorNumber: floorNumber,
+              rooms: floorRooms,
+              onRoomTap: (room) => _handleRoomTap(context, ref, room),
+              isCollapsible: true,
+              initiallyExpanded: index < 2,
+            ),
+          );
+        },
+      ),
     );
   }
 
   void _handleRoomTap(BuildContext context, WidgetRef ref, Room room) {
-    showDialog(
-      context: context,
-      builder: (context) => RoomDetailsDialog(
-        room: room,
-        onBookRoom: StatusUtils.isRoomAvailable(room.status)
-            ? () => _navigateToBooking(context, room.roomNumber)
-            : null,
-        onViewBookings: !StatusUtils.isRoomAvailable(room.status)
-            ? () => _showRoomBookings(context, ref, room.roomNumber)
-            : null,
+    final isAvailable = StatusUtils.isRoomAvailable(room.status);
+    final isOccupied = StatusUtils.isRoomOccupied(room.status);
+
+    if (isAvailable) {
+      // الانتقال مباشرة إلى شاشة إضافة حجز جديد عند النقر على غرفة شاغرة
+      _navigateToBooking(context, room.roomNumber);
+    } else if (isOccupied) {
+      // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
+      _showRoomBookings(context, ref, room.roomNumber);
+    } else {
+      // للحالات الأخرى مثل الصيانة، نعرض التفاصيل
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('غرفة ${room.roomNumber}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('الحالة', room.status),
+              if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
+              if (room.price > 0)
+                _buildDetailRow(
+                  'السعر',
+                  '${room.price.toStringAsFixed(0)} ريال',
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(value),
+        ],
       ),
     );
   }

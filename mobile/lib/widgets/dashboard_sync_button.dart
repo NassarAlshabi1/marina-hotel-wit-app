@@ -674,7 +674,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         strategy: ConflictStrategy.newerWins,
       );
 
-      for (final conflict in conflicts) {
+      // معالجة التعارضات بالتوازي باستخدام Future.wait بدلاً من التسلسل
+      final resolveResults = await Future.wait(conflicts.map((conflict) async {
         try {
           final localData = conflict.localPayload;
           final remoteData = conflict.remotePayload;
@@ -695,10 +696,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             if (winnerData != null) {
               await outboxDao.resolveConflict(
                 conflict.id,
-                winnerData,
+                winnerData as Map<String, dynamic>,
                 resolution: 'newer_wins',
               );
-              resolvedCount++;
+              return true;
             }
           } else {
             await outboxDao.resolveConflict(
@@ -707,10 +708,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               resolution: 'auto_no_conflict',
             );
           }
+          return false;
         } catch (e) {
           debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
+          return false;
         }
-      }
+      }));
+      resolvedCount = resolveResults.where((r) => r).length;
 
       debugPrint('✅ تم حل $resolvedCount تعارض');
       return resolvedCount;

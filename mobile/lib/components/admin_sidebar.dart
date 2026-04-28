@@ -211,13 +211,22 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/blacklist'),
                     context: context,
                   ),
-                if (true)
+                if (can('information'))
                   _buildMenuItem(
                     icon: Icons.badge,
                     title: 'سجل المعلومية',
                     route: '/information',
                     isActive: currentRoute.startsWith('/information'),
                     onTap: () => onRouteSelected('/information'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
+                    icon: Icons.smart_toy,
+                    title: 'المساعد الذكي',
+                    route: '/ai',
+                    isActive: currentRoute.startsWith('/ai'),
+                    onTap: () => onRouteSelected('/ai'),
                     context: context,
                   ),
                 if (can('settings'))

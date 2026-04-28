@@ -199,7 +199,7 @@ class FileManagementTab extends ConsumerWidget {
           children: [
             const SizedBox(height: 4),
             Text(
-              DateTimeFormatter.getRelativeTime(operation['date']),
+              DateTimeFormatter.getRelativeTime(operation['date'] as String?),
               style: const TextStyle(fontSize: 12),
             ),
           ],

@@ -775,4 +775,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _stateController.close();
     _log('🛑 Auto Sync Engine disposed');
   }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    instance.dispose();
+  }
 }

@@ -207,6 +207,11 @@ class UnifiedSyncOrchestrator {
     _initialized = false;
   }
 
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    await instance.dispose();
+  }
+
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(seconds: 10), () async {

@@ -7,6 +7,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../services/sync_service.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   final String? bookingId;
@@ -198,12 +199,15 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               ),
             ),
             Expanded(
-              child: ListView.builder(
+              child: RefreshIndicator(
+                onRefresh: () => ref.read(syncServiceProvider).runSync(),
+                child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: payments.length,
                 itemBuilder: (context, index) {
                   final payment = payments[index];
-                  return Card(
+                  return RepaintBoundary(
+                    child: Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: Container(
@@ -312,14 +316,16 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                           : null,
                       onTap: () => _showPaymentDetails(payment),
                     ),
+                  ),
                   );
                 },
               ),
-            ),
-          ],
-        );
-      },
-    );
+                ),
+              ),
+            ],
+          );
+        },
+      );
   }
 
   bool _hasActiveFilters() {
@@ -383,7 +389,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           if (_toDate != null && paymentDate.isAfter(_toDate!)) {
             return false;
           }
-        } catch (e) {}
+        } catch (e) { debugPrint('Date parse error in filter: $e'); }
       }
 
       return true;

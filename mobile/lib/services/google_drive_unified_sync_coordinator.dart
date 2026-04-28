@@ -904,6 +904,12 @@ class GoogleDriveUnifiedSyncCoordinator {
   void dispose() {
     _stopMonitoring();
     _syncResultController.close();
+    _isInitialized = false;
     _log('🛑 Unified Sync Coordinator disposed');
+  }
+
+  /// تنظيف آمن للمثيل Singleton
+  static Future<void> disposeInstance() async {
+    instance.dispose();
   }
 }

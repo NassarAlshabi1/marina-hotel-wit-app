@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
 import '../utils/debug_logs.dart';
 import 'daos/outbox_dao.dart';
 import 'data_usage_manager.dart';
@@ -12,9 +13,9 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_notification_manager.dart';
+import 'sync_conflict_event_bus.dart';
 import 'sync_performance_optimizer.dart';
 import 'sync_locks.dart';
-import 'sync_config.dart';
 import 'sync_constants.dart';
 
 /// استراتيجيات حل التضارب
@@ -38,7 +39,6 @@ class SmartSyncManager {
   bool _isEnabled = false;
   bool _isLoggedIn = false;
   String? _deviceId;
-  int _silentSignInRetryCount = 0;
 
   String? get deviceId => _deviceId;
   bool get isDriveSignedIn => _backupService?.isSignedIn ?? false;
@@ -373,13 +373,13 @@ class SmartSyncManager {
 
       for (final record in localRecords) {
         if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          localMap[record['local_uuid']] = record;
+          localMap[record['local_uuid'] as String] = record;
         }
       }
 
       for (final record in remoteRecords) {
         if (record is Map<String, dynamic> && record['local_uuid'] != null) {
-          remoteMap[record['local_uuid']] = record;
+          remoteMap[record['local_uuid'] as String] = record;
         }
       }
 
@@ -407,8 +407,8 @@ class SmartSyncManager {
                 DataConflict(
                   tableName: tableName,
                   recordId: uuid,
-                  localRecord: localRecord,
-                  remoteRecord: remoteRecord,
+                  localRecord: localRecord as Map<String, dynamic>,
+                  remoteRecord: remoteRecord as Map<String, dynamic>,
                   localTimestamp: localTime,
                   remoteTimestamp: remoteTime,
                 ),
@@ -434,10 +434,28 @@ class SmartSyncManager {
         _log(
           '📥 استبدال ${conflict.tableName}/${conflict.recordId} بالنسخة الأحدث',
         );
-        // النسخة البعيدة أحدث، سيتم استيرادها
+        // النسخة البعيدة أحدث، سيتم استيرادها — إرسال حدث تضارب (المحلي تم تجاهله)
+        SyncConflictEventBus.instance.emitSimple(
+          table: conflict.tableName,
+          localUuid: conflict.recordId,
+          winnerSide: 'remote',
+          reason: 'النسخة البعيدة أحدث (${conflict.remoteTimestamp.toIso8601String()})',
+        );
       } else {
         _log(
           '📱 الاحتفاظ بالنسخة المحلية لـ ${conflict.tableName}/${conflict.recordId}',
+        );
+        // المحلي أحدث — تسجيل تحذير لأن التغيير البعيد تم تجاهله
+        AppLogger.warning(
+          'تغيير السيرفر تم تجاهله (المحلي أحدث): ${conflict.tableName}/${conflict.recordId}',
+          tag: 'SYNC_CONFLICT',
+        );
+        // إرسال حدث تضارب (السيرفر تم تجاهله)
+        SyncConflictEventBus.instance.emitSimple(
+          table: conflict.tableName,
+          localUuid: conflict.recordId,
+          winnerSide: 'local',
+          reason: 'النسخة المحلية أحدث (${conflict.localTimestamp.toIso8601String()})',
         );
         // إزالة السجل من بيانات النسخ الاحتياطي ليتم تجاهله
         await _removeRecordFromBackupData(
@@ -470,7 +488,7 @@ class SmartSyncManager {
         for (final noteData in notes) {
           if (noteData is Map<String, dynamic>) {
             // التحقق من تاريخ الملاحظة
-            final String? createdAtStr = noteData['created_at'];
+            final String? createdAtStr = noteData['created_at'] as String?;
             // في بعض الأحيان يكون التاريخ بتنسيق مختلف، نحاول التحليل
             if (createdAtStr != null) {
               try {
@@ -480,8 +498,8 @@ class SmartSyncManager {
                 // لكن هنا سنعتمد على الوقت بشكل أساسي
                 if (createdAt.isAfter(lastSync)) {
                   newNotesCount++;
-                  lastNoteTitle = noteData['title'] ?? 'بدون عنوان';
-                  noteCreator = noteData['created_by'] ?? 'مسؤول';
+                  lastNoteTitle = (noteData['title'] as String?) ?? 'بدون عنوان';
+                  noteCreator = (noteData['created_by'] as String?) ?? 'مسؤول';
                 }
               } catch (e) {
                 _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
@@ -669,43 +687,6 @@ class SmartSyncManager {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getString(_prefsLastSyncKey);
     return timestamp != null ? DateTime.parse(timestamp) : null;
-  }
-
-  /// محاولة تسجيل دخول صامت مع إعادة محاولة العملية
-  Future<T?> _attemptSilentSignInAndRetry<T>(
-    String operationName,
-    Future<T> Function() operation,
-  ) async {
-    if (_backupService == null || !_backupService!.isSignedIn) {
-      _log('⚠️ لا يمكن $operationName: غير مسجل الدخول');
-
-      if (_backupService != null &&
-          _silentSignInRetryCount < SyncConfig.maxSilentSignInRetries) {
-        _silentSignInRetryCount++;
-        _log(
-          '🔐 محاولة تسجيل الدخول الصامت (المحاولة $_silentSignInRetryCount/${SyncConfig.maxSilentSignInRetries})...',
-        );
-        try {
-          final account = await _backupService!.attemptSilentSignIn();
-          if (account != null) {
-            _log('✅ نجح تسجيل الدخول الصامت - إعادة محاولة $operationName...');
-            _isLoggedIn = true;
-            _silentSignInRetryCount = 0;
-            return await operation();
-          } else {
-            _log('❌ فشل تسجيل الدخول الصامت - يحتاج تدخل المستخدم');
-          }
-        } catch (e) {
-          _log('❌ خطأ في تسجيل الدخول الصامت: $e');
-        } finally {
-          if (_silentSignInRetryCount >= SyncConfig.maxSilentSignInRetries) {
-            _log('⚠️ تم الوصول للحد الأقصى من محاولات تسجيل الدخول الصامت');
-            _silentSignInRetryCount = 0;
-          }
-        }
-      }
-    }
-    return null;
   }
 
   /// معلومات الحالة
@@ -931,6 +912,12 @@ class SmartSyncManager {
   void dispose() {
     _stopSyncMonitoring();
     _log('🛑 مدير المزامنة الذكي: تم التنظيف');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance?.dispose();
+    _instance = null;
   }
 
   /// معالجة طلب حل التضارب اليدوي (placeholder)

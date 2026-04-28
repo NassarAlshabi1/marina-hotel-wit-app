@@ -61,12 +61,12 @@ class ShiftNotesRepository {
     return await dao.insertOne(
       BookingNotesCompanion(
         bookingId: d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
-        noteText: d.Value(data['note_text']),
-        alertType: d.Value(data['alert_type']),
+        noteText: d.Value(data['note_text'] as String),
+        alertType: d.Value(data['alert_type'] as String),
         alertUntil: data['alert_until'] != null
-            ? d.Value(data['alert_until'])
+            ? d.Value(data['alert_until'] as String?)
             : const d.Value.absent(),
-        isActive: d.Value(data['is_active']),
+        isActive: d.Value(data['is_active'] as int),
       ),
     );
   }
@@ -80,12 +80,12 @@ class ShiftNotesRepository {
     final rows = await dao.updateById(
       id,
       BookingNotesCompanion(
-        noteText: d.Value(data['note_text']),
-        alertType: d.Value(data['alert_type']),
+        noteText: d.Value(data['note_text'] as String),
+        alertType: d.Value(data['alert_type'] as String),
         alertUntil: data['alert_until'] != null
-            ? d.Value(data['alert_until'])
+            ? d.Value(data['alert_until'] as String?)
             : const d.Value.absent(),
-        isActive: d.Value(data['is_active']),
+        isActive: d.Value(data['is_active'] as int),
       ),
     );
     return rows > 0;

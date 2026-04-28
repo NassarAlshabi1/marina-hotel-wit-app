@@ -152,16 +152,18 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                       ));
                             final totalAmount = (actualNights * price)
                                 .toDouble();
-                            return _BookingRow(
-                              index: index,
-                              booking: booking,
-                              expectedNights: expectedNights,
-                              actualNights: actualNights,
-                              pricePerNight: price,
-                              totalAmount: totalAmount,
-                              currencyFmt: _currencyFmt,
-                              plannedCheckout: plannedCheckout,
-                              actualCheckout: actualCheckout,
+                            return RepaintBoundary(
+                              child: _BookingRow(
+                                index: index,
+                                booking: booking,
+                                expectedNights: expectedNights,
+                                actualNights: actualNights,
+                                pricePerNight: price,
+                                totalAmount: totalAmount,
+                                currencyFmt: _currencyFmt,
+                                plannedCheckout: plannedCheckout,
+                                actualCheckout: actualCheckout,
+                              ),
                             );
                           },
                         ),
@@ -213,17 +215,19 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                       actualCheckout ?? plannedCheckout,
                                 ));
                       final totalAmount = (actualNights * price).toDouble();
-                      return _BookingRow(
-                        index: index + 1,
-                        booking: booking,
-                        expectedNights: expectedNights,
-                        actualNights: actualNights,
-                        pricePerNight: price,
-                        totalAmount: totalAmount,
-                        currencyFmt: _currencyFmt,
-                        plannedCheckout: plannedCheckout,
-                        actualCheckout: actualCheckout,
-                        compact: true,
+                      return RepaintBoundary(
+                        child: _BookingRow(
+                          index: index + 1,
+                          booking: booking,
+                          expectedNights: expectedNights,
+                          actualNights: actualNights,
+                          pricePerNight: price,
+                          totalAmount: totalAmount,
+                          currencyFmt: _currencyFmt,
+                          plannedCheckout: plannedCheckout,
+                          actualCheckout: actualCheckout,
+                          compact: true,
+                        ),
                       );
                     },
                   );

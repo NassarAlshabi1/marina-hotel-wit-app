@@ -588,7 +588,7 @@ class GoogleDriveSyncService {
     for (final file in result.files ?? []) {
       if (file.id == null) continue;
       if (!keepShardIds.contains(file.id)) {
-        await api.files.delete(file.id!);
+        await api.files.delete(file.id as String);
       }
     }
   }

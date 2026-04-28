@@ -1220,25 +1220,25 @@ class RestoreFixService {
         // استعادة البيانات (أدخل parents أولًا ثم children)
         if (snapshotData.containsKey('rooms')) {
           await roomsDao.importFromJson(
-            List<Map<String, dynamic>>.from(snapshotData['rooms']),
+            List<Map<String, dynamic>>.from(snapshotData['rooms'] as List),
             clearExisting: false,
           );
         }
         if (snapshotData.containsKey('bookings')) {
           await bookingsDao.importFromJson(
-            List<Map<String, dynamic>>.from(snapshotData['bookings']),
+            List<Map<String, dynamic>>.from(snapshotData['bookings'] as List),
             clearExisting: false,
           );
         }
         if (snapshotData.containsKey('payments')) {
           await paymentsDao.importFromJson(
-            List<Map<String, dynamic>>.from(snapshotData['payments']),
+            List<Map<String, dynamic>>.from(snapshotData['payments'] as List),
             clearExisting: false,
           );
         }
         if (snapshotData.containsKey('debts')) {
           await debtsDao.importFromJson(
-            List<Map<String, dynamic>>.from(snapshotData['debts']),
+            List<Map<String, dynamic>>.from(snapshotData['debts'] as List),
             clearExisting: false,
           );
         }

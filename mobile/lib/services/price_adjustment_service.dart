@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'local_db.dart';
 import 'auto_backup_manager.dart';
+import 'booking_derived_fields_service.dart';
 import '../utils/time.dart';
 
 class PriceAdjustmentService {
@@ -54,27 +56,61 @@ class PriceAdjustmentService {
 
     await db.into(db.priceAdjustments).insert(adjustmentRecord);
 
+    // ─── إصلاح BUG #1: تحديث سعر الغرفة في جدول rooms ───
+    // كان الخطأ: لم يُحدَّث room.price، فأي إعادة حساب عبر
+    // EnhancedBookingCalculationService كانت تقرأ السعر القديم
+    // وتمسح تعديلات nightlyRate اليدوية.
+    await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber)))
+        .write(RoomsCompanion(
+          price: Value(newPrice),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ));
+
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
-    
+
     int nightsUpdated = 0;
     int bookingsAffected = 0;
     final auditEntries = <String>[];
 
     for (final booking in activeBookings) {
-      final result = await _updateBookingNightsFromDate(
-        booking: booking,
-        newPrice: newPrice,
-        effectiveHotelDay: effectiveHotelDay,
-        adjustmentUuid: adjustmentUuid,
-        appliedBy: appliedBy,
-      );
-      
-      if (result.nightsUpdated > 0) {
-        bookingsAffected++;
-        nightsUpdated += result.nightsUpdated;
-        auditEntries.addAll(result.auditEntries);
+      // حساب عدد الليالي المتأثرة (قبل إعادة الحساب)
+      final nightsBefore = await (db.select(db.bookingNights)
+            ..where((n) => n.bookingLocalId.equals(booking.id))
+            ..where((n) => n.deletedAt.isNull())
+            ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
+          .get();
 
-        await _recalculateBookingTotals(booking);
+      final oldTotal = nightsBefore.fold<double>(0, (sum, n) => sum + n.nightlyRate);
+
+      // ─── إعادة حساب عبر EnhancedBookingCalculationService ───
+      // هذه الدالة تستخدم room.price الجديد كـ baseRate وتطبق
+      // التخفيضات (legacy + booking_price_adjustments) بشكل صحيح
+      // وتُحدّث جميع حقول booking_nights (baseRate, adjustment, finalRate, ...)
+      try {
+        await BookingDerivedFieldsService(db).refreshForBookingId(
+          booking.id,
+          forceRebuild: true,
+        );
+      } catch (e) {
+        debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
+      }
+
+      // حساب النتيجة بعد إعادة الحساب
+      final nightsAfter = await (db.select(db.bookingNights)
+            ..where((n) => n.bookingLocalId.equals(booking.id))
+            ..where((n) => n.deletedAt.isNull()))
+          .get();
+
+      final newTotal = nightsAfter.fold<double>(0, (sum, n) => sum + n.nightlyRate);
+      final nightsAffected = nightsBefore.length;
+
+      if (nightsAffected > 0 && (oldTotal - newTotal).abs() > 0.01) {
+        bookingsAffected++;
+        nightsUpdated += nightsAffected;
+        auditEntries.add(
+          'حجز ${booking.guestName}: ${oldTotal.toStringAsFixed(0)} → ${newTotal.toStringAsFixed(0)} ($nightsAffected ليلة)',
+        );
       }
     }
 
@@ -103,108 +139,13 @@ class PriceAdjustmentService {
 
   Future<List<Booking>> _getActiveBookingsForRoom(String roomNumber) async {
     final activeStatuses = ['مؤكد', 'confirmed', 'نشط', 'active', 'مسجل دخول', 'checked_in'];
-    
+
     return await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.deletedAt.isNull())
           ..where((b) => b.actualCheckout.isNull())
           ..where((b) => b.status.isIn(activeStatuses)))
         .get();
-  }
-
-  Future<_NightUpdateResult> _updateBookingNightsFromDate({
-    required Booking booking,
-    required double newPrice,
-    required String effectiveHotelDay,
-    required String adjustmentUuid,
-    required String appliedBy,
-  }) async {
-    final nights = await (db.select(db.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(booking.id))
-          ..where((n) => n.deletedAt.isNull())
-          ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
-        .get();
-
-    int updated = 0;
-    final entries = <String>[];
-
-    for (final night in nights) {
-      final oldRate = night.nightlyRate;
-      
-      double adjustedRate = newPrice;
-      if (booking.discount > 0 && booking.discountType != 'total') {
-        final discountStartDate = booking.discountStartDate != null
-            ? DateTime.tryParse(booking.discountStartDate!)
-            : null;
-        
-        if (discountStartDate != null) {
-          final discountHotelDay = Time.hotelDayKey(now: discountStartDate);
-          if (night.hotelDayKey.compareTo(discountHotelDay) >= 0) {
-            adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice);
-          }
-        } else {
-          adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice);
-        }
-      }
-
-      adjustedRate = double.parse(adjustedRate.toStringAsFixed(2));
-
-      if ((oldRate - adjustedRate).abs() > 0.001) {
-        await (db.update(db.bookingNights)
-              ..where((n) => n.id.equals(night.id)))
-            .write(BookingNightsCompanion(
-              nightlyRate: Value(adjustedRate),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ));
-
-        updated++;
-        entries.add(
-          'حجز ${booking.guestName} - ليلة ${night.hotelDayKey}: '
-          '${oldRate.toStringAsFixed(0)} → ${adjustedRate.toStringAsFixed(0)}',
-        );
-      }
-    }
-
-    return _NightUpdateResult(nightsUpdated: updated, auditEntries: entries);
-  }
-
-  Future<void> _recalculateBookingTotals(Booking booking) async {
-    final nights = await (db.select(db.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(booking.id))
-          ..where((n) => n.deletedAt.isNull()))
-        .get();
-
-    final double totalNightAmount = nights.fold<double>(
-      0.0,
-      (sum, n) => sum + n.nightlyRate,
-    );
-
-    double totalDue = totalNightAmount;
-    if (booking.discount > 0 && booking.discountType == 'total') {
-      totalDue = (totalNightAmount - booking.discount).clamp(0.0, totalNightAmount);
-    }
-    totalDue = double.parse(totalDue.toStringAsFixed(2));
-
-    final payments = await (db.select(db.payments)
-          ..where((p) => p.bookingLocalId.equals(booking.id))
-          ..where((p) => p.deletedAt.isNull()))
-        .get();
-
-    final totalPaid = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
-    final remaining = double.parse((totalDue - totalPaid).toStringAsFixed(2));
-
-    await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
-      BookingsCompanion(
-        totalNightsCached: Value(nights.length),
-        totalDueCached: Value(totalDue),
-        totalPaidCached: Value(totalPaid),
-        remainingBalanceCached: Value(remaining),
-        isFullyPaid: Value(remaining <= 0),
-        updatedAt: Value(Time.nowEpoch()),
-        lastModified: Value(Time.nowEpoch()),
-      ),
-    );
   }
 
   Future<void> _createAuditLog({
@@ -258,7 +199,7 @@ class PriceAdjustmentService {
     final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
 
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
-    
+
     int totalNightsAffected = 0;
     double totalOldAmount = 0;
     double totalNewAmount = 0;
@@ -278,7 +219,7 @@ class PriceAdjustmentService {
 
       for (final night in nights) {
         bookingOldTotal += night.nightlyRate;
-        
+
         double adjustedRate = newPrice;
         if (booking.discount > 0 && booking.discountType != 'total') {
           adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice);
@@ -329,15 +270,5 @@ class PriceAdjustmentResult {
     this.bookingsAffected = 0,
     this.nightsUpdated = 0,
     this.auditEntries = const [],
-  });
-}
-
-class _NightUpdateResult {
-  final int nightsUpdated;
-  final List<String> auditEntries;
-
-  _NightUpdateResult({
-    required this.nightsUpdated,
-    required this.auditEntries,
   });
 }

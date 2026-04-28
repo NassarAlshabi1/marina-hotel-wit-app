@@ -80,6 +80,7 @@ class BookingPriceAdjustmentsAdapter
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
       adjustmentType: _vInt(
         json,
         'adjustmentType',
@@ -147,6 +148,7 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'bookingLocalUuid', 'booking_local_uuid'): model.bookingLocalUuid,
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
+      _k(src, 'roomNumber', 'room_number'): model.roomNumber,
       _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
       _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
       _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer

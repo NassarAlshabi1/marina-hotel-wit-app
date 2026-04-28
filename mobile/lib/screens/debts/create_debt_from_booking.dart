@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -49,11 +51,17 @@ class _CreateDebtFromBookingScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('إنشاء دين من حجز')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showDiscardDialog(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('إنشاء دين من حجز')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildBookingSelector(),
@@ -78,6 +86,7 @@ class _CreateDebtFromBookingScreenState
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -476,6 +485,38 @@ class _CreateDebtFromBookingScreenState
       if (checkout != null) return checkout;
     }
     return DateTime.now();
+  }
+
+  bool get _hasUnsavedChanges =>
+      _selectedBooking != null ||
+      _debtData != null ||
+      _amountController.text.isNotEmpty ||
+      _notesController.text.isNotEmpty;
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لا'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
+              },
+              child: const Text('نعم'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

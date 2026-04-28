@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../../utils/id.dart';
@@ -89,7 +90,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (_) {}
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     return BlacklistEntry(
       id: row.id,
       name: row.title,
@@ -198,7 +199,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (_) {}
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     payload['active'] = active;
     final now = Time.nowEpoch();
     final updated =

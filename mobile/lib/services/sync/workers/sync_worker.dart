@@ -39,7 +39,7 @@ class SyncWorker {
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
     
     developer.log('✅ تم جدولة المزامنة الدورية كل ${frequency.inMinutes} دقيقة');

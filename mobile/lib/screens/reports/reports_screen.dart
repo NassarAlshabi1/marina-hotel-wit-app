@@ -1,209 +1,388 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/performance_provider.dart';
 import '../../utils/status_utils.dart';
 import 'expenses_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'debts_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 import 'income_expense_report_screen.dart';
+import 'guest_payments_detail_report_screen.dart';
+import '../../services/crashlytics_service.dart';
 
-class ReportsScreen extends ConsumerWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.watch(coreProviders.dbProvider);
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  /// مفاتيح الـ cache لكل نوع بيانات
+  static const _cacheKeyRooms = 'report_rooms';
+  static const _cacheKeyFinancials = 'report_financials';
+
+  /// الذاكرة المؤقتة
+  Map<String, dynamic>? _cachedRooms;
+  Map<String, dynamic>? _cachedFinancials;
+  bool _loading = true;
+
+  /// RefreshableObject flag — للتحكم بإعادة التحميل
+  bool _forceRefresh = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData({bool force = false}) async {
+    if (force) {
+      _forceRefresh = true;
+    }
+    setState(() => _loading = true);
+
+    final db = ref.read(coreProviders.dbProvider);
+    final perf = ref.read(performanceProvider.notifier);
+
+    try {
+      // 1. تحميل بيانات الغرف (مع cache)
+      final roomsData = await PerformanceTimer.measure(
+        'reports_load_rooms',
+        perf,
+        () async {
+          if (!force && _cachedRooms != null) return _cachedRooms!;
+          final rooms = await db.select(db.rooms).get();
+          final result = {'rooms': rooms};
+          _cachedRooms = result;
+          return result;
+        },
+        recordsProcessed: 1,
+      );
+      final rooms = roomsData['rooms'] as List;
+
+      // 2. تحميل البيانات المالية (مع cache)
+      final finData = await PerformanceTimer.measure(
+        'reports_load_financials',
+        perf,
+        () async {
+          if (!force && _cachedFinancials != null) return _cachedFinancials!;
+          final allPayments = await db.select(db.payments).get();
+          double income = 0;
+          for (final p in allPayments) {
+            if (p.deletedAt != null) continue;
+            if (p.isVoided == true) continue;
+            income += p.amount;
+          }
+          final expenses = await db.select(db.expenses).get();
+          double expense = 0;
+          for (final e in expenses) {
+            expense += e.amount;
+          }
+          final result = {'income': income, 'expense': expense};
+          _cachedFinancials = result;
+          return result;
+        },
+        recordsProcessed: 1,
+      );
+
+      // 3. بناء الرسوم البيانية
+      final total = rooms.isEmpty ? 1 : rooms.length;
+
+      final daily = List.generate(7, (i) {
+        final busy =
+            rooms.where((r) => StatusUtils.isRoomOccupied(r.status as String)).length;
+        final occ = (busy * 100 / total).round().toDouble();
+        return BarChartGroupData(
+          x: i,
+          barRods: [BarChartRodData(toY: occ, color: Colors.teal)],
+        );
+      });
+
+      final revExp = [
+        BarChartGroupData(
+          x: 0,
+          barRods: [BarChartRodData(toY: (finData['income'] as num).toDouble(), color: Colors.green)],
+        ),
+        BarChartGroupData(
+          x: 1,
+          barRods: [BarChartRodData(toY: (finData['expense'] as num).toDouble(), color: Colors.red)],
+        ),
+      ];
+
+      final topRooms = rooms.take(5).toList();
+      final topBars = <BarChartGroupData>[];
+      for (var i = 0; i < topRooms.length; i++) {
+        final r = topRooms[i];
+        final v = StatusUtils.isRoomOccupied(r.status as String) ? 100.0 : 20.0;
+        topBars.add(
+          BarChartGroupData(
+            x: i,
+            barRods: [BarChartRodData(toY: v, color: Colors.blue)],
+          ),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _forceRefresh = false;
+          // تخزين البيانات المعالجة للاستخدام في build
+          _chartData = {
+            'dailyOcc': daily,
+            'revExp': revExp,
+            'topRooms': topBars,
+            'income': finData['income'],
+            'expense': finData['expense'],
+          };
+        });
+      }
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'ReportsScreen',
+        action: 'loadData',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.warning,
+        extra: {'forceRefresh': '$force'},
+      );
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Map<String, dynamic> _chartData = {};
+
+  @override
+  Widget build(BuildContext context) {
     return AppScaffold(
       title: 'التقارير',
       actions: [
         IconButton(
+          onPressed: () => _loadData(force: true),
+          icon: const Icon(Icons.refresh),
+          tooltip: 'تحديث',
+        ),
+        IconButton(
           onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
           icon: const Icon(Icons.sync),
+          tooltip: 'مزامنة',
         ),
       ],
-      body: FutureBuilder(
-        future: _prepareData(db),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final d = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'التقارير المالية',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _ReportShortcut(
-                icon: Icons.receipt_long,
-                label: 'تقرير دفوعات النزلاء',
-                color: Colors.green,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PaymentsReportScreen(),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              children: [
+                // ─── التقارير المالية ───
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'التقارير المالية',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              _ReportShortcut(
-                icon: Icons.account_balance_wallet,
-                label: 'تقرير المصروفات',
-                color: Colors.orange,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ExpensesReportScreen(),
+                const SizedBox(height: 6),
+                _ReportShortcut(
+                  icon: Icons.receipt_long,
+                  label: 'تقرير دفوعات النزلاء',
+                  color: Colors.green,
+                  onTap: () => _navigate(const PaymentsReportScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.assignment,
+                  label: 'تقرير تفصيلي - الأيام والمدفوعات',
+                  color: Colors.indigo,
+                  onTap: () =>
+                      _navigate(const GuestPaymentsDetailReportScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.account_balance_wallet,
+                  label: 'تقرير المصروفات',
+                  color: Colors.orange,
+                  onTap: () => _navigate(const ExpensesReportScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.stacked_line_chart,
+                  label: 'تقرير الدخل والخرج',
+                  color: Colors.teal,
+                  onTap: () => _navigate(const IncomeExpenseReportScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.payments_outlined,
+                  label: 'تقرير سحبيات الرواتب',
+                  color: Colors.blue,
+                  onTap: () =>
+                      _navigate(const SalaryWithdrawalsReportScreen()),
+                ),
+                const SizedBox(height: 10),
+
+                // ─── تقارير المخاطر والمتابعة ───
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'تقارير المخاطر والمتابعة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              _ReportShortcut(
-                icon: Icons.stacked_line_chart,
-                label: 'تقرير الدخل والخرج',
-                color: Colors.teal,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const IncomeExpenseReportScreen(),
+                const SizedBox(height: 6),
+                _ReportShortcut(
+                  icon: Icons.pie_chart,
+                  label: 'تقرير الديون',
+                  color: Colors.purple,
+                  onTap: () => _navigate(const DebtsReportScreen()),
+                ),
+                const SizedBox(height: 14),
+
+                // ─── مؤشرات سريعة ───
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'مؤشرات سريعة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              _ReportShortcut(
-                icon: Icons.payments_outlined,
-                label: 'تقرير سحبيات الرواتب',
-                color: Colors.blue,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SalaryWithdrawalsReportScreen(),
+                const SizedBox(height: 8),
+
+                // ملخص مالي سريع
+                _buildQuickFinancialSummary(),
+                const SizedBox(height: 12),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'الإشغال اليومي (آخر 7 أيام)',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'تقارير المخاطر والمتابعة',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                SizedBox(
+                  height: 150,
+                  child: BarChart(
+                    BarChartData(
+                      barGroups: _chartData['dailyOcc']
+                          as List<BarChartGroupData>? ?? [],
+                      borderData: FlBorderData(show: false),
+                      gridData: const FlGridData(show: false),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              _ReportShortcut(
-                icon: Icons.pie_chart,
-                label: 'تقرير الديون',
-                color: Colors.purple,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const DebtsReportScreen()),
+                const SizedBox(height: 10),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'الإيرادات مقابل المصروفات (الشهر)',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'مؤشرات سريعة',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                SizedBox(
+                  height: 150,
+                  child: BarChart(
+                    BarChartData(
+                      barGroups: _chartData['revExp']
+                          as List<BarChartGroupData>? ?? [],
+                      borderData: FlBorderData(show: false),
+                      gridData: const FlGridData(show: false),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'الإشغال اليومي (آخر 7 أيام)',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                const SizedBox(height: 10),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'أعلى الغرف إشغالاً',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                  ),
                 ),
-              ),
-              SizedBox(
-                height: 150,
-                child: BarChart(BarChartData(barGroups: d['dailyOcc'])),
-              ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'الإيرادات مقابل المصروفات (الشهر)',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                SizedBox(
+                  height: 150,
+                  child: BarChart(
+                    BarChartData(
+                      barGroups: _chartData['topRooms']
+                          as List<BarChartGroupData>? ?? [],
+                      borderData: FlBorderData(show: false),
+                      gridData: const FlGridData(show: false),
+                    ),
+                  ),
                 ),
+              ],
+            ),
+    );
+  }
+
+  /// ملخص مالي سريع (إيرادات - مصروفات - صافي)
+  Widget _buildQuickFinancialSummary() {
+    final income = (_chartData['income'] as num?)?.toDouble() ?? 0;
+    final expense = (_chartData['expense'] as num?)?.toDouble() ?? 0;
+    final net = income - expense;
+
+    return Card(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildFinIndicator(
+                'الإيرادات',
+                income,
+                Colors.green,
               ),
-              SizedBox(
-                height: 150,
-                child: BarChart(BarChartData(barGroups: d['revExp'])),
+            ),
+            Container(width: 1, height: 36, color: Colors.grey.shade200),
+            Expanded(
+              child: _buildFinIndicator(
+                'المصروفات',
+                expense,
+                Colors.red,
               ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'أعلى الغرف إشغالاً',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
-                ),
+            ),
+            Container(width: 1, height: 36, color: Colors.grey.shade200),
+            Expanded(
+              child: _buildFinIndicator(
+                'صافي',
+                net,
+                net >= 0 ? Colors.teal : Colors.orange,
               ),
-              SizedBox(
-                height: 150,
-                child: BarChart(BarChartData(barGroups: d['topRooms'])),
-              ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Future<Map<String, dynamic>> _prepareData(db) async {
-    final rooms = await db.select(db.rooms).get();
-    final total = rooms.length == 0 ? 1 : rooms.length;
-
-    // dummy last 7 days occupancy by current status
-    final daily = List.generate(7, (i) {
-      final busy = rooms
-          .where((r) => StatusUtils.isRoomOccupied(r.status))
-          .length;
-      final occ = (busy * 100 / total).round();
-      return BarChartGroupData(
-        x: i,
-        barRods: [BarChartRodData(toY: occ.toDouble())],
-      );
-    });
-
-    // month revenue vs expense: placeholder from local
-    final incomes = await db.select(db.cashTransactions).get();
-    double income = 0;
-    for (final i in incomes) {
-      income += i.amount;
-    }
-    final expenses = await db.select(db.expenses).get();
-    double expense = 0;
-    for (final e in expenses) {
-      expense += e.amount;
-    }
-    final revExp = [
-      BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: income)]),
-      BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: expense)]),
-    ];
-
-    // top rooms by occupancy (approx by status)
-    final topRooms = rooms.take(5).toList();
-    final topBars = <BarChartGroupData>[];
-    for (var i = 0; i < topRooms.length; i++) {
-      final r = topRooms[i];
-      final v = StatusUtils.isRoomOccupied(r.status) ? 100.0 : 20.0;
-      topBars.add(
-        BarChartGroupData(
-          x: i,
-          barRods: [BarChartRodData(toY: v)],
+  Widget _buildFinIndicator(String label, double value, Color color) {
+    final fmt = NumberFormat('#,##0', 'en_US');
+    return Column(
+      children: [
+        Text(
+          fmt.format(value),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: color,
+          ),
         ),
-      );
-    }
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: Colors.grey),
+        ),
+      ],
+    );
+  }
 
-    return {'dailyOcc': daily, 'revExp': revExp, 'topRooms': topBars};
+  void _navigate(Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 }
 
@@ -234,7 +413,10 @@ class _ReportShortcut extends StatelessWidget {
           backgroundColor: color.withOpacity(0.12),
           child: Icon(icon, color: color, size: 18),
         ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
       ),
     );
