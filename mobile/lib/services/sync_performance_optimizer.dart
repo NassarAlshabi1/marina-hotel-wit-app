@@ -136,6 +136,9 @@ class SyncPerformanceOptimizer {
         case ConnectivityResult.bluetooth:
           types.add('بلوتوث');
           break;
+        case ConnectivityResult.satellite:
+          types.add('قمر صناعي');
+          break;
         case ConnectivityResult.other:
           types.add('أخرى');
           break;
