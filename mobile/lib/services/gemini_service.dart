@@ -475,6 +475,7 @@ class GeminiService {
         requiresConfirmation: false,
       );
     }
+  }
 
   /// تحديد رسالة الخطأ المناسبة حسب نوع الاستثناء
   String _friendlyErrorMessage(Object e) {
