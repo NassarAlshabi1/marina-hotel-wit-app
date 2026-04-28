@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../../utils/app_logger.dart';
 import '../remote_config_service.dart';
 import 'telegram_config.dart';
 
@@ -90,14 +89,24 @@ class WhatsAppNotificationService {
   /// إرسال رسالة عبر CallMeBot WhatsApp API
   Future<bool> _sendViaCallMeBot(String message) async {
     try {
+      // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
+      final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
+      final trimmedMessage = message.length > maxLength
+          ? '${message.substring(0, maxLength - 3)}...'
+          : message;
+
       final url = Uri.parse(
         '$_callMeBotUrl'
         '?phone=$_phone'
-        '&text=${Uri.encodeComponent(message)}'
+        '&text=${Uri.encodeComponent(trimmedMessage)}'
         '&apikey=$_apiKey',
       );
 
-      final response = await _httpClient.get(url);
+      // timeout من Remote Config (افتراضي 15 ثانية)
+      final timeout = Duration(
+        seconds: RemoteConfigService.instance.whatsappApiTimeout,
+      );
+      final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
       if (response.statusCode == 200) {

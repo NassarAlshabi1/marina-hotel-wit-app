@@ -18,10 +18,10 @@ class TelegramConfig {
 
   TelegramConfig._();
 
-  /// التحقق من تفعيل Telegram
+  /// التحقق من تفعيل Telegram/WhatsApp — مفعّل افتراضياً
   static Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    return prefs.getBool(_enabledKey) ?? true;
   }
 
   static Future<void> setEnabled(bool enabled) async {
@@ -51,10 +51,10 @@ class TelegramConfig {
     await prefs.setString(_chatIdKey, value);
   }
 
-  /// تفعيل/تعطيل الإشعارات الفورية
+  /// تفعيل/تعطيل الإشعارات الفورية — مفعّل افتراضياً
   static Future<bool> isNotificationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_notificationsEnabledKey) ?? false;
+    return prefs.getBool(_notificationsEnabledKey) ?? true;
   }
 
   static Future<void> setNotificationsEnabled(bool enabled) async {
@@ -62,10 +62,10 @@ class TelegramConfig {
     await prefs.setBool(_notificationsEnabledKey, enabled);
   }
 
-  /// تفعيل/تعطيل التقرير اليومي
+  /// تفعيل/تعطيل التقرير اليومي — مفعّل افتراضياً
   static Future<bool> isDailyReportEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_dailyReportEnabledKey) ?? false;
+    return prefs.getBool(_dailyReportEnabledKey) ?? true;
   }
 
   static Future<void> setDailyReportEnabled(bool enabled) async {

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../local_db.dart';
+import '../remote_config_service.dart';
 import 'telegram_config.dart';
 import 'telegram_service.dart';
 import '../../utils/time.dart';
@@ -55,10 +56,11 @@ class TelegramReportService {
 
   TelegramReportService._();
 
-  // الإرسال عبر CallMeBot WhatsApp بدلاً من Telegram
+  // الإرسال عبر CallMeBot WhatsApp
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
-  static const String _defaultPhone = '967773749389';
-  static const String _defaultApiKey = '7379268';
+  // بيانات الاتصال من Firebase Remote Config (قابلة للتغيير من Firebase Console)
+  String get _phone => RemoteConfigService.instance.whatsappPhone;
+  String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
   final http.Client _httpClient = http.Client();
 
   /// إرسال التقرير اليومي عبر WhatsApp (CallMeBot)
@@ -267,15 +269,24 @@ class TelegramReportService {
   /// إرسال رسالة عبر CallMeBot WhatsApp API
   Future<bool> _sendViaCallMeBot(String message) async {
     try {
-      final phone = _defaultPhone; // بدون +
+      // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
+      final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
+      final trimmedMessage = message.length > maxLength
+          ? '${message.substring(0, maxLength - 3)}...'
+          : message;
+
       final url = Uri.parse(
         '$_callMeBotUrl'
-        '?phone=$phone'
-        '&text=${Uri.encodeComponent(message)}'
-        '&apikey=$_defaultApiKey',
+        '?phone=$_phone'
+        '&text=${Uri.encodeComponent(trimmedMessage)}'
+        '&apikey=$_apiKey',
       );
 
-      final response = await _httpClient.get(url);
+      // timeout من Remote Config (افتراضي 15 ثانية)
+      final timeout = Duration(
+        seconds: RemoteConfigService.instance.whatsappApiTimeout,
+      );
+      final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
       if (response.statusCode == 200) {
