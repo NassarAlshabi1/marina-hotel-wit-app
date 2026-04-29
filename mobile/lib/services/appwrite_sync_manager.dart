@@ -2062,6 +2062,55 @@ class AppwriteSyncManager {
     return []; // full fetch
   }
 
+  /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
+  /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
+  /// المنطق: إذا السحابة أرسلت هذا السجل فلا حاجة لإعادة إرساله عبر outbox.
+  Future<int> _cleanupOutboxAfterPull() async {
+    int totalRemoved = 0;
+
+    // الكيانات الرئيسية التي يتم مزامنتها مع جدول UUID المقابل
+    const entityUuidMap = {
+      'rooms': 'rooms',
+      'bookings': 'bookings',
+      'employees': 'employees',
+      'expenses': 'expenses',
+      'payments': 'payments',
+      'debts': 'debts',
+      'guest_infos': 'guest_infos',
+      'salary_withdrawals': 'salary_withdrawals',
+      'booking_price_adjustments': 'booking_price_adjustments',
+      'shift_notes': 'shift_notes',
+      'blacklist': 'blacklist',
+      'booking_notes': 'booking_notes',
+      'booking_nights': 'booking_nights',
+      'cash_transactions': 'cash_transactions',
+      'salary_cycles': 'salary_cycles',
+      'salary_payments': 'salary_payments',
+      'price_adjustments': 'price_adjustments',
+      'audit_logs': 'audit_logs',
+      'payment_voids': 'payment_voids',
+    };
+
+    for (final entity in entityUuidMap.keys) {
+      try {
+        // جلب UUIDs من outbox لهذا الكيان فقط
+        final outboxEntries = await (database.select(database.outbox)
+              ..where((t) => t.entity.equals(entity)))
+            .get();
+
+        if (outboxEntries.isEmpty) continue;
+
+        final uuids = outboxEntries.map((e) => e.localUuid).toList();
+        final removed = await outboxDao.removePulledEntities(uuids, entity: entity);
+        totalRemoved += removed;
+      } catch (e) {
+        _logger.warning('فشل تنظيف outbox للكيان $entity: $e', tag: 'SYNC');
+      }
+    }
+
+    return totalRemoved;
+  }
+
   /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
   Future<int> _getLastPullTs() async {
     try {
@@ -2335,6 +2384,15 @@ class AppwriteSyncManager {
           // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
           await _updateLastPullTs(Time.nowEpoch());
         });
+
+        // تنظيف outbox بعد السحب الناجح: حذف عناصر outbox التي
+        // تم سحب نفس البيانات من السحابة (لا حاجة لإعادة إرسالها)
+        if (recordsPulled > 0) {
+          final removed = await _cleanupOutboxAfterPull();
+          if (removed > 0) {
+            _logger.info('🧹 تم حذف $removed عنصر من outbox بعد السحب', tag: 'SYNC');
+          }
+        }
 
         _lastSyncTime = DateTime.now();
         await _saveSettings();
