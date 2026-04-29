@@ -514,7 +514,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (isOverdue) {
       return button
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .tint(color: Colors.red.withOpacity(0.2), duration: 800.ms)
+          .tint(color: Colors.orange.withOpacity(0.25), duration: 800.ms)
           .scale(
             begin: const Offset(1.0, 1.0),
             end: const Offset(1.03, 1.03),
