@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -481,8 +482,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
     final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
     final String tooltipText = rws != null ? rws.room.status : 'غير مسجلة';
+    final bool isOverdue = rws?.isPaymentOverdue ?? false;
 
-    return Tooltip(
+    Widget button = Tooltip(
       message: tooltipText,
       child: GestureDetector(
         onLongPress: rws != null
@@ -508,6 +510,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     );
+
+    if (isOverdue) {
+      return button
+          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+          .tint(color: Colors.red.withOpacity(0.2), duration: 800.ms)
+          .scale(
+            begin: const Offset(1.0, 1.0),
+            end: const Offset(1.03, 1.03),
+            duration: 800.ms,
+            curve: Curves.easeInOut,
+          );
+    }
+
+    return button;
   }
 
   void _showRoomOptionsDialog(BuildContext context, Room room) {
