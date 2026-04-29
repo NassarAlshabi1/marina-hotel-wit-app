@@ -2004,6 +2004,7 @@ class AppwriteSyncManager {
       'paidAmount': debt.paidAmount,
       // ── Required sync fields ──
       'vector_clock': debt.vectorClock,
+      'sync_vector_clock': debt.vectorClock,
       'sync_version': debt.version,
       'sync_origin': debt.origin,
       // ── Business fields ──
