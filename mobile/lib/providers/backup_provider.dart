@@ -393,6 +393,34 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
+  /// تسجيل الدخول الصامت في Google Drive — بدون إظهار واجهة للمستخدم
+  Future<void> silentSignInToDrive() async {
+    try {
+      final account = await _backupService.attemptSilentSignIn();
+      if (account != null) {
+        await setSkippedDriveLogin(false);
+
+        try {
+          final backups = await _backupService.listBackupFiles();
+          state = state.copyWith(
+            availableBackups: backups,
+          );
+        } catch (_) {}
+
+        try {
+          await _notifySyncManagers(true);
+        } catch (_) {}
+
+        state = state.copyWith(
+          status: BackupStatus.success,
+          signedInAccount: account,
+        );
+      }
+    } catch (_) {
+      // فشل الصامت — لا شيء
+    }
+  }
+
   /// تسجيل الدخول في Google Drive
   Future<void> signInToDrive() async {
     try {
