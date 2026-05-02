@@ -17,6 +17,9 @@ import '../../components/widgets/neu_card.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/daos/expenses_dao.dart';
+import '../../services/daos/bookings_dao.dart';
+import '../../services/daos/debts_dao.dart';
+import '../../services/daos/employees_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -50,6 +53,16 @@ class _IncomeExpenseReportScreenState
   double _expenseTotal = 0;
   double _salaryTotal = 0;
   double _net = 0;
+
+  // بيانات إضافية للدورة المالية
+  int _bookingsCount = 0;
+  int _activeBookingsCount = 0;
+  int _checkoutBookingsCount = 0;
+  int _totalDebtsCount = 0;
+  int _unsettledDebtsCount = 0;
+  double _unsettledDebtsAmount = 0;
+  int _activeEmployeesCount = 0;
+  double _totalSalaryObligation = 0;
 
   @override
   void initState() {
@@ -85,6 +98,18 @@ class _IncomeExpenseReportScreenState
       final expenseToStr = DateFormat('yyyy-MM-dd').format(hotelDayRange['end']!);
       final expenses = await expensesDao.list(from: expenseFromStr, to: expenseToStr);
 
+      // بيانات إضافية للتقرير التفصيلي للدورة المالية
+      final bookingsDao = BookingsDao(db, outboxDao);
+      final debtsDao = DebtsDao(db, outboxDao);
+      final employeesDao = EmployeesDao(db, outboxDao);
+
+      final bookings = await bookingsDao.list(
+        from: expenseFromStr,
+        to: expenseToStr,
+      );
+      final debts = await debtsDao.list();
+      final employees = await employeesDao.list(status: 'active');
+
       final result = await compute(
         _processReportData,
         _ReportParams(
@@ -95,6 +120,8 @@ class _IncomeExpenseReportScreenState
                   'roomNumber': p.roomNumber ?? '',
                   'guestName': '',
                   'amount': p.amount,
+                  'paymentMethod': p.paymentMethod,
+                  'revenueType': p.revenueType,
                 },
               )
               .toList(),
@@ -110,6 +137,14 @@ class _IncomeExpenseReportScreenState
               .toList(),
           fromDate: _fromDate!,
           toDate: _toDate!,
+          bookingsCount: bookings.length,
+          activeBookingsCount: bookings.where((b) => b.status == 'checked_in').length,
+          checkoutBookingsCount: bookings.where((b) => b.status == 'checked_out').length,
+          totalDebtsCount: debts.length,
+          unsettledDebtsCount: debts.where((d) => d.isSettled == 0).length,
+          unsettledDebtsAmount: debts.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
+          activeEmployeesCount: employees.length,
+          totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
         ),
       );
 
@@ -121,6 +156,14 @@ class _IncomeExpenseReportScreenState
           _expenseTotal = result.expenseTotal;
           _salaryTotal = result.salaryTotal;
           _net = result.net;
+          _bookingsCount = result.bookingsCount;
+          _activeBookingsCount = result.activeBookingsCount;
+          _checkoutBookingsCount = result.checkoutBookingsCount;
+          _totalDebtsCount = result.totalDebtsCount;
+          _unsettledDebtsCount = result.unsettledDebtsCount;
+          _unsettledDebtsAmount = result.unsettledDebtsAmount;
+          _activeEmployeesCount = result.activeEmployeesCount;
+          _totalSalaryObligation = result.totalSalaryObligation;
           _loading = false;
         });
       }
@@ -226,163 +269,651 @@ class _IncomeExpenseReportScreenState
     }).toList();
   }
 
-  // ===== بناء PDF التقرير العادي =====
+  // ===== بناء PDF التقرير التفصيلي للدورة المالية الكاملة =====
   Future<pw.Document> _buildPdfDocument() async {
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final doc = pw.Document();
     final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate!);
     final toLabel = DateFormat('yyyy-MM-dd').format(_toDate!);
+    final nonSalaryExpenses = _expenseTotal - _salaryTotal;
 
-    return ReportPdfBuilder.buildDocument(ReportPdfConfig(
-      title: 'تقرير الدخل والمصروفات',
-      fromDate: _fromDate,
-      toDate: _toDate,
-      customHeader: (fonts) => pw.Container(
-        width: double.infinity,
-        decoration: const pw.BoxDecoration(color: PdfColors.primary),
-        padding: const pw.EdgeInsets.all(20),
+    // ===== حسابات تحليل طرق الدفع =====
+    final cashIncome = _incomeEntries
+        .where((e) => e.paymentMethod == 'cash')
+        .fold<double>(0, (s, e) => s + e.amount);
+    final cardIncome = _incomeEntries
+        .where((e) => e.paymentMethod == 'card')
+        .fold<double>(0, (s, e) => s + e.amount);
+    final transferIncome = _incomeEntries
+        .where((e) => e.paymentMethod == 'transfer')
+        .fold<double>(0, (s, e) => s + e.amount);
+    final otherMethodIncome =
+        _incomeTotal - cashIncome - cardIncome - transferIncome;
+
+    // ===== حسابات تحليل أنواع الإيرادات =====
+    final roomRevenue = _incomeEntries
+        .where((e) => e.revenueType == 'room' || e.revenueType.isEmpty)
+        .fold<double>(0, (s, e) => s + e.amount);
+    final otherRevenue = _incomeTotal - roomRevenue;
+
+    // ===== حسابات تحليل أنواع المصروفات =====
+    final expenseByType = <String, double>{};
+    for (final e in _expenseEntries) {
+      final key = e.isSalary ? 'رواتب' : e.type;
+      expenseByType[key] = (expenseByType[key] ?? 0) + e.amount;
+    }
+    final sortedExpenseTypes = expenseByType.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // ===== مؤشرات مالية =====
+    final profitMargin =
+        _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
+    final expenseRatio =
+        _incomeTotal > 0 ? (_expenseTotal / _incomeTotal * 100) : 0.0;
+    final salaryExpenseRatio =
+        _incomeTotal > 0 ? (_salaryTotal / _incomeTotal * 100) : 0.0;
+    final debtCoverage =
+        _unsettledDebtsAmount > 0 && _net > 0
+            ? _net / _unsettledDebtsAmount
+            : 0.0;
+
+    /// صندوق ملخص
+    pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.backgroundLight,
+          border: pw.Border.all(color: color, width: 0.8),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
         child: pw.Column(
           children: [
             pw.Text(
-              'تقرير الدخل والمصروفات',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 20,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'الفترة من $fromLabel إلى $toLabel',
+              title,
               style: pw.TextStyle(
                 font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textWhite,
+                fontSize: 10,
+                color: PdfColors.textLight,
               ),
+            ),
+            pw.SizedBox(height: 3),
+            pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: color),
             ),
           ],
         ),
-      ),
-      buildContent: (fonts) {
-        pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
-          return pw.Container(
-            padding: const pw.EdgeInsets.all(12),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.backgroundLight,
-              border: pw.Border.all(color: color, width: 0.6),
+      );
+    }
+
+    /// عنوان قسم
+    pw.Widget buildSectionTitle(String title, PdfColor color) {
+      return pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
+        decoration: pw.BoxDecoration(
+          color: color,
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
+        child: pw.Text(
+          title,
+          style: pw.TextStyle(
+            font: fonts.bold,
+            fontSize: 13,
+            color: PdfColors.textWhite,
+          ),
+        ),
+      );
+    }
+
+    doc.addPage(
+      pw.MultiPage(
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.center,
+          child: pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount}',
+            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
+          ),
+        ),
+        build: (context) {
+          final widgets = <pw.Widget>[];
+
+          // ═══════════════════════════════════════
+          // القسم 1: رأس التقرير
+          // ═══════════════════════════════════════
+          widgets.add(
+            pw.Container(
+              width: double.infinity,
+              decoration: const pw.BoxDecoration(color: PdfColors.primary),
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Column(
+                children: [
+                  pw.Text(
+                    'تقرير الدورة المالية الشامل',
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 22,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'فندق مارينا بلازا',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 14,
+                      color: PdfColors.secondary,
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'الفترة من $fromLabel إلى $toLabel',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 12,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'تاريخ الإنشاء: ${EnhancedPdfUtils.formatDateTime(DateTime.now())}',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 10,
+                      color: PdfColors.textWhite,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: pw.Column(
+          );
+
+          // ═══════════════════════════════════════
+          // القسم 2: الملخص التنفيذي
+          // ═══════════════════════════════════════
+          widgets.add(pw.SizedBox(height: 16));
+          widgets.add(buildSectionTitle('الملخص التنفيذي', PdfColors.primary));
+
+          widgets.add(
+            pw.Row(
               children: [
-                pw.Text(
-                  title,
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 11,
-                    color: PdfColors.textDark,
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'إجمالي الإيرادات',
+                    EnhancedPdfUtils.formatNumber(_incomeTotal),
+                    PdfColors.success,
                   ),
                 ),
-                pw.SizedBox(height: 4),
-                pw.Text(
-                  value,
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 16,
-                    color: color,
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'إجمالي المصروفات',
+                    EnhancedPdfUtils.formatNumber(_expenseTotal),
+                    PdfColors.danger,
                   ),
                 ),
               ],
             ),
           );
-        }
-
-        pw.Widget buildDetailTable(String title, List<List<String>> rows) {
-          if (!_detailedMode || rows.isEmpty) return pw.Container();
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(title, style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
-              pw.SizedBox(height: 6),
-              EnhancedPdfUtils.buildProfessionalTable(
-                headers: ['التاريخ', 'الوصف', 'المبلغ'],
-                data: rows,
-                fonts: fonts,
-                headerColor: PdfColors.primary,
-                alternateRowColor: PdfColors.backgroundLight,
-              ),
-              pw.SizedBox(height: 12),
-            ],
+          widgets.add(pw.SizedBox(height: 6));
+          widgets.add(
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'مصروفات الرواتب',
+                    EnhancedPdfUtils.formatNumber(_salaryTotal),
+                    PdfColors.warning,
+                  ),
+                ),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'مصروفات تشغيلية',
+                    EnhancedPdfUtils.formatNumber(nonSalaryExpenses),
+                    PdfColors.info,
+                  ),
+                ),
+              ],
+            ),
           );
-        }
+          widgets.add(pw.SizedBox(height: 6));
+          widgets.add(
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'صافي الربح / الخسارة',
+                    EnhancedPdfUtils.formatNumber(_net),
+                    _net >= 0 ? PdfColors.success : PdfColors.danger,
+                  ),
+                ),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: buildSummaryBox(
+                    'هامش الربح',
+                    '${profitMargin.toStringAsFixed(1)}%',
+                    profitMargin > 0 ? PdfColors.success : PdfColors.danger,
+                  ),
+                ),
+              ],
+            ),
+          );
 
-        final incomeRows = _detailedMode
-            ? _incomeEntries
-                .map(
-                  (e) => [
-                    _dateFormat.format(e.date),
-                    e.description,
-                    EnhancedPdfUtils.formatNumber(e.amount),
-                  ],
-                )
-                .toList()
-            : const <List<String>>[];
-        final expenseRows = _detailedMode
-            ? _expenseEntries
-                .map(
-                  (e) => [
-                    _dateFormat.format(e.date),
-                    e.description.isNotEmpty ? e.description : e.type,
-                    EnhancedPdfUtils.formatNumber(e.amount),
-                  ],
-                )
-                .toList()
-            : const <List<String>>[];
+          // ═══════════════════════════════════════
+          // القسم 3: تفاصيل الإيرادات
+          // ═══════════════════════════════════════
+          widgets.add(buildSectionTitle('تفاصيل الإيرادات', PdfColors.success));
 
-        return [
-          pw.SizedBox(height: 16),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: buildSummaryBox(
-                  'إجمالي الدخل',
+          if (_incomeEntries.isNotEmpty) {
+            widgets.add(
+              EnhancedPdfUtils.buildProfessionalTable(
+                headers: ['#', 'التاريخ', 'الغرفة', 'النزيل', 'طريقة الدفع', 'نوع الإيراد', 'المبلغ'],
+                fonts: fonts,
+                headerColor: PdfColors.success,
+                alternateRowColor: PdfColors.backgroundLight,
+                data: _incomeEntries.asMap().entries.map((entry) {
+                  final e = entry.value;
+                  final i = entry.key + 1;
+                  return [
+                    '$i',
+                    _dateFormat.format(e.date),
+                    e.roomNumber.isNotEmpty ? e.roomNumber : '-',
+                    e.guestName.isNotEmpty ? e.guestName : '-',
+                    _paymentMethodName(e.paymentMethod),
+                    _revenueTypeName(e.revenueType),
+                    EnhancedPdfUtils.formatNumber(e.amount),
+                  ];
+                }).toList(),
+              ),
+            );
+          }
+
+          // ═══════════════════════════════════════
+          // القسم 4: تحليل طرق الدفع
+          // ═══════════════════════════════════════
+          widgets.add(
+            buildSectionTitle('تحليل طرق الدفع', PdfColors.secondary),
+          );
+          widgets.add(
+            EnhancedPdfUtils.buildProfessionalTable(
+              headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
+              fonts: fonts,
+              headerColor: PdfColors.secondary,
+              alternateRowColor: PdfColors.backgroundLight,
+              data: [
+                [
+                  'نقداً',
+                  EnhancedPdfUtils.formatNumber(cashIncome),
+                  '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
+                  _incomeTotal > 0
+                      ? '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
+                      : '0%',
+                ],
+                [
+                  'بطاقة ائتمانية',
+                  EnhancedPdfUtils.formatNumber(cardIncome),
+                  '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
+                  _incomeTotal > 0
+                      ? '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
+                      : '0%',
+                ],
+                [
+                  'تحويل بنكي',
+                  EnhancedPdfUtils.formatNumber(transferIncome),
+                  '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
+                  _incomeTotal > 0
+                      ? '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
+                      : '0%',
+                ],
+                if (otherMethodIncome > 0)
+                  [
+                    'أخرى',
+                    EnhancedPdfUtils.formatNumber(otherMethodIncome),
+                    '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
+                    _incomeTotal > 0
+                        ? '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
+                        : '0%',
+                  ],
+                [
+                  'الإجمالي',
                   EnhancedPdfUtils.formatNumber(_incomeTotal),
-                  PdfColors.success,
-                ),
+                  '${_incomeEntries.length}',
+                  '100%',
+                ],
+              ],
+            ),
+          );
+
+          // ═══════════════════════════════════════
+          // القسم 5: تفاصيل المصروفات
+          // ═══════════════════════════════════════
+          widgets.add(buildSectionTitle('تفاصيل المصروفات', PdfColors.danger));
+
+          if (_expenseEntries.isNotEmpty) {
+            widgets.add(
+              EnhancedPdfUtils.buildProfessionalTable(
+                headers: ['#', 'التاريخ', 'النوع', 'الوصف', 'المبلغ'],
+                fonts: fonts,
+                headerColor: PdfColors.danger,
+                alternateRowColor: PdfColors.backgroundLight,
+                data: _expenseEntries.asMap().entries.map((entry) {
+                  final e = entry.value;
+                  final i = entry.key + 1;
+                  return [
+                    '$i',
+                    _dateFormat.format(e.date),
+                    e.isSalary ? 'رواتب' : e.type,
+                    e.description.isNotEmpty ? e.description : '-',
+                    EnhancedPdfUtils.formatNumber(e.amount),
+                  ];
+                }).toList(),
               ),
-              pw.SizedBox(width: 8),
-              pw.Expanded(
-                child: buildSummaryBox(
-                  'إجمالي المصروفات',
-                  EnhancedPdfUtils.formatNumber(_expenseTotal),
-                  PdfColors.danger,
-                ),
+            );
+          }
+
+          // ═══════════════════════════════════════
+          // القسم 6: تحليل المصروفات حسب الفئة
+          // ═══════════════════════════════════════
+          if (sortedExpenseTypes.isNotEmpty) {
+            widgets.add(
+              buildSectionTitle('تحليل المصروفات حسب الفئة', PdfColors.accent),
+            );
+            widgets.add(
+              EnhancedPdfUtils.buildProfessionalTable(
+                headers: ['الفئة', 'المبلغ', 'النسبة من الإيرادات', 'النسبة من المصروفات'],
+                fonts: fonts,
+                headerColor: PdfColors.accent,
+                alternateRowColor: PdfColors.backgroundLight,
+                data: sortedExpenseTypes.map((entry) {
+                  return [
+                    entry.key,
+                    EnhancedPdfUtils.formatNumber(entry.value),
+                    _incomeTotal > 0
+                        ? '${(entry.value / _incomeTotal * 100).toStringAsFixed(1)}%'
+                        : '0%',
+                    _expenseTotal > 0
+                        ? '${(entry.value / _expenseTotal * 100).toStringAsFixed(1)}%'
+                        : '0%',
+                  ];
+                }).toList(),
               ),
-            ],
-          ),
-          pw.SizedBox(height: 8),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: buildSummaryBox(
-                  'مصروفات الرواتب',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal),
-                  PdfColors.warning,
-                ),
+            );
+          }
+
+          // ═══════════════════════════════════════
+          // القسم 7: تكاليف الموارد البشرية
+          // ═══════════════════════════════════════
+          widgets.add(
+            buildSectionTitle('تكاليف الموارد البشرية', PdfColors.warning),
+          );
+          widgets.add(
+            EnhancedPdfUtils.buildProfessionalTable(
+              headers: ['البيان', 'القيمة'],
+              fonts: fonts,
+              headerColor: PdfColors.warning,
+              alternateRowColor: PdfColors.backgroundLight,
+              columnWidths: [200, 130],
+              data: [
+                ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
+                ['إجمالي الالتزامات الرواتب الشهرية',
+                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation)],
+                ['الرواتب المدفوعة في الفترة',
+                  EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                ['نسبة الرواتب من الإيرادات',
+                  '${salaryExpenseRatio.toStringAsFixed(1)}%'],
+                ['نسبة الرواتب من المصروفات',
+                  _expenseTotal > 0
+                      ? '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%'
+                      : '0%'],
+              ],
+            ),
+          );
+
+          // ═══════════════════════════════════════
+          // القسم 8: تحليل الديون
+          // ═══════════════════════════════════════
+          widgets.add(
+            buildSectionTitle('تحليل الديون المستحقة', PdfColors.danger),
+          );
+          widgets.add(
+            EnhancedPdfUtils.buildProfessionalTable(
+              headers: ['البيان', 'القيمة'],
+              fonts: fonts,
+              headerColor: PdfColors.danger,
+              alternateRowColor: PdfColors.backgroundLight,
+              columnWidths: [200, 130],
+              data: [
+                ['إجمالي الديون', '$_totalDebtsCount دين'],
+                ['ديون غير مسددة', '$_unsettledDebtsCount دين'],
+                ['مبلغ الديون غير المسددة',
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
+                ['نسبة الديون من الإيرادات',
+                  _incomeTotal > 0
+                      ? '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%'
+                      : '0%'],
+                ['قدرة تغطية الديون (صافي / ديون)',
+                  debtCoverage > 0
+                      ? '${debtCoverage.toStringAsFixed(2)}x'
+                      : 'غير كافٍ'],
+              ],
+            ),
+          );
+
+          // ═══════════════════════════════════════
+          // القسم 9: إحصائيات الحجوزات والإشغال
+          // ═══════════════════════════════════════
+          widgets.add(
+            buildSectionTitle('إحصائيات الحجوزات والإشغال', PdfColors.info),
+          );
+          widgets.add(
+            EnhancedPdfUtils.buildProfessionalTable(
+              headers: ['البيان', 'القيمة'],
+              fonts: fonts,
+              headerColor: PdfColors.info,
+              alternateRowColor: PdfColors.backgroundLight,
+              columnWidths: [200, 130],
+              data: [
+                ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
+                ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
+                ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
+                ['متوسط الإيراد لكل حجز',
+                  _bookingsCount > 0
+                      ? EnhancedPdfUtils.formatNumber(
+                          _incomeTotal / _bookingsCount,
+                        )
+                      : '0'],
+              ],
+            ),
+          );
+
+          // ═══════════════════════════════════════
+          // القسم 10: المؤشرات المالية الرئيسية
+          // ═══════════════════════════════════════
+          widgets.add(
+            buildSectionTitle('المؤشرات المالية الرئيسية', PdfColors.primary),
+          );
+          widgets.add(
+            EnhancedPdfUtils.buildProfessionalTable(
+              headers: ['المؤشر', 'القيمة', 'التقييم'],
+              fonts: fonts,
+              headerColor: PdfColors.primary,
+              alternateRowColor: PdfColors.backgroundLight,
+              data: [
+                [
+                  'هامش الربح الصافي',
+                  '${profitMargin.toStringAsFixed(1)}%',
+                  profitMargin > 20
+                      ? 'ممتاز'
+                      : profitMargin > 10
+                          ? 'جيد'
+                          : profitMargin > 0
+                              ? 'مقبول'
+                              : 'خسارة',
+                ],
+                [
+                  'نسبة المصروفات إلى الإيرادات',
+                  '${expenseRatio.toStringAsFixed(1)}%',
+                  expenseRatio < 60
+                      ? 'ممتاز'
+                      : expenseRatio < 80
+                          ? 'جيد'
+                          : 'مرتفع',
+                ],
+                [
+                  'نسبة الرواتب إلى الإيرادات',
+                  '${salaryExpenseRatio.toStringAsFixed(1)}%',
+                  salaryExpenseRatio < 30
+                      ? 'ممتاز'
+                      : salaryExpenseRatio < 50
+                          ? 'جيد'
+                          : 'مرتفع',
+                ],
+                [
+                  'معدل تغطية الديون',
+                  debtCoverage > 0
+                      ? '${debtCoverage.toStringAsFixed(2)}x'
+                      : 'غير كافٍ',
+                  debtCoverage > 2
+                      ? 'ممتاز'
+                      : debtCoverage > 1
+                          ? 'جيد'
+                          : 'ضعيف',
+                ],
+              ],
+            ),
+          );
+
+          // ═══════════════════════════════════════
+          // القسم 11: الملخص المحاسبي الشامل
+          // ═══════════════════════════════════════
+          widgets.add(
+            buildSectionTitle('الملخص المحاسبي الشامل', PdfColors.primary),
+          );
+          widgets.add(
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.backgroundCard,
+                border: pw.Border.all(color: PdfColors.primary, width: 1),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
               ),
-              pw.SizedBox(width: 8),
-              pw.Expanded(
-                child: buildSummaryBox(
-                  'صافي الربح/الخسارة',
-                  EnhancedPdfUtils.formatNumber(_net),
-                  _net >= 0 ? PdfColors.success : PdfColors.danger,
-                ),
+              child: pw.Column(
+                children: [
+                  EnhancedPdfUtils.buildProfessionalTable(
+                    headers: ['البيان', 'المبلغ'],
+                    fonts: fonts,
+                    headerColor: PdfColors.primary,
+                    alternateRowColor: PdfColors.backgroundLight,
+                    columnWidths: [200, 130],
+                    data: [
+                      ['إيرادات الغرف', EnhancedPdfUtils.formatNumber(roomRevenue)],
+                      ['إيرادات أخرى', EnhancedPdfUtils.formatNumber(otherRevenue)],
+                      [
+                        'إجمالي الإيرادات',
+                        EnhancedPdfUtils.formatNumber(_incomeTotal),
+                      ],
+                      [
+                        '(-) مصروفات تشغيلية',
+                        EnhancedPdfUtils.formatNumber(nonSalaryExpenses),
+                      ],
+                      [
+                        '(-) رواتب ومخصصات',
+                        EnhancedPdfUtils.formatNumber(_salaryTotal),
+                      ],
+                      [
+                        'إجمالي المصروفات',
+                        EnhancedPdfUtils.formatNumber(_expenseTotal),
+                      ],
+                      [
+                        'صافي الربح / الخسارة',
+                        EnhancedPdfUtils.formatNumber(_net),
+                      ],
+                      [
+                        '(+) ديون مستحقة غير مسددة',
+                        EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),
+                      ],
+                      [
+                        'الوضع المالي الصافي',
+                        EnhancedPdfUtils.formatNumber(_net - _unsettledDebtsAmount),
+                      ],
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
-          pw.SizedBox(height: 16),
-          buildDetailTable('تفاصيل الدخل', incomeRows),
-          buildDetailTable('تفاصيل المصروفات', expenseRows),
-        ];
-      },
-      fileName: _getFilename(),
-    ));
+            ),
+          );
+
+          // تذييل
+          widgets.add(pw.SizedBox(height: 20));
+          widgets.add(pw.Divider(color: PdfColors.textLight));
+          widgets.add(pw.SizedBox(height: 8));
+          widgets.add(
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'تم إنشاء هذا التقرير تلقائياً - فندق مارينا بلازا',
+                  style: pw.TextStyle(
+                    font: fonts.regular,
+                    fontSize: 9,
+                    color: PdfColors.textLight,
+                  ),
+                ),
+                pw.Text(
+                  'تقرير الدورة المالية الشامل',
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 9,
+                    color: PdfColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          return widgets;
+        },
+      ),
+    );
+
+    return doc;
+  }
+
+  /// ترجمة طريقة الدفع
+  String _paymentMethodName(String method) {
+    switch (method) {
+      case 'cash':
+        return 'نقداً';
+      case 'card':
+        return 'بطاقة';
+      case 'transfer':
+        return 'تحويل';
+      case 'check':
+        return 'شيك';
+      default:
+        return method.isNotEmpty ? method : '-';
+    }
+  }
+
+  /// ترجمة نوع الإيراد
+  String _revenueTypeName(String type) {
+    switch (type) {
+      case 'room':
+        return 'إقامة';
+      case 'restaurant':
+        return 'مطعم';
+      case 'services':
+        return 'خدمات';
+      case 'other':
+        return 'أخرى';
+      default:
+        return type.isNotEmpty ? type : 'إقامة';
+    }
   }
 
   // ===== بناء PDF التقرير التفصيلي المجمع =====
@@ -1015,7 +1546,7 @@ class _IncomeExpenseReportScreenState
   // ===== تصدير =====
   String _getFilename({String suffix = ''}) {
     final s = suffix.isNotEmpty ? '-$suffix' : '';
-    return 'تقرير-الدخل-والمصروفات$s-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+    return 'تقرير-الدورة-المالية-الشامل$s-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
   }
 
   Future<void> _exportPdf() async {
@@ -1667,11 +2198,19 @@ class _IncomeEntry {
     required this.date,
     required this.description,
     required this.amount,
+    this.roomNumber = '',
+    this.guestName = '',
+    this.paymentMethod = '',
+    this.revenueType = '',
   });
 
   final DateTime date;
   final String description;
   final double amount;
+  final String roomNumber;
+  final String guestName;
+  final String paymentMethod;
+  final String revenueType;
 }
 
 class _ExpenseEntry {
@@ -1713,12 +2252,28 @@ class _ReportParams {
   final List<Map<String, dynamic>> expenses;
   final DateTime fromDate;
   final DateTime toDate;
+  final int bookingsCount;
+  final int activeBookingsCount;
+  final int checkoutBookingsCount;
+  final int totalDebtsCount;
+  final int unsettledDebtsCount;
+  final double unsettledDebtsAmount;
+  final int activeEmployeesCount;
+  final double totalSalaryObligation;
 
   _ReportParams({
     required this.payments,
     required this.expenses,
     required this.fromDate,
     required this.toDate,
+    this.bookingsCount = 0,
+    this.activeBookingsCount = 0,
+    this.checkoutBookingsCount = 0,
+    this.totalDebtsCount = 0,
+    this.unsettledDebtsCount = 0,
+    this.unsettledDebtsAmount = 0,
+    this.activeEmployeesCount = 0,
+    this.totalSalaryObligation = 0,
   });
 }
 
@@ -1729,6 +2284,14 @@ class _ReportResult {
   final double expenseTotal;
   final double salaryTotal;
   final double net;
+  final int bookingsCount;
+  final int activeBookingsCount;
+  final int checkoutBookingsCount;
+  final int totalDebtsCount;
+  final int unsettledDebtsCount;
+  final double unsettledDebtsAmount;
+  final int activeEmployeesCount;
+  final double totalSalaryObligation;
 
   _ReportResult({
     required this.incomeEntries,
@@ -1737,6 +2300,14 @@ class _ReportResult {
     required this.expenseTotal,
     required this.salaryTotal,
     required this.net,
+    this.bookingsCount = 0,
+    this.activeBookingsCount = 0,
+    this.checkoutBookingsCount = 0,
+    this.totalDebtsCount = 0,
+    this.unsettledDebtsCount = 0,
+    this.unsettledDebtsAmount = 0,
+    this.activeEmployeesCount = 0,
+    this.totalSalaryObligation = 0,
   });
 }
 
@@ -1808,6 +2379,10 @@ _ReportResult _processReportData(_ReportParams params) {
         date: dt,
         description: desc,
         amount: ((p['amount'] ?? 0) as num).toDouble(),
+        roomNumber: room,
+        guestName: (p['guestName'] ?? '').toString(),
+        paymentMethod: (p['paymentMethod'] ?? '').toString(),
+        revenueType: (p['revenueType'] ?? '').toString(),
       ),
     );
   }
@@ -1853,5 +2428,13 @@ _ReportResult _processReportData(_ReportParams params) {
     expenseTotal: expTotal,
     salaryTotal: salTotal,
     net: incTotal - expTotal,
+    bookingsCount: params.bookingsCount,
+    activeBookingsCount: params.activeBookingsCount,
+    checkoutBookingsCount: params.checkoutBookingsCount,
+    totalDebtsCount: params.totalDebtsCount,
+    unsettledDebtsCount: params.unsettledDebtsCount,
+    unsettledDebtsAmount: params.unsettledDebtsAmount,
+    activeEmployeesCount: params.activeEmployeesCount,
+    totalSalaryObligation: params.totalSalaryObligation,
   );
 }
