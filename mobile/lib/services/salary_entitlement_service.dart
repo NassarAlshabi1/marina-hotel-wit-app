@@ -82,7 +82,8 @@ class SalaryEntitlementService {
 
     for (final expense in expenses) {
       final type = expense.expenseType.trim();
-      if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب') {
+      if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب'
+          || type == 'سحب من الراتب') {
         totalWithdrawals += expense.amount;
         transactions.add(
           SalaryTransaction(
@@ -92,7 +93,8 @@ class SalaryEntitlementService {
             note: expense.description,
           ),
         );
-      } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
+      } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب'
+          || type == 'خصم من الراتب') {
         totalDeductions += expense.amount;
         transactions.add(
           SalaryTransaction(

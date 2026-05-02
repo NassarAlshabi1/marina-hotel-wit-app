@@ -516,6 +516,98 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         onChanged: (value) =>
                             setState(() => selectedEmployeeId = value),
                       ),
+                      const SizedBox(height: 8),
+                      // عرض معلومات الراتب المتبقي للموظف
+                      FutureBuilder<SalaryEntitlement?>(
+                        future: selectedEmployeeId != null
+                            ? SalaryEntitlementService(DatabaseManager.instance)
+                                .calculateEmployeeEntitlement(
+                                availableEmployees.firstWhere(
+                                  (e) => e.id == selectedEmployeeId,
+                                ),
+                              )
+                            : null,
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData || snapshot.data == null) {
+                            return const SizedBox.shrink();
+                          }
+                          final ent = snapshot.data!;
+                          final isPositive = ent.netEntitlement >= 0;
+                          return Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isPositive
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isPositive
+                                    ? Colors.green.shade300
+                                    : Colors.red.shade300,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isPositive ? Icons.account_balance_wallet : Icons.warning,
+                                      size: 16,
+                                      color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'الراتب المتبقي',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  CurrencyFormatter.formatAmount(ent.netEntitlement),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'الاستحقاق: ${CurrencyFormatter.formatAmount(ent.totalEntitlement)}',
+                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                    ),
+                                    Text(
+                                      'السحبيات: ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
+                                      style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'الخصومات: ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
+                                      style: TextStyle(fontSize: 10, color: Colors.red.shade700),
+                                    ),
+                                    Text(
+                                      'الراتب الأساسي: ${CurrencyFormatter.formatAmount(ent.basicSalary)}',
+                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: dialogSalaryAction,
