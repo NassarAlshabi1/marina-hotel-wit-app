@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
 import '../local_db.dart';
+import '../../utils/expense_reason_matcher.dart';
 import '../daos/outbox_dao.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -81,14 +82,16 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     bool originIsServer = false,
   }) async {
-    // محاولة البحث عن سجل موجود مرتبط بنفس الموظف والتاريخ والمبلغ
+    // محاولة البحث عن سجل موجود مرتبط بنفس الموظف ونمط المصروف
+    // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
     final existing = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.employeeId.equals(employeeId)))
+          ..where((t) => t.employeeId.equals(employeeId)
+              & t.reason.like('%exp_$expenseId%')))
         .get();
 
     final matched = existing.where((w) =>
         w.withdrawDate == date &&
-        (w.reason?.contains('exp_$expenseId') ?? false)).firstOrNull;
+        matchesExpenseRef(w.reason, expenseId)).firstOrNull;
 
     final now = Time.nowEpoch();
     // reason يحتوي فقط على علامة الربط بالمصروف
@@ -178,9 +181,13 @@ class SalaryWithdrawalsRepository {
 
   /// حذف سحوبات مرتبطة بمصروف معين (via reason contains exp_id)
   Future<void> deleteByExpenseId(int expenseId) async {
-    final all = await _db.select(_db.salaryWithdrawals).get();
-    final toDelete = all
-        .where((w) => (w.reason?.contains('exp_$expenseId') ?? false))
+    // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
+    final candidates = await (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.reason.like('%exp_$expenseId%')))
+        .get();
+
+    final toDelete = candidates
+        .where((w) => matchesExpenseRef(w.reason, expenseId))
         .toList();
 
     final now = Time.nowEpoch();

@@ -7,6 +7,7 @@ import '../services/telegram/telegram_service.dart';
 import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/alarm_backup.dart';
+import '../utils/env.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus {
@@ -37,8 +38,8 @@ class TelegramState {
     this.isConfigured = true,
     this.isNotificationsEnabled = true,
     this.isDailyReportEnabled = true,
-    this.botToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
-    this.chatId = '5944227208',
+    this.botToken = Env.telegramBotToken,
+    this.chatId = Env.telegramChatId,
     this.dailyReportTime = '02:00',
     this.lastReportSent,
   });
@@ -78,6 +79,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 
   final TelegramApiClient _api = TelegramApiClient.instance;
   final TelegramReportService _reports = TelegramReportService.instance;
+  bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
   Future<void> _initialize() async {
@@ -267,11 +269,18 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   /// مسح رسالة الحالة
   void _clearMessageAfterDelay() {
     Future.delayed(const Duration(seconds: 3), () {
+      if (!_mounted) return;
       if (state.status == TelegramSetupStatus.success ||
           state.status == TelegramSetupStatus.error) {
         state = state.copyWith(status: TelegramSetupStatus.idle, message: null);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
   }
 
   /// مسح حالة آخر تقرير

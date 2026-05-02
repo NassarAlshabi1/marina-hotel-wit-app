@@ -3,6 +3,7 @@ import '../local_db.dart';
 import '../daos/debts_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
 
 class DebtsRepository {
   DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
@@ -38,6 +39,7 @@ class DebtsRepository {
     String? pledgeType,
     String? note,
   }) async {
+    try {
     final remaining = (totalAmount - paidAmount)
         .clamp(0, double.infinity)
         .toDouble();
@@ -66,6 +68,17 @@ class DebtsRepository {
       recordData: {'guest_name': guestName},
     );
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'DebtsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'guestName': guestName, 'totalAmount': '$totalAmount'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update({
@@ -85,6 +98,7 @@ class DebtsRepository {
     String? pledgeType,
     String? note,
   }) async {
+    try {
     final existing = await dao.getById(id);
     if (existing == null) {
       return 0;
@@ -145,9 +159,21 @@ class DebtsRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'DebtsRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> delete(int id) async {
+    try {
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange(
@@ -157,6 +183,17 @@ class DebtsRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'DebtsRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<void> clearAll() => dao.clearAllData();

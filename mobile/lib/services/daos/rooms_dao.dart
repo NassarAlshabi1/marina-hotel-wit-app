@@ -91,6 +91,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         rooms,
@@ -121,6 +122,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         rooms,

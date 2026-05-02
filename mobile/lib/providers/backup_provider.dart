@@ -193,6 +193,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   final FileManagementService _fileService;
   final AppwriteSyncManager _appwriteSyncManager;
   final SmartSyncManager _smartSyncManager;
+  bool _mounted = true;
 
   Future<void> _initialize() async {
     try {
@@ -360,6 +361,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       // مسح الرسالة بعد 3 ثوانٍ
       Future.delayed(const Duration(seconds: 3), () {
+        if (!_mounted) return;
         if (state.message == 'تم تفعيل مزامنة Google Drive' ||
             state.message == 'تم تعطيل مزامنة Google Drive') {
           clearMessage();
@@ -458,6 +460,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
         // مسح الرسالة تلقائياً بعد 3 ثوانٍ
         Future.delayed(const Duration(seconds: 3), () {
+          if (!_mounted) return;
           if (state.message == 'تم تسجيل الدخول بنجاح') {
             clearMessage();
           }
@@ -727,11 +730,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// مسح رسالة الحالة
   void clearMessage() {
+    if (!_mounted) return;
     state = state.copyWith(
       status: BackupStatus.idle,
       message: null,
       progress: null,
     );
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
   }
 
   /// التحقق من حالة تسجيل الدخول وتحديثها

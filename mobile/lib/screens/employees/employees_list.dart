@@ -101,13 +101,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
+              color: AppColors.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(50),
             ),
             child: Icon(
               Icons.people_outline,
               size: 50,
-              color: AppColors.primaryColor.withOpacity(0.7),
+              color: AppColors.primaryColor.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -149,7 +149,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.dangerColor.withOpacity(0.1),
+                  color: AppColors.dangerColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -247,7 +247,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -543,7 +543,7 @@ class _EmployeeCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: statusColor.withOpacity(0.2), width: 1),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.2), width: 1),
       ),
       child: InkWell(
         onTap: onTap,
@@ -557,10 +557,10 @@ class _EmployeeCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.primaryColor.withOpacity(0.3),
+                    color: AppColors.primaryColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Icon(
@@ -594,7 +594,7 @@ class _EmployeeCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
+                            color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -690,7 +690,7 @@ class _EmployeeCard extends StatelessWidget {
                 icon: const Icon(Icons.delete_outline, size: 20),
                 color: AppColors.dangerColor,
                 style: IconButton.styleFrom(
-                  backgroundColor: AppColors.dangerColor.withOpacity(0.1),
+                  backgroundColor: AppColors.dangerColor.withValues(alpha: 0.1),
                 ),
               ),
             ],

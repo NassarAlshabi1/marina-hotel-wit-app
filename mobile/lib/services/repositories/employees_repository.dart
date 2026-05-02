@@ -3,6 +3,7 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/employees_dao.dart';
 import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
 
 class EmployeesRepository {
   EmployeesRepository(this.db)
@@ -25,6 +26,7 @@ class EmployeesRepository {
     String? hireDate,
     required String status,
   }) async {
+    try {
     final s = salary ?? basicSalary ?? 0.0;
     final result = await dao.insertOne(
       EmployeesCompanion(
@@ -42,6 +44,17 @@ class EmployeesRepository {
       recordData: {'name': name},
     );
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'name': name, 'status': status},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update(
@@ -54,6 +67,7 @@ class EmployeesRepository {
     String? hireDate,
     String? status,
   }) async {
+    try {
     final result = await dao.updateById(
       id,
       EmployeesCompanion(
@@ -75,6 +89,17 @@ class EmployeesRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> updateByLocalUuid(
@@ -101,6 +126,7 @@ class EmployeesRepository {
   );
 
   Future<int> delete(int id) async {
+    try {
     final result = await dao.softDelete(id);
     if (result > 0) {
       AutoBackupManager.instance.onDataChange(
@@ -110,6 +136,17 @@ class EmployeesRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   // دوال النسخ الاحتياطي

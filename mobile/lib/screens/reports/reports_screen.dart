@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/core_providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../utils/status_utils.dart';
 import 'expenses_report_screen.dart';
@@ -46,7 +47,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
     setState(() => _loading = true);
 
-    final db = ref.read(coreProviders.dbProvider);
+    final db = ref.read(databaseProvider);
     final perf = ref.read(performanceProvider.notifier);
 
     try {
@@ -169,7 +170,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           tooltip: 'تحديث',
         ),
         IconButton(
-          onPressed: () => ref.read(coreProviders.syncProvider).runSync(),
+          onPressed: () => ref.read(syncProvider).runSync(),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),

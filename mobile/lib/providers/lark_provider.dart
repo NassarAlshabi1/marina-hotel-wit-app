@@ -85,6 +85,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
 
   final LarkApiClient _api = LarkApiClient.instance;
   final LarkReportService _reports = LarkReportService.instance;
+  bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences
   Future<void> _initialize() async {
@@ -286,11 +287,18 @@ class LarkNotifier extends StateNotifier<LarkState> {
   /// مسح رسالة الحالة بعد 3 ثوانٍ
   void _clearMessageAfterDelay() {
     Future.delayed(const Duration(seconds: 3), () {
+      if (!_mounted) return;
       if (state.status == LarkSetupStatus.success ||
           state.status == LarkSetupStatus.error) {
         state = state.copyWith(status: LarkSetupStatus.idle, message: null);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
   }
 
   /// مسح حالة آخر تقرير (لسماح بإعادة الإرسال)

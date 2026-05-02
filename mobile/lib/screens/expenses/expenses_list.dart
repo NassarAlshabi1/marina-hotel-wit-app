@@ -441,6 +441,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       text: existing?.date ?? Time.hotelDayKey(),
     );
 
+    try {
     String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
 
@@ -688,9 +689,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
 
     if (ok != true) {
-      description.dispose();
-      amount.dispose();
-      date.dispose();
       return;
     }
 
@@ -707,9 +705,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         : (selectedType ?? 'اخرى');
 
     if (parsedAmount <= 0) {
-      description.dispose();
-      amount.dispose();
-      date.dispose();
       return;
     }
 
@@ -783,6 +778,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           duration: const Duration(seconds: 4),
         ),
       );
+    }
     } finally {
       description.dispose();
       amount.dispose();

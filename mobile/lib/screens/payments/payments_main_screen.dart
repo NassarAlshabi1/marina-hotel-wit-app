@@ -110,11 +110,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         }
 
         final payments = snapshot.data!;
-        return RefreshIndicator(
-          onRefresh: () async {
-            // البيانات تتحدث تلقائياً من قاعدة البيانات المحلية
-          },
-          child: SingleChildScrollView(
+        return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -129,8 +125,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 _buildRecentPayments(payments),
               ],
             ),
-          ),
-        );
+          );
       },
     );
   }
@@ -407,11 +402,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            // البيانات تتحدث تلقائياً من قاعدة البيانات المحلية
-          },
-          child: ListView.builder(
+        return ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: activeBookings.length,
             itemBuilder: (context, index) {
@@ -488,7 +479,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 ),
               );
             },
-          ),
         );
       },
     );
@@ -526,13 +516,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   // ─── إضافة دفعة جديدة تراكمية ───
 
-  void _showNewPaymentDialog() {
+  Future<void> _showNewPaymentDialog() async {
     final amountController = TextEditingController();
     final notesController = TextEditingController();
     final referenceController = TextEditingController();
     PaymentMethod selectedMethod = PaymentMethod.cash;
 
-    showDialog(
+    try {
+    await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => Directionality(
@@ -664,6 +655,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         ),
       ),
     );
+    } finally {
+      amountController.dispose();
+      notesController.dispose();
+      referenceController.dispose();
+    }
   }
 
   Future<void> _saveStandalonePayment(

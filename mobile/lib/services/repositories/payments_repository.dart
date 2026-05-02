@@ -273,26 +273,37 @@ class PaymentsRepository {
 
   /// الحصول على إجمالي المدفوعات لتاريخ محدد
   Future<double> getTotalByDate(String date) async {
-    final payments = await dao.listByDate(date);
-    double total = 0;
-    for (final payment in payments) {
-      total += payment.amount;
-    }
-    return total;
+    final result = await db.customSelect(
+      'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+      'WHERE payment_date LIKE ? AND deleted_at IS NULL AND is_voided = 0',
+      variables: [d.Variable.withString('$date%')],
+      readsFrom: {db.payments},
+    ).getSingle();
+    return (result.data['total'] as num).toDouble();
   }
 
   Future<double> getTotalByHotelDayKey(
     String hotelDayKey, {
     String? revenueType,
   }) async {
-    final payments = await dao.listByHotelDayKey(
-      hotelDayKey,
-      revenueType: revenueType,
-    );
-    double total = 0;
-    for (final payment in payments) {
-      total += payment.amount;
+    final variables = <d.Variable<Object>>[
+      d.Variable.withString(hotelDayKey),
+      d.Variable.withString(Time.hotelDayStartIso(hotelDayKey)),
+      d.Variable.withString(Time.hotelDayEndIso(hotelDayKey)),
+    ];
+    var revenueFilter = '';
+    if (revenueType != null && revenueType.isNotEmpty) {
+      revenueFilter = ' AND revenue_type = ?';
+      variables.add(d.Variable.withString(revenueType));
     }
-    return total;
+    final result = await db.customSelect(
+      'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+      'WHERE deleted_at IS NULL AND is_voided = 0'
+      '  AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date >= ? AND payment_date < ?))'
+      '$revenueFilter',
+      variables: variables,
+      readsFrom: {db.payments},
+    ).getSingle();
+    return (result.data['total'] as num).toDouble();
   }
 }

@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,24 +211,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final roomsAsync = ref.watch(roomsListProvider);
     return PopScope(
       canPop: true,
-      child: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز'),
-            actions: [
-              StreamBuilder<SyncStatus>(
-                stream: syncStatusStream,
-                builder: (context, snapshot) {
-                  final status = snapshot.data ?? SyncStatus.idle;
-                  return _buildSyncIndicator(status);
-                },
-              ),
-            ],
-          ),
-          body: Form(
-            key: _formKey,
-            child: ListView(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز'),
+          actions: [
+            StreamBuilder<SyncStatus>(
+              stream: syncStatusStream,
+              builder: (context, snapshot) {
+                final status = snapshot.data ?? SyncStatus.idle;
+                return _buildSyncIndicator(status);
+              },
+            ),
+          ],
+        ),
+        body: Form(
+          key: _formKey,
+          child: ListView(
               padding: const EdgeInsets.all(8),
               children: [
                 _buildSectionTitle('بيانات النزيل'),
@@ -756,7 +753,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
             ),
           ),
         ),
-      ),
     );
   }
 

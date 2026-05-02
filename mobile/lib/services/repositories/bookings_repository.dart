@@ -11,14 +11,15 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
 class BookingsRepository {
-  BookingsRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = BookingsDao(db, OutboxDao(db)),
-      derivedFields = BookingDerivedFieldsService(db);
+  BookingsRepository(this.db) {
+    outbox = OutboxDao(db);
+    dao = BookingsDao(db, outbox);
+    derivedFields = BookingDerivedFieldsService(db);
+  }
   final AppDatabase db;
-  final OutboxDao outbox;
-  final BookingsDao dao;
-  final BookingDerivedFieldsService derivedFields;
+  late final OutboxDao outbox;
+  late final BookingsDao dao;
+  late final BookingDerivedFieldsService derivedFields;
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) =>
       dao.watchList(roomNumber: roomNumber, status: status);

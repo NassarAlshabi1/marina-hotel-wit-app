@@ -9,7 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
@@ -131,7 +131,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _loadExpenseTypes() async {
-    final db = ref.read(coreProviders.dbProvider);
+    final db = ref.read(databaseProvider);
     final query = await db
         .customSelect('SELECT DISTINCT expense_type FROM expenses')
         .get();
@@ -150,7 +150,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final result = await _loadExpensesReport(db);
       setState(() {
         _rows
@@ -660,9 +660,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         children: [
@@ -671,7 +671,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, size: 18, color: color),
@@ -731,7 +731,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: color.withOpacity(0.8),
+                      color: color.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -742,7 +742,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       borderRadius: BorderRadius.circular(3),
                       child: LinearProgressIndicator(
                         value: (percentage / 100).clamp(0, 1),
-                        backgroundColor: color.withOpacity(0.15),
+                        backgroundColor: color.withValues(alpha: 0.15),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                       ),
                     ),
@@ -787,7 +787,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   width: 26,
                   height: 26,
                   decoration: BoxDecoration(
-                    color: cfg.color.withOpacity(0.1),
+                    color: cfg.color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   alignment: Alignment.center,
@@ -985,7 +985,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 child: LinearProgressIndicator(
                   value: (pct / 100).clamp(0, 1),
                   backgroundColor: Colors.grey.shade100,
-                  valueColor: AlwaysStoppedAnimation<Color>(cfg.color.withOpacity(0.6)),
+                  valueColor: AlwaysStoppedAnimation<Color>(cfg.color.withValues(alpha: 0.6)),
                   minHeight: 3,
                 ),
               ),
@@ -1196,9 +1196,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
-                    color: cfg.color.withOpacity(0.06),
+                    color: cfg.color.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: cfg.color.withOpacity(0.2)),
+                    border: Border.all(color: cfg.color.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

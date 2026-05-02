@@ -7,7 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
@@ -66,7 +66,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
     // لضمان دقة المجاميع في التقرير
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
       await derivedService.refreshAllActiveBookings();
     } catch (_) {}
@@ -74,7 +74,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _loadRooms() async {
-    final db = ref.read(coreProviders.dbProvider);
+    final db = ref.read(databaseProvider);
     final rooms = await db.select(db.rooms).get();
     setState(() {
       _availableRooms
@@ -93,7 +93,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final result = await _loadPaymentsReport(db);
       setState(() {
         _rows

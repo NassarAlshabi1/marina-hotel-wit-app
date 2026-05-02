@@ -470,7 +470,7 @@ class _BookingRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paymentsRepo = ref.watch(paymentsRepoProvider);
+    final paymentsAsync = ref.watch(bookingPaymentsProvider(booking.id));
     final baseTextStyle = TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
@@ -498,196 +498,192 @@ class _BookingRow extends ConsumerWidget {
     ];
     final guestTooltip = guestTooltipLines.join('\n');
 
-    return StreamBuilder<List<Payment>>(
-      stream: paymentsRepo.paymentsByBooking(booking.id),
-      builder: (context, snapshot) {
-        final paid = snapshot.hasData
-            ? snapshot.data!.fold<double>(0, (s, p) => s + p.amount)
-            : 0.0;
-        final remaining = (totalAmount - paid)
-            .clamp(0.0, totalAmount)
-            .toDouble();
-        final Color statusColor = remaining <= 0.0
-            ? Colors.green
-            : (paid > 0 ? Colors.orange : Colors.red);
-        final String statusText = remaining <= 0.0
-            ? 'مسددة'
-            : (paid > 0 ? 'جزئياً' : 'غير مسددة');
+    final paid = paymentsAsync.maybeWhen(
+      data: (payments) => payments.fold<double>(0, (s, p) => s + p.amount),
+      orElse: () => 0.0,
+    );
+    final remaining = (totalAmount - paid)
+        .clamp(0.0, totalAmount)
+        .toDouble();
+    final Color statusColor = remaining <= 0.0
+        ? Colors.green
+        : (paid > 0 ? Colors.orange : Colors.red);
+    final String statusText = remaining <= 0.0
+        ? 'مسددة'
+        : (paid > 0 ? 'جزئياً' : 'غير مسددة');
 
-        return compact
-            ? _CompactBookingCard(
-                booking: booking,
-                index: index,
-                nightsLabel: nightsLabel,
-                paid: paid,
-                remaining: remaining,
-                statusColor: statusColor,
-                statusText: statusText,
-                plannedText: plannedText,
-                actualText: actualText,
-                currencyFmt: currencyFmt,
-                pricePerNight: pricePerNight,
-                totalAmount: totalAmount,
-              )
-            : InkWell(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BookingPaymentScreen(booking: booking),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFE0E0E0)),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          index.toString(),
-                          textAlign: TextAlign.center,
-                          style: baseTextStyle,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Tooltip(
-                            message: guestTooltip,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  booking.guestName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: boldTextStyle.copyWith(fontSize: 16),
-                                ),
-                                if (booking.guestPhone.isNotEmpty)
-                                  Text(
-                                    booking.guestPhone,
-                                    style: smallTextStyle,
-                                  ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  booking.guestIdNumber.isEmpty
-                                      ? booking.guestIdType
-                                      : '${booking.guestIdType} • ${booking.guestIdNumber}',
-                                  style: smallTextStyle,
-                                ),
-                                if (booking.guestNationality.isNotEmpty)
-                                  Text(
-                                    booking.guestNationality,
-                                    style: smallTextStyle,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(booking.roomNumber, style: baseTextStyle),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            currencyFmt.format(pricePerNight),
-                            style: baseTextStyle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _formatDate(booking.checkinDate),
-                                style: baseTextStyle,
-                              ),
-                              if (plannedText != null)
-                                Text('حتى $plannedText', style: smallTextStyle),
-                              if (actualText != null)
-                                Text(
-                                  'خروج فعلي $actualText',
-                                  style: smallTextStyle,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(nightsLabel, style: baseTextStyle),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            currencyFmt.format(paid),
-                            style: baseTextStyle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            currencyFmt.format(remaining),
-                            style: baseTextStyle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: statusColor),
-                            ),
-                            child: Text(
-                              statusText,
-                              style: baseTextStyle.copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: _buildBookingStatusChip(
-                            booking.status,
-                            baseTextStyle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+    return compact
+        ? _CompactBookingCard(
+            booking: booking,
+            index: index,
+            nightsLabel: nightsLabel,
+            paid: paid,
+            remaining: remaining,
+            statusColor: statusColor,
+            statusText: statusText,
+            plannedText: plannedText,
+            actualText: actualText,
+            currencyFmt: currencyFmt,
+            pricePerNight: pricePerNight,
+            totalAmount: totalAmount,
+          )
+        : InkWell(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BookingPaymentScreen(booking: booking),
                 ),
               );
-      },
-    );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      index.toString(),
+                      textAlign: TextAlign.center,
+                      style: baseTextStyle,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Tooltip(
+                        message: guestTooltip,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              booking.guestName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: boldTextStyle.copyWith(fontSize: 16),
+                            ),
+                            if (booking.guestPhone.isNotEmpty)
+                              Text(
+                                booking.guestPhone,
+                                style: smallTextStyle,
+                              ),
+                            const SizedBox(height: 2),
+                            Text(
+                              booking.guestIdNumber.isEmpty
+                                  ? booking.guestIdType
+                                  : '${booking.guestIdType} • ${booking.guestIdNumber}',
+                              style: smallTextStyle,
+                            ),
+                            if (booking.guestNationality.isNotEmpty)
+                              Text(
+                                booking.guestNationality,
+                                style: smallTextStyle,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(booking.roomNumber, style: baseTextStyle),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        currencyFmt.format(pricePerNight),
+                        style: baseTextStyle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _formatDate(booking.checkinDate),
+                            style: baseTextStyle,
+                          ),
+                          if (plannedText != null)
+                            Text('حتى $plannedText', style: smallTextStyle),
+                          if (actualText != null)
+                            Text(
+                              'خروج فعلي $actualText',
+                              style: smallTextStyle,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(nightsLabel, style: baseTextStyle),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        currencyFmt.format(paid),
+                        style: baseTextStyle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        currencyFmt.format(remaining),
+                        style: baseTextStyle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: statusColor),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: baseTextStyle.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _buildBookingStatusChip(
+                        booking.status,
+                        baseTextStyle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
   }
 }
 

@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../utils/env.dart';
+
 /// مفاتيح التخزين المحلي لإعدادات Telegram
 class TelegramConfig {
   static const String _enabledKey = 'telegram_enabled';
@@ -13,8 +15,8 @@ class TelegramConfig {
   // القيم الافتراضية — تُحمّل تلقائياً حتى بعد إلغاء التثبيت وإعادة التثبيت
   static const String defaultReportTime = '02:00';
   static const String telegramApiBase = 'https://api.telegram.org';
-  static const String defaultBotToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac';
-  static const String defaultChatId = '5944227208';
+  static const String defaultBotToken = Env.telegramBotToken;
+  static const String defaultChatId = Env.telegramChatId;
 
   TelegramConfig._();
 

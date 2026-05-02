@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/alarm_backup.dart';
+import '../utils/env.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
 enum WhatsAppReportStatus {
@@ -35,8 +36,8 @@ class WhatsAppDailyReportState {
     this.isDailyReportEnabled = true,
     this.dailyReportTime = '02:00',
     this.lastReportSent,
-    this.phoneNumber = '967773749389',
-    this.apiKey = '7379268',
+    this.phoneNumber = Env.whatsappPhoneNumber,
+    this.apiKey = Env.whatsappApiKey,
   });
 
   WhatsAppDailyReportState copyWith({
@@ -71,6 +72,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
   }
 
   final TelegramReportService _reports = TelegramReportService.instance;
+  bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences
   Future<void> _initialize() async {
@@ -234,11 +236,18 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
   /// مسح رسالة الحالة
   void _clearMessageAfterDelay() {
     Future.delayed(const Duration(seconds: 3), () {
+      if (!_mounted) return;
       if (state.status == WhatsAppReportStatus.success ||
           state.status == WhatsAppReportStatus.error) {
         state = state.copyWith(status: WhatsAppReportStatus.idle, message: null);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
   }
 
   /// مسح حالة آخر تقرير

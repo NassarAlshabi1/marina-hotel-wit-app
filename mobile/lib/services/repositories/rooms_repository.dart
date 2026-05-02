@@ -4,6 +4,7 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db)
@@ -26,6 +27,7 @@ class RoomsRepository {
     required String status,
     String? imageUrl,
   }) async {
+    try {
     final result = await dao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -41,6 +43,17 @@ class RoomsRepository {
       recordData: {'room_number': roomNumber},
     );
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'roomNumber': roomNumber, 'type': type},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update(
@@ -50,6 +63,7 @@ class RoomsRepository {
     String? status,
     String? imageUrl,
   }) async {
+    try {
     final result = await dao.updateById(
       id,
       RoomsCompanion(
@@ -67,6 +81,17 @@ class RoomsRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> updateByRoomNumber(
@@ -76,6 +101,7 @@ class RoomsRepository {
     String? status,
     String? imageUrl,
   }) async {
+    try {
     final result = await dao.updateByNumber(
       roomNumber,
       RoomsCompanion(
@@ -93,9 +119,21 @@ class RoomsRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'updateByRoomNumber',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'roomNumber': roomNumber},
+      );
+      rethrow;
+    }
   }
 
   Future<int> delete(String roomNumber) async {
+    try {
     // ✅ فحص وجود حجوزات نشطة قبل الحذف
     final activeBooking = await (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
@@ -118,6 +156,17 @@ class RoomsRepository {
       );
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'roomNumber': roomNumber},
+      );
+      rethrow;
+    }
   }
 
   Future<int> updateStatus(int id, String status) async {

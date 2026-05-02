@@ -2159,10 +2159,10 @@ class _IncomeExpenseReportScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Column(
@@ -2194,7 +2194,7 @@ class _IncomeExpenseReportScreenState
                     _buildExportOption(
                       icon: Icons.calendar_today_rounded,
                       iconColor: Colors.blue,
-                      iconBg: Colors.blue.withOpacity(0.1),
+                      iconBg: const Color(0x1A2196F3),
                       title: 'تقرير يومي',
                       subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
                       onTap: () {
@@ -2205,7 +2205,7 @@ class _IncomeExpenseReportScreenState
                     _buildExportOption(
                       icon: Icons.calendar_month_rounded,
                       iconColor: Colors.teal,
-                      iconBg: Colors.teal.withOpacity(0.1),
+                      iconBg: const Color(0x1A009688),
                       title: 'تقرير شهري',
                       subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
                       onTap: () {
@@ -2216,7 +2216,7 @@ class _IncomeExpenseReportScreenState
                     _buildExportOption(
                       icon: Icons.date_range_rounded,
                       iconColor: Colors.purple,
-                      iconBg: Colors.purple.withOpacity(0.1),
+                      iconBg: const Color(0x1A9C27B0),
                       title: 'تقرير سنوي',
                       subtitle: 'تجميع حسب كل سنة',
                       onTap: () {
@@ -2234,7 +2234,7 @@ class _IncomeExpenseReportScreenState
               _buildExportOption(
                 icon: Icons.share,
                 iconColor: Colors.blue,
-                iconBg: Colors.blue.withOpacity(0.1),
+                iconBg: const Color(0x1A2196F3),
                 title: 'مشاركة PDF',
                 subtitle: 'إرسال التقرير العام عبر التطبيقات',
                 onTap: () {
@@ -2245,7 +2245,7 @@ class _IncomeExpenseReportScreenState
               _buildExportOption(
                 icon: Icons.print,
                 iconColor: Colors.green,
-                iconBg: Colors.green.withOpacity(0.1),
+                iconBg: const Color(0x1A4CAF50),
                 title: 'طباعة',
                 subtitle: 'طباعة التقرير مباشرة',
                 onTap: () {
@@ -2256,7 +2256,7 @@ class _IncomeExpenseReportScreenState
               _buildExportOption(
                 icon: Icons.save_alt,
                 iconColor: Colors.orange,
-                iconBg: Colors.orange.withOpacity(0.1),
+                iconBg: const Color(0x1AFF9800),
                 title: 'حفظ في الجهاز',
                 subtitle: 'حفظ كملف PDF',
                 onTap: () {
@@ -2267,7 +2267,7 @@ class _IncomeExpenseReportScreenState
               _buildExportOption(
                 icon: Icons.table_chart,
                 iconColor: Colors.indigo,
-                iconBg: Colors.indigo.withOpacity(0.1),
+                iconBg: const Color(0x1A3F51B5),
                 title: 'تصدير CSV',
                 subtitle: 'ملف جدول بيانات لفتحه في Excel',
                 onTap: () {
@@ -2337,7 +2337,7 @@ class _IncomeExpenseReportScreenState
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).colorScheme.primary.withOpacity(0.12),
+                          ).colorScheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -2529,7 +2529,7 @@ class _IncomeExpenseReportScreenState
           child: ListTile(
             dense: true,
             leading: CircleAvatar(
-              backgroundColor: color.withOpacity(0.1),
+              backgroundColor: color.withValues(alpha: 0.1),
               radius: 14,
               child: Icon(icon, color: color, size: 14),
             ),
@@ -2550,7 +2550,7 @@ class _IncomeExpenseReportScreenState
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
