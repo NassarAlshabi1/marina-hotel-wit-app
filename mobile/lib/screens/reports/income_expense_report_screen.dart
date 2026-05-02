@@ -22,7 +22,6 @@ import '../../services/daos/debts_dao.dart';
 import '../../services/daos/employees_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/hotel_time_engine.dart';
 import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -62,6 +61,9 @@ class _IncomeExpenseReportScreenState
   double _unsettledDebtsAmount = 0;
   int _activeEmployeesCount = 0;
   double _totalSalaryObligation = 0;
+  // الديون غير المسددة في الفترة المحددة فقط
+  int _unsettledDebtsInPeriodCount = 0;
+  double _unsettledDebtsInPeriodAmount = 0;
 
   @override
   void initState() {
@@ -81,9 +83,24 @@ class _IncomeExpenseReportScreenState
       final paymentsDao = PaymentsDao(db, outboxDao);
       final expensesDao = ExpensesDao(db, outboxDao);
 
-    final hotelDayRange = HotelTimeEngine.getHotelDayRange(_fromDate!);
-    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['start']!);
-    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelDayRange['end']!);
+      // ═══════════════════════════════════════════════════════════════
+      // حساب نطاق الفلترة بدقة خارقة
+      // _fromDate يأتي من ReportDateFilterWidget:
+      //   - اليوم الفندقي: 14:00 أمس/اليوم → 13:59 اليوم/غداً
+      //   - الأسبوع: 14:00 بداية الأسبوع → 13:59 نهاية اليوم
+      //   - الشهر: 14:00 أول الشهر → 13:59 نهاية اليوم
+      //   - السنة: 14:00 أول السنة → 13:59 نهاية اليوم
+      //   - يدوي: من تاريخ → إلى تاريخ
+      //
+      // _fromDate دائماً يحتوي على وقت البداية (14:00 أو وقت منتقي)
+      // _toDate دائماً يحتوي على وقت النهاية (13:59:59 أو وقت منتقي)
+      // ═══════════════════════════════════════════════════════════════
+      final fromDate = _fromDate!;
+      final toDate = _toDate!;
+
+      // المدفوعات: فلترة بنطاق زمني كامل (مع الوقت)
+      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(fromDate);
+      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(toDate);
 
       final payments = await paymentsDao.list(
         from: fromStr,
@@ -91,10 +108,12 @@ class _IncomeExpenseReportScreenState
         excludeVoided: true,
         excludePendingBalance: true,
       );
-      // المصروفات تُخزن بتاريخ بدون وقت (yyyy-MM-dd)
-      // لذلك نُرسل التاريخ بدون وقت لتجنب فشل المقارنة النصية في SQLite
-      final expenseFromStr = DateFormat('yyyy-MM-dd').format(hotelDayRange['start']!);
-      final expenseToStr = DateFormat('yyyy-MM-dd').format(hotelDayRange['end']!);
+
+      // المصروفات: تُخزن بتاريخ بدون وقت (yyyy-MM-dd)
+      // نطاق التاريخ يشمل كل الأيام من بداية اليوم الفندقي الأول
+      // إلى نهاية اليوم الفندقي الأخير
+      final expenseFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
+      final expenseToStr = DateFormat('yyyy-MM-dd').format(toDate);
       final expenses = await expensesDao.list(from: expenseFromStr, to: expenseToStr);
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
@@ -102,11 +121,55 @@ class _IncomeExpenseReportScreenState
       final debtsDao = DebtsDao(db, outboxDao);
       final employeesDao = EmployeesDao(db, outboxDao);
 
+      // الحجوزات: فلترة بنطاق تاريخ checkin
       final bookings = await bookingsDao.list(
         from: expenseFromStr,
         to: expenseToStr,
       );
-      final debts = await debtsDao.list();
+
+      // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
+      final allDebts = await debtsDao.list();
+      final debtsInPeriod = allDebts.where((d) {
+        // فلترة الديون بنطاق التاريخ
+        if (d.dateRecorded.isNotEmpty) {
+          try {
+            final debtDate = DateTime.parse(
+              d.dateRecorded.length > 10
+                  ? d.dateRecorded.replaceFirst(' ', 'T')
+                  : d.dateRecorded,
+            );
+            // مقارنة باليوم فقط (بدون وقت) ضمن النطاق
+            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
+            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
+            final toDay = DateTime(toDate.year, toDate.month, toDate.day);
+            return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
+          } catch (_) {
+            return true; // إذا فشل التحليل نُبقيه
+          }
+        }
+        // إذا لم يوجد dateRecorded نعتمد على paymentDate
+        if (d.paymentDate.isNotEmpty) {
+          try {
+            final debtDate = DateTime.parse(
+              d.paymentDate.length > 10
+                  ? d.paymentDate.replaceFirst(' ', 'T')
+                  : d.paymentDate,
+            );
+            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
+            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
+            final toDay = DateTime(toDate.year, toDate.month, toDate.day);
+            return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
+          } catch (_) {
+            return true;
+          }
+        }
+        return true;
+      }).toList();
+
+      // الديون غير المسددة: نحتاج كل الديون غير المسددة (حتى خارج الفترة)
+      // لأنها تمثل التزامات مالية لا تزال قائمة
+      final unsettledDebtsAll = allDebts.where((d) => d.isSettled == 0).toList();
+
       final allEmployees = await employeesDao.list();
       final employees = allEmployees.where((e) => e.status == 'active').toList();
 
@@ -153,9 +216,11 @@ class _IncomeExpenseReportScreenState
           bookingsCount: bookings.length,
           activeBookingsCount: bookings.where((b) => b.status == 'checked_in').length,
           checkoutBookingsCount: bookings.where((b) => b.status == 'checked_out').length,
-          totalDebtsCount: debts.length,
-          unsettledDebtsCount: debts.where((d) => d.isSettled == 0).length,
-          unsettledDebtsAmount: debts.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
+          totalDebtsCount: debtsInPeriod.length,
+          unsettledDebtsCount: unsettledDebtsAll.length,
+          unsettledDebtsAmount: unsettledDebtsAll.fold<double>(0, (s, d) => s + d.remainingAmount),
+          unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
+          unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
           totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
         ),
@@ -175,6 +240,8 @@ class _IncomeExpenseReportScreenState
           _totalDebtsCount = result.totalDebtsCount;
           _unsettledDebtsCount = result.unsettledDebtsCount;
           _unsettledDebtsAmount = result.unsettledDebtsAmount;
+          _unsettledDebtsInPeriodCount = result.unsettledDebtsInPeriodCount;
+          _unsettledDebtsInPeriodAmount = result.unsettledDebtsInPeriodAmount;
           _activeEmployeesCount = result.activeEmployeesCount;
           _totalSalaryObligation = result.totalSalaryObligation;
           _loading = false;
@@ -690,7 +757,7 @@ class _IncomeExpenseReportScreenState
           // القسم 8: تحليل الديون
           // ═══════════════════════════════════════
           widgets.add(
-            buildSectionTitle('تحليل الديون المستحقة (شامل جميع الفترات)', PdfColors.danger),
+            buildSectionTitle('تحليل الديون المستحقة', PdfColors.danger),
           );
           widgets.add(
             EnhancedPdfUtils.buildProfessionalTable(
@@ -700,11 +767,14 @@ class _IncomeExpenseReportScreenState
               alternateRowColor: PdfColors.backgroundLight,
               columnWidths: [200, 130],
               data: [
-                ['إجمالي الديون', '$_totalDebtsCount دين'],
-                ['ديون غير مسددة', '$_unsettledDebtsCount دين'],
-                ['مبلغ الديون غير المسددة',
+                ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
+                ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
+                ['مبلغ الديون غير المسددة في الفترة',
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount)],
+                ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
+                ['مبلغ الديون غير المسددة الكلي',
                   EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
-                ['نسبة الديون من الإيرادات',
+                ['نسبة الديون غير المسددة الكلية من الإيرادات',
                   _incomeTotal > 0
                       ? '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%'
                       : '0%'],
@@ -1539,7 +1609,7 @@ class _IncomeExpenseReportScreenState
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
-                'تحليل الديون المستحقة (شامل جميع الفترات)',
+                'تحليل الديون المستحقة',
                 style: pw.TextStyle(
                   font: fonts.bold,
                   fontSize: 13,
@@ -1556,11 +1626,14 @@ class _IncomeExpenseReportScreenState
               alternateRowColor: PdfColors.backgroundLight,
               columnWidths: [200, 130],
               data: [
-                ['إجمالي الديون', '$_totalDebtsCount دين'],
-                ['ديون غير مسددة', '$_unsettledDebtsCount دين'],
-                ['مبلغ الديون غير المسددة',
+                ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
+                ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
+                ['مبلغ الديون غير المسددة في الفترة',
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount)],
+                ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
+                ['مبلغ الديون غير المسددة الكلي',
                   EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
-                ['نسبة الديون من الإيرادات',
+                ['نسبة الديون غير المسددة الكلية من الإيرادات',
                   _incomeTotal > 0
                       ? '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%'
                       : '0%'],
@@ -2634,6 +2707,8 @@ class _ReportParams {
   final int totalDebtsCount;
   final int unsettledDebtsCount;
   final double unsettledDebtsAmount;
+  final int unsettledDebtsInPeriodCount;
+  final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
   final double totalSalaryObligation;
 
@@ -2648,6 +2723,8 @@ class _ReportParams {
     this.totalDebtsCount = 0,
     this.unsettledDebtsCount = 0,
     this.unsettledDebtsAmount = 0,
+    this.unsettledDebtsInPeriodCount = 0,
+    this.unsettledDebtsInPeriodAmount = 0,
     this.activeEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
@@ -2666,6 +2743,8 @@ class _ReportResult {
   final int totalDebtsCount;
   final int unsettledDebtsCount;
   final double unsettledDebtsAmount;
+  final int unsettledDebtsInPeriodCount;
+  final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
   final double totalSalaryObligation;
 
@@ -2682,29 +2761,21 @@ class _ReportResult {
     this.totalDebtsCount = 0,
     this.unsettledDebtsCount = 0,
     this.unsettledDebtsAmount = 0,
+    this.unsettledDebtsInPeriodCount = 0,
+    this.unsettledDebtsInPeriodAmount = 0,
     this.activeEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
 }
 
 _ReportResult _processReportData(_ReportParams params) {
-  // نطاق اليوم الفندقي: من fromDate (14:00) إلى toDate (13:59 اليوم التالي)
-  final hotelStart = DateTime(
-    params.fromDate.year,
-    params.fromDate.month,
-    params.fromDate.day,
-    14,
-    0,
-    0,
-  );
-  final hotelEnd = DateTime(
-    params.toDate.year,
-    params.toDate.month,
-    params.toDate.day,
-    13,
-    59,
-    59,
-  );
+  // نطاق الفلترة: من fromDate → toDate يأتي مباشرة من ويدجت الفلترة
+  // - اليوم الفندقي: 14:00 → 13:59 اليوم التالي
+  // - الأسبوع: 14:00 بداية الأسبوع → 13:59 اليوم
+  // - الشهر/السنة: بداية الفترة → نهاية اليوم
+  // - يدوي: ما يختاره المستخدم
+  final hotelStart = params.fromDate;
+  final hotelEnd = params.toDate;
 
   bool isWithinRange(DateTime date) {
     // دعم تواريخ بدون وقت (كما في المصروفات) ومع وقت (كما في المدفوعات)
@@ -2810,6 +2881,8 @@ _ReportResult _processReportData(_ReportParams params) {
     totalDebtsCount: params.totalDebtsCount,
     unsettledDebtsCount: params.unsettledDebtsCount,
     unsettledDebtsAmount: params.unsettledDebtsAmount,
+    unsettledDebtsInPeriodCount: params.unsettledDebtsInPeriodCount,
+    unsettledDebtsInPeriodAmount: params.unsettledDebtsInPeriodAmount,
     activeEmployeesCount: params.activeEmployeesCount,
     totalSalaryObligation: params.totalSalaryObligation,
   );
