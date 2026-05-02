@@ -22,7 +22,6 @@ import '../../services/daos/debts_dao.dart';
 import '../../services/daos/employees_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -108,7 +107,8 @@ class _IncomeExpenseReportScreenState
         to: expenseToStr,
       );
       final debts = await debtsDao.list();
-      final employees = await employeesDao.list(status: 'active');
+      final allEmployees = await employeesDao.list();
+      final employees = allEmployees.where((e) => e.status == 'active').toList();
 
       final result = await compute(
         _processReportData,
