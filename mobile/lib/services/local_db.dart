@@ -122,6 +122,7 @@ class BookingNotes extends Table with SyncFields {
   TextColumn get noteText => text()();
   TextColumn get alertType => text()();
   TextColumn get alertUntil => text().nullable()();
+  // ⚠️ TODO: IntColumn بدلاً من BoolColumn — يتطلب ترحيل و إعادة توليد الكود
   IntColumn get isActive => integer().withDefault(const Constant(1))();
 
   List<Index> get indexes => [
@@ -276,6 +277,7 @@ class Debts extends Table with SyncFields {
   RealColumn get paidAmount => real()();
   RealColumn get remainingAmount => real()();
   TextColumn get paymentDate => text()();
+  // ⚠️ TODO: IntColumn بدلاً من BoolColumn — يتطلب ترحيل و إعادة توليد الكود
   IntColumn get isSettled => integer().withDefault(const Constant(0))();
   TextColumn get pledge => text().nullable()();
   TextColumn get pledgeType => text().nullable()();
@@ -314,6 +316,7 @@ class ShiftNotes extends Table with SyncFields {
   TextColumn get shiftType => text().withDefault(
     const Constant('all'),
   )(); // morning, evening, night, all
+  // ⚠️ TODO: IntColumn بدلاً من BoolColumn — يتطلب ترحيل و إعادة توليد الكود
   IntColumn get isRead =>
       integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
   // createdAt موجود في SyncFields كـ integer
@@ -419,6 +422,7 @@ class PriceAdjustments extends Table with SyncFields {
 @DataClassName('BookingPriceAdjustment')
 class BookingPriceAdjustments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
+  // ⚠️ TODO: إضافة .references(Bookings, #localUuid) — يتطلب إعادة توليد الكود
   TextColumn get bookingLocalUuid => text()();
   IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
   TextColumn get roomNumber => text().withLength(min: 1, max: 20).nullable()();
