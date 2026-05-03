@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:appwrite/appwrite.dart';
 import 'package:drift/drift.dart' as drift;
 import 'appwrite_config.dart';
@@ -80,6 +81,20 @@ class AppwriteFullPull {
     } finally {
       // إعادة تفعيل FOREIGN KEY
       await _database!.customStatement('PRAGMA foreign_keys=ON');
+
+      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      try {
+        final violations = await _database!.customSelect(
+          'PRAGMA foreign_key_check',
+          readsFrom: Set.unmodifiable({}),
+        ).get();
+        if (violations.isNotEmpty) {
+          developer.log(
+            '⚠️ FK violations after sync: ${violations.length} rows',
+            name: 'SyncSafety',
+          );
+        }
+      } catch (_) {}
     }
 
     return result;

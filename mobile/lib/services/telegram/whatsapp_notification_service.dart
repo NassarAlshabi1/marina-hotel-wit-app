@@ -60,6 +60,17 @@ class WhatsAppNotificationService {
   String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
   final http.Client _httpClient = http.Client();
 
+  /// تحرير موارد HTTP client
+  void dispose() {
+    _httpClient.close();
+  }
+
+  /// تحرير الموارد الثابتة للـ singleton
+  static void disposeInstance() {
+    _instance?._httpClient.close();
+    _instance = null;
+  }
+
   /// أيقونات لكل نوع حدث
   String _icon(WhatsAppEventType type) {
     switch (type) {

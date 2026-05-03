@@ -49,9 +49,9 @@ class AppwriteService {
     _logger.info('AppwriteService initialized', tag: 'INIT');
   }
 
-  void _ensureInitialized() {
+  Future<void> _ensureInitialized() async {
     if (!_initialized) {
-      initialize();
+      await initialize();
       // أو رمي استثناء إذا كان يجب أن تكون مهيأة مسبقاً
       // throw Exception('AppwriteService not initialized');
     }

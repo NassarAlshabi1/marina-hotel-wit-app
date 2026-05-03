@@ -14,6 +14,17 @@ class TelegramApiClient {
 
   final http.Client _client = http.Client();
 
+  /// تحرير موارد HTTP client
+  void dispose() {
+    _client.close();
+  }
+
+  /// تحرير الموارد الثابتة للـ singleton
+  static void disposeInstance() {
+    _instance?._client.close();
+    _instance = null;
+  }
+
   /// بناء رابط API
   String _apiUrl(String method) {
     return '${TelegramConfig.telegramApiBase}/bot${_cachedToken}/$method';

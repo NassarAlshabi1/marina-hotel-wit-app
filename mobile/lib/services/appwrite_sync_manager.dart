@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -931,6 +932,20 @@ class AppwriteSyncManager {
         } finally {
           // إعادة تفعيل Foreign Keys بعد انتهاء السحب
           await database.customStatement('PRAGMA foreign_keys=ON');
+
+          // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+          try {
+            final violations = await database.customSelect(
+              'PRAGMA foreign_key_check',
+              readsFrom: Set.unmodifiable({}),
+            ).get();
+            if (violations.isNotEmpty) {
+              developer.log(
+                '⚠️ FK violations after sync: ${violations.length} rows',
+                name: 'SyncSafety',
+              );
+            }
+          } catch (_) {}
         }
       }
 
@@ -2447,6 +2462,20 @@ class AppwriteSyncManager {
     } finally {
       // إعادة تفعيل FOREIGN KEY
       await database.customStatement('PRAGMA foreign_keys=ON');
+
+      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      try {
+        final violations = await database.customSelect(
+          'PRAGMA foreign_key_check',
+          readsFrom: Set.unmodifiable({}),
+        ).get();
+        if (violations.isNotEmpty) {
+          developer.log(
+            '⚠️ FK violations after sync: ${violations.length} rows',
+            name: 'SyncSafety',
+          );
+        }
+      } catch (_) {}
     }
   }
 

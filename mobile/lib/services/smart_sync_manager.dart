@@ -738,7 +738,8 @@ class SmartSyncManager {
 
   /// مزامنة يدوية فورية
   Future<void> forceSyncNow() async {
-    if (_isSyncing) {
+    final isSyncing = await SyncLocks.smartSyncLock.synchronized(() => _isSyncing);
+    if (isSyncing) {
       _log('⏸️ المزامنة جارية بالفعل...');
       return;
     }

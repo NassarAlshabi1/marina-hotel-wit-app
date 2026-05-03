@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -193,6 +194,20 @@ class SyncSafetyLayer {
         try {
           await db.customStatement('PRAGMA foreign_keys = ON');
           debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+
+          // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+          try {
+            final violations = await db.customSelect(
+              'PRAGMA foreign_key_check',
+              readsFrom: Set.unmodifiable({}),
+            ).get();
+            if (violations.isNotEmpty) {
+              developer.log(
+                '⚠️ FK violations after sync: ${violations.length} rows',
+                name: 'SyncSafety',
+              );
+            }
+          } catch (_) {}
         } catch (e) {
           debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
         }
