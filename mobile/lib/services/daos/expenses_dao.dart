@@ -74,20 +74,24 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
     final byKey = expenses.hotelDayKey.equals(hotelDayKey);
     final byDateFallback =
-        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+        expenses.hotelDayKey.isNull() & expenses.date.isBiggerOrEqualValue(Time.hotelDayStartIso(hotelDayKey)) & expenses.date.isSmallerThanValue(Time.hotelDayEndIso(hotelDayKey));
 
     q.where((t) => byKey | byDateFallback);
     return q.watch();
   }
 
-  /// جلب المصروفات لتاريخ محدد
+  /// ✅ إصلاح: استخدام مقارنة نطاق بدلاً من LIKE للاستعلام بالتاريخ
   Future<List<Expense>> listByDate(
     String date, {
     bool includeDeleted = false,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    q.where((t) => t.date.like('$date%'));
+    // مقارنة نطاق: من بداية اليوم إلى نهايته
+    final nextDay = Time.nextDayIso(date);
+    q.where((t) =>
+        t.date.isBiggerOrEqualValue(date) &
+        t.date.isSmallerThanValue(nextDay));
     return q.get();
   }
 
@@ -100,7 +104,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
     final byKey = expenses.hotelDayKey.equals(hotelDayKey);
     final byDateFallback =
-        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+        expenses.hotelDayKey.isNull() & expenses.date.isBiggerOrEqualValue(Time.hotelDayStartIso(hotelDayKey)) & expenses.date.isSmallerThanValue(Time.hotelDayEndIso(hotelDayKey));
 
     q.where((t) => byKey | byDateFallback);
     return q.get();

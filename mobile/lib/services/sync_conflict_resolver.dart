@@ -345,17 +345,28 @@ class SyncConflictResolver {
   /// البحث عن سجل محلي بواسطة اسم الجدول والـ localUuid
   ///
   /// يستخدم استعلام مخصص لأن الجداول المختلفة لها حقول مختلفة
+  /// ✅ إصلاح: استخدام قائمة بيضاء للجداول بدلاً من تنظيف بسيط لمنع حقن SQL
+  static const _allowedTables = {
+    'rooms', 'bookings', 'booking_notes', 'shift_notes', 'employees',
+    'expenses', 'cash_transactions', 'payments', 'debts', 'booking_nights',
+    'hotel_day_ledger', 'booking_price_adjustments', 'salary_withdrawals',
+    'salary_cycles', 'salary_payments', 'guest_infos', 'payment_voids',
+  };
+
   Future<Map<String, dynamic>?> _findLocalRow(
     String table,
     String localUuid,
   ) async {
-    // تنظيف اسم الجدول لمنع حقن SQL
-    final sanitizedTable = table.replaceAll("'", "''");
+    // التحقق من أن اسم الجدول في القائمة البيضاء لمنع حقن SQL
+    if (!_allowedTables.contains(table)) {
+      _log('⚠️ اسم جدول غير مسموح: $table');
+      return null;
+    }
 
     try {
       final result = await db
           .customSelect(
-            'SELECT * FROM "$sanitizedTable" WHERE local_uuid = ? LIMIT 1',
+            'SELECT * FROM "$table" WHERE local_uuid = ? LIMIT 1',
             variables: [Variable<String>(localUuid)],
           )
           .getSingleOrNull();

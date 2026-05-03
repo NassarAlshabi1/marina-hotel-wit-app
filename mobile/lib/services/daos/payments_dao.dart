@@ -109,12 +109,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       (t) => t.hotelDayKey.equals(hotelDayKey) |
           // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
           (t.hotelDayKey.isNull() &
-              t.paymentDate.like('${hotelDayKey}%')),
+              t.paymentDate.isBiggerOrEqualValue(Time.hotelDayStartIso(hotelDayKey)) &
+              t.paymentDate.isSmallerThanValue(Time.hotelDayEndIso(hotelDayKey))),
     );
     return q.watch();
   }
 
-  /// جلب المدفوعات لتاريخ محدد
+  /// ✅ إصلاح: استخدام مقارنة نطاق بدلاً من LIKE للاستعلام بالتاريخ
   Future<List<Payment>> listByDate(
     String date, {
     bool includeDeleted = false,
@@ -123,7 +124,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) q.where((t) => t.isVoided.equals(false));
-    q.where((t) => t.paymentDate.like('$date%'));
+    final nextDay = Time.nextDayIso(date);
+    q.where((t) =>
+        t.paymentDate.isBiggerOrEqualValue(date) &
+        t.paymentDate.isSmallerThanValue(nextDay));
     return q.get();
   }
 

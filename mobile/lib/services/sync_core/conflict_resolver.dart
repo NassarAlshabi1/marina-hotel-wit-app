@@ -156,7 +156,10 @@ class ConflictResolver {
         }
 
       case ConflictStrategy.manualResolve:
-        return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
+        // ✅ إصلاح: بدلاً من السقوط الصامت إلى newerWins، نُرجع البيانات المحلية
+        // كإجراء آمن مع تسجيل الحاجة لمراجعة يدوية
+        debugPrint('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}');
+        return conflict.localData;
     }
   }
 

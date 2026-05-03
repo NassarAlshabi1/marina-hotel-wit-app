@@ -61,6 +61,12 @@ class Time {
     return '${next}T$h:00:00';
   }
 
+  /// Returns the ISO string for the next day (used for date range queries)
+  static String nextDayIso(String dateIso) {
+    final d = DateTime.parse(dateIso.substring(0, 10));
+    return d.add(const Duration(days: 1)).toIso8601String();
+  }
+
   static String _nextDateString(String date) {
     try {
       final dt = DateTime.parse('${date}T00:00:00');

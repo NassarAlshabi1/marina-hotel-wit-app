@@ -610,7 +610,8 @@ class SalaryPayments extends Table with SyncFields {
 @DataClassName('SalaryWithdrawal')
 class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get employeeId => integer()();
+  // ✅ إصلاح: إضافة FK constraint إلى جدول الموظفين
+  IntColumn get employeeId => integer().references(Employees, #id)();
   RealColumn get amount => real()();
   TextColumn get withdrawDate => text()();
   TextColumn get reason => text().nullable()();
@@ -767,7 +768,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 35;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -779,7 +780,9 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA cache_size = -8192');
       await customStatement('PRAGMA temp_store = MEMORY');
       await customStatement('PRAGMA mmap_size = 268435456');
-      await customStatement('PRAGMA page_size = 4096');
+      // ✅ تم إزالة PRAGMA page_size = 4096 — لا يعمل بعد إنشاء قاعدة البيانات
+      // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
+      // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
@@ -1755,6 +1758,42 @@ class AppDatabase extends _$AppDatabase {
           name: 'db.migration',
         );
       }
+
+      // === Migration 36: فهارس GuestInfos و BookingNights + تحسينات سلامة البيانات ===
+      if (from < 36) {
+        const newIndexes = [
+          // GuestInfos: فهارس البحث برقم الغرفة ورقم الهوية
+          'CREATE INDEX IF NOT EXISTS idx_guest_infos_room ON guest_infos (room_number)',
+          'CREATE INDEX IF NOT EXISTS idx_guest_infos_id_number ON guest_infos (id_number)',
+          'CREATE INDEX IF NOT EXISTS idx_guest_infos_name ON guest_infos (guest_name)',
+          // BookingNights: فهرس البحث بيوم الفندق
+          'CREATE INDEX IF NOT EXISTS idx_booking_nights_hotel_day ON booking_nights (hotel_day_key)',
+          'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id, hotel_day_key)',
+          // SalaryWithdrawals: فهرس البحث بالموظف والتاريخ
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_date ON salary_withdrawals (withdraw_date)',
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_date ON salary_withdrawals (employee_id, withdraw_date)',
+          // BookingPriceAdjustments: فهرس إضافي
+          'CREATE INDEX IF NOT EXISTS idx_booking_price_adj_room ON booking_price_adjustments (room_number)',
+          // Expenses: فهرس النوع والتاريخ
+          'CREATE INDEX IF NOT EXISTS idx_expenses_type_date ON expenses (expense_type, date)',
+          // HotelDayLedger: فهرس الحالة
+          'CREATE INDEX IF NOT EXISTS idx_ledger_status ON hotel_day_ledger (status)',
+        ];
+        for (final sql in newIndexes) {
+          try {
+            await m.database.customStatement(sql);
+          } catch (e) {
+            developer.log(
+              'Migration 36: $sql failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 36: additional indexes created successfully',
+          name: 'db.migration',
+        );
+      }
     },
   );
 
@@ -1941,6 +1980,17 @@ class AppDatabase extends _$AppDatabase {
       } finally {
         // إعادة تفعيل foreign key constraints — دائماً حتى عند فشل الإدراج
         await customStatement('PRAGMA foreign_keys = ON');
+        // ✅ إضافة تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+        final violations = await customSelect(
+          'PRAGMA foreign_key_check',
+          readsFrom: Set.unmodifiable({}),
+        ).get();
+        if (violations.isNotEmpty) {
+          developer.log(
+            '⚠️ FK violations detected after bulk replace: ${violations.length} rows',
+            name: 'AppDatabase',
+          );
+        }
       }
     });
   }
