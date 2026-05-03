@@ -8,12 +8,13 @@ import '../crashlytics_service.dart';
 import '../../utils/time.dart';
 
 class ExpensesRepository {
-  ExpensesRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = ExpensesDao(db, OutboxDao(db));
+  ExpensesRepository(this.db) {
+    outbox = OutboxDao(db);
+    dao = ExpensesDao(db, outbox);
+  }
   final AppDatabase db;
-  final OutboxDao outbox;
-  final ExpensesDao dao;
+  late final OutboxDao outbox;
+  late final ExpensesDao dao;
 
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) =>
@@ -33,26 +34,26 @@ class ExpensesRepository {
     required String date,
   }) async {
     try {
-    final normalizedDate = Time.safeIsoToDateString(date);
-    final hotelDayKey = normalizedDate.isNotEmpty
-        ? normalizedDate
-        : Time.hotelDayKey();
-    final result = await dao.insertOne(
-      ExpensesCompanion(
-        expenseType: d.Value(expenseType),
-        relatedId: d.Value(relatedId),
-        description: d.Value(description),
-        amount: d.Value(amount),
-        date: d.Value(normalizedDate),
-        hotelDayKey: d.Value(hotelDayKey),
-      ),
-    );
-    AutoBackupManager.instance.onDataChange(
-      'expenses',
-      'INSERT',
-      recordData: {'amount': amount},
-    );
-    return result;
+      final normalizedDate = Time.safeIsoToDateString(date);
+      final hotelDayKey = normalizedDate.isNotEmpty
+          ? normalizedDate
+          : Time.hotelDayKey();
+      final result = await dao.insertOne(
+        ExpensesCompanion(
+          expenseType: d.Value(expenseType),
+          relatedId: d.Value(relatedId),
+          description: d.Value(description),
+          amount: d.Value(amount),
+          date: d.Value(normalizedDate),
+          hotelDayKey: d.Value(hotelDayKey),
+        ),
+      );
+      AutoBackupManager.instance.onDataChange(
+        'expenses',
+        'INSERT',
+        recordData: {'amount': amount},
+      );
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'ExpensesRepository',
@@ -75,36 +76,36 @@ class ExpensesRepository {
     String? date,
   }) async {
     try {
-    final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
-    final result = await dao.updateById(
-      id,
-      ExpensesCompanion(
-        expenseType: expenseType != null
-            ? d.Value(expenseType)
-            : const d.Value.absent(),
-        relatedId: relatedId != null
-            ? d.Value(relatedId)
-            : const d.Value.absent(),
-        description: description != null
-            ? d.Value(description)
-            : const d.Value.absent(),
-        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-        date: normalizedDate != null
-            ? d.Value(normalizedDate)
-            : const d.Value.absent(),
-        hotelDayKey: normalizedDate != null
-            ? d.Value(normalizedDate)
-            : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'expenses',
-        'UPDATE',
-        recordData: {'id': id},
+      final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
+      final result = await dao.updateById(
+        id,
+        ExpensesCompanion(
+          expenseType: expenseType != null
+              ? d.Value(expenseType)
+              : const d.Value.absent(),
+          relatedId: relatedId != null
+              ? d.Value(relatedId)
+              : const d.Value.absent(),
+          description: description != null
+              ? d.Value(description)
+              : const d.Value.absent(),
+          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+          date: normalizedDate != null
+              ? d.Value(normalizedDate)
+              : const d.Value.absent(),
+          hotelDayKey: normalizedDate != null
+              ? d.Value(normalizedDate)
+              : const d.Value.absent(),
+        ),
       );
-    }
-    return result;
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'expenses',
+          'UPDATE',
+          recordData: {'id': id},
+        );
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'ExpensesRepository',
@@ -120,15 +121,15 @@ class ExpensesRepository {
 
   Future<int> delete(int id) async {
     try {
-    final result = await dao.softDelete(id);
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'expenses',
-        'DELETE',
-        recordData: {'id': id},
-      );
-    }
-    return result;
+      final result = await dao.softDelete(id);
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'expenses',
+          'DELETE',
+          recordData: {'id': id},
+        );
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'ExpensesRepository',

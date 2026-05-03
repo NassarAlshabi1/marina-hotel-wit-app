@@ -246,17 +246,26 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// حذف عناصر outbox المطابقة لبيانات تم سحبها من السحابة.
   /// يُستدعى بعد pull ناجح: إذا كان السحابة تحتوي على نفس entity + localUuid
   /// فلا حاجة لإرسال هذا العنصر مرة أخرى.
+  ///
+  /// ✅ إصلاح: دمج شروط entity و localUuid في استعلام واحد بدلاً من إنشاء
+  /// استعلام جديد يفقد شرط localUuid (الخطأ السابق كان يُنشئ delete(outbox)
+  /// جديد عند وجود entity، مما يُلغي شرط localUuid.isIn(chunk)).
   Future<int> removePulledEntities(List<String> uuids, {String? entity}) async {
     if (uuids.isEmpty) return 0;
-    final batch = uuids.length > 500 ? 500 : uuids.length;
+    const batchSize = 500;
     int totalRemoved = 0;
-    for (var i = 0; i < uuids.length; i += batch) {
-      final chunk = uuids.sublist(i, i + batch > uuids.length ? uuids.length : i + batch);
-      var q = delete(outbox)..where((t) => t.localUuid.isIn(chunk));
+    for (var i = 0; i < uuids.length; i += batchSize) {
+      final end = i + batchSize > uuids.length ? uuids.length : i + batchSize;
+      final chunk = uuids.sublist(i, end);
       if (entity != null) {
-        q = delete(outbox)..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity));
+        totalRemoved += await (delete(outbox)
+              ..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity)))
+            .go();
+      } else {
+        totalRemoved += await (delete(outbox)
+              ..where((t) => t.localUuid.isIn(chunk)))
+            .go();
       }
-      totalRemoved += await q.go();
     }
     return totalRemoved;
   }

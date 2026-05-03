@@ -7,12 +7,13 @@ import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
 
 class RoomsRepository {
-  RoomsRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = RoomsDao(db, OutboxDao(db));
+  RoomsRepository(this.db) {
+    outbox = OutboxDao(db);
+    dao = RoomsDao(db, outbox);
+  }
   final AppDatabase db;
-  final OutboxDao outbox;
-  final RoomsDao dao;
+  late final OutboxDao outbox;
+  late final RoomsDao dao;
 
   Stream<List<Room>> watchAll({String? search}) =>
       dao.watchList(search: search);
@@ -28,21 +29,21 @@ class RoomsRepository {
     String? imageUrl,
   }) async {
     try {
-    final result = await dao.insertOne(
-      RoomsCompanion(
-        roomNumber: d.Value(roomNumber),
-        type: d.Value(type),
-        price: d.Value(price),
-        status: d.Value(status),
-        imageUrl: d.Value(imageUrl),
-      ),
-    );
-    AutoBackupManager.instance.onDataChange(
-      'rooms',
-      'INSERT',
-      recordData: {'room_number': roomNumber},
-    );
-    return result;
+      final result = await dao.insertOne(
+        RoomsCompanion(
+          roomNumber: d.Value(roomNumber),
+          type: d.Value(type),
+          price: d.Value(price),
+          status: d.Value(status),
+          imageUrl: d.Value(imageUrl),
+        ),
+      );
+      AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'INSERT',
+        recordData: {'room_number': roomNumber},
+      );
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'RoomsRepository',
@@ -64,23 +65,23 @@ class RoomsRepository {
     String? imageUrl,
   }) async {
     try {
-    final result = await dao.updateById(
-      id,
-      RoomsCompanion(
-        type: type != null ? d.Value(type) : const d.Value.absent(),
-        price: price != null ? d.Value(price) : const d.Value.absent(),
-        status: status != null ? d.Value(status) : const d.Value.absent(),
-        imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'UPDATE',
-        recordData: {'id': id},
+      final result = await dao.updateById(
+        id,
+        RoomsCompanion(
+          type: type != null ? d.Value(type) : const d.Value.absent(),
+          price: price != null ? d.Value(price) : const d.Value.absent(),
+          status: status != null ? d.Value(status) : const d.Value.absent(),
+          imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
+        ),
       );
-    }
-    return result;
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'UPDATE',
+          recordData: {'id': id},
+        );
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'RoomsRepository',
@@ -102,23 +103,23 @@ class RoomsRepository {
     String? imageUrl,
   }) async {
     try {
-    final result = await dao.updateByNumber(
-      roomNumber,
-      RoomsCompanion(
-        type: type != null ? d.Value(type) : const d.Value.absent(),
-        price: price != null ? d.Value(price) : const d.Value.absent(),
-        status: status != null ? d.Value(status) : const d.Value.absent(),
-        imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'UPDATE',
-        recordData: {'room_number': roomNumber},
+      final result = await dao.updateByNumber(
+        roomNumber,
+        RoomsCompanion(
+          type: type != null ? d.Value(type) : const d.Value.absent(),
+          price: price != null ? d.Value(price) : const d.Value.absent(),
+          status: status != null ? d.Value(status) : const d.Value.absent(),
+          imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
+        ),
       );
-    }
-    return result;
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'UPDATE',
+          recordData: {'room_number': roomNumber},
+        );
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'RoomsRepository',
@@ -134,28 +135,28 @@ class RoomsRepository {
 
   Future<int> delete(String roomNumber) async {
     try {
-    // ✅ فحص وجود حجوزات نشطة قبل الحذف
-    final activeBooking = await (db.select(db.bookings)
-          ..where((b) => b.roomNumber.equals(roomNumber))
-          ..where((b) => b.deletedAt.isNull())
-          ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
-          ..limit(1))
-        .getSingleOrNull();
-    if (activeBooking != null) {
-      throw StateError(
-        'لا يمكن حذف الغرفة $roomNumber: يوجد حجز نشط '
-        '(الضيف: ${activeBooking.guestName})',
-      );
-    }
-    final result = await dao.softDelete(roomNumber);
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'DELETE',
-        recordData: {'room_number': roomNumber},
-      );
-    }
-    return result;
+      // ✅ فحص وجود حجوزات نشطة قبل الحذف
+      final activeBooking = await (db.select(db.bookings)
+            ..where((b) => b.roomNumber.equals(roomNumber))
+            ..where((b) => b.deletedAt.isNull())
+            ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
+            ..limit(1))
+          .getSingleOrNull();
+      if (activeBooking != null) {
+        throw StateError(
+          'لا يمكن حذف الغرفة $roomNumber: يوجد حجز نشط '
+          '(الضيف: ${activeBooking.guestName})',
+        );
+      }
+      final result = await dao.softDelete(roomNumber);
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'DELETE',
+          recordData: {'room_number': roomNumber},
+        );
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'RoomsRepository',

@@ -72,6 +72,7 @@ class SalaryWithdrawalsRepository {
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
   /// ملاحظة: الجدول لا يحتوي expense_id مباشرة،
   /// لذلك نستخدم الربط عبر حقل reason الذي يحتوي [exp_ID]
+  /// ✅ إصلاح: تغليف العملية في معاملة لضمان اتساق البيانات
   Future<void> saveFromExpense({
     required int expenseId,
     required int employeeId,
@@ -86,7 +87,8 @@ class SalaryWithdrawalsRepository {
     // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
     final existing = await (_db.select(_db.salaryWithdrawals)
           ..where((t) => t.employeeId.equals(employeeId)
-              & t.reason.like('%exp_$expenseId%')))
+              & t.reason.like('%exp_$expenseId%')
+              & t.deletedAt.isNull()))
         .get();
 
     final matched = existing.where((w) =>
@@ -97,11 +99,49 @@ class SalaryWithdrawalsRepository {
     // reason يحتوي فقط على علامة الربط بالمصروف
     final reasonText = 'exp_$expenseId';
 
-    if (matched != null) {
-      // تحديث السجل الموجود
-      await (_db.update(_db.salaryWithdrawals)
-            ..where((t) => t.id.equals(matched.id)))
-          .write(SalaryWithdrawalsCompanion(
+    await _db.transaction(() async {
+      if (matched != null) {
+        // تحديث السجل الموجود
+        await (_db.update(_db.salaryWithdrawals)
+              ..where((t) => t.id.equals(matched.id)))
+            .write(SalaryWithdrawalsCompanion(
+              employeeId: d.Value(employeeId),
+              amount: d.Value(amount),
+              withdrawDate: d.Value(date),
+              reason: d.Value(reasonText),
+              withdrawalType: d.Value(action),
+              description: d.Value(note),
+              hotelDayKey: d.Value(hotelDayKey ?? ''),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              version: d.Value(matched.version + 1),
+            ));
+
+        if (!originIsServer) {
+          await _outboxDao.merge(
+            entity: 'salary_withdrawals',
+            op: 'update',
+            localUuid: matched.localUuid,
+            serverId: matched.serverId,
+            payload: {
+              'amount': amount,
+              'withdrawDate': date,
+              'reason': reasonText,
+              'withdrawalType': action,
+              'description': note,
+              'hotelDayKey': hotelDayKey ?? '',
+              'lastModified': now,
+            },
+            clientTs: now,
+          );
+        }
+      } else {
+        // إنشاء سجل جديد
+        final uuid = IdGen.uuid();
+        await _db.into(_db.salaryWithdrawals).insert(
+          SalaryWithdrawalsCompanion(
+            localUuid: d.Value(uuid),
+            serverId: const d.Value(null),
             employeeId: d.Value(employeeId),
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
@@ -109,81 +149,47 @@ class SalaryWithdrawalsRepository {
             withdrawalType: d.Value(action),
             description: d.Value(note),
             hotelDayKey: d.Value(hotelDayKey ?? ''),
+            createdAt: d.Value(now),
             updatedAt: d.Value(now),
+            deletedAt: const d.Value(null),
             lastModified: d.Value(now),
-            version: d.Value(matched.version + 1),
-          ));
-
-      if (!originIsServer) {
-        await _outboxDao.merge(
-          entity: 'salary_withdrawals',
-          op: 'update',
-          localUuid: matched.localUuid,
-          serverId: matched.serverId,
-          payload: {
-            'amount': amount,
-            'withdrawDate': date,
-            'reason': reasonText,
-            'withdrawalType': action,
-            'description': note,
-            'hotelDayKey': hotelDayKey ?? '',
-            'lastModified': now,
-          },
-          clientTs: now,
+            createdAtEpoch: d.Value(now),
+            lastModifiedEpoch: d.Value(now),
+            version: const d.Value(1),
+            origin: d.Value(originIsServer ? 'server' : 'local'),
+            vectorClock: const d.Value('{}'),
+          ),
         );
-      }
-    } else {
-      // إنشاء سجل جديد
-      final uuid = IdGen.uuid();
-      await _db.into(_db.salaryWithdrawals).insert(
-        SalaryWithdrawalsCompanion(
-          localUuid: d.Value(uuid),
-          serverId: const d.Value(null),
-          employeeId: d.Value(employeeId),
-          amount: d.Value(amount),
-          withdrawDate: d.Value(date),
-          reason: d.Value(reasonText),
-          withdrawalType: d.Value(action),
-          description: d.Value(note),
-          hotelDayKey: d.Value(hotelDayKey ?? ''),
-          createdAt: d.Value(now),
-          updatedAt: d.Value(now),
-          deletedAt: const d.Value(null),
-          lastModified: d.Value(now),
-          createdAtEpoch: d.Value(now),
-          lastModifiedEpoch: d.Value(now),
-          version: const d.Value(1),
-          origin: d.Value(originIsServer ? 'server' : 'local'),
-          vectorClock: const d.Value('{}'),
-        ),
-      );
 
-      if (!originIsServer) {
-        await _outboxDao.merge(
-          entity: 'salary_withdrawals',
-          op: 'create',
-          localUuid: uuid,
-          serverId: null,
-          payload: {
-            'employeeId': employeeId,
-            'amount': amount,
-            'withdrawDate': date,
-            'reason': reasonText,
-            'withdrawalType': action,
-            'description': note,
-            'hotelDayKey': hotelDayKey ?? '',
-          },
-          clientTs: now,
-        );
+        if (!originIsServer) {
+          await _outboxDao.merge(
+            entity: 'salary_withdrawals',
+            op: 'create',
+            localUuid: uuid,
+            serverId: null,
+            payload: {
+              'employeeId': employeeId,
+              'amount': amount,
+              'withdrawDate': date,
+              'reason': reasonText,
+              'withdrawalType': action,
+              'description': note,
+              'hotelDayKey': hotelDayKey ?? '',
+            },
+            clientTs: now,
+          );
+        }
       }
-    }
+    });
   }
 
-  /// حذف سحوبات مرتبطة بمصروف معين (via reason contains exp_id)
+  /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
+  /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
+  /// كذلك إصلاح خطأ regex: استخدام matchesExpenseRef لمنع مطابقة exp_1 مع exp_10
   Future<void> deleteByExpenseId(int expenseId) async {
     // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
     final candidates = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.reason.like('%exp_$expenseId%')))
+          ..where((t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull()))
         .get();
 
     final toDelete = candidates
@@ -191,23 +197,33 @@ class SalaryWithdrawalsRepository {
         .toList();
 
     final now = Time.nowEpoch();
-    for (final item in toDelete) {
-      await (_db.delete(_db.salaryWithdrawals)
-            ..where((t) => t.id.equals(item.id)))
-          .go();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
 
-      await _outboxDao.merge(
-        entity: 'salary_withdrawals',
-        op: 'delete',
-        localUuid: item.localUuid,
-        serverId: item.serverId,
-        payload: {
-          'deletedAt': now,
-          'lastModified': now,
-        },
-        clientTs: now,
-      );
-    }
+    // ✅ حذف ناعم في معاملة واحدة لضمان الاتساق
+    await _db.transaction(() async {
+      for (final item in toDelete) {
+        await (_db.update(_db.salaryWithdrawals)
+              ..where((t) => t.id.equals(item.id)))
+            .write(SalaryWithdrawalsCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+          version: d.Value(item.version + 1),
+        ));
+
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'delete',
+          localUuid: item.localUuid,
+          serverId: item.serverId,
+          payload: {
+            'deletedAt': now,
+            'lastModified': now,
+          },
+          clientTs: now,
+        );
+      }
+    });
   }
 
   /// جلب كل سحوبات الرواتب

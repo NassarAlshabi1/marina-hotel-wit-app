@@ -109,7 +109,7 @@ class BlacklistRepository {
 
   Stream<List<BlacklistEntry>> watchAll() {
     final query = (db.select(db.shiftNotes)
-      ..where((t) => t.createdBy.equals(_createdByTag))
+      ..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())
       ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]));
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
@@ -117,7 +117,7 @@ class BlacklistRepository {
   Future<List<BlacklistEntry>> listAll() async {
     final rows =
         await (db.select(db.shiftNotes)
-              ..where((t) => t.createdBy.equals(_createdByTag))
+              ..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())
               ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
             .get();
     return rows.map(_fromRow).toList();
@@ -290,6 +290,8 @@ class BlacklistRepository {
     return updated > 0;
   }
 
+  /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
+  /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   Future<bool> delete(int id) async {
     final row = await (db.select(
       db.shiftNotes,
@@ -297,11 +299,19 @@ class BlacklistRepository {
     if (row == null) return false;
 
     final now = Time.nowEpoch();
-    final rows = await (db.delete(
-      db.shiftNotes,
-    )..where((t) => t.id.equals(id))).go();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    if (rows > 0) {
+    // ✅ حذف ناعم: تعيين deletedAt بدلاً من حذف الصف فعلياً
+    final updated = await (db.update(db.shiftNotes)
+          ..where((t) => t.id.equals(id)))
+        .write(ShiftNotesCompanion(
+          deletedAt: d.Value(now),
+          deletedAtIso: d.Value(nowIso),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+        ));
+
+    if (updated > 0) {
       await _outboxDao.merge(
         entity: 'blacklist',
         op: 'delete',
@@ -315,7 +325,7 @@ class BlacklistRepository {
       );
     }
 
-    return rows > 0;
+    return updated > 0;
   }
 
   Future<bool> isNameBlacklisted(String name) async {
@@ -324,10 +334,11 @@ class BlacklistRepository {
 
   /// فحص هل الاسم مطابق لشخص في القائمة السوداء وارجاع بياناته
   /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
+  /// ✅ إصلاح: استبعاد المحذوفة ناعماً
   Future<BlacklistEntry?> findBlacklistMatch(String name) async {
     final rows = await (db.select(
       db.shiftNotes,
-    )..where((t) => t.createdBy.equals(_createdByTag))).get();
+    )..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())).get();
     final nNorm = _normalizeArabic(name);
     final nTokens = _tokens(name);
     for (final row in rows) {
