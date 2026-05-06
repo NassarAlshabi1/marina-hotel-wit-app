@@ -109,13 +109,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       (t) => t.hotelDayKey.equals(hotelDayKey) |
           // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
           (t.hotelDayKey.isNull() &
-              t.paymentDate.isBiggerOrEqualValue(Time.hotelDayStartIso(hotelDayKey)) &
-              t.paymentDate.isSmallerThanValue(Time.hotelDayEndIso(hotelDayKey))),
+              t.paymentDate.like('${hotelDayKey}%')),
     );
     return q.watch();
   }
 
-  /// ✅ إصلاح: استخدام مقارنة نطاق بدلاً من LIKE للاستعلام بالتاريخ
+  /// جلب المدفوعات لتاريخ محدد
   Future<List<Payment>> listByDate(
     String date, {
     bool includeDeleted = false,
@@ -124,10 +123,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final q = select(payments);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) q.where((t) => t.isVoided.equals(false));
-    final nextDay = Time.nextDayIso(date);
-    q.where((t) =>
-        t.paymentDate.isBiggerOrEqualValue(date) &
-        t.paymentDate.isSmallerThanValue(nextDay));
+    q.where((t) => t.paymentDate.like('$date%'));
     return q.get();
   }
 
@@ -141,16 +137,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) q.where((t) => t.isVoided.equals(false));
 
-    final startIso = Time.hotelDayStartIso(hotelDayKey);
-    final endIso = Time.hotelDayEndIso(hotelDayKey);
-
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byRangeFallback =
+    final byDateFallback =
         payments.hotelDayKey.isNull() &
-        payments.paymentDate.isBiggerOrEqualValue(startIso) &
-        payments.paymentDate.isSmallerThanValue(endIso);
+        payments.paymentDate.like('${hotelDayKey}%');
 
-    q.where((t) => byKey | byRangeFallback);
+    q.where((t) => byKey | byDateFallback);
 
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));

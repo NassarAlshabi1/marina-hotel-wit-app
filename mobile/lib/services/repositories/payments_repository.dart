@@ -331,8 +331,7 @@ class PaymentsRepository {
   }) async {
     final variables = <d.Variable<Object>>[
       d.Variable.withString(hotelDayKey),
-      d.Variable.withString(Time.hotelDayStartIso(hotelDayKey)),
-      d.Variable.withString(Time.hotelDayEndIso(hotelDayKey)),
+      d.Variable.withString('$hotelDayKey%'),
     ];
     var revenueFilter = '';
     if (revenueType != null && revenueType.isNotEmpty) {
@@ -342,7 +341,7 @@ class PaymentsRepository {
     final result = await db.customSelect(
       'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
       'WHERE deleted_at IS NULL AND is_voided = 0'
-      '  AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date >= ? AND payment_date < ?))'
+      '  AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))'
       '$revenueFilter',
       variables: variables,
       readsFrom: {db.payments},
