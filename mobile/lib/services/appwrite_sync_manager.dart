@@ -2168,9 +2168,10 @@ class AppwriteSyncManager {
 
   /// الحصول على قائمة الأجهزة المسجلة
   /// [limit] عدد الأجهزة المطلوبة (افتراضياً 2)
-  /// يتم الترتيب حسب آخر ظهور تنازلياً من الخادم مباشرة
+  /// يحاول الترتيب من الخادم أولاً، وإذا فشل (لا يوجد فهرس) يرجع للترتيب المحلي
   Future<List<AppwriteDevice>> getRegisteredDevices({int limit = 2}) async {
     try {
+      // محاولة جلب آخر الأجهزة مرتبة من الخادم (يتطلب فهرس على lastSeen)
       final devices = await appwriteService.listDevices(
         queries: [
           Query.orderDesc('lastSeen'),
@@ -2180,8 +2181,26 @@ class AppwriteSyncManager {
       );
       return devices.map((doc) => AppwriteDevice.fromJson(doc.data)).toList();
     } catch (e) {
-      _logger.error('Failed to get registered devices', error: e, tag: 'SYNC');
-      return [];
+      // إذا فشل الترتيب (مثلاً لا يوجد فهرس على lastSeen)، نستخدم الطريقة البديلة
+      _logger.warning(
+        'orderDesc(lastSeen) failed, falling back to local sort: $e',
+        tag: 'SYNC',
+      );
+      try {
+        final devices = await appwriteService.listDevices(useCache: false);
+        final mapped = devices
+            .map((doc) => AppwriteDevice.fromJson(doc.data))
+            .toList();
+        mapped.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+        return mapped.take(limit).toList();
+      } catch (e2) {
+        _logger.error(
+          'Failed to get registered devices',
+          error: e2,
+          tag: 'SYNC',
+        );
+        return [];
+      }
     }
   }
 
