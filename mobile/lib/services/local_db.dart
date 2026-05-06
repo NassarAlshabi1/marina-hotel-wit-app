@@ -1872,11 +1872,12 @@ class AppDatabase extends _$AppDatabase {
       return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
     }
 
-    await transaction(() async {
-      // تعطيل foreign key constraints مؤقتاً لتجنب مشاكل الحذف
-      await customStatement('PRAGMA foreign_keys = OFF');
+    // ✅ إصلاح: PRAGMA foreign_keys = OFF يجب أن يكون خارج transaction
+    // لأن SQLite يتجاهل هذا الأمر داخل transaction بصمت!
+    await customStatement('PRAGMA foreign_keys = OFF');
 
-      try {
+    try {
+      await transaction(() async {
         Future<void> replaceTableIfNonEmpty<T extends Insertable<dynamic>>(
           TableInfo<Table, dynamic> table,
           String key,
@@ -1981,22 +1982,22 @@ class AppDatabase extends _$AppDatabase {
           'booking_price_adjustments',
           (row) => BookingPriceAdjustment.fromJson(row),
         );
-      } finally {
-        // إعادة تفعيل foreign key constraints — دائماً حتى عند فشل الإدراج
-        await customStatement('PRAGMA foreign_keys = ON');
-        // ✅ إضافة تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
-        final violations = await customSelect(
-          'PRAGMA foreign_key_check',
-          readsFrom: Set.unmodifiable({}),
-        ).get();
-        if (violations.isNotEmpty) {
-          developer.log(
-            '⚠️ FK violations detected after bulk replace: ${violations.length} rows',
-            name: 'AppDatabase',
-          );
-        }
+      }); // نهاية transaction
+    } finally {
+      // ✅ إعادة تفعيل foreign key constraints خارج transaction
+      await customStatement('PRAGMA foreign_keys = ON');
+      // ✅ إضافة تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      final violations = await customSelect(
+        'PRAGMA foreign_key_check',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+      if (violations.isNotEmpty) {
+        developer.log(
+          '⚠️ FK violations detected after bulk replace: ${violations.length} rows',
+          name: 'AppDatabase',
+        );
       }
-    });
+    }
   }
 }
 

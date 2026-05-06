@@ -155,6 +155,9 @@ class SyncSafetyLayer {
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final localTables = Map<String, dynamic>.from(decoded['tables'] as Map);
 
+      // ✅ إصلاح: تعطيل FK خارج transaction لأن SQLite يتجاهل PRAGMA داخل transaction
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+
       try {
         await db.transaction(() async {
           await _clearAllTables(db);
@@ -295,9 +298,7 @@ class SyncSafetyLayer {
   }
 
   Future<void> _clearAllTables(AppDatabase db) async {
-    // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
-    // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
-    await db.customStatement('PRAGMA foreign_keys = OFF');
+    // ملاحظة: FOREIGN KEYS يتم تعطيلها خارج transaction قبل استدعاء هذه الدالة
 
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {
