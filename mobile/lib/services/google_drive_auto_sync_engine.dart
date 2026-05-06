@@ -215,7 +215,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _startHealthCheck();
 
     if (_isSignedIn && _hasNetworkConnection) {
-      await _performInitialSync();
+      // ✅ نستخدم المنسق مباشرة بدلاً من _performInitialSync()
+      // لتجنب تشغيل مزامنة Appwrite (outbox) عند بدء المحرك
+      await _coordinator!.performSync(
+        trigger: SyncTrigger.manual,
+        mode: SyncMode.smart,
+      );
     }
 
     _log('✅ Auto Sync Engine started successfully');
@@ -606,17 +611,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _performInitialSync() async {
-    _log('🎬 Performing initial sync...');
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    await _orchestrator!.syncNow(
-      push: true,
-      pull: true,
-      reason: 'initial_sync',
-    );
-  }
 
   Future<void> onSignInChanged(bool isSignedIn) async {
     _log('🔐 Sign-in status changed: $isSignedIn');
@@ -628,11 +622,16 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _failedAttempts = 0;
       _nextRetryAt = null;
 
+      // ✅ نبدل مراقبة Google Drive فقط عبر المنسق (coordinator)
+      // المنسق يتكفّل ببدء المراقبة + تنفيذ مزامنة يدوية أولى
+      // ❌ لا نستدعي _performInitialSync() لأنه يمرّ عبر UnifiedSyncOrchestrator
+      //    الذي يشغّل مزامنة Appwrite (push من outbox) — والمستخدم لا يريد
+      //    أن يتدخّل تسجيل دخول Google Drive في الـ outbox
       await _coordinator!.onSignInChanged(true);
 
-      if (_hasNetworkConnection && _isRunning) {
-        await _performInitialSync();
-      }
+      // نُعلم الـ orchestrator بتغيّر حالة تسجيل الدخول (بدون تشغيل مزامنة)
+      // ليكون على علم بحالة Google Drive لأغراض الـ sync اللاحقة
+      await _orchestrator!.onDriveSignInChanged(true);
     } else {
       await _orchestrator!.onDriveSignInChanged(false);
       _retryTimer?.cancel();
