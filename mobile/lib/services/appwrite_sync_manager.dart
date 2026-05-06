@@ -2167,9 +2167,17 @@ class AppwriteSyncManager {
   }
 
   /// الحصول على قائمة الأجهزة المسجلة
-  Future<List<AppwriteDevice>> getRegisteredDevices() async {
+  /// [limit] عدد الأجهزة المطلوبة (افتراضياً 2)
+  /// يتم الترتيب حسب آخر ظهور تنازلياً من الخادم مباشرة
+  Future<List<AppwriteDevice>> getRegisteredDevices({int limit = 2}) async {
     try {
-      final devices = await appwriteService.listDevices(useCache: false);
+      final devices = await appwriteService.listDevices(
+        queries: [
+          Query.orderDesc('lastSeen'),
+          Query.limit(limit),
+        ],
+        useCache: false,
+      );
       return devices.map((doc) => AppwriteDevice.fromJson(doc.data)).toList();
     } catch (e) {
       _logger.error('Failed to get registered devices', error: e, tag: 'SYNC');
