@@ -900,11 +900,13 @@ class AppwriteSyncManager {
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
           // مزامنة إعدادات الواتساب (app_settings) — غير حرجة، لا تمنع Delta Sync
+          // ⚠️ app_settings لا يحتوي على حقل lastModified، لذا نستخدم queries فارغة
+          // (full pull) بدلاً من deltaQ لتجنب خطأ "Attribute not found in schema"
           try {
             recordsPulled += await _timePhase('syncAppSettings', () async {
               final docs = await appwriteService.listDocuments(
                 collectionId: 'app_settings',
-                queries: deltaQ,
+                queries: [], // بدون delta filter - app_settings لا يملك lastModified
               );
               final synced = await _syncAppSettings(docs);
               _logger.debug('Synced $synced app_settings', tag: 'SYNC');
