@@ -2141,12 +2141,15 @@ class AppwriteSyncManager {
   }
 
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
+  /// ✅ نستخدم insertOnConflictUpdate بدلاً من update فقط
+  /// لأن صف SyncState (id=1) قد لا يكون موجوداً بعد، مما يجعل UPDATE
+  /// لا يؤثر على أي صف — وبالتالي lastPullTs يبقى 0 للأبد،
+  /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
   Future<void> _updateLastPullTs(int ts) async {
     try {
-      await (database.update(database.syncState)
-            ..where((t) => t.id.equals(1)))
-          .write(
+      await database.into(database.syncState).insertOnConflictUpdate(
             SyncStateCompanion(
+              id: const drift.Value(1),
               lastPullTs: drift.Value(ts),
             ),
           );
