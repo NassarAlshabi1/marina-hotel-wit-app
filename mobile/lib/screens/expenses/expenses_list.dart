@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/sync_service.dart';
+import '../../providers/appwrite_providers.dart';
+import '../../providers/custom_list_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
@@ -65,20 +66,23 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     _salaryWithdrawAction,
     _salaryDeductionAction,
   ];
-  static const List<String> availableTypes = [
-    'رواتب',
-    'ديزل',
-    'صيانة',
-    'فواتير كهرباء ومياه',
-    'مستلزمات',
-    'مساعدة محتاج',
-    'اخرى',
-  ];
+  // أنواع المصروفات تُقرأ من الإعدادات المخصصة
+  List<String> _expenseTypes = [];
 
   @override
   void initState() {
     super.initState();
     _expensesStream = _buildExpensesStream();
+    _loadExpenseTypes();
+  }
+
+  Future<void> _loadExpenseTypes() async {
+    final types = await ref.read(expenseTypesProvider.future);
+    if (mounted) {
+      setState(() {
+        _expenseTypes = types;
+      });
+    }
   }
 
   @override
@@ -93,7 +97,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         title: 'المصروفات',
         actions: [
           IconButton(
-            onPressed: () => ref.read(syncServiceProvider).runSync(),
+            onPressed: () => ref.read(appwriteSyncManagerProvider).sync(),
             icon: const Icon(Icons.sync),
           ),
           IconButton(
@@ -463,6 +467,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             ctx,
           ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
           return AlertDialog(
+            alignment: Alignment(0, -0.4),
             title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
             content: SingleChildScrollView(
               child: Column(
@@ -472,7 +477,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
-                    items: availableTypes
+                    items: _expenseTypes
                         .map(
                           (type) => DropdownMenuItem<String>(
                             value: type,
@@ -517,98 +522,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         onChanged: (value) =>
                             setState(() => selectedEmployeeId = value),
                       ),
-                      const SizedBox(height: 8),
-                      // عرض معلومات الراتب المتبقي للموظف
-                      FutureBuilder<SalaryEntitlement?>(
-                        future: selectedEmployeeId != null
-                            ? SalaryEntitlementService(DatabaseManager.instance)
-                                .calculateEmployeeEntitlement(
-                                availableEmployees.firstWhere(
-                                  (e) => e.id == selectedEmployeeId,
-                                ),
-                              )
-                            : null,
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData || snapshot.data == null) {
-                            return const SizedBox.shrink();
-                          }
-                          final ent = snapshot.data!;
-                          final isPositive = ent.netEntitlement >= 0;
-                          return Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isPositive
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isPositive
-                                    ? Colors.green.shade300
-                                    : Colors.red.shade300,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      isPositive ? Icons.account_balance_wallet : Icons.warning,
-                                      size: 16,
-                                      color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'الراتب المتبقي',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  CurrencyFormatter.formatAmount(ent.netEntitlement),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'الاستحقاق: ${CurrencyFormatter.formatAmount(ent.totalEntitlement)}',
-                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                                    ),
-                                    Text(
-                                      'السحبيات: ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
-                                      style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'الخصومات: ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
-                                      style: TextStyle(fontSize: 10, color: Colors.red.shade700),
-                                    ),
-                                    Text(
-                                      'الراتب الأساسي: ${CurrencyFormatter.formatAmount(ent.basicSalary)}',
-                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: dialogSalaryAction,
@@ -632,14 +545,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   ],
                   const SizedBox(height: 12),
                   TextField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'الوصف'),
+                    controller: amount,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'المبلغ',
+                      filled: true,
+                      fillColor: Colors.yellow.shade50,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: amount,
-                    decoration: const InputDecoration(labelText: 'المبلغ'),
-                    keyboardType: TextInputType.number,
+                    controller: description,
+                    decoration: const InputDecoration(labelText: 'الوصف'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
