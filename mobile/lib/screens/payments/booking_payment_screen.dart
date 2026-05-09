@@ -1353,7 +1353,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d+'),
+                        RegExp('[0-9٠-٩.,،]'),
                       ),
                     ],
                   ),
@@ -3333,7 +3333,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             content: StatefulBuilder(
               builder: (context, setState) {
-                final nights = int.tryParse(nightsController.text) ?? 1;
+                final nights = _parseIntegerInput(nightsController.text) ?? 1;
                 final totalCost = nights * roomRate;
 
                 return Column(
@@ -3360,6 +3360,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     TextField(
                       controller: nightsController,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp('[0-9٠-٩]'),
+                        ),
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'عدد الليالي الإضافية',
                         border: OutlineInputBorder(),
@@ -3389,7 +3394,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 onPressed: () {
                   Navigator.pop<void>(context);
                   _processExtendStay(
-                    int.tryParse(nightsController.text) ?? 1,
+                    _parseIntegerInput(nightsController.text) ?? 1,
                     roomRate,
                     notesController.text,
                   );
@@ -3547,6 +3552,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   String _formatAmountForMessage(num amount) {
     return _currencyFmt.format(amount);
+  }
+
+  int? _parseIntegerInput(String value) {
+    final parsed = CurrencyFormatter.parseAmount(value);
+    if (parsed == null || parsed <= 0) {
+      return null;
+    }
+    if (parsed % 1 != 0) {
+      return null;
+    }
+    return parsed.toInt();
   }
 
   String _formatDateTime(DateTime dt) {
