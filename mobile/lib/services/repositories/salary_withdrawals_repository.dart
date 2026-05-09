@@ -83,7 +83,7 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     bool originIsServer = false,
   }) async {
-    // محاولة البحث عن سجل موجود مرتبط بنفس الموظف ونمط المصروف
+    // محاولة البحث عن سجل موجود مرتبط بنفس المصروف
     // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
     final existing = await (_db.select(_db.salaryWithdrawals)
           ..where((t) => t.reason.like('%exp_$expenseId%')
@@ -97,32 +97,40 @@ class SalaryWithdrawalsRepository {
     // reason يحتوي فقط على علامة الربط بالمصروف
     final reasonText = 'exp_$expenseId';
 
-    // حذف السجلات القديمة غير المطابقة لمنع التكرار عند التعديل
+    // جمع السجلات القديمة غير المطابقة لمنع التكرار عند التعديل
     // (مثلاً عند تغيير التاريخ أو الموظف)
     final staleRecords = existing.where((w) =>
         w.id != matched?.id &&
-        matchesExpenseRef(w.reason, expenseId));
-    for (final stale in staleRecords) {
-      await (_db.update(_db.salaryWithdrawals)
-            ..where((t) => t.id.equals(stale.id)))
-          .write(SalaryWithdrawalsCompanion(
-            deletedAt: d.Value(now),
-            updatedAt: d.Value(now),
-            lastModified: d.Value(now),
-          ));
-      if (!originIsServer) {
-        await _outboxDao.merge(
-          entity: 'salary_withdrawals',
-          op: 'delete',
-          localUuid: stale.localUuid,
-          serverId: stale.serverId,
-          payload: {'deletedAt': now},
-          clientTs: now,
-        );
-      }
-    }
+        matchesExpenseRef(w.reason, expenseId)).toList();
 
     await _db.transaction(() async {
+      // ─── حذف السجلات القديمة داخل المعاملة لضمان اتساق المزامنة ───
+      for (final stale in staleRecords) {
+        await (_db.update(_db.salaryWithdrawals)
+              ..where((t) => t.id.equals(stale.id)))
+            .write(SalaryWithdrawalsCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+          version: d.Value(stale.version + 1),
+        ));
+
+        if (!originIsServer) {
+          await _outboxDao.merge(
+            entity: 'salary_withdrawals',
+            op: 'delete',
+            localUuid: stale.localUuid,
+            serverId: stale.serverId,
+            payload: {
+              'deletedAt': now,
+              'lastModified': now,
+            },
+            clientTs: now,
+          );
+        }
+      }
+
+      // ─── إنشاء أو تحديث السجل الرئيسي ───
       if (matched != null) {
         // تحديث السجل الموجود
         await (_db.update(_db.salaryWithdrawals)
@@ -220,7 +228,6 @@ class SalaryWithdrawalsRepository {
         .toList();
 
     final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toUtc().toIso8601String();
 
     // ✅ حذف ناعم في معاملة واحدة لضمان الاتساق
     await _db.transaction(() async {

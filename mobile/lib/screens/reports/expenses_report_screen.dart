@@ -568,7 +568,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   SizedBox(
                     width: 160,
                     child: DropdownButtonFormField<String?>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       isDense: true,
                       decoration: InputDecoration(
                         labelText: widget.typeLabel,
