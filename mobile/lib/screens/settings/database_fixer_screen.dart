@@ -35,7 +35,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
       setState(() {
         _validationReport = report;
       });
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -59,18 +59,20 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('إصلاح'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     setState(() {
       _isFixing = true;
@@ -102,7 +104,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
           );
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -266,7 +268,9 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
   }
 
   Widget _buildIssueItem(String label, int count, IconData icon) {
-    if (count == 0) return const SizedBox.shrink();
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -341,7 +345,9 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
   }
 
   Widget _buildFixItem(String label, int count) {
-    if (count == 0) return const SizedBox.shrink();
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

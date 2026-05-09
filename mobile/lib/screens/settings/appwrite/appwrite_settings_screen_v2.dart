@@ -50,7 +50,7 @@ class _AppwriteSettingsScreenV2State
           tooltip: 'تحديث',
         ),
         IconButton(
-          onPressed: _showMenu<void>,
+          onPressed: _showMenu,
           icon: const Icon(Icons.more_vert),
           tooltip: 'المزيد',
         ),
@@ -99,7 +99,7 @@ class _AppwriteSettingsScreenV2State
     ).showSnackBar(const SnackBar(content: Text('جاري تحديث البيانات...')));
   }
 
-  void _showMenu<void>() {
+  void _showMenu() {
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -113,7 +113,7 @@ class _AppwriteSettingsScreenV2State
               leading: const Icon(Icons.description),
               title: const Text('عرض السجلات'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 // Navigate to logs
               },
             ),
@@ -121,7 +121,7 @@ class _AppwriteSettingsScreenV2State
               leading: const Icon(Icons.bar_chart),
               title: const Text('إحصائيات المزامنة'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 // Navigate to stats
               },
             ),
@@ -129,14 +129,14 @@ class _AppwriteSettingsScreenV2State
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات متقدمة'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
               },
             ),
             ListTile(
               leading: const Icon(Icons.help_outline),
               title: const Text('مساعدة'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _showHelpDialog();
               },
             ),
@@ -162,7 +162,7 @@ class _AppwriteSettingsScreenV2State
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('حسناً'),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -83,11 +84,15 @@ class _SettingsMaintenanceScreenState
     setState(() => _isLoadingInfo = true);
     try {
       final info = await _collectSystemInfo();
-      if (mounted) setState(() => _info = info);
-    } catch (Object e) {
+      if (mounted) {
+        setState(() => _info = info);
+      }
+    } catch (e) {
       debugPrint('⚠️ Failed to load system info: $e');
     } finally {
-      if (mounted) setState(() => _isLoadingInfo = false);
+      if (mounted) {
+        setState(() => _isLoadingInfo = false);
+      }
     }
   }
 
@@ -100,7 +105,9 @@ class _SettingsMaintenanceScreenState
     int dbSizeBytes = 0;
     for (final ext in ['', '-wal', '-shm']) {
       final file = File(p.join(dbDir, 'marina_hotel.db$ext'));
-      if (await file.exists()) dbSizeBytes += await file.length();
+      if (await file.exists()) {
+        dbSizeBytes += await file.length();
+      }
     }
 
     // إجمالي السجلات (الجداول الرئيسية فقط)
@@ -488,7 +495,7 @@ class _SettingsMaintenanceScreenState
 
   void _hideLoading() {
     setState(() => _isWorking = false);
-    Navigator.of(context, rootNavigator: true).pop<void>();
+    Navigator.of(context, rootNavigator: true).pop();
   }
 
   void _showSnack(String message, {Color? color}) {
@@ -519,18 +526,18 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري التنظيف...');
               try {
                 await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
                 DiagnosticsLogger.instance.clear();
                 _hideLoading();
                 _showSnack('تم التنظيف بنجاح', color: Colors.green);
-                _loadSystemInfo();
-              } catch (Object e) {
+                unawaited(_loadSystemInfo());
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -551,16 +558,18 @@ class _SettingsMaintenanceScreenState
         title: const Text('فحص قاعدة البيانات'),
         content: const Text('سيتم التحقق من سلامة الجداول وبياناتها.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري فحص قاعدة البيانات...');
               try {
                 final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
                 _hideLoading();
-                if (mounted) _showIntegrityResults(checks);
-              } catch (Object e) {
+                if (mounted) {
+                  _showIntegrityResults(checks);
+                }
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ في الفحص: $e', color: Colors.red);
               }
@@ -616,7 +625,7 @@ class _SettingsMaintenanceScreenState
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إغلاق')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
         ],
       ),
     );
@@ -642,10 +651,10 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
               try {
                 final db = ref.read(databaseProvider);
@@ -658,8 +667,8 @@ class _SettingsMaintenanceScreenState
                   'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
                   color: Colors.green,
                 );
-                _loadSystemInfo();
-              } catch (Object e) {
+                unawaited(_loadSystemInfo());
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ في الضغط: $e', color: Colors.red);
               }
@@ -676,7 +685,9 @@ class _SettingsMaintenanceScreenState
     int total = 0;
     for (final ext in ['', '-wal', '-shm']) {
       final file = File(p.join(dbDir, 'marina_hotel.db$ext'));
-      if (await file.exists()) total += await file.length();
+      if (await file.exists()) {
+        total += await file.length();
+      }
     }
     return total;
   }
@@ -698,10 +709,10 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري إعادة تعيين المزامنة...');
               try {
                 await ref.read(appwriteSyncManagerProvider).resetSyncState();
@@ -711,8 +722,8 @@ class _SettingsMaintenanceScreenState
                 );
                 _hideLoading();
                 _showSnack('تم إعادة تعيين المزامنة بنجاح', color: Colors.green);
-                _loadSystemInfo();
-              } catch (Object e) {
+                unawaited(_loadSystemInfo());
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
               }
@@ -742,10 +753,10 @@ class _SettingsMaintenanceScreenState
           'إلى مدفوعات فعلية مع إعادة حساب الأرصدة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري معالجة الرصيد التراكمي...');
               try {
                 final result = await _processPendingBalances(ref);
@@ -753,9 +764,10 @@ class _SettingsMaintenanceScreenState
                 if (result.isEmpty) {
                   _showSnack('لا توجد مدفوعات تراكمية معلقة', color: Colors.blue);
                 } else if (mounted) {
+                  // ignore: use_build_context_synchronously
                   _showProcessingResultDialog(context, result);
                 }
-              } catch (Object e) {
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -779,7 +791,9 @@ class _SettingsMaintenanceScreenState
           ..where((p) => p.deletedAt.isNull()))
         .get();
 
-    if (pendingPayments.isEmpty) return results;
+    if (pendingPayments.isEmpty) {
+      return results;
+    }
 
     final affectedBookingIds = <int>{};
     for (final payment in pendingPayments) {
@@ -888,7 +902,7 @@ class _SettingsMaintenanceScreenState
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إغلاق')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
           ],
         ),
       ),
@@ -907,10 +921,10 @@ class _SettingsMaintenanceScreenState
           'إلى حالة "معلقة" للمحاولة مرة أخرى.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري إعادة تعيين Outbox...');
               try {
                 final db = ref.read(databaseProvider);
@@ -922,8 +936,8 @@ class _SettingsMaintenanceScreenState
                   'تم إعادة تعيين Outbox ($stuckCount عملية عالقة)',
                   color: Colors.green,
                 );
-                _loadSystemInfo();
-              } catch (Object e) {
+                unawaited(_loadSystemInfo());
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -948,18 +962,18 @@ class _SettingsMaintenanceScreenState
           'قد يستغرق ذلك بضع ثوانٍ.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري إعادة تشغيل الخدمات...');
               try {
                 await SyncGuardian.instance.restart();
                 await AutoSyncEngine.instance.restart();
                 _hideLoading();
                 _showSnack('تم إعادة تشغيل الخدمات بنجاح', color: Colors.green);
-                _loadSystemInfo();
-              } catch (Object e) {
+                unawaited(_loadSystemInfo());
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -990,10 +1004,10 @@ class _SettingsMaintenanceScreenState
           'سيتم حذف جميع البيانات المحلية نهائياً وإعادة التهيئة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showConfirmResetDialog(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -1013,10 +1027,10 @@ class _SettingsMaintenanceScreenState
           'هل أنت متأكد تماماً؟\nسيتم فقدان جميع البيانات.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
               _showLoading('جاري إعادة تعيين التطبيق...');
               try {
                 await DatabaseManager.close();
@@ -1032,8 +1046,8 @@ class _SettingsMaintenanceScreenState
 
                 _hideLoading();
                 _showSnack('تم إعادة تعيين التطبيق بنجاح', color: Colors.green);
-                _loadSystemInfo();
-              } catch (Object e) {
+                unawaited(_loadSystemInfo());
+              } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
               }

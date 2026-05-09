@@ -66,7 +66,7 @@ class _ComprehensiveBackupScreenState
           );
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       setState(() {
         _statusMessage = 'حدث خطأ أثناء التصدير: $e';
         _isLoading = false;
@@ -78,7 +78,9 @@ class _ComprehensiveBackupScreenState
   Future<void> _restoreAndUpload() async {
     try {
       final file = await _backupService.pickBackupFile();
-      if (file == null) return;
+      if (file == null) {
+        return;
+      }
 
       setState(() {
         _isLoading = true;
@@ -99,11 +101,11 @@ class _ComprehensiveBackupScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(ctx, false),
+                onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop<void>(ctx, true),
+                onPressed: () => Navigator.pop(ctx, true),
                 child: const Text('بدء الرفع'),
               ),
             ],
@@ -141,7 +143,7 @@ class _ComprehensiveBackupScreenState
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       setState(() {
         _statusMessage = 'فشلت العملية: $e';
         _isLoading = false;

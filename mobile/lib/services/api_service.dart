@@ -34,7 +34,7 @@ class ApiService {
         onError: (e, handler) async {
           final code = e.response?.statusCode ?? 0;
           if (code == 401) {
-            await _storage.delete<dynamic>(key: _kToken);
+            await _storage.delete(key: _kToken);
           }
           if (code == 429 || code >= 500) {
             await Future<void>.delayed(const Duration(seconds: 1));
@@ -114,7 +114,7 @@ class ApiService {
   }
 
   Future<void> logout() async {
-    await _storage.delete<dynamic>(key: _kToken);
+    await _storage.delete(key: _kToken);
   }
 
   Future<Map<String, dynamic>> listEntity(

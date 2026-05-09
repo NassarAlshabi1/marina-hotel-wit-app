@@ -108,7 +108,7 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
           _result = buffer.toString();
         });
       }
-    } catch (Object e) {
+    } catch (e) {
       setState(() {
         _result = '❌ خطأ: $e';
       });

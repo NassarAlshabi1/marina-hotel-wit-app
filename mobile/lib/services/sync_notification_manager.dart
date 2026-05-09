@@ -17,7 +17,9 @@ class SyncNotificationManager {
   bool _isInitialized = false;
 
   Future<void> _initLocalNotifications() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -39,7 +41,9 @@ class SyncNotificationManager {
     required String body,
     String? payload,
   }) async {
-    if (!_isInitialized) await _initLocalNotifications();
+    if (!_isInitialized) {
+      await _initLocalNotifications();
+    }
 
     const androidDetails = AndroidNotificationDetails(
       'marina_notes_channel',
@@ -516,7 +520,7 @@ class SyncNotificationManager {
                       content: Text(details, textDirection: TextDirection.rtl),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop<void>(ctx),
+                          onPressed: () => Navigator.pop(ctx),
                           child: const Text('فهمت'),
                         ),
                       ],

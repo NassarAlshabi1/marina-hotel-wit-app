@@ -42,7 +42,9 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// تحميل الغرف
   Future<void> loadRooms() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     _setLoading(true);
     _setError(null);
@@ -52,7 +54,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       _rooms = await _repository.getAll();
       _logger.info('Loaded ${_rooms.length} rooms', tag: 'ROOMS_PROVIDER');
       notifyListeners();
-    } catch (Object e) {
+    } catch (e) {
       _logger.error('Failed to load rooms', error: e, tag: 'ROOMS_PROVIDER');
       _setError(e.toString());
     } finally {
@@ -82,7 +84,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.info('Subscribed to rooms successfully', tag: 'ROOMS_PROVIDER');
-    } catch (Object e) {
+    } catch (e) {
       _logger.error('Failed to subscribe', error: e, tag: 'ROOMS_PROVIDER');
       _setError(e.toString());
     }
@@ -104,7 +106,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       } else if (events.any((e) => e.contains('delete'))) {
         _handleRoomDeleted(payload);
       }
-    } catch (Object e) {
+    } catch (e) {
       _logger.error(
         'Failed to handle realtime update',
         error: e,
@@ -151,7 +153,9 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// البحث في الغرف محلياً
   List<Room> searchLocal(String query) {
-    if (query.isEmpty) return rooms;
+    if (query.isEmpty) {
+      return rooms;
+    }
 
     final lowerQuery = query.toLowerCase();
     return _rooms.where((room) {
@@ -164,7 +168,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   Room? getRoomById(int id) {
     try {
       return _rooms.firstWhere((r) => r.id == id);
-    } catch (Object) {
+    } catch (e) {
       return null;
     }
   }
@@ -173,7 +177,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   Room? getRoomByNumber(String roomNumber) {
     try {
       return _rooms.firstWhere((r) => r.roomNumber == roomNumber);
-    } catch (Object) {
+    } catch (e) {
       return null;
     }
   }

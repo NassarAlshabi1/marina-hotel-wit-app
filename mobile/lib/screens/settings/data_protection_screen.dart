@@ -67,7 +67,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         prefs.getBool('google_drive_sync_disable_on_start') ?? false;
     final googleDrivePushEnabled =
         prefs.getBool('gd_unified_push_enabled') ?? false;
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
@@ -90,12 +92,16 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       final retentionDays = int.tryParse(_retentionDaysController.text) ?? 45;
       await manager.setMaxBackupCount(maxBackups);
       await manager.setRetentionDays(retentionDays);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حفظ إعدادات النسخ الاحتياطي')),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الإعدادات: $e'),
@@ -103,8 +109,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _backupBusy = false);
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
     }
   }
 
@@ -114,7 +121,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       final manager = AutoBackupManager.instance;
       await manager.setEnabled(enabled);
       ref.invalidate(autoBackupStatusProvider);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -122,8 +131,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تغيير الحالة: $e'),
@@ -131,8 +142,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _backupBusy = false);
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
     }
   }
 
@@ -140,18 +152,23 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     setState(() => _backupBusy = true);
     try {
       await AutoBackupManager.instance.cleanupNow();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تنظيف النسخ القديمة')));
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل التنظيف: $e'), backgroundColor: Colors.red),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _backupBusy = false);
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
     }
   }
 
@@ -168,7 +185,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       } else {
         await AlarmBackup.cancelAlarm();
       }
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _scheduledEnabled = enabled);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -177,8 +196,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تحديث الجدولة: $e'),
@@ -186,8 +207,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _backupBusy = false);
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
     }
   }
 
@@ -198,7 +220,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       builder: (context, child) =>
           Directionality(textDirection: TextDirection.rtl, child: child!),
     );
-    if (picked == null || picked == _scheduledTime) return;
+    if (picked == null || picked == _scheduledTime) {
+      return;
+    }
     setState(() => _scheduledTime = picked);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -207,7 +231,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     );
     if (_scheduledEnabled) {
       await AlarmBackup.rescheduleDaily(picked.hour, picked.minute);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تحديث وقت النسخ إلى ${picked.format(context)}'),
@@ -224,7 +250,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!enabled) {
         await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(false);
       }
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _googleDriveSyncEnabled = enabled;
         if (!enabled) {
@@ -240,8 +268,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير حالة مزامنة Google Drive: $e'),
@@ -249,8 +279,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -259,7 +290,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('google_drive_sync_disable_on_start', enabled);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _googleDriveSyncDisableOnStart = enabled);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -270,8 +303,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد بدء التشغيل: $e'),
@@ -279,8 +314,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -297,7 +333,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     setState(() => _syncBusy = true);
     try {
       await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(enabled);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _googleDrivePushEnabled = enabled);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -306,8 +344,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد الرفع: $e'),
@@ -315,8 +355,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -325,14 +366,18 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       await ref.read(smartSyncManagerProvider).setEnabled(enabled);
       ref.invalidate(smartSyncStatusProvider);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة'),
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير حالة المزامنة: $e'),
@@ -340,8 +385,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -350,12 +396,16 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       await ref.read(smartSyncManagerProvider).setSyncInterval(minutes);
       ref.invalidate(smartSyncStatusProvider);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('تم ضبط الفحص على كل $minutes دقيقة')),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تعديل الفترة: $e'),
@@ -363,8 +413,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -373,12 +424,16 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       await ref.read(smartSyncManagerProvider).setConflictResolution(strategy);
       ref.invalidate(smartSyncStatusProvider);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث استراتيجية حل التضارب')),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تحديث الاستراتيجية: $e'),
@@ -386,8 +441,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -396,12 +452,16 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       await ref.read(smartSyncManagerProvider).forceSyncNow();
       ref.invalidate(smartSyncStatusProvider);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تمت المزامنة اليدوية')));
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشلت المزامنة اليدوية: $e'),
@@ -409,8 +469,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _syncBusy = false);
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
     }
   }
 
@@ -420,13 +481,17 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     try {
       await ref.read(backupStatusProvider.notifier).createComprehensiveBackup();
       ref.invalidate(autoBackupStatusProvider);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       messenger.showSnackBar(
         const SnackBar(content: Text('تم إنشاء النسخة الاحتياطية الشاملة')),
       );
       await _runAppwriteSync(triggeredByBackup: true);
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(
           content: Text('تعذر إنشاء النسخة الاحتياطية: $e'),
@@ -434,18 +499,23 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _backupBusy = false);
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
     }
   }
 
   Future<void> _runAppwriteSync({bool triggeredByBackup = false}) async {
-    if (_appwriteBusy) return;
+    if (_appwriteBusy) {
+      return;
+    }
     setState(() => _appwriteBusy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final result = await ref.read(ap.appwriteSyncManagerProvider).sync();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final pushed = result.recordsPushed;
       final pulled = result.recordsPulled;
       final label = triggeredByBackup
@@ -455,8 +525,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         SnackBar(content: Text('$label (رفع $pushed / استقبل $pulled)')),
       );
       ref.invalidate(ap.syncStatsProvider);
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(
           content: Text('فشلت مزامنة Appwrite: $e'),
@@ -464,8 +536,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _appwriteBusy = false);
+      if (mounted) {
+        setState(() => _appwriteBusy = false);
+      }
     }
   }
 
@@ -582,11 +655,15 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         String? iso = overrideSubtitle;
         if (iso == null && primaryTimeKey != null) {
           final raw = data[primaryTimeKey];
-          if (raw is String) iso = raw;
+          if (raw is String) {
+            iso = raw;
+          }
         }
         if (iso == null && secondaryTimeKey != null) {
           final raw = data[secondaryTimeKey];
-          if (raw is String) iso = raw;
+          if (raw is String) {
+            iso = raw;
+          }
         }
         final subtitle = _formatOptionalDate(iso);
         return Card(
@@ -982,7 +1059,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               onChanged: _syncBusy
                   ? null
                   : (value) {
-                      if (value != null) _changeSyncInterval(value);
+                      if (value != null) {
+                        _changeSyncInterval(value);
+                      }
                     },
             ),
           ),
@@ -1007,7 +1086,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                   onChanged: _syncBusy
                       ? null
                       : (value) {
-                          if (value != null) _changeConflictResolution(value);
+                          if (value != null) {
+                            _changeConflictResolution(value);
+                          }
                         },
                 ),
                 const SizedBox(height: 12),
@@ -1298,9 +1379,13 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   }
 
   String? _formatOptionalDate(String? iso) {
-    if (iso == null) return null;
+    if (iso == null) {
+      return null;
+    }
     final dt = DateTime.tryParse(iso);
-    if (dt == null) return null;
+    if (dt == null) {
+      return null;
+    }
     return _formatDateTime(dt);
   }
 

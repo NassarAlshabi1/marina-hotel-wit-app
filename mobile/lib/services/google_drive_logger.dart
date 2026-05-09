@@ -49,7 +49,7 @@ class GoogleDriveLogger extends ChangeNotifier {
       final fileName =
           'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error initializing drive log file: $e');
     }
   }
@@ -61,7 +61,9 @@ class GoogleDriveLogger extends ChangeNotifier {
     dynamic error,
     StackTrace? stackTrace,
   }) {
-    if (level.value < _minLevel.value) return;
+    if (level.value < _minLevel.value) {
+      return;
+    }
     final entry = LogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -95,7 +97,7 @@ class GoogleDriveLogger extends ChangeNotifier {
         '${entry.toFormattedString()}\n',
         mode: FileMode.append,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error writing drive log: $e');
     }
   }
@@ -195,7 +197,7 @@ class GoogleDriveLogger extends ChangeNotifier {
       }
       await file.writeAsString(buffer.toString());
       return file;
-    } catch (Object e) {
+    } catch (e) {
       error('Failed to export drive logs', error: e);
       return null;
     }

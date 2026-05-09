@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -359,8 +361,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final hotelDay = Time.hotelDayKey();
     final todayPayments = payments
         .where((p) {
-          if (p.isVoided) return false;
-          if (p.hotelDayKey == hotelDay) return true;
+          if (p.isVoided) {
+            return false;
+          }
+          if (p.hotelDayKey == hotelDay) {
+            return true;
+          }
           if (p.hotelDayKey == null &&
               p.paymentDate.startsWith(hotelDay)) {
             return true;
@@ -380,8 +386,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
     // ترتيب: الغرف أولاً (مرتبة تصاعدياً)، ثم المدفوعات العامة
     final sortedKeys = grouped.keys.toList()..sort((a, b) {
-      if (a == '__other__') return 1;
-      if (b == '__other__') return -1;
+      if (a == '__other__') {
+        return 1;
+      }
+      if (b == '__other__') {
+        return -1;
+      }
       return a.compareTo(b);
     });
 
@@ -773,7 +783,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(ctx),
+                onPressed: () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
@@ -812,7 +822,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   ) async {
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
     if (parsedAmount == null || parsedAmount <= 0) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال مبلغ صحيح'),
@@ -850,14 +862,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       );
 
       // إرسال إشعار واتساب
-      _sendPaymentWhatsAppNotification(
+      unawaited(_sendPaymentWhatsAppNotification(
         amount: parsedAmount,
         method: dbMethod,
         notes: notes.trim(),
-      );
+      ),);
 
       if (mounted) {
-        Navigator.pop<void>(dialogContext);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -867,9 +880,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
-        Navigator.pop<void>(dialogContext);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),

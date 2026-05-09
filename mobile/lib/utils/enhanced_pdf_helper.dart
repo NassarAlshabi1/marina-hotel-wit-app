@@ -454,7 +454,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
                   Text('حدث خطأ في إنشاء PDF: ${snapshot.error}'),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => Navigator.pop<void>(context),
+                    onPressed: () => Navigator.pop(context),
                     child: const Text('رجوع'),
                   ),
                 ],

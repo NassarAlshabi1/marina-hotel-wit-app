@@ -119,7 +119,7 @@ class AppwriteSyncManager {
       try {
         await outboxDao.cleanupStuckEntries();
         await outboxDao.retryFailed();
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to cleanup outbox on init',
           error: e,
@@ -219,7 +219,7 @@ class AppwriteSyncManager {
             'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
           },
         );
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ Failed to update FCM token: $e');
       }
     }
@@ -411,7 +411,7 @@ class AppwriteSyncManager {
           if (result.status == SyncStatus.success) {
             debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
           }
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
         }
       },
@@ -536,7 +536,7 @@ class AppwriteSyncManager {
       if (_currentDeviceId == null) {
         try {
           await registerDevice();
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('تسجيل الجهاز فشل، سنستخدم معرف محلي: $e', tag: 'SYNC');
         }
       }
@@ -902,13 +902,13 @@ class AppwriteSyncManager {
             recordsPulled += await _timePhase('syncAppSettings', () async {
               final docs = await appwriteService.listDocuments(
                 collectionId: 'app_settings',
-                queries: [], // بدون delta filter - app_settings لا يملك lastModified
+                queries: <String>[], // بدون delta filter - app_settings لا يملك lastModified
               );
               final synced = await _syncAppSettings(docs);
               _logger.debug('Synced $synced app_settings', tag: 'SYNC');
               return synced;
             }, phaseMs,);
-          } catch (Object e) {
+          } catch (e) {
             // ⚠️ app_settings غير حرجة — لا تمنع تحديث lastPullTs
             // إعدادات واتساب ليست بيانات فندقية أساسية
             _logger.warning(
@@ -1216,7 +1216,7 @@ class AppwriteSyncManager {
             : null,
         'timeline': timeline,
       };
-    } catch (Object e) {
+    } catch (e) {
       _logger.error('Failed to get sync statistics', error: e, tag: 'SYNC');
       return {
         'totalSyncs': 0,
@@ -1258,7 +1258,7 @@ class AppwriteSyncManager {
         data['localUuid'] ??= doc.$id;
         await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning('Failed to sync room ${doc.$id}: $e', tag: 'SYNC');
       }
     }
@@ -1293,7 +1293,7 @@ class AppwriteSyncManager {
         }
 
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
       }
     }
@@ -1312,7 +1312,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
       }
     }
@@ -1331,7 +1331,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
       }
     }
@@ -1367,7 +1367,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         // تأجيل الدفعة إذا كان الخطأ FOREIGN KEY constraint
         if (e.toString().contains('FOREIGN KEY constraint failed') ||
             e.toString().contains('constraint failed')) {
@@ -1398,7 +1398,7 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           processed++;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'Failed to sync deferred payment ${doc.$id} after retry: $e',
             tag: 'SYNC',
@@ -1436,7 +1436,7 @@ class AppwriteSyncManager {
 
         await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         // تأجيل الدين إذا كان الخطأ FOREIGN KEY constraint
         if (e.toString().contains('FOREIGN KEY constraint failed') ||
             e.toString().contains('constraint failed')) {
@@ -1467,7 +1467,7 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           processed++;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'Failed to sync deferred debt ${doc.$id} after retry: $e',
             tag: 'SYNC',
@@ -1580,7 +1580,7 @@ class AppwriteSyncManager {
           );
           return true;
       }
-    } catch (Object error, StackTrace stackTrace) {
+    } catch (error, stackTrace) {
       final parsed = _errorHandler.handleError(
         error,
         context: 'push:${entry.entity}:${entry.op}',
@@ -1708,7 +1708,7 @@ class AppwriteSyncManager {
   Future<void> _deleteSilently(Future<void> Function() action) async {
     try {
       await action();
-    } catch (Object error) {
+    } catch (error) {
       if (error is AppwriteError && error.code == 'NOT_FOUND') {
         _logger.debug(
           'Delete target not found (AppwriteError): ${error.message}',
@@ -1773,7 +1773,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync guest_info ${doc.$id}: $e',
           tag: 'SYNC',
@@ -1829,7 +1829,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync salary_withdrawal ${doc.$id}: $e',
           tag: 'SYNC',
@@ -2117,7 +2117,7 @@ class AppwriteSyncManager {
         final uuids = outboxEntries.map((e) => e.localUuid).toList();
         final removed = await outboxDao.removePulledEntities(uuids, entity: entity);
         totalRemoved += removed;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning('فشل تنظيف outbox للكيان $entity: $e', tag: 'SYNC');
       }
     }
@@ -2132,7 +2132,7 @@ class AppwriteSyncManager {
             ..where((t) => t.id.equals(1)))
           .getSingleOrNull();
       return state?.lastPullTs ?? 0;
-    } catch (Object) {
+    } catch (_) {
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
     }
@@ -2151,7 +2151,7 @@ class AppwriteSyncManager {
               lastPullTs: drift.Value(ts),
             ),
           );
-    } catch (Object e) {
+    } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }
   }
@@ -2181,7 +2181,7 @@ class AppwriteSyncManager {
         useCache: false,
       );
       return devices.map((doc) => AppwriteDevice.fromJson(doc.data)).toList();
-    } catch (Object e) {
+    } catch (e) {
       // إذا فشل الترتيب (مثلاً لا يوجد فهرس على lastSeen)، نستخدم الطريقة البديلة
       _logger.warning(
         'orderDesc(lastSeen) failed, falling back to local sort: $e',
@@ -2558,7 +2558,7 @@ class AppwriteSyncManager {
           final payload = _roomToRemote(room);
           await appwriteService.upsertRoom(room.localUuid, payload);
           stats['rooms'] = (stats['rooms'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'خطأ في رفع غرفة ${room.roomNumber}: $e',
             tag: 'SYNC',
@@ -2583,7 +2583,7 @@ class AppwriteSyncManager {
           final payload = _employeeToRemote(employee);
           await appwriteService.upsertEmployee(employee.localUuid, payload);
           stats['employees'] = (stats['employees'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع موظف ${employee.name}: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2605,7 +2605,7 @@ class AppwriteSyncManager {
           final payload = _bookingToRemote(booking);
           await appwriteService.upsertBooking(booking.localUuid, payload);
           stats['bookings'] = (stats['bookings'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'خطأ في رفع حجز ${booking.guestName}: $e',
             tag: 'SYNC',
@@ -2626,7 +2626,7 @@ class AppwriteSyncManager {
           final payload = _expenseToRemote(expense);
           await appwriteService.upsertExpense(expense.localUuid, payload);
           stats['expenses'] = (stats['expenses'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع مصروف: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2645,7 +2645,7 @@ class AppwriteSyncManager {
           final payload = _paymentToRemote(payment);
           await appwriteService.upsertPayment(payment.localUuid, payload);
           stats['payments'] = (stats['payments'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع دفعة: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2663,7 +2663,7 @@ class AppwriteSyncManager {
           final payload = _debtToRemote(debt);
           await appwriteService.upsertDebt(debt.localUuid, payload);
           stats['debts'] = (stats['debts'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع دين: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2678,7 +2678,7 @@ class AppwriteSyncManager {
           final payload = _bookingNoteToRemote(note);
           await appwriteService.upsertBookingNote(note.localUuid, payload);
           stats['booking_notes'] = (stats['booking_notes'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع ملاحظة حجز: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2696,7 +2696,7 @@ class AppwriteSyncManager {
           final payload = _bookingNightToRemote(night);
           await appwriteService.upsertBookingNight(night.localUuid, payload);
           stats['booking_nights'] = (stats['booking_nights'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع ليلة حجز: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2716,7 +2716,7 @@ class AppwriteSyncManager {
             payload,
           );
           stats['cash_transactions'] = (stats['cash_transactions'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع معاملة نقدية: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2734,7 +2734,7 @@ class AppwriteSyncManager {
           final payload = _salaryCycleToRemote(cycle);
           await appwriteService.upsertSalaryCycle(cycle.localUuid, payload);
           stats['salary_cycles'] = (stats['salary_cycles'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع دورة راتب: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2751,7 +2751,7 @@ class AppwriteSyncManager {
           final payload = _salaryPaymentToRemote(payment);
           await appwriteService.upsertSalaryPayment(payment.localUuid, payload);
           stats['salary_payments'] = (stats['salary_payments'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع دفعة راتب: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2769,7 +2769,7 @@ class AppwriteSyncManager {
           final payload = _shiftNoteToRemote(item);
           await appwriteService.upsertShiftNote(item.localUuid, payload);
           stats['shift_notes'] = (stats['shift_notes'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع ملاحظة شيفت: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2791,7 +2791,7 @@ class AppwriteSyncManager {
             data: payload,
           );
           stats['booking_price_adjustments'] = (stats['booking_price_adjustments'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع تعديل سعر حجز: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2813,7 +2813,7 @@ class AppwriteSyncManager {
             data: payload,
           );
           stats['guest_infos'] = (stats['guest_infos'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع معلومة نزيل: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -2835,7 +2835,7 @@ class AppwriteSyncManager {
             data: payload,
           );
           stats['salary_withdrawals'] = (stats['salary_withdrawals'] ?? 0) + 1;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('خطأ في رفع سحب راتب: $e', tag: 'SYNC');
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
@@ -3170,7 +3170,7 @@ class AppwriteSyncManager {
     Map<String, dynamic> extra = {};
     try {
       extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (Object e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
 
     final now = Time.nowEpoch();
     // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)
@@ -3312,7 +3312,7 @@ class AppwriteSyncManager {
         }
 
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync blacklist ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3532,7 +3532,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync shift note ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3554,7 +3554,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync booking note ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3576,7 +3576,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync booking night ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3598,7 +3598,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync cash transaction ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3620,7 +3620,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync salary cycle ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3642,7 +3642,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync salary payment ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3680,7 +3680,7 @@ class AppwriteSyncManager {
         }
         
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync booking price adjustment ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3704,7 +3704,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync price adjustment ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3728,7 +3728,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync audit log ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3809,7 +3809,7 @@ class AppwriteSyncManager {
       }
 
       return true;
-    } catch (Object e) {
+    } catch (e) {
       _logger.warning('Failed to push app_settings: $e', tag: 'SYNC');
       return false;
     }
@@ -3876,7 +3876,7 @@ class AppwriteSyncManager {
 
         processed++;
         _logger.debug('AppSettings synced: ${doc.$id}', tag: 'SYNC');
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync app_settings ${doc.$id}: $e',
           tag: 'SYNC',
@@ -3898,7 +3898,7 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to sync payment void ${doc.$id}: $e',
           tag: 'SYNC',

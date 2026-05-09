@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/status_utils.dart';
@@ -39,11 +41,11 @@ class RoomsRepository {
           imageUrl: d.Value(imageUrl),
         ),
       );
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'rooms',
         'INSERT',
         recordData: {'room_number': roomNumber},
-      );
+      ),);
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -76,11 +78,11 @@ class RoomsRepository {
         ),
       );
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'rooms',
           'UPDATE',
           recordData: {'id': id},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {
@@ -113,11 +115,11 @@ class RoomsRepository {
         ),
       );
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'rooms',
           'UPDATE',
           recordData: {'room_number': roomNumber},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {
@@ -149,11 +151,11 @@ class RoomsRepository {
       }
       final result = await dao.softDelete(roomNumber);
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'rooms',
           'DELETE',
           recordData: {'room_number': roomNumber},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {

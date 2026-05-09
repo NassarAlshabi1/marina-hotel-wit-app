@@ -48,7 +48,9 @@ final roomsWithPaymentStatusProvider =
   DateTime lastTime = DateTime.now();
 
   void computeAndEmit() {
-    if (lastRooms == null || lastBookings == null) return;
+    if (lastRooms == null || lastBookings == null) {
+      return;
+    }
 
     final currentTime = lastTime;
     final rooms = lastRooms!;

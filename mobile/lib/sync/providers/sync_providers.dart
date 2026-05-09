@@ -327,8 +327,12 @@ final syncConnectionProvider = Provider<SyncConnectionState>((ref) {
 
   return state.when(
     data: (asyncState) {
-      if (asyncState.isSyncing) return SyncConnectionState.syncing;
-      if (asyncState.hasError) return SyncConnectionState.error;
+      if (asyncState.isSyncing) {
+        return SyncConnectionState.syncing;
+      }
+      if (asyncState.hasError) {
+        return SyncConnectionState.error;
+      }
       return SyncConnectionState.connected;
     },
     loading: () => SyncConnectionState.connecting,
@@ -345,9 +349,15 @@ final canSyncProvider = Provider<bool>((ref) {
   final config = ref.watch(syncConfigurationProvider);
   final state = ref.watch(syncStateAsyncProvider);
 
-  if (!config.enabled) return false;
-  if (state.isLoading) return false;
-  if (state.valueOrNull?.isSyncing ?? false) return false;
+  if (!config.enabled) {
+    return false;
+  }
+  if (state.isLoading) {
+    return false;
+  }
+  if (state.valueOrNull?.isSyncing ?? false) {
+    return false;
+  }
 
   return true;
 });

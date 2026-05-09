@@ -63,10 +63,14 @@ class AppwriteRealtimeSync {
   }
 
   Future<void> start() async {
-    if (_isListening || _realtime == null) return;
+    if (_isListening || _realtime == null) {
+      return;
+    }
 
     final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+      return;
+    }
 
     final channels = _collections
         .map(
@@ -104,7 +108,9 @@ class AppwriteRealtimeSync {
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
 
     // تجاهل التغييرات من نفس الجهاز (لأنها محلية بالفعل)
-    if (sourceDevice == _currentDeviceId) return;
+    if (sourceDevice == _currentDeviceId) {
+      return;
+    }
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
@@ -127,7 +133,7 @@ class AppwriteRealtimeSync {
         if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
-      } catch (Object) {
+      } catch (e) {
         debugPrint('⚠️ Realtime: could not parse update timestamp');
       }
     }
@@ -176,12 +182,14 @@ class AppwriteRealtimeSync {
         context: {'deviceId': _currentDeviceId ?? 'unknown'},
       );
       Future<void>.delayed(const Duration(seconds: 5), () {
-        if (!_isListening) start();
+        if (!_isListening) {
+          start();
+        }
       });
     }
 
   Future<void> stop() async {
-    _subscription?.close();
+    unawaited(_subscription?.close());
     _subscription = null;
     _isListening = false;
     _debounceTimer?.cancel();

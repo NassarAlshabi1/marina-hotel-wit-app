@@ -60,13 +60,17 @@ class ConflictResolver {
     final conflicts = <DataConflict>[];
 
     for (final table in localData.keys) {
-      if (!remoteData.containsKey(table)) continue;
+      if (!remoteData.containsKey(table)) {
+        continue;
+      }
 
       final localRecords = localData[table] as Map<String, dynamic>? ?? {};
       final remoteRecords = remoteData[table] as Map<String, dynamic>? ?? {};
 
       for (final uuid in localRecords.keys) {
-        if (!remoteRecords.containsKey(uuid)) continue;
+        if (!remoteRecords.containsKey(uuid)) {
+          continue;
+        }
 
         final localRecord = localRecords[uuid] as Map<String, dynamic>;
         final remoteRecord = remoteRecords[uuid] as Map<String, dynamic>;
@@ -166,7 +170,9 @@ class ConflictResolver {
   /// تحويل timestamp إلى DateTime
   /// يدعم الثواني والمللي ثانية تلقائياً
   DateTime? _parseTimestamp(dynamic timestamp) {
-    if (timestamp == null) return null;
+    if (timestamp == null) {
+      return null;
+    }
 
     try {
       if (timestamp is String) {
@@ -180,7 +186,7 @@ class ConflictResolver {
         }
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ ConflictResolver: فشل تحليل timestamp: $e');
     }
 

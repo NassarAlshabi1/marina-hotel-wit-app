@@ -23,7 +23,9 @@ class RealtimeSyncNotifier {
 
   /// بدء الاستماع لإشعارات المزامنة
   Future<void> startListening() async {
-    if (_isListening) return;
+    if (_isListening) {
+      return;
+    }
 
     _isListening = true;
     await _loadLastProcessedSyncId();
@@ -47,7 +49,9 @@ class RealtimeSyncNotifier {
     try {
       final smartSync = SmartSyncManager.instance;
 
-      if (!smartSync.isDriveSignedIn) return;
+      if (!smartSync.isDriveSignedIn) {
+        return;
+      }
 
       final hasChanges = await smartSync.pullRemoteChanges();
 
@@ -68,7 +72,7 @@ class RealtimeSyncNotifier {
         await _saveLastProcessedSyncId(syncId);
         debugPrint('🔔 تم اكتشاف تغييرات جديدة');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في التحقق من المزامنة الجديدة: $e');
     }
   }
@@ -88,7 +92,7 @@ class RealtimeSyncNotifier {
       };
 
       debugPrint('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ فشل إرسال الإشعار: $e');
     }
   }

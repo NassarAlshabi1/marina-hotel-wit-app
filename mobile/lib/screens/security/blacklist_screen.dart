@@ -218,7 +218,10 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                   case 'toggle':
                                     try {
                                       await repo.updateActive(e.id, !e.active);
-                                      if (!mounted) return;
+                                      if (!mounted) {
+                                        return;
+                                      }
+                                      // ignore: use_build_context_synchronously
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text(
@@ -231,7 +234,10 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         ),
                                       );
                                     } catch (err) {
-                                      if (!mounted) return;
+                                      if (!mounted) {
+                                        return;
+                                      }
+                                      // ignore: use_build_context_synchronously
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text('فشل تحديث الحالة: $err'),
@@ -244,8 +250,11 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         await _showDeleteConfirmDialog(context, e.name);
                                     if (confirmed ?? false) {
                                       try {
-                                        await repo.delete<dynamic>(e.id);
-                                        if (!mounted) return;
+                                        await repo.delete(e.id);
+                                        if (!mounted) {
+                                          return;
+                                        }
+                                        // ignore: use_build_context_synchronously
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
                                             content: Text('تم حذف: ${e.name}'),
@@ -253,7 +262,10 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                           ),
                                         );
                                       } catch (err) {
-                                        if (!mounted) return;
+                                        if (!mounted) {
+                                          return;
+                                        }
+                                        // ignore: use_build_context_synchronously
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
                                             content: Text('فشل الحذف: $err'),
@@ -325,15 +337,19 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
     setState(() => _isSyncing = true);
     try {
       await syncService.runSync();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تمت المزامنة بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشلت المزامنة: $e'),
@@ -341,7 +357,9 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _isSyncing = false);
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
     }
   }
 
@@ -360,7 +378,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           ),
           onSubmitted: (value) {
             setState(() => _filterText = value);
-            Navigator.pop<void>(ctx);
+            Navigator.pop(ctx);
           },
         ),
         actions: [
@@ -368,18 +386,18 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
             TextButton(
               onPressed: () {
                 setState(() => _filterText = '');
-                Navigator.pop<void>(ctx);
+                Navigator.pop(ctx);
               },
               child: const Text('مسح البحث'),
             ),
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
               setState(() => _filterText = controller.text);
-              Navigator.pop<void>(ctx);
+              Navigator.pop(ctx);
             },
             child: const Text('بحث'),
           ),
@@ -397,12 +415,12 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
         content: Text('هل أنت متأكد من حذف "$name" من القائمة السوداء؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop<void>(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('حذف', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -503,12 +521,14 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('إلغاء'),
           ),
           FilledButton.icon(
             onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
+              if (!formKey.currentState!.validate()) {
+                return;
+              }
               final navigator = Navigator.of(ctx);
               try {
                 if (isEdit) {
@@ -531,8 +551,11 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     notes: notesCtrl.text,
                   );
                 }
-                navigator.pop<void>();
-                if (!mounted) return;
+                navigator.pop();
+                if (!mounted) {
+                  return;
+                }
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -541,8 +564,11 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     backgroundColor: isEdit ? Colors.blue : Colors.green,
                   ),
                 );
-              } catch (Object e) {
-                if (!mounted) return;
+              } catch (e) {
+                if (!mounted) {
+                  return;
+                }
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('خطأ: $e'),

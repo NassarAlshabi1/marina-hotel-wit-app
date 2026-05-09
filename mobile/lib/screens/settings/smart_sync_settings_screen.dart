@@ -34,6 +34,7 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -44,7 +45,8 @@ class _SmartSyncSettingsScreenState
           backgroundColor: enabled ? Colors.green : Colors.orange,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة المزامنة: $e'),
@@ -65,13 +67,15 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('⏰ تم تغيير فترة المزامنة إلى $minutes دقائق'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير فترة المزامنة: $e'),
@@ -92,13 +96,15 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🤝 تم تغيير استراتيجية حل التضارب'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'),
@@ -119,13 +125,15 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔄 تمت المزامنة اليدوية بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ فشلت المزامنة اليدوية: $e'),
@@ -143,13 +151,15 @@ class _SmartSyncSettingsScreenState
       final guardian = ref.read(syncGuardianProvider);
       await guardian.forceSync();
       ref.invalidate(syncHealthProvider);
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
@@ -166,6 +176,7 @@ class _SmartSyncSettingsScreenState
       final guardian = ref.read(syncGuardianProvider);
       await guardian.setDevicePriority(enabled ? 200 : 100);
       ref.invalidate(syncHealthProvider);
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -176,7 +187,8 @@ class _SmartSyncSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
@@ -549,7 +561,9 @@ class _SmartSyncSettingsScreenState
               onChanged: _isLoading
                   ? null
                   : (value) {
-                      if (value != null) _changeSyncInterval(value);
+                      if (value != null) {
+                        _changeSyncInterval(value);
+                      }
                     },
             ),
           ],
@@ -597,7 +611,9 @@ class _SmartSyncSettingsScreenState
               onChanged: _isLoading
                   ? null
                   : (value) {
-                      if (value != null) _changeConflictResolution(value);
+                      if (value != null) {
+                        _changeConflictResolution(value);
+                      }
                     },
             ),
             const SizedBox(height: 8),

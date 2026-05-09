@@ -29,7 +29,9 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   Future<void> _initGemini() async {
     await GeminiService.instance.initialize();
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   /// إعادة تهيئة Gemini AI (عند الفشل)
@@ -72,7 +74,9 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _isLoading) return;
+    if (text.isEmpty || _isLoading) {
+      return;
+    }
 
     _controller.clear();
     _lastUserMessage = text;
@@ -105,7 +109,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         });
         _scrollToBottom();
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Chat Error: $e');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
@@ -128,7 +132,9 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   Future<void> _confirmCommand(ChatMessage message) async {
-    if (message.pendingCommand == null) return;
+    if (message.pendingCommand == null) {
+      return;
+    }
 
     setState(() {
       final idx = _messages.indexOf(message);
@@ -309,7 +315,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               TextButton(
                 onPressed: () {
                   GeminiService.instance.clearAuditLog();
-                  Navigator.pop<void>(ctx);
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('تم مسح السجل')),
                   );
@@ -318,7 +324,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     style: TextStyle(color: Colors.red),),
               ),
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('إغلاق'),
             ),
           ],

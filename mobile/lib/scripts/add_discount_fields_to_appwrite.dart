@@ -101,7 +101,7 @@ Future<void> main(List<String> args) async {
     print('• الحقول قد تحتاج بضع ثوانٍ لتكون جاهزة (Indexing)');
     print('• تحقق من Appwrite Console للتأكد');
     print('• يمكنك الآن استخدام التطبيق بشكل طبيعي');
-  } catch (Object e) {
+  } catch (e) {
     print('\n❌ خطأ: $e');
     exit(1);
   } finally {
@@ -129,7 +129,7 @@ Future<bool> addStringAttribute({
   };
 
   try {
-    final response = await client.post<dynamic>(
+    final response = await client.post(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ Future<bool> addStringAttribute({
       print('   ❌ خطأ HTTP ${response.statusCode}: ${response.body}');
       return false;
     }
-  } catch (Object e) {
+  } catch (e) {
     print('   ❌ خطأ في الاتصال: $e');
     return false;
   }

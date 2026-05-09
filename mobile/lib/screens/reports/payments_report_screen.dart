@@ -87,7 +87,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _fetchReport() async {
-    if (_loading) return;
+    if (_loading) {
+      return;
+    }
     setState(() {
       _loading = true;
     });
@@ -148,9 +150,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final roomNumbers = <String>{};
     for (final payment in filteredPayments) {
       final room = payment.roomNumber;
-      if (room != null) roomNumbers.add(room);
+      if (room != null) {
+        roomNumbers.add(room);
+      }
       final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
-      if (bookingRoom != null) roomNumbers.add(bookingRoom);
+      if (bookingRoom != null) {
+        roomNumbers.add(bookingRoom);
+      }
     }
     // rooms لم تعد مطلوبة للحساب لأننا نستخدم القيم المحسوبة من الحجز مباشرة
 
@@ -208,7 +214,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     if (relevantBookingIds.isNotEmpty) {
       for (final bookingId in relevantBookingIds) {
         final booking = bookingMap[bookingId];
-        if (booking == null) continue;
+        if (booking == null) {
+          continue;
+        }
         totalDue += booking.totalDueCached;
         final remaining = booking.remainingBalanceCached;
         if (remaining > 0) {
@@ -227,7 +235,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _exportPdf() async {
-    if (_rows.isEmpty) return;
+    if (_rows.isEmpty) {
+      return;
+    }
     final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false
         ? _selectedRoom!
         : '';
@@ -355,6 +365,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
                       DropdownMenuItem<String?>(
+                        value: null,
                         child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ),
                       ..._availableRooms.map(
@@ -368,6 +379,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       setState(() {
                         _selectedRoom = value;
                       });
+                      _fetchReport();
                     },
                   ),
                 ),
@@ -546,7 +558,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   /// يجب أن يتطابق هذا المنطق مع _getTotalPayments في
   /// EnhancedBookingCalculationService لضمان تناسق المجاميع.
   static bool _isRoomPayment(String? revenueType) {
-    if (revenueType == null || revenueType.isEmpty) return true;
+    if (revenueType == null || revenueType.isEmpty) {
+      return true;
+    }
     final r = revenueType.toLowerCase();
     return r == 'room' || r == 'غرفة' || r == 'إقامة';
   }

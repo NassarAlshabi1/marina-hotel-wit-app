@@ -61,7 +61,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   SyncLogDao(super.db);
 
   /// تسجيل عملية مزامنة جديدة
-  /// [operations] can be null if no operations list is available
+  /// `operations` can be null if no operations list is available
   Future<int> logSync({
     required String syncId,
     required String direction,
@@ -116,7 +116,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
 
     query = query..limit(limit, offset: offset);
 
-    final results = await query.get<dynamic>();
+    final results = await query.get();
 
     return results.map((row) {
       final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
@@ -144,7 +144,9 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       ..limit(1);
     
     final result = await query.getSingleOrNull();
-    if (result == null) return null;
+    if (result == null) {
+      return null;
+    }
 
     final metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
     

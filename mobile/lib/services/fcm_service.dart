@@ -22,7 +22,9 @@ class FcmService {
 
   /// تهيئة FCM — تُستدعى من main.dart بعد تثبيت Appwrite
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       // 1. Firebase تم تهيئته بالفعل في main.dart
@@ -64,7 +66,7 @@ class FcmService {
 
       _isInitialized = true;
       debugPrint('✅ FCM Service initialized');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ FCM initialization error: $e');
       // لا نمنع التطبيق من العمل إذا فشل FCM
     }
@@ -101,7 +103,7 @@ class FcmService {
         );
       }
       return token;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Failed to get FCM token: $e');
       return null;
     }
@@ -178,7 +180,7 @@ class FcmService {
         await syncManager.sync(push: false);
         debugPrint('✅ FCM: pull completed');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ FCM: pull error: $e');
     }
   }

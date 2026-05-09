@@ -504,12 +504,12 @@ class _GoogleDriveBackupContentState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop<void>(),
+            onPressed: () => Navigator.of(context).pop(),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop<void>();
+              Navigator.of(context).pop();
               ref
                   .read(backupStatusProvider.notifier)
                   .restoreFromBackup(backup.fileId);
@@ -707,7 +707,7 @@ class _GoogleDriveBackupContentState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop<void>(),
+            onPressed: () => Navigator.of(context).pop(),
             child: const Text('إلغاء'),
           ),
         ],
@@ -726,7 +726,7 @@ class _GoogleDriveBackupContentState
       groupValue: currentSettings.frequency,
       onChanged: (selectedValue) {
         if (selectedValue != null) {
-          Navigator.of(context).pop<void>();
+          Navigator.of(context).pop();
           ref
               .read(backupStatusProvider.notifier)
               .updateAutoBackupSettings(

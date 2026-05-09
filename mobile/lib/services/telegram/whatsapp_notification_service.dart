@@ -117,7 +117,7 @@ class WhatsAppNotificationService {
       final timeout = Duration(
         seconds: RemoteConfigService.instance.whatsappApiTimeout,
       );
-      final response = await _httpClient.get<dynamic>(url).timeout(timeout);
+      final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
       if (response.statusCode == 200) {
@@ -138,7 +138,7 @@ class WhatsAppNotificationService {
       }
       debugPrint('⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
       return false;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp: خطأ في الإرسال — $e');
       return false;
     }
@@ -148,9 +148,15 @@ class WhatsAppNotificationService {
   Future<bool> sendEventNotification(WhatsAppEvent event) async {
     try {
       // فحص Remote Config أولاً (تفعيل/تعطيل عام)
-      if (!RemoteConfigService.instance.whatsappEnabled) return false;
-      if (!await TelegramConfig.isEnabled()) return false;
-      if (!await TelegramConfig.isNotificationsEnabled()) return false;
+      if (!RemoteConfigService.instance.whatsappEnabled) {
+        return false;
+      }
+      if (!await TelegramConfig.isEnabled()) {
+        return false;
+      }
+      if (!await TelegramConfig.isNotificationsEnabled()) {
+        return false;
+      }
 
       final buffer = StringBuffer();
       buffer.writeln('${_icon(event.type)} *${event.type.label}*');
@@ -192,7 +198,7 @@ class WhatsAppNotificationService {
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
       return false;
     }
@@ -213,10 +219,18 @@ class WhatsAppNotificationService {
     double? totalDue,
   }) {
     final details = StringBuffer();
-    if (checkinDate != null) details.writeln('📅 الدخول: $checkinDate');
-    if (checkoutDate != null) details.writeln('📅 الخروج: $checkoutDate');
-    if (nights != null) details.writeln('🌙 الليالي: $nights');
-    if (totalDue != null) details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+    if (checkinDate != null) {
+      details.writeln('📅 الدخول: $checkinDate');
+    }
+    if (checkoutDate != null) {
+      details.writeln('📅 الخروج: $checkoutDate');
+    }
+    if (nights != null) {
+      details.writeln('🌙 الليالي: $nights');
+    }
+    if (totalDue != null) {
+      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(WhatsAppEvent(
       type: WhatsAppEventType.newBooking,
@@ -236,7 +250,9 @@ class WhatsAppNotificationService {
     int? expectedNights,
   }) {
     final details = StringBuffer();
-    if (expectedNights != null) details.writeln('🌙 الليالي المتوقعة: $expectedNights');
+    if (expectedNights != null) {
+      details.writeln('🌙 الليالي المتوقعة: $expectedNights');
+    }
 
     return sendEventNotification(WhatsAppEvent(
       type: WhatsAppEventType.checkIn,
@@ -257,8 +273,12 @@ class WhatsAppNotificationService {
     double? remaining,
   }) {
     final details = StringBuffer();
-    if (actualNights != null) details.writeln('🌙 الليالي الفعلية: $actualNights');
-    if (totalPaid != null) details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+    if (actualNights != null) {
+      details.writeln('🌙 الليالي الفعلية: $actualNights');
+    }
+    if (totalPaid != null) {
+      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+    }
     if (remaining != null && remaining > 0) {
       details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
     }
@@ -340,8 +360,12 @@ class WhatsAppNotificationService {
   }) {
     final details = StringBuffer();
     details.writeln('📅 موعد المغادرة المخطط: $plannedCheckout');
-    if (extraNights != null) details.writeln('➕ ليالي إضافية: $extraNights');
-    if (extraCharge != null) details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+    if (extraNights != null) {
+      details.writeln('➕ ليالي إضافية: $extraNights');
+    }
+    if (extraCharge != null) {
+      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(WhatsAppEvent(
       type: WhatsAppEventType.overstay,
@@ -387,8 +411,12 @@ class WhatsAppNotificationService {
       buffer.writeln('━━━━━━━━━━━━━━━━━');
       buffer.writeln('⚙️ العملية: *$operation*');
       buffer.writeln('❌ الخطأ: $error');
-      if (recordsPushed != null) buffer.writeln('📤 تم رفع: $recordsPushed');
-      if (recordsPulled != null) buffer.writeln('📥 تم سحب: $recordsPulled');
+      if (recordsPushed != null) {
+        buffer.writeln('📤 تم رفع: $recordsPushed');
+      }
+      if (recordsPulled != null) {
+        buffer.writeln('📥 تم سحب: $recordsPulled');
+      }
       buffer.writeln();
       buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
       buffer.writeln();
@@ -401,7 +429,7 @@ class WhatsAppNotificationService {
         '&apikey=$_apiKey',
       );
 
-      final response = await _httpClient.get<dynamic>(url);
+      final response = await _httpClient.get(url);
       final success = response.statusCode == 200;
       if (success) {
         debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
@@ -409,7 +437,7 @@ class WhatsAppNotificationService {
         debugPrint('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
       }
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
@@ -440,9 +468,9 @@ class WhatsAppNotificationService {
         '&apikey=$_apiKey',
       );
 
-      final response = await _httpClient.get<dynamic>(url);
+      final response = await _httpClient.get(url);
       return response.statusCode == 200;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
       return false;
     }

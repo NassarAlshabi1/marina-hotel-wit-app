@@ -30,6 +30,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Map<String, dynamic>? _cachedRooms;
   Map<String, dynamic>? _cachedFinancials;
   bool _loading = true;
+  String? _loadError;
 
   /// RefreshableObject flag — للتحكم بإعادة التحميل
   @override
@@ -41,7 +42,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Future<void> _loadData({bool force = false}) async {
     if (force) {
     }
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
 
     final db = ref.read(databaseProvider);
     final perf = ref.read(performanceProvider.notifier);
@@ -52,7 +56,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         'reports_load_rooms',
         perf,
         () async {
-          if (!force && _cachedRooms != null) return _cachedRooms!;
+          if (!force && _cachedRooms != null) {
+            return _cachedRooms!;
+          }
           final rooms = await db.select(db.rooms).get();
           final result = {'rooms': rooms};
           _cachedRooms = result;
@@ -67,12 +73,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         'reports_load_financials',
         perf,
         () async {
-          if (!force && _cachedFinancials != null) return _cachedFinancials!;
+          if (!force && _cachedFinancials != null) {
+            return _cachedFinancials!;
+          }
           final allPayments = await db.select(db.payments).get();
           double income = 0;
           for (final p in allPayments) {
-            if (p.deletedAt != null) continue;
-            if (p.isVoided == true) continue;
+            if (p.deletedAt != null) {
+              continue;
+            }
+            if (p.isVoided == true) {
+              continue;
+            }
             income += p.amount;
           }
           final expenses = await db.select(db.expenses).get();
@@ -127,6 +139,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
+          _loadError = null;
           // تخزين البيانات المعالجة للاستخدام في build
           _chartData = {
             'dailyOcc': daily,
@@ -147,7 +160,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         extra: {'forceRefresh': '$force'},
       );
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _loadError = 'تعذر تحميل مؤشرات التقارير. حاول التحديث مرة أخرى.';
+        });
       }
     }
   }
@@ -172,6 +188,28 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       ],
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : (_loadError != null && _chartData.isEmpty)
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    EmptyState(
+                      title: 'تعذر تحميل التقارير',
+                      subtitle: _loadError,
+                      icon: Icons.error_outline,
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      onPressed: () => _loadData(force: true),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('إعادة المحاولة'),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               children: [

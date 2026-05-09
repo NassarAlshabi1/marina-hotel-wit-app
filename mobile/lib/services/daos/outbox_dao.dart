@@ -122,7 +122,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final claimed = await customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE processing_status = ? ORDER BY client_ts ASC LIMIT ?'
+      '  SELECT id FROM outbox WHERE processing_status = ? ORDER BY client_ts ASC LIMIT ? '
       ') RETURNING *',
       variables: [
         const Variable<String>('processing'),
@@ -156,7 +156,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> removeByIds(List<int> ids) async {
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) {
+      return;
+    }
     await (delete(outbox)..where((t) => t.id.isIn(ids))).go();
   }
 
@@ -173,7 +175,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> markCompleted(List<int> ids) async {
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) {
+      return;
+    }
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
       const OutboxCompanion(
         processingStatus: Value('completed'),
@@ -184,7 +188,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> markFailed(List<int> ids) async {
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) {
+      return;
+    }
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
       const OutboxCompanion(
         processingStatus: Value('failed'),
@@ -215,7 +221,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               t.processingStartedAt.isSmallerOrEqualValue(cutoff),))
         .get();
 
-    if (stuck.isEmpty) return 0;
+    if (stuck.isEmpty) {
+      return 0;
+    }
 
     final ids = stuck.map((e) => e.id).toList();
     await (update(outbox)..where((t) => t.id.isIn(ids))).write(
@@ -253,7 +261,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// استعلام جديد يفقد شرط localUuid (الخطأ السابق كان يُنشئ delete(outbox)
   /// جديد عند وجود entity، مما يُلغي شرط localUuid.isIn(chunk)).
   Future<int> removePulledEntities(List<String> uuids, {String? entity}) async {
-    if (uuids.isEmpty) return 0;
+    if (uuids.isEmpty) {
+      return 0;
+    }
     const batchSize = 500;
     int totalRemoved = 0;
     for (var i = 0; i < uuids.length; i += batchSize) {

@@ -498,7 +498,7 @@ class _UnifiedBackupSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -518,13 +518,13 @@ class _UnifiedBackupSettingsScreenState
         value: value,
         groupValue: current,
         onChanged: (v) {
-          Navigator.pop<void>(context);
+          Navigator.pop(context);
           final settings = ref.read(backupStatusProvider).autoSettings;
           _updateAutoSettings(settings.copyWith(frequency: value));
         },
       ),
       onTap: () {
-        Navigator.pop<void>(context);
+        Navigator.pop(context);
         final settings = ref.read(backupStatusProvider).autoSettings;
         _updateAutoSettings(settings.copyWith(frequency: value));
       },
@@ -541,12 +541,12 @@ class _UnifiedBackupSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               ref.read(backupStatusProvider.notifier).signOut();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -604,11 +604,11 @@ class _UnifiedBackupSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('تنظيف'),
           ),
         ],

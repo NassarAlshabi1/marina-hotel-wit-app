@@ -65,7 +65,7 @@ class DatabaseSyncCoordinator {
           '  ✓ Stopped service ${i + 1}/${_stopCallbacks.length}',
           name: 'DatabaseSyncCoordinator',
         );
-      } catch (Object e) {
+      } catch (e) {
         errors.add('Service $i: $e');
         developer.log(
           '  ⚠️ Error stopping service $i: $e',
@@ -103,7 +103,7 @@ class DatabaseSyncCoordinator {
           '  ✓ Restarted service ${i + 1}/${_restartCallbacks.length}',
           name: 'DatabaseSyncCoordinator',
         );
-      } catch (Object e) {
+      } catch (e) {
         errors.add('Service $i: $e');
         developer.log(
           '  ⚠️ Error restarting service $i: $e',

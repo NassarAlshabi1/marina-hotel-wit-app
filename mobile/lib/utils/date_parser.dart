@@ -14,9 +14,13 @@ class DateParser {
   ///
   /// يُرجع `null` إذا كانت القيمة فارغة أو غير صالحة.
   static DateTime? parse(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final v = value.trim();
-    if (v.isEmpty) return null;
+    if (v.isEmpty) {
+      return null;
+    }
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds =
         normalized.length == 16 ? '$normalized:00' : normalized;

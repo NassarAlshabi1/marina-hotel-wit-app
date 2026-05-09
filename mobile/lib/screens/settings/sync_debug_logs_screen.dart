@@ -32,7 +32,9 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Future<void> _withBusy(Future<void> Function() action) async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _isBusy = true);
     try {
       await action();
@@ -70,7 +72,9 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   void _copyAllLogs() {
     final text = DebugLogs.entries.join('\n');
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      return;
+    }
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(
       context,

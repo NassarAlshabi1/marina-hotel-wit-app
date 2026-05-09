@@ -74,7 +74,7 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp();
     debugPrint('✅ Firebase Core initialized');
-  } catch (Object e) {
+  } catch (e) {
     debugPrint('⚠️ Firebase Core initialization failed: $e');
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
@@ -115,10 +115,10 @@ Future<void> main() async {
     },
   );
 
-  SystemChrome.setPreferredOrientations([
+  unawaited(SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]);
+  ]),);
 
   debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(
@@ -179,7 +179,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
 
@@ -435,14 +435,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // تسجيل الجهاز تلقائياً
         try {
           await syncManager.registerDevice();
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ Device registration error: $e');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ FCM initialization error: $e');
         }
 
@@ -481,7 +481,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             );
             debugPrint('✅ Initial sync on app start completed');
           }
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ Initial sync on app start failed: $e');
  }
 
@@ -501,7 +501,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         );
         await AppwriteRealtimeSync().start();
         debugPrint('📡 Realtime sync + auto sync started');
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('❌ Realtime sync init error: $e');
       }
     });
@@ -536,9 +536,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _conflictSubscription?.cancel();
     _conflictSubscription = SyncConflictEventBus.instance.events.listen(
       (event) {
-        if (!mounted || !_sessionConfigured) return;
+        if (!mounted || !_sessionConfigured) {
+          return;
+        }
         final messenger = ScaffoldMessenger.maybeOf(context);
-        if (messenger == null) return;
+        if (messenger == null) {
+          return;
+        }
         final tableNames = {
           'bookings': 'حجوزات',
           'payments': 'مدفوعات',
@@ -585,7 +589,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncRunning = true;
     try {
       await ref.read(syncServiceProvider).runSync();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Local auto sync error: $e');
     } finally {
       _lastLocalAutoSync = DateTime.now();
@@ -622,7 +626,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // pull: سحب أي تغييرات جديدة من السيرفر
       await syncManager.sync();
       debugPrint('✅ Sync on resume completed (push + pull)');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Sync on resume error: $e');
     }
   }
@@ -639,7 +643,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         const Duration(seconds: 10),
       );
       debugPrint('✅ Push on pause completed');
-    } catch (Object e) {
+    } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
       debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
     }
@@ -666,62 +670,62 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('🧹 Disposing singleton services...');
     try {
       await FcmService.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing FcmService: $e');
     }
     try {
       await BatteryOptimizer.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
     }
     try {
       await AppwriteRealtimeService.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
       await SmartSyncManager.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing SmartSyncManager: $e');
     }
     try {
       ConnectivityService.instance.dispose();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing ConnectivityService: $e');
     }
     try {
       HotelDayTicker.instance.dispose();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing HotelDayTicker: $e');
     }
     try {
       await AutoSyncEngine.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
       await UnifiedSyncOrchestrator.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
       await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
     }
     try {
       BackgroundSyncService.disposeInstance();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
     }
     debugPrint('✅ All singleton services disposed');
@@ -868,8 +872,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   bool _can(String key) {
     final auth = ref.read(authProvider);
     final u = auth.currentUser;
-    if (u == null) return false;
-    if (u.userType == 'admin' || u.permissions.contains('all')) return true;
+    if (u == null) {
+      return false;
+    }
+    if (u.userType == 'admin' || u.permissions.contains('all')) {
+      return true;
+    }
     return u.permissions.contains(key);
   }
 

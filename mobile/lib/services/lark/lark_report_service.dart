@@ -132,7 +132,9 @@ class LarkReportService {
       int overstayBookings = 0;
 
       for (final booking in allBookings) {
-        if (booking.deletedAt != null) continue;
+        if (booking.deletedAt != null) {
+          continue;
+        }
 
         final status = booking.status.toLowerCase();
 
@@ -226,7 +228,7 @@ class LarkReportService {
         totalExpensesCount: totalExpensesCount,
         unsettledDebts: unsettledDebts,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark Report: خطأ في تجميع بيانات التقرير: $e');
       rethrow;
     }
@@ -311,9 +313,15 @@ class LarkReportService {
     String themeColor = 'blue';
     if (data.occupancyRate >= 80) {
       themeColor = 'green';
-    } else if (data.occupancyRate >= 50) themeColor = 'blue';
-    else if (data.occupancyRate >= 30) themeColor = 'orange';
-    else themeColor = 'red';
+    } else if (data.occupancyRate >= 50) {
+      themeColor = 'blue';
+    }
+    else if (data.occupancyRate >= 30) {
+      themeColor = 'orange';
+    }
+    else {
+      themeColor = 'red';
+    }
 
     final occupancyEmoji = data.occupancyRate >= 80
         ? '🟢'
@@ -577,14 +585,14 @@ class LarkReportService {
               content: card['card'] as Map<String, dynamic>? ?? {},
             );
             debugPrint('✅ Lark Report: تم إرسال نسخة للمجموعة $chatId');
-          } catch (Object e) {
+          } catch (e) {
             debugPrint('⚠️ Lark Report: فشل إرسال نسخة المجموعة: $e');
           }
         }
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark Report: خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
@@ -594,7 +602,9 @@ class LarkReportService {
   Future<bool> sendReportNow({DailyReportData? reportData}) async {
     try {
       final webhookUrl = await LarkConfig.getWebhookUrl();
-      if (webhookUrl.isEmpty) return false;
+      if (webhookUrl.isEmpty) {
+        return false;
+      }
 
       final data = reportData ?? await collectReportData();
       final card = _buildReportCard(data);
@@ -603,7 +613,7 @@ class LarkReportService {
         webhookUrl: webhookUrl,
         message: card,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark Report: خطأ في إرسال التقرير: $e');
       return false;
     }
@@ -614,7 +624,7 @@ class LarkReportService {
     try {
       final data = await collectReportData();
       return _buildReportMarkdown(data);
-    } catch (Object e) {
+    } catch (e) {
       return 'خطأ في تجميع البيانات: $e';
     }
   }

@@ -202,7 +202,9 @@ class FieldMapper {
   static final Map<String, Map<String, String>> _phpToFlutter = {};
 
   static void _buildReverseMap() {
-    if (_phpToFlutter.isNotEmpty) return;
+    if (_phpToFlutter.isNotEmpty) {
+      return;
+    }
     for (final entity in _flutterToPhp.keys) {
       _phpToFlutter[entity] = {};
       for (final entry in _flutterToPhp[entity]!.entries) {
@@ -262,10 +264,18 @@ class FieldMapper {
   }
 
   static dynamic _convertValueToPhp(dynamic value) {
-    if (value == null) return null;
-    if (value is bool) return value ? 1 : 0;
-    if (value is DateTime) return value.toIso8601String();
-    if (value is List) return value.map(_convertValueToPhp).toList();
+    if (value == null) {
+      return null;
+    }
+    if (value is bool) {
+      return value ? 1 : 0;
+    }
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+    if (value is List) {
+      return value.map(_convertValueToPhp).toList();
+    }
     if (value is Map) {
       return value.map((k, v) => MapEntry(k, _convertValueToPhp(v)));
     }
@@ -273,7 +283,9 @@ class FieldMapper {
   }
 
   static dynamic _convertValueToFlutter(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     if (value is int && (value == 0 || value == 1)) {
       return value;
     }
@@ -287,7 +299,9 @@ class FieldMapper {
         }
       }
     }
-    if (value is List) return value.map(_convertValueToFlutter).toList();
+    if (value is List) {
+      return value.map(_convertValueToFlutter).toList();
+    }
     if (value is Map) {
       return value.map((k, v) => MapEntry(k, _convertValueToFlutter(v)));
     }
@@ -441,8 +455,12 @@ class FieldMappingException implements Exception {
   @override
   String toString() {
     var msg = 'FieldMappingException: $message';
-    if (entity != null) msg += ' (entity: $entity)';
-    if (field != null) msg += ' (field: $field)';
+    if (entity != null) {
+      msg += ' (entity: $entity)';
+    }
+    if (field != null) {
+      msg += ' (field: $field)';
+    }
     return msg;
   }
 }

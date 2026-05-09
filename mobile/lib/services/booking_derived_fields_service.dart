@@ -127,7 +127,7 @@ class BookingDerivedFieldsService {
         }
         await refreshForBooking(booking, now: moment, forceRebuild: true);
         return (promoted: didPromote, refreshed: true);
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         return (promoted: false, refreshed: false);
       }
@@ -157,7 +157,9 @@ class BookingDerivedFieldsService {
     String discountType,
     DateTime? discountStartDate,
   ) {
-    if (baseRate < 0) baseRate = 0;
+    if (baseRate < 0) {
+      baseRate = 0;
+    }
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
       final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
@@ -196,9 +198,13 @@ class BookingDerivedFieldsService {
   }
 
   DateTime? _parseDateTime(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final v = value.trim();
-    if (v.isEmpty) return null;
+    if (v.isEmpty) {
+      return null;
+    }
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16
         ? '$normalized:00'

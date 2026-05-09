@@ -665,7 +665,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop<void>(),
+              onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('إغلاق'),
             ),
           ],

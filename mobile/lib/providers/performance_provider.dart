@@ -50,7 +50,9 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
   ),);
   
   void recordOperation(PerformanceMetrics metric) {
-    if (!state.isMonitoring) return;
+    if (!state.isMonitoring) {
+      return;
+    }
     
     final newMetrics = List<PerformanceMetrics>.from(state.metrics)..add(metric);
     if (newMetrics.length > 100) {

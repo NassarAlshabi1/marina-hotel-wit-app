@@ -52,13 +52,13 @@ class CircuitBreaker {
       final result = await operation().timeout(config.timeout);
       _onSuccess();
       return result;
-    } on TimeoutException catch (Object e) {
+    } on TimeoutException catch (e) {
       _onFailure();
       throw CircuitBreakerTimeoutException(
         'Circuit breaker [$name] تجاوز المهلة الزمنية',
         originalException: e,
       );
-    } catch (Object) {
+    } catch (e) {
       _onFailure();
       rethrow;
     }
@@ -70,10 +70,10 @@ class CircuitBreaker {
   }) async {
     try {
       return await execute(operation);
-    } on CircuitBreakerOpenException catch (Object e) {
+    } on CircuitBreakerOpenException catch (e) {
       debugPrint('⚠️ [CircuitBreaker] $e');
       return defaultValue;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ [CircuitBreaker] خطأ: $e');
       return defaultValue;
     }
@@ -112,14 +112,18 @@ class CircuitBreaker {
   }
 
   bool _shouldAttemptReset() {
-    if (_lastFailureTime == null) return false;
+    if (_lastFailureTime == null) {
+      return false;
+    }
 
     final timeSinceLastFailure = DateTime.now().difference(_lastFailureTime!);
     return timeSinceLastFailure >= config.resetTimeout;
   }
 
   void _transitionTo(CircuitState newState) {
-    if (_state == newState) return;
+    if (_state == newState) {
+      return;
+    }
 
     final oldState = _state;
     _state = newState;

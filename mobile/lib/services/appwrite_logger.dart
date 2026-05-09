@@ -49,7 +49,7 @@ class AppwriteLogger {
       final fileName =
           'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error initializing log file: $e');
     }
   }
@@ -62,7 +62,9 @@ class AppwriteLogger {
     dynamic error,
     StackTrace? stackTrace,
   }) {
-    if (level.value < _minLevel.value) return;
+    if (level.value < _minLevel.value) {
+      return;
+    }
 
     final entry = LogEntry(
       timestamp: DateTime.now(),
@@ -102,7 +104,7 @@ class AppwriteLogger {
         '${entry.toFormattedString()}\n',
         mode: FileMode.append,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error writing to log file: $e');
     }
   }
@@ -218,7 +220,7 @@ class AppwriteLogger {
 
       await file.writeAsString(buffer.toString());
       return file;
-    } catch (Object e) {
+    } catch (e) {
       error('Failed to export logs', error: e);
       return null;
     }

@@ -30,7 +30,7 @@ class DatabaseHealthMonitor {
         status: _determineStatus(metrics),
         scanType: ScanType.quick,
       );
-    } catch (Object e) {
+    } catch (e) {
       return HealthReport.error(e.toString());
     }
   }
@@ -65,7 +65,7 @@ class DatabaseHealthMonitor {
       await _saveToHistory(report);
 
       return report;
-    } catch (Object e) {
+    } catch (e) {
       return HealthReport.error(e.toString());
     }
   }
@@ -94,7 +94,7 @@ class DatabaseHealthMonitor {
         orphanPayments: results[1],
         orphanExpenses: results[2],
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error collecting metrics: $e');
       return HealthMetrics(
         invalidServerIds: 0,
@@ -116,7 +116,7 @@ class DatabaseHealthMonitor {
       ''').getSingle();
 
       return result.data['total'] as int? ?? 0;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error counting invalid serverIds: $e');
       return 0;
     }
@@ -135,7 +135,7 @@ class DatabaseHealthMonitor {
       ''').getSingle();
 
       return result.data['count'] as int? ?? 0;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error counting orphan payments: $e');
       return 0;
     }
@@ -152,7 +152,7 @@ class DatabaseHealthMonitor {
       ''').getSingle();
 
       return result.data['count'] as int? ?? 0;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error counting orphan expenses: $e');
       return 0;
     }
@@ -162,11 +162,21 @@ class DatabaseHealthMonitor {
   double _calculateHealthScore(HealthMetrics metrics) {
     final totalIssues = metrics.totalIssues;
 
-    if (totalIssues == 0) return 100.0;
-    if (totalIssues <= 5) return 95.0;
-    if (totalIssues <= 10) return 90.0;
-    if (totalIssues <= 20) return 80.0;
-    if (totalIssues <= 50) return 70.0;
+    if (totalIssues == 0) {
+      return 100.0;
+    }
+    if (totalIssues <= 5) {
+      return 95.0;
+    }
+    if (totalIssues <= 10) {
+      return 90.0;
+    }
+    if (totalIssues <= 20) {
+      return 80.0;
+    }
+    if (totalIssues <= 50) {
+      return 70.0;
+    }
 
     return 50.0;
   }
@@ -175,8 +185,12 @@ class DatabaseHealthMonitor {
   HealthStatus _determineStatus(HealthMetrics metrics) {
     final score = _calculateHealthScore(metrics);
 
-    if (score >= 95.0) return HealthStatus.healthy;
-    if (score >= 80.0) return HealthStatus.warning;
+    if (score >= 95.0) {
+      return HealthStatus.healthy;
+    }
+    if (score >= 80.0) {
+      return HealthStatus.warning;
+    }
     return HealthStatus.critical;
   }
 
@@ -203,7 +217,7 @@ class DatabaseHealthMonitor {
       );
 
       await _cleanOldHistory();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error saving health history: $e');
     }
   }
@@ -216,7 +230,7 @@ class DatabaseHealthMonitor {
         'DELETE FROM database_health_log WHERE scanned_at < ?',
         variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error cleaning old history: $e');
     }
   }
@@ -250,7 +264,7 @@ class DatabaseHealthMonitor {
           status: row.data['status'] as String,
         );
       }).toList();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error getting history: $e');
       return [];
     }
@@ -343,7 +357,9 @@ class HealthReport {
 
   @override
   String toString() {
-    if (error != null) return '❌ خطأ في الفحص: $error';
+    if (error != null) {
+      return '❌ خطأ في الفحص: $error';
+    }
 
     return '''
 $statusEmoji صحة قاعدة البيانات: ${healthScore.toStringAsFixed(1)}%

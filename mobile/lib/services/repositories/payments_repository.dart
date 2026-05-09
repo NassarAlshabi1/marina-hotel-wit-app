@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/time.dart';
@@ -104,11 +106,11 @@ class PaymentsRepository {
         return id;
       });
 
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'payments',
         'INSERT',
         recordData: {'amount': amount},
-      );
+      ),);
       // إشعار Lark عند استلام دفعة (fire-and-forget)
       _notifyLarkPayment(roomNumber, amount, paymentMethod, bookingLocalId);
       return result;
@@ -133,11 +135,15 @@ class PaymentsRepository {
     int? bookingLocalId,
   ) {
     // الحصول على اسم الضيف والمبلغ المتبقي بشكل غير متزامن
-    if (bookingLocalId == null) return;
+    if (bookingLocalId == null) {
+      return;
+    }
     (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId)))
         .getSingleOrNull()
         .then((booking) {
-      if (booking == null) return;
+      if (booking == null) {
+        return;
+      }
       LarkNotificationService.instance.notifyPayment(
         roomNumber: roomNumber ?? booking.roomNumber,
         guestName: booking.guestName,
@@ -227,11 +233,11 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'payments',
           'UPDATE',
           recordData: {'id': id},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {
@@ -263,11 +269,11 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'payments',
           'DELETE',
           recordData: {'id': id},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {

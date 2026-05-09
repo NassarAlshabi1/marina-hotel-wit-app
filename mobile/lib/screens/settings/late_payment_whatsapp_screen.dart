@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
@@ -28,11 +31,17 @@ class _LatePaymentWhatsAppScreenState
   /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.isEmpty) return '';
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
     // إزالة 00 الدولية
-    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
     // سبق بإضافة +967
-    if (digitsOnly.startsWith('967')) return digitsOnly;
+    if (digitsOnly.startsWith('967')) {
+      return digitsOnly;
+    }
     // 07xx → 967xx (محلي يمني)
     if (digitsOnly.startsWith('07')) {
       digitsOnly = '967${digitsOnly.substring(1)}';
@@ -46,7 +55,9 @@ class _LatePaymentWhatsAppScreenState
       digitsOnly = '966$digitsOnly';
     }
     // سبق بإضافة +966
-    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    else if (digitsOnly.startsWith('966')) {
+      return digitsOnly;
+    }
     // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
     else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
       digitsOnly = '967$digitsOnly';
@@ -99,7 +110,9 @@ class _LatePaymentWhatsAppScreenState
     final dateStr =
         debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
     final date = DateTime.tryParse(dateStr);
-    if (date == null) return 0;
+    if (date == null) {
+      return 0;
+    }
     return DateTime.now().difference(date).inDays;
   }
 
@@ -112,7 +125,9 @@ class _LatePaymentWhatsAppScreenState
   Future<bool> _sendSingleReminder(Debt debt, Booking? booking) async {
     final whatsappService = ref.read(whatsappServiceProvider);
     final phone = _cleanAndFormatPhone(booking?.guestPhone ?? '');
-    if (phone.isEmpty) return false;
+    if (phone.isEmpty) {
+      return false;
+    }
 
     final message = _buildLatePaymentMessage(debt, booking: booking);
     final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
@@ -403,7 +418,9 @@ class _LatePaymentWhatsAppScreenState
       filteredDebts = filteredDebts.where((debt) {
         final query = _searchQuery.toLowerCase();
         // بحث بالاسم
-        if (debt.guestName.toLowerCase().contains(query)) return true;
+        if (debt.guestName.toLowerCase().contains(query)) {
+          return true;
+        }
         // بحث برقم الغرفة
         final booking = bookings.cast<Booking?>().firstWhere(
           (b) => b?.id == debt.bookingLocalId,
@@ -427,7 +444,9 @@ class _LatePaymentWhatsAppScreenState
     filteredDebts.sort((a, b) {
       final aOverdue = _isOverdue(a) ? 0 : 1;
       final bOverdue = _isOverdue(b) ? 0 : 1;
-      if (aOverdue != bOverdue) return aOverdue.compareTo(bOverdue);
+      if (aOverdue != bOverdue) {
+        return aOverdue.compareTo(bOverdue);
+      }
       return b.remainingAmount.compareTo(a.remainingAmount);
     });
 
@@ -768,11 +787,11 @@ class _LatePaymentWhatsAppScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop<void>(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: const Text('إرسال'),
             style: ElevatedButton.styleFrom(
@@ -784,9 +803,11 @@ class _LatePaymentWhatsAppScreenState
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const AlertDialog(
@@ -798,12 +819,12 @@ class _LatePaymentWhatsAppScreenState
           ],
         ),
       ),
-    );
+    ),);
 
     final success = await _sendSingleReminder(debt, booking);
 
     if (mounted) {
-      Navigator.pop<void>(context); // إغلاق مؤشر التحميل
+      Navigator.pop(context); // إغلاق مؤشر التحميل
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -866,7 +887,9 @@ class _LatePaymentWhatsAppScreenState
         orElse: () => null,
       );
       final phone = _cleanAndFormatPhone(booking?.guestPhone ?? '');
-      if (phone.isEmpty) withoutPhone++;
+      if (phone.isEmpty) {
+        withoutPhone++;
+      }
     }
 
     final confirmed = await showDialog<bool>(
@@ -907,11 +930,11 @@ class _LatePaymentWhatsAppScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop<void>(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: const Text('إرسال الكل'),
             style: ElevatedButton.styleFrom(
@@ -923,7 +946,9 @@ class _LatePaymentWhatsAppScreenState
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
 
     // تصفية الديون التي لديها رقم هاتف فقط
     final bookingsList = ref.read(bookingsListProvider).valueOrNull ?? [];

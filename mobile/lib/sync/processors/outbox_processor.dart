@@ -40,7 +40,7 @@ class OutboxProcessor {
   Future<void> initialize() async {
     await _storage.initialize();
     _startRetryTimer();
-    _notifyStatus();
+    unawaited(_notifyStatus());
   }
 
   /// إضافة تغيير جديد للـ Outbox
@@ -67,8 +67,8 @@ class OutboxProcessor {
     );
 
     await _storage.save(change);
-    _notifyPendingCount();
-    _notifyStatus();
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
 
     return change.id;
   }
@@ -105,8 +105,8 @@ class OutboxProcessor {
     // تحديث Vector Clock بعد المعاملة
     _clockManager.recordLocalEvent();
 
-    _notifyPendingCount();
-    _notifyStatus();
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
 
     return ids;
   }
@@ -131,22 +131,24 @@ class OutboxProcessor {
   /// تحديث حالة التغيير إلى "تم المزامنة"
   Future<void> markAsSynced(String id) async {
     await _storage.markAsSynced(id, DateTime.now());
-    _notifyPendingCount();
-    _notifyStatus();
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
   }
 
   /// تحديث حالة مجموعة تغييرات إلى "تم المزامنة"
   Future<void> markBatchAsSynced(List<String> ids) async {
     // استخدام Future.wait لتنفيذ جميع التحديثات بالتوازي بدلاً من التسلسل
     await Future.wait(ids.map((id) => _storage.markAsSynced(id, DateTime.now())));
-    _notifyPendingCount();
-    _notifyStatus();
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
   }
 
   /// معالجة فشل الرفع مع إعادة المحاولة
   Future<void> handleFailure(String id, String error) async {
     final change = await _storage.getById(id);
-    if (change == null) return;
+    if (change == null) {
+      return;
+    }
 
     final newRetryCount = change.retryCount + 1;
 
@@ -166,22 +168,22 @@ class OutboxProcessor {
       );
     }
 
-    _notifyPendingCount();
-    _notifyStatus();
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
   }
 
   /// إلغاء تغيير محدد
   Future<void> cancel(String id) async {
-    await _storage.delete<dynamic>(id);
-    _notifyPendingCount();
-    _notifyStatus();
+    await _storage.delete(id);
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
   }
 
   /// إلغاء جميع التغييرات المعلقة لجدول محدد
   Future<void> cancelByTable(String table) async {
     await _storage.deleteByTable(table);
-    _notifyPendingCount();
-    _notifyStatus();
+    unawaited(_notifyPendingCount());
+    unawaited(_notifyStatus());
   }
 
   /// الحصول على عدد التغييرات المعلقة
@@ -194,7 +196,9 @@ class OutboxProcessor {
 
   /// معالجة إعادة المحاولة التلقائية
   Future<void> processRetries() async {
-    if (_isProcessing) return;
+    if (_isProcessing) {
+      return;
+    }
 
     _isProcessing = true;
     _statusController.add(OutboxStatus(pendingCount: 0, failedCount: 0, isProcessing: true));
@@ -225,7 +229,7 @@ class OutboxProcessor {
       }),);
     } finally {
       _isProcessing = false;
-      _notifyStatus();
+      unawaited(_notifyStatus());
     }
   }
 
@@ -275,7 +279,9 @@ class OutboxProcessor {
 
   /// حساب checksum للبيانات
   String? _calculateChecksum(Map<String, dynamic> data) {
-    if (data.isEmpty) return null;
+    if (data.isEmpty) {
+      return null;
+    }
 
     final sorted = Map.fromEntries(
       data.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),

@@ -3,7 +3,7 @@ import '../services/local_db.dart';
 /// Adapter لتحويل البيانات بين ShiftNote و BookingNote
 class ShiftNoteAdapter {
   // استخدام bookingId = -1 للملاحظات العامة غير المرتبطة بحجز
-  static const int GENERAL_NOTES_BOOKING_ID = -1;
+  static const int generalNotesBookingId = -1;
 
   /// تحويل ShiftNote إلى BookingNote للحفظ في قاعدة البيانات
   static Map<String, dynamic> toBookingNoteData(ShiftNote note) {
@@ -11,7 +11,7 @@ class ShiftNoteAdapter {
     final alertType = _encodeAlertType(note.priority, note.shiftType);
 
     return {
-      'booking_id': GENERAL_NOTES_BOOKING_ID,
+      'booking_id': generalNotesBookingId,
       'note_text': '${note.title}|||${note.content}', // استخدام ||| كفاصل
       'alert_type': alertType,
       'alert_until': note.expiresAt?.toIso8601String(),
@@ -68,7 +68,9 @@ class ShiftNoteAdapter {
   static (NotePriority, ShiftType) _decodeAlertType(String alertType) {
     try {
       final parts = alertType.split('-');
-      if (parts.length != 2) return (NotePriority.medium, ShiftType.all);
+      if (parts.length != 2) {
+        return (NotePriority.medium, ShiftType.all);
+      }
 
       final priorityCode = parts[0];
       final shiftCode = parts[1];
@@ -88,7 +90,7 @@ class ShiftNoteAdapter {
           : ShiftType.all;
 
       return (priority, shiftType);
-    } catch (Object) {
+    } catch (e) {
       return (NotePriority.medium, ShiftType.all);
     }
   }

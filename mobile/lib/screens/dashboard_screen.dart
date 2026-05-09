@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,7 +65,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
-      if (!appwriteEnabled) return;
+      if (!appwriteEnabled) {
+        return;
+      }
 
       // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
       final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
@@ -78,7 +82,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // التأكد من الاتصال
       await ref.read(connectionStatusProvider.notifier).checkConnection();
       final isConnected = ref.read(connectionStatusProvider).isConnected;
-      if (!isConnected) return;
+      if (!isConnected) {
+        return;
+      }
 
       // إظهار إشعار "جاري السحب"
       if (mounted) {
@@ -157,7 +163,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         // إشعار صامت بأن البيانات محدثة
         debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
     }
   }
@@ -539,7 +545,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    Navigator.pop<void>(context);
+                    Navigator.pop(context);
                     await _updateRoomStatus(room, 'صيانة');
                   },
                   icon: const Icon(Icons.build, color: Colors.white),
@@ -554,7 +560,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -576,7 +582,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -635,7 +641,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
 
       if (activeBooking == null) {
-        if (context.mounted) {
+        if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
@@ -646,14 +653,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      if (context.mounted) {
-        Navigator.of(context).push<void>(
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        unawaited(Navigator.of(context).push<void>(
           MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking),
           ),
-        );
+        ),);
       }
-    } catch (Object e) {
-      if (context.mounted) {
+    } catch (e) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
         );
@@ -678,13 +687,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
           if (!StatusUtils.isRoomOccupied(room.status))
             ElevatedButton(
               onPressed: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _navigateToNewBooking(context, room.roomNumber);
               },
               child: const Text('حجز جديد'),

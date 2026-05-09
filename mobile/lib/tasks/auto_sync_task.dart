@@ -39,7 +39,7 @@ void autoSyncCallbackDispatcher() {
       }
 
       return success;
-    } catch (Object error, StackTrace stackTrace) {
+    } catch (error, stackTrace) {
       developer.log(
         'Auto-sync background task failed',
         name: 'AutoSyncTask',
@@ -67,7 +67,6 @@ class AutoSyncTask {
     WidgetsFlutterBinding.ensureInitialized();
     await Workmanager().initialize(
       autoSyncCallbackDispatcher,
-      isInDebugMode: debug,
     );
     _initialized = true;
   }
@@ -88,7 +87,6 @@ class AutoSyncTask {
         _kImmediateWorkName,
         _kImmediateWorkName,
         existingWorkPolicy: ExistingWorkPolicy.replace,
-        initialDelay: delay,
         constraints: Constraints(networkType: NetworkType.connected),
         inputData: const <String, dynamic>{},
       );

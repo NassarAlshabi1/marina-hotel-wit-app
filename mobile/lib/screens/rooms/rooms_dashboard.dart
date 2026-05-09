@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -150,7 +152,7 @@ class RoomsDashboard extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إغلاق'),
             ),
           ],
@@ -208,11 +210,11 @@ class RoomsDashboard extends ConsumerWidget {
         return;
       }
 
-      Navigator.of(context).push<void>(
+      unawaited(Navigator.of(context).push<void>(
         MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking),
         ),
-      );
-    } catch (Object e) {
+      ),);
+    } catch (e) {
       if (!context.mounted) {
         return;
       }

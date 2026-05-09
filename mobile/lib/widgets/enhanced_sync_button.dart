@@ -91,10 +91,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   Future<void> _triggerSync() async {
-    if (_isSyncing || !_isOnline) return;
+    if (_isSyncing || !_isOnline) {
+      return;
+    }
 
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       await SyncErrorRecovery.instance.createRollbackPoint(
@@ -129,7 +131,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       final error = SyncErrorRecovery.instance.createError(
         operation: 'manual_sync',
         table: 'all',
@@ -205,13 +207,13 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           if (error.isRetriable)
             TextButton(
               onPressed: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _triggerSync();
               },
               child: const Text('إعادة المحاولة'),
             ),
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -262,7 +264,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('رفع التغييرات'),
                 subtitle: const Text('رفع التغييرات المحلية إلى السحابة'),
                 onTap: () async {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   await _pushOnly();
                 },
               ),
@@ -271,7 +273,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('سحب التحديثات'),
                 subtitle: const Text('تحميل آخر التحديثات من السحابة'),
                 onTap: () async {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   await _pullOnly();
                 },
               ),
@@ -280,7 +282,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('مزامنة كاملة'),
                 subtitle: const Text('رفع وسحب جميع البيانات'),
                 onTap: () async {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   await _triggerSync();
                 },
               ),
@@ -289,7 +291,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('فحص سلامة البيانات'),
                 subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
                 onTap: () async {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   await _verifyIntegrity();
                 },
               ),
@@ -301,7 +303,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                     '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
                   ),
                   onTap: () {
-                    Navigator.pop<void>(context);
+                    Navigator.pop(context);
                     _showErrorLog();
                   },
                 ),
@@ -394,7 +396,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Future<void> _pushOnly() async {
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -411,7 +413,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -431,13 +433,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     } finally {
       _animationController.stop();
       _animationController.reset();
-      if (mounted) setState(() => _isSyncing = false);
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
     }
   }
 
   Future<void> _pullOnly() async {
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -454,7 +458,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في سحب التحديثات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -474,12 +478,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     } finally {
       _animationController.stop();
       _animationController.reset();
-      if (mounted) setState(() => _isSyncing = false);
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
     }
   }
 
   Future<void> _verifyIntegrity() async {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -491,13 +497,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
-      Navigator.pop<void>(context);
+      // ignore: use_build_context_synchronously
+      Navigator.pop(context);
 
-      showDialog<void>(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -527,15 +535,17 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إغلاق'),
             ),
           ],
         ),
-      );
-    } catch (Object) {
-      if (!mounted) return;
-      Navigator.pop<void>(context);
+      ),);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
@@ -597,12 +607,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           TextButton(
             onPressed: () {
               SyncErrorRecovery.instance.clearErrors();
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
             },
             child: const Text('مسح السجل'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -755,9 +765,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   String _formatLastSync(DateTime lastSync) {
     final diff = DateTime.now().difference(lastSync);
-    if (diff.inSeconds < 60) return 'منذ ${diff.inSeconds} ثانية';
-    if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} دقيقة';
-    if (diff.inHours < 24) return 'منذ ${diff.inHours} ساعة';
+    if (diff.inSeconds < 60) {
+      return 'منذ ${diff.inSeconds} ثانية';
+    }
+    if (diff.inMinutes < 60) {
+      return 'منذ ${diff.inMinutes} دقيقة';
+    }
+    if (diff.inHours < 24) {
+      return 'منذ ${diff.inHours} ساعة';
+    }
     return 'منذ ${diff.inDays} يوم';
   }
 }

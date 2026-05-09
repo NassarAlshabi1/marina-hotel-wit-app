@@ -65,8 +65,12 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
-      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (!isInitialized) {
+        return _DeltaSyncStartResult.notInitialized;
+      }
+      if (_isSyncing) {
+        return _DeltaSyncStartResult.alreadySyncing;
+      }
       if (_driveService?.isSignedIn != true) {
         return _DeltaSyncStartResult.notSignedIn;
       }
@@ -134,8 +138,12 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
-      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (!isInitialized) {
+        return _DeltaSyncStartResult.notInitialized;
+      }
+      if (_isSyncing) {
+        return _DeltaSyncStartResult.alreadySyncing;
+      }
       if (_driveService?.isSignedIn != true) {
         return _DeltaSyncStartResult.notSignedIn;
       }
@@ -172,11 +180,15 @@ class GoogleDriveDeltaSync {
 
       for (final file in deltaFiles) {
         final fileTsSec = file.createdTime.millisecondsSinceEpoch ~/ 1000;
-        if (fileTsSec <= lastPullTsSec) continue;
+        if (fileTsSec <= lastPullTsSec) {
+          continue;
+        }
 
         final sourceDeviceId = file.appProperties['device_id'];
         if (sourceDeviceId == _deviceId) {
-          if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
+          if (fileTsSec > maxProcessedTsSec) {
+            maxProcessedTsSec = fileTsSec;
+          }
           continue;
         }
 
@@ -186,7 +198,9 @@ class GoogleDriveDeltaSync {
           appliedChanges += changes;
         }
 
-        if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
+        if (fileTsSec > maxProcessedTsSec) {
+          maxProcessedTsSec = fileTsSec;
+        }
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -197,7 +211,7 @@ class GoogleDriveDeltaSync {
         try {
           await RoomsRepository(_database!).refreshAllRoomOccupancy();
           debugPrint('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ فشل تحديث حالة الإشغال: $e');
         }
       }
@@ -268,7 +282,7 @@ class GoogleDriveDeltaSync {
   Future<Map<String, dynamic>?> _downloadDeltaFile(String fileId) async {
     try {
       return await _driveService!.downloadBackup(fileId);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في تحميل ملف المزامنة: $e');
       return null;
     }
@@ -276,7 +290,9 @@ class GoogleDriveDeltaSync {
 
   Future<int> _applyDeltaChanges(Map<String, dynamic> deltaData) async {
     final changes = deltaData['changes'] as List<dynamic>?;
-    if (changes == null || changes.isEmpty) return 0;
+    if (changes == null || changes.isEmpty) {
+      return 0;
+    }
 
     return _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
@@ -338,12 +354,16 @@ class GoogleDriveDeltaSync {
     String operation,
     Map<String, dynamic> data,
   ) async {
-    if (_database == null || _adapterRegistry == null) return;
+    if (_database == null || _adapterRegistry == null) {
+      return;
+    }
     final db = _database!;
     final registry = _adapterRegistry!;
     final localUuid =
         _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
-    if (localUuid.isEmpty) return;
+    if (localUuid.isEmpty) {
+      return;
+    }
 
     debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
 
@@ -402,72 +422,72 @@ class GoogleDriveDeltaSync {
   ) async {
     switch (entity) {
       case 'rooms':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.rooms,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'bookings':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.bookings,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'payments':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.payments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'expenses':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.expenses,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'debts':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.debts,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'employees':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.employees,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'booking_notes':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.bookingNotes,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'booking_nights':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.bookingNights,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'salary_cycles':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.salaryCycles,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'salary_payments':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.salaryPayments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'cash_transactions':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.cashTransactions,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'shift_notes':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.shiftNotes,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'price_adjustments':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.priceAdjustments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'payment_voids':
-        await (db.delete<dynamic>(
+        await (db.delete(
           db.paymentVoids,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
@@ -482,7 +502,7 @@ class GoogleDriveDeltaSync {
     Map<String, dynamic> data,
   ) async {
     if (operation == 'delete') {
-      await (db.delete<dynamic>(
+      await (db.delete(
         db.cashTransactions,
       )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
@@ -491,7 +511,9 @@ class GoogleDriveDeltaSync {
     final transactionType =
         _asString(data['transaction_type']) ??
         _asString(data['transactionType']);
-    if (transactionType == null || transactionType.isEmpty) return;
+    if (transactionType == null || transactionType.isEmpty) {
+      return;
+    }
 
     final transactionTime =
         _asString(data['transaction_time']) ??
@@ -548,9 +570,15 @@ class GoogleDriveDeltaSync {
   }
 
   int? _asInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
     if (value is String && value.isNotEmpty) {
       return int.tryParse(value) ?? double.tryParse(value)?.toInt();
     }
@@ -558,10 +586,18 @@ class GoogleDriveDeltaSync {
   }
 
   double _asDouble(dynamic value, {double fallback = 0.0}) {
-    if (value == null) return fallback;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is num) return value.toDouble();
+    if (value == null) {
+      return fallback;
+    }
+    if (value is double) {
+      return value;
+    }
+    if (value is int) {
+      return value.toDouble();
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
     if (value is String && value.isNotEmpty) {
       return double.tryParse(value) ?? fallback;
     }
@@ -569,7 +605,9 @@ class GoogleDriveDeltaSync {
   }
 
   String? _asString(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final result = value.toString();
     return result.isEmpty ? null : result;
   }
@@ -577,7 +615,9 @@ class GoogleDriveDeltaSync {
   Future<int> _getLastPushTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getInt(_prefsLastPushTsKey);
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
     final legacy = prefs.getInt(_prefsLegacyLastDeltaSyncKey);
     if (legacy != null) {
       await prefs.setInt(_prefsLastPushTsKey, legacy);
@@ -589,7 +629,9 @@ class GoogleDriveDeltaSync {
   Future<int> _getLastPullTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getInt(_prefsLastPullTsKey);
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
     final legacy = prefs.getInt(_prefsLegacyLastDeltaSyncKey);
     if (legacy != null) {
       await prefs.setInt(_prefsLastPullTsKey, legacy);
@@ -610,11 +652,15 @@ class GoogleDriveDeltaSync {
   }
 
   Future<void> cleanupOldDeltaFiles({int keepCount = 10}) async {
-    if (_driveService?.isSignedIn != true) return;
+    if (_driveService?.isSignedIn != true) {
+      return;
+    }
 
     try {
       final deltaFiles = await _listDeltaSyncFiles();
-      if (deltaFiles.length <= keepCount) return;
+      if (deltaFiles.length <= keepCount) {
+        return;
+      }
 
       deltaFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
       final toDelete = deltaFiles.skip(keepCount).toList();
@@ -623,7 +669,7 @@ class GoogleDriveDeltaSync {
         await _driveService!.deleteBackup(file.fileId);
         debugPrint('🗑️ حذف ملف مزامنة قديم: ${file.fileName}');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في تنظيف ملفات المزامنة: $e');
     }
   }

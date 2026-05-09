@@ -37,10 +37,11 @@ mixin SyncOnExitMixin<T extends StatefulWidget> on State<T> {
   Stream<SyncStatus> get syncStatusStream => _syncController.syncStatusStream;
 
   Widget wrapWithSyncOnExit({required Widget child}) {
-    return WillPopScope(
-      onWillPop: () async {
-        await _syncController.syncOnExit();
-        return true;
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          await _syncController.syncOnExit();
+        }
       },
       child: child,
     );

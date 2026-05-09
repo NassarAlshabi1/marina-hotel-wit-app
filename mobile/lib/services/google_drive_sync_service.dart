@@ -295,7 +295,7 @@ class GoogleDriveSyncService {
           ? snapList.files!.first
           : null;
       return snapFile?.modifiedTime;
-    } catch (Object error) {
+    } catch (error) {
       debugPrint('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
       return null;
     }
@@ -412,7 +412,7 @@ class GoogleDriveSyncService {
     for (var i = keepLatest; i < files.length; i++) {
       final file = files[i];
       if (file.id != null) {
-        await api.files.delete<dynamic>(file.id!);
+        await api.files.delete(file.id!);
       }
     }
   }
@@ -451,7 +451,7 @@ class GoogleDriveSyncService {
       final payload = await _decodePayload(bytes);
       final json = jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
       return DriveSyncIndex.fromJson(json);
-    } catch (Object error) {
+    } catch (error) {
       debugPrint('⚠️ تعذر تحميل ملف الفهرس: $error');
       return null;
     }
@@ -569,7 +569,7 @@ class GoogleDriveSyncService {
     final keepIds = uploaded.map((s) => s.fileId).toSet();
     try {
       await _cleanupLegacySnapshot(api, keepShardIds: keepIds.toList());
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e');
     }
 
@@ -586,9 +586,11 @@ class GoogleDriveSyncService {
       $fields: 'files(id)',
     );
     for (final file in result.files ?? []) {
-      if (file.id == null) continue;
+      if (file.id == null) {
+        continue;
+      }
       if (!keepShardIds.contains(file.id)) {
-        await api.files.delete<dynamic>(file.id as String);
+        await api.files.delete(file.id as String);
       }
     }
   }
@@ -612,7 +614,7 @@ class GoogleDriveSyncService {
     String fileId,
   ) async {
     final media =
-        await api.files.get<dynamic>(
+        await api.files.get(
               fileId,
               downloadOptions: drive.DownloadOptions.fullMedia,
             )

@@ -119,7 +119,9 @@ class SafeDatabaseOperations {
       bool isClosed = false;
 
       void setupStream() {
-        if (isClosed) return;
+        if (isClosed) {
+          return;
+        }
 
         try {
           // التحقق من حالة الاستعادة
@@ -140,7 +142,7 @@ class SafeDatabaseOperations {
             try {
               // محاولة الحصول على instance لتهيئة قاعدة البيانات
               final _ = DatabaseManager.instance;
-            } catch (Object e) {
+            } catch (e) {
               controller.addError(
                 StateError('Failed to initialize database for $opName: $e'),
               );
@@ -191,7 +193,7 @@ class SafeDatabaseOperations {
                     await DatabaseManager.reopen();
                     debugPrint('✅ Database reopened. Recreating stream...');
                     setupStream();
-                  } catch (Object e) {
+                  } catch (e) {
                     if (!isClosed) {
                       controller.addError(e, stackTrace);
                     }

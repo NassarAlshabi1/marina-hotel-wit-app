@@ -129,7 +129,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
-      if (!StatusUtils.isActiveBooking(booking.status)) continue;
+      if (!StatusUtils.isActiveBooking(booking.status)) {
+        continue;
+      }
 
       final key = '${booking.guestName}_${booking.guestPhone}';
       final email = booking.guestEmail ?? '';
@@ -194,7 +196,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
-    if (_searchQuery.isEmpty) return guests;
+    if (_searchQuery.isEmpty) {
+      return guests;
+    }
 
     return guests.where((guest) {
       return guest.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -483,7 +487,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     try {
       final date = DateTime.parse(dateStr);
       return '${date.day}/${date.month}/${date.year}';
-    } catch (Object) {
+    } catch (e) {
       return dateStr;
     }
   }
@@ -529,7 +533,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إغلاق'),
             ),
           ],
@@ -580,7 +584,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إغلاق'),
             ),
           ],
@@ -686,7 +690,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                         firstDate: DateTime(2020),
                                         lastDate: DateTime(2100),
                                       );
-                                      if (picked == null) return;
+                                      if (picked == null) {
+                                        return;
+                                      }
 
                                       // الحفاظ على الوقت الأصلي إن وجد
                                       final oldTime =
@@ -758,7 +764,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                     onTap: () async {
                                       final currentTime =
                                           _parseDate(current);
-                                      if (currentTime == null) return;
+                                      if (currentTime == null) {
+                                        return;
+                                      }
                                       final picked =
                                           await showTimePicker(
                                         context: context,
@@ -766,7 +774,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                           currentTime,
                                         ),
                                       );
-                                      if (picked == null) return;
+                                      if (picked == null) {
+                                        return;
+                                      }
 
                                       final datePart =
                                           current.split('T').first;
@@ -845,11 +855,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(dialogContext, false),
+                onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
-                onPressed: () => Navigator.pop<void>(dialogContext, true),
+                onPressed: () => Navigator.pop(dialogContext, true),
                 icon: const Icon(Icons.save, size: 18),
                 label: const Text('حفظ'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
@@ -860,14 +870,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
 
-    if (result != true) return;
+    if (result != true) {
+      return;
+    }
 
     // حفظ التغييرات
     bool hasChanges = false;
     try {
       for (final booking in guest.bookings) {
         final newDate = newDates[booking.id];
-        if (newDate == null) continue;
+        if (newDate == null) {
+          continue;
+        }
         final dateOnlyNew = newDate.split('T').first;
         final dateOnlyOld = booking.checkinDate.split('T').first;
         if (dateOnlyNew == dateOnlyOld &&
@@ -882,6 +896,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
 
       if (hasChanges && mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم تعديل تاريخ الدخول وإعادة حساب المبالغ بنجاح'),
@@ -889,8 +904,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذر تعديل تاريخ الدخول: $e'),
@@ -902,7 +918,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   DateTime? _parseDate(String value) {
-    if (value.isEmpty) return null;
+    if (value.isEmpty) {
+      return null;
+    }
     try {
       return DateTime.parse(value);
     } catch (_) {
@@ -935,10 +953,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<void>(builder: (_) => GuestEditScreen(guest: guest)),
+      MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
     );
     if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
+        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
@@ -959,11 +978,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context, false),
+              onPressed: () => Navigator.pop<bool>(context, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop<void>(context, true),
+              onPressed: () => Navigator.pop<bool>(context, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('حذف'),
             ),
@@ -972,7 +991,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
@@ -981,7 +1002,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final debtsRepo = ref.read(debtsRepoProvider);
       final notesRepo = ref.read(notesRepoProvider);
 
-      if (guest.bookings.isEmpty) return;
+      if (guest.bookings.isEmpty) {
+        return;
+      }
 
       // ─── 1. Checkout للحجوزات النشطة (مع مزامنة Appwrite) ───
       final nowIso = Time.nowIso();
@@ -1009,7 +1032,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       for (final booking in guest.bookings) {
         final notes = await notesRepo.watchByBooking(booking.id).first;
         for (final note in notes) {
-          await notesRepo.delete<dynamic>(note.id);
+          await notesRepo.delete(note.id);
         }
       }
 
@@ -1017,7 +1040,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       for (final booking in guest.bookings) {
         final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
         for (final payment in payments) {
-          await paymentsRepo.delete<dynamic>(payment.id);
+          await paymentsRepo.delete(payment.id);
         }
       }
 
@@ -1025,13 +1048,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       for (final booking in guest.bookings) {
         final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
         for (final debt in bookingDebts) {
-          await debtsRepo.delete<dynamic>(debt.id);
+          await debtsRepo.delete(debt.id);
         }
       }
 
       // ─── 6. حذف الحجوزات نفسها (soft delete مع outbox للمزامنة مع Appwrite) ───
       for (final booking in guest.bookings) {
-        await bookingsRepo.delete<dynamic>(booking.id);
+        await bookingsRepo.delete(booking.id);
       }
 
       // ─── 7. تحرير الغرف المتبقية المرتبطة بالحجوزات غير النشطة ───
@@ -1047,12 +1070,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         }
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة')),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red),
       );

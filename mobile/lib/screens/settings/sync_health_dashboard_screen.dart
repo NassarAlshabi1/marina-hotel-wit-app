@@ -487,7 +487,9 @@ class _SyncHealthDashboardScreenState
   }
 
   String _formatLastSync(DateTime? dateTime) {
-    if (dateTime == null) return 'لم يتم بعد';
+    if (dateTime == null) {
+      return 'لم يتم بعد';
+    }
 
     final now = DateTime.now();
     final difference = now.difference(dateTime);

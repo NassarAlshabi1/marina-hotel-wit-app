@@ -53,7 +53,7 @@ class BatchOperationsService {
             );
           });
           success += batch.length;
-        } catch (Object e) {
+        } catch (e) {
           fail += batch.length;
           failures.add(e);
         }
@@ -105,7 +105,7 @@ class BatchOperationsService {
             }
           });
           success += batch.length;
-        } catch (Object) {
+        } catch (e) {
           fail += batch.length;
         }
       }
@@ -165,7 +165,7 @@ class BatchOperationsService {
           // typed helpers (batchInsertRooms, batchInsertPayments, etc.)
           // for table-specific batch inserts with batch.insertAll.
           success += batch.length;
-        } catch (Object) {
+        } catch (e) {
           fail += batch.length;
         }
       }
@@ -194,7 +194,7 @@ class BatchOperationsService {
         try {
           await inserter(batch);
           success += batch.length;
-        } catch (Object) {
+        } catch (e) {
           fail += batch.length;
         }
       }
@@ -214,8 +214,12 @@ class BatchOperationsService {
     // Rough estimate: if objects are small (< 1KB), use larger batches
     final avgSize = items.isNotEmpty ? _estimateItemSize(items.first) : 100;
     
-    if (avgSize < 1024) return 500;  // Small: 500 per batch
-    if (avgSize < 10240) return 200; // Medium: 200
+    if (avgSize < 1024) {
+      return 500;  // Small: 500 per batch
+    }
+    if (avgSize < 10240) {
+      return 200; // Medium: 200
+    }
     return 100; // Large: 100
   }
   
@@ -235,7 +239,9 @@ extension BatchExtensions on BatchOperationsService {
     List<Map<String, dynamic>> records, {
     int batchSize = BatchOperationsService.defaultBatchSize,
   }) async {
-    if (records.isEmpty) return;
+    if (records.isEmpty) {
+      return;
+    }
 
     final keys = records.first.keys.toList();
     final columns = keys.join(', ');

@@ -184,16 +184,26 @@ class UIConstants {
 
   // ===== Battery Level Colors =====
   static Color getColorForBatteryLevel(double level) {
-    if (level > 0.5) return Colors.green;
-    if (level > 0.2) return Colors.orange;
+    if (level > 0.5) {
+      return Colors.green;
+    }
+    if (level > 0.2) {
+      return Colors.orange;
+    }
     return Colors.red;
   }
 
   // ===== Progress Colors =====
   static Color getColorForProgress(double progress) {
-    if (progress >= 0.8) return Colors.green;
-    if (progress >= 0.5) return Colors.blue;
-    if (progress >= 0.3) return Colors.orange;
+    if (progress >= 0.8) {
+      return Colors.green;
+    }
+    if (progress >= 0.5) {
+      return Colors.blue;
+    }
+    if (progress >= 0.3) {
+      return Colors.orange;
+    }
     return Colors.red;
   }
 

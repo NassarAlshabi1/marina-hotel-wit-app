@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -432,7 +434,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
 
       setState(() => _isSaving = false);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       // رسالة نجاح
       ScaffoldMessenger.of(context).showSnackBar(
@@ -448,10 +452,12 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
           duration: Duration(seconds: 2),
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
       setState(() => _isSaving = false);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -733,7 +739,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                           ),
                           actions: [
                             TextButton(
-                              onPressed: () => Navigator.pop<void>(ctx),
+                              onPressed: () => Navigator.pop(ctx),
                               child: const Text('فهمت'),
                             ),
                           ],
@@ -1028,7 +1034,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
     final int hour = int.parse(parts[0]);
     final int minute = int.parse(parts[1]);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final time = await showTimePicker(
       context: context,
@@ -1043,7 +1051,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
       final formatted =
           '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       _reportTimeController.text = formatted;
-      ref.read(larkProvider.notifier).setDailyReportTime(formatted);
+      unawaited(ref.read(larkProvider.notifier).setDailyReportTime(formatted));
     }
   }
 }

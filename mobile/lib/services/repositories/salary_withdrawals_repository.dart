@@ -70,7 +70,7 @@ class SalaryWithdrawalsRepository {
 
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
   /// ملاحظة: الجدول لا يحتوي expense_id مباشرة،
-  /// لذلك نستخدم الربط عبر حقل reason الذي يحتوي [exp_ID]
+  /// لذلك نستخدم الربط عبر حقل reason الذي يحتوي `exp_ID`
   /// ✅ إصلاح: تغليف العملية في معاملة لضمان اتساق البيانات
   Future<void> saveFromExpense({
     required int expenseId,

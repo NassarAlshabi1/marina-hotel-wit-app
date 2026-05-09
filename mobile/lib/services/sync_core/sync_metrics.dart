@@ -65,9 +65,15 @@ class SyncStats {
   final SyncSession? lastSync;
 
   String get healthStatus {
-    if (successRate > 0.95) return '🟢 ممتاز';
-    if (successRate > 0.8) return '🟡 جيد';
-    if (successRate > 0.5) return '🟠 متوسط';
+    if (successRate > 0.95) {
+      return '🟢 ممتاز';
+    }
+    if (successRate > 0.8) {
+      return '🟡 جيد';
+    }
+    if (successRate > 0.5) {
+      return '🟠 متوسط';
+    }
     return '🔴 سيء';
   }
 
@@ -118,7 +124,9 @@ class SyncMetrics {
 
   /// تسجيل نجاح المزامنة
   void recordSuccess({int recordsSynced = 0, int conflictsResolved = 0}) {
-    if (_currentSession == null) return;
+    if (_currentSession == null) {
+      return;
+    }
 
     final session = SyncSession(
       startTime: _currentSession!.startTime,
@@ -139,7 +147,9 @@ class SyncMetrics {
 
   /// تسجيل فشل المزامنة
   void recordFailure(Object error) {
-    if (_currentSession == null) return;
+    if (_currentSession == null) {
+      return;
+    }
 
     final session = SyncSession(
       startTime: _currentSession!.startTime,
@@ -217,7 +227,7 @@ class SyncMetrics {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = _history.map((s) => jsonEncode(s.toJson())).toList();
       await prefs.setStringList(_prefsKey, jsonList);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ SyncMetrics: فشل حفظ السجل: $e');
     }
   }
@@ -236,7 +246,7 @@ class SyncMetrics {
 
       debugPrint('📊 SyncMetrics: تم تحميل ${_history.length} سجل');
       _updateStats();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ SyncMetrics: فشل تحميل السجل: $e');
     }
   }

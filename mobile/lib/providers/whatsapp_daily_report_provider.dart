@@ -91,7 +91,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         dailyReportTime: reportTime,
         lastReportSent: lastReportSent,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
     }
   }
@@ -137,7 +137,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
       } else {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('خطأ في جدولة إنذار التقرير اليومي: $e');
     }
     _clearMessageAfterDelay();
@@ -156,7 +156,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
           int.parse(parts[1]),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('خطأ في إعادة جدولة إنذار التقرير: $e');
     }
   }
@@ -182,7 +182,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
           message: 'فشل اختبار الاتصال — تحقق من رقم الهاتف و API Key',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       state = state.copyWith(
         status: WhatsAppReportStatus.error,
         message: 'خطأ في الاتصال: $e',
@@ -213,7 +213,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
           message: 'فشل إرسال التقرير — تحقق من الإعدادات',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       state = state.copyWith(
         status: WhatsAppReportStatus.error,
         message: 'خطأ في إرسال التقرير: $e',
@@ -227,7 +227,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
   Future<bool> sendDailyReport() async {
     try {
       return await _reports.sendDailyReport();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
@@ -236,7 +236,9 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
   /// مسح رسالة الحالة
   void _clearMessageAfterDelay() {
     Future<void>.delayed(const Duration(seconds: 3), () {
-      if (!_mounted) return;
+      if (!_mounted) {
+        return;
+      }
       if (state.status == WhatsAppReportStatus.success ||
           state.status == WhatsAppReportStatus.error) {
         state = state.copyWith(status: WhatsAppReportStatus.idle);

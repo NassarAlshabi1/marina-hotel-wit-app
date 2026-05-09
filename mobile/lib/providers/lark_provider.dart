@@ -114,7 +114,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
         lastReportSent: lastReportSent,
         hasValidToken: hasToken,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تهيئة LarkNotifier: $e');
     }
   }
@@ -233,7 +233,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
           message: '❌ فشل اختبار الاتصال — تحقق من الإعدادات',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       state = state.copyWith(
         status: LarkSetupStatus.error,
         message: '❌ خطأ في الاتصال: $e',
@@ -264,7 +264,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
           message: '❌ فشل إرسال التقرير — تحقق من Webhook URL',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       state = state.copyWith(
         status: LarkSetupStatus.error,
         message: '❌ خطأ في إرسال التقرير: $e',
@@ -278,7 +278,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
   Future<bool> sendDailyReport() async {
     try {
       return await _reports.sendDailyReport();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
@@ -287,7 +287,9 @@ class LarkNotifier extends StateNotifier<LarkState> {
   /// مسح رسالة الحالة بعد 3 ثوانٍ
   void _clearMessageAfterDelay() {
     Future<void>.delayed(const Duration(seconds: 3), () {
-      if (!_mounted) return;
+      if (!_mounted) {
+        return;
+      }
       if (state.status == LarkSetupStatus.success ||
           state.status == LarkSetupStatus.error) {
         state = state.copyWith(status: LarkSetupStatus.idle);

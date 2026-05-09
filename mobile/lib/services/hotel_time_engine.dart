@@ -62,7 +62,9 @@ class HotelTimeEngine {
   /// - `13:59:59` -> `false`
   /// - `15:00:00` -> `true`
   static bool isAfterCutoff(DateTime time) {
-    if (time.hour > boundaryHour) return true;
+    if (time.hour > boundaryHour) {
+      return true;
+    }
     if (time.hour == boundaryHour &&
         (time.minute > 0 || time.second > 0)) {
       return true;
@@ -99,7 +101,9 @@ class HotelTimeEngine {
     int days = checkOutDate.difference(checkInDate).inDays;
 
     // A stay that starts and ends on the same calendar date is at least 1 day.
-    if (days == 0) days = 1;
+    if (days == 0) {
+      days = 1;
+    }
 
     // If checkout time is strictly after 14:00:00, add 1 day.
     if (end.hour > boundaryHour ||

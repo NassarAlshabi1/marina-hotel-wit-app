@@ -82,7 +82,9 @@ class ConflictManager {
     required Map<String, dynamic> resolution,
   }) async {
     final index = _pendingConflicts.indexWhere((c) => c.id == conflictId);
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
 
     final conflict = _pendingConflicts[index];
     final resolved = PendingConflict(
@@ -152,7 +154,7 @@ class ConflictManager {
               ),
             );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل حفظ التعارض: $e');
     }
   }
@@ -163,12 +165,14 @@ class ConflictManager {
   ) async {
     try {
       // ✅ استخراج الجدول و UUID من conflictId
-      // الصيغة: ${table}_${uuid}_${timestamp}
+      // الصيغة: ${table}_${uuid}_$timestamp
       // UUID لا يحتوي على '_' أبداً (يحتوي على '-' فقط)
       // timestamp هو أرقام فقط
       // لذلك: آخر عنصر = timestamp، العنصر الذي يحتوي '-' = UUID، والباقي = اسم الجدول
       final parts = conflictId.split('_');
-      if (parts.length < 3) return;
+      if (parts.length < 3) {
+        return;
+      }
 
       // آخر عنصر هو الطابع الزمني (أرقام)
       // نبحث عن UUID الذي يحتوي على '-' ولا يمكن أن يكون جزءاً من اسم الجدول
@@ -187,7 +191,9 @@ class ConflictManager {
         }
       }
 
-      if (table.isEmpty || uuid.isEmpty) return;
+      if (table.isEmpty || uuid.isEmpty) {
+        return;
+      }
 
       final query = db.select(db.syncConflicts)
         ..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
@@ -200,7 +206,7 @@ class ConflictManager {
           SyncConflictsCompanion(resolution: Value(jsonEncode(resolution))),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل تحديث حل التعارض: $e');
     }
   }
@@ -226,7 +232,7 @@ class ConflictManager {
           if (row.resolution.isNotEmpty) {
             resolutionData = jsonDecode(row.resolution) as Map<String, dynamic>?;
           }
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
         }
 
@@ -244,7 +250,7 @@ class ConflictManager {
       }
 
       _conflictsController.add(_pendingConflicts);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل تحميل التعارضات المعلقة: $e');
     }
   }

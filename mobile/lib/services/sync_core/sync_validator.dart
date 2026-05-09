@@ -37,7 +37,7 @@ class SyncValidator {
     if (data.containsKey('timestamp')) {
       try {
         DateTime.parse(data['timestamp'] as String);
-      } catch (Object) {
+      } catch (e) {
         return ValidationResult.invalid('timestamp غير صالح');
       }
     }
@@ -96,7 +96,7 @@ class SyncValidator {
       if (difference > const Duration(hours: 24)) {
         warnings.add('فرق كبير في التوقيت بين البيانات المحلية والسحابية');
       }
-    } catch (Object) {
+    } catch (e) {
       return ValidationResult.invalid('فشل تحليل timestamps');
     }
 
@@ -104,11 +104,21 @@ class SyncValidator {
   }
 
   int _estimateSize(dynamic data) {
-    if (data == null) return 0;
-    if (data is String) return data.length;
-    if (data is int) return 8;
-    if (data is double) return 8;
-    if (data is bool) return 1;
+    if (data == null) {
+      return 0;
+    }
+    if (data is String) {
+      return data.length;
+    }
+    if (data is int) {
+      return 8;
+    }
+    if (data is double) {
+      return 8;
+    }
+    if (data is bool) {
+      return 1;
+    }
     if (data is List) {
       return data.fold(0, (sum, item) => sum + _estimateSize(item));
     }

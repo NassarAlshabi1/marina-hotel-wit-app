@@ -186,7 +186,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final roomChanged = oldRoomNumber != newRoomNumber;
         final discountText =
             _discountControllers[booking.id]?.text.trim() ?? '';
-        final discount = double.tryParse(discountText) ?? 0;
+        final discount = _parseAmount(discountText);
         final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
         final discountStartDateText =
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
@@ -260,9 +260,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop<void>(context, true);
+        Navigator.pop<bool>(context, true);
       }
-    } catch (Object error) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -355,7 +355,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     for (final booking in widget.guest.bookings) {
       final oldRoom = _originalRooms[booking.id]!;
       final newRoom = _roomSelections[booking.id]!;
-      if (oldRoom == newRoom) continue;
+      if (oldRoom == newRoom) {
+        continue;
+      }
 
       changedRooms.add({'old': oldRoom, 'new': newRoom});
 
@@ -398,6 +400,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     }
 
     return showDialog<bool>(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد تغيير الغرفة'),
@@ -461,11 +464,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('متابعة'),
           ),
         ],
@@ -481,19 +484,52 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date == null) return;
+    if (date == null) {
+      return;
+    }
     setState(() {
       controller.text = _formatDate(date);
     });
   }
 
   DateTime? _parseDate(String value) {
-    if (value.isEmpty) return null;
+    if (value.isEmpty) {
+      return null;
+    }
     try {
       return DateTime.parse(value);
     } catch (_) {
       return null;
     }
+  }
+
+  double _parseAmount(String value) {
+    final normalized = _normalizeNumericInput(value);
+    return double.tryParse(normalized) ?? 0;
+  }
+
+  String _normalizeNumericInput(String value) {
+    var output = value.trim();
+    const arabicDigits = <String, String>{
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+    };
+    arabicDigits.forEach((arabic, latin) {
+      output = output.replaceAll(arabic, latin);
+    });
+    output = output
+        .replaceAll('،', '')
+        .replaceAll(',', '')
+        .replaceAll(' ', '');
+    return output;
   }
 
   String _formatDate(DateTime dt) {
@@ -508,7 +544,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     return PopScope(
       canPop: !_hasUnsavedChanges,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          return;
+        }
         _showDiscardDialog(context);
       },
       child: Scaffold(
@@ -573,7 +611,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.email,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty) return null;
+                          if (value == null || value.isEmpty) {
+                            return null;
+                          }
                           final emailRegex = RegExp(r'^.+@.+\..+$');
                           if (!emailRegex.hasMatch(value)) {
                             return 'صيغة بريد غير صحيحة';
@@ -716,13 +756,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop<void>(ctx);
-                Navigator.of(context).pop<void>();
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
               },
               child: const Text('مغادرة'),
             ),
@@ -1141,6 +1181,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           TextFormField(
                             controller: discountController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp('[0-9٠-٩.,،]'),
+                              ),
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'المبلغ',
                               prefixIcon: Icon(Icons.attach_money),
@@ -1198,7 +1243,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     final discountController = _discountControllers[booking.id];
     final startDateController = _discountStartDateControllers[booking.id];
     
-    if (discountController == null || startDateController == null) return;
+    if (discountController == null || startDateController == null) {
+      return;
+    }
     
     final amountText = discountController.text.trim();
     if (amountText.isEmpty) {
@@ -1208,7 +1255,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
     
-    final amount = double.tryParse(amountText)?.round() ?? 0;
+    final amount = _parseAmount(amountText).round();
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('الرجاء إدخال مبلغ صالح')),
@@ -1216,12 +1263,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
     
-    final startDate = startDateController.text.trim();
+    var startDate = startDateController.text.trim();
     if (startDate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الرجاء تحديد تاريخ البدء')),
-      );
-      return;
+      startDate = _formatDate(DateTime.now());
+      startDateController.text = startDate;
     }
     
     final type = _adjustmentTypeSelections[booking.id] ?? AdjustmentType.discount;
@@ -1241,7 +1286,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         appliedBy: 'admin',
       );
       
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1257,8 +1304,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       discountController.clear();
       startDateController.clear();
       
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('حدث خطأ: $e'),
@@ -1266,7 +1315,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
@@ -1278,11 +1329,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         content: Text('هل تريد إنهاء $type من اليوم؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('إنهاء'),
           ),
@@ -1290,7 +1341,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       ),
     );
     
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
     
     try {
       setState(() => _saving = true);
@@ -1300,15 +1353,19 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         cancelledBy: 'admin',
       );
       
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم إنهاء $type بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('حدث خطأ: $e'),
@@ -1316,7 +1373,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 }

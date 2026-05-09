@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
@@ -40,14 +43,16 @@ class _ActiveBookingsReminderScreenState
 
   /// تحديث تلقائي لبيانات الحجوزات النشطة عند فتح الشاشة
   Future<void> _autoRefreshData() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     try {
       final db = ref.read(databaseProvider);
       await BookingDerivedFieldsService(db).refreshAllActiveBookings();
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في التحديث التلقائي: $e');
       if (mounted) {
         setState(() => _isInitialLoading = false);
@@ -58,11 +63,17 @@ class _ActiveBookingsReminderScreenState
   /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.isEmpty) return '';
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
     // إزالة 00 الدولية
-    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
     // سبق بإضافة +967
-    if (digitsOnly.startsWith('967')) return digitsOnly;
+    if (digitsOnly.startsWith('967')) {
+      return digitsOnly;
+    }
     // 07xx → 967xx (محلي يمني)
     if (digitsOnly.startsWith('07')) {
       digitsOnly = '967${digitsOnly.substring(1)}';
@@ -76,7 +87,9 @@ class _ActiveBookingsReminderScreenState
       digitsOnly = '966$digitsOnly';
     }
     // سبق بإضافة +966
-    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    else if (digitsOnly.startsWith('966')) {
+      return digitsOnly;
+    }
     // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
     else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
       digitsOnly = '967$digitsOnly';
@@ -86,9 +99,13 @@ class _ActiveBookingsReminderScreenState
 
   /// حساب عدد الليالي المتأخرة عن تاريخ المغادرة المخطط
   int _getDaysSinceCheckout(Booking booking) {
-    if (booking.checkoutDate == null || booking.checkoutDate!.isEmpty) return 0;
+    if (booking.checkoutDate == null || booking.checkoutDate!.isEmpty) {
+      return 0;
+    }
     final checkout = DateTime.tryParse(booking.checkoutDate!);
-    if (checkout == null) return 0;
+    if (checkout == null) {
+      return 0;
+    }
     return DateTime.now().difference(checkout).inDays;
   }
 
@@ -137,10 +154,14 @@ class _ActiveBookingsReminderScreenState
   Future<bool> _sendSingleReminder(Booking booking) async {
     final whatsappService = ref.read(whatsappServiceProvider);
     final phone = _cleanAndFormatPhone(booking.guestPhone);
-    if (phone.isEmpty) return false;
+    if (phone.isEmpty) {
+      return false;
+    }
 
     final message = await _buildReminderMessage(booking);
-    if (message.isEmpty) return false;
+    if (message.isEmpty) {
+      return false;
+    }
     final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
     if (result.quotaMessage != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,7 +259,7 @@ class _ActiveBookingsReminderScreenState
                   ),
                 );
               }
-            } catch (Object e) {
+            } catch (e) {
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
@@ -539,8 +560,12 @@ class _ActiveBookingsReminderScreenState
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((booking) {
         final query = _searchQuery.toLowerCase();
-        if (booking.guestName.toLowerCase().contains(query)) return true;
-        if (booking.roomNumber.toLowerCase().contains(query)) return true;
+        if (booking.guestName.toLowerCase().contains(query)) {
+          return true;
+        }
+        if (booking.roomNumber.toLowerCase().contains(query)) {
+          return true;
+        }
         return false;
       }).toList();
     }
@@ -559,12 +584,18 @@ class _ActiveBookingsReminderScreenState
       final aDays = _getDaysSinceCheckout(a);
       final bDays = _getDaysSinceCheckout(b);
       // الحجوزات المتجاوزة للمغادرة أولاً
-      if (aDays > 0 && bDays <= 0) return -1;
-      if (bDays > 0 && aDays <= 0) return 1;
+      if (aDays > 0 && bDays <= 0) {
+        return -1;
+      }
+      if (bDays > 0 && aDays <= 0) {
+        return 1;
+      }
       // بين المتجاوزة: الأقدم أولاً
       if (aDays > 0 && bDays > 0) {
         final cmp = bDays.compareTo(aDays);
-        if (cmp != 0) return cmp;
+        if (cmp != 0) {
+          return cmp;
+        }
       }
       // حسب المبلغ المتبقي الأعلى
       return b.remainingBalanceCached.compareTo(a.remainingBalanceCached);
@@ -987,6 +1018,7 @@ class _ActiveBookingsReminderScreenState
     final message = await _buildReminderMessage(booking);
 
     final confirmed = await showDialog<bool>(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -1044,11 +1076,11 @@ class _ActiveBookingsReminderScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pop<void>(ctx, true),
+              onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send, size: 16),
               label: const Text('إرسال'),
               style: ElevatedButton.styleFrom(
@@ -1061,9 +1093,11 @@ class _ActiveBookingsReminderScreenState
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const AlertDialog(
@@ -1076,12 +1110,12 @@ class _ActiveBookingsReminderScreenState
           ],
         ),
       ),
-    );
+    ),);
 
     final success = await _sendSingleReminder(booking);
 
     if (mounted) {
-      Navigator.pop<void>(context); // إغلاق مؤشر التحميل
+      Navigator.pop(context); // إغلاق مؤشر التحميل
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1139,7 +1173,9 @@ class _ActiveBookingsReminderScreenState
     int withoutPhone = 0;
     for (final booking in selectedBookings) {
       final phone = _cleanAndFormatPhone(booking.guestPhone);
-      if (phone.isEmpty) withoutPhone++;
+      if (phone.isEmpty) {
+        withoutPhone++;
+      }
     }
 
     final confirmed = await showDialog<bool>(
@@ -1182,11 +1218,11 @@ class _ActiveBookingsReminderScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pop<void>(ctx, true),
+              onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send, size: 16),
               label: const Text('إرسال الكل'),
               style: ElevatedButton.styleFrom(
@@ -1199,7 +1235,9 @@ class _ActiveBookingsReminderScreenState
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
 
     // تصفية الحجوزات التي لديها رقم هاتف فقط
     final bookingsWithPhone = <Booking>[];

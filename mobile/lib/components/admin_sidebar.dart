@@ -17,8 +17,12 @@ class AdminSidebar extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     bool can(String key) {
       final u = auth.currentUser;
-      if (u == null) return false;
-      if (u.permissions.contains('all') || u.userType == 'admin') return true;
+      if (u == null) {
+        return false;
+      }
+      if (u.permissions.contains('all') || u.userType == 'admin') {
+        return true;
+      }
       return u.permissions.contains(key);
     }
 
@@ -253,9 +257,9 @@ class AdminSidebar extends ConsumerWidget {
                 try {
                   final isTablet = MediaQuery.of(context).size.width >= 768;
                   if (!isTablet && Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop<void>();
+                    Navigator.of(context).pop();
                   }
-                } catch (Object) {
+                } catch (e) {
                   // تجاهل الأخطاء
                 }
 
@@ -302,9 +306,9 @@ class AdminSidebar extends ConsumerWidget {
               // تحقق مما إذا كان هناك drawer مفتوح وأغلقه
               final isTablet = MediaQuery.of(context).size.width >= 768;
               if (!isTablet && Navigator.of(context).canPop()) {
-                Navigator.of(context).pop<void>();
+                Navigator.of(context).pop();
               }
-            } catch (Object) {
+            } catch (e) {
               // تجاهل الأخطاء ومتابع
             }
           }

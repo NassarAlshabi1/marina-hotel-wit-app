@@ -157,7 +157,9 @@ class SyncMetricsData {
   double get successRate => totalSyncs > 0 ? successfulSyncs / totalSyncs : 0;
 
   Duration get avgDuration {
-    if (recentDurations.isEmpty) return Duration.zero;
+    if (recentDurations.isEmpty) {
+      return Duration.zero;
+    }
     final total = recentDurations.fold<int>(
       0,
       (sum, d) => sum + d.inMilliseconds,
@@ -332,7 +334,7 @@ class SyncOrchestrator {
     );
 
     if (_state == OrchestratorState.idle) {
-      _processTasks();
+      unawaited(_processTasks());
     }
   }
 
@@ -395,7 +397,7 @@ class SyncOrchestrator {
         error: 'انتهت المهلة الزمنية',
         duration: duration,
       );
-    } catch (Object e) {
+    } catch (e) {
       final duration = DateTime.now().difference(startTime);
       _metrics.recordFailure(duration);
       return SyncTaskResult.failure(error: e.toString(), duration: duration);
@@ -403,10 +405,14 @@ class SyncOrchestrator {
   }
 
   Future<void> _processTasks() async {
-    if (_state != OrchestratorState.idle || _taskQueue.isEmpty) return;
+    if (_state != OrchestratorState.idle || _taskQueue.isEmpty) {
+      return;
+    }
 
     final acquired = await _mutex.acquire(timeout: const Duration(seconds: 5));
-    if (!acquired) return;
+    if (!acquired) {
+      return;
+    }
 
     try {
       _setState(OrchestratorState.syncing);
@@ -526,7 +532,7 @@ class SyncOrchestrator {
             timestamp: DateTime.now(),
           ),
         );
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
       }
     }
@@ -546,7 +552,7 @@ class SyncOrchestrator {
         _metrics.totalRecordsProcessed = (data['totalRecordsProcessed'] as num?)?.toInt() ?? 0;
         _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
     }
   }
@@ -558,13 +564,15 @@ class SyncOrchestrator {
         'sync_orchestrator_metrics',
         jsonEncode(_metrics.toJson()),
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }
   }
 
   void _setState(OrchestratorState newState) {
-    if (_state == newState) return;
+    if (_state == newState) {
+      return;
+    }
     _state = newState;
     _stateController.add(newState);
     debugPrint('🔄 [Orchestrator] الحالة: ${newState.name}');
@@ -585,7 +593,9 @@ class SyncOrchestrator {
   }
 
   Future<void> forceSync() async {
-    if (_state == OrchestratorState.syncing) return;
+    if (_state == OrchestratorState.syncing) {
+      return;
+    }
     _setState(OrchestratorState.idle);
     await _processTasks();
   }

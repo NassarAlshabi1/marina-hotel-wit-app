@@ -167,7 +167,9 @@ class LarkConfig { // 5 دقائق قبل الانتهاء
   static Future<bool> hasValidToken() async {
     final token = await getTokenCache();
     final expiry = await getTokenExpiry();
-    if (token == null || expiry == null) return false;
+    if (token == null || expiry == null) {
+      return false;
+    }
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     return now < (expiry - tokenExpiryBufferSeconds);
   }

@@ -108,9 +108,15 @@ class SyncPerformanceStats {
   bool get isHealthy => successRate > 0.8 && recentErrors.length < 5;
 
   String get healthStatus {
-    if (successRate > 0.95) return '🟢 ممتاز';
-    if (successRate > 0.8) return '🟡 جيد';
-    if (successRate > 0.5) return '🟠 متوسط';
+    if (successRate > 0.95) {
+      return '🟢 ممتاز';
+    }
+    if (successRate > 0.8) {
+      return '🟡 جيد';
+    }
+    if (successRate > 0.5) {
+      return '🟠 متوسط';
+    }
     return '🔴 سيء';
   }
 }
@@ -152,7 +158,7 @@ class SyncAlert {
 /// try {
 ///   // ... المزامنة ...
 ///   monitor.recordSyncSuccess(recordsSynced: 100);
-/// } catch (Object e) {
+/// } catch (e) {
 ///   monitor.recordSyncFailure(error: e);
 /// }
 ///
@@ -452,7 +458,7 @@ class SyncMonitoringSystem {
       }
 
       await prefs.setStringList(key, existing);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e');
     }
   }
@@ -471,7 +477,7 @@ class SyncMonitoringSystem {
       }
 
       debugPrint('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
     }
   }
@@ -500,7 +506,7 @@ class SyncMonitoringSystem {
           '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
     }
   }

@@ -117,7 +117,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
         isConnected: isConnected,
         errorMessage: failureMessage,
       );
-    } catch (Object e) {
+    } catch (e) {
       state = ConnectionState(
         isConnected: false,
         errorMessage: 'خطأ في الاتصال: $e',

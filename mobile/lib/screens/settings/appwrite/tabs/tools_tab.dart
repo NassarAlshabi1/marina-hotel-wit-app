@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -305,10 +307,12 @@ class AppwriteToolsTab extends ConsumerWidget {
     final db = ref.read(databaseProvider);
     final report = await SyncIntegrityChecker.instance.verify(db);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final issues = report.issues.take(10).toList();
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('نتائج فحص السلامة'),
@@ -333,12 +337,12 @@ class AppwriteToolsTab extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],
       ),
-    );
+    ),);
   }
 
   Future<void> _clearCache(BuildContext context, WidgetRef ref) async {
@@ -382,12 +386,14 @@ class AppwriteToolsTab extends ConsumerWidget {
     );
     final result = await service.exportBackup(deviceId: deviceId);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final sortedCounts = result.counts.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تم إنشاء النسخة الاحتياطية'),
@@ -407,25 +413,27 @@ class AppwriteToolsTab extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               await Share.shareXFiles([XFile(result.file.path)]);
             },
             child: const Text('مشاركة'),
           ),
         ],
       ),
-    );
+    ),);
   }
 
   Future<void> _exportLogs(BuildContext context, WidgetRef ref) async {
     final logger = ref.read(ap.appwriteLoggerProvider);
     final file = await logger.exportLogs();
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
     if (file == null) {
       ScaffoldMessenger.of(
         context,
@@ -464,18 +472,20 @@ class AppwriteToolsTab extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('سحب البيانات'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -502,10 +512,12 @@ class AppwriteToolsTab extends ConsumerWidget {
       await syncManager.appwriteService.initialize();
       final result = await syncManager.pullRemoteChanges();
 
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           icon: Icon(
@@ -521,14 +533,16 @@ class AppwriteToolsTab extends ConsumerWidget {
               : 'البيانات المحلية محدّثة بالفعل.',),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('حسناً'),
             ),
           ],
         ),
-      );
-    } catch (Object e) {
-      if (!context.mounted) return;
+      ),);
+    } catch (e) {
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -45,7 +45,7 @@ class RecalculateBookingNightsMigration {
         );
 
         successCount++;
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('   ❌ Error processing booking ${booking.id}: $e');
         errorCount++;
       }
@@ -118,7 +118,7 @@ class RecalculateBookingNightsMigration {
 
             report.bookingsRecalculated++;
           }
-        } catch (Object e) {
+        } catch (e) {
           report.errors.add(
             'Failed to recalculate booking ${booking.id} (${booking.guestName}): $e',
           );
@@ -129,7 +129,7 @@ class RecalculateBookingNightsMigration {
       report.message = report.success
           ? 'Successfully recalculated ${report.bookingsRecalculated} bookings'
           : 'Recalculated ${report.bookingsRecalculated} bookings with ${report.errors.length} errors';
-    } catch (Object e) {
+    } catch (e) {
       report.success = false;
       report.message = 'Migration failed: $e';
       report.errors.add(e.toString());

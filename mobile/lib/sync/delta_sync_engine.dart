@@ -88,7 +88,7 @@ class DeltaSyncEngine {
         conflictCount: result.conflicts.length,
       );
       
-    } catch (Object e) {
+    } catch (e) {
       stopwatch.stop();
       _emitEvent(SyncEventType.syncFailed);
       
@@ -132,7 +132,7 @@ class DeltaSyncEngine {
             result.successCount++;
           }
           
-        } catch (Object e) {
+        } catch (e) {
           result.errors.add('Failed to apply ${change.uuid}: $e');
         }
       }
@@ -146,7 +146,7 @@ class DeltaSyncEngine {
       // تحديث وقت آخر مزامنة
       await _outbox.updateLastSyncTimestamp(DateTime.now());
 
-    } catch (Object e) {
+    } catch (e) {
       result.errors.add('Pull failed: $e');
     }
 
@@ -274,7 +274,7 @@ class DeltaSyncEngine {
         }
       }
 
-    } catch (Object e) {
+    } catch (e) {
       result.errors.add('Push failed: $e');
     }
 
@@ -312,7 +312,9 @@ class DeltaSyncEngine {
 
   /// حساب checksum للتحقق من سلامة البيانات
   String? _calculateChecksum(Map<String, dynamic> data) {
-    if (data.isEmpty) return null;
+    if (data.isEmpty) {
+      return null;
+    }
     
     final sortedKeys = data.keys.toList()..sort();
     final buffer = StringBuffer();
@@ -426,4 +428,3 @@ class PushChangesResult {
   final List<String> successfulIds;
   final Map<String, String> errors;
 }
-

@@ -190,7 +190,9 @@ class GoogleDriveConflictResolver {
           final localTs = _extractTimestamp(localRecord);
           final remoteTs = _extractTimestamp(remoteRecord);
 
-          if (localTs == null || remoteTs == null) continue;
+          if (localTs == null || remoteTs == null) {
+            continue;
+          }
 
           final timeDiff = localTs.difference(remoteTs).inSeconds.abs();
 
@@ -356,7 +358,9 @@ class GoogleDriveConflictResolver {
   }
 
   Map<String, Map<String, dynamic>> _getRecordsMap(dynamic tableData) {
-    if (tableData is! List) return {};
+    if (tableData is! List) {
+      return {};
+    }
 
     final map = <String, Map<String, dynamic>>{};
     for (final record in tableData) {
@@ -395,8 +399,12 @@ class GoogleDriveConflictResolver {
 
   int _extractVersion(Map<String, dynamic> record) {
     final version = record['version'];
-    if (version is int) return version;
-    if (version is String) return int.tryParse(version) ?? 1;
+    if (version is int) {
+      return version;
+    }
+    if (version is String) {
+      return int.tryParse(version) ?? 1;
+    }
     return 1;
   }
 
@@ -458,7 +466,7 @@ class GoogleDriveConflictResolver {
     for (final entry in history.take(limit)) {
       try {
         decoded.add(jsonDecode(entry) as Map<String, dynamic>);
-      } catch (Object e) { debugPrint('WARN: Failed to parse conflict history: $e'); }
+      } catch (e) { debugPrint('WARN: Failed to parse conflict history: $e'); }
     }
 
     return decoded;

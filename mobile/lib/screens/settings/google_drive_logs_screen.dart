@@ -42,9 +42,9 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
           onSelected: (value) async {
             switch (value) {
               case 'export':
-                _exportLogs();
+                unawaited(_exportLogs());
               case 'share':
-                _shareLogs(filteredLogs);
+                unawaited(_shareLogs(filteredLogs));
               case 'clear':
                 _clearLogs();
             }
@@ -360,7 +360,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     icon: const Icon(Icons.copy),
                     onPressed: () {
                       _copyLog(log);
-                      Navigator.pop<void>(context);
+                      Navigator.pop(context);
                     },
                   ),
                 ],

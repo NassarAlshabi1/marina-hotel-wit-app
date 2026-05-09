@@ -33,7 +33,7 @@ class _SalaryEntitlementsScreenState
     try {
       _summary = await _service.getSummary();
       _entitlements = _summary['entitlements'] as List<SalaryEntitlement>;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
@@ -41,7 +41,9 @@ class _SalaryEntitlementsScreenState
         ).showSnackBar(SnackBar(content: Text('فشل تحميل البيانات: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

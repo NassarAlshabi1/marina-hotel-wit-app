@@ -92,7 +92,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false;
+      if (existing == null) {
+        return false;
+      }
 
       final now = Time.nowEpoch();
       final companion = ShiftNotesCompanion(
@@ -111,11 +113,21 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
       if (rows > 0 && !originIsServer) {
         final payload = <String, dynamic>{};
-        if (title != null) payload['title'] = title;
-        if (content != null) payload['content'] = content;
-        if (priority != null) payload['priority'] = priority;
-        if (shiftType != null) payload['shift_type'] = shiftType;
-        if (expiresAt != null) payload['expires_at'] = expiresAt;
+        if (title != null) {
+          payload['title'] = title;
+        }
+        if (content != null) {
+          payload['content'] = content;
+        }
+        if (priority != null) {
+          payload['priority'] = priority;
+        }
+        if (shiftType != null) {
+          payload['shift_type'] = shiftType;
+        }
+        if (expiresAt != null) {
+          payload['expires_at'] = expiresAt;
+        }
 
         if (payload.isNotEmpty) {
           await outboxDao.merge(
@@ -138,7 +150,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false;
+      if (existing == null) {
+        return false;
+      }
 
       final now = Time.nowEpoch();
       final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
@@ -170,7 +184,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false;
+      if (existing == null) {
+        return false;
+      }
 
       final now = Time.nowEpoch();
       final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
@@ -202,7 +218,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false; // Already deleted or doesn't exist
+      if (existing == null) {
+        return false; // Already deleted or doesn't exist
+      }
 
       // Soft delete if using SyncFields, but original code used hard delete.
       // SyncFields mixin usually implies soft delete (deletedAt).

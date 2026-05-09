@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
+import '../../services/appwrite_cache_manager.dart';
 import '../../services/appwrite_models.dart';
 import '../../services/local_db.dart';
 import '../../services/restore_fix_service.dart';
@@ -290,6 +293,7 @@ class _AppwriteSettingsScreenState
                 await _saveSettings();
 
                 if (mounted) {
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -459,7 +463,7 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== قسم التخزين المؤقت ====================
-  Widget _buildCacheSection(BuildContext context, Map<String, dynamic> cacheStats) {
+  Widget _buildCacheSection(BuildContext context, CacheStatistics cacheStats) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -555,7 +559,7 @@ class _AppwriteSettingsScreenState
                 Expanded(
                   child: _buildStatCard(
                     title: 'الحجم',
-                    value: '${cacheStats.totalSizeMB}',
+                    value: cacheStats.totalSizeMB,
                     icon: Icons.data_usage,
                     color: Colors.green,
                   ),
@@ -1102,11 +1106,13 @@ class _AppwriteSettingsScreenState
   }
 
   String _formatDateTime(String? isoString) {
-    if (isoString == null) return '---';
+    if (isoString == null) {
+      return '---';
+    }
     try {
       final dt = DateTime.parse(isoString);
       return DateFormat('yyyy-MM-dd HH:mm').format(dt);
-    } catch (Object) {
+    } catch (e) {
       return '---';
     }
   }
@@ -1140,7 +1146,7 @@ class _AppwriteSettingsScreenState
         );
         ref.invalidate(ap.syncStatsProvider);
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
@@ -1159,11 +1165,11 @@ class _AppwriteSettingsScreenState
         content: const Text('هل تريد مسح جميع البيانات المؤقتة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),
@@ -1189,11 +1195,11 @@ class _AppwriteSettingsScreenState
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),
@@ -1225,7 +1231,7 @@ class _AppwriteSettingsScreenState
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
@@ -1254,18 +1260,20 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('بدء النسخ'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1287,13 +1295,15 @@ class _AppwriteSettingsScreenState
         includeSchema: true,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       final sortedCounts = result.counts.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key));
 
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('تم إنشاء النسخة الاحتياطية'),
@@ -1313,21 +1323,23 @@ class _AppwriteSettingsScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إغلاق'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 await Share.shareXFiles([XFile(result.file.path)]);
               },
               child: const Text('مشاركة'),
             ),
           ],
         ),
-      );
-    } catch (Object e) {
-      if (!mounted) return;
+      ),);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1362,18 +1374,20 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('بدء الرفع'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -1388,7 +1402,7 @@ class _AppwriteSettingsScreenState
         );
         ref.invalidate(ap.syncStatsProvider);
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
@@ -1421,18 +1435,20 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('بدء السحب'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -1447,7 +1463,7 @@ class _AppwriteSettingsScreenState
         );
         ref.invalidate(ap.syncStatsProvider);
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
@@ -1470,11 +1486,11 @@ class _AppwriteSettingsScreenState
         content: const Text('هل تريد إعادة تعيين حالة المزامنة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('إعادة تعيين'),
           ),
@@ -1506,7 +1522,7 @@ class _AppwriteSettingsScreenState
 
   Future<void> _testCache() async {
     final stats = ref.read(ap.cacheStatsProvider);
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('نتائج اختبار الذاكرة المؤقتة'),
@@ -1526,11 +1542,11 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],
       ),
-    );
+    ),);
   }
 }

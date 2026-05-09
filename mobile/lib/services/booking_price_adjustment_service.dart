@@ -233,7 +233,9 @@ class BookingPriceAdjustmentService {
       case AdjustmentMode.perNight:
         return sign * amount.toDouble();
       case AdjustmentMode.total:
-        if (totalNights <= 0) return 0;
+        if (totalNights <= 0) {
+          return 0;
+        }
         return sign * (amount.toDouble() / totalNights);
       case AdjustmentMode.percentage:
         return sign * (baseRate * amount / 100);
@@ -446,7 +448,9 @@ class BookingPriceAdjustmentService {
           ..where((a) => a.deletedAt.isNull()))
         .get();
 
-    if (adjustments.isEmpty) return;
+    if (adjustments.isEmpty) {
+      return;
+    }
 
     final now = Time.nowEpoch();
     final outboxDao = OutboxDao(db);
@@ -485,7 +489,9 @@ class BookingPriceAdjustmentService {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
         .getSingleOrNull();
-    if (booking == null) return;
+    if (booking == null) {
+      return;
+    }
 
     await BookingDerivedFieldsService(db).refreshForBooking(
       booking,
@@ -544,7 +550,7 @@ class BookingPriceAdjustmentService {
       query.where((a) => a.effectiveHotelDay.isSmallerOrEqualValue(toHotelDay));
     }
 
-    final adjustments = await query.get<dynamic>();
+    final adjustments = await query.get();
 
     final bookingIds = adjustments.map((a) => a.bookingLocalId).whereType<int>().toSet();
 
@@ -558,12 +564,16 @@ class BookingPriceAdjustmentService {
       final booking = await (db.select(db.bookings)
             ..where((b) => b.id.equals(bookingId)))
           .getSingleOrNull();
-      if (booking == null) continue;
+      if (booking == null) {
+        continue;
+      }
 
       final room = await (db.select(db.rooms)
             ..where((r) => r.roomNumber.equals(booking.roomNumber)))
           .getSingleOrNull();
-      if (room == null) continue;
+      if (room == null) {
+        continue;
+      }
 
       final nights = await (db.select(db.bookingNights)
             ..where((n) => n.bookingLocalId.equals(bookingId))

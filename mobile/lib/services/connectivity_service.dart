@@ -77,7 +77,9 @@ class ConnectivityService {
   bool get isHighSpeed => _currentStatus.isHighSpeed;
 
   Future<void> initialize() async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
 
     try {
       final results = await _connectivity.checkConnectivity();
@@ -94,7 +96,7 @@ class ConnectivityService {
 
       _initialized = true;
       debugPrint('✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ [Connectivity] فشل في تهيئة خدمة الاتصال: $e');
       _currentStatus = ConnectionStatus.offline();
     }
@@ -118,7 +120,7 @@ class ConnectivityService {
       final results = await _connectivity.checkConnectivity();
       _updateStatus(results);
       return _currentStatus.isOnline;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ [Connectivity] فشل في فحص الاتصال: $e');
       return false;
     }

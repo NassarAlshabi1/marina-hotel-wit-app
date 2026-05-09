@@ -59,14 +59,16 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _fetchReport() async {
-    if (_loading) return;
+    if (_loading) {
+      return;
+    }
     setState(() {
       _loading = true;
     });
     try {
       final db = ref.read(databaseProvider);
       final query = db.select(db.debts);
-      final allDebts = await query.get<dynamic>();
+      final allDebts = await query.get();
       final filtered = <Debt>[];
       final fromFilter = _fromDate;
       final toFilter = _toDate;
@@ -141,7 +143,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _exportPdf() async {
-    if (_rows.isEmpty) return;
+    if (_rows.isEmpty) {
+      return;
+    }
     final fromLabel = _fromDate != null
         ? _dateFormat.format(_fromDate!)
         : 'غير محدد';
@@ -524,12 +528,16 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   String _formatDisplayDate(String value) {
-    if (value.isEmpty) return '-';
+    if (value.isEmpty) {
+      return '-';
+    }
     return Time.safeIsoToDateString(value);
   }
 
   String _formatTextFallback(String value) {
-    if (value.trim().isEmpty) return '-';
+    if (value.trim().isEmpty) {
+      return '-';
+    }
     return value;
   }
 

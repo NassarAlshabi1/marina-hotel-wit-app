@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -24,11 +26,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.isEmpty) return '';
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
     // إزالة 00 الدولية
-    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
     // سبق بإضافة 967
-    if (digitsOnly.startsWith('967')) return digitsOnly;
+    if (digitsOnly.startsWith('967')) {
+      return digitsOnly;
+    }
     // 07xx → 967xx (محلي يمني)
     if (digitsOnly.startsWith('07')) {
       digitsOnly = '967${digitsOnly.substring(1)}';
@@ -42,7 +50,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       digitsOnly = '966$digitsOnly';
     }
     // سبق بإضافة 966
-    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    else if (digitsOnly.startsWith('966')) {
+      return digitsOnly;
+    }
     // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
     else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
       digitsOnly = '967$digitsOnly';
@@ -214,7 +224,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-    if (picked == null) return;
+    if (picked == null) {
+      return;
+    }
     setState(() {
       _filterActive = true;
       if (isFrom) {
@@ -466,6 +478,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
@@ -493,7 +506,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         )
                         .toList(),
                     onChanged: (value) {
-                      if (value == null) return;
+                      if (value == null) {
+                        return;
+                      }
                       setState(() {
                         selectedType = value;
                         if (selectedType == _salaryType) {
@@ -544,7 +559,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             )
                             .toList(),
                         onChanged: (value) {
-                          if (value == null) return;
+                          if (value == null) {
+                            return;
+                          }
                           setState(() => dialogSalaryAction = value);
                         },
                       ),
@@ -577,7 +594,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(ctx, false),
+                onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('إلغاء'),
               ),
               FilledButton(
@@ -602,7 +619,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     );
                     return;
                   }
-                  Navigator.pop<void>(ctx, true);
+                  Navigator.pop(ctx, true);
                 },
                 child: const Text('حفظ'),
               ),
@@ -685,16 +702,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
       // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
       if (isSalaryExpense && selectedEmployeeId != null && mounted) {
-        _sendSalaryExpenseWhatsApp(
+        unawaited(_sendSalaryExpenseWhatsApp(
           employeeId: selectedEmployeeId!,
           action: savedType,
           amount: parsedAmount,
           date: trimmedDate,
           employees: availableEmployees,
-        );
+        ),);
       }
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ المصروف: $e'),
@@ -720,10 +739,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     try {
       // البحث عن الموظف للحصول على رقم الهاتف والاسم
       final employee = employees.where((e) => e.id == employeeId).firstOrNull;
-      if (employee == null) return;
+      if (employee == null) {
+        return;
+      }
 
       final phone = employee.phone.trim();
-      if (phone.isEmpty) return;
+      if (phone.isEmpty) {
+        return;
+      }
 
       final whatsappService = ref.read(whatsappServiceProvider);
 
@@ -742,7 +765,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             .calculateEmployeeEntitlement(employee);
         remainingText =
             'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('Error calculating remaining salary: $e');
       }
 
@@ -787,13 +810,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           );
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('WhatsApp salary notification error: $e');
     }
   }
 
   bool _isSalaryAction(String? type) {
-    if (type == null) return false;
+    if (type == null) {
+      return false;
+    }
     final normalized = type.trim();
     return normalized == _salaryType ||
         normalized == 'سحب راتب' ||

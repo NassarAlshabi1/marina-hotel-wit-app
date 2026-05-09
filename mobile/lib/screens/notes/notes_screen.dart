@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -224,14 +226,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       case 'read':
         try {
           await repo.markAsRead(note.id);
-          _refreshData();
-        } catch (Object e) {
+          unawaited(_refreshData());
+        } catch (e) {
           debugPrint('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
         }
       case 'edit':
         _editNote(note);
       case 'delete':
-        _deleteNote(note);
+        unawaited(_deleteNote(note));
     }
   }
 
@@ -251,11 +253,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         content: const Text('هل تريد حذف هذه الملاحظة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف'),
           ),
@@ -266,9 +268,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     if (confirmed ?? false) {
       try {
         await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
-        _refreshData();
-      } catch (Object e) {
-        if (!mounted) return;
+        unawaited(_refreshData());
+      } catch (e) {
+        if (!mounted) {
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل حذف الملاحظة: $e'),
@@ -328,7 +332,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
@@ -342,7 +346,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                     priority,
                     shiftType,
                   );
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                 }
               },
               child: Text(note == null ? 'إضافة' : 'تحديث'),
@@ -383,9 +387,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       }
 
       markDataChanged();
-      _refreshData();
-    } catch (Object e) {
-      if (!mounted) return;
+      unawaited(_refreshData());
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الملاحظة: $e'),

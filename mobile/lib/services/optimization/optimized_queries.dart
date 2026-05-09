@@ -161,7 +161,7 @@ class OptimizedQueries {
                     d.remainingAmount.isBiggerThanValue(0),)
       ..orderBy([(d) => OrderingTerm.desc(d.id)])
       ..limit(100);
-    return query.get<dynamic>();
+    return query.get();
   }
   
   /// Get employee salary summary
@@ -237,7 +237,7 @@ class OptimizedQueries {
     final query = db.select(db.payments)
       ..where((p) => p.paymentDate.equals(today) &
                     p.isVoided.equals(false),);
-    final result = await query.get<dynamic>();
+    final result = await query.get();
     
     return result.fold<double>(0, (sum, p) => sum + p.amount);
   }

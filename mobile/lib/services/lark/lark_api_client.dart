@@ -71,7 +71,7 @@ class LarkApiClient {
     final uri = Uri.parse('$baseUrl/open-apis/auth/v3/tenant_access_token/internal');
 
     try {
-      final response = await _client.post<dynamic>(
+      final response = await _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -98,7 +98,7 @@ class LarkApiClient {
       } else {
         throw Exception('فشل الحصول على الرمز: ${data['msg']}');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark: خطأ في طلب Tenant Access Token: $e');
       rethrow;
     }
@@ -114,7 +114,7 @@ class LarkApiClient {
     final uri = Uri.parse('$baseUrl$path');
 
     try {
-      final response = await _client.post<dynamic>(
+      final response = await _client.post(
         uri,
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ class LarkApiClient {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark API POST خطأ ($path): $e');
       rethrow;
     }
@@ -147,7 +147,7 @@ class LarkApiClient {
     }
 
     try {
-      final response = await _client.get<dynamic>(
+      final response = await _client.get(
         uri,
         headers: {
           'Content-Type': 'application/json',
@@ -157,7 +157,7 @@ class LarkApiClient {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark API GET خطأ ($path): $e');
       rethrow;
     }
@@ -170,7 +170,7 @@ class LarkApiClient {
     required Map<String, dynamic> message,
   }) async {
     try {
-      final response = await _client.post<dynamic>(
+      final response = await _client.post(
         Uri.parse(webhookUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(message),
@@ -189,7 +189,7 @@ class LarkApiClient {
         debugPrint('❌ Lark Webhook: خطأ HTTP ${response.statusCode}');
         return false;
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark Webhook خطأ: $e');
       return false;
     }
@@ -287,7 +287,7 @@ class LarkApiClient {
         debugPrint('⚠️ Lark Bot: فشل الإرسال: ${data['msg']}');
         return false;
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark Bot خطأ: $e');
       return false;
     }
@@ -323,7 +323,7 @@ class LarkApiClient {
       }
 
       return false;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark: فشل اختبار الاتصال: $e');
       return false;
     }

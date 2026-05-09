@@ -111,7 +111,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           shrinkWrap: true,
                           itemCount: filtered.length + 1,
                           itemBuilder: (context, index) {
-                            if (index == 0) return _buildHeaderRow(context);
+                            if (index == 0) {
+                              return _buildHeaderRow(context);
+                            }
                             final booking = filtered[index - 1];
                             final room = roomsMap[booking.roomNumber];
                             final checkin = DateTime.tryParse(

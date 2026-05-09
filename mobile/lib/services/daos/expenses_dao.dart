@@ -24,7 +24,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(expenses);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (from != null && to != null) {
       q.where(
         (t) =>
@@ -36,7 +38,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
-    return q.get<dynamic>();
+    return q.get();
   }
 
   Future<List<Expense>> listFiltered({
@@ -46,7 +48,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(expenses);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
 
     if (from != null) {
       q.where((t) => t.date.isBiggerOrEqualValue(from));
@@ -59,12 +63,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
-    return q.get<dynamic>();
+    return q.get();
   }
 
   Stream<List<Expense>> watchList({bool includeDeleted = false}) {
     final q = select(expenses);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     return q.watch();
   }
 
@@ -87,9 +93,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(expenses);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     q.where((t) => t.date.like('$date%'));
-    return q.get<dynamic>();
+    return q.get();
   }
 
   Future<List<Expense>> listByHotelDayKey(
@@ -97,14 +105,16 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(expenses);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
 
     final byKey = expenses.hotelDayKey.equals(hotelDayKey);
     final byDateFallback =
         expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
 
     q.where((t) => byKey | byDateFallback);
-    return q.get<dynamic>();
+    return q.get();
   }
 
   Future<Expense?> getById(int id) =>
@@ -116,7 +126,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<Expense?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return Future.value();
+    if (parsedServerId == null) {
+      return Future.value();
+    }
     return (select(
       expenses,
     )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
@@ -157,7 +169,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -186,7 +200,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -214,12 +230,16 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
-      if (parsedServerId == null) return 0;
+      if (parsedServerId == null) {
+        return 0;
+      }
       final now = Time.nowEpoch();
       final existing = await (select(
         expenses,
       )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -248,7 +268,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows = await (update(expenses)..where((t) => t.id.equals(id)))
           .write(
             ExpensesCompanion(
@@ -275,7 +297,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-    if (row == null) return null;
+    if (row == null) {
+      return null;
+    }
     return adapters.expenses.toJsonForSource(row, src: Source.appwrite);
   }
 
@@ -286,7 +310,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     int? serverId,
   }) async {
     final payload = await _payloadForLocalUuid(localUuid);
-    if (payload == null) return;
+    if (payload == null) {
+      return;
+    }
     await outboxDao.merge(
       entity: 'expenses',
       op: op,
@@ -298,9 +324,13 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }
 
   int? _parseServerId(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
+    if (trimmed.isEmpty) {
+      return null;
+    }
     return int.tryParse(trimmed);
   }
 

@@ -467,7 +467,9 @@ class SyncManager {
             )
             .get();
 
-        if (batch.isEmpty) break;
+        if (batch.isEmpty) {
+          break;
+        }
 
         final mappedBatch = batch
             .map((row) => Map<String, dynamic>.from(row.data))
@@ -475,7 +477,7 @@ class SyncManager {
 
         yield mappedBatch;
         offset += batchSize;
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ Error streaming table $table at offset $offset: $e');
         break;
       }
@@ -824,7 +826,7 @@ class SyncManager {
                 if (remoteVc != null && remoteVc.isNotEmpty) {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
-              } catch (Object e) {
+              } catch (e) {
                 debugPrint('⚠️ VectorClock parse error for $table/$key: $e');
               }
 

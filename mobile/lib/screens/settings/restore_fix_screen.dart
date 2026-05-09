@@ -435,6 +435,7 @@ class RestoreFixScreen extends ConsumerWidget {
 
       // إظهار النتيجة
       if (report.success) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -444,6 +445,7 @@ class RestoreFixScreen extends ConsumerWidget {
           ),
         );
       } else {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ فشل الإصلاح: ${report.error}'),
@@ -451,7 +453,8 @@ class RestoreFixScreen extends ConsumerWidget {
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ غير متوقع: $e'),
@@ -484,13 +487,15 @@ class RestoreFixScreen extends ConsumerWidget {
         text: 'سجلات الإصلاح التلقائي للنسخة الاحتياطية',
       );
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ تم تصدير السجلات بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في التصدير: $e'),

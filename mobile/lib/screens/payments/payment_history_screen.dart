@@ -390,7 +390,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           if (_toDate != null && paymentDate.isAfter(_toDate!)) {
             return false;
           }
-        } catch (Object e) { debugPrint('Date parse error in filter: $e'); }
+        } catch (e) { debugPrint('Date parse error in filter: $e'); }
       }
 
       return true;
@@ -498,13 +498,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop<void>(),
+                onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () {
                   setState(() {});
-                  Navigator.of(ctx).pop<void>();
+                  Navigator.of(ctx).pop();
                 },
                 child: const Text('تطبيق الفلاتر'),
               ),
@@ -553,7 +553,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop<void>(),
+              onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('إغلاق'),
             ),
           ],

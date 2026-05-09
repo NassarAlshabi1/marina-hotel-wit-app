@@ -325,7 +325,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: saving ? null : () => Navigator.pop<void>(dialogContext),
+                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
@@ -356,7 +356,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                                   permissions: selectedPerms.toList(),
                                 );
                             if (mounted) {
-                              Navigator.pop<void>(dialogContext);
+                              // ignore: use_build_context_synchronously
+                              Navigator.pop(dialogContext);
+                              // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('تم إضافة المستخدم بنجاح'),
@@ -364,7 +366,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                               );
                               _refreshAccounts();
                             }
-                          } catch (Object e) {
+                          } catch (e) {
                             setStateDialog(() {
                               saving = false;
                               localError = e.toString().replaceAll(
@@ -667,7 +669,8 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                             .read(authProvider.notifier)
                             .deleteCloudUser(docId: widget.docId!);
                         if (mounted && success) {
-                          Navigator.pop<void>(dialogContext);
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(dialogContext);
                           widget.onDeleted?.call();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -675,7 +678,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                     'تم حذف المستخدم ${widget.username}',),),
                           );
                         }
-                      } catch (Object e) {
+                      } catch (e) {
                         setDialog(() {
                           saving = false;
                           deleteRequested = false;
@@ -695,14 +698,16 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   TextButton(
                     onPressed: saving
                         ? null
-                        : () => Navigator.pop<void>(dialogContext),
+                        : () => Navigator.pop(dialogContext),
                     child: const Text('إلغاء'),
                   ),
                   ElevatedButton(
                     onPressed: saving
                         ? null
                         : () async {
-                            if (!formKey.currentState!.validate()) return;
+                            if (!formKey.currentState!.validate()) {
+                              return;
+                            }
                             if (selectedPerms.isEmpty) {
                               setDialog(() =>
                                   localError = 'اختر صلاحية واحدة على الأقل',);
@@ -728,7 +733,8 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                         : selectedPerms,
                                   );
                               if (mounted && success) {
-                                Navigator.pop<void>(dialogContext);
+                                // ignore: use_build_context_synchronously
+                                Navigator.pop(dialogContext);
                                 widget.onUpdated?.call();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -745,7 +751,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                   localError = 'فشل التحديث — تحقق من الاتصال';
                                 });
                               }
-                            } catch (Object e) {
+                            } catch (e) {
                               setDialog(() {
                                 saving = false;
                                 localError = e.toString();

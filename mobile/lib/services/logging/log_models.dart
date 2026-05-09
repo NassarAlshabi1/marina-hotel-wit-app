@@ -7,8 +7,8 @@ enum LogLevel {
   error(3),
   critical(4);
 
-  final int value;
   const LogLevel(this.value);
+  final int value;
 }
 
 class LogEntry {

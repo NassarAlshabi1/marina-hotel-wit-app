@@ -224,7 +224,9 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
     }
 
     // إذا بقيت تعارضات غير محلولة، نعيد null
-    if (hasConflict) return null;
+    if (hasConflict) {
+      return null;
+    }
 
     return merged;
   }

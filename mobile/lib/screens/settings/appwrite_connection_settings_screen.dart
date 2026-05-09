@@ -70,7 +70,9 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   Future<void> _saveConfig() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -100,7 +102,7 @@ class _AppwriteConnectionSettingsScreenState
 
         _showRestartDialog();
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         SnackBarHelper.showError(context, 'خطأ في حفظ الإعدادات: $e');
       }
@@ -127,7 +129,7 @@ class _AppwriteConnectionSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('حسناً'),
           ),
         ],
@@ -145,11 +147,11 @@ class _AppwriteConnectionSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('إعادة تعيين'),
           ),
@@ -157,7 +159,9 @@ class _AppwriteConnectionSettingsScreenState
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
     await AppwriteConfigManager.resetToDefaults();
 
@@ -392,8 +396,12 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   String _maskApiKey(String value) {
-    if (value.isEmpty) return 'غير مضبوط';
-    if (value.length <= 6) return '••••••';
+    if (value.isEmpty) {
+      return 'غير مضبوط';
+    }
+    if (value.length <= 6) {
+      return '••••••';
+    }
     final tail = value.substring(value.length - 4);
     return '••••••$tail';
   }

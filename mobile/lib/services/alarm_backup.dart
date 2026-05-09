@@ -101,7 +101,7 @@ class AlarmBackup {
         try {
           await localService.createLocalBackup(format: format);
           debugPrint('✅ Local backup done from alarm');
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('❌ Local backup error: $e');
         }
       }
@@ -119,11 +119,11 @@ class AlarmBackup {
             debugPrint('⚠️ Drive not signed in (alarm). Notifying user...');
             await _showOpenAppNotification();
           }
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('❌ Drive backup error: $e');
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Alarm backup general error: $e');
     } finally {
       // أعد جدولة الإنذار لليوم التالي في نفس الوقت
@@ -277,7 +277,7 @@ class AlarmBackup {
           debugPrint('⚠️ Telegram report skipped: bot token or chat ID not configured');
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Telegram report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
@@ -311,7 +311,7 @@ class AlarmBackup {
           debugPrint('⚠️ Lark report skipped: no webhook URL configured');
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي

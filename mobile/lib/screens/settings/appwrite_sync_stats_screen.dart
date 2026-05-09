@@ -577,17 +577,21 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
   }
 
   String _formatDateTime(String? isoString) {
-    if (isoString == null) return '---';
+    if (isoString == null) {
+      return '---';
+    }
     try {
       final dt = DateTime.parse(isoString);
       return DateFormat('yyyy-MM-dd HH:mm:ss').format(dt);
-    } catch (Object) {
+    } catch (e) {
       return '---';
     }
   }
 
   String _timeAgo(String? isoString) {
-    if (isoString == null) return '---';
+    if (isoString == null) {
+      return '---';
+    }
     try {
       final dt = DateTime.parse(isoString);
       final diff = DateTime.now().difference(dt);
@@ -601,7 +605,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
       } else {
         return 'الآن';
       }
-    } catch (Object) {
+    } catch (e) {
       return '---';
     }
   }

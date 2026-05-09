@@ -92,7 +92,7 @@ class PriceAdjustmentService {
           booking.id,
           forceRebuild: true,
         );
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
       }
 
@@ -212,7 +212,9 @@ class PriceAdjustmentService {
             ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
           .get();
 
-      if (nights.isEmpty) continue;
+      if (nights.isEmpty) {
+        continue;
+      }
 
       double bookingOldTotal = 0;
       double bookingNewTotal = 0;

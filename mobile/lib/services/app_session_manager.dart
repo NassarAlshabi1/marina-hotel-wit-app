@@ -184,7 +184,7 @@ class AppSessionManager {
       debugPrint(
         '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
     }
   }

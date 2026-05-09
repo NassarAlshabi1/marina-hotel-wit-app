@@ -34,7 +34,9 @@ const _typeConfig = <String, _ExpenseTypeConfig>{
 
 _ExpenseTypeConfig _configForType(String type) {
   for (final key in _typeConfig.keys) {
-    if (type.contains(key)) return _typeConfig[key]!;
+    if (type.contains(key)) {
+      return _typeConfig[key]!;
+    }
   }
   return const _ExpenseTypeConfig(Icons.receipt, Colors.grey);
 }
@@ -43,7 +45,9 @@ _ExpenseTypeConfig _configForType(String type) {
 bool _isSalaryType(String type) {
   const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
   for (final keyword in salaryKeywords) {
-    if (type.contains(keyword)) return true;
+    if (type.contains(keyword)) {
+      return true;
+    }
   }
   return false;
 }
@@ -145,7 +149,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _fetchReport() async {
-    if (_loading) return;
+    if (_loading) {
+      return;
+    }
     setState(() {
       _loading = true;
     });
@@ -238,7 +244,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         if (toStr != null) {
           swQuery = swQuery..where((tbl) => tbl.withdrawDate.isSmallerOrEqualValue('${toStr}T23:59:59'));
         }
-        salaryWithdrawals = await swQuery.get<dynamic>();
+        salaryWithdrawals = await swQuery.get();
         // إضافة أرقام الموظفين من salary_withdrawals
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
@@ -344,7 +350,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   // ─── PDF ───
   Future<void> _exportPdf() async {
-    if (_rows.isEmpty) return;
+    if (_rows.isEmpty) {
+      return;
+    }
     final fromLabel = _fromDate != null
         ? DateFormat('yyyy-MM-dd').format(_fromDate!)
         : 'غير محدد';
@@ -651,11 +659,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       // بنود المجموعة
       for (int i = 0; i < items.length; i++) {
         widgets.add(_buildDetailedExpenseCard(items[i], rowIndex: i + 1));
-        if (i < items.length - 1) widgets.add(const SizedBox(height: 2));
+        if (i < items.length - 1) {
+          widgets.add(const SizedBox(height: 2));
+        }
       }
 
       // فاصل بين المجموعات
-      if (t < sortedTypes.length - 1) widgets.add(const SizedBox(height: 8));
+      if (t < sortedTypes.length - 1) {
+        widgets.add(const SizedBox(height: 8));
+      }
     }
 
     return widgets;
@@ -943,7 +955,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   /// ملخص تفصيلي (مصغّر - بدون توزيع الأنواع)
   Widget _buildDetailedSummary() {
-    if (_rows.isEmpty) return const SizedBox.shrink();
+    if (_rows.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     // حساب إجمالي الرواتب والمصروفات التشغيلية
     final salaryTotal = _rows
@@ -1103,14 +1117,18 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
     final hasTime = trimmed.length > 10;
     final normalized = hasTime
         ? trimmed.replaceFirst(' ', 'T')
         : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
-    } catch (_) {
-      return DateTime.now();
+    } catch (e) {
+      debugPrint('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
+      return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
 }

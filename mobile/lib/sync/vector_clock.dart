@@ -92,8 +92,12 @@ class VectorClock {
     }
 
     // تحديد النتيجة
-    if (localDominates) return VectorClockComparison.localNewer;
-    if (remoteDominates) return VectorClockComparison.remoteNewer;
+    if (localDominates) {
+      return VectorClockComparison.localNewer;
+    }
+    if (remoteDominates) {
+      return VectorClockComparison.remoteNewer;
+    }
     return VectorClockComparison.equal;
   }
 
@@ -117,7 +121,9 @@ class VectorClock {
 
   /// الحصول على أعلى قيمة في الساعة
   int get maxClock {
-    if (clocks.isEmpty) return 0;
+    if (clocks.isEmpty) {
+      return 0;
+    }
     return clocks.values.reduce(math.max);
   }
 
@@ -134,13 +140,21 @@ class VectorClock {
 
   @override
   bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! VectorClock) return false;
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other is! VectorClock) {
+      return false;
+    }
     
-    if (clocks.length != other.clocks.length) return false;
+    if (clocks.length != other.clocks.length) {
+      return false;
+    }
     
     for (final entry in clocks.entries) {
-      if (other.clocks[entry.key] != entry.value) return false;
+      if (other.clocks[entry.key] != entry.value) {
+        return false;
+      }
     }
     
     return true;
@@ -177,15 +191,13 @@ class VectorClockManager {
 
   /// تسجيل حدث محلي جديد
   VectorClock recordLocalEvent() {
-    _currentClock = _currentClock.increment(_deviceId);
-    return _currentClock;
+    return _currentClock = _currentClock.increment(_deviceId);
   }
 
   /// تسجيل استلام حدث من جهاز آخر
   VectorClock recordRemoteEvent(VectorClock remoteClock) {
-    _currentClock = _currentClock.merge(remoteClock);
+    return _currentClock = _currentClock.merge(remoteClock);
     // لا نزيد العداد هنا - ذلك يحدث فقط للأحداث المحلية
-    return _currentClock;
   }
 
   /// مقارنة مع ساعة بعيدة
@@ -195,7 +207,9 @@ class VectorClockManager {
 
   /// تحديث معرف الجهاز
   void updateDeviceId(String newDeviceId) {
-    if (_deviceId == newDeviceId) return;
+    if (_deviceId == newDeviceId) {
+      return;
+    }
     
     // نقل قيمة العداد القديم إلى الجديد
     final oldValue = _currentClock.getDeviceClock(_deviceId) ?? 0;

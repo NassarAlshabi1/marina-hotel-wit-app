@@ -80,8 +80,12 @@ class TelegramNotificationService {
   /// إرسال إشعار عن حدث فندقي
   Future<bool> sendEventNotification(TelegramEvent event) async {
     try {
-      if (!await TelegramConfig.isEnabled()) return false;
-      if (!await TelegramConfig.isNotificationsEnabled()) return false;
+      if (!await TelegramConfig.isEnabled()) {
+        return false;
+      }
+      if (!await TelegramConfig.isNotificationsEnabled()) {
+        return false;
+      }
 
       final buffer = StringBuffer();
       buffer.writeln('${_icon(event.type)} <b>${event.type.label}</b>');
@@ -123,7 +127,7 @@ class TelegramNotificationService {
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Telegram: خطأ في إرسال الإشعار: $e');
       return false;
     }
@@ -144,10 +148,18 @@ class TelegramNotificationService {
     double? totalDue,
   }) {
     final details = StringBuffer();
-    if (checkinDate != null) details.writeln('📅 الدخول: $checkinDate');
-    if (checkoutDate != null) details.writeln('📅 الخروج: $checkoutDate');
-    if (nights != null) details.writeln('🌙 الليالي: $nights');
-    if (totalDue != null) details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+    if (checkinDate != null) {
+      details.writeln('📅 الدخول: $checkinDate');
+    }
+    if (checkoutDate != null) {
+      details.writeln('📅 الخروج: $checkoutDate');
+    }
+    if (nights != null) {
+      details.writeln('🌙 الليالي: $nights');
+    }
+    if (totalDue != null) {
+      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(TelegramEvent(
       type: TelegramEventType.newBooking,
@@ -167,7 +179,9 @@ class TelegramNotificationService {
     int? expectedNights,
   }) {
     final details = StringBuffer();
-    if (expectedNights != null) details.writeln('🌙 الليالي المتوقعة: $expectedNights');
+    if (expectedNights != null) {
+      details.writeln('🌙 الليالي المتوقعة: $expectedNights');
+    }
 
     return sendEventNotification(TelegramEvent(
       type: TelegramEventType.checkIn,
@@ -188,8 +202,12 @@ class TelegramNotificationService {
     double? remaining,
   }) {
     final details = StringBuffer();
-    if (actualNights != null) details.writeln('🌙 الليالي الفعلية: $actualNights');
-    if (totalPaid != null) details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+    if (actualNights != null) {
+      details.writeln('🌙 الليالي الفعلية: $actualNights');
+    }
+    if (totalPaid != null) {
+      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+    }
     if (remaining != null && remaining > 0) {
       details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
     }
@@ -271,8 +289,12 @@ class TelegramNotificationService {
   }) {
     final details = StringBuffer();
     details.writeln('📅 موعد المغادرة المخطط: $plannedCheckout');
-    if (extraNights != null) details.writeln('➕ ليالي إضافية: $extraNights');
-    if (extraCharge != null) details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+    if (extraNights != null) {
+      details.writeln('➕ ليالي إضافية: $extraNights');
+    }
+    if (extraCharge != null) {
+      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(TelegramEvent(
       type: TelegramEventType.overstay,

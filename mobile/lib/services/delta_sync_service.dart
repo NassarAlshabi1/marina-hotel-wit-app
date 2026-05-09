@@ -297,7 +297,9 @@ class DeltaSyncService {
 
         for (final row in sample) {
           final uuid = config.localUuid(row);
-          if (uuid.isEmpty) continue;
+          if (uuid.isEmpty) {
+            continue;
+          }
 
           final mirrorRow = tableMirror[uuid];
           if (mirrorRow == null) {
@@ -313,7 +315,7 @@ class DeltaSyncService {
             issues.add('${config.entity}: hash mismatch for $uuid');
           }
         }
-      } catch (Object e) {
+      } catch (e) {
         issues.add('${config.entity}: validation error - $e');
       }
     }
@@ -348,7 +350,9 @@ class DeltaSyncService {
         final rows = await config.fetchAll();
         for (final row in rows) {
           final uuid = config.localUuid(row);
-          if (uuid.isEmpty) continue;
+          if (uuid.isEmpty) {
+            continue;
+          }
 
           final sanitized = _preparePayload(config.toJson(row));
           sanitized['local_uuid'] = uuid;
@@ -362,7 +366,7 @@ class DeltaSyncService {
         debugPrint(
           '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
         );
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
     }

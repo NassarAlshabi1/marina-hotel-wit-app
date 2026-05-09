@@ -89,7 +89,9 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _fetchReport() async {
-    if (_loading) return;
+    if (_loading) {
+      return;
+    }
     setState(() => _loading = true);
     try {
       final db = ref.read(databaseProvider);
@@ -106,7 +108,9 @@ class _SalaryWithdrawalsReportScreenState
           ..addAll(result.groups);
       });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -140,7 +144,7 @@ class _SalaryWithdrawalsReportScreenState
       query = query..where((tbl) => tbl.employeeId.equals(_selectedEmployeeId!));
     }
 
-    final withdrawals = await query.get<dynamic>();
+    final withdrawals = await query.get();
 
     // بناء خريطة الموظفين
     final employeeMap = <int, Employee>{};
@@ -189,7 +193,9 @@ class _SalaryWithdrawalsReportScreenState
   Future<void> _exportPdf() async {
     // استخدام البيانات المفلترة (حسب الموظف المحدد أو الكل)
     final rows = _filteredRows;
-    if (rows.isEmpty) return;
+    if (rows.isEmpty) {
+      return;
+    }
 
     final selectedEmpName = _selectedEmployeeId != null
         ? _allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull?.name
@@ -303,15 +309,21 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   List<_SalaryTxRow> get _filteredRows {
-    if (_selectedEmployeeId == null) return _allRows;
+    if (_selectedEmployeeId == null) {
+      return _allRows;
+    }
     return _allRows.where((r) => r.employee?.id == _selectedEmployeeId).toList();
   }
 
   Map<int, _EmployeeSalaryGroup> get _filteredGroups {
-    if (_selectedEmployeeId == null) return _employeeGroups;
+    if (_selectedEmployeeId == null) {
+      return _employeeGroups;
+    }
     final filtered = <int, _EmployeeSalaryGroup>{};
     final g = _employeeGroups[_selectedEmployeeId];
-    if (g != null) filtered[_selectedEmployeeId!] = g;
+    if (g != null) {
+      filtered[_selectedEmployeeId!] = g;
+    }
     return filtered;
   }
 
@@ -519,7 +531,9 @@ class _SalaryWithdrawalsReportScreenState
     for (int i = 0; i < entries.length; i++) {
       final group = entries[i].value;
       widgets.add(_buildEmployeeCard(group, rank: i + 1));
-      if (i < entries.length - 1) const SizedBox(height: 8);
+      if (i < entries.length - 1) {
+        const SizedBox(height: 8);
+      }
     }
 
     return widgets;
@@ -759,14 +773,18 @@ class _SalaryWithdrawalsReportScreenState
 
   DateTime _parseDate(String value) {
     final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
     final hasTime = trimmed.length > 10;
     final normalized = hasTime
         ? trimmed.replaceFirst(' ', 'T')
         : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
-    } catch (_) {
-      return DateTime.now();
+    } catch (e) {
+      debugPrint('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
+      return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
 }

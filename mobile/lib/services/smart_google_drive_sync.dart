@@ -91,7 +91,7 @@ class SmartGoogleDriveSync {
     _startPeriodicSync();
 
     // 3. جدولة النسخ الاحتياطي اليومي
-    _scheduleDailyFullBackup();
+    unawaited(_scheduleDailyFullBackup());
 
     _log('🚀 بدء المزامنة التلقائية');
   }
@@ -121,7 +121,9 @@ class SmartGoogleDriveSync {
 
   /// تسجيل تغيير محلي (يُستدعى من DAOs)
   void notifyLocalChange({String? entity, int count = 1}) {
-    if (!_isEnabled) return;
+    if (!_isEnabled) {
+      return;
+    }
 
     _hasPendingChanges = true;
     _pendingChangesCount += count;
@@ -146,7 +148,9 @@ class SmartGoogleDriveSync {
       return true;
     });
 
-    if (!canStart) return false;
+    if (!canStart) {
+      return false;
+    }
 
     try {
       _log('📤 بدء رفع التغييرات...');
@@ -180,7 +184,7 @@ class SmartGoogleDriveSync {
         _log('⚠️ فشل رفع التغييرات: ${result.message}');
         return false;
       }
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
@@ -200,7 +204,9 @@ class SmartGoogleDriveSync {
       return true;
     });
 
-    if (!canStart) return false;
+    if (!canStart) {
+      return false;
+    }
 
     try {
       _log('📥 بدء سحب التحديثات...');
@@ -224,7 +230,7 @@ class SmartGoogleDriveSync {
         _log('⚠️ لا توجد تحديثات جديدة');
         return false;
       }
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ خطأ في سحب التحديثات: $e');
       return false;
     } finally {
@@ -244,7 +250,9 @@ class SmartGoogleDriveSync {
       return true;
     });
 
-    if (!canStart) return false;
+    if (!canStart) {
+      return false;
+    }
 
     try {
       _log('💾 بدء النسخ الاحتياطي الكامل...');
@@ -274,7 +282,7 @@ class SmartGoogleDriveSync {
 
       _log('✅ تم إنشاء النسخة الاحتياطية الكاملة: $fileId');
       return true;
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ خطأ في النسخ الاحتياطي: $e');
       return false;
     } finally {

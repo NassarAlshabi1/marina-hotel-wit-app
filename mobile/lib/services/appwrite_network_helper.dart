@@ -40,7 +40,7 @@ class AppwriteNetworkHelper {
       try {
         _logger.debug('$opName - Attempt $attempt/$retries', tag: 'RETRY');
         return await operation();
-      } catch (Object e) {
+      } catch (e) {
         // التحقق من نوع الخطأ - هل قابل لإعادة المحاولة؟
         if (!_isRetriableError(e)) {
           _logger.warning('$opName - Non-retriable error: $e', tag: 'RETRY');
@@ -103,7 +103,7 @@ class AppwriteNetworkHelper {
           );
         },
       );
-    } catch (Object e) {
+    } catch (e) {
       if (e is TimeoutException) {
         rethrow;
       }

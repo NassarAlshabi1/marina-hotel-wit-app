@@ -379,7 +379,7 @@ class _AdminTableState extends State<AdminTable> {
                 .entries
                 .map(
                   (entry) => DataRow(
-                    color: widget.striped && (startIndex + entry.key) % 2 == 1
+                    color: widget.striped && (startIndex + entry.key).isOdd
                         ? WidgetStateProperty.all(
                             AppColors.lightGray.withValues(alpha: 0.3),
                           )

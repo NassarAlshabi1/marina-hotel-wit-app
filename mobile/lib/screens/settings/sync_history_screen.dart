@@ -369,7 +369,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop<void>(context),
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('إغلاق'),
                 ),
               ),
@@ -463,13 +463,13 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () {
                 setState(() {});
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
               },
               child: const Text('تطبيق'),
             ),

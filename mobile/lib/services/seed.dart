@@ -11,7 +11,9 @@ class Seeder {
         (await db.customSelect('SELECT COUNT(*) c FROM rooms').getSingle())
                 .data['c']
             as int;
-    if (roomsCount > 0) return;
+    if (roomsCount > 0) {
+      return;
+    }
     final now = DateTime.now();
 
     final roomsCompanions = [

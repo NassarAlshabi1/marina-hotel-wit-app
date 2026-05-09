@@ -44,7 +44,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return RoomAppwriteExtension.fromAppwriteDocument(doc);
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getById($id)');
 
       // إذا كان الخطأ 404، نرجع null بدلاً من رمي خطأ
@@ -66,7 +66,7 @@ class AppwriteRoomRepository implements RoomRepository {
       return documents
           .map(RoomAppwriteExtension.fromAppwriteDocument)
           .toList();
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAll');
       throw Exception(error.message);
     }
@@ -82,7 +82,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return RoomAppwriteExtension.fromAppwriteDocument(doc);
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'create');
       throw Exception(error.message);
     }
@@ -98,7 +98,7 @@ class AppwriteRoomRepository implements RoomRepository {
       );
 
       return RoomAppwriteExtension.fromAppwriteDocument(doc);
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'update($id)');
       throw Exception(error.message);
     }
@@ -111,7 +111,7 @@ class AppwriteRoomRepository implements RoomRepository {
         collectionId: _collectionId,
         documentId: id,
       );
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'delete($id)');
 
       // إذا كان الخطأ 404، نعتبرها نجاح
@@ -139,7 +139,7 @@ class AppwriteRoomRepository implements RoomRepository {
       return documents
           .map(RoomAppwriteExtension.fromAppwriteDocument)
           .toList();
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'search($query)');
       throw Exception(error.message);
     }
@@ -161,7 +161,7 @@ class AppwriteRoomRepository implements RoomRepository {
       return documents
           .map(RoomAppwriteExtension.fromAppwriteDocument)
           .toList();
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAvailable');
       throw Exception(error.message);
     }
@@ -183,7 +183,7 @@ class AppwriteRoomRepository implements RoomRepository {
       return documents
           .map(RoomAppwriteExtension.fromAppwriteDocument)
           .toList();
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(
         e,
         context: 'getByPriceRange($min, $max)',
@@ -209,7 +209,7 @@ class AppwriteRoomRepository implements RoomRepository {
       return documents
           .map(RoomAppwriteExtension.fromAppwriteDocument)
           .toList();
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(
         e,
         context: 'getPaginated(limit: $limit, offset: $offset)',
@@ -239,7 +239,7 @@ class AppwriteRoomRepository implements RoomRepository {
             ? prices.reduce((a, b) => a + b) / prices.length
             : 0,
       );
-    } catch (Object e) {
+    } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getStatistics');
       throw Exception(error.message);
     }

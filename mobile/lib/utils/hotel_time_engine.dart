@@ -181,7 +181,9 @@ class HotelTimeEngine {
     double discount = 0,
     String discountType = 'per_night',
   }) {
-    if (days <= 0 || roomPrice <= 0) return 0;
+    if (days <= 0 || roomPrice <= 0) {
+      return 0;
+    }
 
     double total = days * roomPrice;
 
@@ -207,8 +209,12 @@ class HotelTimeEngine {
     required String status,
     required String? checkoutDate,
   }) {
-    if (status != 'نشط') return false;
-    if (checkoutDate == null || checkoutDate.isEmpty) return false;
+    if (status != 'نشط') {
+      return false;
+    }
+    if (checkoutDate == null || checkoutDate.isEmpty) {
+      return false;
+    }
 
     try {
       final checkout = DateTime.parse(
@@ -287,9 +293,7 @@ class HotelTimeEngine {
     Map<String, dynamic> payload,
   ) {
     final result = Map<String, dynamic>.from(payload);
-    for (final field in bookingComputedFields) {
-      result.remove(field);
-    }
+    bookingComputedFields.forEach(result.remove);
     return result;
   }
 }

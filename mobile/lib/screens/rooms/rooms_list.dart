@@ -39,7 +39,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       floorMap[floor]!.sort((a, b) {
         final aNum = int.tryParse(a.room.roomNumber);
         final bNum = int.tryParse(b.room.roomNumber);
-        if (aNum != null && bNum != null) return aNum.compareTo(bNum);
+        if (aNum != null && bNum != null) {
+          return aNum.compareTo(bNum);
+        }
         return a.room.roomNumber.compareTo(b.room.roomNumber);
       });
     }
@@ -262,7 +264,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   title: const Text('تعديل الغرفة'),
                   subtitle: const Text('تغيير السعر والنوع والحالة'),
                   onTap: () {
-                    Navigator.pop<void>(ctx);
+                    Navigator.pop(ctx);
                     _editRoom(context, ref, existing: room);
                   },
                 ),
@@ -281,7 +283,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   title: Text(isAvailable ? 'تحويل إلى محجوزة' : 'تحويل إلى شاغرة'),
                   subtitle: const Text('تغيير حالة الغرفة بسرعة'),
                   onTap: () async {
-                    Navigator.pop<void>(ctx);
+                    Navigator.pop(ctx);
                     await _quickStatusChange(room, isAvailable ? 'محجوزة' : 'شاغرة');
                   },
                 ),
@@ -298,7 +300,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 title: const Text('تفاصيل الغرفة'),
                 subtitle: const Text('عرض المعلومات الكاملة'),
                 onTap: () {
-                  Navigator.pop<void>(ctx);
+                  Navigator.pop(ctx);
                   // هنا يمكن فتح شاشة التفاصيل
                 },
               ),
@@ -431,7 +433,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                     ),
                     readOnly: existing != null,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'أدخل رقم الغرفة';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'أدخل رقم الغرفة';
+                      }
                       return null;
                     },
                   ),
@@ -455,9 +459,13 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                     ),
                     keyboardType: TextInputType.number,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'أدخل السعر';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'أدخل السعر';
+                      }
                       final price = CurrencyFormatter.parseAmount(v);
-                      if (price == null || price <= 0) return 'أدخل سعراً صحيحاً';
+                      if (price == null || price <= 0) {
+                        return 'أدخل سعراً صحيحاً';
+                      }
                       return null;
                     },
                   ),
@@ -501,13 +509,13 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.pop<void>(ctx, true);
+                  Navigator.pop(ctx, true);
                 }
               },
               icon: const Icon(Icons.save),
@@ -518,7 +526,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       ),
     );
 
-    if (ok != true) return;
+    if (ok != true) {
+      return;
+    }
 
     final repo = ref.read(roomsRepoProvider);
     final newPrice = CurrencyFormatter.parseAmount(priceCtrl.text) ?? 0;
@@ -533,6 +543,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           imageUrl: imageUrl,
         );
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
@@ -564,8 +575,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         }
       }
       markDataChanged();
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الغرفة: $e'),
@@ -591,9 +605,13 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
 
     final affectedBookings = preview['bookingsAffected'] as int;
-    if (affectedBookings == 0) return;
+    if (affectedBookings == 0) {
+      return;
+    }
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final totalDiff = preview['totalDifference'] as double;
     final nightsAffected = preview['totalNightsAffected'] as int;
@@ -681,8 +699,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop<void>(ctx, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop<void>(ctx, true), child: const Text('تطبيق على الحجوزات')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تطبيق على الحجوزات')),
           ],
         ),
       ),
@@ -698,7 +716,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         newPrice: newPrice, 
         appliedBy: userName,
       );
-      if (context.mounted) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تحديث أسعار الحجوزات بنجاح'), backgroundColor: AppColors.successColor),
         );

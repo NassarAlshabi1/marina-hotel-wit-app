@@ -54,7 +54,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -78,7 +80,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -102,7 +106,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isTesting = false);
+      if (mounted) {
+        setState(() => _isTesting = false);
+      }
     }
   }
 
@@ -139,11 +145,11 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         content: Text('هل تريد حذف السيرفر "${server.name}"؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('حذف'),
           ),
@@ -272,7 +278,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
               ),
               keyboardType: TextInputType.url,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'الرابط مطلوب';
+                if (v == null || v.isEmpty) {
+                  return 'الرابط مطلوب';
+                }
                 if (!v.startsWith('http://') && !v.startsWith('https://')) {
                   return 'يجب أن يبدأ الرابط بـ http:// أو https://';
                 }
@@ -538,7 +546,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
 
   Widget _buildRequestLogCard(ThemeData theme) {
     final logs = PhpApiService.instance.requestLog;
-    if (logs.isEmpty) return const SizedBox.shrink();
+    if (logs.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       child: ExpansionTile(
@@ -630,12 +640,14 @@ class _AddServerDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop<void>(context),
+          onPressed: () => Navigator.pop(context),
           child: const Text('إلغاء'),
         ),
         FilledButton(
           onPressed: () {
-            if (nameController.text.trim().isEmpty) return;
+            if (nameController.text.trim().isEmpty) {
+              return;
+            }
             final server = ServerInfo(
               id: const Uuid().v4(),
               name: nameController.text.trim(),
@@ -645,7 +657,7 @@ class _AddServerDialog extends StatelessWidget {
                   : apiKeyController.text.trim(),
               addedAt: DateTime.now(),
             );
-            Navigator.pop<void>(context, server);
+            Navigator.pop<ServerInfo>(context, server);
           },
           child: const Text('إضافة'),
         ),

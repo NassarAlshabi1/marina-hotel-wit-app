@@ -50,7 +50,9 @@ class RealtimeSyncService {
 
   /// بدء الخدمة
   Future<void> start() async {
-    if (!_config.enabled) return;
+    if (!_config.enabled) {
+      return;
+    }
 
     // الاستماع لتغيرات الاتصال
     _connectivitySubscription = Connectivity()
@@ -77,7 +79,9 @@ class RealtimeSyncService {
 
   /// الاتصال بالخادم
   Future<void> _connect() async {
-    if (_isConnected || _isConnecting) return;
+    if (_isConnected || _isConnecting) {
+      return;
+    }
 
     _isConnecting = true;
     _connectionStateController.add(ConnectionState.connecting);
@@ -133,7 +137,7 @@ class RealtimeSyncService {
   Future<void> _disconnect() async {
     _pingTimer?.cancel();
     await _messageSubscription?.cancel();
-    _channel?.sink.close();
+    unawaited(_channel?.sink.close());
 
     _isConnected = false;
     _isConnecting = false;
@@ -183,13 +187,15 @@ class RealtimeSyncService {
 
   /// معالجة تغيير بعيد
   Future<void> _handleRemoteChange(RealtimeEvent event) async {
-    if (event.table == null || event.payload == null) return;
+    if (event.table == null || event.payload == null) {
+      return;
+    }
 
     // تشغيل مزامنة سريعة لسحب التغييرات
     // بدلاً من تطبيق التغيير مباشرة، نستخدم DeltaSyncEngine لضمان السلامة
     try {
       await _orchestrator.pullOnly();
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         'Failed to sync on remote change',
         name: 'RealtimeSync',
@@ -206,7 +212,9 @@ class RealtimeSyncService {
 
   /// معالجة قطع الاتصال
   void _handleDisconnect() {
-    if (!_isConnected) return;
+    if (!_isConnected) {
+      return;
+    }
 
     _isConnected = false;
     _connectionStateController.add(ConnectionState.disconnected);
@@ -216,7 +224,9 @@ class RealtimeSyncService {
 
   /// جدولة إعادة الاتصال
   void _scheduleReconnect() {
-    if (_reconnectTimer?.isActive ?? false) return;
+    if (_reconnectTimer?.isActive ?? false) {
+      return;
+    }
 
     _reconnectAttempts++;
 
@@ -287,11 +297,13 @@ class RealtimeSyncService {
 
   /// إرسال رسالة
   void _send(Map<String, dynamic> message) {
-    if (!_isConnected) return;
+    if (!_isConnected) {
+      return;
+    }
 
     try {
       _channel!.sink.add(jsonEncode(message));
-    } catch (Object e) {
+    } catch (e) {
       developer.log('Failed to send message: $e', name: 'RealtimeSync');
     }
   }

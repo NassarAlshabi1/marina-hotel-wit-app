@@ -83,7 +83,9 @@ class AppLogger {
     }
 
     // فلترة حسب المستوى في وضع الإصدار
-    if (!kDebugMode && level.value < _releaseMinLevel) return;
+    if (!kDebugMode && level.value < _releaseMinLevel) {
+      return;
+    }
 
     // تنسيق الرسالة
     final levelStr = level.name.toUpperCase().padRight(8);

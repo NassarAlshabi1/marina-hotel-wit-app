@@ -531,7 +531,7 @@ class AppwriteSchemaVerifier {
         };
 
         debugPrint('   📄 عدد المستندات: ${response.total}');
-      } catch (Object e) {
+      } catch (e) {
         missingCollections++;
         debugPrint('   ❌ غير موجود: $collectionId');
         results['missing'].add(collectionId);
@@ -578,7 +578,9 @@ class AppwriteSchemaVerifier {
   /// طباعة سكريبت CLI لإنشاء Collection ناقص
   static void printCreateCollectionScript(String collectionId) {
     final schema = _requiredCollections[collectionId];
-    if (schema == null) return;
+    if (schema == null) {
+      return;
+    }
 
     debugPrint('# إنشاء Collection: $collectionId');
     debugPrint('appwrite databases createCollection \\');

@@ -173,7 +173,7 @@ class RestoreFixService {
           recordCounts: recordCounts,
           totalSizeBytes: await file.length(),
         );
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
         rethrow;
       }
@@ -335,7 +335,7 @@ class RestoreFixService {
     // التأكد من وجود تاريخ الدخول
     query.where((b) => b.checkinDate.isNotNull());
 
-    final allBookings = await query.get<dynamic>();
+    final allBookings = await query.get();
 
     // تصفية الحجوزات النشطة باستخدام StatusUtils
     return allBookings
@@ -412,7 +412,7 @@ class RestoreFixService {
         changes.add(changeMsg);
         debugPrint('✏️ $changeMsg');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في إصلاح الحجز #${booking.id}: $e');
     }
 
@@ -579,7 +579,7 @@ class RestoreFixService {
           }
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في فحص المدفوعات للحجز #${booking.id}: $e');
     }
     return changes;
@@ -653,7 +653,7 @@ class RestoreFixService {
           }
         });
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في تحديث حالات الغرف: $e');
     }
     return changes;
@@ -700,8 +700,8 @@ class RestoreFixService {
   }
 
   Future<_BookingStructuresResult> _handleEmptyBookings() async {
-    await db.delete<dynamic>(db.bookingNights).go();
-    await db.delete<dynamic>(db.hotelDayLedger).go();
+    await db.delete(db.bookingNights).go();
+    await db.delete(db.hotelDayLedger).go();
     return const _BookingStructuresResult(
       changes: [],
       paymentsProcessed: 0,
@@ -721,7 +721,7 @@ class RestoreFixService {
     int bookingNightCount = 0;
     int paymentsProcessed = 0;
 
-    await db.delete<dynamic>(db.bookingNights).go();
+    await db.delete(db.bookingNights).go();
 
     for (final booking in context.bookings) {
       final room = context.roomsByNumber[booking.roomNumber];
@@ -868,7 +868,9 @@ class RestoreFixService {
     }
 
     double remaining = totalDue - totalPaid;
-    if (remaining < 0) remaining = 0;
+    if (remaining < 0) {
+      remaining = 0;
+    }
 
     final bool isFullyPaid = remaining <= 0;
     final bool isOverdue =
@@ -941,7 +943,7 @@ class RestoreFixService {
     _RebuildContext context,
     _NightsRebuildResult nightsResult,
   ) async {
-    await db.delete<dynamic>(db.hotelDayLedger).go();
+    await db.delete(db.hotelDayLedger).go();
 
     final List<HotelDayLedgerCompanion> ledgerRows = [];
     nightsResult.ledger.forEach((key, accumulator) {
@@ -1204,12 +1206,12 @@ class RestoreFixService {
 
       await db.transaction(() async {
         // مسح الجداول المتأثرة (احذف children أولًا لتفادي كسر قيود FK)
-        await db.delete<dynamic>(db.payments).go();
-        await db.delete<dynamic>(db.debts).go();
-        await db.delete<dynamic>(db.bookingNights).go();
-        await db.delete<dynamic>(db.hotelDayLedger).go();
-        await db.delete<dynamic>(db.bookings).go();
-        await db.delete<dynamic>(db.rooms).go();
+        await db.delete(db.payments).go();
+        await db.delete(db.debts).go();
+        await db.delete(db.bookingNights).go();
+        await db.delete(db.hotelDayLedger).go();
+        await db.delete(db.bookings).go();
+        await db.delete(db.rooms).go();
 
         // استعادة البيانات (أدخل parents أولًا ثم children)
         if (snapshotData.containsKey('rooms')) {
@@ -1236,7 +1238,7 @@ class RestoreFixService {
         // إعادة بناء الجداول المشتقة لضمان الاتساق
         await _rebuildBookingStructures(DateTime.now());
       });
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $e');
       rethrow;
     }
@@ -1275,10 +1277,10 @@ class RestoreFixService {
     try {
       final file = File(filePath);
       if (await file.exists()) {
-        await file.delete<dynamic>();
+        await file.delete();
         debugPrint('🗑️ تم حذف اللقطة الاحتياطية: $filePath');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ تحذير: لا يمكن حذف اللقطة الاحتياطية: $e');
     }
   }
@@ -1303,7 +1305,7 @@ class RestoreFixService {
       query.limit(limit);
     }
 
-    return query.get<dynamic>();
+    return query.get();
   }
 
   /// تصدير سجلات الإصلاح كـ JSON
