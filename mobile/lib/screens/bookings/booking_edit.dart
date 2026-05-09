@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
 import '../../services/auto_backup_manager.dart';
@@ -57,16 +58,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _advancePayment = TextEditingController();
   String _paymentMethod = 'نقداً';
   final _paymentNotes = TextEditingController();
-  static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
-  static const _idTypes = [
-    'بطاقة شخصية',
-    'جواز سفر',
-    'رخصة قيادة',
-    'بطاقة عسكرية',
-    'استبيان',
-    'شهادة ميلاد',
-  ];
+  // القوائم الديناميكية
+  List<String> _idTypes = kDefaultIdTypes;
+  List<String> _paymentMethods = kDefaultPaymentMethods;
+
   static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];
 
   @override
@@ -122,6 +118,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _recalculateExpectedNights(),
     );
+    _loadCustomLists();
+  }
+
+  Future<void> _loadCustomLists() async {
+    try {
+      final idTypes = await ref.read(customListNamesProvider(kListKeyIdType).future);
+      final paymentMethods = await ref.read(customListNamesProvider(kListKeyPaymentMethod).future);
+      if (mounted) {
+        setState(() {
+          _idTypes = idTypes;
+          _paymentMethods = paymentMethods;
+        });
+      }
+    } catch (_) {
+      // keep defaults
+    }
   }
 
   @override

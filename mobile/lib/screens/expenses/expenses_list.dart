@@ -74,17 +74,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     _salaryWithdrawAction,
     _salaryDeductionAction,
   ];
-  static const List<String> availableTypes = [
-    'رواتب',
-    'ديزل',
-    'صيانة',
-    'فواتير كهرباء ومياه',
-    'مستلزمات',
-    'مساعدة محتاج',
-    'اخرى',
-  ];
-  // أنواع المصروفات تُقرأ من الإعدادات المخصصة
-  List<String> _expenseTypes = availableTypes;
+  // أنواع المصروفات تُقرأ من القائمة الديناميكية
+  List<String> _expenseTypes = [];
 
   @override
   void initState() {
@@ -94,11 +85,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Future<void> _loadExpenseTypes() async {
-    final types = await ref.read(expenseTypesProvider.future);
-    if (mounted) {
-      setState(() {
-        _expenseTypes = types;
-      });
+    try {
+      final types = await ref.read(customListNamesProvider(kListKeyExpenseType).future);
+      if (mounted) {
+        setState(() {
+          _expenseTypes = types;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _expenseTypes = kDefaultExpenseTypes;
+        });
+      }
     }
   }
 

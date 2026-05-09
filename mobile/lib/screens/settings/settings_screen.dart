@@ -20,6 +20,7 @@ import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
+import 'settings_custom_lists.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
 import 'whatsapp_daily_report_screen.dart';
@@ -102,6 +103,17 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(builder: (context) => const SettingsUsersScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'القوائم المنسدلة',
+              subtitle: 'إدارة أنواع المصروفات والهوية والدفع',
+              icon: Icons.list_alt,
+              color: Colors.teal,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const SettingsCustomListsScreen(),
                 ),
               ),
             ),
