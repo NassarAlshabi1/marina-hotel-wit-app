@@ -722,31 +722,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${percentage.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: color.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  SizedBox(
-                    width: 60,
-                    height: 4,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: (percentage / 100).clamp(0, 1),
-                        backgroundColor: color.withValues(alpha: 0.15),
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
-                      ),
-                    ),
-                  ),
-                ],
+              Text(
+                '${percentage.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: color.withValues(alpha: 0.8),
+                ),
               ),
             ],
           ),
@@ -976,19 +958,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               ),
             ],
 
-            // شريط النسبة المصغرة (إذا كان هناك أكثر من نوع)
-            if (_grouped.length > 1) ...[
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: (pct / 100).clamp(0, 1),
-                  backgroundColor: Colors.grey.shade100,
-                  valueColor: AlwaysStoppedAnimation<Color>(cfg.color.withValues(alpha: 0.5)),
-                  minHeight: 2,
-                ),
-              ),
-            ],
+
           ],
         ),
       ),
@@ -1202,8 +1172,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(cfg.icon, size: 11, color: cfg.color),
-                      const SizedBox(width: 3),
                       Text(
                         entry.key,
                         style: TextStyle(
