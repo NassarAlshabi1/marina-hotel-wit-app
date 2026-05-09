@@ -67,7 +67,7 @@ class SyncSafetyLayer {
         tables['sqliteBackupPath'] = dbBackupPath;
         debugPrint('✅ تم نسخ ملف SQLite إلى: $dbBackupPath');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في نسخ ملف SQLite: $e');
     }
 
@@ -211,7 +211,7 @@ class SyncSafetyLayer {
               );
             }
           } catch (_) {}
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
         }
       }
@@ -233,7 +233,7 @@ class SyncSafetyLayer {
     _activeSnapshots.remove(snapshot.key);
     final file = File(snapshot.filePath);
     if (await file.exists()) {
-      await file.delete<dynamic>();
+      await file.delete();
     }
   }
 
@@ -283,15 +283,15 @@ class SyncSafetyLayer {
     }
     await db.customStatement(
       'CREATE TABLE IF NOT EXISTS sync_audit ('
-      'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-      'sync_id TEXT,'
-      'direction TEXT,'
-      'checksum TEXT,'
-      'schema_version INTEGER,'
-      'device_id TEXT,'
-      'status TEXT,'
-      'created_at TEXT,'
-      'metadata TEXT'
+      ' id INTEGER PRIMARY KEY AUTOINCREMENT,'
+      ' sync_id TEXT,'
+      ' direction TEXT,'
+      ' checksum TEXT,'
+      ' schema_version INTEGER,'
+      ' device_id TEXT,'
+      ' status TEXT,'
+      ' created_at TEXT,'
+      ' metadata TEXT '
       ')',
     );
     _auditTableEnsured = true;
@@ -303,7 +303,7 @@ class SyncSafetyLayer {
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {
         await db.customStatement('DELETE FROM $table');
-      } on Exception catch (Object e) {
+      } on Exception catch (e) {
         if (e.toString().contains('no such table')) {
           debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
         } else {
@@ -318,13 +318,17 @@ class SyncSafetyLayer {
     String tableName,
     dynamic tableData,
   ) async {
-    if (tableData == null) return;
+    if (tableData == null) {
+      return;
+    }
 
     final rows = (tableData as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
 
-    if (rows.isEmpty) return;
+    if (rows.isEmpty) {
+      return;
+    }
 
     final existingColumns = await _tableColumns(db, tableName);
 
@@ -363,7 +367,9 @@ class SyncSafetyLayer {
   }
 
   String _normalizeColumnName(String key) {
-    if (key.contains('_')) return key.toLowerCase();
+    if (key.contains('_')) {
+      return key.toLowerCase();
+    }
     return key
         .replaceAllMapped(
           RegExp('([a-z0-9])([A-Z])'),
@@ -379,7 +385,7 @@ class SyncSafetyLayer {
       if (await File(dbPath).exists()) {
         return dbPath;
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e');
     }
     return null;

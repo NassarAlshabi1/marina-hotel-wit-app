@@ -60,8 +60,12 @@ class LarkNotificationService {
   Future<bool> sendEventNotification(LarkEvent event) async {
     try {
       // التحقق من تفعيل Lark والإشعارات
-      if (!await LarkConfig.isEnabled()) return false;
-      if (!await LarkConfig.isNotificationsEnabled()) return false;
+      if (!await LarkConfig.isEnabled()) {
+        return false;
+      }
+      if (!await LarkConfig.isNotificationsEnabled()) {
+        return false;
+      }
 
       final webhookUrl = await LarkConfig.getWebhookUrl();
       if (webhookUrl.isEmpty) {
@@ -84,7 +88,7 @@ class LarkNotificationService {
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Lark: خطأ في إرسال الإشعار: $e');
       return false;
     }
@@ -175,9 +179,15 @@ class LarkNotificationService {
   }) {
     final details = StringBuffer();
     details.writeln('**تاريخ الدخول:** $checkinDate');
-    if (checkoutDate != null) details.writeln('**تاريخ الخروج:** $checkoutDate');
-    if (nights != null) details.writeln('**عدد الليالي:** $nights');
-    if (totalDue != null) details.writeln('**الإجمالي:** \$${totalDue.toStringAsFixed(2)}');
+    if (checkoutDate != null) {
+      details.writeln('**تاريخ الخروج:** $checkoutDate');
+    }
+    if (nights != null) {
+      details.writeln('**عدد الليالي:** $nights');
+    }
+    if (totalDue != null) {
+      details.writeln('**الإجمالي:** \$${totalDue.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(LarkEvent(
       type: LarkEventType.newBooking,
@@ -197,7 +207,9 @@ class LarkNotificationService {
     int? expectedNights,
   }) {
     final details = StringBuffer();
-    if (expectedNights != null) details.writeln('**الليالي المتوقعة:** $expectedNights');
+    if (expectedNights != null) {
+      details.writeln('**الليالي المتوقعة:** $expectedNights');
+    }
 
     return sendEventNotification(LarkEvent(
       type: LarkEventType.checkIn,
@@ -218,8 +230,12 @@ class LarkNotificationService {
     double? remaining,
   }) {
     final details = StringBuffer();
-    if (actualNights != null) details.writeln('**عدد الليالي الفعلية:** $actualNights');
-    if (totalPaid != null) details.writeln('**إجمالي المدفوع:** \$${totalPaid.toStringAsFixed(2)}');
+    if (actualNights != null) {
+      details.writeln('**عدد الليالي الفعلية:** $actualNights');
+    }
+    if (totalPaid != null) {
+      details.writeln('**إجمالي المدفوع:** \$${totalPaid.toStringAsFixed(2)}');
+    }
     if (remaining != null && remaining > 0) {
       details.writeln('**المتبقي:** \$${remaining.toStringAsFixed(2)}');
     }
@@ -301,8 +317,12 @@ class LarkNotificationService {
   }) {
     final details = StringBuffer();
     details.writeln('**موعد المغادرة المخطط:** $plannedCheckout');
-    if (extraNights != null) details.writeln('**ليالي إضافية:** $extraNights');
-    if (extraCharge != null) details.writeln('**تكلفة إضافية:** \$${extraCharge.toStringAsFixed(2)}');
+    if (extraNights != null) {
+      details.writeln('**ليالي إضافية:** $extraNights');
+    }
+    if (extraCharge != null) {
+      details.writeln('**تكلفة إضافية:** \$${extraCharge.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(LarkEvent(
       type: LarkEventType.overstay,

@@ -100,11 +100,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.isEmpty) return '';
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
     // إزالة 00 الدولية
-    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
     // سبق بإضافة +967
-    if (digitsOnly.startsWith('967')) return digitsOnly;
+    if (digitsOnly.startsWith('967')) {
+      return digitsOnly;
+    }
     // 07xx → 967xx (محلي يمني)
     if (digitsOnly.startsWith('07')) {
       digitsOnly = '967${digitsOnly.substring(1)}';
@@ -118,7 +124,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       digitsOnly = '966$digitsOnly';
     }
     // سبق بإضافة +966
-    else if (digitsOnly.startsWith('966')) return digitsOnly;
+    else if (digitsOnly.startsWith('966')) {
+      return digitsOnly;
+    }
     // البادئة الافتراضية: أي رقم لا يبدأ بمعرف دولة → 967
     else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
       digitsOnly = '967$digitsOnly';
@@ -208,7 +216,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return PopScope(
       canPop: !_isSavingPayment,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          return;
+        }
         showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -216,7 +226,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             content: const Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(ctx),
+                onPressed: () => Navigator.pop(ctx),
                 child: const Text('حسناً'),
               ),
             ],
@@ -338,7 +348,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     nights.where((n) => n.adjustment > 0).length;
                 normalNights =
                     nightsCount - discountedNights - surchargeNights;
-                if (normalNights < 0) normalNights = 0;
+                if (normalNights < 0) {
+                  normalNights = 0;
+                }
                 totalDiscount = nights.fold<double>(
                   0,
                   (sum, n) => sum + (n.adjustment < 0 ? -n.adjustment : 0),
@@ -379,7 +391,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   discountStartDate,
                 );
                 normalNights = nightsCount - discountedNights;
-                if (normalNights < 0) normalNights = 0;
+                if (normalNights < 0) {
+                  normalNights = 0;
+                }
                 totalDiscount = discountedNights * discount;
               } else if (discount > 0 && discountType == 'total') {
                 totalDiscount = discount;
@@ -403,7 +417,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                                   p.paymentDate.startsWith(hotelDay))),)
                       .fold<double>(0, (s, p) => s + p.amount);
                   double remainingAmount = totalAmount - paidAmount;
-                  if (remainingAmount < 0) remainingAmount = 0;
+                  if (remainingAmount < 0) {
+                    remainingAmount = 0;
+                  }
                   _remainingAmount = remainingAmount;
                   final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
                   final summary = BookingPaymentSummary(
@@ -608,7 +624,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         roomRate: roomRate,
                         priceAdjustments: priceAdjustments,
                       );
-                      if (!balanceResult.hasPayments) return const SizedBox.shrink();
+                      if (!balanceResult.hasPayments) {
+                        return const SizedBox.shrink();
+                      }
                       final autoFmt = DateFormat('dd/MM/yyyy', 'en');
                       final autoStr = autoFmt.format(balanceResult.autoCheckoutDate);
                       final extra = balanceResult.isAutoExtended
@@ -1353,7 +1371,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                        RegExp('[0-9٠-٩]'),
+                        RegExp(r'^\d+'),
                       ),
                     ],
                   ),
@@ -1412,7 +1430,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
@@ -1674,7 +1692,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
@@ -1709,7 +1727,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
 
-    Navigator.pop<void>(context);
+    // ignore: use_build_context_synchronously
+    Navigator.pop(context);
 
     // حساب المتبقي الجديد
     final roomsRepo = ref.read(roomsRepoProvider);
@@ -1725,7 +1744,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         .first;
     final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
     double newRemaining = currentTotal - totalPaid;
-    if (newRemaining < 0) newRemaining = 0;
+    if (newRemaining < 0) {
+      newRemaining = 0;
+    }
 
     // إرسال رسالة واتساب
     final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
@@ -1738,7 +1759,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1763,7 +1786,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String cleanedPhone,
     int nightsPaid,
   ) async {
-    if (cleanedPhone.isEmpty) return;
+    if (cleanedPhone.isEmpty) {
+      return;
+    }
 
     final whatsappService = ref.read(whatsappServiceProvider);
 
@@ -1862,7 +1887,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         .first;
     final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
-    if (remainingAmount < 0) remainingAmount = 0;
+    if (remainingAmount < 0) {
+      remainingAmount = 0;
+    }
 
     return _PaymentTotals(totalAmount, remainingAmount);
   }
@@ -1876,7 +1903,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String bank, {
     bool isPendingBalance = false,
   }) async {
-    if (_isSavingPayment) return;
+    if (_isSavingPayment) {
+      return;
+    }
 
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
     if (parsedAmount == null || parsedAmount <= 0) {
@@ -1913,11 +1942,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       if (!isPendingBalance && amount > totals.remaining) {
         // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
+        final surplus = amount - totals.remaining;
         final roomsRepo = ref.read(roomsRepoProvider);
         final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
         final double rmRate = room?.price ?? 0;
 
         if (rmRate <= 0) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد'),
@@ -1927,11 +1958,64 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        extraNights = ((amount - totals.remaining) / rmRate).ceil();
+        extraNights = (surplus / rmRate).ceil();
         if (extraNights <= 0) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
           );
+          return;
+        }
+
+        // تأكيد التمديد من المستخدم
+        final confirmed = await showDialog<bool>(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.update, color: Colors.indigo),
+                SizedBox(width: 8),
+                Text('تسجيل دفعة مع تمديد'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('المبلغ يتجاوز المتبقي. سيتم تمديد الحجز تلقائياً:'),
+                const SizedBox(height: 12),
+                Text('المبلغ المتبقي الحالي: ${_currencyFmt.format(totals.remaining)}'),
+                Text('المبلغ الفائض: ${_currencyFmt.format(surplus)}'),
+                Text(
+                  'سيتم إضافة: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'} قادمة',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                child: const Text('تأكيد التمديد والدفع'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed != true) {
           return;
         }
 
@@ -2006,7 +2090,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ═══════════════════════════════════════════════════════
 
       double newRemaining = totals.remaining - amount;
-      if (newRemaining < 0) newRemaining = 0;
+      if (newRemaining < 0) {
+        newRemaining = 0;
+      }
 
       if (cleanedPhone.isNotEmpty) {
         // إرسال رسالة الواتساب قبل إغلاق الشاشة لضمان وجود السياق (Context)
@@ -2014,7 +2100,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
       }
 
-      Navigator.pop<void>(context);
+      // ignore: use_build_context_synchronously
+      Navigator.pop(context);
 
       if (mounted) {
         setState(() {
@@ -2057,18 +2144,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-      if (needsExtension && extraNights != null && extraNights > 0) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'تم تمديد الحجز تلقائياً: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}',
-            ),
-            backgroundColor: Colors.indigo,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2105,12 +2181,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               _generateReceipt(payment);
             },
             child: const Text('طباعة إيصال'),
@@ -2121,7 +2197,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   Future<void> _generateReceipt(Payment payment) async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     try {
@@ -2134,7 +2212,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         generatedAt: DateTime.now(),
       );
       await receipt.generatePDF();
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(content: Text('خطأ في إنشاء الإيصال: $e')),
@@ -2144,7 +2222,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   Future<void> _generateInvoice(BookingPaymentSummary summary) async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     try {
       final checkin =
@@ -2175,7 +2255,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         generatedAt: DateTime.now(),
       );
       await invoice.generatePDF();
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(content: Text('خطأ في إنشاء الفاتورة: $e')),
@@ -2251,12 +2331,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               _processCheckout();
             },
             style: ElevatedButton.styleFrom(
@@ -2325,10 +2405,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final totalPaid = summary.paidAmount;
     final refundAmount = (totalPaid - actualNightsCost).clamp(0.0, totalPaid);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final dateFmt = DateFormat('dd/MM/yyyy');
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -2404,13 +2486,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           if (refundAmount > 0)
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _processEarlyCheckout(
                   refundAmount.round(),
                   unusedNights,
@@ -2424,7 +2506,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           if (refundAmount <= 0)
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _processCheckout();
               },
               icon: const Icon(Icons.check_circle, size: 18),
@@ -2433,7 +2515,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
         ],
       ),
-    );
+    ),);
   }
 
   Widget _buildRefundInfoRow(String label, String value, {Color? valueColor}) {
@@ -2503,7 +2585,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await _sendRefundConfirmation(refundAmount, unusedNights, cleanedPhone);
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -2519,7 +2603,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في المغادرة المبكرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2539,7 +2623,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     int unusedNights,
     String cleanedPhone,
   ) async {
-    if (cleanedPhone.isEmpty) return;
+    if (cleanedPhone.isEmpty) {
+      return;
+    }
     final whatsappService = ref.read(whatsappServiceProvider);
 
     String message = 'عزيزي ${widget.booking.guestName}، تم تسجيل مغادرتكم المبكرة\n';
@@ -2588,7 +2674,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
       markDataChanged();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
@@ -2602,8 +2690,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-      Navigator.pop<void>(context);
-    } catch (Object e) {
+      Navigator.pop(context);
+    } catch (e) {
       debugPrint('❌ خطأ في تسجيل المغادرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2657,7 +2745,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop<void>(context),
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('إغلاق'),
                 ),
               ],
@@ -2756,12 +2844,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(context),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   _processCancelTodayPayments(todayPayments);
                 },
                 icon: const Icon(Icons.check_circle, size: 18),
@@ -2785,13 +2873,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // حذف (soft delete) دفعات اليوم الفندقي عبر PaymentsRepository
       // الذي يكتب إلى outbox تلقائياً عبر dao.softDelete → _mergeOutbox
       for (final p in paymentsToCancel) {
-        await paymentsRepo.delete<dynamic>(p.id);
+        await paymentsRepo.delete(p.id);
       }
 
       // ✅ تسجيل تغيير المزامنة (نفس النمط الموجود في _processCheckout)
       markDataChanged();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
@@ -2807,7 +2897,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إلغاء دفعات اليوم: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2975,12 +3065,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _performSendAccountStatement(summary);
               },
               icon: const Icon(Icons.send, size: 18),
@@ -3186,7 +3276,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3259,7 +3349,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3294,7 +3384,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             content: StatefulBuilder(
               builder: (context, setState) {
-                final nights = _parseIntegerInput(nightsController.text) ?? 1;
+                final nights = int.tryParse(nightsController.text) ?? 1;
                 final totalCost = nights * roomRate;
 
                 return Column(
@@ -3321,11 +3411,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     TextField(
                       controller: nightsController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp('[0-9٠-٩]'),
-                        ),
-                      ],
                       decoration: const InputDecoration(
                         labelText: 'عدد الليالي الإضافية',
                         border: OutlineInputBorder(),
@@ -3348,14 +3433,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(context),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   _processExtendStay(
-                    _parseIntegerInput(nightsController.text) ?? 1,
+                    int.tryParse(nightsController.text) ?? 1,
                     roomRate,
                     notesController.text,
                   );
@@ -3377,7 +3462,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     String notes,
   ) async {
     if (additionalNights <= 0 || roomRate <= 0) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال عدد ليالي صحيح وسعر غرفة صحيح'),
@@ -3438,7 +3525,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         );
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -3454,7 +3543,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تمديد الإقامة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3506,24 +3595,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     try {
       final date = DateTime.parse(dateStr);
       return '${date.day}/${date.month}/${date.year}';
-    } catch (Object) {
+    } catch (e) {
       return dateStr;
     }
   }
 
   String _formatAmountForMessage(num amount) {
     return _currencyFmt.format(amount);
-  }
-
-  int? _parseIntegerInput(String value) {
-    final parsed = CurrencyFormatter.parseAmount(value);
-    if (parsed == null || parsed <= 0) {
-      return null;
-    }
-    if (parsed % 1 != 0) {
-      return null;
-    }
-    return parsed.toInt();
   }
 
   String _formatDateTime(DateTime dt) {

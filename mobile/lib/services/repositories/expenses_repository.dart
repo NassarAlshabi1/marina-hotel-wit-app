@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/time.dart';
@@ -48,11 +50,11 @@ class ExpensesRepository {
           hotelDayKey: d.Value(hotelDayKey),
         ),
       );
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'expenses',
         'INSERT',
         recordData: {'amount': amount},
-      );
+      ),);
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -99,11 +101,11 @@ class ExpensesRepository {
         ),
       );
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'expenses',
           'UPDATE',
           recordData: {'id': id},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {
@@ -122,11 +124,11 @@ class ExpensesRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'expenses',
           'DELETE',
           recordData: {'id': id},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {

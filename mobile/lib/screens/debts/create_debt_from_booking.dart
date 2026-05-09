@@ -54,7 +54,9 @@ class _CreateDebtFromBookingScreenState
     return PopScope(
       canPop: !_hasUnsavedChanges,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          return;
+        }
         _showDiscardDialog(context);
       },
       child: Scaffold(
@@ -300,7 +302,9 @@ class _CreateDebtFromBookingScreenState
   }
 
   Future<void> _computeDebt() async {
-    if (_selectedBooking == null) return;
+    if (_selectedBooking == null) {
+      return;
+    }
 
     setState(() => _isComputing = true);
 
@@ -420,7 +424,9 @@ class _CreateDebtFromBookingScreenState
   }
 
   Future<void> _createDebt() async {
-    if (_selectedBooking == null || _debtData == null) return;
+    if (_selectedBooking == null || _debtData == null) {
+      return;
+    }
 
     final amount = CurrencyFormatter.parseAmount(_amountController.text);
     if (amount == null || amount <= 0) {
@@ -458,9 +464,9 @@ class _CreateDebtFromBookingScreenState
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop<void>();
+        Navigator.of(context).pop();
       }
-    } catch (Object e) {
+    } catch (e) {
       _showError('حدث خطأ: $e');
     } finally {
       if (mounted) {
@@ -478,11 +484,15 @@ class _CreateDebtFromBookingScreenState
   DateTime _resolveCheckout(Booking booking) {
     if (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty) {
       final actual = DateTime.tryParse(booking.actualCheckout!);
-      if (actual != null) return actual;
+      if (actual != null) {
+        return actual;
+      }
     }
     if (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty) {
       final checkout = DateTime.tryParse(booking.checkoutDate!);
-      if (checkout != null) return checkout;
+      if (checkout != null) {
+        return checkout;
+      }
     }
     return DateTime.now();
   }
@@ -503,13 +513,13 @@ class _CreateDebtFromBookingScreenState
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('لا'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop<void>(ctx);
-                Navigator.of(context).pop<void>();
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
               },
               child: const Text('نعم'),
             ),

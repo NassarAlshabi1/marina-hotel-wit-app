@@ -42,7 +42,7 @@ class FileManagementService {
 
       debugPrint('✅ تم تصدير البيانات إلى: ${csvFolder.path}');
       return csvFolder.path;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تصدير البيانات إلى CSV: $e');
       rethrow;
     }
@@ -91,7 +91,7 @@ class FileManagementService {
 
       debugPrint('✅ تم إنشاء التقرير الشامل: $filePath');
       return filePath;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إنشاء التقرير الشامل: $e');
       rethrow;
     }
@@ -118,7 +118,7 @@ class FileManagementService {
       );
 
       debugPrint('✅ تم مشاركة ${filePaths.length} ملف');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في مشاركة الملفات: $e');
       rethrow;
     }
@@ -157,7 +157,7 @@ class FileManagementService {
 
       debugPrint('✅ تم استيراد ${importedPaths.length} ملف');
       return importedPaths;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في استيراد الملفات: $e');
       rethrow;
     }
@@ -172,14 +172,16 @@ class FileManagementService {
     for (final path in backupPaths) {
       try {
         final file = File(path);
-        if (!await file.exists()) continue;
+        if (!await file.exists()) {
+          continue;
+        }
 
         final stat = await file.stat();
         final dateKey =
             '${stat.modified.year}-${stat.modified.month.toString().padLeft(2, '0')}-${stat.modified.day.toString().padLeft(2, '0')}';
 
         organized.putIfAbsent(dateKey, () => []).add(path);
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ خطأ في معالجة ملف $path: $e');
       }
     }
@@ -223,7 +225,7 @@ class FileManagementService {
 
       debugPrint('✅ تم إنشاء الأرشيف: ${archiveFolder.path}');
       return archiveFolder.path;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إنشاء الأرشيف: $e');
       rethrow;
     }
@@ -262,7 +264,7 @@ class FileManagementService {
         'average_size_mb': (averageSize / (1024 * 1024)).toStringAsFixed(2),
         'files_by_month': _groupFilesByMonth(localBackups),
       };
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تحليل الملفات: $e');
       return {};
     }
@@ -358,7 +360,7 @@ class FileManagementService {
 
       await csvFile.writeAsString(csvContent.toString());
       debugPrint('✅ تم تصدير جدول $tableName إلى CSV');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تصدير الجدول $tableName: $e');
     }
   }
@@ -464,7 +466,7 @@ class FileManagementService {
               }
             }
           }
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ خطأ في معالجة الملف $backupPath: $e');
         }
       }
@@ -496,7 +498,7 @@ class FileManagementService {
       debugPrint('📊 إجمالي السجلات المدمجة: $totalRecords');
 
       return mergedPath;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في دمج النسخ الاحتياطية: $e');
       rethrow;
     }
@@ -577,7 +579,7 @@ class FileManagementService {
 
       debugPrint('✅ تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath');
       return readablePath;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e');
       rethrow;
     }
@@ -618,7 +620,7 @@ class FileManagementService {
       await _cleanDirectoryOlderThan(exportDir, const Duration(days: 3));
 
       debugPrint('✅ تم تنظيف الملفات المؤقتة');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تنظيف الملفات المؤقتة: $e');
     }
   }
@@ -627,7 +629,9 @@ class FileManagementService {
     Directory dir,
     Duration duration,
   ) async {
-    if (!await dir.exists()) return;
+    if (!await dir.exists()) {
+      return;
+    }
 
     final cutoffTime = DateTime.now().subtract(duration);
 
@@ -637,12 +641,12 @@ class FileManagementService {
         final stat = await entity.stat();
         if (stat.modified.isBefore(cutoffTime)) {
           if (entity is File) {
-            await entity.delete<dynamic>();
+            await entity.delete();
           } else if (entity is Directory) {
-            await entity.delete<dynamic>(recursive: true);
+            await entity.delete(recursive: true);
           }
         }
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ خطأ في حذف ${entity.path}: $e');
       }
     }

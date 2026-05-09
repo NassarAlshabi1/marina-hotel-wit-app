@@ -95,7 +95,7 @@ class ApiConfigService {
         final json = jsonDecode(configJson) as Map<String, dynamic>;
         _currentConfig = ApiConfig.fromJson(json);
         configNotifier.value = _currentConfig;
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('خطأ في تحميل إعدادات API: $e');
       }
     }
@@ -112,7 +112,7 @@ class ApiConfigService {
         _serverList.addAll(
           list.map((e) => ServerInfo.fromJson(e as Map<String, dynamic>)),
         );
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('خطأ في تحميل قائمة السيرفرات: $e');
       }
     }

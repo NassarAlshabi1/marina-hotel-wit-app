@@ -95,7 +95,7 @@ class SyncService {
       _status.add(SyncStatus.idle);
 
       debugPrint('✅ تم إنجاز المزامنة بنجاح');
-    } catch (Object e) {
+    } catch (e) {
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
       debugPrint('❌ فشل في المزامنة: $e');
@@ -174,7 +174,7 @@ class SyncService {
           ),
         );
       });
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
@@ -201,7 +201,9 @@ class SyncService {
     final res = await ApiService.I
         .syncPull(since)
         .timeout(Duration(seconds: pullTimeoutSeconds));
-    if (res['success'] != true) return;
+    if (res['success'] != true) {
+      return;
+    }
     final data = List<Map<String, dynamic>>.from(res['data']['data'] as List);
 
     const Map<String, int> entityPriority = {
@@ -235,11 +237,13 @@ class SyncService {
             ? Map<String, dynamic>.from(rawData)
             : <String, dynamic>{};
 
-        if (serverTs > maxTs) maxTs = serverTs;
+        if (serverTs > maxTs) {
+          maxTs = serverTs;
+        }
 
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
-        } catch (Object e) {
+        } catch (e) {
           debugPrint(
             '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
           );
@@ -266,7 +270,9 @@ class SyncService {
     dynamic serverId,
   ) async {
     final sid = _asInt(serverId);
-    if (sid == null) return;
+    if (sid == null) {
+      return;
+    }
 
     switch (entity) {
       case 'rooms':
@@ -394,7 +400,9 @@ class SyncService {
     switch (entity) {
       case 'rooms':
         final rn = _asString(data['room_number']);
-        if (rn == null || rn.isEmpty) return;
+        if (rn == null || rn.isEmpty) {
+          return;
+        }
         final local = await (db.select(
           db.rooms,
         )..where((t) => t.roomNumber.equals(rn))).getSingleOrNull();
@@ -1068,11 +1076,15 @@ class SyncService {
   }
 
   Future<void> _ensureRoomExists(String roomNumber) async {
-    if (roomNumber.isEmpty) return;
+    if (roomNumber.isEmpty) {
+      return;
+    }
     final existing = await (db.select(
       db.rooms,
     )..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
-    if (existing != null) return;
+    if (existing != null) {
+      return;
+    }
     await roomsDao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -1086,25 +1098,47 @@ class SyncService {
 }
 
 int? _asInt(dynamic value) {
-  if (value == null) return null;
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value);
+  if (value == null) {
+    return null;
+  }
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
   return null;
 }
 
 double? _asDouble(dynamic value) {
-  if (value == null) return null;
-  if (value is double) return value;
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value);
+  if (value == null) {
+    return null;
+  }
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
   return null;
 }
 
 bool? _asBool(dynamic value) {
-  if (value == null) return null;
-  if (value is bool) return value;
-  if (value is num) return value != 0;
+  if (value == null) {
+    return null;
+  }
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
   if (value is String) {
     final normalized = value.toLowerCase();
     if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
@@ -1118,7 +1152,9 @@ bool? _asBool(dynamic value) {
 }
 
 String? _asString(dynamic value) {
-  if (value == null) return null;
+  if (value == null) {
+    return null;
+  }
   return value.toString();
 }
 
@@ -1132,7 +1168,9 @@ int _normalizeTimestampField(dynamic value, {int? fallback}) {
 
 String _isoFromData(dynamic value, int secondsFallback) {
   final iso = _asString(value);
-  if (iso != null && iso.isNotEmpty) return iso;
+  if (iso != null && iso.isNotEmpty) {
+    return iso;
+  }
   return _secondsToIso(secondsFallback);
 }
 

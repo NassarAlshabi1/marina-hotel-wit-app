@@ -109,7 +109,9 @@ class AutoBackupManager {
   Future<void> _startDeltaSyncTimer() async {
     _deltaSyncTimer?.cancel();
     final deltaSyncEnabled = await isDeltaSyncEnabled();
-    if (!deltaSyncEnabled) return;
+    if (!deltaSyncEnabled) {
+      return;
+    }
 
     _deltaSyncTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
       await performDeltaSync();
@@ -150,7 +152,9 @@ class AutoBackupManager {
     String operation, {
     Map<String, dynamic>? recordData,
   }) async {
-    if (!await _isEnabled) return;
+    if (!await _isEnabled) {
+      return;
+    }
 
     _pendingChanges++;
     debugPrint(
@@ -246,11 +250,11 @@ class AutoBackupManager {
       debugPrint('✅ نسخ تلقائي مكتمل: $fileId ($changesCount تغييرات)');
 
       // تنظيف النسخ القديمة في الخلفية
-      _cleanupOldBackups();
+      unawaited(_cleanupOldBackups());
 
       // إشعار مدير المزامنة الذكية لمزامنة الأجهزة الأخرى
       await _notifySmartSync();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل النسخ التلقائي: $e');
     } finally {
       _isBackingUp = false;
@@ -259,13 +263,17 @@ class AutoBackupManager {
 
   /// حذف النسخ الاحتياطية القديمة حسب التاريخ والعدد
   Future<void> _cleanupOldBackups() async {
-    if (_backupService == null || !_backupService!.isSignedIn) return;
+    if (_backupService == null || !_backupService!.isSignedIn) {
+      return;
+    }
 
     try {
       debugPrint('🧹 بدء تنظيف النسخ القديمة...');
 
       final backupFiles = await _backupService!.listBackupFiles();
-      if (backupFiles.isEmpty) return;
+      if (backupFiles.isEmpty) {
+        return;
+      }
 
       // ترتيب النسخ حسب التاريخ (الأحدث أولاً)
       backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
@@ -300,7 +308,7 @@ class AutoBackupManager {
             debugPrint(
               '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',
             );
-          } catch (Object e) {
+          } catch (e) {
             debugPrint('❌ فشل حذف ${file.fileName}: $e');
           }
         }
@@ -309,7 +317,7 @@ class AutoBackupManager {
       } else {
         debugPrint('✨ لا توجد نسخ قديمة للحذف');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
@@ -429,7 +437,7 @@ class AutoBackupManager {
         debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
         await smartSync.onLocalBackupUploaded();
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
     }
   }
@@ -506,7 +514,7 @@ class AutoBackupManager {
           debugPrint(
             '✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}',
           );
-        } catch (Object e) {
+        } catch (e) {
           results['google_drive'] = {'error': e.toString()};
           results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Google Drive التفاضلية: $e');
@@ -533,7 +541,7 @@ class AutoBackupManager {
           debugPrint(
             '✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}',
           );
-        } catch (Object e) {
+        } catch (e) {
           results['appwrite'] = {'error': e.toString()};
           results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
@@ -543,7 +551,7 @@ class AutoBackupManager {
       debugPrint('✅ اكتملت المزامنة التفاضلية');
 
       await _autoRenewActiveBookings();
-    } catch (Object e) {
+    } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
       debugPrint('❌ خطأ في المزامنة التفاضلية: $e');
@@ -557,16 +565,20 @@ class AutoBackupManager {
   Future<void> _autoRenewActiveBookings() async {
     try {
       final currentHotelDay = Time.hotelDayKey();
-      if (_lastRenewedHotelDay == currentHotelDay) return;
+      if (_lastRenewedHotelDay == currentHotelDay) {
+        return;
+      }
 
-      if (_database == null) return;
+      if (_database == null) {
+        return;
+      }
       final service = BookingDerivedFieldsService(_database!);
       final count = await service.refreshAllActiveBookings();
       _lastRenewedHotelDay = currentHotelDay;
       if (count > 0) {
         debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
     }
   }

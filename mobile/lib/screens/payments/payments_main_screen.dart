@@ -141,8 +141,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
     // مدفوعات اليوم الفندقي الحالي
     final todayPayments = payments.where((p) {
-      if (p.isVoided) return false;
-      if (p.hotelDayKey == hotelDay) return true;
+      if (p.isVoided) {
+        return false;
+      }
+      if (p.hotelDayKey == hotelDay) {
+        return true;
+      }
       if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
         return true;
       }
@@ -158,7 +162,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       try {
         final date = DateTime.parse(p.paymentDate);
         return date.isAfter(startOfMonth);
-      } catch (Object) {
+      } catch (e) {
         return false;
       }
     }).toList();
@@ -288,8 +292,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     // عرض مدفوعات اليوم الفندقي الحالي
     final hotelDay = Time.hotelDayKey();
     final todayPayments = payments.where((p) {
-      if (p.isVoided) return false;
-      if (p.hotelDayKey == hotelDay) return true;
+      if (p.isVoided) {
+        return false;
+      }
+      if (p.hotelDayKey == hotelDay) {
+        return true;
+      }
       if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
         return true;
       }
@@ -627,7 +635,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(ctx),
+                onPressed: () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
@@ -708,7 +716,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       );
 
       if (mounted) {
-        Navigator.pop<void>(dialogContext);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -727,7 +736,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         extra: {'amount': amountText, 'method': method.name},
       );
       if (mounted) {
-        Navigator.pop<void>(dialogContext);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),

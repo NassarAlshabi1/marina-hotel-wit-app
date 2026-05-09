@@ -17,9 +17,13 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(bookingNotes);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-    if (bookingId != null) q.where((t) => t.bookingId.equals(bookingId));
-    return q.get<dynamic>();
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (bookingId != null) {
+      q.where((t) => t.bookingId.equals(bookingId));
+    }
+    return q.get();
   }
 
   Stream<List<BookingNote>> watchByBooking(
@@ -27,7 +31,9 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) {
     final q = select(bookingNotes)..where((t) => t.bookingId.equals(bookingId));
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     return q.watch();
   }
 
@@ -73,7 +79,9 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -100,7 +108,9 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
           .write(
             BookingNotesCompanion(
@@ -128,11 +138,21 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     BookingNote? base,
   }) {
     final m = <String, dynamic>{};
-    if (comp.bookingId.present) m['booking_id'] = comp.bookingId.value;
-    if (comp.noteText.present) m['note_text'] = comp.noteText.value;
-    if (comp.alertType.present) m['alert_type'] = comp.alertType.value;
-    if (comp.alertUntil.present) m['alert_until'] = comp.alertUntil.value;
-    if (comp.isActive.present) m['is_active'] = comp.isActive.value;
+    if (comp.bookingId.present) {
+      m['booking_id'] = comp.bookingId.value;
+    }
+    if (comp.noteText.present) {
+      m['note_text'] = comp.noteText.value;
+    }
+    if (comp.alertType.present) {
+      m['alert_type'] = comp.alertType.value;
+    }
+    if (comp.alertUntil.present) {
+      m['alert_until'] = comp.alertUntil.value;
+    }
+    if (comp.isActive.present) {
+      m['is_active'] = comp.isActive.value;
+    }
     return m;
   }
 

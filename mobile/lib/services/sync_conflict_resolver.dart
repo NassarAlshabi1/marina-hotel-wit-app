@@ -207,7 +207,7 @@ class SyncConflictResolver {
         '📝 تم تسجيل تعارض #$id في $table/$localUuid للمراجعة اليدوية',
       );
       return id;
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ فشل تسجيل التعارض $table/$localUuid: $e');
       rethrow;
     }
@@ -227,7 +227,9 @@ class SyncConflictResolver {
     for (final remoteData in remoteRecords) {
       final localUuid = (remoteData['local_uuid'] ?? remoteData['localUuid'])
           as String?;
-      if (localUuid == null || localUuid.isEmpty) continue;
+      if (localUuid == null || localUuid.isEmpty) {
+        continue;
+      }
 
       final result = await detectAndResolve(
         table: table,
@@ -332,7 +334,7 @@ class SyncConflictResolver {
     try {
       final state = await db.select(db.syncState).getSingleOrNull();
       return state?.lastPullTs ?? 0;
-    } catch (Object e) {
+    } catch (e) {
       _log('⚠️ فشل قراءة lastPullTs: $e');
       return 0;
     }
@@ -368,7 +370,7 @@ class SyncConflictResolver {
           .getSingleOrNull();
 
       return result?.data;
-    } catch (Object e) {
+    } catch (e) {
       _log('⚠️ فشل البحث عن سجل محلي في $table/$localUuid: $e');
       return null;
     }
@@ -377,15 +379,21 @@ class SyncConflictResolver {
   /// استخراج حقل رقمي من صف ناتج عن customSelect
   int? _extractIntField(Map<String, dynamic> row, String field) {
     final value = row[field];
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
+    if (value is int) {
+      return value;
+    }
+    if (value is String) {
+      return int.tryParse(value);
+    }
     return null;
   }
 
   /// استخراج حقل نصي من صف ناتج عن customSelect
   String? _extractStringField(Map<String, dynamic> row, String field) {
     final value = row[field];
-    if (value is String) return value;
+    if (value is String) {
+      return value;
+    }
     return value?.toString();
   }
 

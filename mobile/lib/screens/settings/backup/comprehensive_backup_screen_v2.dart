@@ -114,7 +114,7 @@ class _ComprehensiveBackupScreenState
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات النسخ الاحتياطي'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 // Navigate to settings
               },
             ),
@@ -122,7 +122,7 @@ class _ComprehensiveBackupScreenState
               leading: const Icon(Icons.help_outline),
               title: const Text('مساعدة'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _showHelpDialog();
               },
             ),
@@ -130,7 +130,7 @@ class _ComprehensiveBackupScreenState
               leading: const Icon(Icons.info_outline),
               title: const Text('حول'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _showAboutDialog();
               },
             ),
@@ -156,7 +156,7 @@ class _ComprehensiveBackupScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('حسناً'),
           ),
         ],
@@ -182,7 +182,7 @@ class _ComprehensiveBackupScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('حسناً'),
           ),
         ],

@@ -76,8 +76,12 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
             ),
           ],
           onSelected: (value) {
-            if (value == 'clear') _clearLogs();
-            if (value == 'settings') _showSettingsDialog();
+            if (value == 'clear') {
+              _clearLogs();
+            }
+            if (value == 'settings') {
+              _showSettingsDialog();
+            }
           },
         ),
       ],
@@ -411,7 +415,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                 },
               ),
             ),
@@ -422,7 +426,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                 },
               ),
             ),
@@ -433,7 +437,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                 },
               ),
             ),
@@ -444,7 +448,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                 },
               ),
             ),
@@ -455,7 +459,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                 },
               ),
             ),
@@ -463,7 +467,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -493,7 +497,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -538,12 +542,12 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('تم مسح جميع السجلات')),
               );
@@ -580,7 +584,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],

@@ -79,7 +79,9 @@ class EnhancedConflictResolver {
 
     if (context.localVectorClock != null && context.remoteVectorClock != null) {
       final vectorResult = _resolveWithVectorClock(context);
-      if (vectorResult != null) return vectorResult;
+      if (vectorResult != null) {
+        return vectorResult;
+      }
     }
 
     switch (strategy) {
@@ -207,12 +209,16 @@ class EnhancedConflictResolver {
     };
 
     for (final key in context.remoteData.keys) {
-      if (systemFields.contains(key)) continue;
+      if (systemFields.contains(key)) {
+        continue;
+      }
 
       final localValue = context.localData[key];
       final remoteValue = context.remoteData[key];
 
-      if (localValue == remoteValue) continue;
+      if (localValue == remoteValue) {
+        continue;
+      }
 
       if (criticalFields.contains(key)) {
         if (context.remoteTimestamp.isAfter(context.localTimestamp)) {
@@ -264,7 +270,9 @@ class EnhancedConflictResolver {
   }
 
   int _priorityForDevice(String deviceId, int fallback) {
-    if (devicePriorityResolver == null) return fallback;
+    if (devicePriorityResolver == null) {
+      return fallback;
+    }
     return devicePriorityResolver!(deviceId);
   }
 

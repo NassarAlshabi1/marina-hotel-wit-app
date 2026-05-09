@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -56,7 +58,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     return PopScope(
       canPop: !hasUnsyncedChanges,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          return;
+        }
         _showDiscardDialog(context);
       },
       child: AppScaffold(
@@ -99,13 +103,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop<void>(ctx);
-              Navigator.of(context).pop<void>();
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
             },
             child: const Text('مغادرة'),
           ),
@@ -132,9 +136,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     sorted.sort((a, b) {
       final aNum = int.tryParse(a.roomNumber);
       final bNum = int.tryParse(b.roomNumber);
-      if (aNum != null && bNum != null) return aNum.compareTo(bNum);
-      if (aNum != null) return -1;
-      if (bNum != null) return 1;
+      if (aNum != null && bNum != null) {
+        return aNum.compareTo(bNum);
+      }
+      if (aNum != null) {
+        return -1;
+      }
+      if (bNum != null) {
+        return 1;
+      }
       return a.roomNumber.compareTo(b.roomNumber);
     });
 
@@ -393,13 +403,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop<void>(false),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('إلغاء'),
             ),
             FilledButton(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop<void>(true);
+                  Navigator.of(dialogContext).pop(true);
                 }
               },
               child: const Text('حفظ'),
@@ -409,7 +419,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       },
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     final repo = ref.read(guestInfoRepoProvider);
     try {
@@ -445,9 +457,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       }
 
       markDataChanged();
-      _pushToAppwrite();
-    } catch (Object e) {
-      if (!mounted) return;
+      unawaited(_pushToAppwrite());
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ السجل: $e'),
@@ -465,11 +480,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         content: Text('سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop<void>(false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop<void>(true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('حذف'),
           ),
@@ -477,15 +492,19 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       ),
     );
 
-    if (shouldDelete != true) return;
+    if (shouldDelete != true) {
+      return;
+    }
 
     try {
       await ref.read(guestInfoRepoProvider).delete(info.id);
       markDataChanged();
       _showSnack('تم حذف السجل');
-      _pushToAppwrite();
-    } catch (Object e) {
-      if (!mounted) return;
+      unawaited(_pushToAppwrite());
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف السجل: $e'),
@@ -654,7 +673,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ],
           ),
           build: (context) => [
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               headers: headers,
               data: data,
               headerDecoration: const pw.BoxDecoration(
@@ -690,7 +709,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
       final filename = 'guest-info-$timestamp.pdf';
       await Printing.sharePdf(bytes: await doc.save(), filename: filename);
-    } catch (Object error) {
+    } catch (error) {
       _showSnack('فشل تصدير الملف: $error');
     } finally {
       if (mounted) {
@@ -707,7 +726,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   void _showSnack(String message) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -718,7 +739,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.sync(pull: false);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ فشلت المزامنة الفورية: $e');
     }
   }

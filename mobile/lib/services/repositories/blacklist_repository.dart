@@ -32,7 +32,9 @@ List<String> _tokens(String name) => _normalizeArabic(
 ).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
 
 bool _tripleMatch(List<String> a, List<String> b) {
-  if (a.length < 3 || b.length < 3) return false;
+  if (a.length < 3 || b.length < 3) {
+    return false;
+  }
   return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
 }
 
@@ -91,7 +93,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (Object e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     return BlacklistEntry(
       id: row.id,
       name: row.title,
@@ -195,11 +197,13 @@ class BlacklistRepository {
     final row = await (db.select(
       db.shiftNotes,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    if (row == null) return false;
+    if (row == null) {
+      return false;
+    }
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (Object e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     payload['active'] = active;
     final now = Time.nowEpoch();
     final updated =
@@ -241,7 +245,9 @@ class BlacklistRepository {
     final row = await (db.select(
       db.shiftNotes,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    if (row == null) return false;
+    if (row == null) {
+      return false;
+    }
     final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
     final now = Time.nowEpoch();
     final updated =
@@ -296,7 +302,9 @@ class BlacklistRepository {
     final row = await (db.select(
       db.shiftNotes,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    if (row == null) return false;
+    if (row == null) {
+      return false;
+    }
 
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
@@ -350,7 +358,9 @@ class BlacklistRepository {
         try {
           final payload = jsonDecode(row.content) as Map<String, dynamic>;
           final active = (payload['active'] as bool?) ?? true;
-          if (active) return _fromRow(row);
+          if (active) {
+            return _fromRow(row);
+          }
         } catch (_) {
           return _fromRow(row);
         }

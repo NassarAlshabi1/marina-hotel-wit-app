@@ -88,7 +88,7 @@ class LocalBackupService {
         }
       }
       return true; // على iOS أو منصات أخرى
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في التحقق من الأذونات: $e');
       return false;
     }
@@ -122,7 +122,7 @@ class LocalBackupService {
       await prefs.setString(_prefsLocalBackupPathKey, _backupDirectory!.path);
 
       return _backupDirectory!;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
       rethrow;
     }
@@ -327,7 +327,7 @@ class LocalBackupService {
       throw UnsupportedError(
         'تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}',
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       rethrow;
     }
@@ -457,7 +457,7 @@ class LocalBackupService {
           backupFiles.add(
             LocalBackupFile.fromFile(file, metadata: metadata, format: format),
           );
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ خطأ في قراءة ملف النسخة الاحتياطية ${file.path}: $e');
           backupFiles.add(LocalBackupFile.fromFile(file, format: format));
         }
@@ -468,7 +468,7 @@ class LocalBackupService {
 
       debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية محلية');
       return backupFiles;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في جلب قائمة النسخ الاحتياطية المحلية: $e');
       return [];
     }
@@ -496,7 +496,7 @@ class LocalBackupService {
       throw UnsupportedError(
         'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       rethrow;
     }
@@ -545,15 +545,15 @@ class LocalBackupService {
     try {
       // حذف جميع الجداول بالترتيب الصحيح (من الأطفال إلى الآباء)
       // لتجنب FOREIGN KEY constraint errors
-      await db.delete<dynamic>(db.payments).go(); // يعتمد على bookings
-      await db.delete<dynamic>(db.debts).go(); // يعتمد على bookings
-      await db.delete<dynamic>(db.bookingNotes).go(); // يعتمد على bookings
-      await db.delete<dynamic>(db.cashTransactions).go(); // يعتمد على bookings
-      await db.delete<dynamic>(db.bookings).go(); // يعتمد على rooms
-      await db.delete<dynamic>(db.expenses).go(); // يعتمد على employees
-      await db.delete<dynamic>(db.employees).go();
-      await db.delete<dynamic>(db.rooms).go();
-      await db.delete<dynamic>(db.syncState).go();
+      await db.delete(db.payments).go(); // يعتمد على bookings
+      await db.delete(db.debts).go(); // يعتمد على bookings
+      await db.delete(db.bookingNotes).go(); // يعتمد على bookings
+      await db.delete(db.cashTransactions).go(); // يعتمد على bookings
+      await db.delete(db.bookings).go(); // يعتمد على rooms
+      await db.delete(db.expenses).go(); // يعتمد على employees
+      await db.delete(db.employees).go();
+      await db.delete(db.rooms).go();
+      await db.delete(db.syncState).go();
 
       Future<void> insertList<T>(
         String key,
@@ -677,7 +677,7 @@ class LocalBackupService {
 
     try {
       await deleteDatabase(dbPath);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ تعذر حذف قاعدة البيانات الحالية: $e');
     }
 
@@ -706,8 +706,8 @@ class LocalBackupService {
       final file = File('$dbPath$suffix');
       if (await file.exists()) {
         try {
-          await file.delete<dynamic>();
-        } catch (Object e) {
+          await file.delete();
+        } catch (e) {
           debugPrint('⚠️ تعذر حذف الملف المساعد $suffix: $e');
         }
       }
@@ -732,7 +732,7 @@ class LocalBackupService {
       );
 
       debugPrint('✅ تم مشاركة النسخة الاحتياطية: $fileName');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -827,7 +827,7 @@ class LocalBackupService {
           await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
           debugPrint('✅ تم استيراد النسخة الاحتياطية (SQLite): $newFilePath');
           return newFilePath;
-        } catch (Object) {
+        } catch (e) {
           try {
             await File(newFilePath).delete();
           } catch (e, st) {
@@ -841,7 +841,7 @@ class LocalBackupService {
       }
 
       throw UnsupportedError('تنسيق الملف غير مدعوم للاستيراد: $extension');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -852,10 +852,10 @@ class LocalBackupService {
     try {
       final file = File(filePath);
       if (await file.exists()) {
-        await file.delete<dynamic>();
+        await file.delete();
         debugPrint('✅ تم حذف النسخة الاحتياطية: $filePath');
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -911,7 +911,7 @@ class LocalBackupService {
 
       debugPrint('✅ تم تصدير النسخة الاحتياطية إلى: $exportPath');
       return exportPath;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -982,7 +982,7 @@ class LocalBackupService {
       }
 
       debugPrint('✅ تم تنظيف ${backupsToDelete.length} نسخة احتياطية قديمة');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
@@ -992,7 +992,7 @@ class LocalBackupService {
     try {
       final backups = await listLocalBackups();
       return backups.fold<int>(0, (total, backup) => total + backup.sizeBytes);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حساب حجم النسخ: $e');
       return 0;
     }
@@ -1012,7 +1012,7 @@ class LocalBackupService {
         'total_size_bytes': totalSize,
         'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),
       };
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في الحصول على معلومات مجلد النسخ: $e');
       return {};
     }

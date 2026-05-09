@@ -46,7 +46,7 @@ class SyncPerformanceSettings {
         await _setCurrentProfile('balanced');
         return 'balanced';
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في قراءة ملف التعريف الحالي: $e');
       return 'balanced'; // القيمة الافتراضية
     }
@@ -82,7 +82,7 @@ class SyncPerformanceSettings {
       await _applyProfileSpecificSettings(profileKey, profile);
 
       debugPrint('✅ تم تطبيق ملف التعريف "$profileKey" بنجاح');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تطبيق ملف التعريف "$profileKey": $e');
       rethrow;
     }
@@ -167,7 +167,7 @@ class SyncPerformanceSettings {
             prefs.getBool('background_sync_enabled') ?? true,
         'max_retry_attempts': prefs.getInt('max_retry_attempts') ?? 3,
       };
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في قراءة جميع الإعدادات: $e');
       return {};
     }
@@ -178,7 +178,7 @@ class SyncPerformanceSettings {
     try {
       await applyProfile('balanced'); // تطبيق ملف التعريف المتوازن كافتراضي
       debugPrint('🔄 تم إعادة تعيين الإعدادات إلى القيم الافتراضية');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إعادة تعيين الإعدادات: $e');
       rethrow;
     }

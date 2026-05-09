@@ -29,7 +29,7 @@ class ExponentialBackoffStrategy implements RetryStrategy {
     while (attempt < maxAttempts) {
       try {
         return await operation();
-      } catch (Object e) {
+      } catch (e) {
         attempt++;
         
         if (attempt >= maxAttempts) {
@@ -67,14 +67,14 @@ class CircuitBreakerStrategy implements RetryStrategy {
   final Duration resetTimeout;
   
   int _failureCount = 0;
-  DateTime? _lastFailureTime;
+  late DateTime _lastFailureTime;
   bool _isOpen = false;
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {
     // التحقق من حالة Circuit Breaker
     if (_isOpen) {
-      final timeSinceLastFailure = DateTime.now().difference(_lastFailureTime!);
+      final timeSinceLastFailure = DateTime.now().difference(_lastFailureTime);
       
       if (timeSinceLastFailure < resetTimeout) {
         throw Exception('Circuit Breaker مفتوح - المحاولة لاحقاً');
@@ -88,7 +88,7 @@ class CircuitBreakerStrategy implements RetryStrategy {
       final result = await operation();
       _onSuccess();
       return result;
-    } catch (Object) {
+    } catch (e) {
       _onFailure();
       rethrow;
     }

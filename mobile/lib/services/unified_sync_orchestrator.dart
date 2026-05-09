@@ -243,7 +243,7 @@ class UnifiedSyncOrchestrator {
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في الرفع التلقائي: $e');
       return false;
     } finally {
@@ -306,7 +306,7 @@ class UnifiedSyncOrchestrator {
       );
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       _emit(
         _state.copyWith(
           phase: 'error',
@@ -326,17 +326,23 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> onDriveSignInChanged(bool isSignedIn) async {
-    if (_driveCoordinator == null) return;
+    if (_driveCoordinator == null) {
+      return;
+    }
     await _driveCoordinator!.onSignInChanged(isSignedIn);
   }
 
   Future<void> setDebounceSeconds(int seconds) async {
-    if (_driveCoordinator == null) return;
+    if (_driveCoordinator == null) {
+      return;
+    }
     await _driveCoordinator!.setDebounceSeconds(seconds);
   }
 
   Future<void> setPullInterval(int minutes) async {
-    if (_driveCoordinator == null) return;
+    if (_driveCoordinator == null) {
+      return;
+    }
     await _driveCoordinator!.setPullInterval(minutes);
   }
 
@@ -348,13 +354,17 @@ class UnifiedSyncOrchestrator {
     final now = DateTime.now();
     if (!force && _state.lastSnapshotAt != null) {
       final diff = now.difference(_state.lastSnapshotAt!);
-      if (diff.inMinutes < 20) return;
+      if (diff.inMinutes < 20) {
+        return;
+      }
     }
     await _takeSnapshot();
   }
 
   Future<void> _takeSnapshot() async {
-    if (_smart == null || _database == null) return;
+    if (_smart == null || _database == null) {
+      return;
+    }
     _emit(
       _state.copyWith(
         phase: 'snapshotting',
@@ -430,7 +440,9 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<AppwriteSyncManager?> _ensureAppwriteManager() async {
-    if (_appwrite != null) return _appwrite;
+    if (_appwrite != null) {
+      return _appwrite;
+    }
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
     final service = AppwriteService();
@@ -494,7 +506,9 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _verifySyncIntegrity() async {
-    if (_database == null) return;
+    if (_database == null) {
+      return;
+    }
 
     try {
       _emit(
@@ -534,7 +548,7 @@ class UnifiedSyncOrchestrator {
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       _emit(
         _state.copyWith(
           phase: 'error',

@@ -25,7 +25,7 @@ class DriftOutboxStorage implements OutboxStorage {
       if (decoded is Map<String, dynamic>) {
         payloadMap = decoded;
       }
-    } catch (Object e) { debugPrint('WARN: Failed to parse outbox payload: $e'); }
+    } catch (e) { debugPrint('WARN: Failed to parse outbox payload: $e'); }
 
     return DeltaChange(
       id: record.idempotencyKey ?? record.id.toString(),
@@ -119,7 +119,7 @@ class DriftOutboxStorage implements OutboxStorage {
       ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
       ..limit(limit);
 
-    final records = await query.get<dynamic>();
+    final records = await query.get();
     return records.map(_toDeltaChange).toList();
   }
 
@@ -128,7 +128,9 @@ class DriftOutboxStorage implements OutboxStorage {
     final existing = await (_db.select(_db.outbox)
           ..where((t) => t.idempotencyKey.equals(id)))
         .getSingleOrNull();
-    if (existing == null) return;
+    if (existing == null) {
+      return;
+    }
 
     await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
         .write(const OutboxCompanion(
@@ -141,7 +143,9 @@ class DriftOutboxStorage implements OutboxStorage {
     final existing = await (_db.select(_db.outbox)
           ..where((t) => t.idempotencyKey.equals(id)))
         .getSingleOrNull();
-    if (existing == null) return;
+    if (existing == null) {
+      return;
+    }
 
     await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
         .write(OutboxCompanion(
@@ -160,7 +164,9 @@ class DriftOutboxStorage implements OutboxStorage {
     final existing = await (_db.select(_db.outbox)
           ..where((t) => t.idempotencyKey.equals(id)))
         .getSingleOrNull();
-    if (existing == null) return;
+    if (existing == null) {
+      return;
+    }
 
     await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
         .write(OutboxCompanion(
@@ -177,21 +183,23 @@ class DriftOutboxStorage implements OutboxStorage {
     final existing = await (_db.select(_db.outbox)
           ..where((t) => t.idempotencyKey.equals(id)))
         .getSingleOrNull();
-    if (existing == null) return;
+    if (existing == null) {
+      return;
+    }
 
-    await (_db.delete<dynamic>(_db.outbox)..where((t) => t.id.equals(existing.id)))
+    await (_db.delete(_db.outbox)..where((t) => t.id.equals(existing.id)))
         .go();
   }
 
   @override
   Future<void> deleteByTable(String table) async {
-    await (_db.delete<dynamic>(_db.outbox)..where((t) => t.entity.equals(table))).go();
+    await (_db.delete(_db.outbox)..where((t) => t.entity.equals(table))).go();
   }
 
   @override
   Future<int> deleteSyncedBefore(DateTime cutoff) async {
     final epochCutoff = cutoff.millisecondsSinceEpoch ~/ 1000;
-    final query = _db.delete<dynamic>(_db.outbox)
+    final query = _db.delete(_db.outbox)
       ..where((t) => t.processingStatus.equals('synced'))
       ..where((t) => t.clientTs.isSmallerThanValue(epochCutoff));
 

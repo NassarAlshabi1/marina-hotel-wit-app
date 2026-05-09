@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/status_utils.dart';
@@ -95,11 +97,11 @@ class BookingsRepository {
         return id;
       });
 
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'bookings',
         'INSERT',
         recordData: {'id': result},
-      );
+      ),);
       // إشعار Lark (غير متزامن — لا يبطئ العملية)
       _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
       return result;
@@ -247,11 +249,11 @@ class BookingsRepository {
       });
 
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'bookings',
           'UPDATE',
           recordData: {'id': id},
-        );
+        ),);
         // إشعار Lark عند تغيير حالة الحجز (fire-and-forget)
         _notifyLarkBookingUpdate(id, status);
       }
@@ -270,10 +272,14 @@ class BookingsRepository {
 
   /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
   void _notifyLarkBookingUpdate(int bookingId, String? newStatus) {
-    if (newStatus == null) return;
+    if (newStatus == null) {
+      return;
+    }
     // الحصول على بيانات الحجز بشكل غير متزامن
     dao.getById(bookingId).then((booking) {
-      if (booking == null) return;
+      if (booking == null) {
+        return;
+      }
       switch (newStatus) {
         case 'نشط':
           LarkNotificationService.instance.notifyCheckIn(
@@ -311,11 +317,11 @@ class BookingsRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'bookings',
           'DELETE',
           recordData: {'id': id},
-        );
+        ),);
       }
       return result;
     } catch (e, stack) {
@@ -373,7 +379,9 @@ class BookingsRepository {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
         .getSingleOrNull();
-    if (booking == null) return;
+    if (booking == null) {
+      return;
+    }
 
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {

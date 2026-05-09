@@ -135,7 +135,7 @@ Future<void> main(List<String> args) async {
     print('• الحقول قد تحتاج بضع ثوانٍ لتكون جاهزة (Indexing)');
     print('• تحقق من Appwrite Console للتأكد');
     print('• يمكنك الآن استخدام التطبيق بشكل طبيعي');
-  } catch (Object e) {
+  } catch (e) {
     print('\n❌ خطأ: $e');
     exit(1);
   } finally {
@@ -147,7 +147,7 @@ Future<bool> createCollection(http.Client client, String apiKey) async {
   final url = Uri.parse('$endpoint/databases/$databaseId/collections');
 
   try {
-    final response = await client.post<dynamic>(
+    final response = await client.post(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -168,7 +168,7 @@ Future<bool> createCollection(http.Client client, String apiKey) async {
     );
 
     return response.statusCode == 201;
-  } catch (Object e) {
+  } catch (e) {
     print('   ❌ خطأ في إنشاء الـ Collection: $e');
     return false;
   }
@@ -188,16 +188,24 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
   if (type == 'string') {
     urlPath = 'string';
     body['size'] = attr['size'] ?? 255;
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else if (type == 'integer') {
     urlPath = 'integer';
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else if (type == 'double') {
     urlPath = 'float';
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else if (type == 'boolean') {
     urlPath = 'boolean';
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else {
     return 'fail';
   }
@@ -207,7 +215,7 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
   );
 
   try {
-    final response = await client.post<dynamic>(
+    final response = await client.post(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -224,7 +232,7 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
     } else {
       return 'fail';
     }
-  } catch (Object) {
+  } catch (e) {
     return 'fail';
   }
 }
@@ -242,7 +250,7 @@ Future<void> createIndex(
   );
 
   try {
-    final response = await client.post<dynamic>(
+    final response = await client.post(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -264,7 +272,7 @@ Future<void> createIndex(
     } else {
       print('   ❌ Index: $indexKey (فشل: ${response.statusCode})');
     }
-  } catch (Object e) {
+  } catch (e) {
     print('   ❌ Index: $indexKey (خطأ: $e)');
   }
 }

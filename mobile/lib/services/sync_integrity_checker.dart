@@ -385,13 +385,17 @@ class SyncIntegrityChecker {
   }
 
   Future<void> _fixAmountMismatch(AppDatabase db, IntegrityIssue issue) async {
-    if (issue.table != 'bookings' || issue.uuid == null) return;
+    if (issue.table != 'bookings' || issue.uuid == null) {
+      return;
+    }
 
     final booking = await (db.select(
       db.bookings,
     )..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
 
-    if (booking == null) return;
+    if (booking == null) {
+      return;
+    }
 
     // إعادة حساب كاملة بدلاً من الاعتماد على القيم المخزنة مؤقتاً (stale)
     final calcService = EnhancedBookingCalculationService(db);

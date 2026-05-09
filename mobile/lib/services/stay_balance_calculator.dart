@@ -105,15 +105,21 @@ class StayBalanceResult {
 
   /// نسبة التغطية حتى التاريخ اليدوي (0.0 - 1.0)
   double get manualCoverageRatio {
-    if (manualNightsRemaining <= 0) return isAutoExtended ? 1.0 : (hasPayments ? 1.0 : 0.0);
+    if (manualNightsRemaining <= 0) {
+      return isAutoExtended ? 1.0 : (hasPayments ? 1.0 : 0.0);
+    }
     final totalNeeded = actualNightsSpent + manualNightsRemaining;
-    if (totalNeeded <= 0) return 1.0;
+    if (totalNeeded <= 0) {
+      return 1.0;
+    }
     return (totalPaidNights / totalNeeded).clamp(0.0, 1.0);
   }
 
   /// الأيام غير المغطاة حتى التاريخ اليدوي
   int get uncoveredDays {
-    if (isAutoExtended || manualNightsRemaining <= 0) return 0;
+    if (isAutoExtended || manualNightsRemaining <= 0) {
+      return 0;
+    }
     final coveredBeyondActual = totalPaidNights > actualNightsSpent
         ? totalPaidNights - actualNightsSpent
         : 0;
@@ -125,7 +131,9 @@ class StayBalanceResult {
 
   /// تنسيق التاريخ
   String formatDate(DateTime? dt) {
-    if (dt == null) return '---';
+    if (dt == null) {
+      return '---';
+    }
     final y = dt.year.toString();
     final m = dt.month.toString().padLeft(2, '0');
     final d = dt.day.toString().padLeft(2, '0');
@@ -154,13 +162,19 @@ class StayBalanceCalculator {
 
     return adjustments.where((adj) {
       // ① استبعاد سجلات legacy_discount دائماً
-      if (adj.reason == 'legacy_discount') return false;
+      if (adj.reason == 'legacy_discount') {
+        return false;
+      }
 
       // ② التحقق من roomNumber — تجنب تطبيق تخفيض من حجز آخر
       final adjRoom = adj.roomNumber?.trim();
-      if (adjRoom == null || adjRoom.isEmpty) return false;
+      if (adjRoom == null || adjRoom.isEmpty) {
+        return false;
+      }
       final room = booking.roomNumber.trim();
-      if (adjRoom != room) return false;
+      if (adjRoom != room) {
+        return false;
+      }
 
       // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
       //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
@@ -233,7 +247,9 @@ class StayBalanceCalculator {
       final effectiveRate =
           (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0);
 
-      if (effectiveRate <= 0) break;
+      if (effectiveRate <= 0) {
+        break;
+      }
 
       if (remainingBalance >= effectiveRate) {
         remainingBalance -= effectiveRate;
@@ -347,7 +363,9 @@ class StayBalanceCalculator {
     DateTime checkinDateOnly,
     DateTime? manualCheckout,
   ) {
-    if (adjustments == null || adjustments.isEmpty) return const {};
+    if (adjustments == null || adjustments.isEmpty) {
+      return const {};
+    }
 
     final map = <String, double>{};
     final farFuture =
@@ -355,7 +373,9 @@ class StayBalanceCalculator {
 
     for (final adj in adjustments) {
       final effectiveDate = DateTime.tryParse(adj.effectiveHotelDay);
-      if (effectiveDate == null) continue;
+      if (effectiveDate == null) {
+        continue;
+      }
 
       // تطبيع التواريخ إلى بداية اليوم فقط (تجنب مشاكل المنطقة الزمنية)
       final effDateOnly = DateTime(
@@ -377,7 +397,9 @@ class StayBalanceCalculator {
       if (adj.adjustmentMode == 'total') {
         // توزيع إجمالي المبلغ بالتساوي على ليالي النطاق
         final daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
-        if (daysInRange <= 0) continue;
+        if (daysInRange <= 0) {
+          continue;
+        }
 
         final amountPerNight = rawAmount / daysInRange;
 

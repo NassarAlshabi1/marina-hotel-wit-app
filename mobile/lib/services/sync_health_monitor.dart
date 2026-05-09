@@ -67,10 +67,14 @@ class SyncHealthMonitor {
     _lastSuccessAt = DateTime.now();
 
     _syncDurations.add(duration);
-    if (_syncDurations.length > 20) _syncDurations.removeAt(0);
+    if (_syncDurations.length > 20) {
+      _syncDurations.removeAt(0);
+    }
 
     _hadConflicts.add(hadConflicts);
-    if (_hadConflicts.length > 20) _hadConflicts.removeAt(0);
+    if (_hadConflicts.length > 20) {
+      _hadConflicts.removeAt(0);
+    }
 
     _persistMetrics();
     _emitMetrics();
@@ -169,15 +173,23 @@ class SyncHealthMonitor {
   }
 
   double _calculateDataLossRisk() {
-    if (_consecutiveFailures >= 5) return 0.8;
-    if (_consecutiveFailures >= 3) return 0.5;
+    if (_consecutiveFailures >= 5) {
+      return 0.8;
+    }
+    if (_consecutiveFailures >= 3) {
+      return 0.5;
+    }
 
     final timeSinceSuccess = _lastSuccessAt == null
         ? const Duration(days: 365)
         : DateTime.now().difference(_lastSuccessAt!);
 
-    if (timeSinceSuccess.inHours > 48) return 0.7;
-    if (timeSinceSuccess.inHours > 24) return 0.4;
+    if (timeSinceSuccess.inHours > 48) {
+      return 0.7;
+    }
+    if (timeSinceSuccess.inHours > 24) {
+      return 0.4;
+    }
 
     return 0.1;
   }
@@ -187,10 +199,14 @@ class SyncHealthMonitor {
     _consecutiveFailures = prefs.getInt('sync_health_failures') ?? 0;
 
     final successStr = prefs.getString('sync_health_last_success');
-    if (successStr != null) _lastSuccessAt = DateTime.tryParse(successStr);
+    if (successStr != null) {
+      _lastSuccessAt = DateTime.tryParse(successStr);
+    }
 
     final failureStr = prefs.getString('sync_health_last_failure');
-    if (failureStr != null) _lastFailureAt = DateTime.tryParse(failureStr);
+    if (failureStr != null) {
+      _lastFailureAt = DateTime.tryParse(failureStr);
+    }
   }
 
   Future<void> _persistMetrics() async {

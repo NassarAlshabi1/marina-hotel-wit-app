@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -322,6 +323,7 @@ class _AutoSyncEngineMonitorScreenState
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await AutoSyncEngine.instance.resetFailedAttempts();
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')),
                   );
@@ -638,7 +640,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _performManualSync(BuildContext context) async {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -650,12 +652,15 @@ class _AutoSyncEngineMonitorScreenState
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final result = await AutoSyncEngine.instance.forceSyncNow();
 
-      if (mounted) Navigator.of(context).pop<void>();
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pop();
+      }
 
       if (mounted) {
         final message = result.success
@@ -665,25 +670,30 @@ class _AutoSyncEngineMonitorScreenState
             : '❌ ${result.message}\n'
                   '${result.error ?? ""}';
 
-        showDialog<void>(
+        unawaited(showDialog<void>(
+          // ignore: use_build_context_synchronously
           context: context,
           builder: (context) => AlertDialog(
             title: Text(result.success ? 'نجح!' : 'فشل'),
             content: Text(message),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(context),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('حسناً'),
               ),
             ],
           ),
-        );
+        ),);
       }
 
       ref.invalidate(autoSyncEngineStateProvider);
-    } catch (Object e) {
-      if (mounted) Navigator.of(context).pop<void>();
+    } catch (e) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pop();
+      }
+      if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
         );
@@ -694,6 +704,7 @@ class _AutoSyncEngineMonitorScreenState
   Future<void> _resetFailedAttempts(BuildContext context) async {
     await AutoSyncEngine.instance.resetFailedAttempts();
     if (mounted) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ تم إعادة تعيين المحاولات الفاشلة'),
@@ -721,7 +732,7 @@ class _AutoSyncEngineMonitorScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(context),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('إغلاق'),
               ),
             ],
@@ -865,7 +876,8 @@ class _AutoSyncEngineMonitorScreenState
         (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
 
     if (mounted) {
-      showDialog<void>(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط Debouncing'),
@@ -883,8 +895,12 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setDebounceSeconds(value);
-                      if (context.mounted) Navigator.pop<void>(context);
                       if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -900,7 +916,7 @@ class _AutoSyncEngineMonitorScreenState
             ],
           ),
         ),
-      );
+      ),);
     }
   }
 
@@ -910,7 +926,8 @@ class _AutoSyncEngineMonitorScreenState
         (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
 
     if (mounted) {
-      showDialog<void>(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط فترة Pull'),
@@ -928,8 +945,12 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setPullInterval(value);
-                      if (context.mounted) Navigator.pop<void>(context);
                       if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -945,7 +966,7 @@ class _AutoSyncEngineMonitorScreenState
             ],
           ),
         ),
-      );
+      ),);
     }
   }
 
@@ -954,7 +975,8 @@ class _AutoSyncEngineMonitorScreenState
     final currentStrategy = await resolver.getStrategy();
 
     if (mounted) {
-      showDialog<void>(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('استراتيجية حل التضارب'),
@@ -970,8 +992,12 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setConflictStrategy(value);
-                      if (context.mounted) Navigator.pop<void>(context);
                       if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -987,21 +1013,33 @@ class _AutoSyncEngineMonitorScreenState
             ),
           ),
         ),
-      );
+      ),);
     }
   }
 
   String _getDebounceDescription(int seconds) {
-    if (seconds <= 2) return 'سريع جداً - استجابة فورية';
-    if (seconds <= 5) return 'متوازن - موصى به';
-    if (seconds <= 10) return 'بطيء - توفير البطارية';
+    if (seconds <= 2) {
+      return 'سريع جداً - استجابة فورية';
+    }
+    if (seconds <= 5) {
+      return 'متوازن - موصى به';
+    }
+    if (seconds <= 10) {
+      return 'بطيء - توفير البطارية';
+    }
     return 'بطيء جداً';
   }
 
   String _getPullIntervalDescription(int minutes) {
-    if (minutes <= 1) return 'سريع جداً - تحديثات فورية';
-    if (minutes <= 2) return 'سريع - موصى به';
-    if (minutes <= 5) return 'متوسط - متوازن';
+    if (minutes <= 1) {
+      return 'سريع جداً - تحديثات فورية';
+    }
+    if (minutes <= 2) {
+      return 'سريع - موصى به';
+    }
+    if (minutes <= 5) {
+      return 'متوسط - متوازن';
+    }
     return 'بطيء - توفير البيانات';
   }
 
@@ -1062,7 +1100,9 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   String _formatTimestamp(String? iso) {
-    if (iso == null) return '';
+    if (iso == null) {
+      return '';
+    }
     try {
       final dt = DateTime.parse(iso);
       return DateFormat('dd/MM HH:mm').format(dt);

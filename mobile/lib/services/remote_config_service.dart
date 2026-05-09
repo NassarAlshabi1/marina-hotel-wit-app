@@ -49,7 +49,9 @@ class RemoteConfigService {
   /// تهيئة Remote Config — يُستدعى من main()
   /// يعمل دائماً حتى لو فشل Firebase — يستخدم القيم الافتراضية
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       _remoteConfig = FirebaseRemoteConfig.instance;
@@ -74,7 +76,7 @@ class RemoteConfigService {
           'Remote Config activated: $status',
           name: 'RemoteConfig',
         );
-      } catch (Object e) {
+      } catch (e) {
         developer.log(
           'Remote Config fetch failed (using defaults): $e',
           name: 'RemoteConfig',
@@ -113,7 +115,9 @@ class RemoteConfigService {
 
   /// جلب القيم يدوياً (إجبار تحديث)
   Future<bool> forceFetch() async {
-    if (_remoteConfig == null) return false;
+    if (_remoteConfig == null) {
+      return false;
+    }
 
     try {
       final status = await _remoteConfig!.fetchAndActivate();
@@ -124,7 +128,7 @@ class RemoteConfigService {
         name: 'RemoteConfig',
       );
       return status;
-    } catch (Object e) {
+    } catch (e) {
       _lastFetchStatus = 'error: $e';
       developer.log(
         'Remote Config force fetch error: $e',
@@ -338,7 +342,9 @@ class RemoteConfigService {
 
   /// الحصول على جميع القيم الحالية كخريطة
   Map<String, dynamic> getAllValues() {
-    if (_remoteConfig == null) return Map.from(_defaults);
+    if (_remoteConfig == null) {
+      return Map.from(_defaults);
+    }
 
     return {
       // الإشعارات والاتصال

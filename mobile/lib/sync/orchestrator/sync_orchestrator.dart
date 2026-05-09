@@ -57,7 +57,9 @@ class SyncOrchestrator {
 
   /// تهيئة المنسق
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     developer.log('Initializing SyncOrchestrator', name: 'Sync');
 
@@ -75,7 +77,9 @@ class SyncOrchestrator {
 
   /// بدء المزامنة التلقائية
   void startAutoSync() {
-    if (!_config.enabled || !_config.backgroundSyncEnabled) return;
+    if (!_config.enabled || !_config.backgroundSyncEnabled) {
+      return;
+    }
 
     _autoSyncTimer?.cancel();
     _autoSyncTimer = Timer.periodic(
@@ -95,8 +99,12 @@ class SyncOrchestrator {
 
   /// المزامنة إذا لزم الأمر (حسب الإعدادات)
   Future<void> syncIfNeeded() async {
-    if (!_config.enabled) return;
-    if (_isSyncing) return;
+    if (!_config.enabled) {
+      return;
+    }
+    if (_isSyncing) {
+      return;
+    }
 
     // التحقق من وجود تغييرات معلقة
     final pendingCount = await _outbox.pendingCount;
@@ -142,9 +150,7 @@ class SyncOrchestrator {
       final pullResult = await _syncEngine.sync(direction: SyncDirection.download);
 
       // إشعار بالتعارضات المكتشفة
-      for (final conflict in pullResult.conflicts) {
-        _conflictController.add(conflict);
-      }
+      pullResult.conflicts.forEach(_conflictController.add);
 
       // ⏸️ المرحلة 2: Resolve - حل التعارضات
       if (pullResult.conflicts.isNotEmpty) {

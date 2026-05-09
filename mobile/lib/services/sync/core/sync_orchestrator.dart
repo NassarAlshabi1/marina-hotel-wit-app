@@ -25,7 +25,9 @@ class SyncOrchestrator {
 
   /// تهيئة المنظم
   Future<void> initialize(List<SyncAdapter> adapters) async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
     
     _adapters.addAll(adapters);
     
@@ -56,7 +58,9 @@ class SyncOrchestrator {
 
     try {
       for (final adapter in _adapters) {
-        if (!adapter.isEnabled) continue;
+        if (!adapter.isEnabled) {
+          continue;
+        }
 
         _emitState(SyncState.syncing(
           progress: (completed / _adapters.length * 100).toInt(),
@@ -83,7 +87,7 @@ class SyncOrchestrator {
 
       _emitState(allSuccess ? SyncState.idle() : SyncState.error(result.message));
       return result;
-    } catch (Object e) {
+    } catch (e) {
       final errorResult = SyncResult.error('خطأ في المزامنة: $e');
       _emitState(SyncState.error(errorResult.message));
       return errorResult;
@@ -115,10 +119,14 @@ class SyncOrchestrator {
 
   /// الحصول على حالة المزامنة الحالية
   Future<SyncStatus> getCurrentStatus() async {
-    if (_isSyncing) return SyncStatus.syncing;
+    if (_isSyncing) {
+      return SyncStatus.syncing;
+    }
     
     final anyEnabled = _adapters.any((a) => a.isEnabled);
-    if (!anyEnabled) return SyncStatus.disabled;
+    if (!anyEnabled) {
+      return SyncStatus.disabled;
+    }
     
     return SyncStatus.idle;
   }

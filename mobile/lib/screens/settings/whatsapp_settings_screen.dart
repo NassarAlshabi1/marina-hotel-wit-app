@@ -63,7 +63,9 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _templateController.text =
           prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
@@ -101,7 +103,9 @@ class _WhatsAppSettingsScreenState
       _customUrlController.text.trim(),
     );
     ref.invalidate(whatsappSettingsProvider);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _isSaving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -115,7 +119,9 @@ class _WhatsAppSettingsScreenState
     setState(() => _isSaving = true);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('whatsapp_template', _templateController.text);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _isSaving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -150,7 +156,9 @@ class _WhatsAppSettingsScreenState
     await prefs.remove('wa_custom_url_template');
     await prefs.remove('whatsapp_template');
     ref.invalidate(whatsappSettingsProvider);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _baseUrlController.text = _defaultBaseUrl;
       _instanceIdController.text = _defaultInstanceId;
@@ -180,7 +188,9 @@ class _WhatsAppSettingsScreenState
 
       final result = await testService.testConnection();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _isTesting = false);
 
       if (result.success) {
@@ -207,8 +217,10 @@ class _WhatsAppSettingsScreenState
               : 'تحقق من الإعدادات وحاول مرة أخرى.',
         );
       }
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _isTesting = false);
       _showTestResult(false, 'فشل الاتصال', e.toString());
     }
@@ -217,7 +229,9 @@ class _WhatsAppSettingsScreenState
   String _sanitizeResponseBody(String body) {
     var cleaned = body.replaceAll(RegExp('<[^>]*>'), '').trim();
     cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-    if (RegExp(r'^[\s\n]*$').hasMatch(cleaned)) return '';
+    if (RegExp(r'^[\s\n]*$').hasMatch(cleaned)) {
+      return '';
+    }
     return cleaned;
   }
 
@@ -273,7 +287,7 @@ class _WhatsAppSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('إغلاق'),
           ),
         ],
@@ -288,7 +302,9 @@ class _WhatsAppSettingsScreenState
       final appwrite = ref.read(appwriteServiceProvider);
       final sync = WhatsAppSettingsSync(appwrite);
       final result = await sync.uploadToCloud();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _isSyncing = false);
       if (result.success) {
         _showSyncResult(
@@ -303,8 +319,10 @@ class _WhatsAppSettingsScreenState
           subtitle: result.error ?? 'حدث خطأ غير معروف',
         );
       }
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _isSyncing = false);
       _showSyncResult(
         success: false,
@@ -336,11 +354,11 @@ class _WhatsAppSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop<void>(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.download, size: 18),
             label: const Text('تنزيل'),
             style: ElevatedButton.styleFrom(
@@ -364,7 +382,9 @@ class _WhatsAppSettingsScreenState
       final appwrite = ref.read(appwriteServiceProvider);
       final sync = WhatsAppSettingsSync(appwrite);
       final result = await sync.downloadFromCloud();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _isSyncing = false);
       if (result.success) {
         // إعادة تحميل الإعدادات من SharedPreferences
@@ -382,8 +402,10 @@ class _WhatsAppSettingsScreenState
           subtitle: result.error ?? 'حدث خطأ غير معروف',
         );
       }
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _isSyncing = false);
       _showSyncResult(
         success: false,
@@ -850,7 +872,7 @@ class _WhatsAppSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('حسناً'),
           ),
         ],

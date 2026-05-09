@@ -104,7 +104,7 @@ class SyncGuardian {
           await AutoSyncTask.scheduleImmediateSync();
         }
         _pendingChangesCount = 0;
-      } catch (Object e) {
+      } catch (e) {
         debugPrint('⚠️ فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
@@ -138,7 +138,7 @@ class SyncGuardian {
     Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator!.onAppForeground();
-      } catch (Object e) {
+      } catch (e) {
         _log('⚠️ فشل سحب التغييرات: $e');
       }
     });
@@ -197,7 +197,7 @@ class SyncGuardian {
       _lastSyncAt = DateTime.now().toUtc();
       _lastError = null;
       await _refreshPendingFlag();
-    } catch (Object error) {
+    } catch (error) {
       _failedAttempts += 1;
       _lastError = error.toString();
       await _refreshPendingFlag();
@@ -229,7 +229,7 @@ class SyncGuardian {
 
   Future<void> dispose() async {
     _pendingMonitor?.cancel();
-    _healthController.close();
+    unawaited(_healthController.close());
     _initialized = false;
   }
 

@@ -47,7 +47,9 @@ class RetryStrategy {
   final Random _random = Random();
 
   Duration calculateDelay(int attemptNumber) {
-    if (attemptNumber <= 0) return Duration.zero;
+    if (attemptNumber <= 0) {
+      return Duration.zero;
+    }
 
     Duration baseDelay;
 
@@ -81,7 +83,9 @@ class RetryStrategy {
   }
 
   int _fibonacci(int n) {
-    if (n <= 1) return n;
+    if (n <= 1) {
+      return n;
+    }
     int a = 0, b = 1;
     for (int i = 2; i <= n; i++) {
       final int temp = a + b;
@@ -105,7 +109,7 @@ class RetryStrategy {
       try {
         debugPrint('🔄 [Retry] محاولة $attempt من ${config.maxAttempts}');
         return await operation();
-      } catch (Object error) {
+      } catch (error) {
         lastError = error;
         debugPrint('⚠️ [Retry] فشلت المحاولة $attempt: $error');
 
@@ -132,7 +136,7 @@ class RetryStrategy {
       }
     }
 
-    throw lastError as Object;
+    throw Exception(lastError.toString());
   }
 
   Future<T?> executeWithFallback<T>({
@@ -147,7 +151,7 @@ class RetryStrategy {
         shouldRetry: shouldRetry,
         onRetry: onRetry,
       );
-    } catch (Object) {
+    } catch (e) {
       debugPrint('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
       return fallback();
     }

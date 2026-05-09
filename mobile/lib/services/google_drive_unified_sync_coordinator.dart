@@ -262,7 +262,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
 
     // مراقبة تغييرات outbox للمزامنة التلقائية
-    _outboxSubscription?.cancel();
+    unawaited(_outboxSubscription?.cancel());
     if (_pushEnabled && _database != null) {
       _outboxSubscription = _database!.select(_database!.outbox)
           .watch()
@@ -284,7 +284,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       );
     }
 
-    _scheduleFullBackup();
+    unawaited(_scheduleFullBackup());
   }
 
   void _stopMonitoring() {
@@ -345,7 +345,9 @@ class GoogleDriveUnifiedSyncCoordinator {
   /// - ذكي: لا يزعج المستخدم بمزامنات متعددة
   /// - فعال: يوفر البطارية والبيانات
   void notifyLocalChange({String? table, String? operation, int count = 1}) {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     SyncLocks.mainSyncLock.synchronized(() {
       final now = DateTime.now();
@@ -378,7 +380,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     _debounceTimer = Timer(Duration(seconds: effectiveDebounce), () async {
       if (_hasPendingChanges) {
         _log('✅ Starting sync for $_pendingChangesCount changes');
-        _triggerSync();
+        unawaited(_triggerSync());
       }
     });
   }
@@ -436,7 +438,9 @@ class GoogleDriveUnifiedSyncCoordinator {
     SyncMode mode = SyncMode.smart,
   }) async {
     final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
-      if (!_isInitialized) return _PerformSyncNotInitialized();
+      if (!_isInitialized) {
+        return _PerformSyncNotInitialized();
+      }
       if (!(_backupService?.isSignedIn ?? false)) {
         return _PerformSyncNotSignedIn();
       }
@@ -582,7 +586,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       _log('✅ Sync completed [pushed=$pushed, pulled=$pulled]');
 
       return result;
-    } catch (Object error, StackTrace stackTrace) {
+    } catch (error, stackTrace) {
       final errorMessage = error.toString();
       _log('❌ Sync failed: $errorMessage', level: LogLevel.error);
       _log('Stack trace: $stackTrace', level: LogLevel.debug);
@@ -684,7 +688,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         _log('⚠️ Delta push failed: ${result.message}');
         return null;
       }
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ Delta push error: $e');
       rethrow;
     }
@@ -720,7 +724,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         _log('ℹ️ No changes to pull');
         return 0;
       }
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ Delta pull error: $e');
       rethrow;
     }
@@ -748,7 +752,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
       _log('✅ Full backup completed');
       return 1;
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ Full backup error: $e');
       rethrow;
     }
@@ -760,14 +764,14 @@ class GoogleDriveUnifiedSyncCoordinator {
     _pushEnabled = enabled;
 
     if (!enabled) {
-      _outboxSubscription?.cancel();
+      unawaited(_outboxSubscription?.cancel());
       _outboxSubscription = null;
     } else {
       final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
       if (_isInitialized &&
           syncEnabled &&
           (_backupService?.isSignedIn ?? false)) {
-        _outboxSubscription?.cancel();
+        unawaited(_outboxSubscription?.cancel());
         if (_database != null) {
           _outboxSubscription = _database!.select(_database!.outbox)
               .watch()
@@ -821,7 +825,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     _fullBackupIntervalHours = hours;
 
     if (_isInitialized && (_backupService?.isSignedIn ?? false)) {
-      _scheduleFullBackup();
+      unawaited(_scheduleFullBackup());
     }
 
     _log('📅 Full backup interval set to $hours hours');
@@ -848,7 +852,9 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   DateTime? _parseTimestamp(String? iso) {
-    if (iso == null) return null;
+    if (iso == null) {
+      return null;
+    }
     try {
       return DateTime.parse(iso);
     } catch (_) {
@@ -870,7 +876,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         return true;
       }
       return false;
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ Push failed: $e', level: LogLevel.error);
       return false;
     }
@@ -894,7 +900,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         return true;
       }
       return false;
-    } catch (Object e) {
+    } catch (e) {
       _log('❌ Pull failed: $e', level: LogLevel.error);
       return false;
     }

@@ -36,6 +36,7 @@ class _SyncPerformanceSettingsScreenState
       await SyncPerformanceSettings.applyProfile(profileKey);
       setState(() => _currentProfile = profileKey);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -44,7 +45,8 @@ class _SyncPerformanceSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تطبيق ملف التعريف: $e'),

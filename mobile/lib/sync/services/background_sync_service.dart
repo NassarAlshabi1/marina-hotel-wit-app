@@ -34,15 +34,17 @@ class BackgroundSyncService {
     required SyncOrchestrator orchestrator,
     required SyncConfiguration config,
   }) async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     _orchestrator = orchestrator;
     _config = config;
 
     // تسجيل معالج المهام في WorkManager
-    Workmanager().initialize(
+    unawaited(Workmanager().initialize(
       _callbackDispatcher,
-    );
+    ),);
 
     _isInitialized = true;
     developer.log('BackgroundSyncService initialized', name: 'BackgroundSync');
@@ -133,12 +135,12 @@ class BackgroundSyncService {
   Future<bool> _canRunBackgroundSync() async {
     // التحقق من الاتصال
     final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.contains(ConnectivityResult.none)) {
       return false;
     }
 
     // التحقق من WiFi إذا كان مطلوباً
-    if (_config.requireWifi && connectivity != ConnectivityResult.wifi) {
+    if (_config.requireWifi && !connectivity.contains(ConnectivityResult.wifi)) {
       return false;
     }
 

@@ -107,7 +107,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               title: const Text('مزامنة كاملة'),
               subtitle: const Text('دفع + سحب'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 orchestrator.syncNow();
               },
             ),
@@ -116,7 +116,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               title: const Text('رفع التغييرات فقط'),
               subtitle: const Text('Push Only'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 orchestrator.pushOnly();
               },
             ),
@@ -125,7 +125,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               title: const Text('سحب التغييرات فقط'),
               subtitle: const Text('Pull Only'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 orchestrator.pullOnly();
               },
             ),

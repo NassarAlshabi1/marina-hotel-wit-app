@@ -525,12 +525,12 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               _restoreBackup(backup);
             },
             style: ElevatedButton.styleFrom(
@@ -580,12 +580,12 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               _deleteBackup(backup);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

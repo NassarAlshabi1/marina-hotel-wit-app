@@ -220,7 +220,9 @@ class AppwriteDevicesTab extends ConsumerWidget {
   }
 
   AppwriteDevice? _findDevice(List<AppwriteDevice> devices, String? deviceId) {
-    if (deviceId == null) return null;
+    if (deviceId == null) {
+      return null;
+    }
     for (final device in devices) {
       if (device.id == deviceId) {
         return device;

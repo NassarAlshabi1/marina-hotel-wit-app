@@ -42,7 +42,7 @@ class AppwriteDeltaSync {
 
   AppwriteService? _appwriteService;
   DeltaSyncService? _deltaSyncService;
-  AppDatabase? _database;
+  late AppDatabase _database;
   String? _deviceId;
   bool _isSyncing = false;
   int _skippedConflicts = 0;
@@ -135,7 +135,7 @@ class AppwriteDeltaSync {
         try {
           await _pushSingleChange(change);
           successfulChanges.add(change);
-        } catch (Object e) {
+        } catch (e) {
           failedChanges.add(change);
           _logger.warning(
             'فشل رفع تغيير: ${change.entity}/${change.localUuid} - $e',
@@ -161,7 +161,7 @@ class AppwriteDeltaSync {
         message: message,
         pushedCount: successfulChanges.length,
       );
-    } catch (Object e) {
+    } catch (e) {
       _logger.error('❌ خطأ في المزامنة التفاضلية: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
@@ -231,9 +231,9 @@ class AppwriteDeltaSync {
             collectionId: collectionId,
             documentId: change.localUuid,
           );
-        } on AppwriteException catch (Object e) {
+        } on AppwriteException catch (e) {
           if (e.code != 404) rethrow;
-        } catch (Object) {
+        } catch (_) {
           rethrow;
         }
     }
@@ -309,7 +309,7 @@ class AppwriteDeltaSync {
             'تم تحديث حالة إشغال الغرف بعد المزامنة',
             tag: 'DELTA_SYNC',
           );
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'فشل تحديث حالة الإشغال: $e',
             tag: 'DELTA_SYNC',
@@ -331,7 +331,7 @@ class AppwriteDeltaSync {
         pulledCount: pulledCount,
         skippedConflicts: _skippedConflicts,
       );
-    } catch (Object e) {
+    } catch (e) {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
       return AppwriteDeltaSyncResult(success: false, message: e.toString());
     } finally {
@@ -379,7 +379,7 @@ class AppwriteDeltaSync {
             queries: newEventsQueries,
             useCache: false,
           );
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'فشل فلترة $entity بـ \$updatedAt، جلب كامل محدود: $e',
             tag: 'DELTA_SYNC',
@@ -430,7 +430,7 @@ class AppwriteDeltaSync {
         int? remoteUpdatedAtSec;
         try {
           remoteUpdatedAtSec = (DateTime.parse(doc.$updatedAt).millisecondsSinceEpoch / 1000).round();
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning('Cannot parse \$updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
         }
 
@@ -463,7 +463,7 @@ class AppwriteDeltaSync {
         try {
           await _applyRemoteChange(entity, doc.$id, data);
           applied++;
-        } catch (Object e) {
+        } catch (e) {
           _logger.warning(
             'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
             tag: 'DELTA_SYNC',
@@ -477,7 +477,7 @@ class AppwriteDeltaSync {
       );
 
       return applied;
-    } catch (Object e) {
+    } catch (e) {
       _logger.warning('فشل سحب $entity: $e', tag: 'DELTA_SYNC');
       return 0;
     }
@@ -649,7 +649,7 @@ class AppwriteDeltaSync {
         await _getBookingLocalId(db, localUuid),
         forceRebuild: true,
       );
-    } catch (Object e) {
+    } catch (e) {
       _logger.warning(
         'فشل إعادة حساب الحقول المحسوبة للحجز $localUuid: $e',
         tag: 'DELTA_SYNC',

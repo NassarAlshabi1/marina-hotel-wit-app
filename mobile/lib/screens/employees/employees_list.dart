@@ -165,14 +165,14 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           content: Text('هل أنت متأكد من حذف الموظف "${employee.name}"؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.dangerColor,
               ),
-              onPressed: () => Navigator.pop<void>(ctx, true),
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('حذف'),
             ),
           ],
@@ -180,14 +180,17 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(employeesRepoProvider);
-      await repo.delete<dynamic>(employee.id);
+      await repo.delete(employee.id);
       markDataChanged();
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم حذف الموظف بنجاح'),
@@ -196,8 +199,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل حذف الموظف: $e'),
@@ -207,7 +211,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -437,13 +443,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.pop<void>(ctx, true);
+                  Navigator.pop(ctx, true);
                 }
               },
               icon: const Icon(Icons.save),
@@ -453,7 +459,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ),
       ),
     );
-    if (ok != true) return;
+    if (ok != true) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     final repo = ref.read(employeesRepoProvider);
@@ -476,6 +484,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           status: status,
         );
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تمت إضافة الموظف بنجاح'),
@@ -497,6 +506,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           status: status,
         );
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تم تعديل بيانات الموظف بنجاح'),
@@ -507,8 +517,11 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         }
       }
       markDataChanged();
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الموظف: $e'),
@@ -517,7 +530,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 }

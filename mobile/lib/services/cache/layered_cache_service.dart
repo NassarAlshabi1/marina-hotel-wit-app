@@ -22,7 +22,7 @@ class CacheEntry<T> {
 
 class LayeredCacheService {
   // ─── Tier 1: Memory Cache ───
-  static final Map<String, CacheEntry<void>> _memoryCache = {};
+  static final Map<String, CacheEntry<Object?>> _memoryCache = {};
   static const int _maxMemoryEntries = 100;
   static final _memoryAccessOrder = <String>[]; // LRU
   
@@ -114,18 +114,28 @@ class LayeredCacheService {
     try {
       final prefs = await _prefs;
       final json = prefs.getString('cache_v1_$key');
-      if (json == null) return null;
+      if (json == null) {
+        return null;
+      }
       
       // For simple types
-      if (T == String) return json as T;
-      if (T == int) return (int.tryParse(json) ?? 0) as T;
-      if (T == double) return (double.tryParse(json) ?? 0.0) as T;
-      if (T == bool) return (json == 'true') as T;
+      if (T == String) {
+        return json as T;
+      }
+      if (T == int) {
+        return (int.tryParse(json) ?? 0) as T;
+      }
+      if (T == double) {
+        return (double.tryParse(json) ?? 0.0) as T;
+      }
+      if (T == bool) {
+        return (json == 'true') as T;
+      }
       
       // For objects (decode JSON)
       final map = jsonDecode(json) as Map<String, dynamic>;
       return map as T; // Cast based on actual type
-    } catch (Object) {
+    } catch (e) {
       return null;
     }
   }
@@ -142,7 +152,7 @@ class LayeredCacheService {
       }
       
       await prefs.setString('cache_v1_$key', json);
-    } catch (Object) {
+    } catch (e) {
       // Disk cache failure - continue without disk cache
     }
   }

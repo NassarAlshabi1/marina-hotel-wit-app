@@ -5,6 +5,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/crashlytics_service.dart';
+import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
@@ -291,9 +292,9 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildQuickStatsCard(
     BuildContext context,
-    AsyncValue<void> roomsAsync,
-    AsyncValue<void> bookingsAsync,
-    AsyncValue<void> employeesAsync,
+    AsyncValue<List<Room>> roomsAsync,
+    AsyncValue<List<Booking>> bookingsAsync,
+    AsyncValue<List<Employee>> employeesAsync,
     AsyncValue<int> usersCountAsync,
   ) {
     return Card(
@@ -333,7 +334,7 @@ class SettingsScreen extends ConsumerWidget {
                     'الحجوزات النشطة',
                     bookingsAsync.value
                             ?.where(
-                              (dynamic b) => StatusUtils.isActiveBooking(b.status as String),
+                              (b) => StatusUtils.isActiveBooking(b.status),
                             )
                             .length
                             .toString() ??
@@ -493,7 +494,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(context),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('إغلاق'),
               ),
             ],
@@ -683,7 +684,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await crashlytics.sendUnsentReports();
               if (context.mounted) {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم إرسال التقارير المعلقة'),
@@ -698,7 +699,7 @@ class SettingsScreen extends ConsumerWidget {
             TextButton(
               onPressed: () {
                 crashlytics.clearErrorHistory();
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم مسح سجل الأخطاء'),
@@ -708,7 +709,7 @@ class SettingsScreen extends ConsumerWidget {
               child: const Text('مسح السجل', style: TextStyle(color: Colors.red)),
             ),
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],

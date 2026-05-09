@@ -47,7 +47,7 @@ class TelegramApiClient {
     try {
       await _updateToken();
 
-      final response = await _client.post<dynamic>(
+      final response = await _client.post(
         Uri.parse(_apiUrl('sendMessage')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -67,7 +67,7 @@ class TelegramApiClient {
         debugPrint('⚠️ Telegram: فشل الإرسال: ${data['description']}');
         return false;
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Telegram خطأ: $e');
       return false;
     }
@@ -119,13 +119,13 @@ class TelegramApiClient {
     try {
       await _updateToken();
 
-      final response = await _client.get<dynamic>(
+      final response = await _client.get(
         Uri.parse(_apiUrl('getMe')),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['ok'] == true;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Telegram: فشل اختبار الاتصال: $e');
       return false;
     }
@@ -134,7 +134,9 @@ class TelegramApiClient {
   /// اختبار إرسال رسالة
   Future<bool> testSendMessage() async {
     final chatId = await TelegramConfig.getChatId();
-    if (chatId.isEmpty) return false;
+    if (chatId.isEmpty) {
+      return false;
+    }
 
     return sendFormattedMessage(
       chatId: chatId,

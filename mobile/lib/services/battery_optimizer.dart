@@ -130,14 +130,16 @@ class BatteryOptimizer extends ChangeNotifier {
         '🔋 BatteryOptimizer initialized: $_batteryLevel% ($_batteryState)',
         name: 'BatteryOptimizer',
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log('⚠️ BatteryOptimizer init error: $e', name: 'BatteryOptimizer');
     }
   }
 
   /// بدء مراقبة البطارية والاتصال
   Future<void> startMonitoring() async {
-    if (_isMonitoring) return;
+    if (_isMonitoring) {
+      return;
+    }
 
     _isMonitoring = true;
 
@@ -259,22 +261,44 @@ class BatteryOptimizer extends ChangeNotifier {
 
   /// الحصول على لون حالة البطارية
   Color getBatteryStatusColor() {
-    if (_isCharging) return Colors.green;
-    if (_batteryLevel <= 10) return Colors.red;
-    if (_batteryLevel <= 20) return Colors.orange;
-    if (_batteryLevel <= 40) return Colors.yellow.shade700;
+    if (_isCharging) {
+      return Colors.green;
+    }
+    if (_batteryLevel <= 10) {
+      return Colors.red;
+    }
+    if (_batteryLevel <= 20) {
+      return Colors.orange;
+    }
+    if (_batteryLevel <= 40) {
+      return Colors.yellow.shade700;
+    }
     return Colors.green;
   }
 
   /// الحصول على أيقونة حالة البطارية
   IconData getBatteryIcon() {
-    if (_isCharging) return Icons.battery_charging_full;
-    if (_batteryLevel <= 10) return Icons.battery_alert;
-    if (_batteryLevel <= 20) return Icons.battery_0_bar;
-    if (_batteryLevel <= 30) return Icons.battery_1_bar;
-    if (_batteryLevel <= 50) return Icons.battery_3_bar;
-    if (_batteryLevel <= 60) return Icons.battery_4_bar;
-    if (_batteryLevel <= 80) return Icons.battery_5_bar;
+    if (_isCharging) {
+      return Icons.battery_charging_full;
+    }
+    if (_batteryLevel <= 10) {
+      return Icons.battery_alert;
+    }
+    if (_batteryLevel <= 20) {
+      return Icons.battery_0_bar;
+    }
+    if (_batteryLevel <= 30) {
+      return Icons.battery_1_bar;
+    }
+    if (_batteryLevel <= 50) {
+      return Icons.battery_3_bar;
+    }
+    if (_batteryLevel <= 60) {
+      return Icons.battery_4_bar;
+    }
+    if (_batteryLevel <= 80) {
+      return Icons.battery_5_bar;
+    }
     return Icons.battery_full;
   }
 
@@ -334,7 +358,9 @@ extension BatteryOptimizerExtension on BatteryOptimizer {
 
   /// الحصول على فترة انتظار المزامنة القادمة
   Duration? get nextSyncDelay {
-    if (shouldSync) return Duration.zero;
+    if (shouldSync) {
+      return Duration.zero;
+    }
 
     // حساب الوقت المتوقع للشحن
     if (_batteryLevel < 20 && !_isCharging) {

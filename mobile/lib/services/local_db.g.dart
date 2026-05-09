@@ -27804,7 +27804,9 @@ final class $$BookingsTableReferences
     final manager = $$RoomsTableTableManager($_db, $_db.rooms)
         .filter((f) => f.roomNumber.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_roomNumberTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -29074,7 +29076,9 @@ final class $$BookingNotesTableReferences
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -31526,11 +31530,15 @@ final class $$PaymentsTableReferences
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -31542,13 +31550,17 @@ final class $$PaymentsTableReferences
 
   $$CashTransactionsTableProcessedTableManager? get cashTransactionLocalId {
     final $_column = $_itemColumn<int>('cash_transaction_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager =
         $$CashTransactionsTableTableManager($_db, $_db.cashTransactions)
             .filter((f) => f.id.sqlEquals($_column));
     final item =
         $_typedResult.readTableOrNull(_cashTransactionLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -32361,11 +32373,15 @@ final class $$DebtsTableReferences
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -33072,7 +33088,9 @@ final class $$BookingNightsTableReferences
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -34493,7 +34511,9 @@ final class $$IntegrityViolationsTableReferences extends BaseReferences<
     final manager = $$AutoFixRunsTableTableManager($_db, $_db.autoFixRuns)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_runIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -35072,7 +35092,9 @@ final class $$SalaryCyclesTableReferences
     final manager = $$EmployeesTableTableManager($_db, $_db.employees)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_employeeIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -35695,7 +35717,9 @@ final class $$SalaryPaymentsTableReferences
     final manager = $$SalaryCyclesTableTableManager($_db, $_db.salaryCycles)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_cycleIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -37452,7 +37476,9 @@ final class $$SyncConflictsTableReferences extends BaseReferences<_$AppDatabase,
     final manager = $$SyncLogTableTableManager($_db, $_db.syncLog)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_logIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -38315,11 +38341,15 @@ final class $$BookingPriceAdjustmentsTableReferences extends BaseReferences<
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }

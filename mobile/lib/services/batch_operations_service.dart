@@ -73,7 +73,7 @@ class BatchOperationsService {
               documentId: id,
             );
             return {'id': id, 'success': true};
-          } catch (Object e) {
+          } catch (e) {
             return {
               'id': id,
               'success': false,
@@ -100,7 +100,7 @@ class BatchOperationsService {
             documentId: id,
           );
           successfulItems.add(id);
-        } catch (Object e) {
+        } catch (e) {
           errors[id] = _errorHandler.handleError(e).message;
         }
       }
@@ -152,7 +152,7 @@ class BatchOperationsService {
               data: data,
             );
             return {'index': index, 'success': true, 'document': doc};
-          } catch (Object e) {
+          } catch (e) {
             return {
               'index': index,
               'success': false,
@@ -180,7 +180,7 @@ class BatchOperationsService {
             data: documents[i],
           );
           successfulItems.add(doc);
-        } catch (Object e) {
+        } catch (e) {
           errors['document_$i'] = _errorHandler.handleError(e).message;
         }
       }
@@ -232,7 +232,7 @@ class BatchOperationsService {
               data: data,
             );
             return {'id': id, 'success': true, 'document': doc};
-          } catch (Object e) {
+          } catch (e) {
             return {
               'id': id,
               'success': false,
@@ -263,7 +263,7 @@ class BatchOperationsService {
             data: data,
           );
           successfulItems.add(doc);
-        } catch (Object e) {
+        } catch (e) {
           errors[id] = _errorHandler.handleError(e).message;
         }
       }

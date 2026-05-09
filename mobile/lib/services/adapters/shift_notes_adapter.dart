@@ -177,11 +177,17 @@ d.Value<String> _vStr(
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
-  if (v != null) return v;
+  if (v != null) {
+    return v;
+  }
   final s = _asString(json, key, src);
-  if (s == null) return null;
+  if (s == null) {
+    return null;
+  }
   final parsed = int.tryParse(s);
-  if (parsed != null) return parsed;
+  if (parsed != null) {
+    return parsed;
+  }
   final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
   try {
     return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
@@ -192,11 +198,19 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is bool) return v ? 1 : 0;
-  if (v is int) return v;
-  if (v is num) return v.toInt();
+  if (v is bool) {
+    return v ? 1 : 0;
+  }
+  if (v is int) {
+    return v;
+  }
+  if (v is num) {
+    return v.toInt();
+  }
   if (v is String) {
-    if (v.contains('-') || v.length > 20) return null;
+    if (v.contains('-') || v.length > 20) {
+      return null;
+    }
     return int.tryParse(v);
   }
   return null;
@@ -204,14 +218,20 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
 
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v == null) return null;
+  if (v == null) {
+    return null;
+  }
   return v.toString();
 }
 
 Object? _raw(Map<String, dynamic> json, String key, Source src) {
-  if (json.containsKey(key)) return json[key];
+  if (json.containsKey(key)) {
+    return json[key];
+  }
   final alt = _altKey(key, src);
-  if (alt != null && json.containsKey(alt)) return json[alt];
+  if (alt != null && json.containsKey(alt)) {
+    return json[alt];
+  }
   return null;
 }
 
@@ -219,7 +239,9 @@ String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) return camel;
+  if (src == Source.drive) {
+    return camel;
+  }
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

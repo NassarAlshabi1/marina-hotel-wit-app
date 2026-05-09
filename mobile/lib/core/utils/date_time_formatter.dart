@@ -21,72 +21,84 @@ class DateTimeFormatter {
 
   /// Format ISO string to date and time (2024-01-29 18:30)
   static String formatDateTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
       return _dateTimeFormat.format(date);
-    } catch (Object) {
+    } catch (e) {
       return 'تاريخ غير صالح';
     }
   }
 
   /// Format ISO string to date only (2024-01-29)
   static String formatDate(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
       return _dateFormat.format(date);
-    } catch (Object) {
+    } catch (e) {
       return 'تاريخ غير صالح';
     }
   }
 
   /// Format ISO string to time only (18:30)
   static String formatTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
       return _timeFormat.format(date);
-    } catch (Object) {
+    } catch (e) {
       return 'وقت غير صالح';
     }
   }
 
   /// Format ISO string to full date and time with seconds
   static String formatDateTimeFull(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
       return _dateTimeFullFormat.format(date);
-    } catch (Object) {
+    } catch (e) {
       return 'تاريخ غير صالح';
     }
   }
 
   /// Format ISO string to Arabic date (29 يناير 2024)
   static String formatArabicDate(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
       return _arabicDateFormat.format(date);
-    } catch (Object) {
+    } catch (e) {
       return 'تاريخ غير صالح';
     }
   }
 
   /// Format ISO string to Arabic date and time (29 يناير 2024 - 6:30 م)
   static String formatArabicDateTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
       return _arabicDateTimeFormat.format(date);
-    } catch (Object) {
+    } catch (e) {
       return 'تاريخ غير صالح';
     }
   }
@@ -98,7 +110,9 @@ class DateTimeFormatter {
 
   /// Get relative time (منذ 5 دقائق، منذ ساعة، إلخ)
   static String getRelativeTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -126,14 +140,16 @@ class DateTimeFormatter {
         final years = (difference.inDays / 365).floor();
         return 'منذ $years ${years == 1 ? 'سنة' : 'سنوات'}';
       }
-    } catch (Object) {
+    } catch (e) {
       return 'تاريخ غير صالح';
     }
   }
 
   /// Get time ago in short format (5د، 2س، 3ي)
   static String getTimeAgoShort(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return '-';
+    if (isoString == null || isoString.isEmpty) {
+      return '-';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -151,14 +167,16 @@ class DateTimeFormatter {
       } else {
         return '${(difference.inDays / 365).floor()}سنة';
       }
-    } catch (Object) {
+    } catch (e) {
       return '-';
     }
   }
 
   /// Check if date is today
   static bool isToday(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return false;
+    if (isoString == null || isoString.isEmpty) {
+      return false;
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -166,14 +184,16 @@ class DateTimeFormatter {
       return date.year == now.year &&
           date.month == now.month &&
           date.day == now.day;
-    } catch (Object) {
+    } catch (e) {
       return false;
     }
   }
 
   /// Check if date is yesterday
   static bool isYesterday(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return false;
+    if (isoString == null || isoString.isEmpty) {
+      return false;
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -181,7 +201,7 @@ class DateTimeFormatter {
       return date.year == yesterday.year &&
           date.month == yesterday.month &&
           date.day == yesterday.day;
-    } catch (Object) {
+    } catch (e) {
       return false;
     }
   }

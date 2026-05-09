@@ -97,13 +97,15 @@ class AnalyticsService {
 
   /// تهيئة الخدمة
   Future<void> initialize() async {
-    if (!_isEnabled) return;
+    if (!_isEnabled) {
+      return;
+    }
 
     try {
       _analytics = FirebaseAnalytics.instance;
       await _analytics!.setAnalyticsCollectionEnabled(true);
       developer.log('✅ AnalyticsService initialized', name: 'AnalyticsService');
-    } catch (Object e) {
+    } catch (e) {
       developer.log('⚠️ Analytics initialization failed: $e', name: 'AnalyticsService');
       // لا نوقف التطبيق بسبب فشل التحليلات
     }
@@ -120,7 +122,9 @@ class AnalyticsService {
     SyncAnalyticsEvent event, {
     Map<String, dynamic> parameters = const {},
   }) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled) {
+      return;
+    }
 
     final eventName = _eventToString(event);
     final allParameters = <String, Object>{
@@ -145,7 +149,7 @@ class AnalyticsService {
         name: eventName,
         parameters: allParameters,
       );
-    } catch (Object) {
+    } catch (e) {
       // لا نوقف التطبيق بسبب فشل إرسال التحليلات
     }
   }
@@ -357,7 +361,7 @@ class AnalyticsService {
         screenName: screenName,
         screenClass: screenClass ?? screenName,
       );
-    } catch (Object) {
+    } catch (e) {
       // تجاهل أخطاء التحليلات
     }
   }
@@ -367,14 +371,16 @@ class AnalyticsService {
     required String name,
     Map<String, dynamic> parameters = const {},
   }) async {
-    if (!_isEnabled) return;
+    if (!_isEnabled) {
+      return;
+    }
 
     try {
       await _analytics?.logEvent(
         name: name,
         parameters: parameters.map((key, value) => MapEntry(key, value as Object)),
       );
-    } catch (Object) {
+    } catch (e) {
       // تجاهل الأخطاء
     }
   }

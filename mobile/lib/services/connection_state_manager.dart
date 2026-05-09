@@ -112,7 +112,7 @@ class ConnectionStateManager extends ChangeNotifier {
 
       _updateStatus(ConnectionStatus.online);
       _lastCheckTime = DateTime.now();
-    } catch (Object e) {
+    } catch (e) {
       _logger.warning('Connection check failed', error: e, tag: 'CONNECTION');
       _updateStatus(ConnectionStatus.offline);
       _lastCheckTime = DateTime.now();

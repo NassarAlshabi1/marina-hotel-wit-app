@@ -40,11 +40,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
           onSelected: (value) async {
             switch (value) {
               case 'export':
-                _exportLogs();
+                unawaited(_exportLogs());
               case 'share':
-                _shareLogs(filteredLogs);
+                unawaited(_shareLogs(filteredLogs));
               case 'clear':
-                _clearLogs();
+                unawaited(_clearLogs());
             }
           },
           itemBuilder: (context) => [
@@ -452,7 +452,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         actions: [
           TextButton(onPressed: () => _copyLog(log), child: const Text('نسخ')),
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -532,11 +532,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),

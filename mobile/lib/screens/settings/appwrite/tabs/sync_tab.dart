@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -481,7 +483,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               onChanged: (value) {
                 setState(() => _syncInterval = value!);
                 _saveSettings();
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 if (_syncEnabled) {
                   _onSyncEnabledChanged(true);
                 }
@@ -491,7 +493,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -532,12 +534,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               await _runFullSync();
             },
             child: const Text('بدء المزامنة'),
@@ -577,7 +579,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
@@ -586,7 +588,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               await _runFullPush();
             },
             child: const Text('رفع شامل'),
@@ -597,10 +599,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   Future<void> _runFullPush() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     // إظهار مؤشر التحميل
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -618,7 +622,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
@@ -626,10 +630,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
       ref.invalidate(ap.syncStatsProvider);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       // إغلاق مؤشر التحميل
-      Navigator.pop<void>(context);
+      Navigator.pop(context);
 
       final totalRecords = stats.entries
           .where((e) => e.key != 'errors')
@@ -645,7 +651,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       }
 
       // إظهار النتائج
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Row(
@@ -720,17 +726,19 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('حسناً'),
             ),
           ],
         ),
-      );
+      ),);
     } catch (e, stackTrace) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       // إغلاق مؤشر التحميل في حالة الخطأ
-      Navigator.pop<void>(context);
+      Navigator.pop(context);
 
       // طباعة الخطأ في console
       debugPrint('❌ خطأ في الرفع الشامل: $e');
@@ -765,9 +773,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   Future<void> _runDiagnosticTest() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -780,7 +790,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final database = ref.read(databaseProvider);
@@ -837,8 +847,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             'origin': room.origin,
           };
 
-          if (room.serverId != null) payload['serverId'] = room.serverId;
-          if (room.deletedAt != null) payload['deletedAt'] = room.deletedAt;
+          if (room.serverId != null) {
+            payload['serverId'] = room.serverId;
+          }
+          if (room.deletedAt != null) {
+            payload['deletedAt'] = room.deletedAt;
+          }
 
           debugPrint('📤 اختبار رفع غرفة ${room.roomNumber}...');
 
@@ -847,16 +861,18 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
 
           debugPrint('✅ نجح الاختبار!');
-        } catch (Object e) {
+        } catch (e) {
           testResult = '❌ فشل رفع الغرفة:\n$e';
           debugPrint('❌ خطأ في رفع الغرفة: $e');
         }
       }
 
-      if (!mounted) return;
-      Navigator.pop<void>(context);
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
 
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -899,20 +915,22 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('حسناً'),
             ),
           ],
         ),
-      );
+      ),);
     } catch (e, stackTrace) {
-      if (!mounted) return;
-      Navigator.pop<void>(context);
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
 
       debugPrint('❌ خطأ في الاختبار التشخيصي: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -925,12 +943,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           content: Text('حدث خطأ:\n$e'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('حسناً'),
             ),
           ],
         ),
-      );
+      ),);
     }
   }
 
@@ -942,12 +960,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         content: const Text('سيتم مسح السجل من Appwrite ومن السجل المحلي.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               await _clearCloudSyncLogs();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -974,8 +992,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   String _nextSyncLabel(String? lastSyncTime) {
-    if (!_syncEnabled) return 'معطلة';
-    if (lastSyncTime == null || lastSyncTime.isEmpty) return 'غير معروف';
+    if (!_syncEnabled) {
+      return 'معطلة';
+    }
+    if (lastSyncTime == null || lastSyncTime.isEmpty) {
+      return 'غير معروف';
+    }
 
     try {
       final last = DateTime.parse(lastSyncTime);

@@ -126,7 +126,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _checkSession() async {
-    if (!state.isAuthenticated || state.currentUser == null) return;
+    if (!state.isAuthenticated || state.currentUser == null) {
+      return;
+    }
     final valid = await _store.checkSessionValidity();
     if (!valid && mounted) {
       AppLogger.warning(
@@ -194,7 +196,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (accounts.containsKey(user.username)) {
         _startSessionCheck();
       }
-    } catch (Object) {
+    } catch (e) {
       debugPrint('Error loading cloud accounts: \$e');
     }
   }
@@ -232,7 +234,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (accounts.containsKey(user.username)) {
         _startSessionCheck();
       }
-    } catch (Object) {
+    } catch (e) {
       debugPrint('Error loading cloud accounts: \$e');
     }
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -511,7 +513,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
@@ -547,7 +549,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  Navigator.pop<void>(context);
+                  // ignore: use_build_context_synchronously
+                  Navigator.pop(context);
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -557,8 +561,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       ),
                     ),
                   );
-                } catch (Object e) {
+                } catch (e) {
                   ScaffoldMessenger.of(
+                    // ignore: use_build_context_synchronously
                     context,
                   ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
                 }
@@ -574,20 +579,24 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   Future<void> _showEmployeeEntitlement(BuildContext context, Employee employee) async {
     final service = SalaryEntitlementService(DatabaseManager.instance);
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+    ),);
 
     try {
       final entitlement = await service.calculateEmployeeEntitlement(employee);
-      if (context.mounted) Navigator.pop<void>(context);
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
 
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
 
       final isPositive = entitlement.netEntitlement >= 0;
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => Directionality(
           textDirection: TextDirection.rtl,
@@ -639,15 +648,17 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop<void>(context),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('إغلاق'),
               ),
             ],
           ),
         ),
-      );
-    } catch (Object e) {
-      if (context.mounted) Navigator.pop<void>(context);
+      ),);
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -724,13 +735,13 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(context),
+              onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () {
                 // TODO: تنفيذ عملية سحب الراتب
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم تسجيل سحب الراتب (قيد التطوير)'),
@@ -764,13 +775,15 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف'),
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
       ScaffoldMessenger.of(
+        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
     }

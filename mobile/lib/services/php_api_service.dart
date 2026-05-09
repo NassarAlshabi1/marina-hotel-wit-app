@@ -122,7 +122,7 @@ class PhpApiService {
       'RESPONSE',
       response.requestOptions.method,
       response.requestOptions.path,
-      response.data,
+      null,
       statusCode: response.statusCode,
     );
     handler.next(response);
@@ -149,7 +149,7 @@ class PhpApiService {
       try {
         final response = await _retryRequest(e.requestOptions);
         return handler.resolve(response);
-      } catch (Object e) { debugPrint('API retry failed: $e'); }
+      } catch (e) { debugPrint('API retry failed: $e'); }
     }
 
     handler.next(e);
@@ -229,7 +229,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'فشل تسجيل الدخول',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       _updateStatus(PhpApiStatus.error);
       return PhpApiResult.error(
         _getDioErrorMessage(e),
@@ -239,8 +239,8 @@ class PhpApiService {
   }
 
   Future<void> logout() async {
-    await _storage.delete<dynamic>(key: _tokenKey);
-    await _storage.delete<dynamic>(key: _userKey);
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _userKey);
     _currentUser = null;
     _updateStatus(PhpApiStatus.disconnected);
   }
@@ -255,7 +255,7 @@ class PhpApiService {
       }
       _updateStatus(PhpApiStatus.error);
       return PhpApiResult.error('فشل اختبار الاتصال');
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       _updateStatus(PhpApiStatus.error);
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
@@ -271,7 +271,7 @@ class PhpApiService {
         );
       }
       return PhpApiResult.error('فشل جلب معلومات السيرفر');
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -309,7 +309,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'فشل جلب البيانات',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -332,7 +332,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'العنصر غير موجود',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -371,7 +371,7 @@ class PhpApiService {
         statusCode: response.statusCode,
         errors: response.data['errors'] as Map<String, dynamic>?,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -401,7 +401,7 @@ class PhpApiService {
         statusCode: response.statusCode,
         errors: response.data['errors'] as Map<String, dynamic>?,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -419,7 +419,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'فشل حذف العنصر',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -455,7 +455,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'فشل دفع التغييرات',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -489,7 +489,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'فشل سحب البيانات',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -518,7 +518,7 @@ class PhpApiService {
         (response.data['message'] as String?) ?? 'فشل رفع الصورة',
         statusCode: response.statusCode,
       );
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -552,7 +552,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.success(Map<String, dynamic>.from(response.data as Map));
-    } on DioException catch (Object e) {
+    } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
   }
@@ -567,11 +567,21 @@ class PhpApiService {
         return 'انتهت مهلة استقبال البيانات';
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        if (statusCode == 401) return 'غير مصرح - يرجى تسجيل الدخول';
-        if (statusCode == 403) return 'ممنوع الوصول';
-        if (statusCode == 404) return 'المورد غير موجود';
-        if (statusCode == 422) return 'بيانات غير صالحة';
-        if (statusCode == 500) return 'خطأ في السيرفر';
+        if (statusCode == 401) {
+          return 'غير مصرح - يرجى تسجيل الدخول';
+        }
+        if (statusCode == 403) {
+          return 'ممنوع الوصول';
+        }
+        if (statusCode == 404) {
+          return 'المورد غير موجود';
+        }
+        if (statusCode == 422) {
+          return 'بيانات غير صالحة';
+        }
+        if (statusCode == 500) {
+          return 'خطأ في السيرفر';
+        }
         return 'خطأ في الاستجابة: $statusCode';
       case DioExceptionType.cancel:
         return 'تم إلغاء الطلب';

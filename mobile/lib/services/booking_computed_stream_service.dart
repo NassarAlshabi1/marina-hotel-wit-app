@@ -37,11 +37,17 @@ class BookingWithPayments {
 
   /// Is the booking overdue (past expected checkout with remaining balance)?
   bool get isOverdue {
-    if (!isActive) return false;
-    if (remainingBalance <= 0) return false;
+    if (!isActive) {
+      return false;
+    }
+    if (remainingBalance <= 0) {
+      return false;
+    }
     final now = DateTime.now();
     final plannedCheckout = _parseDate(booking.checkoutDate);
-    if (plannedCheckout == null) return false;
+    if (plannedCheckout == null) {
+      return false;
+    }
     return now.isAfter(plannedCheckout);
   }
 }
@@ -49,7 +55,9 @@ class BookingWithPayments {
 /// Parses a nullable date string into a [DateTime].
 /// Handles both space- and T-separated ISO-like formats.
 DateTime? _parseDate(String? value) {
-  if (value == null || value.trim().isEmpty) return null;
+  if (value == null || value.trim().isEmpty) {
+    return null;
+  }
   final v = value.trim();
   final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
   final withSeconds =
@@ -80,7 +88,9 @@ class BookingComputedStreamService {
         .watchSingleOrNull();
 
     return bookingQuery.asyncMap((booking) async {
-      if (booking == null) return null;
+      if (booking == null) {
+        return null;
+      }
       return _buildBookingWithPayments(booking);
     });
   }
@@ -92,7 +102,9 @@ class BookingComputedStreamService {
         .watchSingleOrNull();
 
     return bookingQuery.asyncMap((booking) async {
-      if (booking == null) return null;
+      if (booking == null) {
+        return null;
+      }
       return _buildBookingWithPayments(booking);
     });
   }
@@ -110,7 +122,9 @@ class BookingComputedStreamService {
         .watch();
 
     return activeQuery.asyncMap((bookings) async {
-      if (bookings.isEmpty) return const [];
+      if (bookings.isEmpty) {
+        return const [];
+      }
 
       // Pre-load all rooms into a map (1 query instead of N)
       final roomNumbers = bookings.map((b) => b.roomNumber).toSet();
@@ -163,7 +177,9 @@ class BookingComputedStreamService {
     final booking = await (db.select(db.bookings)
           ..where((b) => b.id.equals(bookingId)))
         .getSingleOrNull();
-    if (booking == null) return null;
+    if (booking == null) {
+      return null;
+    }
     return _buildBookingWithPayments(booking);
   }
 
@@ -260,7 +276,9 @@ class BookingComputedStreamService {
     List<int> bookingIds,
     List<String> bookingUuids,
   ) async {
-    if (bookingIds.isEmpty) return [];
+    if (bookingIds.isEmpty) {
+      return [];
+    }
     return (db.select(db.payments)
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false))

@@ -128,7 +128,7 @@ class ReportDateFilterWidget extends StatefulWidget {
   /// بناء مخصص لأزرار التاريخ (اختياري).
   ///
   /// عند توفيره، يُستدعى بدلاً من الأزرار الافتراضية (OutlinedButton).
-  /// يُمرَّر [onPickFrom] و [onPickTo] لربطها بمُنتقي التاريخ الداخلي.
+  /// يُمرَّر `onPickFrom` و `onPickTo` لربطها بمُنتقي التاريخ الداخلي.
   final List<Widget> Function(
     BuildContext context,
     VoidCallback onPickFrom,
@@ -191,7 +191,9 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
 
   /// تعيين تواريخ يدوياً (من الخارج عبر Controller)
   void _setDates(DateTime? from, DateTime? to) {
-    if (from == null || to == null) return;
+    if (from == null || to == null) {
+      return;
+    }
     setState(() {
       _fromDate = from;
       _toDate = to;

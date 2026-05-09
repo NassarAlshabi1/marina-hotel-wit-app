@@ -124,7 +124,7 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
   },
 );
 
-final roomsListProvider = StreamProvider.autoDispose(
+final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
@@ -138,7 +138,7 @@ final availableRoomsProvider = StreamProvider.autoDispose(
       ),
 );
 
-final bookingsListProvider = StreamProvider.autoDispose(
+final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
   (ref) => ref.watch(bookingsRepoProvider).watch(),
 );
 final activeNotesProvider = FutureProvider.autoDispose(
@@ -162,7 +162,7 @@ final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes(),
 );
 
-final employeesListProvider = StreamProvider.autoDispose(
+final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
   (ref) => ref.watch(employeesRepoProvider).watchAll(),
 );
 

@@ -65,7 +65,7 @@ class _GoogleDriveLoginScreenState
           final autoBackupManager = AutoBackupManager.instance;
           await autoBackupManager.setEnabled(true);
           debugPrint('✅ تم تفعيل المزامنة التلقائية');
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
         }
         if (mounted) {
@@ -82,7 +82,7 @@ class _GoogleDriveLoginScreenState
           });
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = 'خطأ في تسجيل الدخول: $e';
@@ -119,11 +119,11 @@ class _GoogleDriveLoginScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop<void>(false),
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('العودة لتسجيل الدخول'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop<void>(true),
+              onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warningColor,
               ),
@@ -150,14 +150,16 @@ class _GoogleDriveLoginScreenState
     try {
       final prefs = await SharedPreferences.getInstance();
       final done = prefs.getBool(key) ?? false;
-      if (done) return;
+      if (done) {
+        return;
+      }
       await prefs.setBool(key, true);
 
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
       // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
       await manager.pullAllDataWithDisabledFK();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
   }

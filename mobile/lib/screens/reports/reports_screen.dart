@@ -56,7 +56,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         'reports_load_rooms',
         perf,
         () async {
-          if (!force && _cachedRooms != null) return _cachedRooms!;
+          if (!force && _cachedRooms != null) {
+            return _cachedRooms!;
+          }
           final rooms = await db.select(db.rooms).get();
           final result = {'rooms': rooms};
           _cachedRooms = result;
@@ -71,12 +73,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         'reports_load_financials',
         perf,
         () async {
-          if (!force && _cachedFinancials != null) return _cachedFinancials!;
+          if (!force && _cachedFinancials != null) {
+            return _cachedFinancials!;
+          }
           final allPayments = await db.select(db.payments).get();
           double income = 0;
           for (final p in allPayments) {
-            if (p.deletedAt != null) continue;
-            if (p.isVoided == true) continue;
+            if (p.deletedAt != null) {
+              continue;
+            }
+            if (p.isVoided == true) {
+              continue;
+            }
             income += p.amount;
           }
           final expenses = await db.select(db.expenses).get();

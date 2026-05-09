@@ -170,12 +170,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     }
 
     final contact = await FlutterContacts.openExternalPick();
-    if (contact == null || !mounted) return;
+    if (contact == null || !mounted) {
+      return;
+    }
 
     final fullContact = await FlutterContacts.getContact(
       contact.id,
     );
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (fullContact != null && fullContact.phones.isNotEmpty) {
       final rawPhone = fullContact.phones.first.number;
@@ -626,7 +630,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             onPressed: () {/* يكمل التنفيذ تلقائياً */},
                           ),
                         );
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).clearSnackBars();
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(snackBar);
                         // لا نوقف الحجز — نعرض التحذير فقط
                       }
@@ -693,9 +699,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 paymentMethod: _paymentMethod,
                                 revenueType: 'deposit',
                               );
-                            } catch (Object e) {
+                            } catch (e) {
                               debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
                               if (mounted) {
+                                // ignore: use_build_context_synchronously
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e'),
@@ -713,10 +720,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ref.invalidate(roomsWithPaymentStatusProvider);
 
                         await syncNow();
-                        if (mounted) Navigator.pop<void>(context);
-                      } on StateError catch (Object e) {
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                      } on StateError catch (e) {
                         // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
                         if (mounted) {
+                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(e.message),
@@ -725,9 +736,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                           );
                         }
-                      } catch (Object e) {
+                      } catch (e) {
                         // أي خطأ آخر (قاعدة بيانات، شبكة، إلخ)
                         if (mounted) {
+                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('فشل حفظ الحجز: $e'),
@@ -738,7 +750,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         }
                         debugPrint('❌ خطأ في حفظ الحجز: $e');
                       } finally {
-                        if (mounted) setState(() => _isSaving = false);
+                        if (mounted) {
+                          setState(() => _isSaving = false);
+                        }
                       }
                     },
                     icon: const Icon(Icons.save),
@@ -811,7 +825,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date == null) return;
+    if (date == null) {
+      return;
+    }
     if (onlyDate) {
       controller.text = _formatDateTime(
         DateTime(date.year, date.month, date.day),
@@ -819,10 +835,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       return;
     }
     final time = await showTimePicker(
+      // ignore: use_build_context_synchronously
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
-    if (time == null) return;
+    if (time == null) {
+      return;
+    }
     final selected = DateTime(
       date.year,
       date.month,
@@ -840,7 +859,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   void _recalculateExpectedNights() {
     final checkinDt = _parseDateTime(_checkin.text.trim());
-    if (checkinDt == null) return;
+    if (checkinDt == null) {
+      return;
+    }
     final checkoutDt = _parseDateTime(_checkout.text.trim());
 
     // استخدام الوقت الحالي كمرجع للمغادرة إذا لم يتم تحديد موعد خروج مخطط له
@@ -965,13 +986,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         table: 'rooms',
         operation: 'batch_update_status',
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error refreshing room occupancy: $e');
     }
   }
 
   DateTime? _parseDateTime(String value) {
-    if (value.isEmpty) return null;
+    if (value.isEmpty) {
+      return null;
+    }
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
     final withSeconds = normalized.length == 16
         ? '$normalized:00'
@@ -1026,14 +1049,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(ctx),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('لا'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop<void>(ctx);
+                Navigator.pop(ctx);
                 await syncNow();
-                if (mounted) Navigator.pop<void>(context);
+                if (mounted) {
+                  // ignore: use_build_context_synchronously
+                  Navigator.pop(context);
+                }
               },
               child: const Text('نعم'),
             ),

@@ -34,18 +34,34 @@ class LenientValueSerializer extends ValueSerializer {
     final defaultSerializer = driftRuntimeOptions.defaultSerializer;
 
     if (json == null) {
-      if (_isNullable<T>()) return json as T;
-      if (_isIntType<T>()) return 0 as T;
-      if (_isDoubleType<T>()) return 0.0 as T;
-      if (_isBoolType<T>()) return false as T;
-      if (_isStringType<T>()) return '' as T;
+      if (_isNullable<T>()) {
+        return json as T;
+      }
+      if (_isIntType<T>()) {
+        return 0 as T;
+      }
+      if (_isDoubleType<T>()) {
+        return 0.0 as T;
+      }
+      if (_isBoolType<T>()) {
+        return false as T;
+      }
+      if (_isStringType<T>()) {
+        return '' as T;
+      }
       return defaultSerializer.fromJson<T>(json);
     }
 
     if (_isIntType<T>()) {
-      if (json is int) return json as T;
-      if (json is double) return json.toInt() as T;
-      if (json is num) return json.toInt() as T;
+      if (json is int) {
+        return json as T;
+      }
+      if (json is double) {
+        return json.toInt() as T;
+      }
+      if (json is num) {
+        return json.toInt() as T;
+      }
       if (json is String) {
         final trimmed = json.trim();
         if (trimmed.isEmpty) {
@@ -61,35 +77,59 @@ class LenientValueSerializer extends ValueSerializer {
         }
         return parsed as T;
       }
-      if (json is bool) return (json ? 1 : 0) as T;
+      if (json is bool) {
+        return (json ? 1 : 0) as T;
+      }
     }
 
     if (_isDoubleType<T>()) {
-      if (json is double) return json as T;
-      if (json is int) return json.toDouble() as T;
-      if (json is num) return json.toDouble() as T;
+      if (json is double) {
+        return json as T;
+      }
+      if (json is int) {
+        return json.toDouble() as T;
+      }
+      if (json is num) {
+        return json.toDouble() as T;
+      }
       if (json is String) {
         final trimmed = json.trim();
-        if (trimmed.isEmpty) return 0.0 as T;
+        if (trimmed.isEmpty) {
+          return 0.0 as T;
+        }
         final parsed = double.tryParse(trimmed);
         return (parsed ?? 0.0) as T;
       }
-      if (json is bool) return (json ? 1.0 : 0.0) as T;
+      if (json is bool) {
+        return (json ? 1.0 : 0.0) as T;
+      }
     }
 
     if (_isBoolType<T>()) {
-      if (json is bool) return json as T;
-      if (json is num) return (json != 0) as T;
+      if (json is bool) {
+        return json as T;
+      }
+      if (json is num) {
+        return (json != 0) as T;
+      }
       if (json is String) {
         final lower = json.trim().toLowerCase();
-        if (lower.isEmpty) return false as T;
-        if (lower == '1' || lower == 'true') return true as T;
-        if (lower == '0' || lower == 'false') return false as T;
+        if (lower.isEmpty) {
+          return false as T;
+        }
+        if (lower == '1' || lower == 'true') {
+          return true as T;
+        }
+        if (lower == '0' || lower == 'false') {
+          return false as T;
+        }
       }
     }
 
     if (_isStringType<T>()) {
-      if (json is String) return json as T;
+      if (json is String) {
+        return json as T;
+      }
       return json.toString() as T;
     }
 

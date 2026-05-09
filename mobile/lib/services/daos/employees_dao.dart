@@ -21,12 +21,14 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(employees);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
     }
-    return q.get<dynamic>();
+    return q.get();
   }
 
   Stream<List<Employee>> watchList({
@@ -34,7 +36,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) {
     final q = select(employees);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
@@ -88,7 +92,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -117,7 +123,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -142,7 +150,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows = await (update(employees)..where((t) => t.id.equals(id)))
           .write(
             EmployeesCompanion(
@@ -170,12 +180,16 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
-      if (parsedServerId == null) return 0;
+      if (parsedServerId == null) {
+        return 0;
+      }
       final now = Time.nowEpoch();
       final existing = await (select(
         employees,
       )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -202,16 +216,22 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
 
   Future<Employee?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return Future.value();
+    if (parsedServerId == null) {
+      return Future.value();
+    }
     return (select(
       employees,
     )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
   int? _parseServerId(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
+    if (trimmed.isEmpty) {
+      return null;
+    }
     return int.tryParse(trimmed);
   }
 
@@ -221,7 +241,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-    if (row == null) return null;
+    if (row == null) {
+      return null;
+    }
     return adapters.employees.toJsonForSource(row, src: Source.appwrite);
   }
 
@@ -232,7 +254,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     int? serverId,
   }) async {
     final payload = await _payloadForLocalUuid(localUuid);
-    if (payload == null) return;
+    if (payload == null) {
+      return;
+    }
     await outboxDao.merge(
       entity: 'employees',
       op: op,

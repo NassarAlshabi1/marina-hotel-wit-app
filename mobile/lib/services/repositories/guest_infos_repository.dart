@@ -114,7 +114,9 @@ class GuestInfosRepository {
             ..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
-      if (existing == null) return;
+      if (existing == null) {
+        return;
+      }
 
       await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))
           .write(
@@ -167,7 +169,9 @@ class GuestInfosRepository {
             ..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
-      if (existing == null) return;
+      if (existing == null) {
+        return;
+      }
 
       // soft delete: تعيين deletedAt بدلاً من حذف فعلي
       await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))

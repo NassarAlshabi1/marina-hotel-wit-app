@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -625,7 +627,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
     final int hour = int.parse(parts[0]);
     final int minute = int.parse(parts[1]);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final time = await showTimePicker(
       context: context,
@@ -636,7 +640,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
     if (time != null) {
       final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       _reportTimeController.text = formatted;
-      ref.read(whatsappDailyReportProvider.notifier).setDailyReportTime(formatted);
+      unawaited(ref.read(whatsappDailyReportProvider.notifier).setDailyReportTime(formatted));
     }
   }
 
@@ -673,7 +677,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('فهمت'),
           ),
         ],

@@ -76,8 +76,12 @@ class TelegramReportService {
   /// إرسال التقرير اليومي عبر WhatsApp (CallMeBot)
   Future<bool> sendDailyReport() async {
     try {
-      if (!await TelegramConfig.isEnabled()) return false;
-      if (!await TelegramConfig.isDailyReportEnabled()) return false;
+      if (!await TelegramConfig.isEnabled()) {
+        return false;
+      }
+      if (!await TelegramConfig.isDailyReportEnabled()) {
+        return false;
+      }
 
       // منع الإرسال المتكرر
       final hotelDayKey = Time.hotelDayKey();
@@ -88,7 +92,9 @@ class TelegramReportService {
       }
 
       final data = await _gatherReportData();
-      if (data == null) return false;
+      if (data == null) {
+        return false;
+      }
 
       // إرسال عبر WhatsApp (CallMeBot)
       final message = _buildReportMessage(data);
@@ -100,7 +106,7 @@ class TelegramReportService {
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp: خطأ في التقرير اليومي: $e');
       return false;
     }
@@ -109,10 +115,14 @@ class TelegramReportService {
   /// إرسال التقرير فوراً (تجريبي) عبر WhatsApp
   Future<bool> sendReportNow() async {
     try {
-      if (!await TelegramConfig.isEnabled()) return false;
+      if (!await TelegramConfig.isEnabled()) {
+        return false;
+      }
 
       final data = await _gatherReportData();
-      if (data == null) return false;
+      if (data == null) {
+        return false;
+      }
 
       // إرسال عبر WhatsApp (CallMeBot)
       final message = _buildReportMessage(data);
@@ -124,7 +134,7 @@ class TelegramReportService {
       }
 
       return success;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp: خطأ في إرسال التقرير: $e');
       return false;
     }
@@ -169,7 +179,9 @@ class TelegramReportService {
       int activeBookings = 0;
 
       for (final booking in bookingsQuery) {
-        if (booking.deletedAt != null) continue;
+        if (booking.deletedAt != null) {
+          continue;
+        }
 
         final status = booking.status.toLowerCase();
 
@@ -229,7 +241,9 @@ class TelegramReportService {
 
       // تأخير مغادرة
       for (final booking in bookingsQuery) {
-        if (booking.deletedAt != null) continue;
+        if (booking.deletedAt != null) {
+          continue;
+        }
         final status = booking.status.toLowerCase();
         if (status == 'نشط' || status == 'محجوزة') {
           if (booking.checkoutDate != null &&
@@ -270,7 +284,7 @@ class TelegramReportService {
         unsettledDebts: unsettledDebts,
         alerts: alerts,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
@@ -296,7 +310,7 @@ class TelegramReportService {
       final timeout = Duration(
         seconds: RemoteConfigService.instance.whatsappApiTimeout,
       );
-      final response = await _httpClient.get<dynamic>(url).timeout(timeout);
+      final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
       if (response.statusCode == 200) {
@@ -318,7 +332,7 @@ class TelegramReportService {
       }
       debugPrint('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
       return false;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ WhatsApp (CallMeBot): خطأ — $e');
       return false;
     }

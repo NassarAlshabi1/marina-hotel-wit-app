@@ -55,11 +55,17 @@ class _GuestPaymentsDetailReportScreenState
   /// حساب الأيام المتبقية حتى تاريخ المغادرة المخطط
   // ignore: unused_element
 int _getDaysUntilCheckout(Booking b) {
-    if (b.checkoutDate == null || b.checkoutDate!.isEmpty) return 0;
+    if (b.checkoutDate == null || b.checkoutDate!.isEmpty) {
+      return 0;
+    }
     final checkout = DateTime.tryParse(b.checkoutDate!);
-    if (checkout == null) return 0;
+    if (checkout == null) {
+      return 0;
+    }
     final now = DateTime.now();
-    if (checkout.isBefore(now)) return 0;
+    if (checkout.isBefore(now)) {
+      return 0;
+    }
     return Time.nightsWithCutoff(now, checkout: checkout);
   }
 
@@ -93,9 +99,13 @@ double _getConsumedCost(Booking b) {
 
   /// حساب عدد أيام التأخير
   int _getOverdueDays(Booking b) {
-    if (!_isOverdue(b)) return 0;
+    if (!_isOverdue(b)) {
+      return 0;
+    }
     final checkout = DateTime.tryParse(b.checkoutDate ?? '');
-    if (checkout == null) return 0;
+    if (checkout == null) {
+      return 0;
+    }
     return Time.nightsWithCutoff(checkout, checkout: DateTime.now());
   }
 
@@ -103,7 +113,9 @@ double _getConsumedCost(Booking b) {
   // ignore: unused_element
 double _getOverdueCost(Booking b) {
     final days = _getOverdueDays(b);
-    if (days <= 0) return 0;
+    if (days <= 0) {
+      return 0;
+    }
     return _getAverageNightlyRate(b) * days;
   }
 
@@ -128,7 +140,9 @@ double _getOverdueCost(Booking b) {
 
       final grouped = <int, List<BookingPriceAdjustment>>{};
       for (final adj in allAdjustments) {
-        if (adj.bookingLocalId == null) continue;
+        if (adj.bookingLocalId == null) {
+          continue;
+        }
         grouped.putIfAbsent(adj.bookingLocalId!, () => []);
         grouped[adj.bookingLocalId!]!.add(adj);
       }
@@ -138,10 +152,12 @@ double _getOverdueCost(Booking b) {
           _adjustmentsByBookingId = grouped;
         });
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('Error refreshing data: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -168,8 +184,12 @@ double _getOverdueCost(Booking b) {
     }
 
     filtered.sort((a, b) {
-      if (_sortBy == 'room') return a.roomNumber.compareTo(b.roomNumber);
-      if (_sortBy == 'remaining') return b.remainingBalanceCached.compareTo(a.remainingBalanceCached);
+      if (_sortBy == 'room') {
+        return a.roomNumber.compareTo(b.roomNumber);
+      }
+      if (_sortBy == 'remaining') {
+        return b.remainingBalanceCached.compareTo(a.remainingBalanceCached);
+      }
       return a.guestName.compareTo(b.guestName);
     });
 
@@ -303,7 +323,11 @@ double _getOverdueCost(Booking b) {
                     DropdownMenuItem(value: 'name', child: Text('اسم النزيل')),
                     DropdownMenuItem(value: 'remaining', child: Text('المبلغ المتبقي')),
                   ],
-                  onChanged: (v) { if (v != null) setState(() => _sortBy = v); },
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _sortBy = v);
+                    }
+                  },
                 ),
               ),
             ],
@@ -488,7 +512,7 @@ double _getOverdueCost(Booking b) {
         Row(
           children: [
             Expanded(child: _buildInfoItem(Icons.login, 'الدخول', _dateFormatter.format(coverage.checkinDate))),
-            Expanded(child: _buildInfoItem(Icons.nights_stay, 'الليالي المدفوعة', '$paidNights ليلة')),
+            Expanded(child: _buildInfoItem(Icons.nights_stay, 'الليالي المدفوعة', '${coverage.totalPaidNights} ليلة')),
           ],
         ),
         const SizedBox(height: 3),
@@ -754,7 +778,7 @@ double _getOverdueCost(Booking b) {
             content: [
               _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.8)),
               _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
-              _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '$paidNights ليلة'),
+              _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
               _buildPdfInfoRow(
                 fonts,
                 'المغادرة المخططة:',

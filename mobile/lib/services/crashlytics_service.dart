@@ -63,7 +63,9 @@ class CrashlyticsService {
   /// تهيئة الخدمة — يجب استدعاؤها في main()
   /// يعمل دائماً حتى لو فشل Firebase — التسجيل المحلي متاح
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       _crashlytics = FirebaseCrashlytics.instance;
@@ -84,7 +86,7 @@ class CrashlyticsService {
         '✅ CrashlyticsService initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
         name: 'CrashlyticsService',
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ Crashlytics Firebase failed — local logging active: $e',
         name: 'CrashlyticsService',
@@ -151,7 +153,9 @@ class CrashlyticsService {
     CrashlyticsSeverity severity = CrashlyticsSeverity.error,
     Map<String, dynamic> extra = const {},
   }) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     final errorStr = error.toString();
 
@@ -208,7 +212,9 @@ class CrashlyticsService {
     CrashlyticsSeverity severity = CrashlyticsSeverity.error,
     Map<String, dynamic> context = const {},
   }) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     _addToHistory('sync', operation, '', error, severity);
 
@@ -260,10 +266,10 @@ class CrashlyticsService {
       context: context,
     );
     // إرسال تنبيه WhatsApp فوري للأخطاء القاتلة
-    WhatsAppNotificationService.instance.notifySyncError(
+    unawaited(WhatsAppNotificationService.instance.notifySyncError(
       operation: operation,
       error: error.toString().substring(0, error.toString().length > 200 ? 200 : error.toString().length),
-    );
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -276,7 +282,9 @@ class CrashlyticsService {
     StackTrace? stackTrace,
     String? context,
   }) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       await _crashlytics?.recordError(
@@ -289,7 +297,9 @@ class CrashlyticsService {
 
   /// تسجيل رسالة سجل (log)
   Future<void> log(String message) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       await _crashlytics?.log(message);
@@ -304,7 +314,9 @@ class CrashlyticsService {
     bool fatal = false,
     Map<String, dynamic>? customKeys,
   }) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       if (customKeys != null) {
@@ -329,7 +341,9 @@ class CrashlyticsService {
 
   /// تسجيل معرف المستخدم
   Future<void> setUserIdentifier(String userId) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       await _crashlytics?.setUserIdentifier(userId);
@@ -338,7 +352,9 @@ class CrashlyticsService {
 
   /// تعيين مفتاح مخصص
   Future<void> setCustomKey(String key, dynamic value) async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       await _crashlytics?.setCustomKey(key, value.toString());
@@ -356,7 +372,9 @@ class CrashlyticsService {
 
   /// إجبار إرسال التقارير المعلقة
   Future<void> sendUnsentReports() async {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       await _crashlytics?.sendUnsentReports();
@@ -379,7 +397,9 @@ class CrashlyticsService {
   // ═══════════════════════════════════════════════════════════════
 
   void _recordFlutterError(FlutterErrorDetails details) {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       _crashlytics?.recordFlutterFatalError(details);
@@ -387,7 +407,9 @@ class CrashlyticsService {
   }
 
   void _recordPlatformError(Object error, StackTrace stack) {
-    if (!_isEnabled || !_isInitialized) return;
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
 
     try {
       _crashlytics?.recordError(error, stack, fatal: true);

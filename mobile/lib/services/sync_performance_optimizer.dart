@@ -49,7 +49,9 @@ class SyncPerformanceOptimizer {
 
   /// تهيئة مراقب الاتصال
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       // فحص حالة الاتصال الحالية
@@ -67,7 +69,7 @@ class SyncPerformanceOptimizer {
 
       _isInitialized = true;
       debugPrint('✅ تم تهيئة مُحسِّن أداء المزامنة بنجاح');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تهيئة مُحسِّن أداء المزامنة: $e');
     }
   }
@@ -116,7 +118,9 @@ class SyncPerformanceOptimizer {
 
   /// الحصول على وصف نوع الاتصال
   String _getConnectionTypeString(List<ConnectivityResult> results) {
-    if (results.isEmpty) return 'لا يوجد اتصال';
+    if (results.isEmpty) {
+      return 'لا يوجد اتصال';
+    }
 
     final List<String> types = [];
     for (final result in results) {
@@ -211,7 +215,7 @@ class SyncPerformanceOptimizer {
       return false;
     } on TimeoutException catch (_) {
       return false;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في فحص الاتصال: $e');
       return false;
     }
@@ -222,7 +226,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('wifi_only_sync') ?? false;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في قراءة إعدادات WiFi Only: $e');
       return false;
     }
@@ -261,7 +265,7 @@ class SyncPerformanceOptimizer {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('wifi_only_sync', enabled);
       debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات WiFi Only: $e');
     }
   }
@@ -298,7 +302,7 @@ class SyncPerformanceOptimizer {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('adaptive_interval_enabled', value);
       debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e');
     }
   }
@@ -309,7 +313,7 @@ class SyncPerformanceOptimizer {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('battery_optimization_enabled', value);
       debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}');
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حفظ إعدادات تحسين البطارية: $e');
     }
   }
@@ -324,7 +328,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('adaptive_interval_enabled') ?? true;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في قراءة إعدادات الفترة التكيفية: $e');
       return true;
     }
@@ -335,7 +339,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('battery_optimization_enabled') ?? true;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في قراءة إعدادات تحسين البطارية: $e');
       return true;
     }
@@ -350,7 +354,9 @@ class SyncPerformanceOptimizer {
   Future<int> calculateOptimizedInterval(int baseInterval) async {
     try {
       final isAdaptive = await isAdaptiveIntervalEnabled();
-      if (!isAdaptive) return baseInterval;
+      if (!isAdaptive) {
+        return baseInterval;
+      }
 
       // تحسين الفترة حسب حالة الشبكة وعدد الفشل
       int optimizedInterval = baseInterval;
@@ -372,7 +378,7 @@ class SyncPerformanceOptimizer {
         '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
       );
       return optimizedInterval;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');
       return baseInterval;
     }

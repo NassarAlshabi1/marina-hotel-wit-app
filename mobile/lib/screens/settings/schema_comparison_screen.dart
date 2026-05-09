@@ -671,7 +671,7 @@ class SchemaComparisonScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('حسناً'),
           ),
         ],

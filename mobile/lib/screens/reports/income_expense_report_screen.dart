@@ -249,8 +249,10 @@ class _IncomeExpenseReportScreenState
           _loading = false;
         });
       }
-    } catch (Object) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -1714,7 +1716,9 @@ class _IncomeExpenseReportScreenState
     List<List<String>> rows,
     PdfColor headerColor,
   ) {
-    if (rows.isEmpty) return pw.Container();
+    if (rows.isEmpty) {
+      return pw.Container();
+    }
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1742,7 +1746,7 @@ class _IncomeExpenseReportScreenState
                 ],
               ),
               ...rows.asMap().entries.map((entry) {
-                final isEven = entry.key % 2 == 0;
+                final isEven = entry.key.isEven;
                 return pw.TableRow(
                   decoration: isEven
                       ? const pw.BoxDecoration(
@@ -1775,7 +1779,9 @@ class _IncomeExpenseReportScreenState
     List<List<String>> rows,
     PdfColor headerColor,
   ) {
-    if (rows.isEmpty) return pw.Container();
+    if (rows.isEmpty) {
+      return pw.Container();
+    }
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1805,7 +1811,7 @@ class _IncomeExpenseReportScreenState
                 ],
               ),
               ...rows.asMap().entries.map((entry) {
-                final isEven = entry.key % 2 == 0;
+                final isEven = entry.key.isEven;
                 return pw.TableRow(
                   decoration: isEven
                       ? const pw.BoxDecoration(
@@ -1943,13 +1949,17 @@ class _IncomeExpenseReportScreenState
   }
 
   Future<void> _exportPdf() async {
-    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
+      return;
+    }
     final doc = await _buildPdfDocument();
     await Printing.sharePdf(bytes: await doc.save(), filename: _getFilename());
   }
 
   Future<void> _exportDetailedGroupedPdf(String groupBy) async {
-    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
+      return;
+    }
     final doc = await _buildDetailedGroupedPdf(groupBy);
     await Printing.sharePdf(
       bytes: await doc.save(),
@@ -1958,13 +1968,17 @@ class _IncomeExpenseReportScreenState
   }
 
   Future<void> _printPdf() async {
-    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
+      return;
+    }
     final doc = await _buildPdfDocument();
     await Printing.layoutPdf(onLayout: (format) async => doc.save());
   }
 
   Future<void> _savePdf() async {
-    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     try {
       final doc = await _buildPdfDocument();
@@ -1981,7 +1995,7 @@ class _IncomeExpenseReportScreenState
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
@@ -1995,7 +2009,9 @@ class _IncomeExpenseReportScreenState
   }
 
   Future<void> _exportCsv() async {
-    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) return;
+    if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     try {
       final buffer = StringBuffer();
@@ -2050,7 +2066,7 @@ class _IncomeExpenseReportScreenState
           text: 'تقرير الدخل والمصروفات',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
@@ -2142,7 +2158,7 @@ class _IncomeExpenseReportScreenState
                       title: 'تقرير يومي',
                       subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
                       onTap: () {
-                        Navigator.pop<void>(context);
+                        Navigator.pop(context);
                         _exportDetailedGroupedPdf('daily');
                       },
                     ),
@@ -2153,7 +2169,7 @@ class _IncomeExpenseReportScreenState
                       title: 'تقرير شهري',
                       subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
                       onTap: () {
-                        Navigator.pop<void>(context);
+                        Navigator.pop(context);
                         _exportDetailedGroupedPdf('monthly');
                       },
                     ),
@@ -2164,7 +2180,7 @@ class _IncomeExpenseReportScreenState
                       title: 'تقرير سنوي',
                       subtitle: 'تجميع حسب كل سنة',
                       onTap: () {
-                        Navigator.pop<void>(context);
+                        Navigator.pop(context);
                         _exportDetailedGroupedPdf('yearly');
                       },
                     ),
@@ -2182,7 +2198,7 @@ class _IncomeExpenseReportScreenState
                 title: 'مشاركة PDF',
                 subtitle: 'إرسال التقرير العام عبر التطبيقات',
                 onTap: () {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   _exportPdf();
                 },
               ),
@@ -2193,7 +2209,7 @@ class _IncomeExpenseReportScreenState
                 title: 'طباعة',
                 subtitle: 'طباعة التقرير مباشرة',
                 onTap: () {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   _printPdf();
                 },
               ),
@@ -2204,7 +2220,7 @@ class _IncomeExpenseReportScreenState
                 title: 'حفظ في الجهاز',
                 subtitle: 'حفظ كملف PDF',
                 onTap: () {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   _savePdf();
                 },
               ),
@@ -2215,7 +2231,7 @@ class _IncomeExpenseReportScreenState
                 title: 'تصدير CSV',
                 subtitle: 'ملف جدول بيانات لفتحه في Excel',
                 onTap: () {
-                  Navigator.pop<void>(context);
+                  Navigator.pop(context);
                   _exportCsv();
                 },
               ),
@@ -2751,7 +2767,9 @@ _ReportResult _processReportData(_ReportParams params) {
   final incomeList = <_IncomeEntry>[];
   for (final p in params.payments) {
     final dateStr = (p['date'] ?? '').toString().trim();
-    if (dateStr.isEmpty) continue;
+    if (dateStr.isEmpty) {
+      continue;
+    }
     DateTime? dt;
     try {
       dt = DateTime.parse(
@@ -2760,7 +2778,9 @@ _ReportResult _processReportData(_ReportParams params) {
     } catch (_) {
       continue;
     }
-    if (!isWithinRange(dt)) continue;
+    if (!isWithinRange(dt)) {
+      continue;
+    }
     final room = (p['roomNumber'] ?? '').toString().trim();
     final desc = room.isNotEmpty
         ? 'دفعة من حجز رقم $room'
@@ -2781,7 +2801,9 @@ _ReportResult _processReportData(_ReportParams params) {
   final expenseList = <_ExpenseEntry>[];
   for (final e in params.expenses) {
     final dateStr = (e['date'] ?? '').toString().trim();
-    if (dateStr.isEmpty) continue;
+    if (dateStr.isEmpty) {
+      continue;
+    }
     DateTime? dt;
     try {
       dt = DateTime.parse(
@@ -2790,7 +2812,9 @@ _ReportResult _processReportData(_ReportParams params) {
     } catch (_) {
       continue;
     }
-    if (!isWithinRange(dt)) continue;
+    if (!isWithinRange(dt)) {
+      continue;
+    }
     final type = (e['type'] ?? '').toString();
     expenseList.add(
       _ExpenseEntry(

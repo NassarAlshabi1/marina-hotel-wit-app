@@ -150,9 +150,15 @@ final autoSyncHealthSummaryProvider = Provider<String>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) {
-      if (!state.isRunning) return '🔴 متوقف';
-      if (!state.hasNetworkConnection) return '📴 بدون شبكة';
-      if (!state.isSignedIn) return '🔓 غير مسجل';
+      if (!state.isRunning) {
+        return '🔴 متوقف';
+      }
+      if (!state.hasNetworkConnection) {
+        return '📴 بدون شبكة';
+      }
+      if (!state.isSignedIn) {
+        return '🔓 غير مسجل';
+      }
       if (state.failedAttempts > 0) {
         return '⚠️ محاولات فاشلة: ${state.failedAttempts}';
       }

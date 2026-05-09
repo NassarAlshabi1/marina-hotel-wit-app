@@ -15,7 +15,9 @@ class IdResolver {
                 ..where((b) => b.localUuid.equals(uuid))
                 ..limit(1))
               .getSingleOrNull();
-      if (row != null) return row.id;
+      if (row != null) {
+        return row.id;
+      }
     }
     if (serverId != null) {
       final row =
@@ -23,7 +25,9 @@ class IdResolver {
                 ..where((b) => b.serverBookingId.equals(serverId))
                 ..limit(1))
               .getSingleOrNull();
-      if (row != null) return row.id;
+      if (row != null) {
+        return row.id;
+      }
     }
     if (localId != null) {
       final row =
@@ -31,7 +35,9 @@ class IdResolver {
                 ..where((b) => b.id.equals(localId))
                 ..limit(1))
               .getSingleOrNull();
-      if (row != null) return row.id;
+      if (row != null) {
+        return row.id;
+      }
     }
     return null;
   }

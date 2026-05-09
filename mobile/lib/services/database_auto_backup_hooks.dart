@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+
 import 'auto_backup_manager.dart';
 import 'local_db.dart';
 
@@ -29,11 +32,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
     ).insert(entity, mode: mode, onConflict: onConflict);
 
     // تسجيل التغيير للنسخ التلقائي
-    AutoBackupManager.instance.onDataChange(
+    unawaited(AutoBackupManager.instance.onDataChange(
       table.actualTableName,
       'INSERT',
       recordData: entity.toColumns(false),
-    );
+    ),);
 
     return result;
   }
@@ -54,11 +57,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
     if (result > 0) {
       // تسجيل التغيير للنسخ التلقائي
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         table.actualTableName,
         'UPDATE',
         recordData: entity.toColumns(false),
-      );
+      ),);
     }
 
     return result > 0;
@@ -80,11 +83,11 @@ extension DatabaseAutoBackupExtension on AppDatabase {
 
     if (result > 0) {
       // تسجيل التغيير للنسخ التلقائي
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         table.actualTableName,
         'DELETE',
         recordData: recordData,
-      );
+      ),);
     }
 
     return result;
@@ -110,7 +113,9 @@ class AutoBackupDatabaseHelper {
       booking,
       where: (t) => t.id.equals(id),
     );
-    if (result) debugPrint('✏️ تم تحديث حجز ($id) - سيتم النسخ التلقائي');
+    if (result) {
+      debugPrint('✏️ تم تحديث حجز ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 
@@ -141,7 +146,9 @@ class AutoBackupDatabaseHelper {
       room,
       where: (t) => t.id.equals(id),
     );
-    if (result) debugPrint('✏️ تم تحديث غرفة ($id) - سيتم النسخ التلقائي');
+    if (result) {
+      debugPrint('✏️ تم تحديث غرفة ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 
@@ -160,7 +167,9 @@ class AutoBackupDatabaseHelper {
       payment,
       where: (t) => t.id.equals(id),
     );
-    if (result) debugPrint('✏️ تم تحديث دفعة ($id) - سيتم النسخ التلقائي');
+    if (result) {
+      debugPrint('✏️ تم تحديث دفعة ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 
@@ -179,7 +188,9 @@ class AutoBackupDatabaseHelper {
       expense,
       where: (t) => t.id.equals(id),
     );
-    if (result) debugPrint('✏️ تم تحديث مصروف ($id) - سيتم النسخ التلقائي');
+    if (result) {
+      debugPrint('✏️ تم تحديث مصروف ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 
@@ -215,7 +226,9 @@ class AutoBackupDatabaseHelper {
       employee,
       where: (t) => t.id.equals(id),
     );
-    if (result) debugPrint('✏️ تم تحديث موظف ($id) - سيتم النسخ التلقائي');
+    if (result) {
+      debugPrint('✏️ تم تحديث موظف ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 
@@ -256,7 +269,9 @@ class AutoBackupDatabaseHelper {
       debt,
       where: (t) => t.id.equals(id),
     );
-    if (result) debugPrint('✏️ تم تحديث دين ($id) - سيتم النسخ التلقائي');
+    if (result) {
+      debugPrint('✏️ تم تحديث دين ($id) - سيتم النسخ التلقائي');
+    }
     return result;
   }
 }

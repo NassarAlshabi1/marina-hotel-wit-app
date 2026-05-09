@@ -50,7 +50,9 @@ class AppwriteRealtimeService {
 
   /// تهيئة خدمة Realtime
   Future<void> initialize(Client client) async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
 
     try {
       _realtime = Realtime(client);
@@ -93,7 +95,7 @@ class AppwriteRealtimeService {
 
       // إلغاء الاشتراك القديم إذا كان موجوداً
       if (_subscriptions.containsKey(subscriptionKey)) {
-        _subscriptions[subscriptionKey]!.close();
+        unawaited(_subscriptions[subscriptionKey]!.close());
         _subscriptions.remove(subscriptionKey);
       }
 
@@ -161,7 +163,7 @@ class AppwriteRealtimeService {
 
       // إلغاء الاشتراك القديم
       if (_subscriptions.containsKey(subscriptionKey)) {
-        _subscriptions[subscriptionKey]!.close();
+        unawaited(_subscriptions[subscriptionKey]!.close());
         _subscriptions.remove(subscriptionKey);
       }
 
@@ -229,7 +231,7 @@ class AppwriteRealtimeService {
           collectionId: collectionId,
           handler: handler,
         );
-      } catch (Object e) {
+      } catch (e) {
         _logger.warning(
           'Failed to subscribe to $collectionId, continuing...',
           error: e,
@@ -370,7 +372,7 @@ class AppwriteRealtimeService {
           // لا شيء
           break;
       }
-    } catch (Object e) {
+    } catch (e) {
       _logger.warning(
         'Failed to update cache on Realtime event',
         error: e,

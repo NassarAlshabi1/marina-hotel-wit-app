@@ -161,6 +161,7 @@ class SmartSyncFloatingButton extends ConsumerWidget {
             await manager.forceSyncNow();
 
             if (context.mounted) {
+              // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('🔄 بدأت المزامنة اليدوية...'),
@@ -168,8 +169,9 @@ class SmartSyncFloatingButton extends ConsumerWidget {
                 ),
               );
             }
-          } catch (Object) {
+          } catch (e) {
             if (context.mounted) {
+              // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text(
@@ -242,7 +244,9 @@ class _SmartSyncDashboardCardState
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
 
-        if (!isSignedIn) return const SizedBox.shrink();
+        if (!isSignedIn) {
+          return const SizedBox.shrink();
+        }
 
         return Card(
           margin: EdgeInsets.zero,

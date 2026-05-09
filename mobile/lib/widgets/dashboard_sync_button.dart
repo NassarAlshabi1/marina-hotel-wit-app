@@ -73,7 +73,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           _pendingChangesCount = count;
         });
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
@@ -91,7 +91,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       } else {
         _appwriteEnabled = enabled;
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
@@ -109,7 +109,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     String? deviceId;
     try {
       deviceId = await _getDeviceId();
-    } catch (Object) {
+    } catch (e) {
       deviceId = 'unknown';
     }
 
@@ -123,9 +123,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite',
       status: 'in_progress',
     );
-    if (_isPulling) return;
+    if (_isPulling) {
+      return;
+    }
 
-    _pullAnimationController.repeat();
+    unawaited(_pullAnimationController.repeat());
     if (mounted) {
       setState(() => _isPulling = true);
     } else {
@@ -136,6 +138,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteEnabled = await _isAppwriteSyncEnabled();
       if (!appwriteEnabled) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات'),
@@ -151,6 +154,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (!appwriteConnected) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا يوجد اتصال بـ Appwrite'),
@@ -162,6 +166,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -196,6 +201,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         // 2️⃣ حل التعارضات إن وجدت
         if (pullResult.hasConflicts) {
           if (mounted) {
+            // ignore: use_build_context_synchronously
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('⚖️ جاري حل التعارضات...'),
@@ -232,6 +238,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() {
           _lastSyncTime = DateTime.now();
         });
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -260,7 +267,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في سحب التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
@@ -276,6 +283,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -307,7 +315,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     String? deviceId;
     try {
       deviceId = await _getDeviceId();
-    } catch (Object) {
+    } catch (e) {
       deviceId = 'unknown';
     }
 
@@ -321,10 +329,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite+GoogleDrive',
       status: 'in_progress',
     );
-    if (_isPushing) return;
+    if (_isPushing) {
+      return;
+    }
 
     if (_pendingChangesCount == 0) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -342,7 +353,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    _pushAnimationController.repeat();
+    unawaited(_pushAnimationController.repeat());
     if (mounted) {
       setState(() => _isPushing = true);
     } else {
@@ -361,6 +372,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (!smartEnabled && !appwriteEnabled) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -389,11 +401,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final targets = <String>[];
-      if (smartEnabled && isGoogleDriveSignedIn) targets.add('Google Drive');
-      if (appwriteEnabled && appwriteConnected) targets.add('Appwrite');
+      if (smartEnabled && isGoogleDriveSignedIn) {
+        targets.add('Google Drive');
+      }
+      if (appwriteEnabled && appwriteConnected) {
+        targets.add('Appwrite');
+      }
 
       if (targets.isEmpty) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا توجد وجهات مزامنة متاحة حالياً'),
@@ -405,6 +422,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -452,7 +470,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               'pushed': _pendingChangesCount,
             };
           }
-        } catch (Object e) {
+        } catch (e) {
           results['Appwrite'] = {
             'success': false,
             'pushed': 0,
@@ -470,7 +488,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'success': result,
             'pushed': _pendingChangesCount,
           };
-        } catch (Object e) {
+        } catch (e) {
           results['Google Drive'] = {
             'success': false,
             'pushed': 0,
@@ -515,6 +533,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
 
         if (failedTargets.isEmpty) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -548,6 +567,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             ),
           );
         } else if (successTargets.isEmpty) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(
@@ -570,6 +590,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             ),
           );
         } else {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -606,7 +627,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       ref.invalidate(smartSyncStatusProvider);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ فشل رفع التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
@@ -622,6 +643,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
@@ -662,7 +684,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       final conflicts = await outboxDao.getConflicts();
 
-      if (conflicts.isEmpty) return 0;
+      if (conflicts.isEmpty) {
+        return 0;
+      }
 
       final resolver = ConflictResolver(
         deviceId: await _getDeviceId(),
@@ -703,7 +727,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             );
           }
           return false;
-        } catch (Object e) {
+        } catch (e) {
           debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
           return false;
         }
@@ -712,7 +736,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       debugPrint('✅ تم حل $resolvedCount تعارض');
       return resolvedCount;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في حل التعارضات: $e');
       return 0;
     }
@@ -728,13 +752,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         await prefs.setString('device_id', deviceId);
       }
       return deviceId;
-    } catch (Object) {
+    } catch (e) {
       return 'unknown_device';
     }
   }
 
   String _formatLastSyncTime(DateTime? lastSync) {
-    if (lastSync == null) return '';
+    if (lastSync == null) {
+      return '';
+    }
 
     final now = DateTime.now();
     final difference = now.difference(lastSync);
@@ -1101,7 +1127,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
                           builder: (context, snapshot) {
                             final lastSync = snapshot.data?.createdAt ?? _lastSyncTime;
-                            if (lastSync == null) return const SizedBox.shrink();
+                            if (lastSync == null) {
+                              return const SizedBox.shrink();
+                            }
                             return Text(
                               'آخر مزامنة: ${_formatLastSyncTime(lastSync)}',
                               style: TextStyle(

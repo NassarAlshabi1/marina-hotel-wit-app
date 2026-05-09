@@ -51,13 +51,17 @@ final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
     // Sort: Arabic types alphabetically, with 'اخرى' always last
     final sorted = merged.toList()
       ..sort((a, b) {
-        if (a == 'اخرى') return 1;
-        if (b == 'اخرى') return -1;
+        if (a == 'اخرى') {
+          return 1;
+        }
+        if (b == 'اخرى') {
+          return -1;
+        }
         return a.compareTo(b);
       });
 
     return sorted;
-  } catch (Object) {
+  } catch (e) {
     // Fallback to defaults if DB query fails
     return kDefaultExpenseTypes;
   }

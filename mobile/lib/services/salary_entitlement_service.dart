@@ -65,7 +65,7 @@ class SalaryEntitlementService {
       hireDate = employee.hireDate.isNotEmpty
           ? DateTime.parse(employee.hireDate)
           : now;
-    } catch (Object) {
+    } catch (e) {
       hireDate = now;
     }
 
@@ -126,7 +126,9 @@ class SalaryEntitlementService {
 
   int _calculateMonthsDifference(DateTime from, DateTime to) {
     int months = (to.year - from.year) * 12 + (to.month - from.month);
-    if (to.day < from.day) months--;
+    if (to.day < from.day) {
+      months--;
+    }
     return months < 0 ? 0 : months;
   }
 

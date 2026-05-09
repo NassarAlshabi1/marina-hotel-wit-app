@@ -73,7 +73,9 @@ class CurrencyFormatter {
     cleanText = cleanText.split('').map((ch) => digitMap[ch] ?? ch).join();
 
     final parsed = double.tryParse(cleanText);
-    if (parsed == null) return null;
+    if (parsed == null) {
+      return null;
+    }
     return parsed;
   }
 

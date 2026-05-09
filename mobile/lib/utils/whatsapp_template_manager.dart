@@ -75,7 +75,9 @@ class WhatsAppTemplate {
     final prefs = await SharedPreferences.getInstance();
     final key = 'wa_template_content_${type.id}';
     final custom = prefs.getString(key);
-    if (custom != null && custom.isNotEmpty) return custom;
+    if (custom != null && custom.isNotEmpty) {
+      return custom;
+    }
     return type.defaultContent;
   }
 
@@ -361,7 +363,9 @@ class WhatsAppTemplateManager {
     Map<String, String> variables,
   ) async {
     final enabled = await isTemplateEnabled(type);
-    if (!enabled) return null;
+    if (!enabled) {
+      return null;
+    }
 
     var content = await WhatsAppTemplate.getContent(type);
     final hotelPhone = await getHotelPhone();
@@ -372,9 +376,7 @@ class WhatsAppTemplateManager {
     });
 
     // استبدال رقم الفندق
-    content = content.replaceAll('{hotelPhone}', hotelPhone);
-
-    return content;
+    return content.replaceAll('{hotelPhone}', hotelPhone);
   }
 
   /// بناء الرسالة بدون التحقق من التفعيل (للاستخدام الداخلي)
@@ -388,9 +390,7 @@ class WhatsAppTemplateManager {
     variables.forEach((key, value) {
       content = content.replaceAll('{$key}', value);
     });
-    content = content.replaceAll('{hotelPhone}', hotelPhone);
-
-    return content;
+    return content.replaceAll('{hotelPhone}', hotelPhone);
   }
 
   /// الحصول على محتوى النموذج (للعرض في الإعدادات)
@@ -470,7 +470,7 @@ class WhatsAppTemplateManager {
         count++;
       }
       return count;
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('خطأ في استيراد النماذج: $e');
       return 0;
     }

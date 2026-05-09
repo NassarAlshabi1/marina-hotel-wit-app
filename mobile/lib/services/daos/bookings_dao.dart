@@ -28,7 +28,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     int? offset,
   }) async {
     final q = select(bookings);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
     }
@@ -49,8 +51,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
     ]);
-    if (limit != null) q.limit(limit, offset: offset ?? 0);
-    return q.get<dynamic>();
+    if (limit != null) {
+      q.limit(limit, offset: offset ?? 0);
+    }
+    return q.get();
   }
 
   Stream<List<Booking>> watchList({
@@ -59,7 +63,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) {
     final q = select(bookings);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
     }
@@ -112,7 +118,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -137,7 +145,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows = await (update(bookings)..where((t) => t.id.equals(id)))
           .write(
             BookingsCompanion(
@@ -166,7 +176,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.get<dynamic>();
+    return query.get();
   }
 
   Future<List<Booking>> getByRoomNumber(
@@ -178,7 +188,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.get<dynamic>();
+    return query.get();
   }
 
   Future<List<Booking>> getByStatus(
@@ -189,7 +199,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.get<dynamic>();
+    return query.get();
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
@@ -198,7 +208,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-    if (row == null) return null;
+    if (row == null) {
+      return null;
+    }
     return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
   }
 
@@ -209,7 +221,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     int? serverId,
   }) async {
     final payload = await _payloadForLocalUuid(localUuid);
-    if (payload == null) return;
+    if (payload == null) {
+      return;
+    }
     await outboxDao.merge(
       entity: 'bookings',
       op: op,

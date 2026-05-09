@@ -153,7 +153,7 @@ class ScreenSyncController {
         );
         return false;
       }
-    } on CircuitBreakerOpenException catch (Object e) {
+    } on CircuitBreakerOpenException catch (e) {
       debugPrint('🔌 [$screenId] Circuit breaker مفتوح: $e');
       _emitStatus(SyncStatus.error);
       return false;
@@ -196,7 +196,7 @@ class ScreenSyncController {
     cancelTimer();
 
     // إغلاق الموارد فوراً
-    // المزامنة عند الخروج تتم عبر WillPopScope في SyncOnExitMixin
+    // المزامنة عند الخروج تتم عبر PopScope في SyncOnExitMixin
     if (!_syncStatusController.isClosed) {
       _syncStatusController.close();
     }

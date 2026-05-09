@@ -274,12 +274,12 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
         content: const Text('هل تريد إعادة تهيئة الاتصال؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop<void>(context);
+              Navigator.pop(context);
               await ref.read(ap.appwriteServiceProvider).initialize();
               await _checkConnection();
             },
@@ -302,7 +302,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
         content: Text(value),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context),
+            onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
         ],

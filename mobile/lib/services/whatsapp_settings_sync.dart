@@ -53,11 +53,11 @@ class WhatsAppSettingsSync {
 
       debugPrint('WhatsApp settings uploaded to Appwrite successfully');
       return (success: true, error: null);
-    } on AppwriteException catch (Object e) {
+    } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
       debugPrint('WhatsApp settings upload failed: $msg');
       return (success: false, error: msg);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('WhatsApp settings upload error: $e');
       return (success: false, error: e.toString());
     }
@@ -101,11 +101,11 @@ class WhatsAppSettingsSync {
 
       debugPrint('WhatsApp settings downloaded from Appwrite successfully');
       return (success: true, error: null, settings: saved);
-    } on AppwriteException catch (Object e) {
+    } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
       debugPrint('WhatsApp settings download failed: $msg');
       return (success: false, error: msg, settings: null);
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('WhatsApp settings download error: $e');
       return (success: false, error: e.toString(), settings: null);
     }

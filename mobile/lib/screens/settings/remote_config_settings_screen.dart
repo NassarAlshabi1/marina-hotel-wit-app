@@ -415,7 +415,9 @@ class _RemoteConfigSettingsScreenState
   }
 
   String _maskKey(String key) {
-    if (key.length <= 4) return '****';
+    if (key.length <= 4) {
+      return '****';
+    }
     return '${key.substring(0, 3)}${'*' * (key.length - 4)}${key.substring(key.length - 1)}';
   }
 

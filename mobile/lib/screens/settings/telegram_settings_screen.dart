@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -608,7 +610,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
 
       setState(() => _isSaving = false);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -623,10 +627,12 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
           duration: Duration(seconds: 2),
         ),
       );
-    } catch (Object e) {
+    } catch (e) {
       setState(() => _isSaving = false);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -650,7 +656,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
     final int hour = int.parse(parts[0]);
     final int minute = int.parse(parts[1]);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final time = await showTimePicker(
       context: context,
@@ -661,7 +669,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
     if (time != null) {
       final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       _reportTimeController.text = formatted;
-      ref.read(telegramProvider.notifier).setDailyReportTime(formatted);
+      unawaited(ref.read(telegramProvider.notifier).setDailyReportTime(formatted));
     }
   }
 
@@ -696,7 +704,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(ctx),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('فهمت'),
           ),
         ],

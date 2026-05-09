@@ -104,7 +104,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         dailyReportTime: reportTime,
         lastReportSent: lastReportSent,
       );
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في تهيئة TelegramNotifier: $e');
     }
   }
@@ -170,7 +170,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
       } else {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
     }
     _clearMessageAfterDelay();
@@ -189,7 +189,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
           int.parse(parts[1]),
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
     }
   }
@@ -215,7 +215,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
           message: '❌ فشل اختبار الاتصال — تحقق من Bot Token و Chat ID',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       state = state.copyWith(
         status: TelegramSetupStatus.error,
         message: '❌ خطأ في الاتصال: $e',
@@ -246,7 +246,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
           message: '❌ فشل إرسال التقرير — تحقق من الإعدادات',
         );
       }
-    } catch (Object e) {
+    } catch (e) {
       state = state.copyWith(
         status: TelegramSetupStatus.error,
         message: '❌ خطأ في إرسال التقرير: $e',
@@ -260,7 +260,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<bool> sendDailyReport() async {
     try {
       return await _reports.sendDailyReport();
-    } catch (Object e) {
+    } catch (e) {
       debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
@@ -269,7 +269,9 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   /// مسح رسالة الحالة
   void _clearMessageAfterDelay() {
     Future<void>.delayed(const Duration(seconds: 3), () {
-      if (!_mounted) return;
+      if (!_mounted) {
+        return;
+      }
       if (state.status == TelegramSetupStatus.success ||
           state.status == TelegramSetupStatus.error) {
         state = state.copyWith(status: TelegramSetupStatus.idle);

@@ -117,7 +117,9 @@ class EnhancedBookingCalculationService {
     final booking =
         await (db.select(db.bookings)..where((b) => b.id.equals(bookingId)))
             .getSingleOrNull();
-    if (booking == null) return;
+    if (booking == null) {
+      return;
+    }
 
     final calculation = await calculateForBooking(booking, now: now);
     await _replaceBookingNights(
@@ -206,7 +208,9 @@ class EnhancedBookingCalculationService {
             int nightIndexInRange = 0;
             for (final s in segments) {
               final d = DateTime.parse(s.hotelDayKey);
-              if (!_isWithinRange(d, effectiveDate, endDate)) continue;
+              if (!_isWithinRange(d, effectiveDate, endDate)) {
+                continue;
+              }
               if (d.isBefore(nightDate)) {
                 nightIndexInRange++;
               } else {
@@ -370,9 +374,13 @@ class EnhancedBookingCalculationService {
 
       // ② التحقق من roomNumber — تجنب تطبيق تخفيض من حجز آخر
       final adjRoom = adj.roomNumber?.trim();
-      if (adjRoom == null || adjRoom.isEmpty) return false;
+      if (adjRoom == null || adjRoom.isEmpty) {
+        return false;
+      }
       final room = booking.roomNumber.trim();
-      if (adjRoom != room) return false;
+      if (adjRoom != room) {
+        return false;
+      }
 
       // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
       //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
@@ -439,7 +447,7 @@ class EnhancedBookingCalculationService {
 
     await db.transaction(() async {
       if (shouldRebuild) {
-        await (db.delete<dynamic>(db.bookingNights)
+        await (db.delete(db.bookingNights)
               ..where((n) => n.bookingLocalId.equals(booking.id)))
             .go();
       }
@@ -528,7 +536,9 @@ class EnhancedBookingCalculationService {
     DateTime nightDate,
     DateTime? discountStartDate,
   ) {
-    if (discountStartDate == null) return true;
+    if (discountStartDate == null) {
+      return true;
+    }
     final nightDay = DateTime(nightDate.year, nightDate.month, nightDate.day);
     final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
     return !nightDay.isBefore(discountDay);
@@ -539,8 +549,12 @@ class EnhancedBookingCalculationService {
     DateTime effectiveDate,
     DateTime? endDate,
   ) {
-    if (nightDate.isBefore(effectiveDate)) return false;
-    if (endDate != null && nightDate.isAfter(endDate)) return false;
+    if (nightDate.isBefore(effectiveDate)) {
+      return false;
+    }
+    if (endDate != null && nightDate.isAfter(endDate)) {
+      return false;
+    }
     return true;
   }
 
@@ -577,9 +591,13 @@ class EnhancedBookingCalculationService {
   }
 
   DateTime? _parseDateTime(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final v = value.trim();
-    if (v.isEmpty) return null;
+    if (v.isEmpty) {
+      return null;
+    }
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds =
         normalized.length == 16 ? '$normalized:00' : normalized;
@@ -591,10 +609,18 @@ class EnhancedBookingCalculationService {
   }
 
   int _asInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is num) return value.round();
-    if (value is String) return int.tryParse(value) ?? 0;
+    if (value == null) {
+      return 0;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.round();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
     return 0;
   }
 

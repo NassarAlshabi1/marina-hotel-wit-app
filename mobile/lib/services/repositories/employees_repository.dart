@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../auto_backup_manager.dart';
@@ -39,11 +41,11 @@ class EmployeesRepository {
         status: d.Value(status),
       ),
     );
-    AutoBackupManager.instance.onDataChange(
+    unawaited(AutoBackupManager.instance.onDataChange(
       'employees',
       'INSERT',
       recordData: {'name': name},
-    );
+    ),);
     return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -83,11 +85,11 @@ class EmployeesRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'employees',
         'UPDATE',
         recordData: {'id': id},
-      );
+      ),);
     }
     return result;
     } catch (e, stack) {
@@ -129,11 +131,11 @@ class EmployeesRepository {
     try {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'employees',
         'DELETE',
         recordData: {'id': id},
-      );
+      ),);
     }
     return result;
     } catch (e, stack) {

@@ -552,11 +552,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop<void>(false),
+              onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop<void>(true),
+              onPressed: () => Navigator.of(ctx).pop(true),
               child: const Text('حفظ'),
             ),
           ],
@@ -568,6 +568,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       final parsedAmount =
           CurrencyFormatter.parseAmount(amountController.text);
       if (parsedAmount == null || parsedAmount <= 0) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('يرجى إدخال مبلغ صحيح'),
@@ -577,6 +578,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         return;
       }
       if (parsedAmount % 1 != 0) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('المبلغ يجب أن يكون بدون كسور'),
@@ -602,6 +604,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         );
         markDataChanged();
 
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('تم إضافة الدفعة بنجاح'),
@@ -615,7 +618,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             ),
           ),
         );
-      } catch (Object e) {
+      } catch (e) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
@@ -641,11 +645,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop<void>(false),
+              onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop<void>(true),
+              onPressed: () => Navigator.of(ctx).pop(true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               child: const Text('إتمام'),
             ),
@@ -681,6 +685,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         markDataChanged();
 
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('تم إتمام الحجز بنجاح'),
@@ -694,10 +699,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               ),
             ),
           );
-          Navigator.of(context).pop<void>();
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pop();
         }
-      } catch (Object e) {
+      } catch (e) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
           );

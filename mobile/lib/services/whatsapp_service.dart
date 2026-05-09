@@ -69,7 +69,7 @@ class WhatsAppService {
     final endpoint = Uri.parse('$baseUrl/$instanceId/sendMessage/$token');
 
     try {
-      final response = await _client.post<dynamic>(
+      final response = await _client.post(
         endpoint,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'chatId': chatId, 'message': message}),
@@ -95,7 +95,7 @@ class WhatsAppService {
         'WhatsApp send failed: ${response.statusCode} ${response.body}',
       );
       return (success: false, quotaMessage: null);
-    } catch (Object error, StackTrace stackTrace) {
+    } catch (error, stackTrace) {
       debugPrint('WhatsApp send error: $error');
       debugPrint('$stackTrace');
       return (success: false, quotaMessage: null);
@@ -122,7 +122,7 @@ class WhatsAppService {
           .replaceAll('[message]', Uri.encodeComponent(message));
 
       final endpoint = Uri.parse(urlStr);
-      final response = await _client.get<dynamic>(endpoint).timeout(
+      final response = await _client.get(endpoint).timeout(
         const Duration(seconds: 15),
       );
 
@@ -134,7 +134,7 @@ class WhatsAppService {
         'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
       );
       return (success: false, quotaMessage: null);
-    } catch (Object error, StackTrace stackTrace) {
+    } catch (error, stackTrace) {
       debugPrint('Custom WhatsApp send error: $error');
       debugPrint('$stackTrace');
       return (success: false, quotaMessage: null);
@@ -164,7 +164,7 @@ class WhatsAppService {
         statusCode: response.statusCode,
         body: response.body,
       );
-    } catch (Object e) {
+    } catch (e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
   }
@@ -187,7 +187,7 @@ class WhatsAppService {
           .replaceAll('[message]', Uri.encodeComponent('test'));
 
       final endpoint = Uri.parse(testUrl);
-      final response = await _client.get<dynamic>(endpoint).timeout(
+      final response = await _client.get(endpoint).timeout(
         const Duration(seconds: 15),
       );
 
@@ -197,7 +197,7 @@ class WhatsAppService {
         statusCode: response.statusCode,
         body: response.body,
       );
-    } catch (Object e) {
+    } catch (e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
   }
@@ -205,7 +205,9 @@ class WhatsAppService {
   /// اقتصاص الرسالة لتتلاءم مع الحد الأقصى
   /// يستخدم characters لضمان عدم تقطيع أحرف UTF-8/Arabic
   String _trimMessage(String message) {
-    if (message.characters.length <= maxMessageLength) return message;
+    if (message.characters.length <= maxMessageLength) {
+      return message;
+    }
 
     debugPrint(
       'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',

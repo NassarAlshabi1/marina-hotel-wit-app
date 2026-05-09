@@ -30,16 +30,24 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   /// تنظيف وتنسيق رقم الهاتف
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.isEmpty) return '';
-    if (digitsOnly.startsWith('00')) digitsOnly = digitsOnly.substring(2);
-    if (digitsOnly.startsWith('967')) return digitsOnly;
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
+    if (digitsOnly.startsWith('967')) {
+      return digitsOnly;
+    }
     if (digitsOnly.startsWith('07')) {
       digitsOnly = '967${digitsOnly.substring(1)}';
     } else if (digitsOnly.startsWith('7') && digitsOnly.length == 9) {
       digitsOnly = '967$digitsOnly';
     } else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
       digitsOnly = '966$digitsOnly';
-    } else if (digitsOnly.startsWith('966')) return digitsOnly;
+    } else if (digitsOnly.startsWith('966')) {
+      return digitsOnly;
+    }
     else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
       digitsOnly = '967$digitsOnly';
     }
@@ -704,7 +712,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                 'اختر حجز وأنشئ دين بناء على الأيام المتبقية',
               ),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _createDebtFromBooking();
               },
             ),
@@ -716,7 +724,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               title: const Text('دين يدوي'),
               subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
               onTap: () {
-                Navigator.pop<void>(context);
+                Navigator.pop(context);
                 _openDebtForm(context);
               },
             ),
@@ -728,7 +736,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Future<void> _createDebtFromBooking() async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<void>(builder: (context) => const CreateDebtFromBookingScreen(),
+      MaterialPageRoute<bool>(builder: (context) => const CreateDebtFromBookingScreen(),
       ),
     );
 
@@ -750,11 +758,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         content: Text('هل تريد تسجيل دين "${debt.guestName}" كمسدد؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop<void>(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop<void>(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: const Text('تأكيد السداد'),
           ),
@@ -779,8 +787,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
           );
         }
-      } catch (Object e) {
-        if (!mounted) return;
+      } catch (e) {
+        if (!mounted) {
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل السداد: $e'),
@@ -1031,11 +1041,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop<void>(dialogContext, false),
+                  onPressed: () => Navigator.pop(dialogContext, false),
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop<void>(dialogContext, true),
+                  onPressed: () => Navigator.pop(dialogContext, true),
                   child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),
                 ),
               ],
@@ -1044,11 +1054,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         },
       );
 
-      if (confirmed != true) return;
+      if (confirmed != true) {
+        return;
+      }
 
       final guestName = guestNameCtrl.text.trim();
       if (guestName.isEmpty) {
-        if (context.mounted) {
+        if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
           );
@@ -1105,7 +1118,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       }
       markDataChanged();
 
-      if (context.mounted) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1236,7 +1250,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           );
         }
       }
-    } catch (Object e) {
+    } catch (e) {
       if (mounted) {
         setState(() => _isSendingWhatsApp = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1260,11 +1274,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop<void>(dialogContext, false),
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop<void>(dialogContext, true),
+              onPressed: () => Navigator.pop(dialogContext, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('حذف'),
             ),
@@ -1273,20 +1287,26 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       },
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
     try {
       final repo = ref.read(debtsRepoProvider);
-      await repo.delete<dynamic>(debt.id);
+      await repo.delete(debt.id);
       markDataChanged();
 
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(
+          // ignore: use_build_context_synchronously
           context,
         ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
       }
-    } catch (Object e) {
-      if (!mounted) return;
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف الدين: $e'),

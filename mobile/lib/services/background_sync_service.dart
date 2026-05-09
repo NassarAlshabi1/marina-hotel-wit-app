@@ -36,7 +36,9 @@ class BackgroundSyncService {
 
   /// تهيئة خدمة المزامنة في الخلفية
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().initialize(
@@ -51,7 +53,7 @@ class BackgroundSyncService {
         '✅ BackgroundSyncService initialized',
         name: 'BackgroundSyncService',
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ BackgroundSyncService init error: $e',
         name: 'BackgroundSyncService',
@@ -107,7 +109,7 @@ class BackgroundSyncService {
           'interval_minutes': _syncInterval.inMinutes,
         },
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ Failed to register periodic sync: $e',
         name: 'BackgroundSyncService',
@@ -121,7 +123,9 @@ class BackgroundSyncService {
     bool requireCharging = false,
     bool requireNetwork = true,
   }) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().registerOneOffTask(
@@ -141,7 +145,7 @@ class BackgroundSyncService {
         '✅ Scheduled one-time sync in ${delay.inMinutes} minutes',
         name: 'BackgroundSyncService',
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ Failed to schedule one-time sync: $e',
         name: 'BackgroundSyncService',
@@ -151,7 +155,9 @@ class BackgroundSyncService {
 
   /// تسجيل مهمة مزامنة مع مراعاة البطارية
   Future<void> registerBatteryAwareSync() async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().cancelByUniqueName(batteryAwareSyncTask);
@@ -175,7 +181,7 @@ class BackgroundSyncService {
         '✅ Registered battery-aware sync',
         name: 'BackgroundSyncService',
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ Failed to register battery-aware sync: $e',
         name: 'BackgroundSyncService',
@@ -185,7 +191,9 @@ class BackgroundSyncService {
 
   /// إلغاء جميع مهام المزامنة
   Future<void> cancelAllSyncs() async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().cancelAll();
@@ -194,7 +202,7 @@ class BackgroundSyncService {
         '✅ Cancelled all background sync tasks',
         name: 'BackgroundSyncService',
       );
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ Failed to cancel syncs: $e',
         name: 'BackgroundSyncService',
@@ -204,11 +212,13 @@ class BackgroundSyncService {
 
   /// إلغاء مهمة محددة
   Future<void> cancelSync(String uniqueName) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().cancelByUniqueName(uniqueName);
-    } catch (Object e) {
+    } catch (e) {
       developer.log(
         '⚠️ Failed to cancel sync $uniqueName: $e',
         name: 'BackgroundSyncService',
@@ -238,7 +248,7 @@ class BackgroundSyncService {
     try {
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         developer.log(
           '⚠️ No connectivity, skipping background sync',
           name: 'BackgroundSyncService',
@@ -276,7 +286,7 @@ class BackgroundSyncService {
       );
 
       return true;
-    } catch (Object e) {
+    } catch (e) {
       stopwatch.stop();
 
       await analytics.logSyncFailure(
