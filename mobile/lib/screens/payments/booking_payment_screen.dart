@@ -1913,7 +1913,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       if (!isPendingBalance && amount > totals.remaining) {
         // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
-        final surplus = amount - totals.remaining;
         final roomsRepo = ref.read(roomsRepoProvider);
         final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
         final double rmRate = room?.price ?? 0;
@@ -1928,62 +1927,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        extraNights = (surplus / rmRate).ceil();
+        extraNights = ((amount - totals.remaining) / rmRate).ceil();
         if (extraNights <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
           );
           return;
         }
-
-        // تأكيد التمديد من المستخدم
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.update, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text('تسجيل دفعة مع تمديد'),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('المبلغ يتجاوز المتبقي. سيتم تمديد الحجز تلقائياً:'),
-                const SizedBox(height: 12),
-                Text('المبلغ المتبقي الحالي: ${_currencyFmt.format(totals.remaining)}'),
-                Text('المبلغ الفائض: ${_currencyFmt.format(surplus)}'),
-                Text(
-                  'سيتم إضافة: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'} قادمة',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop<void>(ctx, false),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop<void>(ctx, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-                child: const Text('تأكيد التمديد والدفع'),
-              ),
-            ],
-          ),
-        );
-
-        if (confirmed != true) return;
 
         // حساب بيانات التمديد
         final currentCheckout = widget.booking.checkoutDate != null
@@ -2107,6 +2057,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
+      if (needsExtension && extraNights != null && extraNights > 0) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم تمديد الحجز تلقائياً: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}',
+            ),
+            backgroundColor: Colors.indigo,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
