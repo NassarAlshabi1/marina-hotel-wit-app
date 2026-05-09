@@ -4,6 +4,7 @@
 /// with full CRUD support (add, edit, delete, reorder, toggle active).
 library;
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'repository_providers.dart';

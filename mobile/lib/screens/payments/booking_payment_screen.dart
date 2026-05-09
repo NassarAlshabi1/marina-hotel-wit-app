@@ -987,13 +987,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(10),
-
-          // نموذج إضافة الدفعة
-          _buildPaymentForm(summary, nights: nights, remainingAmount: remainingAmount, roomRate: roomRate),
-        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // نموذج إضافة الدفعة
+            _buildPaymentForm(summary, nights: nights, remainingAmount: remainingAmount, roomRate: roomRate),
+          ],
+        ),
       ),
-      ),
-    )
+    );
   }
 
   Widget _buildPaymentForm(
@@ -2720,7 +2722,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             );
           }
 
-          final allPayments = snapshot.data;
+          final allPayments = snapshot.data ?? [];
           final todayPayments = allPayments.where((p) =>
               !p.isVoided &&
               (p.hotelDayKey == hotelDay ||
