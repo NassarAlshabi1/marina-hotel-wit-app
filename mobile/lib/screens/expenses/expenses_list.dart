@@ -66,8 +66,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     _salaryWithdrawAction,
     _salaryDeductionAction,
   ];
+  static const List<String> availableTypes = [
+    'رواتب',
+    'ديزل',
+    'صيانة',
+    'فواتير كهرباء ومياه',
+    'مستلزمات',
+    'مساعدة محتاج',
+    'اخرى',
+  ];
   // أنواع المصروفات تُقرأ من الإعدادات المخصصة
-  List<String> _expenseTypes = [];
+  List<String> _expenseTypes = availableTypes;
 
   @override
   void initState() {

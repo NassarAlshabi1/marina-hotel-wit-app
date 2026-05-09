@@ -11,17 +11,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/local_db.dart';
 import 'repository_providers.dart';
 
-/// Default expense type categories used when the database has no entries yet.
+/// أنواع المصروفات المتاحة — القائمة الأساسية
 const List<String> kDefaultExpenseTypes = [
   'رواتب',
+  'ديزل',
   'صيانة',
-  'مواد تنظيف',
-  'كهرباء وماء',
-  'اتصالات وإنترنت',
-  'تسويق وإعلان',
-  'ضيافة',
-  'مواصلات',
-  'ايجار',
+  'فواتير كهرباء ومياه',
+  'مستلزمات',
+  'مساعدة محتاج',
   'اخرى',
 ];
 
