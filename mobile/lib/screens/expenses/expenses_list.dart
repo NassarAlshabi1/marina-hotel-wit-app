@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
-import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
@@ -83,23 +82,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     'مساعدة محتاج',
     'اخرى',
   ];
-  // أنواع المصروفات تُقرأ من الإعدادات المخصصة
-  List<String> _expenseTypes = availableTypes;
-
   @override
   void initState() {
     super.initState();
     _expensesStream = _buildExpensesStream();
-    _loadExpenseTypes();
-  }
-
-  Future<void> _loadExpenseTypes() async {
-    final types = await ref.read(expenseTypesProvider.future);
-    if (mounted) {
-      setState(() {
-        _expenseTypes = types;
-      });
-    }
   }
 
   @override
@@ -494,10 +480,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedType,
+                    value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
-                    items: _expenseTypes
+                    items: availableTypes
                         .map(
                           (type) => DropdownMenuItem<String>(
                             value: type,
@@ -528,7 +514,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        initialValue: selectedEmployeeId,
+                        value: selectedEmployeeId,
                         style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
@@ -546,7 +532,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: dialogSalaryAction,
+                        value: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),
