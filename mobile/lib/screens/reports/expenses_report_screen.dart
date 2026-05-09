@@ -587,9 +587,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             _buildDetailedSummary(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -633,22 +633,22 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           percentage: pct,
         ),
       );
-      const SizedBox(height: 4);
+      widgets.add(const SizedBox(height: 2));
 
       // بنود المجموعة
       for (int i = 0; i < items.length; i++) {
         widgets.add(_buildDetailedExpenseCard(items[i], rowIndex: i + 1));
-        if (i < items.length - 1) const SizedBox(height: 4);
+        if (i < items.length - 1) widgets.add(const SizedBox(height: 2));
       }
 
       // فاصل بين المجموعات
-      if (t < sortedTypes.length - 1) const SizedBox(height: 12);
+      if (t < sortedTypes.length - 1) widgets.add(const SizedBox(height: 8));
     }
 
     return widgets;
   }
 
-  /// رأس مجموعة النوع مع المبلغ الإجمالي والنسبة المئوية
+  /// رأس مجموعة النوع مع المبلغ الإجمالي والنسبة المئوية (مصغّر)
   Widget _buildGroupHeader({
     required String type,
     required IconData icon,
@@ -658,46 +658,46 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     required double percentage,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
       ),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, size: 18, color: color),
+                child: Icon(icon, size: 15, color: color),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   type,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Text(
                   '$count عملية',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade600,
                   ),
@@ -705,7 +705,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Row(
             children: [
               Expanded(
@@ -715,7 +715,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     Text(
                       _currencyFmt.format(subtotal),
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: color,
                       ),
@@ -729,17 +729,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   Text(
                     '${percentage.toStringAsFixed(1)}%',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: color.withValues(alpha: 0.8),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   SizedBox(
-                    width: 80,
-                    height: 5,
+                    width: 60,
+                    height: 4,
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
                         value: (percentage / 100).clamp(0, 1),
                         backgroundColor: color.withValues(alpha: 0.15),
@@ -756,7 +756,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
   }
 
-  /// بطاقة المصروف المفصلة
+  /// بطاقة المصروف المفصلة (مصغّرة)
   Widget _buildDetailedExpenseCard(_ExpenseReportRow row, {required int rowIndex}) {
     final cfg = _configForType(row.type);
     final pct = _totalAmount > 0 ? (row.amount / _totalAmount * 100) : 0.0;
@@ -765,17 +765,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final isSalary = _isSalaryType(row.type);
 
     return Card(
-      elevation: 0.5,
+      elevation: 0.3,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
           color: isSalary ? Colors.purple.shade100 : Colors.grey.shade100,
-          width: isSalary ? 1.0 : 0.5,
+          width: isSalary ? 0.8 : 0.4,
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -784,44 +784,44 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               children: [
                 // رقم البند
                 Container(
-                  width: 26,
-                  height: 26,
+                  width: 20,
+                  height: 20,
                   decoration: BoxDecoration(
                     color: cfg.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     '$rowIndex',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: cfg.color,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 // التاريخ والوقت
                 Expanded(
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 13, color: Colors.grey.shade500),
-                      const SizedBox(width: 3),
+                      Icon(Icons.calendar_today, size: 11, color: Colors.grey.shade500),
+                      const SizedBox(width: 2),
                       Text(
                         _dateLabelFormat.format(row.date),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey.shade700,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.access_time, size: 13, color: Colors.grey.shade400),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 6),
+                      Icon(Icons.access_time, size: 11, color: Colors.grey.shade400),
+                      const SizedBox(width: 2),
                       Text(
                         _timeFormat.format(row.date),
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Colors.grey.shade500,
                         ),
                       ),
@@ -836,7 +836,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       _currencyFmt.format(row.amount),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 13,
                         color: cfg.color,
                       ),
                     ),
@@ -844,7 +844,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       Text(
                         '${pct.toStringAsFixed(1)}%',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.grey.shade500,
                         ),
                       ),
@@ -855,21 +855,21 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
             // الصف الثاني: الوصف
             if (hasDesc) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.notes, size: 13, color: Colors.grey.shade400),
-                  const SizedBox(width: 4),
+                  Icon(Icons.notes, size: 11, color: Colors.grey.shade400),
+                  const SizedBox(width: 3),
                   Expanded(
                     child: Text(
                       row.description,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.grey.shade700,
-                        height: 1.4,
+                        height: 1.3,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -879,19 +879,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
             // الصف الثالث: الموظف — يظهر دائماً لمصروفات الرواتب
             if (hasEmployee || isSalary) ...[
-              const SizedBox(height: 5),
+              const SizedBox(height: 3),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSalary
                       ? Colors.purple.shade50
                       : Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(
                     color: isSalary
                         ? Colors.purple.shade200
                         : Colors.blue.shade100,
-                    width: 0.5,
+                    width: 0.4,
                   ),
                 ),
                 child: Row(
@@ -899,42 +899,42 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   children: [
                     Icon(
                       Icons.person_outline,
-                      size: 13,
+                      size: 11,
                       color: isSalary ? Colors.purple.shade400 : Colors.blue.shade400,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 3),
                     Text(
                       hasEmployee ? row.employee!.name : 'موظف غير محدد',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: isSalary ? Colors.purple.shade700 : Colors.blue.shade600,
                       ),
                     ),
                     if (hasEmployee && row.employee!.phone.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Icon(Icons.phone, size: 11, color: Colors.grey.shade400),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 4),
+                      Icon(Icons.phone, size: 10, color: Colors.grey.shade400),
+                      const SizedBox(width: 2),
                       Text(
                         row.employee!.phone,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.grey.shade500,
                         ),
                       ),
                     ],
                     if (hasEmployee && row.employee!.position.isNotEmpty) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(3),
                         ),
                         child: Text(
                           row.employee!.position,
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -947,25 +947,25 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
             // شارة سحب راتب
             if (row.isSalaryWithdrawal) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.purple.shade200, width: 0.5),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(color: Colors.purple.shade200, width: 0.4),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.info_outline, size: 10, color: Colors.purple.shade400),
-                        const SizedBox(width: 3),
+                        Icon(Icons.info_outline, size: 9, color: Colors.purple.shade400),
+                        const SizedBox(width: 2),
                         Text(
                           'سحب راتب',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             fontWeight: FontWeight.w600,
                             color: Colors.purple.shade600,
                           ),
@@ -979,14 +979,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
             // شريط النسبة المصغرة (إذا كان هناك أكثر من نوع)
             if (_grouped.length > 1) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               ClipRRect(
                 borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
                   value: (pct / 100).clamp(0, 1),
                   backgroundColor: Colors.grey.shade100,
-                  valueColor: AlwaysStoppedAnimation<Color>(cfg.color.withValues(alpha: 0.6)),
-                  minHeight: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(cfg.color.withValues(alpha: 0.5)),
+                  minHeight: 2,
                 ),
               ),
             ],
@@ -996,7 +996,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
   }
 
-  /// ملخص تفصيلي مع توزيع الأنواع
+  /// ملخص تفصيلي مع توزيع الأنواع (مصغّر)
   Widget _buildDetailedSummary() {
     if (_rows.isEmpty) return const SizedBox.shrink();
 
@@ -1008,10 +1008,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final salaryCount = _rows.where((r) => _isSalaryType(r.type)).length;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
@@ -1021,14 +1021,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.payments, color: Colors.orange, size: 20),
+                child: const Icon(Icons.payments, color: Colors.orange, size: 16),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1037,22 +1037,22 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       _currencyFmt.format(_totalAmount),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                        fontSize: 17,
                         color: Colors.orange,
                       ),
                     ),
                     Text(
                       widget.totalSummaryLabel,
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
                   children: [
@@ -1060,13 +1060,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       '${_rows.length}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                         color: Colors.blue,
                       ),
                     ),
                     Text(
                       'عملية',
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                      style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
@@ -1076,93 +1076,93 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
           // تفصيل الرواتب مقابل التشغيلية
           if (_hasSalaryData) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             const Divider(height: 1),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               children: [
                 // بطاقة الرواتب
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.purple.shade200, width: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.purple.shade200, width: 0.4),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.account_balance_wallet, size: 14, color: Colors.purple.shade600),
-                            const SizedBox(width: 4),
+                            Icon(Icons.account_balance_wallet, size: 12, color: Colors.purple.shade600),
+                            const SizedBox(width: 3),
                             Text(
                               'سحوبات الرواتب',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.purple.shade700,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           _currencyFmt.format(salaryTotal),
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.purple.shade800,
                           ),
                         ),
                         Text(
                           '$salaryCount عملية',
-                          style: TextStyle(fontSize: 9, color: Colors.purple.shade400),
+                          style: TextStyle(fontSize: 8, color: Colors.purple.shade400),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 // بطاقة التشغيلية
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.teal.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.teal.shade200, width: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.teal.shade200, width: 0.4),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.build_circle, size: 14, color: Colors.teal.shade600),
-                            const SizedBox(width: 4),
+                            Icon(Icons.build_circle, size: 12, color: Colors.teal.shade600),
+                            const SizedBox(width: 3),
                             Text(
                               'مصروفات تشغيلية',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.teal.shade700,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           _currencyFmt.format(nonSalaryTotal),
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.teal.shade800,
                           ),
                         ),
                         Text(
                           '${_rows.length - salaryCount} عملية',
-                          style: TextStyle(fontSize: 9, color: Colors.teal.shade400),
+                          style: TextStyle(fontSize: 8, color: Colors.teal.shade400),
                         ),
                       ],
                     ),
@@ -1174,58 +1174,58 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
           // توزيع الأنواع
           if (_typeSubtotals.length > 1) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             const Divider(height: 1),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             Text(
               'التوزيع حسب النوع',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey.shade600,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 4,
+              runSpacing: 4,
               children: _typeSubtotals.entries.map((entry) {
                 final cfg = _configForType(entry.key);
                 final pct = _totalAmount > 0 ? (entry.value / _totalAmount * 100) : 0.0;
                 final count = _grouped[entry.key]?.length ?? 0;
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: cfg.color.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: cfg.color.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(cfg.icon, size: 13, color: cfg.color),
-                      const SizedBox(width: 4),
+                      Icon(cfg.icon, size: 11, color: cfg.color),
+                      const SizedBox(width: 3),
                       Text(
                         entry.key,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w600,
                           color: cfg.color,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 3),
                       Text(
                         '${_currencyFmt.format(entry.value)} ($count)',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.grey.shade700,
                         ),
                       ),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 2),
                       Text(
                         '${pct.toStringAsFixed(0)}%',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 8,
                           fontWeight: FontWeight.bold,
                           color: Colors.grey.shade500,
                         ),
@@ -1239,16 +1239,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
           // متوسط المصروف لكل عملية
           if (_rows.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.analytics, size: 14, color: Colors.grey.shade400),
-                const SizedBox(width: 4),
+                Icon(Icons.analytics, size: 12, color: Colors.grey.shade400),
+                const SizedBox(width: 3),
                 Text(
                   'متوسط المبلغ لكل عملية: ${_currencyFmt.format(_totalAmount / _rows.length)}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: Colors.grey.shade600,
                     fontWeight: FontWeight.w500,
                   ),
