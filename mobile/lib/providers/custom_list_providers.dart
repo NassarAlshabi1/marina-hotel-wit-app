@@ -183,7 +183,7 @@ Future<void> toggleCustomListItem(
   final db = ref.read(databaseProvider);
   await db.customStatement(
     'UPDATE custom_list_items SET is_active = ? WHERE id = ?',
-    [active ? 1 : 0, id],
+    [if (active) 1 else 0, id],
   );
   _invalidateAll(ref, listKey);
 }
