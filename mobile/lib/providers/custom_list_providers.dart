@@ -144,14 +144,15 @@ Future<bool> deleteExpenseType(WidgetRef ref, int id) async {
     // التحقق من أنه ليس نوعاً نظامياً
     final check = await db
         .customSelect('SELECT is_system FROM expense_types WHERE id = ?',
-            variables: [Variable<int>(id)])
+            variables: [Variable<int>(id)],
+        )
         .get();
     if (check.isEmpty) return false;
     if ((check.first.data['is_system'] as int) == 1) return false;
 
-    await db.customDelete(
+    await db.customStatement(
       'DELETE FROM expense_types WHERE id = ?',
-      variables: [Variable<int>(id)],
+      [id],
     );
     refreshExpenseTypes(ref);
     return true;
@@ -167,7 +168,8 @@ Future<bool> toggleExpenseTypeActive(WidgetRef ref, int id, bool isActive) async
     // التحقق من أنه ليس نوعاً نظامياً
     final check = await db
         .customSelect('SELECT is_system FROM expense_types WHERE id = ?',
-            variables: [Variable<int>(id)])
+            variables: [Variable<int>(id)],
+        )
         .get();
     if (check.isEmpty) return false;
     if ((check.first.data['is_system'] as int) == 1) return false;
