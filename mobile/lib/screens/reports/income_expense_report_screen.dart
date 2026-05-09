@@ -143,8 +143,9 @@ class _IncomeExpenseReportScreenState
             final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
-          } catch (_) {
-            return true; // إذا فشل التحليل نُبقيه
+          } catch (e) {
+            debugPrint('⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e');
+            return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
         // إذا لم يوجد dateRecorded نعتمد على paymentDate
@@ -159,8 +160,9 @@ class _IncomeExpenseReportScreenState
             final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
-          } catch (_) {
-            return true;
+          } catch (e) {
+            debugPrint('⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e');
+            return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
         return true;

@@ -1103,14 +1103,18 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
     final hasTime = trimmed.length > 10;
     final normalized = hasTime
         ? trimmed.replaceFirst(' ', 'T')
         : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
-    } catch (_) {
-      return DateTime.now();
+    } catch (e) {
+      debugPrint('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
+      return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
 }
