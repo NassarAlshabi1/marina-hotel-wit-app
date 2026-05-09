@@ -81,7 +81,7 @@ class DatabaseHealthChecker {
     if (!await ensureHealthy()) {
       throw StateError('Database is not healthy');
     }
-    return await operation();
+    return operation();
   }
 
   void dispose() {
@@ -91,10 +91,6 @@ class DatabaseHealthChecker {
 }
 
 class DatabaseHealth {
-  final DatabaseHealthStatus status;
-  final int? responseTimeMs;
-  final String? errorMessage;
-  final DateTime timestamp;
 
   const DatabaseHealth._({
     required this.status,
@@ -125,6 +121,10 @@ class DatabaseHealth {
     errorMessage: message,
     timestamp: DateTime.now(),
   );
+  final DatabaseHealthStatus status;
+  final int? responseTimeMs;
+  final String? errorMessage;
+  final DateTime timestamp;
 
   bool get isHealthy =>
       status == DatabaseHealthStatus.healthy ||

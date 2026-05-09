@@ -61,7 +61,7 @@ class EnhancedPdfHelper {
     final baseItems = [
       InvoiceItem(
         description:
-            'إقامة ${nights} ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
+            'إقامة $nights ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
         quantity: nights,
         unitPrice: roomPrice,
       ),
@@ -113,40 +113,28 @@ class EnhancedPdfHelper {
           final nowIso = now.toIso8601String();
           return Booking(
             localUuid: 'fallback-${payment.id}',
-            serverId: null,
             createdAt: nowMillis,
             updatedAt: nowMillis,
-            deletedAt: null,
             lastModified: nowMillis,
             createdAtIso: nowIso,
             updatedAtIso: nowIso,
-            deletedAtIso: null,
             createdAtEpoch: nowMillis,
             lastModifiedEpoch: nowMillis,
             version: 1,
             origin: 'local',
             id: -1,
-            serverBookingId: null,
             roomNumber: 'غير محدد',
             guestName: 'غير محدد',
             guestPhone: '',
             guestIdType: 'غير محدد',
             guestIdNumber: '',
-            guestIdIssueDate: null,
-            guestIdIssuePlace: null,
             guestNationality: '',
-            guestEmail: null,
-            guestAddress: null,
             checkinDate: '',
             checkoutDate: '',
-            actualCheckout: null,
             status: '',
-            notes: null,
             expectedNights: 1,
             calculatedNights: 1,
             totalNightsCached: 0,
-            stayDurationIso: null,
-            lastNightEpoch: null,
             isOverdue: false,
             needsCheckoutReview: false,
             totalDueCached: 0,
@@ -155,9 +143,6 @@ class EnhancedPdfHelper {
             isFullyPaid: false,
             discount: 0,
             discountType: 'per_night',
-            discountStartDate: null,
-            hotelDayCheckin: null,
-            hotelDayCheckout: null,
             vectorClock: '{}',
           );
         },
@@ -200,7 +185,6 @@ class EnhancedPdfHelper {
             category: expense.expenseType,
             amount: expense.amount,
             date: _safeParseDateTime(expense.date),
-            notes: null,
           ),
         )
         .toList();
@@ -414,14 +398,14 @@ class EnhancedPdfHelper {
 
 /// Widget لعرض معاينة PDF محسّنة
 class EnhancedPdfPreviewScreen extends ConsumerWidget {
-  final String title;
-  final Future<Uint8List> Function() pdfGenerator;
 
   const EnhancedPdfPreviewScreen({
     super.key,
     required this.title,
     required this.pdfGenerator,
   });
+  final String title;
+  final Future<Uint8List> Function() pdfGenerator;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -480,8 +464,6 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
 
           return PdfPreview(
             build: (format) => snapshot.data!,
-            allowSharing: true,
-            allowPrinting: true,
             canChangePageFormat: false,
             canChangeOrientation: false,
           );

@@ -1,16 +1,18 @@
 import 'dart:async';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'appwrite_service.dart';
+
 import 'appwrite_config.dart';
+import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
 
 class AppwriteRealtimeSync {
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -110,7 +112,7 @@ class AppwriteRealtimeSync {
     final isDataChange = eventTypes.any((e) =>
         e.endsWith('.create') ||
         e.endsWith('.update') ||
-        e.endsWith('.delete'));
+        e.endsWith('.delete'),);
 
     if (!isDataChange) {
       debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');

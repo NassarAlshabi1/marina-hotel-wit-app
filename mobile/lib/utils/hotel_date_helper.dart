@@ -82,7 +82,6 @@ class HotelDateHelper {
     return Time.nightsWithCutoff(
       checkIn,
       checkout: checkOut,
-      cutoffHour: hotelStartHour,
     );
   }
 

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
-import '../../providers/repository_providers.dart';
-import '../../models/shift_note_adapter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/shift_note_adapter.dart';
+import '../../providers/repository_providers.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -216,7 +217,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  void _handleNoteAction(String action, ShiftNote note) async {
+  Future<void> _handleNoteAction(String action, ShiftNote note) async {
     final repo = ref.read(simpleNotesRepoProvider);
 
     switch (action) {
@@ -242,7 +243,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     _showNoteDialog(note: note);
   }
 
-  void _deleteNote(ShiftNote note) async {
+  Future<void> _deleteNote(ShiftNote note) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -272,7 +273,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           SnackBar(
             content: Text('فشل حذف الملاحظة: $e'),
             backgroundColor: Colors.red.shade900,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -353,7 +353,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  void _saveNote(
+  Future<void> _saveNote(
     ShiftNote? note,
     String title,
     String content,
@@ -390,7 +390,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         SnackBar(
           content: Text('فشل حفظ الملاحظة: $e'),
           backgroundColor: Colors.red.shade900,
-          duration: const Duration(seconds: 4),
         ),
       );
     }

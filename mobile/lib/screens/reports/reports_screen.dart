@@ -1,19 +1,20 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/core_providers.dart';
-import '../../providers/repository_providers.dart';
 import '../../providers/performance_provider.dart';
-import '../../utils/status_utils.dart';
-import 'expenses_report_screen.dart';
-import 'payments_report_screen.dart';
-import 'debts_report_screen.dart';
-import 'salary_withdrawals_report_screen.dart';
-import 'income_expense_report_screen.dart';
-import 'guest_payments_detail_report_screen.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
+import '../../utils/status_utils.dart';
+import 'debts_report_screen.dart';
+import 'expenses_report_screen.dart';
+import 'guest_payments_detail_report_screen.dart';
+import 'income_expense_report_screen.dart';
+import 'payments_report_screen.dart';
+import 'salary_withdrawals_report_screen.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -405,7 +406,7 @@ class _ReportShortcut extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0.5,
-      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 1),
+      margin: const EdgeInsets.symmetric(vertical: 1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: ListTile(
         onTap: onTap,

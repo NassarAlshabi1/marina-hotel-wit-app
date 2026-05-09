@@ -4,9 +4,9 @@ import 'local_db.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
-  final AppDatabase db;
 
   DatabaseFixer(this.db);
+  final AppDatabase db;
 
   /// إصلاح جميع المشاكل المعروفة في قاعدة البيانات
   Future<FixResult> fixAllIssues() async {

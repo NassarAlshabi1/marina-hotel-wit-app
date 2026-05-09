@@ -1,17 +1,19 @@
 import 'dart:convert';
+
+import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
+
+import '../utils/id.dart';
+import '../utils/time.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
-import 'sync_constants.dart';
-import '../utils/time.dart';
-import '../utils/id.dart';
-import 'sync_locks.dart';
-import 'adapters/adapter_registry.dart';
-import 'adapters/source.dart';
 import 'repositories/rooms_repository.dart';
+import 'sync_constants.dart';
+import 'sync_locks.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -99,7 +101,6 @@ class GoogleDriveDeltaSync {
         return DeltaSyncResult(
           success: true,
           message: 'لا توجد تغييرات',
-          changesCount: 0,
         );
       }
 
@@ -160,7 +161,6 @@ class GoogleDriveDeltaSync {
         return DeltaSyncResult(
           success: true,
           message: 'لا توجد ملفات مزامنة',
-          changesCount: 0,
         );
       }
 
@@ -244,7 +244,7 @@ class GoogleDriveDeltaSync {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
-    return '${deltaSyncPrefix}${dateStr}_$timeStr.json';
+    return '$deltaSyncPrefix${dateStr}_$timeStr.json';
   }
 
   Future<void> _uploadDeltaFile(
@@ -278,7 +278,7 @@ class GoogleDriveDeltaSync {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) return 0;
 
-    return await _database!.transaction(() async {
+    return _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
       int applied = 0;
 
@@ -358,55 +358,40 @@ class GoogleDriveDeltaSync {
     switch (entity) {
       case 'rooms':
         await registry.rooms.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'bookings':
         await registry.bookings.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'payments':
         await registry.payments.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'expenses':
         await registry.expenses.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'debts':
         await registry.debts.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'employees':
         await registry.employees.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'booking_notes':
         await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'booking_nights':
         await registry.nights.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'salary_cycles':
         await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'salary_payments':
         await registry.salaryPayments.upsertFromJson(
           payload,
           src: Source.drive,
         );
-        break;
       case 'cash_transactions':
         await registry.cashTransactions.upsertFromJson(
           payload,
           src: Source.drive,
         );
-        break;
       case 'shift_notes':
         await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'price_adjustments':
         await registry.priceAdjustments.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'audit_logs':
         await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'payment_voids':
         await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
-        break;
     }
   }
 
@@ -537,7 +522,7 @@ class GoogleDriveDeltaSync {
             Time.nowEpoch(),
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('google_drive_delta'),
+      origin: const d.Value('google_drive_delta'),
       registerId: _nullableValue<int>(
         _asInt(data['register_id']) ?? _asInt(data['registerId']),
       ),
@@ -675,13 +660,13 @@ class GoogleDriveDeltaSync {
 }
 
 class DeltaSyncResult {
-  final bool success;
-  final String message;
-  final int changesCount;
 
   DeltaSyncResult({
     required this.success,
     required this.message,
     this.changesCount = 0,
   });
+  final bool success;
+  final String message;
+  final int changesCount;
 }

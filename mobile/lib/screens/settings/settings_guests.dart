@@ -299,9 +299,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(Icons.star, size: 12, color: Colors.blue),
                         SizedBox(width: 2),
                         Text(
@@ -937,7 +937,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
     );
-    if (result == true && mounted) {
+    if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));

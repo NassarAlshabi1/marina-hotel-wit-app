@@ -8,7 +8,7 @@ final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter
   (ref, filter) async {
     final db = ref.read(databaseProvider);
     final dao = SyncLogDao(db);
-    return await dao.getSyncHistory(
+    return dao.getSyncHistory(
       limit: filter.limit,
       offset: filter.offset,
       direction: filter.direction,
@@ -18,10 +18,6 @@ final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter
 );
 
 class SyncFilter {
-  final int limit;
-  final int offset;
-  final String? direction;
-  final String? status;
 
   const SyncFilter({
     this.limit = 100,
@@ -29,6 +25,10 @@ class SyncFilter {
     this.direction,
     this.status,
   });
+  final int limit;
+  final int offset;
+  final String? direction;
+  final String? status;
 }
 
 class SyncHistoryScreen extends ConsumerStatefulWidget {
@@ -129,12 +129,11 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSuccess ? Colors.green.shade200 : Colors.red.shade200,
-            width: 1,
           ),
         ),
         child: ListTile(
@@ -439,10 +438,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String?>(
-                value: _selectedDirection,
+                initialValue: _selectedDirection,
                 decoration: const InputDecoration(labelText: 'النوع'),
                 items: const [
-                  DropdownMenuItem(value: null, child: Text('الكل')),
+                  DropdownMenuItem(child: Text('الكل')),
                   DropdownMenuItem(value: 'pull', child: Text('سحب')),
                   DropdownMenuItem(value: 'push', child: Text('رفع')),
                 ],
@@ -450,10 +449,10 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String?>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 decoration: const InputDecoration(labelText: 'الحالة'),
                 items: const [
-                  DropdownMenuItem(value: null, child: Text('الكل')),
+                  DropdownMenuItem(child: Text('الكل')),
                   DropdownMenuItem(value: 'success', child: Text('نجح')),
                   DropdownMenuItem(value: 'partial', child: Text('نجح جزئياً')),
                   DropdownMenuItem(value: 'failed', child: Text('فشل')),

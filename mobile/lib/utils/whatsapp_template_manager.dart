@@ -18,12 +18,6 @@ enum WhatsAppTemplateType {
 
 /// بيانات نموذج واحد
 class WhatsAppTemplate {
-  final WhatsAppTemplateType type;
-  final String id;
-  final String name;
-  final String description;
-  String content;
-  bool enabled;
 
   WhatsAppTemplate({
     required this.type,
@@ -33,14 +27,6 @@ class WhatsAppTemplate {
     required this.content,
     this.enabled = true,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'content': content,
-        'enabled': enabled,
-      };
 
   factory WhatsAppTemplate.fromJson(Map<String, dynamic> json) {
     return WhatsAppTemplate(
@@ -55,6 +41,20 @@ class WhatsAppTemplate {
       enabled: json['enabled'] as bool? ?? true,
     );
   }
+  final WhatsAppTemplateType type;
+  final String id;
+  final String name;
+  final String description;
+  String content;
+  bool enabled;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'description': description,
+        'content': content,
+        'enabled': enabled,
+      };
 
   /// هل هذا النوع من النماذج مفعّل؟ (يقرأ من SharedPreferences)
   static Future<bool> isEnabled(WhatsAppTemplateType type) async {
@@ -350,7 +350,7 @@ class WhatsAppTemplateManager {
 
   /// تعديل حالة النموذج
   static Future<void> setTemplateEnabled(
-      WhatsAppTemplateType type, bool enabled) async {
+      WhatsAppTemplateType type, bool enabled,) async {
     await WhatsAppTemplate.setEnabled(type, enabled);
   }
 
@@ -400,7 +400,7 @@ class WhatsAppTemplateManager {
 
   /// حفظ محتوى مخصص
   static Future<void> saveTemplateContent(
-      WhatsAppTemplateType type, String content) async {
+      WhatsAppTemplateType type, String content,) async {
     await WhatsAppTemplate.setContent(type, content);
   }
 
@@ -433,7 +433,7 @@ class WhatsAppTemplateManager {
         description: type.description,
         content: isCustom ? content : type.defaultContent,
         enabled: enabled,
-      ));
+      ),);
     }
 
     return templates;
@@ -441,13 +441,13 @@ class WhatsAppTemplateManager {
 
   /// حفظ جميع النماذج دفعة واحدة
   static Future<void> saveAllTemplates(
-      List<WhatsAppTemplate> templates) async {
+      List<WhatsAppTemplate> templates,) async {
     final prefs = await SharedPreferences.getInstance();
     for (final template in templates) {
       await prefs.setString(
-          'wa_template_content_${template.id}', template.content);
+          'wa_template_content_${template.id}', template.content,);
       await prefs.setBool(
-          'wa_template_enabled_${template.id}', template.enabled);
+          'wa_template_enabled_${template.id}', template.enabled,);
     }
   }
 

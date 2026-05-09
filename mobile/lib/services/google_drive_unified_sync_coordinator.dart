@@ -6,15 +6,15 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_logs.dart';
+import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'google_drive_logger.dart';
 import 'local_db.dart';
-import 'data_usage_manager.dart';
-import 'sync_locks.dart';
-import 'sync_constants.dart';
-import 'sync_performance_optimizer.dart';
 import 'logging/log_models.dart';
+import 'sync_constants.dart';
+import 'sync_locks.dart';
+import 'sync_performance_optimizer.dart';
 
 enum SyncTrigger { manual, appForeground, localChange, periodic, scheduled }
 
@@ -42,18 +42,11 @@ class _PerformSyncNotInitialized extends _PerformSyncStartResult {}
 class _PerformSyncNotSignedIn extends _PerformSyncStartResult {}
 
 class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
-  final int elapsedSeconds;
   _PerformSyncAlreadyInProgress(this.elapsedSeconds);
+  final int elapsedSeconds;
 }
 
 class SyncResult {
-  final bool success;
-  final String message;
-  final int? pushedChanges;
-  final int? pulledChanges;
-  final SyncPhase phase;
-  final DateTime timestamp;
-  final String? error;
 
   const SyncResult({
     required this.success,
@@ -93,6 +86,13 @@ class SyncResult {
       timestamp: DateTime.now(),
     );
   }
+  final bool success;
+  final String message;
+  final int? pushedChanges;
+  final int? pulledChanges;
+  final SyncPhase phase;
+  final DateTime timestamp;
+  final String? error;
 }
 
 class GoogleDriveUnifiedSyncCoordinator {
@@ -242,7 +242,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         return;
       }
       await _startMonitoring();
-      await performSync(trigger: SyncTrigger.manual, mode: SyncMode.smart);
+      await performSync(trigger: SyncTrigger.manual);
     } else {
       _stopMonitoring();
       _hasPendingChanges = false;
@@ -264,7 +264,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     // مراقبة تغييرات outbox للمزامنة التلقائية
     _outboxSubscription?.cancel();
     if (_pushEnabled && _database != null) {
-      _outboxSubscription = (_database!.select(_database!.outbox))
+      _outboxSubscription = _database!.select(_database!.outbox)
           .watch()
           .listen((_) {
             _log('📦 Detected change in outbox', level: LogLevel.debug);
@@ -371,7 +371,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     final effectiveDebounce = _debounceSeconds;
     _log(
-      '🚀 Triggering sync in ${effectiveDebounce}s (${_pendingChangesCount} changes pending)',
+      '🚀 Triggering sync in ${effectiveDebounce}s ($_pendingChangesCount changes pending)',
       level: LogLevel.debug,
     );
 
@@ -385,7 +385,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   Future<void> _triggerSync() async {
     try {
-      await performSync(trigger: SyncTrigger.localChange, mode: SyncMode.smart);
+      await performSync(trigger: SyncTrigger.localChange);
     } finally {
       _firstChangeTime = null;
     }
@@ -415,7 +415,6 @@ class GoogleDriveUnifiedSyncCoordinator {
     Future.delayed(SyncConstants.appForegroundDelay, () async {
       await performSync(
         trigger: SyncTrigger.appForeground,
-        mode: SyncMode.smart,
       );
     });
   }
@@ -745,7 +744,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         'device_id': _deltaSync!.deviceId,
       };
 
-      await _backupService!.uploadBackup(backupData, isSync: false);
+      await _backupService!.uploadBackup(backupData);
 
       _log('✅ Full backup completed');
       return 1;
@@ -770,7 +769,7 @@ class GoogleDriveUnifiedSyncCoordinator {
           (_backupService?.isSignedIn ?? false)) {
         _outboxSubscription?.cancel();
         if (_database != null) {
-          _outboxSubscription = (_database!.select(_database!.outbox))
+          _outboxSubscription = _database!.select(_database!.outbox)
               .watch()
               .listen((_) {
                 _log('📦 Detected change in outbox', level: LogLevel.debug);

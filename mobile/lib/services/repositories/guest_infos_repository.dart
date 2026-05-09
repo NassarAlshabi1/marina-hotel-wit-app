@@ -2,8 +2,8 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
-import '../local_db.dart';
 import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class GuestInfosRepository {
   GuestInfosRepository(this._db)
@@ -72,7 +72,6 @@ class GuestInfosRepository {
           entity: 'guest_infos',
           op: 'create',
           localUuid: uuid,
-          serverId: null,
           payload: {
             'roomNumber': roomNumber,
             'guestName': guestName,

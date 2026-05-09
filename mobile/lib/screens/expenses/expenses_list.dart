@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:flutter/foundation.dart';
-
 import '../../components/app_scaffold.dart';
-import '../../providers/repository_providers.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/custom_list_providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../utils/time.dart';
-import '../../utils/currency_formatter.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
 import '../../services/salary_entitlement_service.dart';
+import '../../utils/currency_formatter.dart';
+import '../../utils/time.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -220,7 +218,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     setState(() {
       _filterActive = true;
       if (isFrom) {
-        _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        _fromDate = DateTime(picked.year, picked.month, picked.day);
         // إذا لم يكن "إلى" محدد، اجعله نفس تاريخ "من"
         _toDate ??= DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         if (_fromDate!.isAfter(_toDate!)) {
@@ -229,9 +227,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       } else {
         _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         // إذا لم يكن "من" محدد، اجعله نفس تاريخ "إلى"
-        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day);
         if (_toDate!.isBefore(_fromDate!)) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+          _fromDate = DateTime(picked.year, picked.month, picked.day);
         }
       }
       _expensesStream = _buildExpensesStream();
@@ -463,7 +461,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
-    List<Employee> availableEmployees =
+    final List<Employee> availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
 
@@ -476,14 +474,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             ctx,
           ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
           return AlertDialog(
-            alignment: Alignment(0, -0.4),
+            alignment: const Alignment(0, -0.4),
             title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: _expenseTypes
@@ -515,7 +513,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        value: selectedEmployeeId,
+                        initialValue: selectedEmployeeId,
                         style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
@@ -533,7 +531,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: dialogSalaryAction,
+                        initialValue: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),
@@ -701,7 +699,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         SnackBar(
           content: Text('فشل حفظ المصروف: $e'),
           backgroundColor: Colors.red.shade900,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -731,7 +728,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       final whatsappService = ref.read(whatsappServiceProvider);
 
       // تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
-      String cleanedPhone = _cleanAndFormatPhone(phone);
+      final String cleanedPhone = _cleanAndFormatPhone(phone);
 
       final actionText = action == _salaryDeductionAction ? 'خصم' : 'سحب';
 
@@ -751,7 +748,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
       final message = StringBuffer()
         ..writeln('مرحباً ${employee.name}')
-        ..writeln('')
+        ..writeln()
         ..writeln('تم تسجيل $actionText راتب بقيمة ${CurrencyFormatter.formatAmount(amount)}')
         ..writeln('التاريخ: $date');
 
@@ -760,7 +757,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       message
-        ..writeln('')
+        ..writeln()
         ..writeln('فندق مارينا')
         ..write('للاستفسار: 9677734587456');
 
@@ -783,7 +780,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             SnackBar(
               content: Text(result.success
                   ? 'تم إرسال إشعار واتساب لـ ${employee.name}'
-                  : 'تعذّر إرسال إشعار واتساب لـ ${employee.name}'),
+                  : 'تعذّر إرسال إشعار واتساب لـ ${employee.name}',),
               backgroundColor: result.success ? Colors.green : Colors.orange,
               duration: const Duration(seconds: 3),
             ),

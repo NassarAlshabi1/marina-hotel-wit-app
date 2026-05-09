@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
-import '../local_db.dart';
+
 import '../adapters/adapter_registry.dart';
+import '../local_db.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -37,14 +39,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> resetErrors() async {
     await (update(outbox)
           ..where(
-              (t) => t.processingStatus.equals('failed')))
+              (t) => t.processingStatus.equals('failed'),))
         .write(const OutboxCompanion(
       processingStatus: Value('pending'),
       attempts: Value(0),
       lastError: Value(null),
       processingStartedAt: Value(null),
       processingWorker: Value(null),
-    ));
+    ),);
   }
 
   /// إعادة تعيين العناصر القديمة بدلاً من حذفها — لا نفقد بيانات outbox أبداً
@@ -53,14 +55,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final rows = await (update(outbox)
           ..where((t) =>
               t.attempts.isBiggerOrEqualValue(attemptsThreshold) &
-              t.processingStatus.equals('failed')))
+              t.processingStatus.equals('failed'),))
         .write(const OutboxCompanion(
       processingStatus: Value('pending'),
       attempts: Value(0),
       lastError: Value(null),
       processingStartedAt: Value(null),
       processingWorker: Value(null),
-    ));
+    ),);
     // تحديث إحصائيات الاستعلام بعد إعادة تعيين جماعي
     if (rows > 20) {
       await customSelect('ANALYZE outbox').get();
@@ -80,12 +82,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ..where((t) =>
               t.entity.equals(entity) &
               t.localUuid.equals(localUuid) &
-              t.processingStatus.equals('pending'))
+              t.processingStatus.equals('pending'),)
           ..limit(1))
         .getSingleOrNull();
 
     final payloadJson = jsonEncode(payload);
-    final idempKey = '${entity}:${op}:${localUuid}:$clientTs';
+    final idempKey = '$entity:$op:$localUuid:$clientTs';
 
     if (existing != null) {
       await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
@@ -108,7 +110,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       payload: payloadJson,
       clientTs: clientTs,
       idempotencyKey: Value(idempKey),
-    ));
+    ),);
   }
 
   Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
@@ -123,10 +125,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       '  SELECT id FROM outbox WHERE processing_status = ? ORDER BY client_ts ASC LIMIT ?'
       ') RETURNING *',
       variables: [
-        Variable<String>('processing'),
+        const Variable<String>('processing'),
         Variable<int>(nowEpoch),
         Variable<String>(worker),
-        Variable<String>('pending'),
+        const Variable<String>('pending'),
         Variable<int>(limit),
       ],
       readsFrom: {outbox},
@@ -144,7 +146,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       lastError: row.read<String?>('last_error'),
       attempts: row.read<int>('attempts'),
       idempotencyKey: row.read<String?>('idempotency_key'),
-    )).get();
+    ),).get();
 
     return claimed;
   }
@@ -199,7 +201,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       processingStatus: Value('pending'),
       processingStartedAt: Value(null),
       processingWorker: Value(null),
-    ));
+    ),);
   }
 
   Future<int> cleanupStuckEntries({
@@ -210,7 +212,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final stuck = await (select(outbox)
           ..where((t) =>
               t.processingStatus.equals('processing') &
-              t.processingStartedAt.isSmallerOrEqualValue(cutoff)))
+              t.processingStartedAt.isSmallerOrEqualValue(cutoff),))
         .get();
 
     if (stuck.isEmpty) return 0;
@@ -234,7 +236,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final rows = await (delete(outbox)
           ..where((t) =>
               t.processingStatus.equals('completed') &
-              t.clientTs.isSmallerOrEqualValue(cutoff)))
+              t.clientTs.isSmallerOrEqualValue(cutoff),))
         .go();
     // تحديث إحصائيات الاستعلام بعد الحذف الجماعي
     if (rows > 50) {
@@ -275,7 +277,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final failed = await (select(outbox)
           ..where((t) =>
               t.processingStatus.equals('failed') &
-              t.lastError.isNotNull())
+              t.lastError.isNotNull(),)
           ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
         .get();
 
@@ -303,11 +305,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
         processingStatus: const Value('pending'),
-        lastError: Value(null),
+        lastError: const Value(null),
         attempts: const Value(0),
         payload: Value(jsonEncode(resolvedData)),
-        processingStartedAt: Value(null),
-        processingWorker: Value(null),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
       ),
     );
   }
@@ -315,13 +317,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
 /// سجل يمثل تعارض في البيانات
 class ConflictRecord {
-  final int id;
-  final String uuid;
-  final String targetTable;
-  final Map<String, dynamic> localPayload;
-  final Map<String, dynamic> remotePayload;
-  final String lastError;
-  final DateTime timestamp;
 
   ConflictRecord({
     required this.id,
@@ -332,4 +327,11 @@ class ConflictRecord {
     required this.lastError,
     required this.timestamp,
   });
+  final int id;
+  final String uuid;
+  final String targetTable;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String lastError;
+  final DateTime timestamp;
 }

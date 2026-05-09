@@ -25,13 +25,6 @@ enum WhatsAppEventType {
 
 /// بيانات الحدث
 class WhatsAppEvent {
-  final WhatsAppEventType type;
-  final String roomNumber;
-  final String? guestName;
-  final String? guestPhone;
-  final String? details;
-  final DateTime? eventTime;
-  final double? amount;
 
   const WhatsAppEvent({
     required this.type,
@@ -42,15 +35,22 @@ class WhatsAppEvent {
     this.eventTime,
     this.amount,
   });
+  final WhatsAppEventType type;
+  final String roomNumber;
+  final String? guestName;
+  final String? guestPhone;
+  final String? details;
+  final DateTime? eventTime;
+  final double? amount;
 }
 
 /// خدمة إشعارات واتساب الفورية عبر CallMeBot
 class WhatsAppNotificationService {
+
+  WhatsAppNotificationService._();
   static WhatsAppNotificationService? _instance;
   static WhatsAppNotificationService get instance =>
       _instance ??= WhatsAppNotificationService._();
-
-  WhatsAppNotificationService._();
 
   // CallMeBot WhatsApp API
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
@@ -171,18 +171,18 @@ class WhatsAppNotificationService {
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
-        buffer.writeln('');
-        buffer.writeln(event.details!);
+        buffer.writeln();
+        buffer.writeln(event.details);
       }
 
       if (event.eventTime != null) {
-        buffer.writeln('');
+        buffer.writeln();
         buffer.writeln(
           '🕐 ${event.eventTime!.hour.toString().padLeft(2, '0')}:${event.eventTime!.minute.toString().padLeft(2, '0')}',
         );
       }
 
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('Marina Hotel App 🏨');
 
       final success = await _sendViaCallMeBot(buffer.toString().trimRight());
@@ -225,7 +225,7 @@ class WhatsAppNotificationService {
       guestPhone: guestPhone,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل دخول
@@ -245,7 +245,7 @@ class WhatsAppNotificationService {
       guestPhone: guestPhone,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل خروج
@@ -269,7 +269,7 @@ class WhatsAppNotificationService {
       guestName: guestName,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار استلام دفعة
@@ -297,7 +297,7 @@ class WhatsAppNotificationService {
       amount: amount,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار طلب صيانة
@@ -312,7 +312,7 @@ class WhatsAppNotificationService {
       guestName: reportedBy,
       details: description,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار إلغاء حجز
@@ -327,7 +327,7 @@ class WhatsAppNotificationService {
       guestName: guestName,
       details: reason,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تأخير مغادرة
@@ -349,7 +349,7 @@ class WhatsAppNotificationService {
       guestName: guestName,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار مصروف جديد
@@ -370,7 +370,7 @@ class WhatsAppNotificationService {
       amount: amount,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار خطأ مزامنة حرج — يرسل فوراً عبر WhatsApp
@@ -389,9 +389,9 @@ class WhatsAppNotificationService {
       buffer.writeln('❌ الخطأ: $error');
       if (recordsPushed != null) buffer.writeln('📤 تم رفع: $recordsPushed');
       if (recordsPulled != null) buffer.writeln('📥 تم سحب: $recordsPulled');
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('Marina Hotel App — Crashlytics Alert');
 
       final url = Uri.parse(
@@ -428,9 +428,9 @@ class WhatsAppNotificationService {
       buffer.writeln('📱 الشاشة: *$screen*');
       buffer.writeln('⚡ العملية: *$action*');
       buffer.writeln('❌ الخطأ: $error');
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('Marina Hotel App — Crashlytics Alert');
 
       final url = Uri.parse(

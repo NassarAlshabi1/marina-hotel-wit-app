@@ -98,7 +98,6 @@ class SyncConflictResolver {
       if (localOrigin != 'local' || localLastModified <= lastPullTs) {
         // السجل المحلي لم يُعدل محلياً - تطبيق البعيد بأمان
         return const ConflictCheckResult(
-          isConflict: false,
           resolved: true,
           usedRemote: true,
           reason: 'السجل المحلي لم يُعدل محلياً - تطبيق البيانات البعيدة',
@@ -109,7 +108,6 @@ class SyncConflictResolver {
       if (remoteLastModified <= localLastModified) {
         // البعيد ليس أحدث من المحلي - الاحتفاظ بالمحلي
         return const ConflictCheckResult(
-          isConflict: false,
           resolved: true,
           usedLocal: true,
           reason: 'البيانات المحلية أحدث من البعيدة - الاحتفاظ بالمحلي',
@@ -126,7 +124,7 @@ class SyncConflictResolver {
       switch (strategy) {
         case ConflictStrategy.serverWins:
           _log('🔧 حل تعارض $table/$localUuid: السيرفر يفوز');
-          return ConflictCheckResult(
+          return const ConflictCheckResult(
             isConflict: true,
             resolved: true,
             usedRemote: true,
@@ -136,7 +134,7 @@ class SyncConflictResolver {
 
         case ConflictStrategy.localWins:
           _log('🔧 حل تعارض $table/$localUuid: المحلي يفوز');
-          return ConflictCheckResult(
+          return const ConflictCheckResult(
             isConflict: true,
             resolved: true,
             usedLocal: true,
@@ -157,7 +155,6 @@ class SyncConflictResolver {
           );
           return ConflictCheckResult(
             isConflict: true,
-            resolved: false,
             usedLocal: true,
             reason:
                 'تعارض حقيقي - مُسجّل للمراجعة اليدوية (manualReview strategy)',
@@ -168,8 +165,7 @@ class SyncConflictResolver {
       _log('❌ خطأ في كشف التعارض $table/$localUuid: $e');
       debugPrint('SyncConflictResolver.detectAndResolve stackTrace: $st');
       // في حالة الخطأ - الاحتفاظ بالمحلي كإجراء آمن
-      return ConflictCheckResult(
-        isConflict: false,
+      return const ConflictCheckResult(
         resolved: true,
         usedLocal: true,
         reason: 'خطأ في الكشف - الاحتفاظ بالبيانات المحلية كإجراء آمن',
@@ -304,7 +300,7 @@ class SyncConflictResolver {
     final deleteResult = await db.customSelect(
       'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
       variables: [
-        Variable<String>('pending'),
+        const Variable<String>('pending'),
         Variable<String>(cutoff),
       ],
     ).get();
@@ -322,7 +318,7 @@ class SyncConflictResolver {
     final result = await db
         .customSelect(
           'SELECT COUNT(*) as cnt FROM sync_conflicts WHERE resolution = ?',
-          variables: [Variable<String>('pending')],
+          variables: [const Variable<String>('pending')],
         )
         .getSingleOrNull();
 

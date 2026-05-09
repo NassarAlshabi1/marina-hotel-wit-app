@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../../../../core/core.dart';
 import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../services/appwrite_backup_service.dart';
-import '../../../../services/sync_integrity_checker.dart';
 import '../../../../services/providers.dart';
+import '../../../../services/sync_integrity_checker.dart';
 import '../../appwrite_logs_screen.dart';
 import '../../appwrite_sync_stats_screen.dart';
 
@@ -18,16 +19,16 @@ class AppwriteToolsTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
+        const SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
         _buildTestingToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
+        const SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
         _buildMaintenanceToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
+        const SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
         _buildDataManagementCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
+        const SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
         _buildLogsStatsCard(context, ref),
       ],
     );
@@ -325,7 +326,7 @@ class AppwriteToolsTab extends ConsumerWidget {
                     child: Text('• ${issue.toArabicMessage()}'),
                   ),
                 ),
-                if (report.issueCount > issues.length) Text('... والمزيد'),
+                if (report.issueCount > issues.length) const Text('... والمزيد'),
               ],
             ],
           ),
@@ -514,10 +515,10 @@ class AppwriteToolsTab extends ConsumerWidget {
           ),
           title: Text(result
               ? 'تم سحب البيانات بنجاح'
-              : 'لا توجد بيانات جديدة'),
+              : 'لا توجد بيانات جديدة',),
           content: Text(result
               ? 'تم سحب جميع البيانات من Appwrite وحفظها محلياً.'
-              : 'البيانات المحلية محدّثة بالفعل.'),
+              : 'البيانات المحلية محدّثة بالفعل.',),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

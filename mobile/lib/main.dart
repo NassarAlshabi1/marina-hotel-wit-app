@@ -1,75 +1,71 @@
 import 'dart:async';
-import 'dart:ui';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'utils/theme.dart';
-import 'utils/env.dart';
-import 'utils/hotel_day_ticker.dart';
-
-import 'screens/dashboard_screen.dart';
-import 'screens/rooms/rooms_list.dart';
+import 'components/admin_layout.dart';
+import 'providers/appwrite_providers.dart' as appwrite;
+import 'providers/auth_provider.dart';
+import 'providers/repository_providers.dart';
+import 'providers/theme_provider.dart';
+import 'screens/ai/ai_chat_screen.dart';
+import 'screens/auth/google_drive_login_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/bookings/bookings_list.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/debts/debts_list.dart';
 import 'screens/employees/employees_list.dart';
 import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
-import 'screens/reports/reports_screen.dart';
-import 'screens/payments/payments_main_screen.dart';
-import 'screens/debts/debts_list.dart';
-import 'screens/notes/notes_screen.dart';
-import 'screens/settings/settings_screen.dart';
-import 'screens/ai/ai_chat_screen.dart';
-import 'screens/security/blacklist_screen.dart';
 import 'screens/information/information_screen.dart';
-import 'screens/auth/google_drive_login_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'providers/auth_provider.dart';
-import 'providers/theme_provider.dart';
-import 'providers/repository_providers.dart';
-import 'services/seed.dart';
+import 'screens/notes/notes_screen.dart';
+import 'screens/payments/payments_main_screen.dart';
+import 'screens/reports/reports_screen.dart';
+import 'screens/rooms/rooms_list.dart';
+import 'screens/security/blacklist_screen.dart';
+import 'screens/settings/settings_screen.dart';
+import 'services/alarm_backup.dart';
+import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
-import 'services/google_drive_backup_service.dart';
-import 'services/google_drive_logger.dart';
-import 'services/local_db.dart';
-import 'services/smart_sync_manager.dart';
-import 'services/sync_guardian.dart';
+import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_realtime_service.dart';
+import 'services/appwrite_realtime_sync.dart';
+import 'services/appwrite_sync_manager.dart';
+import 'services/background_sync_service.dart';
+import 'services/battery_optimizer.dart';
+import 'services/central_sync_coordinator.dart';
+import 'services/connectivity_service.dart';
+import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
-import 'utils/auto_sync_preferences.dart';
-import 'utils/id.dart';
-
+import 'services/diagnostics/diagnostics_logger.dart';
+import 'services/fcm_service.dart';
+import 'services/google_drive_auto_sync_engine.dart';
+import 'services/google_drive_backup_service.dart';
+import 'services/google_drive_conflict_resolver.dart';
+import 'services/google_drive_logger.dart';
+import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/local_db.dart';
+import 'services/logging/log_models.dart';
+import 'services/remote_config_service.dart';
+import 'services/seed.dart';
+import 'services/smart_sync_manager.dart';
+import 'services/sync_conflict_event_bus.dart';
+import 'services/sync_constants.dart';
+import 'services/sync_guardian.dart';
+import 'services/sync_performance_optimizer.dart';
+import 'services/sync_queue_service.dart';
+import 'services/sync_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
-import 'services/google_drive_auto_sync_engine.dart';
-import 'services/google_drive_conflict_resolver.dart';
-import 'services/google_drive_unified_sync_coordinator.dart';
-import 'services/central_sync_coordinator.dart';
-import 'services/background_sync_service.dart';
-import 'services/sync_conflict_event_bus.dart';
-import 'services/logging/log_models.dart';
-import 'services/diagnostics/diagnostics_logger.dart';
-import 'services/sync_queue_service.dart';
-import 'services/api_config_service.dart';
-import 'services/appwrite_config_manager.dart';
-import 'services/appwrite_sync_manager.dart';
-import 'services/appwrite_realtime_sync.dart';
-import 'services/fcm_service.dart';
-import 'services/crashlytics_service.dart';
-import 'services/remote_config_service.dart';
-import 'services/sync_service.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'services/connectivity_service.dart';
-import 'services/sync_constants.dart';
-import 'services/battery_optimizer.dart';
-import 'services/sync_performance_optimizer.dart';
-import 'services/alarm_backup.dart';
-import 'services/appwrite_realtime_service.dart';
-import 'providers/appwrite_providers.dart' as appwrite;
-
-import 'components/admin_layout.dart';
+import 'utils/auto_sync_preferences.dart';
+import 'utils/env.dart';
+import 'utils/hotel_day_ticker.dart';
+import 'utils/id.dart';
+import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -124,7 +120,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) async {
@@ -169,8 +165,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
-      enableConsole: true,
-      enableFile: false,
     );
     debugPrint('✅ Logger initialized');
 
@@ -479,7 +473,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           if (shouldSync) {
             debugPrint('📥 Pulling latest data from Appwrite on app start...');
             // push + pull معاً — لا نرفع بدون سحب
-            await syncManager.sync(push: true, pull: true);
+            await syncManager.sync();
             // تسجيل وقت هذا السحب
             await prefs.setInt(
               SyncConstants.lastAppOpenPullKey,
@@ -561,7 +555,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           SnackBar(
             content: Text('تضارب في $tableName: تم تفضيل $sideText'),
             backgroundColor: Colors.orange.shade800,
-            duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -627,7 +620,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       // push: رفع أي تغييرات معلقة في الـ outbox
       // pull: سحب أي تغييرات جديدة من السيرفر
-      await syncManager.sync(push: true, pull: true);
+      await syncManager.sync();
       debugPrint('✅ Sync on resume completed (push + pull)');
     } catch (e) {
       debugPrint('⚠️ Sync on resume error: $e');
@@ -642,7 +635,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
       // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
-      await syncManager.sync(push: true, pull: false).timeout(
+      await syncManager.sync(pull: false).timeout(
         const Duration(seconds: 10),
       );
       debugPrint('✅ Push on pause completed');
@@ -766,7 +759,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       unawaited(_pushPendingChangesOnPause());
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
-        () => AppSessionManager.onAppCloseOrBackground(),
+        AppSessionManager.onAppCloseOrBackground,
       ).catchError(
         (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );

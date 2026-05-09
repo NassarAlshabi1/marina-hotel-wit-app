@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
-import '../daos/employees_dao.dart';
+
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
+import '../daos/employees_dao.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class EmployeesRepository {
   EmployeesRepository(this.db)
@@ -95,7 +96,6 @@ class EmployeesRepository {
         action: 'update',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -142,7 +142,6 @@ class EmployeesRepository {
         action: 'delete',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -164,7 +163,6 @@ class EmployeesRepository {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
         List<Map<String, dynamic>>.from(data['data'] as List),
-        clearExisting: false,
       );
     }
   }
@@ -176,6 +174,6 @@ class EmployeesRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 }

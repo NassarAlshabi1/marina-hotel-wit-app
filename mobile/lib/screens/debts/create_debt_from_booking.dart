@@ -119,7 +119,7 @@ class _CreateDebtFromBookingScreenState
                 const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
-                  value: _selectedBooking,
+                  initialValue: _selectedBooking,
                   isExpanded: true,
                   style: _fieldStyle.copyWith(color: dropdownColor),
                   decoration: const InputDecoration(
@@ -521,10 +521,6 @@ class _CreateDebtFromBookingScreenState
 }
 
 class _DebtData {
-  final int nights;
-  final double roomRate;
-  final double total;
-  final double paid;
 
   const _DebtData({
     required this.nights,
@@ -532,6 +528,10 @@ class _DebtData {
     required this.total,
     required this.paid,
   });
+  final int nights;
+  final double roomRate;
+  final double total;
+  final double paid;
 
   double get remaining => (total - paid).clamp(0, total);
 }

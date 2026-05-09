@@ -1,26 +1,21 @@
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'delta_sync_service.dart';
-import 'appwrite_service.dart';
+import 'package:drift/drift.dart' as d;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/hotel_date_helper.dart';
+import '../utils/id.dart';
+import '../utils/time.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
-import 'local_db.dart';
+import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
-import '../utils/time.dart';
-import '../utils/id.dart';
-import '../utils/hotel_date_helper.dart';
-import 'sync_locks.dart';
+import 'delta_sync_service.dart';
+import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
+import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
-  final bool success;
-  final String message;
-  final int pushedCount;
-  final int pulledCount;
-  final int skippedConflicts;
 
   AppwriteDeltaSyncResult({
     required this.success,
@@ -29,6 +24,11 @@ class AppwriteDeltaSyncResult {
     this.pulledCount = 0,
     this.skippedConflicts = 0,
   });
+  final bool success;
+  final String message;
+  final int pushedCount;
+  final int pulledCount;
+  final int skippedConflicts;
 
   /// Alias getters for compatibility
   int get recordsPulled => pulledCount;
@@ -125,7 +125,6 @@ class AppwriteDeltaSync {
         return AppwriteDeltaSyncResult(
           success: true,
           message: 'لا توجد تغييرات',
-          pushedCount: 0,
         );
       }
 
@@ -226,7 +225,6 @@ class AppwriteDeltaSync {
           documentId: change.localUuid,
           data: converted,
         );
-        break;
       case 'delete':
         try {
           await _appwriteService!.deleteDocument(
@@ -238,7 +236,6 @@ class AppwriteDeltaSync {
         } catch (e) {
           rethrow;
         }
-        break;
     }
   }
 
@@ -496,59 +493,41 @@ class AppwriteDeltaSync {
     switch (entity) {
       case 'rooms':
         await _applyRoomChange(db, documentId, data);
-        break;
       case 'bookings':
         await _applyBookingChange(db, documentId, data);
-        break;
       case 'payments':
         await _applyPaymentChange(db, documentId, data);
-        break;
       case 'expenses':
         await _applyExpenseChange(db, documentId, data);
-        break;
       case 'debts':
         await _applyDebtChange(db, documentId, data);
-        break;
       case 'employees':
         await _applyEmployeeChange(db, documentId, data);
-        break;
       case 'booking_nights':
         await _applyBookingNightChange(db, documentId, data);
-        break;
       case 'booking_notes':
         await _applyBookingNoteChange(db, documentId, data);
-        break;
       case 'cash_transactions':
         await _applyCashTransactionChange(db, documentId, data);
-        break;
       case 'shift_notes':
         await _applyShiftNoteChange(db, documentId, data);
-        break;
       case 'salary_cycles':
         await _applySalaryCycleChange(db, documentId, data);
-        break;
       case 'salary_payments':
         await _applySalaryPaymentChange(db, documentId, data);
-        break;
       // ❌ hotel_day_ledger - محلي فقط
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
-        break;
       case 'booking_price_adjustments':
         await _applyBookingPriceAdjustmentChange(db, documentId, data);
-        break;
       case 'audit_logs':
         await _applyAuditLogChange(db, documentId, data);
-        break;
       case 'payment_voids':
         await _applyPaymentVoidChange(db, documentId, data);
-        break;
       case 'guest_infos':
         await _applyGuestInfoChange(db, documentId, data);
-        break;
       case 'salary_withdrawals':
         await _applySalaryWithdrawalChange(db, documentId, data);
-        break;
     }
   }
 
@@ -576,7 +555,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
     );
 
     final existingByUuid =
@@ -634,7 +613,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: d.Value(roomNumber),
       guestName: d.Value(_asString(data['guestName']) ?? ''),
@@ -699,7 +678,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
@@ -739,7 +718,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       expenseType: d.Value(expenseType),
       relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
       description: d.Value(_asString(data['description']) ?? ''),
@@ -768,7 +747,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
@@ -808,7 +787,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       name: d.Value(name),
       basicSalary: d.Value(_asDouble(data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
@@ -837,7 +816,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       targetType: d.Value(targetType),
       targetUuid: d.Value(targetUuid),
       adjustmentType: d.Value(_asString(data['adjustmentType']) ?? ''),
@@ -915,7 +894,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       originalPaymentUuid: d.Value(originalPaymentUuid),
       originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
       bookingUuid: d.Value(_asString(data['bookingUuid']) ?? ''),
@@ -963,7 +942,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
     );
 
     await db.into(db.guestInfos).insertOnConflictUpdate(companion);
@@ -995,7 +974,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
     );
 
     await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
@@ -1022,7 +1001,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(lastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
       updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
@@ -1062,7 +1041,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       bookingId: d.Value(bookingId),
       noteText: d.Value(_asString(data['noteText']) ?? ''),
       alertType: d.Value(_asString(data['alertType']) ?? ''),
@@ -1086,7 +1065,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       registerId: _nullableValue<int>(_asInt(data['registerId'])),
       transactionType: d.Value(_asString(data['transactionType']) ?? ''),
       amount: d.Value(_asDouble(data['amount'])),
@@ -1113,7 +1092,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       title: d.Value(_asString(data['title']) ?? ''),
       content: d.Value(_asString(data['content']) ?? ''),
       priority: d.Value(_asString(data['priority']) ?? 'medium'),
@@ -1142,7 +1121,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       employeeId: d.Value(employeeId),
       cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
       hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
@@ -1172,7 +1151,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       cycleId: d.Value(cycleId),
       amount: d.Value(_asInt(data['amount']) ?? 0),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
@@ -1537,7 +1516,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
     );
 

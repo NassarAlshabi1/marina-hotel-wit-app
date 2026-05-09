@@ -22,6 +22,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/analytics_service.dart';
+import '../services/connectivity_service.dart';
+
 // إعادة تصدير appwriteServiceProvider من appwrite_providers لتجنب التعارض
 // لأنه مُعرَّف هناك بالفعل مع مزودات أخرى تعتمد عليه.
 export 'appwrite_providers.dart' show appwriteServiceProvider;
@@ -31,9 +34,6 @@ export 'backup_provider.dart' show googleDriveBackupServiceProvider;
 // إعادة تصدير diagnosticsLoggerProvider من repository_providers
 // لأنه مُعرَّف هناك بالفعل كـ ChangeNotifierProvider.
 export 'repository_providers.dart' show diagnosticsLoggerProvider;
-
-import '../services/analytics_service.dart';
-import '../services/connectivity_service.dart';
 
 // ============================================================================
 // مزود خدمة Google Drive للنسخ الاحتياطي — مُعادة تصديره من backup_provider
@@ -63,7 +63,7 @@ final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
 // ملاحظة: يجب استدعاء initialize() بعد إنشاء المزود.
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
   final service = ConnectivityService.instance;
-  ref.onDispose(() => service.dispose());
+  ref.onDispose(service.dispose);
   return service;
 });
 

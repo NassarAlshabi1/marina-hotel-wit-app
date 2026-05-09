@@ -1,6 +1,7 @@
 /// Vector Clock Implementation
 /// للتعرف على الترتيب الزمني الحقيقي بين الأجهزة المتعددة
 /// واكتشاف التعارضات بشكل دقيق
+library;
 
 import 'dart:convert';
 import 'dart:math' as math;
@@ -11,7 +12,6 @@ import 'models/sync_models.dart';
 /// كل جهاز لديه عداد خاص به
 /// عند استلام تغيير من جهاز آخر، ندمج العدادات
 class VectorClock {
-  final Map<String, int> clocks;
   
   VectorClock([Map<String, int>? initial]) 
     : clocks = Map<String, int>.from(initial ?? {});
@@ -21,6 +21,22 @@ class VectorClock {
     final map = jsonDecode(json) as Map<String, dynamic>;
     return VectorClock(map.map((k, v) => MapEntry(k, v as int)));
   }
+
+  /// إنشاء ساعة جديدة بناءً على مجموعة من الأجهزة
+  factory VectorClock.forDevices(List<String> deviceIds) {
+    return VectorClock({
+      for (final id in deviceIds) id: 0,
+    });
+  }
+
+  /// ساعة فارغة
+  factory VectorClock.empty() => VectorClock({});
+
+  /// ساعة جديدة لجهاز واحد
+  factory VectorClock.forDevice(String deviceId) {
+    return VectorClock({deviceId: 0});
+  }
+  final Map<String, int> clocks;
 
   /// تحويل إلى JSON
   String toJson() => jsonEncode(clocks);
@@ -113,21 +129,6 @@ class VectorClock {
   /// نسخة نظيفة من الساعة
   VectorClock copy() => VectorClock(Map<String, int>.from(clocks));
 
-  /// إنشاء ساعة جديدة بناءً على مجموعة من الأجهزة
-  factory VectorClock.forDevices(List<String> deviceIds) {
-    return VectorClock({
-      for (var id in deviceIds) id: 0,
-    });
-  }
-
-  /// ساعة فارغة
-  factory VectorClock.empty() => VectorClock({});
-
-  /// ساعة جديدة لجهاز واحد
-  factory VectorClock.forDevice(String deviceId) {
-    return VectorClock({deviceId: 0});
-  }
-
   @override
   String toString() => 'VectorClock($clocks)';
 
@@ -152,12 +153,24 @@ class VectorClock {
 /// مدير Vector Clock للتطبيق
 /// يتتبع ساعات جميع الأجهزة المعروفة
 class VectorClockManager {
-  String _deviceId;
-  VectorClock _currentClock;
   
   VectorClockManager({required String deviceId})
     : _deviceId = deviceId,
       _currentClock = VectorClock.forDevice(deviceId);
+
+  /// استعادة من JSON
+  factory VectorClockManager.fromStorageJson(Map<String, dynamic> json) {
+    final deviceId = json['deviceId'] as String;
+    final clocks = (json['clocks'] as Map<String, dynamic>).map(
+      (k, v) => MapEntry(k, v as int),
+    );
+    
+    final manager = VectorClockManager(deviceId: deviceId);
+    manager._currentClock = VectorClock(clocks);
+    return manager;
+  }
+  String _deviceId;
+  VectorClock _currentClock;
 
   String get deviceId => _deviceId;
   VectorClock get currentClock => _currentClock;
@@ -221,18 +234,6 @@ class VectorClockManager {
     'clocks': _currentClock.clocks,
   };
 
-  /// استعادة من JSON
-  factory VectorClockManager.fromStorageJson(Map<String, dynamic> json) {
-    final deviceId = json['deviceId'] as String;
-    final clocks = (json['clocks'] as Map<String, dynamic>).map(
-      (k, v) => MapEntry(k, v as int),
-    );
-    
-    final manager = VectorClockManager(deviceId: deviceId);
-    manager._currentClock = VectorClock(clocks);
-    return manager;
-  }
-
   @override
   String toString() => 'VectorClockManager(device: $_deviceId, clock: $_currentClock)';
 }
@@ -259,10 +260,10 @@ extension DeltaChangeVectorClock on DeltaChange {
 /// مراقب التعارضات
 /// يسجل جميع التعارضات المكتشفة للمراجعة
 class ConflictMonitor {
-  final List<DetectedConflict> _conflicts = [];
-  final int maxHistory;
   
   ConflictMonitor({this.maxHistory = 100});
+  final List<DetectedConflict> _conflicts = [];
+  final int maxHistory;
 
   List<DetectedConflict> get conflicts => List.unmodifiable(_conflicts);
 
@@ -283,7 +284,7 @@ class ConflictMonitor {
       localData: localData,
       remoteData: remoteData,
       detectedAt: DateTime.now(),
-    ));
+    ),);
 
     // الحفاظ على حد التاريخ
     if (_conflicts.length > maxHistory) {
@@ -323,16 +324,6 @@ class ConflictMonitor {
 
 /// تفاصيل تعارض مكتشف
 class DetectedConflict {
-  final String table;
-  final String uuid;
-  final VectorClock localClock;
-  final VectorClock remoteClock;
-  final Map<String, dynamic> localData;
-  final Map<String, dynamic> remoteData;
-  final DateTime detectedAt;
-  bool resolved = false;
-  ConflictResolution? resolution;
-  DateTime? resolvedAt;
 
   DetectedConflict({
     required this.table,
@@ -343,6 +334,16 @@ class DetectedConflict {
     required this.remoteData,
     required this.detectedAt,
   });
+  final String table;
+  final String uuid;
+  final VectorClock localClock;
+  final VectorClock remoteClock;
+  final Map<String, dynamic> localData;
+  final Map<String, dynamic> remoteData;
+  final DateTime detectedAt;
+  bool resolved = false;
+  ConflictResolution? resolution;
+  DateTime? resolvedAt;
 
   void resolve(ConflictResolution res) {
     resolved = true;

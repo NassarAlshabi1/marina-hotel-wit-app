@@ -1,10 +1,12 @@
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
 
 class PaymentsListScreen extends ConsumerStatefulWidget {
   const PaymentsListScreen({super.key});
@@ -45,10 +47,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
               switch (value) {
                 case 'sort_asc':
                   setState(() => _sortOrder = 'asc');
-                  break;
                 case 'sort_desc':
                   setState(() => _sortOrder = 'desc');
-                  break;
                 case 'clear':
                   setState(() {
                     _searchQuery = '';
@@ -56,7 +56,6 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     _filterType = null;
                     _sortOrder = 'desc';
                   });
-                  break;
               }
             },
             itemBuilder: (context) => [
@@ -67,7 +66,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     Icon(Icons.arrow_downward,
                         color: _sortOrder == 'desc'
                             ? Colors.amber.shade700
-                            : Colors.grey),
+                            : Colors.grey,),
                     const SizedBox(width: 8),
                     const Text('الأحدث أولاً'),
                   ],
@@ -80,17 +79,17 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     Icon(Icons.arrow_upward,
                         color: _sortOrder == 'asc'
                             ? Colors.amber.shade700
-                            : Colors.grey),
+                            : Colors.grey,),
                     const SizedBox(width: 8),
                     const Text('الأقدم أولاً'),
                   ],
                 ),
               ),
               const PopupMenuDivider(),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'clear',
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.clear_all, color: Colors.red),
                     SizedBox(width: 8),
                     Text('مسح الفلاتر', style: TextStyle(color: Colors.red)),
@@ -472,7 +471,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                              horizontal: 6, vertical: 2,),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFCC80).withOpacity(0.3),
                             borderRadius: BorderRadius.circular(4),
@@ -490,7 +489,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
+                                horizontal: 5, vertical: 1,),
                             decoration: BoxDecoration(
                               color: Colors.green.shade100,
                               borderRadius: BorderRadius.circular(4),
@@ -522,7 +521,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                         ),
                         const SizedBox(width: 10),
                         Icon(Icons.calendar_today,
-                            size: 12, color: Colors.grey.shade400),
+                            size: 12, color: Colors.grey.shade400,),
                         const SizedBox(width: 3),
                         Text(
                           formattedDate,
@@ -541,7 +540,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                       Row(
                         children: [
                           Icon(Icons.notes,
-                              size: 12, color: Colors.grey.shade400),
+                              size: 12, color: Colors.grey.shade400,),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
@@ -577,7 +576,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.hotel,
-                          size: 12, color: Colors.blue.shade400),
+                          size: 12, color: Colors.blue.shade400,),
                       const SizedBox(height: 1),
                       Text(
                         payment.roomNumber as String,
@@ -643,25 +642,25 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _detailDivider('المبلغ', CurrencyFormatter.formatAmount((payment.amount as num).toDouble()),
-                  icon: Icons.payments_outlined, color: Colors.green),
+                  icon: Icons.payments_outlined, color: Colors.green,),
               _detailDivider('طريقة الدفع', payment.paymentMethod as String,
                   icon: _getMethodIcon(payment.paymentMethod as String),
-                  color: methodColor),
+                  color: methodColor,),
               _detailDivider('نوع الإيراد', revenueLabel,
-                  icon: Icons.category, color: Colors.amber.shade700),
+                  icon: Icons.category, color: Colors.amber.shade700,),
               _detailDivider('التاريخ', isToday ? '$formattedDate (اليوم)' : formattedDate,
-                  icon: Icons.event, color: isToday ? Colors.green : Colors.blue),
+                  icon: Icons.event, color: isToday ? Colors.green : Colors.blue,),
               if (payment.roomNumber != null &&
                   (payment.roomNumber as String).trim().isNotEmpty)
                 _detailDivider('رقم الغرفة', payment.roomNumber as String,
-                    icon: Icons.hotel, color: Colors.indigo),
+                    icon: Icons.hotel, color: Colors.indigo,),
               if (payment.referenceNumber != null &&
                   (payment.referenceNumber as String).trim().isNotEmpty)
                 _detailDivider('رقم المرجع', payment.referenceNumber as String,
-                    icon: Icons.numbers, color: Colors.purple),
+                    icon: Icons.numbers, color: Colors.purple,),
               if (payment.notes != null && (payment.notes as String).trim().isNotEmpty)
                 _detailDivider('ملاحظات', payment.notes as String,
-                    icon: Icons.notes, color: Colors.grey),
+                    icon: Icons.notes, color: Colors.grey,),
             ],
           ),
           actions: [
@@ -676,7 +675,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   }
 
   Widget _detailDivider(String label, String value,
-      {required IconData icon, required Color color}) {
+      {required IconData icon, required Color color,}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -752,7 +751,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   List _applyFilters(List payments) {
-    var result = payments.where((p) {
+    final result = payments.where((p) {
       // فلتر البحث
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();

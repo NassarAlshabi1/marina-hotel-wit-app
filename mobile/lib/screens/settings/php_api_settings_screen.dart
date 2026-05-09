@@ -150,7 +150,7 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         ],
       ),
     );
-    if (confirm == true) {
+    if (confirm ?? false) {
       await ApiConfigService.instance.removeServer(server.id);
       setState(() {});
     }
@@ -210,17 +210,14 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         statusColor = Colors.green;
         statusText = 'متصل';
         statusIcon = Icons.check_circle;
-        break;
       case PhpApiStatus.connecting:
         statusColor = Colors.orange;
         statusText = 'جاري الاتصال...';
         statusIcon = Icons.sync;
-        break;
       case PhpApiStatus.error:
         statusColor = Colors.red;
         statusText = 'خطأ في الاتصال';
         statusIcon = Icons.error;
-        break;
       default:
         statusColor = Colors.grey;
         statusText = 'غير متصل';
@@ -599,15 +596,15 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
 }
 
 class _AddServerDialog extends StatelessWidget {
-  final TextEditingController urlController;
-  final TextEditingController apiKeyController;
-  final TextEditingController nameController;
 
   const _AddServerDialog({
     required this.urlController,
     required this.apiKeyController,
     required this.nameController,
   });
+  final TextEditingController urlController;
+  final TextEditingController apiKeyController;
+  final TextEditingController nameController;
 
   @override
   Widget build(BuildContext context) {

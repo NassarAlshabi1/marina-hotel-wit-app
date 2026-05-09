@@ -1,4 +1,5 @@
-const String whatsappPaymentTemplate = '''عزيزي {name}
+const String whatsappPaymentTemplate = '''
+عزيزي {name}
 تم استلام دفعتك بقيمة {amount} ريال
 رقم الغرفة: {room}
 {extra_nights}

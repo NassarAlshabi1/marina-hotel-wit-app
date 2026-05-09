@@ -4,15 +4,15 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../services/local_db.dart';
-import '../../providers/repository_providers.dart';
-import '../../services/sync_service.dart';
-import '../../utils/time.dart';
-import '../../utils/status_utils.dart';
-import '../payments/booking_payment_screen.dart';
-import 'booking_edit.dart';
-import '../payments/payments_main_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
+import '../../services/sync_service.dart';
+import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
+import '../payments/booking_payment_screen.dart';
+import '../payments/payments_main_screen.dart';
+import 'booking_edit.dart';
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
@@ -31,7 +31,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const BookingEditScreen(existing: null),
+        builder: (_) => const BookingEditScreen(),
       ),
     );
   }
@@ -150,8 +150,8 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                         checkout:
                                             actualCheckout ?? plannedCheckout,
                                       ));
-                            final totalAmount = (actualNights * price)
-                                .toDouble();
+                            final totalAmount = actualNights * price
+                                ;
                             return RepaintBoundary(
                               child: _BookingRow(
                                 index: index,
@@ -214,7 +214,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                   checkout:
                                       actualCheckout ?? plannedCheckout,
                                 ));
-                      final totalAmount = (actualNights * price).toDouble();
+                      final totalAmount = actualNights * price;
                       return RepaintBoundary(
                         child: _BookingRow(
                           index: index + 1,
@@ -292,7 +292,6 @@ class _CompactBookingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     backgroundColor: theme.colorScheme.primary,
@@ -411,9 +410,9 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-    child: Row(
-      children: const [
+    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+    child: const Row(
+      children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),
         _HeaderCell('بيانات النزيل', flex: 2),
         _HeaderCell('الغرفة'),
@@ -475,7 +474,7 @@ class _BookingRow extends ConsumerWidget {
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
     final nightsLabel = actualNights != expectedNights
-        ? '$expectedNights (${actualNights} فعلي)'
+        ? '$expectedNights ($actualNights فعلي)'
         : expectedNights.toString();
     final plannedText = plannedCheckout != null
         ? _formatDate(plannedCheckout!.toIso8601String())
@@ -504,7 +503,7 @@ class _BookingRow extends ConsumerWidget {
     );
     final remaining = (totalAmount - paid)
         .clamp(0.0, totalAmount)
-        .toDouble();
+        ;
     final Color statusColor = remaining <= 0.0
         ? Colors.green
         : (paid > 0 ? Colors.orange : Colors.red);
@@ -547,7 +546,6 @@ class _BookingRow extends ConsumerWidget {
                 ),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   SizedBox(
                     width: 40,
@@ -703,12 +701,10 @@ Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
       case 'مكتمل':
         bg = Colors.blue.shade100;
         txt = 'مكتمل';
-        break;
       case 'cancelled':
       case 'ملغي':
         bg = Colors.red.shade100;
         txt = 'ملغي';
-        break;
       default:
         bg = Colors.grey.shade100;
         txt = status;

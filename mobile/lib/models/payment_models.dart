@@ -35,19 +35,6 @@ enum PaymentStatus {
 
 /// نموذج بيانات الدفعة
 class Payment {
-  final String id;
-  final String bookingId;
-  final double amount;
-  final PaymentMethod method;
-  final PaymentStatus status;
-  final DateTime paymentDate;
-  final String? notes;
-  final String? referenceNumber;
-  final String? cardLastFourDigits;
-  final String? bankName;
-  final String receivedBy;
-  final DateTime createdAt;
-  final DateTime updatedAt;
 
   Payment({
     required this.id,
@@ -64,6 +51,37 @@ class Payment {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory Payment.fromJson(Map<String, dynamic> json) {
+    return Payment(
+      id: json['id'] as String,
+      bookingId: json['bookingId'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      method: PaymentMethod.values.byName(json['method'] as String),
+      status: PaymentStatus.values.byName(json['status'] as String),
+      paymentDate: DateTime.parse(json['paymentDate'] as String),
+      notes: json['notes'] as String?,
+      referenceNumber: json['referenceNumber'] as String?,
+      cardLastFourDigits: json['cardLastFourDigits'] as String?,
+      bankName: json['bankName'] as String?,
+      receivedBy: json['receivedBy'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+  final String id;
+  final String bookingId;
+  final double amount;
+  final PaymentMethod method;
+  final PaymentStatus status;
+  final DateTime paymentDate;
+  final String? notes;
+  final String? referenceNumber;
+  final String? cardLastFourDigits;
+  final String? bankName;
+  final String receivedBy;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Payment copyWith({
     String? id,
@@ -114,34 +132,10 @@ class Payment {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
-
-  factory Payment.fromJson(Map<String, dynamic> json) {
-    return Payment(
-      id: json['id'] as String,
-      bookingId: json['bookingId'] as String,
-      amount: (json['amount'] as num).toDouble(),
-      method: PaymentMethod.values.byName(json['method'] as String),
-      status: PaymentStatus.values.byName(json['status'] as String),
-      paymentDate: DateTime.parse(json['paymentDate'] as String),
-      notes: json['notes'] as String?,
-      referenceNumber: json['referenceNumber'] as String?,
-      cardLastFourDigits: json['cardLastFourDigits'] as String?,
-      bankName: json['bankName'] as String?,
-      receivedBy: json['receivedBy'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-    );
-  }
 }
 
 /// نموذج ملخص المدفوعات للحجز
 class BookingPaymentSummary {
-  final String bookingId;
-  final double totalAmount;
-  final double paidAmount;
-  final double remainingAmount;
-  final List<Payment> payments;
-  final PaymentStatus overallStatus;
 
   BookingPaymentSummary({
     required this.bookingId,
@@ -151,6 +145,12 @@ class BookingPaymentSummary {
     required this.payments,
     required this.overallStatus,
   });
+  final String bookingId;
+  final double totalAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final List<Payment> payments;
+  final PaymentStatus overallStatus;
 
   bool get isFullyPaid => remainingAmount <= 0;
   double get paidPercentage =>
@@ -159,15 +159,6 @@ class BookingPaymentSummary {
 
 /// نموذج الإيصال
 class Receipt {
-  final String receiptNumber;
-  final Payment payment;
-  final String guestName;
-  final String guestPhone;
-  final String roomNumber;
-  final String hotelName;
-  final String hotelAddress;
-  final String hotelPhone;
-  final DateTime generatedAt;
 
   Receipt({
     required this.receiptNumber,
@@ -180,6 +171,15 @@ class Receipt {
     this.hotelPhone = '+967-2-324457',
     required this.generatedAt,
   });
+  final String receiptNumber;
+  final Payment payment;
+  final String guestName;
+  final String guestPhone;
+  final String roomNumber;
+  final String hotelName;
+  final String hotelAddress;
+  final String hotelPhone;
+  final DateTime generatedAt;
 
   /// إنشاء PDF للإيصال
   Future<void> generatePDF() async {
@@ -212,7 +212,6 @@ class Receipt {
         : 'حجز رقم ${payment.bookingId}';
 
     return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
         // === رأس الإيصال ===
         pw.Container(
@@ -224,7 +223,6 @@ class Receipt {
           ),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               // الشعار
               if (logo != null)
@@ -259,7 +257,6 @@ class Receipt {
               // اسم الفندق
               pw.Expanded(
                 child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     pw.Text(
                       hotelName,
@@ -275,7 +272,7 @@ class Receipt {
                       style: pw.TextStyle(
                         font: fonts.regular,
                         fontSize: 10,
-                        color: PdfColor(0.7, 0.85, 1.0),
+                        color: const PdfColor(0.7, 0.85, 1.0),
                       ),
                     ),
                     pw.SizedBox(height: 3),
@@ -284,7 +281,7 @@ class Receipt {
                       style: pw.TextStyle(
                         font: fonts.regular,
                         fontSize: 9,
-                        color: PdfColor(0.8, 0.9, 1.0),
+                        color: const PdfColor(0.8, 0.9, 1.0),
                       ),
                     ),
                     pw.Text(
@@ -292,7 +289,7 @@ class Receipt {
                       style: pw.TextStyle(
                         font: fonts.regular,
                         fontSize: 9,
-                        color: PdfColor(0.8, 0.9, 1.0),
+                        color: const PdfColor(0.8, 0.9, 1.0),
                       ),
                     ),
                   ],
@@ -330,7 +327,7 @@ class Receipt {
           decoration: pw.BoxDecoration(
             color: PdfColors.backgroundLight,
             borderRadius: pw.BorderRadius.circular(6),
-            border: pw.Border.all(color: PdfColor(0.9, 0.9, 0.9)),
+            border: pw.Border.all(color: const PdfColor(0.9, 0.9, 0.9)),
           ),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -363,7 +360,7 @@ class Receipt {
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
             borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
+            border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
           ),
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -409,7 +406,7 @@ class Receipt {
           width: double.infinity,
           padding: const pw.EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           decoration: pw.BoxDecoration(
-            gradient: pw.LinearGradient(
+            gradient: const pw.LinearGradient(
               colors: [
                 PdfColor(0.02, 0.33, 0.66),
                 PdfColor(0.05, 0.45, 0.78),
@@ -420,14 +417,13 @@ class Receipt {
             borderRadius: pw.BorderRadius.circular(8),
           ),
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               pw.Text(
                 'المبلغ المدفوع',
                 style: pw.TextStyle(
                   font: fonts.regular,
                   fontSize: 11,
-                  color: PdfColor(0.8, 0.9, 1.0),
+                  color: const PdfColor(0.8, 0.9, 1.0),
                 ),
               ),
               pw.SizedBox(height: 6),
@@ -445,7 +441,7 @@ class Receipt {
                 style: pw.TextStyle(
                   font: fonts.regular,
                   fontSize: 9,
-                  color: PdfColor(0.85, 0.92, 1.0),
+                  color: const PdfColor(0.85, 0.92, 1.0),
                 ),
               ),
             ],
@@ -592,7 +588,7 @@ class Receipt {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 1),
       child: pw.Divider(
-        color: PdfColor(0.92, 0.92, 0.92),
+        color: const PdfColor(0.92, 0.92, 0.92),
         thickness: 0.5,
       ),
     );
@@ -607,19 +603,6 @@ class Receipt {
 
 /// نموذج الفاتورة الشاملة
 class Invoice {
-  final String invoiceNumber;
-  final String bookingId;
-  final String guestName;
-  final String guestPhone;
-  final String roomNumber;
-  final DateTime checkinDate;
-  final DateTime checkoutDate;
-  final int nights;
-  final double roomRate;
-  final double totalAmount;
-  final List<Payment> payments;
-  final double remainingAmount;
-  final DateTime generatedAt;
 
   Invoice({
     required this.invoiceNumber,
@@ -636,6 +619,19 @@ class Invoice {
     required this.remainingAmount,
     required this.generatedAt,
   });
+  final String invoiceNumber;
+  final String bookingId;
+  final String guestName;
+  final String guestPhone;
+  final String roomNumber;
+  final DateTime checkinDate;
+  final DateTime checkoutDate;
+  final int nights;
+  final double roomRate;
+  final double totalAmount;
+  final List<Payment> payments;
+  final double remainingAmount;
+  final DateTime generatedAt;
 
   /// إنشاء PDF للفاتورة
   Future<void> generatePDF() async {
@@ -671,7 +667,6 @@ class Invoice {
           ),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               // الشعار
               if (logo != null)
@@ -706,7 +701,6 @@ class Invoice {
               // اسم الفندق
               pw.Expanded(
                 child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     pw.Text(
                       'فندق مارينا بلازا',
@@ -722,7 +716,7 @@ class Invoice {
                       style: pw.TextStyle(
                         font: fonts.regular,
                         fontSize: 11,
-                        color: PdfColor(0.7, 0.85, 1.0),
+                        color: const PdfColor(0.7, 0.85, 1.0),
                       ),
                     ),
                     pw.SizedBox(height: 3),
@@ -731,7 +725,7 @@ class Invoice {
                       style: pw.TextStyle(
                         font: fonts.regular,
                         fontSize: 10,
-                        color: PdfColor(0.8, 0.9, 1.0),
+                        color: const PdfColor(0.8, 0.9, 1.0),
                       ),
                     ),
                   ],
@@ -765,7 +759,7 @@ class Invoice {
                     style: pw.TextStyle(
                       font: fonts.regular,
                       fontSize: 11,
-                      color: PdfColor(0.8, 0.9, 1.0),
+                      color: const PdfColor(0.8, 0.9, 1.0),
                     ),
                   ),
                   pw.Text(
@@ -773,7 +767,7 @@ class Invoice {
                     style: pw.TextStyle(
                       font: fonts.regular,
                       fontSize: 10,
-                      color: PdfColor(0.7, 0.85, 1.0),
+                      color: const PdfColor(0.7, 0.85, 1.0),
                     ),
                   ),
                 ],
@@ -794,7 +788,7 @@ class Invoice {
                 padding: const pw.EdgeInsets.all(14),
                 decoration: pw.BoxDecoration(
                   borderRadius: pw.BorderRadius.circular(8),
-                  border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
+                  border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -834,7 +828,7 @@ class Invoice {
                 padding: const pw.EdgeInsets.all(14),
                 decoration: pw.BoxDecoration(
                   borderRadius: pw.BorderRadius.circular(8),
-                  border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
+                  border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -891,10 +885,10 @@ class Invoice {
           width: double.infinity,
           decoration: pw.BoxDecoration(
             borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
+            border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
           ),
           child: pw.Table(
-              border: pw.TableBorder.all(color: PdfColor(0.88, 0.88, 0.88)),
+              border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
               columnWidths: {
                 0: const pw.FlexColumnWidth(3),
                 1: const pw.FlexColumnWidth(2),
@@ -904,7 +898,7 @@ class Invoice {
               children: [
                 // رأس الجدول
                 pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.primary),
+                  decoration: const pw.BoxDecoration(color: PdfColors.primary),
                   children: [
                     _invoiceHeaderCell(fonts, 'البيان'),
                     _invoiceHeaderCell(fonts, 'الكمية'),
@@ -947,10 +941,10 @@ class Invoice {
             width: double.infinity,
             decoration: pw.BoxDecoration(
               borderRadius: pw.BorderRadius.circular(8),
-              border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
+              border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
             ),
             child: pw.Table(
-                border: pw.TableBorder.all(color: PdfColor(0.88, 0.88, 0.88)),
+                border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
                 columnWidths: {
                   0: const pw.FlexColumnWidth(3),
                   1: const pw.FlexColumnWidth(3),
@@ -958,7 +952,7 @@ class Invoice {
                 },
                 children: [
                   pw.TableRow(
-                    decoration: pw.BoxDecoration(color: PdfColors.accent),
+                    decoration: const pw.BoxDecoration(color: PdfColors.accent),
                     children: [
                       _invoiceHeaderCell(fonts, 'التاريخ'),
                       _invoiceHeaderCell(fonts, 'طريقة الدفع'),
@@ -994,7 +988,7 @@ class Invoice {
           decoration: pw.BoxDecoration(
             borderRadius: pw.BorderRadius.circular(8),
             color: PdfColors.backgroundLight,
-            border: pw.Border.all(color: PdfColor(0.88, 0.88, 0.88)),
+            border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
           ),
           child: pw.Column(
             children: [
@@ -1002,22 +996,20 @@ class Invoice {
                 fonts,
                 'إجمالي الفاتورة',
                 '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال',
-                isBold: false,
               ),
-              pw.Divider(color: PdfColor(0.92, 0.92, 0.92)),
+              pw.Divider(color: const PdfColor(0.92, 0.92, 0.92)),
               _invoiceSummaryRow(
                 fonts,
                 'المدفوع',
                 '${EnhancedPdfUtils.formatNumber(paidAmount)} ريال',
-                isBold: false,
               ),
-              pw.Divider(color: PdfColor(0.92, 0.92, 0.92)),
+              pw.Divider(color: const PdfColor(0.92, 0.92, 0.92)),
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(vertical: 6),
                 decoration: pw.BoxDecoration(
                   color: remainingAmount > 0
-                      ? PdfColor(1.0, 0.95, 0.95)
-                      : PdfColor(0.95, 1.0, 0.95),
+                      ? const PdfColor(1.0, 0.95, 0.95)
+                      : const PdfColor(0.95, 1.0, 0.95),
                   borderRadius: pw.BorderRadius.circular(6),
                 ),
                 child: _invoiceSummaryRow(
@@ -1034,7 +1026,7 @@ class Invoice {
           ),
         ),
 
-        pw.Spacer(flex: 1),
+        pw.Spacer(),
 
         pw.SizedBox(height: 20),
 

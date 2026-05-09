@@ -6,10 +6,10 @@ import '../utils/hotel_time_engine.dart';
 
 /// نطاق تاريخ للتقرير
 class DateRange {
-  final DateTime? from;
-  final DateTime? to;
 
   const DateRange({this.from, this.to});
+  final DateTime? from;
+  final DateTime? to;
 
   bool get isValid => from != null && to != null;
 }
@@ -48,7 +48,7 @@ class DateFilterController {
   /// النطاق الافتراضي لليوم الفندقي الحالي (14:00 → 13:59 من اليوم التالي)
   static DateRange getDefaultHotelDayRange() {
     final range = HotelTimeEngine.getHotelDayRange(DateTime.now());
-    return DateRange(from: range["start"], to: range["end"]);
+    return DateRange(from: range['start'], to: range['end']);
   }
 
   /// حساب نطاق زمني لفلتر سريع محدد
@@ -57,29 +57,29 @@ class DateFilterController {
     switch (type) {
       case 'hotelDay':
         final range = HotelTimeEngine.getHotelDayRange(now);
-        return DateRange(from: range["start"], to: range["end"]);
+        return DateRange(from: range['start'], to: range['end']);
       case 'week':
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
         final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
         return DateRange(
           from: DateTime(hotelWeekStart.year, hotelWeekStart.month,
-              hotelWeekStart.day, 14),
+              hotelWeekStart.day, 14,),
           to: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
       case 'month':
-        final monthStart = DateTime(now.year, now.month, 1);
+        final monthStart = DateTime(now.year, now.month);
         final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
         return DateRange(
           from: DateTime(hotelMonthStart.year, hotelMonthStart.month,
-              hotelMonthStart.day, 14),
+              hotelMonthStart.day, 14,),
           to: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
       case 'year':
-        final yearStart = DateTime(now.year, 1, 1);
+        final yearStart = DateTime(now.year);
         final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
         return DateRange(
           from: DateTime(hotelYearStart.year, hotelYearStart.month,
-              hotelYearStart.day, 14),
+              hotelYearStart.day, 14,),
           to: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
       default:
@@ -107,6 +107,15 @@ class DateFilterController {
 /// )
 /// ```
 class ReportDateFilterWidget extends StatefulWidget {
+
+  const ReportDateFilterWidget({
+    super.key,
+    this.controller,
+    required this.onDateRangeChanged,
+    this.extraChips,
+    this.dateButtonsBuilder,
+    this.dateButtonsFirst = false,
+  });
   /// تحكم برمجي (اختياري) — للقراءة والتعديل من خارج الويدجت
   final DateFilterController? controller;
 
@@ -129,15 +138,6 @@ class ReportDateFilterWidget extends StatefulWidget {
   /// إذا كان true، تظهر أزرار التاريخ قبل شيبس الفلترة.
   /// الافتراضي false (الشيبس أولاً ثم أزرار التاريخ).
   final bool dateButtonsFirst;
-
-  const ReportDateFilterWidget({
-    super.key,
-    this.controller,
-    required this.onDateRangeChanged,
-    this.extraChips,
-    this.dateButtonsBuilder,
-    this.dateButtonsFirst = false,
-  });
 
   @override
   State<ReportDateFilterWidget> createState() =>
@@ -230,7 +230,7 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
           if (_toDate.isBefore(_fromDate)) {
             _fromDate = _toDate.subtract(const Duration(days: 1));
             _fromDate = DateTime(
-                _fromDate.year, _fromDate.month, _fromDate.day, 14);
+                _fromDate.year, _fromDate.month, _fromDate.day, 14,);
           }
         }
       });
@@ -265,7 +265,7 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
   /// هل الفلتر الحالي مطابق لبداية الشهر الحالي؟
   bool _isThisMonthActive() {
     final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
+    final monthStart = DateTime(now.year, now.month);
     final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
     return _fromDate.year == hotelMonthStart.year &&
         _fromDate.month == hotelMonthStart.month &&
@@ -275,7 +275,7 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
   /// هل الفلتر الحالي مطابق لبداية السنة الحالية؟
   bool _isThisYearActive() {
     final now = DateTime.now();
-    final yearStart = DateTime(now.year, 1, 1);
+    final yearStart = DateTime(now.year);
     final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
     return _fromDate.year == hotelYearStart.year &&
         _fromDate.month == hotelYearStart.month &&

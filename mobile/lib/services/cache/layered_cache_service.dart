@@ -6,19 +6,16 @@
 ///   Tier 2: Disk  (persistent, sqflite)
 ///   Tier 3: Network (backing store)
 /// ============================================================
+library;
 
-import 'dart:collection';
 import 'dart:convert';
-import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../local_db.dart' as local_db;
 
 class CacheEntry<T> {
+  CacheEntry(this.value, this.timestamp, this.ttl);
   final T value;
   final DateTime timestamp;
   final Duration ttl;
-  CacheEntry(this.value, this.timestamp, this.ttl);
   
   bool get isExpired => DateTime.now().difference(timestamp) > ttl;
 }
@@ -31,7 +28,7 @@ class LayeredCacheService {
   
   // ─── Tier 2: Disk Cache (SharedPreferences) ───
   static Future<SharedPreferences> get _prefs async {
-    return await SharedPreferences.getInstance();
+    return SharedPreferences.getInstance();
   }
   
   // ─── Public API ───
@@ -58,7 +55,7 @@ class LayeredCacheService {
     if (!forceRefresh) {
       final diskValue = await _getFromDisk<T>(key);
       if (diskValue != null) {
-        _memoryCache[key] = CacheEntry(diskValue, DateTime.now(), ttl ?? Duration(minutes: 5));
+        _memoryCache[key] = CacheEntry(diskValue, DateTime.now(), ttl ?? const Duration(minutes: 5));
         _updateLRU(key);
         return diskValue;
       }
@@ -69,7 +66,7 @@ class LayeredCacheService {
     
     // Store in both tiers
     await _setToDisk(key, value);
-    _memoryCache[key] = CacheEntry(value, DateTime.now(), ttl ?? Duration(minutes: 5));
+    _memoryCache[key] = CacheEntry(value, DateTime.now(), ttl ?? const Duration(minutes: 5));
     _updateLRU(key);
     
     return value;
@@ -81,7 +78,7 @@ class LayeredCacheService {
     T value, {
     Duration? ttl,
   }) async {
-    _memoryCache[key] = CacheEntry(value, DateTime.now(), ttl ?? Duration(minutes: 5));
+    _memoryCache[key] = CacheEntry(value, DateTime.now(), ttl ?? const Duration(minutes: 5));
     _updateLRU(key);
     await _setToDisk(key, value);
   }
@@ -175,10 +172,10 @@ extension PaginatedCache on LayeredCacheService {
     Duration? ttl,
   }) async {
     final pageKey = '${baseKey}_page_1'; // Simplifed to first page
-    return await LayeredCacheService.get<List<T>>(
+    return LayeredCacheService.get<List<T>>(
       pageKey,
       () => fetcher(1),
-      ttl: ttl ?? Duration(minutes: 2),
+      ttl: ttl ?? const Duration(minutes: 2),
     );
   }
 }

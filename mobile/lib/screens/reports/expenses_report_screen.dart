@@ -190,10 +190,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
     final fromStr = _fromDate != null
-        ? '${DateFormat('yyyy-MM-dd').format(_fromDate!)}'
+        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
         : null;
     final toStr = _toDate != null
-        ? '${DateFormat('yyyy-MM-dd').format(_toDate!)}'
+        ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : null;
     final selectedType =
         widget.showTypeFilter &&
@@ -262,8 +262,28 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     double totalAmount = 0;
     bool hasSalaryData = false;
 
-    // ─── إضافة مصروفات جدول expenses ───
+    // ─── جمع أرقام معرّفات المصروفات المرتبطة بسحوبات الرواتب ───
+    // لمنع العد المزدوج: المصروف المرتبط بـ salary_withdrawal لا يُضاف من جدول expenses
+    final swExpenseIds = <int>{};
+    if (showAll) {
+      for (final sw in salaryWithdrawals) {
+        if (sw.reason != null) {
+          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+          if (match != null) {
+            swExpenseIds.add(int.parse(match.group(1)!));
+          }
+        }
+      }
+    }
+
+    // ─── إضافة مصروفات جدول expenses (مع استبعاد المرتبطة بسحوبات الرواتب) ───
     for (final expense in expenses) {
+      // تخطّي المصروفات الرواتب التي لها سجل مقابل في salary_withdrawals
+      // لأنها ستُضاف من هناك (لمنع العد المزدوج)
+      if (showAll && _isSalaryType(expense.expenseType) && swExpenseIds.contains(expense.id)) {
+        hasSalaryData = true;
+        continue;
+      }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;
@@ -410,7 +430,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               borderRadius: pw.BorderRadius.circular(4),
             ),
             child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
                 pw.Text(
                   title,
@@ -510,7 +529,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         ];
       },
       fileName: ReportPdfBuilder.generateFileName(widget.title),
-    ));
+    ),);
   }
 
   @override
@@ -548,8 +567,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   SizedBox(
                     width: 160,
                     child: DropdownButtonFormField<String?>(
-                      value: _selectedType,
-                      isDense: true,
+                      initialValue: _selectedType,
                       decoration: InputDecoration(
                         labelText: widget.typeLabel,
                         isDense: true,
@@ -558,7 +576,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
                       items: [
                         DropdownMenuItem<String?>(
-                          value: null,
                           child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                         ),
                         ..._availableTypes.map(
@@ -619,8 +636,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final items = _grouped[type]!;
       final subtotal = _typeSubtotals[type] ?? 0.0;
       final cfg = _configForType(type);
-      final pct = _totalAmount > 0 ? (subtotal / _totalAmount * 100) : 0.0;
-
       // رأس المجموعة
       widgets.add(
         _buildGroupHeader(
@@ -629,7 +644,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           color: cfg.color,
           count: items.length,
           subtotal: subtotal,
-          percentage: pct,
         ),
       );
       widgets.add(const SizedBox(height: 2));
@@ -647,90 +661,66 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     return widgets;
   }
 
-  /// رأس مجموعة النوع مع المبلغ الإجمالي والنسبة المئوية (مصغّر)
+  /// رأس مجموعة النوع مع المبلغ الإجمالي (مصغّر)
   Widget _buildGroupHeader({
     required String type,
     required IconData icon,
     required Color color,
     required int count,
     required double subtotal,
-    required double percentage,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.6),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(icon, size: 15, color: color),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  type,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Text(
-                  '$count عملية',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Icon(icon, size: 14, color: color),
           ),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currencyFmt.format(subtotal),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              type,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
-              Text(
-                '${percentage.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: color.withValues(alpha: 0.8),
-                ),
+            ),
+          ),
+          Text(
+            _currencyFmt.format(subtotal),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade600,
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -740,7 +730,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   /// بطاقة المصروف المفصلة (مصغّرة)
   Widget _buildDetailedExpenseCard(_ExpenseReportRow row, {required int rowIndex}) {
     final cfg = _configForType(row.type);
-    final pct = _totalAmount > 0 ? (row.amount / _totalAmount * 100) : 0.0;
     final hasDesc = row.description.isNotEmpty;
     final hasEmployee = row.employee != null;
     final isSalary = _isSalaryType(row.type);
@@ -809,27 +798,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     ],
                   ),
                 ),
-                // المبلغ + النسبة
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _currencyFmt.format(row.amount),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: cfg.color,
-                      ),
-                    ),
-                    if (_grouped.length > 1)
-                      Text(
-                        '${pct.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                  ],
+                // المبلغ
+                Text(
+                  _currencyFmt.format(row.amount),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: cfg.color,
+                  ),
                 ),
               ],
             ),
@@ -965,7 +941,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
   }
 
-  /// ملخص تفصيلي مع توزيع الأنواع (مصغّر)
+  /// ملخص تفصيلي (مصغّر - بدون توزيع الأنواع)
   Widget _buildDetailedSummary() {
     if (_rows.isEmpty) return const SizedBox.shrink();
 
@@ -977,160 +953,138 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final salaryCount = _rows.where((r) => _isSalaryType(r.type)).length;
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // الإجمالي الرئيسي
+          // الإجمالي الرئيسي - سطر واحد مصغّر
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.payments, color: Colors.orange, size: 16),
+              Icon(Icons.payments, color: Colors.orange, size: 14),
+              const SizedBox(width: 5),
+              Text(
+                widget.totalSummaryLabel,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currencyFmt.format(_totalAmount),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.orange,
-                      ),
-                    ),
-                    Text(
-                      widget.totalSummaryLabel,
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                    ),
-                  ],
+              const Spacer(),
+              Text(
+                _currencyFmt.format(_totalAmount),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.orange,
                 ),
               ),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(5),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      '${_rows.length}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    Text(
-                      'عملية',
-                      style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                    ),
-                  ],
+                child: Text(
+                  '${_rows.length} عملية',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
                 ),
               ),
             ],
           ),
 
-          // تفصيل الرواتب مقابل التشغيلية
+          // سحوبات الرواتب ومصروفات التشغيلية - بجانب بعض مصغّرة
           if (_hasSalaryData) ...[
-            const SizedBox(height: 6),
-            const Divider(height: 1),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
+            const Divider(height: 1, thickness: 0.5),
+            const SizedBox(height: 4),
             Row(
               children: [
-                // بطاقة الرواتب
+                // سحوبات الرواتب
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.purple.shade200, width: 0.4),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.purple.shade200, width: 0.3),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.account_balance_wallet, size: 12, color: Colors.purple.shade600),
-                            const SizedBox(width: 3),
-                            Text(
-                              'سحوبات الرواتب',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.purple.shade700,
+                        Icon(Icons.account_balance_wallet, size: 11, color: Colors.purple.shade600),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'سحوبات الرواتب',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade700,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _currencyFmt.format(salaryTotal),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple.shade800,
+                              Text(
+                                _currencyFmt.format(salaryTotal),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Text(
-                          '$salaryCount عملية',
+                          '$salaryCount',
                           style: TextStyle(fontSize: 8, color: Colors.purple.shade400),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
-                // بطاقة التشغيلية
+                const SizedBox(width: 4),
+                // مصروفات تشغيلية
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.teal.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.teal.shade200, width: 0.4),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.teal.shade200, width: 0.3),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.build_circle, size: 12, color: Colors.teal.shade600),
-                            const SizedBox(width: 3),
-                            Text(
-                              'مصروفات تشغيلية',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.teal.shade700,
+                        Icon(Icons.build_circle, size: 11, color: Colors.teal.shade600),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'مصروفات تشغيلية',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal.shade700,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _currencyFmt.format(nonSalaryTotal),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal.shade800,
+                              Text(
+                                _currencyFmt.format(nonSalaryTotal),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal.shade800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Text(
-                          '${_rows.length - salaryCount} عملية',
+                          '${_rows.length - salaryCount}',
                           style: TextStyle(fontSize: 8, color: Colors.teal.shade400),
                         ),
                       ],
@@ -1140,95 +1094,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               ],
             ),
           ],
-
-          // توزيع الأنواع
-          if (_typeSubtotals.length > 1) ...[
-            const SizedBox(height: 6),
-            const Divider(height: 1),
-            const SizedBox(height: 5),
-            Text(
-              'التوزيع حسب النوع',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: _typeSubtotals.entries.map((entry) {
-                final cfg = _configForType(entry.key);
-                final pct = _totalAmount > 0 ? (entry.value / _totalAmount * 100) : 0.0;
-                final count = _grouped[entry.key]?.length ?? 0;
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: cfg.color.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: cfg.color.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(cfg.icon, size: 11, color: cfg.color),
-                      const SizedBox(width: 3),
-                      Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: cfg.color,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${_currencyFmt.format(entry.value)} ($count)',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${pct.toStringAsFixed(0)}%',
-                        style: TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-
-          // متوسط المصروف لكل عملية
-          if (_rows.isNotEmpty) ...[
-            const SizedBox(height: 5),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.analytics, size: 12, color: Colors.grey.shade400),
-                const SizedBox(width: 3),
-                Text(
-                  'متوسط المبلغ لكل عملية: ${_currencyFmt.format(_totalAmount / _rows.length)}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
   }
+
+
 
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();

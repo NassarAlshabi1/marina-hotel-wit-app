@@ -1,17 +1,12 @@
+import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:intl/intl.dart';
 
 import '../utils/enhanced_pdf_utils.dart';
 
 /// تقرير دفوعات محسّن
 class EnhancedPaymentsReport {
-  final List<PaymentReportItem> payments;
-  final DateTime fromDate;
-  final DateTime toDate;
-  final String? roomFilter;
-  final String generatedBy;
 
   EnhancedPaymentsReport({
     required this.payments,
@@ -20,6 +15,11 @@ class EnhancedPaymentsReport {
     this.roomFilter,
     required this.generatedBy,
   });
+  final List<PaymentReportItem> payments;
+  final DateTime fromDate;
+  final DateTime toDate;
+  final String? roomFilter;
+  final String generatedBy;
 
   double get totalAmount =>
       payments.fold(0, (sum, payment) => sum + payment.amount);
@@ -73,7 +73,7 @@ class EnhancedPaymentsReport {
       padding: const pw.EdgeInsets.only(top: 16),
       decoration: const pw.BoxDecoration(
         border: pw.Border(
-          top: pw.BorderSide(color: PdfColors.textLight, width: 1),
+          top: pw.BorderSide(color: PdfColors.textLight),
         ),
       ),
       child: pw.Row(
@@ -210,26 +210,26 @@ class EnhancedPaymentsReport {
               'نقداً',
               payments.where((p) => p.method == 'cash').length.toString(),
               EnhancedPdfUtils.formatCurrency(cashPayments),
-              totalAmount > 0 ? '${((cashPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
+              if (totalAmount > 0) '${((cashPayments / totalAmount) * 100).toStringAsFixed(1)}%' else '0%',
             ],
             [
               'بطاقة ائتمانية',
               payments.where((p) => p.method == 'card').length.toString(),
               EnhancedPdfUtils.formatCurrency(cardPayments),
-              totalAmount > 0 ? '${((cardPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
+              if (totalAmount > 0) '${((cardPayments / totalAmount) * 100).toStringAsFixed(1)}%' else '0%',
             ],
             [
               'تحويل بنكي',
               payments.where((p) => p.method == 'transfer').length.toString(),
               EnhancedPdfUtils.formatCurrency(transferPayments),
-              totalAmount > 0 ? '${((transferPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
+              if (totalAmount > 0) '${((transferPayments / totalAmount) * 100).toStringAsFixed(1)}%' else '0%',
             ],
             if (checkPayments > 0)
               [
                 'شيك',
                 payments.where((p) => p.method == 'check').length.toString(),
                 EnhancedPdfUtils.formatCurrency(checkPayments),
-                totalAmount > 0 ? '${((checkPayments / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
+                if (totalAmount > 0) '${((checkPayments / totalAmount) * 100).toStringAsFixed(1)}%' else '0%',
               ],
           ],
           fonts: fonts,
@@ -363,13 +363,6 @@ class EnhancedPaymentsReport {
 
 /// عنصر تقرير الدفعة
 class PaymentReportItem {
-  final String guestName;
-  final String roomNumber;
-  final double amount;
-  final String method;
-  final DateTime paymentDate;
-  final String? receivedBy;
-  final String? notes;
 
   PaymentReportItem({
     required this.guestName,
@@ -380,28 +373,30 @@ class PaymentReportItem {
     this.receivedBy,
     this.notes,
   });
+  final String guestName;
+  final String roomNumber;
+  final double amount;
+  final String method;
+  final DateTime paymentDate;
+  final String? receivedBy;
+  final String? notes;
 }
 
 /// ملخص يومي
 class DailySummary {
-  final DateTime date;
-  double totalAmount;
-  int transactionCount;
 
   DailySummary({
     required this.date,
     required this.totalAmount,
     required this.transactionCount,
   });
+  final DateTime date;
+  double totalAmount;
+  int transactionCount;
 }
 
 /// تقرير المصروفات المحسّن
 class EnhancedExpensesReport {
-  final List<ExpenseReportItem> expenses;
-  final DateTime fromDate;
-  final DateTime toDate;
-  final String? categoryFilter;
-  final String generatedBy;
 
   EnhancedExpensesReport({
     required this.expenses,
@@ -410,6 +405,11 @@ class EnhancedExpensesReport {
     this.categoryFilter,
     required this.generatedBy,
   });
+  final List<ExpenseReportItem> expenses;
+  final DateTime fromDate;
+  final DateTime toDate;
+  final String? categoryFilter;
+  final String generatedBy;
 
   double get totalAmount =>
       expenses.fold(0, (sum, expense) => sum + expense.amount);
@@ -575,7 +575,7 @@ class EnhancedExpensesReport {
                     cat.category,
                     cat.count.toString(),
                     EnhancedPdfUtils.formatCurrency(cat.totalAmount),
-                    totalAmount > 0 ? '${((cat.totalAmount / totalAmount) * 100).toStringAsFixed(1)}%' : '0%',
+                    if (totalAmount > 0) '${((cat.totalAmount / totalAmount) * 100).toStringAsFixed(1)}%' else '0%',
                   ],
                 )
                 .toList(),
@@ -630,7 +630,7 @@ class EnhancedExpensesReport {
       padding: const pw.EdgeInsets.only(top: 16),
       decoration: const pw.BoxDecoration(
         border: pw.Border(
-          top: pw.BorderSide(color: PdfColors.textLight, width: 1),
+          top: pw.BorderSide(color: PdfColors.textLight),
         ),
       ),
       child: pw.Row(
@@ -664,11 +664,6 @@ class EnhancedExpensesReport {
 
 /// عنصر تقرير المصروف
 class ExpenseReportItem {
-  final String description;
-  final String category;
-  final double amount;
-  final DateTime date;
-  final String? notes;
 
   ExpenseReportItem({
     required this.description,
@@ -677,17 +672,22 @@ class ExpenseReportItem {
     required this.date,
     this.notes,
   });
+  final String description;
+  final String category;
+  final double amount;
+  final DateTime date;
+  final String? notes;
 }
 
 /// ملخص الفئة
 class CategorySummary {
-  final String category;
-  double totalAmount;
-  int count;
 
   CategorySummary({
     required this.category,
     required this.totalAmount,
     required this.count,
   });
+  final String category;
+  double totalAmount;
+  int count;
 }

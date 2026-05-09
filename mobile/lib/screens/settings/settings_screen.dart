@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/sync_service.dart';
 import '../../providers/theme_provider.dart';
-import '../../utils/status_utils.dart';
 import '../../services/crashlytics_service.dart';
-import 'settings_employees.dart';
-import 'settings_guests.dart';
-import 'settings_users.dart';
-import 'settings_maintenance.dart';
-import 'google_drive_backup_screen.dart';
-import 'appwrite_settings_screen.dart';
-import 'php_api_settings_screen.dart';
-import 'whatsapp_settings_screen.dart';
-
+import '../../services/sync_service.dart';
+import '../../utils/status_utils.dart';
+import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
+import 'active_bookings_reminder_screen.dart';
+import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 import 'data_protection_screen.dart';
+import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
-import 'active_bookings_reminder_screen.dart';
-import 'whatsapp_daily_report_screen.dart';
+import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
-import '../ai/ai_chat_screen.dart';
+import 'settings_employees.dart';
+import 'settings_guests.dart';
+import 'settings_maintenance.dart';
+import 'settings_users.dart';
+import 'whatsapp_daily_report_screen.dart';
+import 'whatsapp_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});

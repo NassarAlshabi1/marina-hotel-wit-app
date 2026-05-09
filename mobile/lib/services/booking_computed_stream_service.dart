@@ -1,25 +1,16 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
+
+import '../utils/status_utils.dart';
 import 'hotel_time_engine.dart';
 import 'local_db.dart';
-import '../utils/status_utils.dart';
 
 /// Reactive model combining raw booking data with computed financial values.
 ///
 /// All computed fields (days, total, paid, remaining) are derived at read time
 /// from raw stored data. They are NEVER persisted to the database.
 class BookingWithPayments {
-  final Booking booking;
-  final int days;
-  final int pricePerNight;
-  final int totalDue;
-  final int totalPaid;
-  final int remainingBalance;
-  final bool isFullyPaid;
-  final bool isActive;
-  final DateTime computedCheckIn;
-  final DateTime? computedCheckOut;
 
   const BookingWithPayments({
     required this.booking,
@@ -33,6 +24,16 @@ class BookingWithPayments {
     required this.computedCheckIn,
     this.computedCheckOut,
   });
+  final Booking booking;
+  final int days;
+  final int pricePerNight;
+  final int totalDue;
+  final int totalPaid;
+  final int remainingBalance;
+  final bool isFullyPaid;
+  final bool isActive;
+  final DateTime computedCheckIn;
+  final DateTime? computedCheckOut;
 
   /// Is the booking overdue (past expected checkout with remaining balance)?
   bool get isOverdue {
@@ -52,7 +53,7 @@ DateTime? _parseDate(String? value) {
   final v = value.trim();
   final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
   final withSeconds =
-      normalized.length == 16 ? '${normalized}:00' : normalized;
+      normalized.length == 16 ? '$normalized:00' : normalized;
   try {
     return DateTime.parse(withSeconds);
   } catch (_) {
@@ -80,7 +81,7 @@ class BookingComputedStreamService {
 
     return bookingQuery.asyncMap((booking) async {
       if (booking == null) return null;
-      return await _buildBookingWithPayments(booking);
+      return _buildBookingWithPayments(booking);
     });
   }
 
@@ -92,7 +93,7 @@ class BookingComputedStreamService {
 
     return bookingQuery.asyncMap((booking) async {
       if (booking == null) return null;
-      return await _buildBookingWithPayments(booking);
+      return _buildBookingWithPayments(booking);
     });
   }
 
@@ -135,7 +136,7 @@ class BookingComputedStreamService {
         booking,
         roomMap: roomMap,
         paymentsMap: paymentsMap,
-      )).toList();
+      ),).toList();
     });
   }
 

@@ -1,13 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_logs.dart';
+import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
-import '../utils/debug_logs.dart';
-import 'data_usage_manager.dart';
-import 'sync_locks.dart';
 import 'sync_constants.dart';
+import 'sync_locks.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط
 ///
@@ -262,7 +264,6 @@ class SmartGoogleDriveSync {
 
       final fileId = await _driveService!.uploadBackup(
         backupData,
-        isSync: false,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -303,7 +304,7 @@ class SmartGoogleDriveSync {
   }
 
   /// جدولة النسخ الاحتياطي اليومي
-  void _scheduleDailyFullBackup() async {
+  Future<void> _scheduleDailyFullBackup() async {
     final prefs = await SharedPreferences.getInstance();
     final lastBackup = prefs.getInt(_prefsLastFullBackupKey);
 

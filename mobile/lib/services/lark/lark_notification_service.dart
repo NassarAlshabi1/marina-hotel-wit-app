@@ -25,13 +25,6 @@ enum LarkEventType {
 
 /// بيانات الحدث المطلوب إرسال إشعار عنه
 class LarkEvent {
-  final LarkEventType type;
-  final String roomNumber;
-  final String? guestName;
-  final String? guestPhone;
-  final String? details;
-  final DateTime? eventTime;
-  final double? amount;
 
   const LarkEvent({
     required this.type,
@@ -42,16 +35,23 @@ class LarkEvent {
     this.eventTime,
     this.amount,
   });
+  final LarkEventType type;
+  final String roomNumber;
+  final String? guestName;
+  final String? guestPhone;
+  final String? details;
+  final DateTime? eventTime;
+  final double? amount;
 }
 
 /// خدمة إشعارات Lark الفورية
 /// ترسل إشعارات فورية عند أحداث الفندق المختلفة
 class LarkNotificationService {
+
+  LarkNotificationService._();
   static LarkNotificationService? _instance;
   static LarkNotificationService get instance =>
       _instance ??= LarkNotificationService._();
-
-  LarkNotificationService._();
 
   final LarkApiClient _api = LarkApiClient.instance;
 
@@ -115,12 +115,12 @@ class LarkNotificationService {
     }
 
     if (event.details != null && event.details!.isNotEmpty) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('${event.details}');
     }
 
     if (event.eventTime != null) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln(
         '**الوقت:** ${event.eventTime!.hour.toString().padLeft(2, '0')}:${event.eventTime!.minute.toString().padLeft(2, '0')}',
       );
@@ -186,7 +186,7 @@ class LarkNotificationService {
       guestPhone: guestPhone,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل دخول ضيف
@@ -206,7 +206,7 @@ class LarkNotificationService {
       guestPhone: guestPhone,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل خروج ضيف
@@ -230,7 +230,7 @@ class LarkNotificationService {
       guestName: guestName,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار استلام دفعة
@@ -258,7 +258,7 @@ class LarkNotificationService {
       amount: amount,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار طلب صيانة
@@ -273,7 +273,7 @@ class LarkNotificationService {
       guestName: reportedBy,
       details: description,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار إلغاء حجز
@@ -288,7 +288,7 @@ class LarkNotificationService {
       guestName: guestName,
       details: reason,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تأخير مغادرة
@@ -310,7 +310,7 @@ class LarkNotificationService {
       guestName: guestName,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار مصروف جديد
@@ -325,6 +325,6 @@ class LarkNotificationService {
       amount: amount,
       details: '$category\n${description ?? ''}',
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 }

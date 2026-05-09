@@ -1,11 +1,12 @@
 import 'package:drift/drift.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'expenses_dao.g.dart';
 
@@ -115,7 +116,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<Expense?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return Future.value(null);
+    if (parsedServerId == null) return Future.value();
     return (select(
       expenses,
     )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
@@ -307,7 +308,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع المصروفات إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final expensesList = await list(includeDeleted: false);
+    final expensesList = await list();
     return expensesList.map((expense) => expense.toJson()).toList();
   }
 

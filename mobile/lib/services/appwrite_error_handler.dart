@@ -3,11 +3,6 @@ import 'package:flutter/material.dart';
 import 'appwrite_logger.dart';
 
 class AppwriteError {
-  final String code;
-  final String message;
-  final String? details;
-  final DateTime timestamp;
-  final bool isRecoverable;
 
   AppwriteError({
     required this.code,
@@ -16,6 +11,11 @@ class AppwriteError {
     DateTime? timestamp,
     this.isRecoverable = true,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String code;
+  final String message;
+  final String? details;
+  final DateTime timestamp;
+  final bool isRecoverable;
 
   @override
   String toString() =>
@@ -23,10 +23,10 @@ class AppwriteError {
 }
 
 class AppwriteErrorHandler {
-  static final AppwriteErrorHandler _instance =
-      AppwriteErrorHandler._internal();
   factory AppwriteErrorHandler() => _instance;
   AppwriteErrorHandler._internal();
+  static final AppwriteErrorHandler _instance =
+      AppwriteErrorHandler._internal();
 
   final _logger = AppwriteLogger();
   final List<AppwriteError> _errorHistory = [];
@@ -72,7 +72,6 @@ class AppwriteErrorHandler {
         code: 'NETWORK_ERROR',
         message: 'فشل الاتصال بالشبكة',
         details: 'تحقق من اتصالك بالإنترنت وحاول مرة أخرى',
-        isRecoverable: true,
       );
     }
 
@@ -81,7 +80,6 @@ class AppwriteErrorHandler {
         code: 'TIMEOUT_ERROR',
         message: 'انتهت مهلة الاتصال',
         details: 'استغرق الطلب وقتاً طويلاً',
-        isRecoverable: true,
       );
     }
 
@@ -89,7 +87,6 @@ class AppwriteErrorHandler {
       code: 'UNKNOWN_ERROR',
       message: 'حدث خطأ غير متوقع',
       details: msg,
-      isRecoverable: true,
     );
   }
 
@@ -102,7 +99,6 @@ class AppwriteErrorHandler {
         code: 'AUTH_ERROR',
         message: 'خطأ في المصادقة',
         details: e.message,
-        isRecoverable: true,
       );
     }
 
@@ -129,7 +125,6 @@ class AppwriteErrorHandler {
         code: 'CONFLICT_ERROR',
         message: 'تضارب في البيانات',
         details: 'تم تعديل البيانات من قبل جهاز آخر',
-        isRecoverable: true,
       );
     }
 
@@ -138,7 +133,6 @@ class AppwriteErrorHandler {
         code: 'RATE_LIMIT',
         message: 'تم تجاوز حد الطلبات',
         details: 'يرجى الانتظار قليلاً قبل المحاولة مرة أخرى',
-        isRecoverable: true,
       );
     }
 
@@ -147,7 +141,6 @@ class AppwriteErrorHandler {
         code: 'SERVER_ERROR',
         message: 'خطأ في الخادم',
         details: e.message,
-        isRecoverable: true,
       );
     }
 
@@ -155,7 +148,6 @@ class AppwriteErrorHandler {
       code: 'APPWRITE_ERROR_${code ?? 'UNKNOWN'}',
       message: e.message ?? 'خطأ غير متوقع من Appwrite',
       details: 'type: $type',
-      isRecoverable: true,
     );
   }
 
@@ -178,7 +170,6 @@ class AppwriteErrorHandler {
           ],
         ),
         backgroundColor: error.isRecoverable ? Colors.orange : Colors.red,
-        duration: const Duration(seconds: 4),
         action: SnackBarAction(
           label: 'إغلاق',
           textColor: Colors.white,

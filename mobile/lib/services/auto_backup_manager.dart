@@ -5,20 +5,22 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'google_drive_backup_service.dart';
-import 'google_drive_delta_sync.dart';
+import '../utils/time.dart';
 import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
-import 'smart_sync_manager.dart';
+import 'google_drive_backup_service.dart';
+import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
-import '../utils/time.dart';
+import 'smart_sync_manager.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
 /// يراقب التغييرات في قاعدة البيانات ويقوم بعمل نسخ احتياطية تلقائية
 enum BackupMode { fullBackup, deltaSync, both }
 
 class AutoBackupManager {
+
+  AutoBackupManager._();
   static const String _lastAutoBackupKey = 'last_auto_backup_timestamp';
   static const String _autoBackupEnabledKey = 'auto_backup_enabled';
   static const String _maxBackupCountKey = 'max_backup_count';
@@ -33,8 +35,6 @@ class AutoBackupManager {
 
   static AutoBackupManager? _instance;
   static AutoBackupManager get instance => _instance ??= AutoBackupManager._();
-
-  AutoBackupManager._();
 
   GoogleDriveBackupService? _backupService;
   GoogleDriveDeltaSync? _googleDriveDeltaSync;
@@ -174,7 +174,7 @@ class AutoBackupManager {
     if (_currentMode == BackupMode.fullBackup ||
         _currentMode == BackupMode.both) {
       _debounceTimer?.cancel();
-      _debounceTimer = Timer(Duration(seconds: _debounceSeconds), () {
+      _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
         _performAutoBackup(
           reason: 'تغييرات تلقائية ($tableName: $operation)',
           changesCount: _pendingChanges,
@@ -319,7 +319,7 @@ class AutoBackupManager {
     _cleanupTimer?.cancel();
 
     // تنظيف دوري كل 6 ساعات
-    _cleanupTimer = Timer.periodic(Duration(hours: 6), (timer) {
+    _cleanupTimer = Timer.periodic(const Duration(hours: 6), (timer) {
       _cleanupOldBackups();
     });
 
@@ -357,7 +357,7 @@ class AutoBackupManager {
   }
 
   Future<int> getMaxBackupCount() async {
-    return await _getMaxBackupCount();
+    return _getMaxBackupCount();
   }
 
   Future<int> _getRetentionDays() async {
@@ -372,7 +372,7 @@ class AutoBackupManager {
   }
 
   Future<int> getRetentionDays() async {
-    return await _getRetentionDays();
+    return _getRetentionDays();
   }
 
   Future<DateTime?> _getLastAutoBackupTime() async {

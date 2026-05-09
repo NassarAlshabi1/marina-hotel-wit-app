@@ -4,22 +4,12 @@ import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../services/local_db.dart';
 import '../utils/enhanced_pdf_utils.dart';
 import '../utils/time.dart';
-import '../services/local_db.dart';
 
 /// نموذج إيصال دفع احترافي محسّن
 class EnhancedPaymentReceipt {
-  final String receiptNumber;
-  final String guestName;
-  final String guestPhone;
-  final String roomNumber;
-  final Payment payment;
-  final String hotelName;
-  final String hotelAddress;
-  final String receivedBy;
-  final DateTime issuedAt;
-  final String? notes;
 
   EnhancedPaymentReceipt({
     required this.receiptNumber,
@@ -33,6 +23,16 @@ class EnhancedPaymentReceipt {
     required this.issuedAt,
     this.notes,
   });
+  final String receiptNumber;
+  final String guestName;
+  final String guestPhone;
+  final String roomNumber;
+  final Payment payment;
+  final String hotelName;
+  final String hotelAddress;
+  final String receivedBy;
+  final DateTime issuedAt;
+  final String? notes;
 
   /// إنشاء PDF احترافي للإيصال
   Future<void> generatePDF() async {
@@ -366,19 +366,6 @@ class EnhancedPaymentReceipt {
 
 /// نموذج فاتورة محسّنة
 class EnhancedInvoice {
-  final String invoiceNumber;
-  final String guestName;
-  final String guestPhone;
-  final String roomNumber;
-  final List<InvoiceItem> items;
-  final List<Payment> payments;
-  final String hotelName;
-  final String hotelAddress;
-  final DateTime checkIn;
-  final DateTime checkOut;
-  final DateTime issuedAt;
-  final String? notes;
-  final double discount;
 
   EnhancedInvoice({
     required this.invoiceNumber,
@@ -395,6 +382,19 @@ class EnhancedInvoice {
     this.notes,
     this.discount = 0,
   });
+  final String invoiceNumber;
+  final String guestName;
+  final String guestPhone;
+  final String roomNumber;
+  final List<InvoiceItem> items;
+  final List<Payment> payments;
+  final String hotelName;
+  final String hotelAddress;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final DateTime issuedAt;
+  final String? notes;
+  final double discount;
 
   double get totalAmount => items.fold(0, (sum, item) => sum + item.total);
   double get totalAfterDiscount => totalAmount - discount;
@@ -772,15 +772,15 @@ class EnhancedInvoice {
 
 /// عنصر في الفاتورة
 class InvoiceItem {
-  final String description;
-  final int quantity;
-  final double unitPrice;
 
   InvoiceItem({
     required this.description,
     required this.quantity,
     required this.unitPrice,
   });
+  final String description;
+  final int quantity;
+  final double unitPrice;
 
   double get total => quantity * unitPrice;
 }

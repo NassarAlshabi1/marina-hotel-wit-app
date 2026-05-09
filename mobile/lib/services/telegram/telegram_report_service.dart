@@ -3,30 +3,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../utils/time.dart';
 import '../local_db.dart';
 import '../remote_config_service.dart';
 import 'telegram_config.dart';
-import 'telegram_service.dart';
-import '../../utils/time.dart';
 
 /// بيانات التقرير اليومي
 class TelegramDailyReportData {
-  final String reportDate;
-  final int totalRooms;
-  final int occupiedRooms;
-  final int availableRooms;
-  final int cleaningRooms;
-  final int maintenanceRooms;
-  final double occupancyRate;
-  final int newBookingsToday;
-  final int checkInsToday;
-  final int checkOutsToday;
-  final int activeBookings;
-  final double todayRevenue;
-  final double todayExpenses;
-  final double netProfit;
-  final int unsettledDebts;
-  final List<String> alerts;
 
   const TelegramDailyReportData({
     required this.reportDate,
@@ -46,15 +29,31 @@ class TelegramDailyReportData {
     required this.unsettledDebts,
     required this.alerts,
   });
+  final String reportDate;
+  final int totalRooms;
+  final int occupiedRooms;
+  final int availableRooms;
+  final int cleaningRooms;
+  final int maintenanceRooms;
+  final double occupancyRate;
+  final int newBookingsToday;
+  final int checkInsToday;
+  final int checkOutsToday;
+  final int activeBookings;
+  final double todayRevenue;
+  final double todayExpenses;
+  final double netProfit;
+  final int unsettledDebts;
+  final List<String> alerts;
 }
 
 /// خدمة التقارير اليومية عبر Telegram
 class TelegramReportService {
+
+  TelegramReportService._();
   static TelegramReportService? _instance;
   static TelegramReportService get instance =>
       _instance ??= TelegramReportService._();
-
-  TelegramReportService._();
 
   // الإرسال عبر CallMeBot WhatsApp
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
@@ -159,7 +158,7 @@ class TelegramReportService {
       }
 
       final occupancyRate = totalRooms > 0
-          ? (occupiedRooms / totalRooms * 100).toDouble()
+          ? (occupiedRooms / totalRooms * 100)
           : 0.0;
 
       // ── حجوزات اليوم ──
@@ -240,7 +239,7 @@ class TelegramReportService {
                 .where((r) => r.roomNumber == booking.roomNumber)
                 .firstOrNull;
             alerts.add(
-                '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName})');
+                '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName})',);
           }
         }
       }
@@ -335,7 +334,7 @@ class TelegramReportService {
     buffer.writeln('━━━━━━━━━━━━━━━━━');
 
     // حالة الغرف
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('🏨 حالة الغرف');
     buffer.writeln('┌ الإجمالي: ${data.totalRooms}');
     buffer.writeln('├ 🔴 مشغولة: ${data.occupiedRooms}');
@@ -343,10 +342,10 @@ class TelegramReportService {
     buffer.writeln('├ 🟡 تنظيف: ${data.cleaningRooms}');
     buffer.writeln('└ 🔧 صيانة: ${data.maintenanceRooms}');
     buffer.writeln(
-        '📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%');
+        '📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%',);
 
     // حجوزات اليوم
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('📋 حجوزات اليوم');
     buffer.writeln('┌ جديدة: ${data.newBookingsToday}');
     buffer.writeln('├ تسجيل دخول: ${data.checkInsToday}');
@@ -354,29 +353,29 @@ class TelegramReportService {
     buffer.writeln('└ نشطة حالياً: ${data.activeBookings}');
 
     // ملخص مالي
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('💰 ملخص مالي');
     buffer.writeln(
-        '┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}');
+        '┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}',);
     buffer.writeln(
-        '├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}');
+        '├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}',);
     buffer.writeln(
-        '└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}');
+        '└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}',);
 
     // الديون
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('💳 الديون غير المسددة: ${data.unsettledDebts}');
 
     // التنبيهات
     if (data.alerts.isNotEmpty) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('⚠️ تنبيهات');
       for (final alert in data.alerts) {
         buffer.writeln('• $alert');
       }
     }
 
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('Marina Hotel App 🏨');
 
     return buffer.toString().trimRight();

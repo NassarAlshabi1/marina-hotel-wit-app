@@ -73,7 +73,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<CashTransaction?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return Future.value(null);
+    if (parsedServerId == null) return Future.value();
     return (select(
       cashTransactions,
     )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
@@ -310,7 +310,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع معاملات النقدية إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final transactionsList = await list(includeDeleted: false);
+    final transactionsList = await list();
     return transactionsList.map((transaction) => transaction.toJson()).toList();
   }
 

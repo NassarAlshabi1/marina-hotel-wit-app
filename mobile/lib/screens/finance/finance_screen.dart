@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
-import '../../models/payment_models.dart';
 import '../payments/booking_checkout_screen.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -58,7 +59,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildBody(dynamic paymentsRepo, double income, double expenses, double balance) {
     return StreamBuilder<List<db.Payment>>(
-      stream: (paymentsRepo.watchAll() as Stream<List<db.Payment>>),
+      stream: paymentsRepo.watchAll() as Stream<List<db.Payment>>,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -172,7 +173,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(cutoff ? Icons.nightlight : Icons.wb_sunny,
-                    size: 14, color: Colors.white),
+                    size: 14, color: Colors.white,),
                 const SizedBox(width: 4),
                 Text(
                   cutoff ? 'بعد 14:00' : 'قبل 14:00',
@@ -384,7 +385,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       return a.compareTo(b);
     });
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -485,7 +486,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             ],
           ),
         ),
-        ...payments.map((p) => _buildSinglePaymentDetail(p)),
+        ...payments.map(_buildSinglePaymentDetail),
         const Divider(indent: 40, endIndent: 40, height: 10),
       ],
     );
@@ -496,7 +497,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       padding: const EdgeInsets.only(left: 15, right: 40, top: 4, bottom: 4),
       child: Row(
         children: [
-          if (p.notes?.isNotEmpty == true)
+          if (p.notes?.isNotEmpty ?? false)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -532,7 +533,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   // ─── الحجوزات النشطة ───
   Widget _buildActiveBookings(List<db.Booking> bookings) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -570,7 +571,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               ),
             )
           else
-            ...bookings.map((b) => _buildBookingTile(b)),
+            ...bookings.map(_buildBookingTile),
         ],
       ),
     );
@@ -626,12 +627,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 Row(
                   children: [
                     Text(
-                      '${booking.guestPhone}',
+                      booking.guestPhone,
                       style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${booking.guestNationality}',
+                      booking.guestNationality,
                       style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                     ),
                   ],
@@ -715,7 +716,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         return ChoiceChip(
                           avatar: Icon(method.icon,
                               size: 16,
-                              color: isSelected ? Colors.white : method.color),
+                              color: isSelected ? Colors.white : method.color,),
                           label: Text(
                             method.displayName,
                             style: TextStyle(
@@ -792,7 +793,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2, color: Colors.white,),
                       )
                     : const Text('تسجيل الدفعة'),
               ),
@@ -831,24 +832,18 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       switch (method) {
         case PaymentMethod.cash:
           dbMethod = 'نقدي';
-          break;
         case PaymentMethod.card:
           dbMethod = 'بطاقة';
-          break;
         case PaymentMethod.transfer:
           dbMethod = 'تحويل';
-          break;
         case PaymentMethod.check:
           dbMethod = 'شيك';
-          break;
         case PaymentMethod.installment:
           dbMethod = 'تقسيط';
-          break;
       }
 
       await paymentsRepo.create(
-        bookingLocalId: null,
-        amount: parsedAmount.toDouble(),
+        amount: parsedAmount,
         paymentDate: Time.nowIso(),
         notes: notes.trim().isEmpty ? null : notes.trim(),
         paymentMethod: dbMethod,
@@ -857,7 +852,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
       // إرسال إشعار واتساب
       _sendPaymentWhatsAppNotification(
-        amount: parsedAmount.toDouble(),
+        amount: parsedAmount,
         method: dbMethod,
         notes: notes.trim(),
       );
@@ -867,7 +862,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount.toDouble())} بنجاح',
+              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح',
             ),
             backgroundColor: Colors.green,
           ),

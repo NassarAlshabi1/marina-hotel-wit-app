@@ -1,15 +1,11 @@
 import 'package:appwrite/models.dart' as models;
-import 'appwrite_service.dart';
+
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
+import 'appwrite_service.dart';
 
 /// نتيجة عملية Batch
 class BatchResult<T> {
-  final int total;
-  final int successful;
-  final int failed;
-  final List<T> successfulItems;
-  final Map<String, String> errors;
 
   BatchResult({
     required this.total,
@@ -18,6 +14,11 @@ class BatchResult<T> {
     required this.successfulItems,
     required this.errors,
   });
+  final int total;
+  final int successful;
+  final int failed;
+  final List<T> successfulItems;
+  final Map<String, String> errors;
 
   bool get isFullSuccess => failed == 0;
   bool get isPartialSuccess => successful > 0 && failed > 0;
@@ -33,10 +34,10 @@ class BatchResult<T> {
 ///
 /// توفر طرق لتنفيذ عمليات متعددة بشكل متوازي
 class BatchOperationsService {
-  static final BatchOperationsService _instance =
-      BatchOperationsService._internal();
   factory BatchOperationsService() => _instance;
   BatchOperationsService._internal();
+  static final BatchOperationsService _instance =
+      BatchOperationsService._internal();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -319,15 +320,15 @@ abstract class BatchOperation {
 
 /// عملية حذف Batch
 class BatchDeleteOperation extends BatchOperation {
-  final String databaseId;
-  final String collectionId;
-  final List<String> documentIds;
 
   BatchDeleteOperation({
     required this.databaseId,
     required this.collectionId,
     required this.documentIds,
   });
+  final String databaseId;
+  final String collectionId;
+  final List<String> documentIds;
 
   @override
   String get name => 'delete_${collectionId}_${documentIds.length}';
@@ -344,15 +345,15 @@ class BatchDeleteOperation extends BatchOperation {
 
 /// عملية إنشاء Batch
 class BatchCreateOperation extends BatchOperation {
-  final String databaseId;
-  final String collectionId;
-  final List<Map<String, dynamic>> documents;
 
   BatchCreateOperation({
     required this.databaseId,
     required this.collectionId,
     required this.documents,
   });
+  final String databaseId;
+  final String collectionId;
+  final List<Map<String, dynamic>> documents;
 
   @override
   String get name => 'create_${collectionId}_${documents.length}';

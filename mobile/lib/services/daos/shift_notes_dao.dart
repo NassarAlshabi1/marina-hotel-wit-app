@@ -62,7 +62,6 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           entity: 'shift_notes',
           op: 'create',
           localUuid: uuid,
-          serverId: null,
           payload: {
             'title': title,
             'content': content,

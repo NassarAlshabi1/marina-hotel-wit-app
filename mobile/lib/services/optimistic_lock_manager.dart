@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
-import 'local_db.dart';
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
+
+import 'local_db.dart';
 
 class OptimisticLockException implements Exception {
   OptimisticLockException(

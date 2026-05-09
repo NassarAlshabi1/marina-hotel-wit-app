@@ -1,9 +1,4 @@
 class AppliedAdjustment {
-  final String uuid;
-  final String type;
-  final int amount;
-  final String? reason;
-  final String? appliedBy;
 
   const AppliedAdjustment({
     required this.uuid,
@@ -22,6 +17,11 @@ class AppliedAdjustment {
       appliedBy: json['appliedBy'] as String?,
     );
   }
+  final String uuid;
+  final String type;
+  final int amount;
+  final String? reason;
+  final String? appliedBy;
 
   Map<String, dynamic> toJson() => {
     'uuid': uuid,
@@ -33,13 +33,6 @@ class AppliedAdjustment {
 }
 
 class NightlyBreakdown {
-  final String hotelDayKey;
-  final DateTime nightStart;
-  final DateTime nightEnd;
-  final int baseRate;
-  final int adjustmentAmount;
-  final int finalRate;
-  final List<AppliedAdjustment> appliedAdjustments;
 
   const NightlyBreakdown({
     required this.hotelDayKey,
@@ -61,11 +54,18 @@ class NightlyBreakdown {
       finalRate: (json['finalRate'] as num?)?.toInt() ?? 0,
       appliedAdjustments: (json['appliedAdjustments'] as List<dynamic>?)
               ?.map((e) => AppliedAdjustment.fromJson(
-                  Map<String, dynamic>.from(e as Map)))
+                  Map<String, dynamic>.from(e as Map),),)
               .toList() ??
           [],
     );
   }
+  final String hotelDayKey;
+  final DateTime nightStart;
+  final DateTime nightEnd;
+  final int baseRate;
+  final int adjustmentAmount;
+  final int finalRate;
+  final List<AppliedAdjustment> appliedAdjustments;
 
   Map<String, dynamic> toJson() => {
     'hotelDayKey': hotelDayKey,
@@ -80,13 +80,6 @@ class NightlyBreakdown {
 }
 
 class FinancialSummary {
-  final int subtotal;
-  final int totalAdjustments;
-  final int totalDue;
-  final int totalPaid;
-  final int remainingBalance;
-  final int totalNights;
-  final bool isFullyPaid;
 
   const FinancialSummary({
     required this.subtotal,
@@ -111,6 +104,13 @@ class FinancialSummary {
       isFullyPaid: (json['isFullyPaid'] as bool?) ?? false,
     );
   }
+  final int subtotal;
+  final int totalAdjustments;
+  final int totalDue;
+  final int totalPaid;
+  final int remainingBalance;
+  final int totalNights;
+  final bool isFullyPaid;
 
   Map<String, dynamic> toJson() => {
     'subtotal': subtotal,

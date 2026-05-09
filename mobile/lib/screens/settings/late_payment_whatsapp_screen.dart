@@ -20,7 +20,7 @@ class _LatePaymentWhatsAppScreenState
     extends ConsumerState<LatePaymentWhatsAppScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all';
-  Set<int> _selectedIds = {};
+  final Set<int> _selectedIds = {};
   bool _isSending = false;
   int _sentCount = 0;
   int _failedCount = 0;
@@ -171,7 +171,7 @@ class _LatePaymentWhatsAppScreenState
           duration: const Duration(seconds: 3),
         ),
       );
-      setState(() => _selectedIds.clear());
+      setState(_selectedIds.clear);
     }
   }
 
@@ -289,7 +289,7 @@ class _LatePaymentWhatsAppScreenState
       error: (_, __) => const SizedBox(),
       data: (debts) {
         final pendingDebts = debts.where((d) => d.isSettled == 0).toList();
-        final overdueDebts = pendingDebts.where((d) => _isOverdue(d)).toList();
+        final overdueDebts = pendingDebts.where(_isOverdue).toList();
         final totalRemaining = pendingDebts.fold(
           0.0,
           (sum, d) => sum + d.remainingAmount,
@@ -379,7 +379,7 @@ class _LatePaymentWhatsAppScreenState
             ),
           ),
           TextButton(
-            onPressed: () => setState(() => _selectedIds.clear()),
+            onPressed: () => setState(_selectedIds.clear),
             child: Text(
               'إلغاء التحديد',
               style: TextStyle(
@@ -420,7 +420,7 @@ class _LatePaymentWhatsAppScreenState
     if (_filterStatus == 'pending') {
       filteredDebts = filteredDebts.where((d) => !_isOverdue(d)).toList();
     } else if (_filterStatus == 'overdue') {
-      filteredDebts = filteredDebts.where((d) => _isOverdue(d)).toList();
+      filteredDebts = filteredDebts.where(_isOverdue).toList();
     }
 
     // ترتيب: المتأخرة أولاً ثم حسب المبلغ
@@ -712,7 +712,6 @@ class _LatePaymentWhatsAppScreenState
 
   Widget _buildAmountColumn(String label, String value, Color color) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           value,
@@ -749,7 +748,7 @@ class _LatePaymentWhatsAppScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم إرسال تنبيه تأخر دفع إلى:'),
+            const Text('سيتم إرسال تنبيه تأخر دفع إلى:'),
             const SizedBox(height: 12),
             _buildPreviewRow('العميل', debt.guestName),
             _buildPreviewRow(

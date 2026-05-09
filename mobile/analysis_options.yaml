@@ -38,7 +38,7 @@ linter:
     avoid_print: true
     always_declare_return_types: true
     avoid_empty_else: true
-    avoid_returning_null_for_future: true
+    # avoid_returning_null_for_future: removed in Dart 3.3.0
     avoid_returning_null_for_void: true
     avoid_void_async: true
     directives_ordering: true
@@ -50,7 +50,7 @@ linter:
     unrelated_type_equality_checks: true
     valid_regexps: true
     always_put_control_body_on_new_line: true
-    always_require_non_null_named_parameters: true
+    # always_require_non_null_named_parameters: removed in Dart 3.3.0
     annotate_overrides: true
     await_only_futures: true
     camel_case_extensions: true
@@ -59,8 +59,8 @@ linter:
     empty_catches: true
     empty_statements: true
     hash_and_equals: true
-    iterable_contains_unrelated_type: true
-    list_remove_unrelated_type: true
+    # iterable_contains_unrelated_type: removed in Dart 3.3.0
+    # list_remove_unrelated_type: removed in Dart 3.3.0
     no_duplicate_case_values: true
     no_logic_in_create_state: true
     non_constant_identifier_names: true
@@ -109,7 +109,7 @@ linter:
     leading_newlines_in_multiline_strings: true
     missing_whitespace_between_adjacent_strings: true
     no_adjacent_strings_in_list: true
-    no_runtimeType_to_string: true
+    # no_runtimeType_to_string: not a recognized lint rule
     noop_primitive_operations: true
     prefer_asserts_in_initializer_lists: true
     prefer_const_constructors: true

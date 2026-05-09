@@ -1,8 +1,9 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'appwrite_service.dart';
 import '../utils/app_logger.dart';
+import 'appwrite_service.dart';
 
 enum AuthType { local }
 
@@ -669,7 +670,7 @@ class AuthLocalStore {
   Future<List<String>> getAllUsernames() async {
     final names = <String>{..._fixedAccounts.keys};
     final custom = await _loadCustomAccounts();
-    names.addAll(custom.keys.map((e) => e.toString()));
+    names.addAll(custom.keys.map((e) => e));
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     if (raw != null) {

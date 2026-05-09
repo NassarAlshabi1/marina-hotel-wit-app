@@ -9,10 +9,6 @@ abstract class RetryStrategy {
 
 /// استراتيجية Exponential Backoff
 class ExponentialBackoffStrategy implements RetryStrategy {
-  final int maxAttempts;
-  final Duration initialDelay;
-  final Duration maxDelay;
-  final double backoffMultiplier;
 
   ExponentialBackoffStrategy({
     this.maxAttempts = 5,
@@ -20,6 +16,10 @@ class ExponentialBackoffStrategy implements RetryStrategy {
     this.maxDelay = const Duration(minutes: 5),
     this.backoffMultiplier = 2.0,
   });
+  final int maxAttempts;
+  final Duration initialDelay;
+  final Duration maxDelay;
+  final double backoffMultiplier;
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {
@@ -58,17 +58,17 @@ class ExponentialBackoffStrategy implements RetryStrategy {
 
 /// استراتيجية Circuit Breaker
 class CircuitBreakerStrategy implements RetryStrategy {
+
+  CircuitBreakerStrategy({
+    this.failureThreshold = 5,
+    this.resetTimeout = const Duration(minutes: 1),
+  });
   final int failureThreshold;
   final Duration resetTimeout;
   
   int _failureCount = 0;
   DateTime? _lastFailureTime;
   bool _isOpen = false;
-
-  CircuitBreakerStrategy({
-    this.failureThreshold = 5,
-    this.resetTimeout = const Duration(minutes: 1),
-  });
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {
@@ -114,14 +114,14 @@ class CircuitBreakerStrategy implements RetryStrategy {
 
 /// استراتيجية Combined (Exponential Backoff + Circuit Breaker)
 class CombinedRetryStrategy implements RetryStrategy {
-  final ExponentialBackoffStrategy _backoff;
-  final CircuitBreakerStrategy _circuitBreaker;
 
   CombinedRetryStrategy({
     ExponentialBackoffStrategy? backoff,
     CircuitBreakerStrategy? circuitBreaker,
   })  : _backoff = backoff ?? ExponentialBackoffStrategy(),
         _circuitBreaker = circuitBreaker ?? CircuitBreakerStrategy();
+  final ExponentialBackoffStrategy _backoff;
+  final CircuitBreakerStrategy _circuitBreaker;
 
   @override
   Future<T> execute<T>(Future<T> Function() operation) async {

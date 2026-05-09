@@ -8,18 +8,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
-import '../../providers/backup_provider.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/diagnostics/diagnostics_logger.dart';
+import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/local_db.dart';
 import '../../services/sqlite_backup_restore.dart';
 import '../../services/sync_guardian.dart';
 import '../../services/sync_orchestrator.dart';
 import '../../services/unified_sync_orchestrator.dart';
-import '../../services/google_drive_auto_sync_engine.dart';
 import '../../utils/env.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -27,17 +26,6 @@ import '../../utils/env.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _SystemInfo {
-  final String appVersion;
-  final String deviceModel;
-  final String osVersion;
-  final bool dbConnected;
-  final int dbSchemaVersion;
-  final int dbSizeBytes;
-  final int totalRecords;
-  final String? lastSyncTime;
-  final int outboxCount;
-  final Map<String, int> logStats;
-  final String apiEndpoint;
 
   const _SystemInfo({
     required this.appVersion,
@@ -52,6 +40,17 @@ class _SystemInfo {
     required this.logStats,
     required this.apiEndpoint,
   });
+  final String appVersion;
+  final String deviceModel;
+  final String osVersion;
+  final bool dbConnected;
+  final int dbSchemaVersion;
+  final int dbSizeBytes;
+  final int totalRecords;
+  final String? lastSyncTime;
+  final int outboxCount;
+  final Map<String, int> logStats;
+  final String apiEndpoint;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -577,11 +576,11 @@ class _SettingsMaintenanceScreenState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.verified, color: Colors.green),
-            const SizedBox(width: 8),
-            const Text('نتائج الفحص'),
+            Icon(Icons.verified, color: Colors.green),
+            SizedBox(width: 8),
+            Text('نتائج الفحص'),
           ],
         ),
         content: SizedBox(
@@ -708,8 +707,6 @@ class _SettingsMaintenanceScreenState
                 await ref.read(appwriteSyncManagerProvider).resetSyncState();
                 await OutboxDao(DatabaseManager.instance).resetErrors();
                 await UnifiedSyncOrchestrator.instance.syncNow(
-                  push: true,
-                  pull: true,
                   reason: 'maintenance_reset',
                 );
                 _hideLoading();

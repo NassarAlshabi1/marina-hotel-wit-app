@@ -11,9 +11,9 @@ import 'appwrite_sync_manager.dart';
 /// خدمة Firebase Cloud Messaging
 /// تُستخدم لإرسال إشعارات push بين الأجهزة عند حدوث تغييرات في Appwrite
 class FcmService {
-  static final FcmService _instance = FcmService._internal();
   factory FcmService() => _instance;
   FcmService._internal();
+  static final FcmService _instance = FcmService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   String? _currentToken;
@@ -74,17 +74,12 @@ class FcmService {
   Future<void> _requestPermission() async {
     if (Platform.isIOS) {
       await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
+        
       );
     } else if (Platform.isAndroid) {
       // Android 13+ يحتاج إذن صريح
       await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
+        
       );
     }
 
@@ -102,7 +97,7 @@ class FcmService {
       } else {
         // Android: استخدم APNs sandbox key للتطوير والتحميل المباشر للإنتاج
         token = await _messaging.getToken(
-          vapidKey: null,
+          
         );
       }
       return token;
@@ -180,7 +175,7 @@ class FcmService {
     try {
       final syncManager = _getSyncManager();
       if (syncManager != null) {
-        await syncManager.sync(push: false, pull: true);
+        await syncManager.sync(push: false);
         debugPrint('✅ FCM: pull completed');
       }
     } catch (e) {

@@ -1,11 +1,12 @@
 import 'package:drift/drift.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'bookings_dao.g.dart';
 
@@ -223,7 +224,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع الحجوزات إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final bookingsList = await list(includeDeleted: false);
+    final bookingsList = await list();
     return bookingsList.map((booking) => booking.toJson()).toList();
   }
 

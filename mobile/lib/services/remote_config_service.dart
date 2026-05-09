@@ -7,7 +7,6 @@ import 'dart:developer' as developer;
 
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/env.dart';
 
@@ -20,10 +19,10 @@ import '../utils/env.dart';
 /// final phone = RemoteConfigService.instance.whatsappPhone;
 /// ```
 class RemoteConfigService {
-  static final RemoteConfigService _instance = RemoteConfigService._internal();
   factory RemoteConfigService() => _instance;
-  static RemoteConfigService get instance => _instance;
   RemoteConfigService._internal();
+  static final RemoteConfigService _instance = RemoteConfigService._internal();
+  static RemoteConfigService get instance => _instance;
 
   FirebaseRemoteConfig? _remoteConfig;
   bool _isInitialized = false;
@@ -59,7 +58,7 @@ class RemoteConfigService {
       await _remoteConfig!.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 10),
         minimumFetchInterval: const Duration(hours: 12),
-      ));
+      ),);
 
       // تعيين القيم الافتراضية
       await _remoteConfig!.setDefaults(_defaults);

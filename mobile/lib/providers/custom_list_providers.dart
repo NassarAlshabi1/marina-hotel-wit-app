@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/local_db.dart';
 import 'repository_providers.dart';
 
 /// أنواع المصروفات المتاحة — القائمة الأساسية

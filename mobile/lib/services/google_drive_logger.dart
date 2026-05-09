@@ -1,13 +1,15 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'logging/log_models.dart';
 
 class GoogleDriveLogger extends ChangeNotifier {
-  static final GoogleDriveLogger _instance = GoogleDriveLogger._internal();
   factory GoogleDriveLogger() => _instance;
   GoogleDriveLogger._internal();
+  static final GoogleDriveLogger _instance = GoogleDriveLogger._internal();
 
   final List<LogEntry> _logs = [];
   static const int _maxLogEntries = 100;
@@ -118,7 +120,7 @@ class GoogleDriveLogger extends ChangeNotifier {
   }
 
   void info(String message, {String tag = 'DRIVE'}) {
-    log(message, level: LogLevel.info, tag: tag);
+    log(message, tag: tag);
   }
 
   void warning(String message, {String tag = 'DRIVE', dynamic error}) {

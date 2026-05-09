@@ -1,20 +1,22 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+
+import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
-import 'booking_derived_fields_service.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  أوامر AI
 // ═══════════════════════════════════════════════════════════════
 
 sealed class AiCommand {
-  final String description;
   const AiCommand({required this.description});
+  final String description;
 }
 
 /// أمر استعلام فقط — لا يحتاج تأكيد
@@ -24,25 +26,21 @@ class AiQueryCommand extends AiCommand {
 
 /// تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة)
 class AiUpdateRoomPriceCommand extends AiCommand {
-  final String roomNumber;
-  final double newPrice;
-  final String? reason;
   const AiUpdateRoomPriceCommand({
     required this.roomNumber,
     required this.newPrice,
     this.reason,
     required super.description,
   });
+  final String roomNumber;
+  final double newPrice;
+  final String? reason;
 }
 
 /// تخفيض/زيادة سعر بنسبة لجميع غرف نوع معين
 /// مثال: زيادة 10% على غرف doubles
 /// مثال: تخفيض 5000 ريال من جميع الغرف
 class AiBulkPriceAdjustCommand extends AiCommand {
-  final String? roomType;
-  final String mode; // 'percent_increase', 'percent_decrease', 'fixed_increase', 'fixed_decrease'
-  final double value;
-  final String? reason;
   const AiBulkPriceAdjustCommand({
     this.roomType,
     required this.mode,
@@ -50,14 +48,14 @@ class AiBulkPriceAdjustCommand extends AiCommand {
     this.reason,
     required super.description,
   });
+  final String? roomType;
+  final String mode; // 'percent_increase', 'percent_decrease', 'fixed_increase', 'fixed_decrease'
+  final double value;
+  final String? reason;
 }
 
 /// تخفيض على حجز معين (خصم ليلي أو إجمالي)
 class AiBookingDiscountCommand extends AiCommand {
-  final String roomNumber;
-  final double discountAmount;
-  final String discountType; // 'per_night' أو 'total'
-  final String? reason;
   const AiBookingDiscountCommand({
     required this.roomNumber,
     required this.discountAmount,
@@ -65,85 +63,82 @@ class AiBookingDiscountCommand extends AiCommand {
     this.reason,
     required super.description,
   });
+  final String roomNumber;
+  final double discountAmount;
+  final String discountType; // 'per_night' أو 'total'
+  final String? reason;
 }
 
 /// تغيير حالة غرفة
 class AiUpdateRoomStatusCommand extends AiCommand {
-  final String roomNumber;
-  final String newStatus;
   const AiUpdateRoomStatusCommand({
     required this.roomNumber,
     required this.newStatus,
     required super.description,
   });
+  final String roomNumber;
+  final String newStatus;
 }
 
 /// إضافة مصروف
 class AiAddExpenseCommand extends AiCommand {
-  final String expenseType;
-  final String desc;
-  final double amount;
   const AiAddExpenseCommand({
     required this.expenseType,
     required this.desc,
     required this.amount,
     required super.description,
   });
+  final String expenseType;
+  final String desc;
+  final double amount;
 }
 
 /// تسجيل دفعة لحجز
 class AiAddPaymentCommand extends AiCommand {
-  final String roomNumber;
-  final double amount;
-  final String? notes;
   const AiAddPaymentCommand({
     required this.roomNumber,
     required this.amount,
     this.notes,
     required super.description,
   });
+  final String roomNumber;
+  final double amount;
+  final String? notes;
 }
 
 /// إنهاء حجز (تسجيل خروج)
 class AiCheckoutCommand extends AiCommand {
-  final String roomNumber;
   const AiCheckoutCommand({
     required this.roomNumber,
     required super.description,
   });
+  final String roomNumber;
 }
 
 /// إصلاح دفعات غرفة — إعادة حساب الليالي والمستحقات والمدفوعات المخزّنة
 class AiFixPaymentsCommand extends AiCommand {
-  final String roomNumber;
   const AiFixPaymentsCommand({
     required this.roomNumber,
     required super.description,
   });
+  final String roomNumber;
 }
 
 /// تسوية دين
 class AiSettleDebtCommand extends AiCommand {
-  final int? debtId;
-  final String guestName;
-  final double amount;
   const AiSettleDebtCommand({
     this.debtId,
     required this.guestName,
     required this.amount,
     required super.description,
   });
+  final int? debtId;
+  final String guestName;
+  final double amount;
 }
 
 /// إضافة حجز جديد
 class AiAddBookingCommand extends AiCommand {
-  final String roomNumber;
-  final String guestName;
-  final String guestPhone;
-  final String guestNationality;
-  final String checkinDate;
-  final int expectedNights;
-  final double? price;
   const AiAddBookingCommand({
     required this.roomNumber,
     required this.guestName,
@@ -154,14 +149,17 @@ class AiAddBookingCommand extends AiCommand {
     this.price,
     required super.description,
   });
+  final String roomNumber;
+  final String guestName;
+  final String guestPhone;
+  final String guestNationality;
+  final String checkinDate;
+  final int expectedNights;
+  final double? price;
 }
 
 /// تحديث بيانات ضيف
 class AiUpdateBookingGuestCommand extends AiCommand {
-  final String roomNumber;
-  final String? guestName;
-  final String? guestPhone;
-  final int? extendNights;
   const AiUpdateBookingGuestCommand({
     required this.roomNumber,
     this.guestName,
@@ -169,19 +167,23 @@ class AiUpdateBookingGuestCommand extends AiCommand {
     this.extendNights,
     required super.description,
   });
+  final String roomNumber;
+  final String? guestName;
+  final String? guestPhone;
+  final int? extendNights;
 }
 
 /// طلب تقرير (يُنفذ فوراً بدون تأكيد)
 class AiReportCommand extends AiCommand {
-  final String reportType; // daily, revenue, occupancy, debts, expenses, room_prices
-  final String? dateFrom;
-  final String? dateTo;
   const AiReportCommand({
     required this.reportType,
     this.dateFrom,
     this.dateTo,
     required super.description,
   });
+  final String reportType; // daily, revenue, occupancy, debts, expenses, room_prices
+  final String? dateFrom;
+  final String? dateTo;
 }
 
 /// لا يوجد إجراء مطلوب
@@ -194,14 +196,6 @@ class AiNoActionCommand extends AiCommand {
 // ═══════════════════════════════════════════════════════════════
 
 class AiAuditLog {
-  final String id;
-  final String userMessage;
-  final String aiResponse;
-  final String? commandType;
-  final String? commandDescription;
-  final String executionResult;
-  final DateTime timestamp;
-  final bool wasConfirmed;
 
   const AiAuditLog({
     required this.id,
@@ -213,6 +207,14 @@ class AiAuditLog {
     required this.timestamp,
     required this.wasConfirmed,
   });
+  final String id;
+  final String userMessage;
+  final String aiResponse;
+  final String? commandType;
+  final String? commandDescription;
+  final String executionResult;
+  final DateTime timestamp;
+  final bool wasConfirmed;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -231,9 +233,9 @@ class AiAuditLog {
 // ═══════════════════════════════════════════════════════════════
 
 class GeminiService {
+  GeminiService._();
   static final GeminiService _instance = GeminiService._();
   static GeminiService get instance => _instance;
-  GeminiService._();
 
   static const _uuid = Uuid();
   static final _random = Random();
@@ -397,7 +399,7 @@ class GeminiService {
       final availableRooms = allRooms.where((r) => r.status == 'available').toList()
         ..sort((a, b) => a.price.compareTo(b.price));
       if (availableRooms.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('الغرف الشاغرة (${availableRooms.length}):');
         for (final r in availableRooms) {
           s.writeln('  ${r.roomNumber}: ${r.type} | ${r.price.toStringAsFixed(0)} ريال');
@@ -414,7 +416,7 @@ class GeminiService {
           .get();
 
       if (activeBookings.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ الحجوزات النشطة (${activeBookings.length}) ═══');
         for (final b in activeBookings) {
           final totalPaid = b.totalPaidCached;
@@ -450,7 +452,7 @@ class GeminiService {
         for (final b in activeBookings) {
           nationalities[b.guestNationality] = (nationalities[b.guestNationality] ?? 0) + 1;
         }
-        s.writeln('');
+        s.writeln();
         s.writeln('توزيع الجنسيات: ${nationalities.entries.map((e) => "${e.key}(${e.value})").join(", ")}');
 
         // إحصائيات الدفع
@@ -469,7 +471,7 @@ class GeminiService {
       final checkoutTomorrow = activeBookings.where((b) => b.checkoutDate?.split('T').first == tomorrow).toList();
 
       if (checkoutToday.isNotEmpty || checkoutTomorrow.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ تنبيهات المغادرة ═══');
         if (checkoutToday.isNotEmpty) {
           s.writeln('مغادرة اليوم (${checkoutToday.length}):');
@@ -497,7 +499,7 @@ class GeminiService {
           .get();
       if (debts.isNotEmpty) {
         final totalDebt = debts.fold<double>(0, (s, d) => s + d.remainingAmount);
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ الديون غير المسددة (${debts.length}) | إجمالي: ${totalDebt.toStringAsFixed(0)} ريال ═══');
         for (final d in debts.take(15)) {
           final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
@@ -520,7 +522,7 @@ class GeminiService {
       final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
       final totalExpenses = todayExpenses.fold<double>(0, (s, e) => s + e.amount);
 
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ ملخص اليوم ($today) ═══');
       s.writeln('الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} عملية)');
       s.writeln('المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} عملية)');
@@ -577,7 +579,7 @@ class GeminiService {
       final totalPaidAll = activeBookings.fold<double>(0, (s, b) => s + b.totalPaidCached);
       final collectionRate = totalDueAll > 0 ? (totalPaidAll / totalDueAll * 100) : 0.0;
 
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ المؤشرات المالية ═══');
       s.writeln('نسبة الإشغال: ${occupancyRate.toStringAsFixed(0)}%');
       s.writeln('إجمالي المتبقي المستحق: ${totalRemaining.toStringAsFixed(0)} ريال');
@@ -589,7 +591,7 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  7. الإيرادات التاريخية — آخر 7 أيام (اتجاه الإيرادات)
       // ═══════════════════════════════════════════════════════════
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ اتجاه الإيرادات (آخر 7 أيام) ═══');
       for (var i = 6; i >= 0; i--) {
         final pastDate = now.subtract(Duration(days: i)).toIso8601String().split('T')[0];
@@ -616,7 +618,7 @@ class GeminiService {
             ..orderBy([(l) => OrderingTerm.desc(l.hotelDayKey)]))
           .get();
       if (ledgerEntries.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ دفتر اليوم الفندقي (آخر ${ledgerEntries.length.clamp(0, 5)} أيام) ═══');
         for (final l in ledgerEntries.take(5)) {
           s.writeln('  ${l.hotelDayKey}: دخل ${l.totalIncome.toStringAsFixed(0)} | مصروفات ${l.totalExpenses.toStringAsFixed(0)} | إشغال ${l.occupancyRate.toStringAsFixed(0)}% | حجوزات ${l.bookingsProcessed} | مدفوعات ${l.paymentsProcessed}');
@@ -630,7 +632,7 @@ class GeminiService {
             ..where((n) => n.isRead.equals(0)))
           .get();
       if (activeNotes.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ ملاحظات وردية غير مقروءة (${activeNotes.length}) ═══');
         for (final n in activeNotes.take(10)) {
           final priorityLabel = n.priority == 'high' ? '🔴' : n.priority == 'medium' ? '🟡' : '🟢';
@@ -646,7 +648,7 @@ class GeminiService {
             ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
           .get();
       if (recentAdjustments.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ تعديلات أسعار حديثة (آخر ${recentAdjustments.length.clamp(0, 5)}) ═══');
         for (final a in recentAdjustments.take(5)) {
           s.writeln('  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}');
@@ -659,7 +661,7 @@ class GeminiService {
       if (activeBookings.isNotEmpty) {
         final avgNights = activeBookings.fold<int>(0, (s, b) => s + b.calculatedNights) / activeBookings.length;
         final avgDue = activeBookings.fold<double>(0, (s, b) => s + b.totalDueCached) / activeBookings.length;
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ إحصائيات عامة ═══');
         s.writeln('متوسط مدة الإقامة: ${avgNights.toStringAsFixed(1)} ليلة');
         s.writeln('متوسط الفاتورة: ${avgDue.toStringAsFixed(0)} ريال');
@@ -669,7 +671,7 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  12. التحقق من صحة الحسابات — 4 فحوصات شاملة
       // ═══════════════════════════════════════════════════════════
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ التحقق من صحة الحسابات ═══');
 
       // --- فحص 1: هل المتبقي = التكلفة - المدفوع ---
@@ -735,7 +737,7 @@ class GeminiService {
 
       // --- ملخص التحقق ---
       final totalIssues = balanceErrors.length + negativeBalance.length + overpayments.length + noPayments.length;
-      s.writeln('');
+      s.writeln();
       if (totalIssues == 0) {
         s.writeln('✓ ملخص التحقق: جميع الحسابات صحيحة — لا توجد مشاكل');
       } else {
@@ -749,7 +751,7 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  13. مفهوم اليوم الفندقي — كيفية الاحتساب
       // ═══════════════════════════════════════════════════════════
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ اليوم الفندقي (Hotel Day) ═══');
       s.writeln('قاعدة الحسم: الساعة 14:00 (ظهراً)');
       s.writeln('اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي');
@@ -774,7 +776,7 @@ class GeminiService {
         }
       }
       if (hotelDayMap.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('توزيع الحجوزات حسب يوم الدخول الفندقي:');
         for (final entry in hotelDayMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key))) {
           s.writeln('  $entry.key: ${entry.value} حجز');
@@ -789,7 +791,7 @@ class GeminiService {
           .get();
 
       if (employees.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('═══ الموظفين والرواتب (${employees.length}) ═══');
 
         final activeEmp = employees.where((e) => e.status == 'active').length;
@@ -806,7 +808,7 @@ class GeminiService {
               ..where((c) => c.status.equals('draft')))
             .get();
         if (salaryCycles.isNotEmpty) {
-          s.writeln('');
+          s.writeln();
           s.writeln('دورات رواتب غير مكتملة (${salaryCycles.length}):');
           for (final c in salaryCycles) {
             final emp = employees.where((e) => e.id == c.employeeId).firstOrNull;
@@ -820,7 +822,7 @@ class GeminiService {
               ..orderBy([(w) => OrderingTerm.desc(w.id)]))
             .get();
         if (recentWithdrawals.isNotEmpty) {
-          s.writeln('');
+          s.writeln();
           s.writeln('آخر المسحوبات (${recentWithdrawals.length.clamp(0, 5)}):');
           for (final w in recentWithdrawals.take(5)) {
             final emp = employees.where((e) => e.id == w.employeeId).firstOrNull;
@@ -832,14 +834,14 @@ class GeminiService {
         // إجمالي الرواتب المستحقة
         final totalSalaries = employees.where((e) => e.status == 'active')
             .fold<double>(0, (s, e) => s + e.basicSalary);
-        s.writeln('');
+        s.writeln();
         s.writeln('إجمالي الرواتب الشهرية: ${totalSalaries.toStringAsFixed(0)} ريال');
       }
 
       // ═══════════════════════════════════════════════════════════
       //  15. التسويات المالية والاستحقاقات
       // ═══════════════════════════════════════════════════════════
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ التسويات المالية والاستحقاقات ═══');
 
       // حركات الصندوق اليوم
@@ -881,7 +883,7 @@ class GeminiService {
           final reason = d.debtReason.isNotEmpty ? d.debtReason : 'أخرى';
           debtByReason[reason] = (debtByReason[reason] ?? 0) + d.remainingAmount;
         }
-        s.writeln('');
+        s.writeln();
         s.writeln('توزيع الديون حسب السبب:');
         for (final entry in debtByReason.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
           s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
@@ -895,13 +897,13 @@ class GeminiService {
       final uncollectedRemaining = activeBookings
           .where((b) => b.remainingBalanceCached >= 0.5)
           .length;
-      s.writeln('');
+      s.writeln();
       s.writeln('استحقاقات الحجوزات: مكتملة $collectedRemaining | غير مكتملة $uncollectedRemaining');
 
       // ═══════════════════════════════════════════════════════════
       //  16. ترحيل البيانات (Data Rollover & Sync)
       // ═══════════════════════════════════════════════════════════
-      s.writeln('');
+      s.writeln();
       s.writeln('═══ ترحيل البيانات والمزامنة ═══');
 
       // حالة دفتر اليوم الفندقي
@@ -922,7 +924,7 @@ class GeminiService {
             ..orderBy([(a) => OrderingTerm.desc(a.startedAtEpoch)]))
           .get();
       if (recentAutoFix.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('آخر عمليات الإصلاح التلقائي:');
         for (final run in recentAutoFix.take(3)) {
           final statusLabel = run.status == 'completed' ? '✓' : run.status == 'running' ? '⟳' : '✗';
@@ -937,7 +939,7 @@ class GeminiService {
       final failedOutbox = await (db.select(db.outbox)
             ..where((o) => o.processingStatus.equals('failed')))
           .get();
-      s.writeln('');
+      s.writeln();
       s.writeln('حالة ترحيل البيانات للسيرفر:');
       s.writeln('  بانتظار الرفع: ${pendingOutbox.length}');
       s.writeln('  فشل الرفع: ${failedOutbox.length}');
@@ -947,7 +949,7 @@ class GeminiService {
             ..orderBy([(n) => OrderingTerm.desc(n.hotelDayKey)]))
           .get();
       if (recentNights.isNotEmpty) {
-        s.writeln('');
+        s.writeln();
         s.writeln('آخر الليالي المُرحّلة (أول 3):');
         for (final n in recentNights.take(3)) {
           s.writeln('  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال');
@@ -975,10 +977,8 @@ class GeminiService {
   /// ChatSession يدير سجل المحادثة تلقائياً (لا حاجة لإدارة يدوية)
   Future<GeminiResponse> chat(String userMessage) async {
     if (!isAvailable) {
-      return GeminiResponse(
+      return const GeminiResponse(
         text: 'المساعد الذكي غير متاح. تأكد من تفعيل AI Logic في Firebase Console.',
-        command: null,
-        requiresConfirmation: false,
       );
     }
 
@@ -1004,9 +1004,7 @@ class GeminiService {
       // تم تحسين _sendWithRetry للتعامل مع Gemini 2.5 Flash
       final response = await _sendWithRetry(
         () {
-          if (_chat == null) {
-            _chat = _model!.startChat();
-          }
+          _chat ??= _model!.startChat();
           return _chat!.sendMessage(Content.text(fullMessage));
         },
       );
@@ -1019,8 +1017,8 @@ class GeminiService {
       } on FirebaseAIException catch (e) {
         debugPrint('⚠️ response.text رمى استثناء: $e');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
-        if (e.message?.contains('SAFETY') == true ||
-            e.message?.contains('blocked') == true) {
+        if ((e.message.contains('SAFETY') ?? false) ||
+            (e.message.contains('blocked') ?? false)) {
           debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
           try {
             final retryResponse = await _sendWithRetry(
@@ -1045,8 +1043,6 @@ class GeminiService {
         final reportResult = await executeCommand(command!);
         return GeminiResponse(
           text: reportResult,
-          command: null,
-          requiresConfirmation: false,
         );
       }
 
@@ -1068,8 +1064,6 @@ class GeminiService {
       }
       return GeminiResponse(
         text: _friendlyErrorMessage(e),
-        command: null,
-        requiresConfirmation: false,
       );
     }
   }
@@ -1093,16 +1087,14 @@ class GeminiService {
     } else if (e is FirebaseAIException) {
       final firebaseMsg = e.message;
       // e.message قد يكون null — فحص أمان
-      if (firebaseMsg != null) {
-        if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
-          return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
-        } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
-          return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
-        } else if (firebaseMsg.contains('No content') || firebaseMsg.contains('empty')) {
-          return 'لم يتم توليد رد. حاول إعادة صياغة السؤال.';
-        }
+      if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
+        return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
+      } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
+        return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
+      } else if (firebaseMsg.contains('No content') || firebaseMsg.contains('empty')) {
+        return 'لم يتم توليد رد. حاول إعادة صياغة السؤال.';
       }
-      return 'خطأ من خدمة AI: ${firebaseMsg ?? "غير معروف"}';
+          return 'خطأ من خدمة AI: ${firebaseMsg ?? "غير معروف"}';
     }
     return 'حدث خطأ أثناء معالجة طلبك: $e';
   }
@@ -1196,7 +1188,7 @@ class GeminiService {
 
           final details = <String>[];
           details.add(
-              'سعر الغرفة $roomNumber: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)} ريال');
+              'سعر الغرفة $roomNumber: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)} ريال',);
           if (priceResult.bookingsAffected > 0) {
             details.add('حجوزات متأثرة: ${priceResult.bookingsAffected}');
             details.add('ليالي مُعاد حسابها: ${priceResult.nightsUpdated}');
@@ -1256,7 +1248,7 @@ class GeminiService {
             if (priceResult.success) {
               updated++;
               details.add(
-                  '${room.roomNumber}: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)}');
+                  '${room.roomNumber}: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)}',);
             }
           }
 
@@ -1379,8 +1371,8 @@ class GeminiService {
               roomNumber: Value(roomNumber),
               amount: Value(amount),
               paymentDate: Value(now.toIso8601String().split('T')[0]),
-              paymentMethod: Value('cash'),
-              revenueType: Value('room_rent'),
+              paymentMethod: const Value('cash'),
+              revenueType: const Value('room_rent'),
               notes: Value(notes),
               localUuid: Value(uuid),
               createdAt: Value(now.millisecondsSinceEpoch),
@@ -1411,7 +1403,7 @@ class GeminiService {
           await (db.update(db.bookings)
             ..where((b) => b.id.equals(activeBooking.id))).write(
             BookingsCompanion(
-              status: Value('checked_out'),
+              status: const Value('checked_out'),
               actualCheckout: Value(today),
               updatedAt: Value(now.millisecondsSinceEpoch),
               lastModified: Value(now.millisecondsSinceEpoch),
@@ -1422,7 +1414,7 @@ class GeminiService {
           await (db.update(db.rooms)
             ..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
-              status: Value('available'),
+              status: const Value('available'),
               updatedAt: Value(now.millisecondsSinceEpoch),
               lastModified: Value(now.millisecondsSinceEpoch),
               updatedAtIso: Value(now.toIso8601String()),
@@ -1510,7 +1502,7 @@ class GeminiService {
           } else {
             final debts = await (db.select(db.debts)
                   ..where((d) =>
-                      d.isSettled.equals(0) & d.guestName.contains(guestName)))
+                      d.isSettled.equals(0) & d.guestName.contains(guestName),))
                 .get();
             targetDebt = debts.firstOrNull;
           }
@@ -1576,10 +1568,10 @@ class GeminiService {
               guestPhone: Value(guestPhone),
               guestNationality: Value(guestNationality),
               checkinDate: Value(checkinDate),
-              status: Value('checked_in'),
+              status: const Value('checked_in'),
               expectedNights: Value(expectedNights),
               calculatedNights: Value(expectedNights),
-              discount: Value(0),
+              discount: const Value(0),
               localUuid: Value(uuid),
               createdAt: Value(now.millisecondsSinceEpoch),
               updatedAt: Value(now.millisecondsSinceEpoch),
@@ -1593,7 +1585,7 @@ class GeminiService {
           await (db.update(db.rooms)
             ..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
-              status: Value('occupied'),
+              status: const Value('occupied'),
               price: Value(roomPrice),
               updatedAt: Value(now.millisecondsSinceEpoch),
               lastModified: Value(now.millisecondsSinceEpoch),
@@ -1670,7 +1662,7 @@ class GeminiService {
         // ═══════════════════════════════════════════════════
         case AiReportCommand(:final reportType):
           result = await _generateReport(
-              db, reportType, command.dateFrom, command.dateTo);
+              db, reportType, command.dateFrom, command.dateTo,);
 
         case AiNoActionCommand():
           result = command.description;
@@ -1701,7 +1693,7 @@ class GeminiService {
       executionResult: executionResult,
       timestamp: auditNow,
       wasConfirmed: wasConfirmed,
-    ));
+    ),);
   }
 
   // ───────────────────────────────────────────────────────────
@@ -1961,7 +1953,7 @@ class GeminiService {
     return text
         .replaceAll(RegExp(r'\{[^{}]*\}', dotAll: true), '')
         .replaceAll(RegExp(r'```json?\n?'), '')
-        .replaceAll(RegExp(r'```'), '')
+        .replaceAll(RegExp('```'), '')
         .trim();
   }
 
@@ -2027,14 +2019,14 @@ class GeminiService {
         total > 0 ? (occupied * 100 / total).toStringAsFixed(1) : '0';
 
     lines.add(
-        '💰 الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} دفعة)');
+        '💰 الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} دفعة)',);
     lines.add(
-        '📉 المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} مصروف)');
+        '📉 المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} مصروف)',);
     lines.add(
-        '📊 صافي الربح: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+        '📊 صافي الربح: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال',);
     lines.add('');
     lines.add(
-        '🏠 إجمالي الغرف: $total | شاغرة: $available | مشغولة: $occupied');
+        '🏠 إجمالي الغرف: $total | شاغرة: $available | مشغولة: $occupied',);
     lines.add('📈 نسبة الإشغال: $occRate%');
 
     // حجوزات جديدة اليوم
@@ -2055,7 +2047,7 @@ class GeminiService {
   }
 
   Future<String> _generateRevenueReport(
-      AppDatabase db, String? from, String? to) async {
+      AppDatabase db, String? from, String? to,) async {
     final now = DateTime.now();
     final dateFrom =
         from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
@@ -2087,7 +2079,7 @@ class GeminiService {
     }
 
     lines.add(
-        'إجمالي الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${payments.length} دفعة)');
+        'إجمالي الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${payments.length} دفعة)',);
     lines.add('');
     lines.add('حسب طريقة الدفع:');
     for (final entry in byMethod.entries) {
@@ -2123,13 +2115,13 @@ class GeminiService {
 
     lines.add('إجمالي الغرف: $total');
     lines.add(
-        'مشغولة: $occupied (${(occupied * 100 / total).toStringAsFixed(1)}%)');
+        'مشغولة: $occupied (${(occupied * 100 / total).toStringAsFixed(1)}%)',);
     lines.add(
-        'شاغرة: $available (${(available * 100 / total).toStringAsFixed(1)}%)');
+        'شاغرة: $available (${(available * 100 / total).toStringAsFixed(1)}%)',);
     lines.add(
-        'تنظيف: $cleaning (${(cleaning * 100 / total).toStringAsFixed(1)}%)');
+        'تنظيف: $cleaning (${(cleaning * 100 / total).toStringAsFixed(1)}%)',);
     lines.add(
-        'صيانة: $maintenance (${(maintenance * 100 / total).toStringAsFixed(1)}%)');
+        'صيانة: $maintenance (${(maintenance * 100 / total).toStringAsFixed(1)}%)',);
     lines.add('');
     lines.add('نسبة الإشغال: $occRate%');
 
@@ -2174,9 +2166,9 @@ class GeminiService {
 
     lines.add('عدد الديون: ${debts.length}');
     lines.add(
-        'إجمالي المبالغ المتبقية: ${totalDebt.toStringAsFixed(0)} ريال');
+        'إجمالي المبالغ المتبقية: ${totalDebt.toStringAsFixed(0)} ريال',);
     lines.add(
-        'إجمالي المدفوع: ${totalPaid.toStringAsFixed(0)} ريال');
+        'إجمالي المدفوع: ${totalPaid.toStringAsFixed(0)} ريال',);
     lines.add('');
     lines.add('تفاصيل (الأعلى أولاً):');
     for (final d in debts.take(15)) {
@@ -2192,7 +2184,7 @@ class GeminiService {
   }
 
   Future<String> _generateExpensesReport(
-      AppDatabase db, String? from, String? to) async {
+      AppDatabase db, String? from, String? to,) async {
     final now = DateTime.now();
     final dateFrom =
         from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
@@ -2221,7 +2213,7 @@ class GeminiService {
     }
 
     lines.add(
-        'إجمالي المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${expenses.length} مصروف)');
+        'إجمالي المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${expenses.length} مصروف)',);
     lines.add('');
     lines.add('حسب النوع:');
     final sorted = byType.entries.toList()
@@ -2274,14 +2266,14 @@ class GeminiService {
       final typeTotal = rooms.fold<double>(0, (s, r) => s + r.price);
       final typeAvg = rooms.isNotEmpty ? typeTotal / rooms.length : 0;
       lines.add(
-          '${entry.key} (${rooms.length} غرف — متوسط ${typeAvg.toStringAsFixed(0)}):');
+          '${entry.key} (${rooms.length} غرف — متوسط ${typeAvg.toStringAsFixed(0)}):',);
       for (final r
           in rooms..sort((a, b) => a.roomNumber.compareTo(b.roomNumber))) {
         final statusEmoji = r.status == 'available'
             ? '✅'
             : (r.status == 'occupied' ? '🔴' : '⚪');
         lines.add(
-            '  $statusEmoji ${r.roomNumber}: ${r.price.toStringAsFixed(0)} ريال (${r.status})');
+            '  $statusEmoji ${r.roomNumber}: ${r.price.toStringAsFixed(0)} ريال (${r.status})',);
       }
       lines.add('');
     }
@@ -2310,25 +2302,18 @@ class GeminiService {
 // ═══════════════════════════════════════════════════════════════
 
 class GeminiResponse {
-  final String text;
-  final AiCommand? command;
-  final bool requiresConfirmation;
 
   const GeminiResponse({
     required this.text,
     this.command,
     this.requiresConfirmation = false,
   });
+  final String text;
+  final AiCommand? command;
+  final bool requiresConfirmation;
 }
 
 class ChatMessage {
-  final String id;
-  final String text;
-  final bool isUser;
-  final AiCommand? pendingCommand;
-  final DateTime timestamp;
-  final bool isExecuted;
-  final String? executionResult;
 
   ChatMessage({
     required this.id,
@@ -2339,6 +2324,13 @@ class ChatMessage {
     this.isExecuted = false,
     this.executionResult,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String id;
+  final String text;
+  final bool isUser;
+  final AiCommand? pendingCommand;
+  final DateTime timestamp;
+  final bool isExecuted;
+  final String? executionResult;
 
   ChatMessage copyWith({
     String? text,

@@ -56,8 +56,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           '- تحديث بيانات الضيوف\n'
           '- ملخص الإيرادات والمصروفات\n\n'
           'اكتب طلبك وسأساعدك!',
-      isUser: false,
-    ));
+    ),);
   }
 
   void _scrollToBottom() {
@@ -84,7 +83,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         id: 'user_${DateTime.now().millisecondsSinceEpoch}',
         text: text,
         isUser: true,
-      ));
+      ),);
       _isLoading = true;
       _loadingText = 'يفكر...';
       _cooldownSeconds = null;
@@ -99,10 +98,9 @@ class _AiChatScreenState extends State<AiChatScreen>
           _messages.add(ChatMessage(
             id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
             text: response.text,
-            isUser: false,
             pendingCommand:
                 response.requiresConfirmation ? response.command : null,
-          ));
+          ),);
           _isLoading = false;
           _cooldownSeconds = null;
         });
@@ -122,8 +120,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           _messages.add(ChatMessage(
             id: 'error_${DateTime.now().millisecondsSinceEpoch}',
             text: '$errorMsg\nتأكد من اتصالك بالإنترنت وتفعيل AI Logic.',
-            isUser: false,
-          ));
+          ),);
           _isLoading = false;
         });
         _scrollToBottom();
@@ -139,7 +136,6 @@ class _AiChatScreenState extends State<AiChatScreen>
       if (idx >= 0) {
         _messages[idx] = message.copyWith(
           text: '${message.text}\n⏳ جاري التنفيذ...',
-          pendingCommand: null,
         );
       }
     });
@@ -163,7 +159,6 @@ class _AiChatScreenState extends State<AiChatScreen>
           _messages[idx] = ChatMessage(
             id: message.id,
             text: message.text,
-            isUser: false,
             timestamp: message.timestamp,
             isExecuted: true,
             executionResult: result,
@@ -189,7 +184,6 @@ class _AiChatScreenState extends State<AiChatScreen>
         if (idx >= 0) {
           _messages[idx] = message.copyWith(
             text: '${message.text}\n❌ تم الإلغاء',
-            pendingCommand: null,
           );
         }
       });
@@ -236,7 +230,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
+                                        horizontal: 6, vertical: 2,),
                                     decoration: BoxDecoration(
                                       color: entry.wasConfirmed
                                           ? Colors.green.withOpacity(0.15)
@@ -258,7 +252,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                   if (entry.commandType != null)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
+                                          horizontal: 6, vertical: 2,),
                                       decoration: BoxDecoration(
                                         color:
                                             Colors.blue.withOpacity(0.1),
@@ -278,7 +272,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                   Text(
                                     DateFormat('HH:mm').format(entry.timestamp),
                                     style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey),
+                                        fontSize: 10, color: Colors.grey,),
                                   ),
                                 ],
                               ),
@@ -322,7 +316,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   );
                 },
                 child: const Text('مسح السجل',
-                    style: TextStyle(color: Colors.red)),
+                    style: TextStyle(color: Colors.red),),
               ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -447,12 +441,12 @@ class _AiChatScreenState extends State<AiChatScreen>
                             onPressed: _retryInitGemini,
                             icon: const Icon(Icons.refresh, size: 14),
                             label: const Text('إعادة المحاولة',
-                                style: TextStyle(fontSize: 11)),
+                                style: TextStyle(fontSize: 11),),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange.shade700,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 0),
+                                  horizontal: 12,),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -500,7 +494,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.smart_toy_outlined,
-              size: 64, color: Colors.grey.shade300),
+              size: 64, color: Colors.grey.shade300,),
           const SizedBox(height: 16),
           Text(
             'ابدأ محادثة مع المساعد الذكي',
@@ -552,7 +546,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.smart_toy,
-                        size: 14, color: Colors.amber.shade700),
+                        size: 14, color: Colors.amber.shade700,),
                     const SizedBox(width: 4),
                     Text(
                       'Marina AI',
@@ -566,7 +560,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     Text(
                       DateFormat('HH:mm').format(message.timestamp),
                       style: TextStyle(
-                          fontSize: 10, color: Colors.grey.shade400),
+                          fontSize: 10, color: Colors.grey.shade400,),
                     ),
                   ],
                 ),
@@ -639,12 +633,12 @@ class _AiChatScreenState extends State<AiChatScreen>
                     onPressed: () => _confirmCommand(message),
                     icon: const Icon(Icons.check, size: 16),
                     label: const Text('تأكيد التنفيذ',
-                        style: TextStyle(fontSize: 12)),
+                        style: TextStyle(fontSize: 12),),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                          horizontal: 14, vertical: 8,),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -659,7 +653,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                          horizontal: 14, vertical: 8,),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -762,7 +756,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               child: IconButton(
                 onPressed: _clearChat,
                 icon: Icon(Icons.delete_outline,
-                    size: 18, color: Colors.grey.shade500),
+                    size: 18, color: Colors.grey.shade500,),
                 tooltip: 'مسح المحادثة',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),

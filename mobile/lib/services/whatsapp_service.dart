@@ -232,9 +232,8 @@ class WhatsAppService {
 
     final availableSpace = maxMessageLength - footer.length - 10;
     if (availableSpace < 100) {
-      return message.characters
-          .take(maxMessageLength - 3)
-          .toString() + '...';
+      return '${message.characters
+          .take(maxMessageLength - 3)}...';
     }
 
     final truncated = message.characters.take(availableSpace).toString();

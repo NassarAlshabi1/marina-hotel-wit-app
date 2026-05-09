@@ -1,18 +1,19 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
-import '../../models/payment_models.dart';
-import 'payment_history_screen.dart';
 import 'booking_checkout_screen.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/crashlytics_service.dart';
+import 'payment_history_screen.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -133,7 +134,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   Widget _buildQuickStats(List<db.Payment> payments) {
     final today = DateTime.now();
     final hotelDay = Time.hotelDayKey();
-    final startOfMonth = DateTime(today.year, today.month, 1);
+    final startOfMonth = DateTime(today.year, today.month);
 
     // حساب المبالغ
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
@@ -562,7 +563,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                               size: 16,
                               color: isSelected
                                   ? Colors.white
-                                  : method.color),
+                                  : method.color,),
                           label: Text(
                             method.displayName,
                             style: TextStyle(
@@ -646,7 +647,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2, color: Colors.white,),
                       )
                     : const Text('تسجيل الدفعة'),
               ),
@@ -689,24 +690,18 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       switch (method) {
         case PaymentMethod.cash:
           dbMethod = 'نقدي';
-          break;
         case PaymentMethod.card:
           dbMethod = 'بطاقة';
-          break;
         case PaymentMethod.transfer:
           dbMethod = 'تحويل';
-          break;
         case PaymentMethod.check:
           dbMethod = 'شيك';
-          break;
         case PaymentMethod.installment:
           dbMethod = 'تقسيط';
-          break;
       }
 
       await paymentsRepo.create(
-        bookingLocalId: null,
-        amount: parsedAmount.toDouble(),
+        amount: parsedAmount,
         paymentDate: Time.nowIso(),
         notes: notes.trim().isEmpty ? null : notes.trim(),
         paymentMethod: dbMethod,
@@ -718,7 +713,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount.toDouble())} بنجاح',
+              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح',
             ),
             backgroundColor: Colors.green,
           ),
@@ -730,7 +725,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         action: 'saveStandalonePayment',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'amount': amountText, 'method': method.name},
       );
       if (mounted) {

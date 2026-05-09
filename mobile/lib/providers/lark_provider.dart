@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/lark/lark_config.dart';
 import '../services/lark/lark_api_client.dart';
+import '../services/lark/lark_config.dart';
 import '../services/lark/lark_notification_service.dart';
 import '../services/lark/lark_report_service.dart';
 
@@ -18,18 +18,6 @@ enum LarkSetupStatus {
 
 /// حالة Lark الكاملة
 class LarkState {
-  final LarkSetupStatus status;
-  final String? message;
-  final bool isEnabled;
-  final bool isConfigured;
-  final bool isNotificationsEnabled;
-  final bool isDailyReportEnabled;
-  final String webhookUrl;
-  final String appId;
-  final String dailyReportTime;
-  final String dailyReportChatId;
-  final String? lastReportSent;
-  final bool hasValidToken;
 
   const LarkState({
     this.status = LarkSetupStatus.idle,
@@ -45,6 +33,18 @@ class LarkState {
     this.lastReportSent,
     this.hasValidToken = false,
   });
+  final LarkSetupStatus status;
+  final String? message;
+  final bool isEnabled;
+  final bool isConfigured;
+  final bool isNotificationsEnabled;
+  final bool isDailyReportEnabled;
+  final String webhookUrl;
+  final String appId;
+  final String dailyReportTime;
+  final String dailyReportChatId;
+  final String? lastReportSent;
+  final bool hasValidToken;
 
   LarkState copyWith({
     LarkSetupStatus? status,
@@ -236,7 +236,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     } catch (e) {
       state = state.copyWith(
         status: LarkSetupStatus.error,
-        message: '❌ خطأ في الاتصال: ${e.toString()}',
+        message: '❌ خطأ في الاتصال: $e',
       );
     }
 
@@ -267,7 +267,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     } catch (e) {
       state = state.copyWith(
         status: LarkSetupStatus.error,
-        message: '❌ خطأ في إرسال التقرير: ${e.toString()}',
+        message: '❌ خطأ في إرسال التقرير: $e',
       );
     }
 
@@ -290,7 +290,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
       if (!_mounted) return;
       if (state.status == LarkSetupStatus.success ||
           state.status == LarkSetupStatus.error) {
-        state = state.copyWith(status: LarkSetupStatus.idle, message: null);
+        state = state.copyWith(status: LarkSetupStatus.idle);
       }
     });
   }
@@ -305,7 +305,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
   Future<void> resetLastReport() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('lark_last_report_sent');
-    state = state.copyWith(lastReportSent: null);
+    state = state.copyWith();
     debugPrint('🔄 Lark: تم مسح حالة آخر تقرير');
   }
 }

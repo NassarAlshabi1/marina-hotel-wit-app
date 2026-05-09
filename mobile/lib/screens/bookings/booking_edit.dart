@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
-import '../../services/local_db.dart';
-import '../../utils/status_utils.dart';
-import '../../utils/time.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/screen_sync_controller.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../services/central_sync_coordinator.dart';
+import '../../services/local_db.dart';
+import '../../services/screen_sync_controller.dart';
+import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -36,7 +37,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
   final _idNumberFormatter = FilteringTextInputFormatter.allow(
-    RegExp(r'[0-9]'),
+    RegExp('[0-9]'),
   );
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
@@ -173,7 +174,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
     final fullContact = await FlutterContacts.getContact(
       contact.id,
-      withProperties: true,
     );
     if (!mounted) return;
 
@@ -189,7 +189,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   String _normalizePhoneForWhatsApp(String value) {
-    var phone = value.replaceAll(RegExp(r'[^0-9+]'), '');
+    var phone = value.replaceAll(RegExp('[^0-9+]'), '');
     if (phone.startsWith('+')) {
       phone = phone.substring(1);
     }
@@ -210,7 +210,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final repo = ref.watch(bookingsRepoProvider);
     final roomsAsync = ref.watch(roomsListProvider);
     return PopScope(
-      canPop: true,
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.existing == null ? 'إضافة حجز' : 'تعديل حجز'),
@@ -257,7 +256,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _idType,
+                          initialValue: _idType,
                           items: _idTypes
                               .map(
                                 (t) =>
@@ -386,7 +385,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _status,
+                          initialValue: _status,
                           items: _statusOptions
                               .map(
                                 (s) =>
@@ -479,7 +478,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
-                            value: _paymentMethod,
+                            initialValue: _paymentMethod,
                             items: _paymentMethods
                                 .map(
                                   (method) => DropdownMenuItem(
@@ -590,11 +589,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              const Row(
                                 children: [
-                                  const Icon(Icons.gavel, color: Colors.white, size: 22),
-                                  const SizedBox(width: 8),
-                                  const Expanded(
+                                  Icon(Icons.gavel, color: Colors.white, size: 22),
+                                  SizedBox(width: 8),
+                                  Expanded(
                                     child: Text(
                                       'تحذير أمني — اسم في القائمة السوداء',
                                       style: TextStyle(
@@ -608,7 +607,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '${e.name}',
+                                e.name,
                                 style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                               ),
                               if (e.nationality != null && e.nationality!.isNotEmpty)
@@ -645,11 +644,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             guestIdIssueDate: idIssueDate,
                             guestIdIssuePlace: idIssuePlace,
                             guestNationality: nationality,
-                            guestEmail: email,
                             guestAddress: address,
                             checkinDate: checkin,
                             checkoutDate: checkout,
-                            actualCheckout: null,
                             status: _status,
                             notes: notes,
                             expectedNights: expectedNights,
@@ -667,7 +664,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             guestIdIssueDate: idIssueDate,
                             guestIdIssuePlace: idIssuePlace,
                             guestNationality: nationality,
-                            guestEmail: email,
                             guestAddress: address,
                             checkinDate: checkin,
                             checkoutDate: checkout,
@@ -683,7 +679,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         markSaved();
 
                         // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
-                        if (_hasAdvancePayment && newBookingId != null) {
+                        if (_hasAdvancePayment) {
                           final advanceAmount = double.tryParse(_advancePayment.text.trim());
                           if (advanceAmount != null && advanceAmount > 0) {
                             try {
@@ -818,7 +814,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (date == null) return;
     if (onlyDate) {
       controller.text = _formatDateTime(
-        DateTime(date.year, date.month, date.day, 0, 0, 0),
+        DateTime(date.year, date.month, date.day),
       ).substring(0, 10);
       return;
     }
@@ -938,7 +934,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         }
 
         return DropdownButtonFormField<String>(
-          value: currentValue.isNotEmpty ? currentValue : null,
+          initialValue: currentValue.isNotEmpty ? currentValue : null,
           items: items,
           style: roomTextStyle,
           onChanged: (value) {
@@ -978,7 +974,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     if (value.isEmpty) return null;
     final normalized = value.contains('T') ? value : value.replaceAll(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);
@@ -998,7 +994,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   String _normalizePhone(String value) {
-    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    final digitsOnly = value.replaceAll(RegExp('[^0-9]'), '');
     if (digitsOnly.isEmpty) {
       return value.trim();
     }

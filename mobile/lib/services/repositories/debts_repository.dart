@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
-import '../daos/debts_dao.dart';
-import '../daos/outbox_dao.dart';
+
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
+import '../daos/debts_dao.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class DebtsRepository {
   DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
@@ -165,7 +166,6 @@ class DebtsRepository {
         action: 'update',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -189,7 +189,6 @@ class DebtsRepository {
         action: 'delete',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -209,6 +208,6 @@ class DebtsRepository {
       return;
     }
     final list = List<Map<String, dynamic>>.from(payload['data'] as List);
-    await dao.importFromJson(list, clearExisting: false);
+    await dao.importFromJson(list);
   }
 }

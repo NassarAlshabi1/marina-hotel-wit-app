@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/core.dart';
+
 import '../../../components/app_scaffold.dart';
+import '../../../core/core.dart';
 import '../../../providers/backup_provider.dart';
 
 /// Unified Backup Settings Screen
@@ -72,15 +73,15 @@ class _UnifiedBackupSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.backup,
                   color: UIConstants.backupColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'حالة النسخ الاحتياطي',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -91,7 +92,7 @@ class _UnifiedBackupSettingsScreenState
               label: 'آخر نسخة (Drive)',
               value: state.lastBackupTime != null
                   ? DateTimeFormatter.getRelativeTime(
-                      state.lastBackupTime!.toIso8601String())
+                      state.lastBackupTime!.toIso8601String(),)
                   : 'لم يتم بعد',
               icon: Icons.cloud,
             ),
@@ -99,7 +100,7 @@ class _UnifiedBackupSettingsScreenState
               label: 'آخر نسخة (محلي)',
               value: state.lastLocalBackupTime != null
                   ? DateTimeFormatter.getRelativeTime(
-                      state.lastLocalBackupTime!.toIso8601String())
+                      state.lastLocalBackupTime!.toIso8601String(),)
                   : 'لم يتم بعد',
               icon: Icons.phone_android,
             ),
@@ -128,10 +129,8 @@ class _UnifiedBackupSettingsScreenState
     switch (autoSettings.frequency) {
       case 'weekly':
         frequencyLabel = 'أسبوعياً';
-        break;
       case 'monthly':
         frequencyLabel = 'شهرياً';
-        break;
       default:
         frequencyLabel = 'يومياً';
     }
@@ -143,8 +142,8 @@ class _UnifiedBackupSettingsScreenState
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -152,8 +151,8 @@ class _UnifiedBackupSettingsScreenState
                   color: UIConstants.backupColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'النسخ الاحتياطي التلقائي',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -207,7 +206,7 @@ class _UnifiedBackupSettingsScreenState
                 ? null
                 : (value) => _updateAutoSettings(
                       autoSettings.copyWith(
-                          enableGoogleDriveBackup: value),
+                          enableGoogleDriveBackup: value,),
                     ),
             secondary: const Icon(Icons.cloud_upload),
           ),
@@ -300,7 +299,7 @@ class _UnifiedBackupSettingsScreenState
               leading: const Icon(Icons.logout, color: Colors.red),
               onTap: state.isWorking
                   ? null
-                  : () => _confirmSignOut(),
+                  : _confirmSignOut,
             ),
           ] else
             ListTile(
@@ -433,7 +432,7 @@ class _UnifiedBackupSettingsScreenState
           ListTile(
             title: const Text('نسخ احتياطي الآن (محلي)'),
             subtitle: const Text('إنشاء نسخة محلية فورية'),
-            leading: Icon(Icons.backup, color: UIConstants.backupColor),
+            leading: const Icon(Icons.backup, color: UIConstants.backupColor),
             trailing: state.isWorking
                 ? const SizedBox(
                     width: 20,
@@ -443,7 +442,7 @@ class _UnifiedBackupSettingsScreenState
                 : const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: state.isWorking
                 ? null
-                : () => _createBackupNow(),
+                : _createBackupNow,
           ),
           const Divider(height: 1),
           ListTile(
@@ -459,7 +458,7 @@ class _UnifiedBackupSettingsScreenState
                 : const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: state.isWorking
                 ? null
-                : () => _importBackup(),
+                : _importBackup,
           ),
           const Divider(height: 1),
           ListTile(
@@ -470,7 +469,7 @@ class _UnifiedBackupSettingsScreenState
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: state.isWorking
                 ? null
-                : () => _cleanOldBackups(),
+                : _cleanOldBackups,
           ),
         ],
       ),
@@ -553,14 +552,14 @@ class _UnifiedBackupSettingsScreenState
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('تسجيل الخروج',
-                style: TextStyle(color: Colors.white)),
+                style: TextStyle(color: Colors.white),),
           ),
         ],
       ),
     );
   }
 
-  void _createBackupNow() async {
+  Future<void> _createBackupNow() async {
     await ref.read(backupStatusProvider.notifier).createLocalBackup();
     if (mounted) {
       final state = ref.read(backupStatusProvider);
@@ -578,7 +577,7 @@ class _UnifiedBackupSettingsScreenState
     }
   }
 
-  void _importBackup() async {
+  Future<void> _importBackup() async {
     await ref.read(backupStatusProvider.notifier).importBackupFromFile();
     if (mounted) {
       final state = ref.read(backupStatusProvider);
@@ -596,7 +595,7 @@ class _UnifiedBackupSettingsScreenState
     }
   }
 
-  void _cleanOldBackups() async {
+  Future<void> _cleanOldBackups() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -617,7 +616,7 @@ class _UnifiedBackupSettingsScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await ref.read(backupStatusProvider.notifier).cleanOldLocalBackups();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

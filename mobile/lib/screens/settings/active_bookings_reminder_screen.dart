@@ -23,7 +23,7 @@ class _ActiveBookingsReminderScreenState
     extends ConsumerState<ActiveBookingsReminderScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, partial, unpaid
-  Set<int> _selectedIds = {};
+  final Set<int> _selectedIds = {};
   bool _isSending = false;
   int _sentCount = 0;
   int _failedCount = 0;
@@ -188,7 +188,7 @@ class _ActiveBookingsReminderScreenState
           duration: const Duration(seconds: 3),
         ),
       );
-      setState(() => _selectedIds.clear());
+      setState(_selectedIds.clear);
     }
   }
 
@@ -278,7 +278,7 @@ class _ActiveBookingsReminderScreenState
             child: bookingsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('خطأ: $e')),
-              data: (bookings) => _buildBookingsList(bookings),
+              data: _buildBookingsList,
             ),
           ),
         ],
@@ -511,7 +511,7 @@ class _ActiveBookingsReminderScreenState
             ),
           ),
           TextButton(
-            onPressed: () => setState(() => _selectedIds.clear()),
+            onPressed: () => setState(_selectedIds.clear),
             child: Text(
               'إلغاء التحديد',
               style: TextStyle(
@@ -582,7 +582,7 @@ class _ActiveBookingsReminderScreenState
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.check_circle_outline,
-                size: 64, color: Colors.grey.shade400),
+                size: 64, color: Colors.grey.shade400,),
             const SizedBox(height: 16),
             Text(
               'لا توجد حجوزات بمبلغ متبقي',
@@ -652,12 +652,12 @@ class _ActiveBookingsReminderScreenState
         : 0.0;
     final isUnpaid = booking.totalPaidCached <= 0;
 
-    Color cardColor = isOverdue
+    final Color cardColor = isOverdue
         ? Colors.red.shade50
         : isUnpaid
             ? Colors.orange.shade50
             : Colors.blue.shade50;
-    Color borderColor = isOverdue
+    final Color borderColor = isOverdue
         ? Colors.red.shade300
         : isUnpaid
             ? Colors.orange.shade300
@@ -804,21 +804,21 @@ class _ActiveBookingsReminderScreenState
                 child: Row(
                   children: [
                     Icon(Icons.calendar_today,
-                        size: 12, color: Colors.grey.shade500),
+                        size: 12, color: Colors.grey.shade500,),
                     const SizedBox(width: 4),
                     Text(
                       'الوصول: ${booking.checkinDate.split(' ').first}',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11, color: Colors.grey.shade600,),
                     ),
                     const SizedBox(width: 12),
                     Icon(Icons.event,
-                        size: 12, color: Colors.grey.shade500),
+                        size: 12, color: Colors.grey.shade500,),
                     const SizedBox(width: 4),
                     Text(
                       'المغادرة: ${booking.checkoutDate?.split(' ').first ?? '---'}',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11, color: Colors.grey.shade600,),
                     ),
                   ],
                 ),
@@ -881,7 +881,7 @@ class _ActiveBookingsReminderScreenState
                           child: _buildAmountColumn(
                             'الإجمالي',
                             CurrencyFormatter.formatAmount(
-                                booking.totalDueCached),
+                                booking.totalDueCached,),
                             Colors.blue.shade700,
                           ),
                         ),
@@ -889,7 +889,7 @@ class _ActiveBookingsReminderScreenState
                           child: _buildAmountColumn(
                             'المدفوع',
                             CurrencyFormatter.formatAmount(
-                                booking.totalPaidCached),
+                                booking.totalPaidCached,),
                             Colors.green.shade700,
                           ),
                         ),
@@ -897,7 +897,7 @@ class _ActiveBookingsReminderScreenState
                           child: _buildAmountColumn(
                             'المتبقي',
                             CurrencyFormatter.formatAmount(
-                                booking.remainingBalanceCached),
+                                booking.remainingBalanceCached,),
                             Colors.red.shade700,
                           ),
                         ),
@@ -922,7 +922,7 @@ class _ActiveBookingsReminderScreenState
                         ? 'إرسال تذكير واتساب'
                         : 'لا يوجد رقم هاتف',
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.bold),
+                        fontSize: 13, fontWeight: FontWeight.bold,),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.green.shade700,
@@ -965,7 +965,6 @@ class _ActiveBookingsReminderScreenState
 
   Widget _buildAmountColumn(String label, String value, Color color) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           value,
@@ -1011,7 +1010,7 @@ class _ActiveBookingsReminderScreenState
                   'رقم الهاتف',
                   booking.guestPhone.isNotEmpty
                       ? booking.guestPhone
-                      : 'غير متوفر'),
+                      : 'غير متوفر',),
               _buildPreviewRow(
                 'المبلغ المتبقي',
                 '${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)} ريال',
@@ -1073,7 +1072,7 @@ class _ActiveBookingsReminderScreenState
             CircularProgressIndicator(),
             SizedBox(width: 20),
             Text('جاري الإرسال...',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+                style: TextStyle(fontWeight: FontWeight.bold),),
           ],
         ),
       ),

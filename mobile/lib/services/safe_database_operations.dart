@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'local_db.dart';
+
 import 'database_health_checker.dart';
+import 'local_db.dart';
 
 class SafeDatabaseOperations {
   static final _healthChecker = DatabaseHealthChecker.instance;
@@ -225,7 +227,7 @@ class SafeDatabaseOperations {
   }
 
   static Future<bool> isConnectionHealthy() async {
-    return await _healthChecker.ensureHealthy();
+    return _healthChecker.ensureHealthy();
   }
 
   static Stream<DatabaseHealth> watchHealth() {

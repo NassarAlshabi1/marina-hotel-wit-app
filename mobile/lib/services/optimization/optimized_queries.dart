@@ -40,7 +40,7 @@ class OptimizedQueries {
       Variable<String>(today),
       Variable<String>(today),
       Variable<String>(today),
-    ]).getSingle();
+    ],).getSingle();
     
     final data = result.data;
     final totalRooms = data['total_rooms'] as int;
@@ -97,7 +97,7 @@ class OptimizedQueries {
       Variable<String>(to),
       Variable<String>(from),
       Variable<String>(to),
-    ]).get();
+    ],).get();
     
     return rows.map((row) => row.data).toList();
   }
@@ -128,7 +128,7 @@ class OptimizedQueries {
       GROUP BY r.room_number, r.id
       ORDER BY total_revenue DESC
       LIMIT ?
-    ''', variables: [...params, Variable<int>(limit)]).get();
+    ''', variables: [...params, Variable<int>(limit)],).get();
     
     return rows.map((row) => row.data).toList();
   }
@@ -158,7 +158,7 @@ class OptimizedQueries {
   Future<List<local_db.Debt>> getOverdueDebts() async {
     final query = db.select(db.debts)
       ..where((d) => d.isSettled.equals(0) &
-                    d.remainingAmount.isBiggerThanValue(0))
+                    d.remainingAmount.isBiggerThanValue(0),)
       ..orderBy([(d) => OrderingTerm.desc(d.id)])
       ..limit(100);
     return query.get();
@@ -176,7 +176,7 @@ class OptimizedQueries {
       LEFT JOIN salary_cycles sc ON sc.employee_id = e.id
       WHERE e.id = ?
       GROUP BY e.id
-    ''', variables: [Variable<int>(employeeId)]).getSingle();
+    ''', variables: [Variable<int>(employeeId)],).getSingle();
     
     final r = result.data;
     return {
@@ -207,7 +207,7 @@ class OptimizedQueries {
     ''', variables: [
       Variable<String>(roomNumber),
       Variable<String>(roomNumber),
-    ]).getSingleOrNull();
+    ],).getSingleOrNull();
     
     return result?.data;
   }
@@ -236,7 +236,7 @@ class OptimizedQueries {
     final today = _todayKey();
     final query = db.select(db.payments)
       ..where((p) => p.paymentDate.equals(today) &
-                    p.isVoided.equals(false));
+                    p.isVoided.equals(false),);
     final result = await query.get();
     
     return result.fold<double>(0, (sum, p) => sum + p.amount);
@@ -258,7 +258,7 @@ class OptimizedQueries {
     ''', variables: [
       Variable<String>(from),
       Variable<String>(to),
-    ]).get();
+    ],).get();
     
     return {
       for (final r in results)
@@ -286,7 +286,7 @@ class OptimizedQueries {
     ''', variables: [
       Variable<String>(from),
       Variable<String>(to),
-    ]).get();
+    ],).get();
     
     return {
       for (final r in results)

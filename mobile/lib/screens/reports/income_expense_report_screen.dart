@@ -15,12 +15,12 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../components/widgets/neu_card.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/daos/payments_dao.dart';
-import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/bookings_dao.dart';
 import '../../services/daos/debts_dao.dart';
 import '../../services/daos/employees_dao.dart';
+import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
+import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -452,7 +452,6 @@ class _IncomeExpenseReportScreenState
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
-          alignment: pw.Alignment.center,
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
             style: pw.TextStyle(font: fonts.regular, fontSize: 10),
@@ -601,8 +600,8 @@ class _IncomeExpenseReportScreenState
                   return [
                     '$i',
                     _dateFormat.format(e.date),
-                    e.roomNumber.isNotEmpty ? e.roomNumber : '-',
-                    e.guestName.isNotEmpty ? e.guestName : '-',
+                    if (e.roomNumber.isNotEmpty) e.roomNumber else '-',
+                    if (e.guestName.isNotEmpty) e.guestName else '-',
                     _paymentMethodName(e.paymentMethod),
                     _revenueTypeName(e.revenueType),
                     EnhancedPdfUtils.formatNumber(e.amount),
@@ -629,34 +628,26 @@ class _IncomeExpenseReportScreenState
                   'نقداً',
                   EnhancedPdfUtils.formatNumber(cashIncome),
                   '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
-                  _incomeTotal > 0
-                      ? '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%',
+                  if (_incomeTotal > 0) '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                 ],
                 [
                   'بطاقة ائتمانية',
                   EnhancedPdfUtils.formatNumber(cardIncome),
                   '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
-                  _incomeTotal > 0
-                      ? '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%',
+                  if (_incomeTotal > 0) '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                 ],
                 [
                   'تحويل بنكي',
                   EnhancedPdfUtils.formatNumber(transferIncome),
                   '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
-                  _incomeTotal > 0
-                      ? '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%',
+                  if (_incomeTotal > 0) '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                 ],
                 if (otherMethodIncome > 0)
                   [
                     'أخرى',
                     EnhancedPdfUtils.formatNumber(otherMethodIncome),
                     '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
-                    _incomeTotal > 0
-                        ? '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                        : '0%',
+                    if (_incomeTotal > 0) '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                   ],
                 [
                   'الإجمالي',
@@ -686,8 +677,8 @@ class _IncomeExpenseReportScreenState
                   return [
                     '$i',
                     _dateFormat.format(e.date),
-                    e.isSalary ? 'رواتب' : e.type,
-                    e.description.isNotEmpty ? e.description : '-',
+                    if (e.isSalary) 'رواتب' else e.type,
+                    if (e.description.isNotEmpty) e.description else '-',
                     EnhancedPdfUtils.formatNumber(e.amount),
                   ];
                 }).toList(),
@@ -712,12 +703,8 @@ class _IncomeExpenseReportScreenState
                   return [
                     entry.key,
                     EnhancedPdfUtils.formatNumber(entry.value),
-                    _incomeTotal > 0
-                        ? '${(entry.value / _incomeTotal * 100).toStringAsFixed(1)}%'
-                        : '0%',
-                    _expenseTotal > 0
-                        ? '${(entry.value / _expenseTotal * 100).toStringAsFixed(1)}%'
-                        : '0%',
+                    if (_incomeTotal > 0) '${(entry.value / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
+                    if (_expenseTotal > 0) '${(entry.value / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',
                   ];
                 }).toList(),
               ),
@@ -740,15 +727,13 @@ class _IncomeExpenseReportScreenState
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
                 ['إجمالي الالتزامات الرواتب الشهرية',
-                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation)],
+                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
                 ['الرواتب المدفوعة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                  EnhancedPdfUtils.formatNumber(_salaryTotal),],
                 ['نسبة الرواتب من الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%'],
+                  '${salaryExpenseRatio.toStringAsFixed(1)}%',],
                 ['نسبة الرواتب من المصروفات',
-                  _expenseTotal > 0
-                      ? '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%'
-                      : '0%'],
+                  if (_expenseTotal > 0) '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',],
               ],
             ),
           );
@@ -770,18 +755,14 @@ class _IncomeExpenseReportScreenState
                 ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
                 ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
                 ['مبلغ الديون غير المسددة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount)],
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),],
                 ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
                 ['مبلغ الديون غير المسددة الكلي',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),],
                 ['نسبة الديون غير المسددة الكلية من الإيرادات',
-                  _incomeTotal > 0
-                      ? '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%'],
+                  if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
                 ['قدرة تغطية الديون (صافي / ديون)',
-                  debtCoverage > 0
-                      ? '${debtCoverage.toStringAsFixed(2)}x'
-                      : 'غير كافٍ'],
+                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
               ],
             ),
           );
@@ -804,11 +785,9 @@ class _IncomeExpenseReportScreenState
                 ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
                 ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
                 ['متوسط الإيراد لكل حجز',
-                  _bookingsCount > 0
-                      ? EnhancedPdfUtils.formatNumber(
+                  if (_bookingsCount > 0) EnhancedPdfUtils.formatNumber(
                           _incomeTotal / _bookingsCount,
-                        )
-                      : '0'],
+                        ) else '0',],
               ],
             ),
           );
@@ -829,9 +808,7 @@ class _IncomeExpenseReportScreenState
                 [
                   'هامش الربح الصافي',
                   '${profitMargin.toStringAsFixed(1)}%',
-                  profitMargin > 20
-                      ? 'ممتاز'
-                      : profitMargin > 10
+                  if (profitMargin > 20) 'ممتاز' else profitMargin > 10
                           ? 'جيد'
                           : profitMargin > 0
                               ? 'مقبول'
@@ -840,29 +817,21 @@ class _IncomeExpenseReportScreenState
                 [
                   'نسبة المصروفات إلى الإيرادات',
                   '${expenseRatio.toStringAsFixed(1)}%',
-                  expenseRatio < 60
-                      ? 'ممتاز'
-                      : expenseRatio < 80
+                  if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80
                           ? 'جيد'
                           : 'مرتفع',
                 ],
                 [
                   'نسبة الرواتب إلى الإيرادات',
                   '${salaryExpenseRatio.toStringAsFixed(1)}%',
-                  salaryExpenseRatio < 30
-                      ? 'ممتاز'
-                      : salaryExpenseRatio < 50
+                  if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50
                           ? 'جيد'
                           : 'مرتفع',
                 ],
                 [
                   'معدل تغطية الديون',
-                  debtCoverage > 0
-                      ? '${debtCoverage.toStringAsFixed(2)}x'
-                      : 'غير كافٍ',
-                  debtCoverage > 2
-                      ? 'ممتاز'
-                      : debtCoverage > 1
+                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
+                  if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
                           ? 'جيد'
                           : 'ضعيف',
                 ],
@@ -882,7 +851,7 @@ class _IncomeExpenseReportScreenState
               padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(
                 color: PdfColors.backgroundCard,
-                border: pw.Border.all(color: PdfColors.primary, width: 1),
+                border: pw.Border.all(color: PdfColors.primary),
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
               ),
               child: pw.Column(
@@ -1063,9 +1032,9 @@ class _IncomeExpenseReportScreenState
                 horizontal: 12,
                 vertical: 8,
               ),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.primary,
-                borderRadius: const pw.BorderRadius.only(
+                borderRadius: pw.BorderRadius.only(
                   topLeft: pw.Radius.circular(7),
                   topRight: pw.Radius.circular(7),
                 ),
@@ -1118,9 +1087,9 @@ class _IncomeExpenseReportScreenState
                         child: pw.Container(
                           padding: const pw.EdgeInsets.all(6),
                           margin: const pw.EdgeInsets.only(left: 4),
-                          decoration: pw.BoxDecoration(
+                          decoration: const pw.BoxDecoration(
                             color: PdfColors.success,
-                            borderRadius: const pw.BorderRadius.all(
+                            borderRadius: pw.BorderRadius.all(
                               pw.Radius.circular(4),
                             ),
                           ),
@@ -1159,9 +1128,9 @@ class _IncomeExpenseReportScreenState
                         child: pw.Container(
                           padding: const pw.EdgeInsets.all(6),
                           margin: const pw.EdgeInsets.only(left: 4),
-                          decoration: pw.BoxDecoration(
+                          decoration: const pw.BoxDecoration(
                             color: PdfColors.danger,
-                            borderRadius: const pw.BorderRadius.all(
+                            borderRadius: pw.BorderRadius.all(
                               pw.Radius.circular(4),
                             ),
                           ),
@@ -1282,7 +1251,7 @@ class _IncomeExpenseReportScreenState
                         .map(
                           (e) => [
                             DateFormat('dd/MM').format(e.date),
-                            e.roomNumber.isNotEmpty ? e.roomNumber : '-',
+                            if (e.roomNumber.isNotEmpty) e.roomNumber else '-',
                             _paymentMethodName(e.paymentMethod),
                             _revenueTypeName(e.revenueType),
                             EnhancedPdfUtils.formatNumber(e.amount),
@@ -1299,7 +1268,7 @@ class _IncomeExpenseReportScreenState
                         .map(
                           (e) => [
                             DateFormat('dd/MM').format(e.date),
-                            e.description.isNotEmpty ? e.description : e.type,
+                            if (e.description.isNotEmpty) e.description else e.type,
                             EnhancedPdfUtils.formatNumber(e.amount),
                           ],
                         )
@@ -1319,7 +1288,6 @@ class _IncomeExpenseReportScreenState
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => pw.Align(
-          alignment: pw.Alignment.center,
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
             style: pw.TextStyle(font: fonts.regular, fontSize: 10),
@@ -1491,9 +1459,9 @@ class _IncomeExpenseReportScreenState
               width: double.infinity,
               padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.secondary,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
                 'تحليل طرق الدفع',
@@ -1516,34 +1484,26 @@ class _IncomeExpenseReportScreenState
                   'نقداً',
                   EnhancedPdfUtils.formatNumber(cashIncome),
                   '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
-                  _incomeTotal > 0
-                      ? '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%',
+                  if (_incomeTotal > 0) '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                 ],
                 [
                   'بطاقة ائتمانية',
                   EnhancedPdfUtils.formatNumber(cardIncome),
                   '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
-                  _incomeTotal > 0
-                      ? '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%',
+                  if (_incomeTotal > 0) '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                 ],
                 [
                   'تحويل بنكي',
                   EnhancedPdfUtils.formatNumber(transferIncome),
                   '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
-                  _incomeTotal > 0
-                      ? '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%',
+                  if (_incomeTotal > 0) '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                 ],
                 if (otherMethodIncome > 0)
                   [
                     'أخرى',
                     EnhancedPdfUtils.formatNumber(otherMethodIncome),
                     '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
-                    _incomeTotal > 0
-                        ? '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-                        : '0%',
+                    if (_incomeTotal > 0) '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
                   ],
                 [
                   'الإجمالي',
@@ -1561,9 +1521,9 @@ class _IncomeExpenseReportScreenState
               width: double.infinity,
               padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.warning,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
                 'تكاليف الموارد البشرية',
@@ -1585,15 +1545,13 @@ class _IncomeExpenseReportScreenState
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
                 ['إجمالي الالتزامات الرواتب الشهرية',
-                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation)],
+                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
                 ['الرواتب المدفوعة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                  EnhancedPdfUtils.formatNumber(_salaryTotal),],
                 ['نسبة الرواتب من الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%'],
+                  '${salaryExpenseRatio.toStringAsFixed(1)}%',],
                 ['نسبة الرواتب من المصروفات',
-                  _expenseTotal > 0
-                      ? '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%'
-                      : '0%'],
+                  if (_expenseTotal > 0) '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',],
               ],
             ),
           );
@@ -1604,9 +1562,9 @@ class _IncomeExpenseReportScreenState
               width: double.infinity,
               padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.danger,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
                 'تحليل الديون المستحقة',
@@ -1629,18 +1587,14 @@ class _IncomeExpenseReportScreenState
                 ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
                 ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
                 ['مبلغ الديون غير المسددة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount)],
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),],
                 ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
                 ['مبلغ الديون غير المسددة الكلي',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
+                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),],
                 ['نسبة الديون غير المسددة الكلية من الإيرادات',
-                  _incomeTotal > 0
-                      ? '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%'
-                      : '0%'],
+                  if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
                 ['قدرة تغطية الديون (صافي / ديون)',
-                  debtCoverage > 0
-                      ? '${debtCoverage.toStringAsFixed(2)}x'
-                      : 'غير كافٍ'],
+                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
               ],
             ),
           );
@@ -1651,9 +1605,9 @@ class _IncomeExpenseReportScreenState
               width: double.infinity,
               padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.info,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
                 'إحصائيات الحجوزات والإشغال',
@@ -1677,9 +1631,7 @@ class _IncomeExpenseReportScreenState
                 ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
                 ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
                 ['متوسط الإيراد لكل حجز',
-                  _bookingsCount > 0
-                      ? EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount)
-                      : '0'],
+                  if (_bookingsCount > 0) EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount) else '0',],
               ],
             ),
           );
@@ -1690,9 +1642,9 @@ class _IncomeExpenseReportScreenState
               width: double.infinity,
               padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.primary,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
                 'المؤشرات المالية الرئيسية',
@@ -1714,9 +1666,7 @@ class _IncomeExpenseReportScreenState
                 [
                   'هامش الربح الصافي',
                   '${profitMargin.toStringAsFixed(1)}%',
-                  profitMargin > 20
-                      ? 'ممتاز'
-                      : profitMargin > 10
+                  if (profitMargin > 20) 'ممتاز' else profitMargin > 10
                           ? 'جيد'
                           : profitMargin > 0
                               ? 'مقبول'
@@ -1725,29 +1675,21 @@ class _IncomeExpenseReportScreenState
                 [
                   'نسبة المصروفات إلى الإيرادات',
                   '${expenseRatio.toStringAsFixed(1)}%',
-                  expenseRatio < 60
-                      ? 'ممتاز'
-                      : expenseRatio < 80
+                  if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80
                           ? 'جيد'
                           : 'مرتفع',
                 ],
                 [
                   'نسبة الرواتب إلى الإيرادات',
                   '${salaryExpenseRatio.toStringAsFixed(1)}%',
-                  salaryExpenseRatio < 30
-                      ? 'ممتاز'
-                      : salaryExpenseRatio < 50
+                  if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50
                           ? 'جيد'
                           : 'مرتفع',
                 ],
                 [
                   'معدل تغطية الديون',
-                  debtCoverage > 0
-                      ? '${debtCoverage.toStringAsFixed(2)}x'
-                      : 'غير كافٍ',
-                  debtCoverage > 2
-                      ? 'ممتاز'
-                      : debtCoverage > 1
+                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
+                  if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
                           ? 'جيد'
                           : 'ضعيف',
                 ],
@@ -1938,7 +1880,7 @@ class _IncomeExpenseReportScreenState
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         color: PdfColors.backgroundCard,
-        border: pw.Border.all(color: PdfColors.primary, width: 1),
+        border: pw.Border.all(color: PdfColors.primary),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
       ),
       child: pw.Column(
@@ -1970,21 +1912,21 @@ class _IncomeExpenseReportScreenState
               ['إجمالي المعاملات', '$totalTx معاملة'],
               ['عدد الفترات', '${groups.length} فترة'],
               ['متوسط الصافي لكل فترة',
-                EnhancedPdfUtils.formatNumber(avgDaily)],
+                EnhancedPdfUtils.formatNumber(avgDaily),],
               ['إجمالي الدخل',
-                EnhancedPdfUtils.formatNumber(_incomeTotal)],
+                EnhancedPdfUtils.formatNumber(_incomeTotal),],
               ['إجمالي المصروفات',
-                EnhancedPdfUtils.formatNumber(_expenseTotal)],
+                EnhancedPdfUtils.formatNumber(_expenseTotal),],
               ['مصروفات الرواتب',
-                EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                EnhancedPdfUtils.formatNumber(_salaryTotal),],
               ['الصافي النهائي',
-                EnhancedPdfUtils.formatNumber(_net)],
+                EnhancedPdfUtils.formatNumber(_net),],
               if (bestPeriod != null)
                 ['أفضل فترة (أعلى ربح)',
-                  '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}'],
+                  '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}',],
               if (worstPeriod != null && worstPeriod.net < 0)
                 ['أسوأ فترة (أعلى خسارة)',
-                  '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}'],
+                  '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}',],
             ],
           ),
         ],
@@ -2078,7 +2020,7 @@ class _IncomeExpenseReportScreenState
         });
       }
       allEntries.sort((a, b) =>
-          DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)));
+          DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)),);
 
       for (final entry in allEntries) {
         buffer.writeln(
@@ -2615,17 +2557,6 @@ class _IncomeExpenseReportScreenState
 // ===== نماذج البيانات =====
 
 class _GroupedData {
-  final int index;
-  final String key;
-  final String label;
-  final List<_IncomeEntry> incomeEntries;
-  final List<_ExpenseEntry> expenseEntries;
-  final double incomeTotal;
-  final double expenseTotal;
-  final double salaryTotal;
-  final double net;
-  final int incomeCount;
-  final int expenseCount;
 
   _GroupedData({
     required this.index,
@@ -2640,6 +2571,17 @@ class _GroupedData {
     required this.incomeCount,
     required this.expenseCount,
   });
+  final int index;
+  final String key;
+  final String label;
+  final List<_IncomeEntry> incomeEntries;
+  final List<_ExpenseEntry> expenseEntries;
+  final double incomeTotal;
+  final double expenseTotal;
+  final double salaryTotal;
+  final double net;
+  final int incomeCount;
+  final int expenseCount;
 }
 
 class _IncomeEntry {
@@ -2697,20 +2639,6 @@ class _CombinedEntry {
 }
 
 class _ReportParams {
-  final List<Map<String, dynamic>> payments;
-  final List<Map<String, dynamic>> expenses;
-  final DateTime fromDate;
-  final DateTime toDate;
-  final int bookingsCount;
-  final int activeBookingsCount;
-  final int checkoutBookingsCount;
-  final int totalDebtsCount;
-  final int unsettledDebtsCount;
-  final double unsettledDebtsAmount;
-  final int unsettledDebtsInPeriodCount;
-  final double unsettledDebtsInPeriodAmount;
-  final int activeEmployeesCount;
-  final double totalSalaryObligation;
 
   _ReportParams({
     required this.payments,
@@ -2728,15 +2656,10 @@ class _ReportParams {
     this.activeEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
-}
-
-class _ReportResult {
-  final List<_IncomeEntry> incomeEntries;
-  final List<_ExpenseEntry> expenseEntries;
-  final double incomeTotal;
-  final double expenseTotal;
-  final double salaryTotal;
-  final double net;
+  final List<Map<String, dynamic>> payments;
+  final List<Map<String, dynamic>> expenses;
+  final DateTime fromDate;
+  final DateTime toDate;
   final int bookingsCount;
   final int activeBookingsCount;
   final int checkoutBookingsCount;
@@ -2747,6 +2670,9 @@ class _ReportResult {
   final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
   final double totalSalaryObligation;
+}
+
+class _ReportResult {
 
   _ReportResult({
     required this.incomeEntries,
@@ -2766,6 +2692,22 @@ class _ReportResult {
     this.activeEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
+  final List<_IncomeEntry> incomeEntries;
+  final List<_ExpenseEntry> expenseEntries;
+  final double incomeTotal;
+  final double expenseTotal;
+  final double salaryTotal;
+  final double net;
+  final int bookingsCount;
+  final int activeBookingsCount;
+  final int checkoutBookingsCount;
+  final int totalDebtsCount;
+  final int unsettledDebtsCount;
+  final double unsettledDebtsAmount;
+  final int unsettledDebtsInPeriodCount;
+  final double unsettledDebtsInPeriodAmount;
+  final int activeEmployeesCount;
+  final double totalSalaryObligation;
 }
 
 _ReportResult _processReportData(_ReportParams params) {

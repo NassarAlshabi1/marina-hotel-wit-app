@@ -1,13 +1,11 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
-import 'remote_config_service.dart';
-
-import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
+import 'remote_config_service.dart';
 
 class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db);
@@ -113,7 +111,7 @@ class BookingDerivedFieldsService {
         .get();
 
     final active = activeBookings
-        .where((b) => StatusUtils.isBookingActive(b))
+        .where(StatusUtils.isBookingActive)
         .toList();
 
     int refreshed = 0;
@@ -133,7 +131,7 @@ class BookingDerivedFieldsService {
         debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         return (promoted: false, refreshed: false);
       }
-    }));
+    }),);
     promoted = results.where((r) => r.promoted).length;
     refreshed = results.where((r) => r.refreshed).length;
 
@@ -202,7 +200,7 @@ class BookingDerivedFieldsService {
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);
@@ -220,7 +218,7 @@ class BookingDerivedFieldsService {
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
+    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(

@@ -32,12 +32,12 @@ class HotelTimeEngine {
     // إذا كان الوقت الحالي قبل الساعة 14:00
     if (date.hour < boundaryHour) {
       // اليوم الفندقي بدأ أمس الساعة 14:00
-      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour, 0, 0);
+      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour);
       // وينتهي اليوم الساعة 13:59:59
       hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour - 1, 59, 59, 999);
     } else { // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:00
       // اليوم الفندقي بدأ اليوم الساعة 14:00
-      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour, 0, 0);
+      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour);
       // وينتهي غداً الساعة 13:59:59
       hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour - 1, 59, 59, 999);
     }
@@ -119,7 +119,6 @@ class HotelTimeEngine {
     return Time.nightsWithCutoff(
       checkIn,
       checkout: checkOut,
-      cutoffHour: boundaryHour,
     );
   }
 

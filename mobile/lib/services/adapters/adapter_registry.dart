@@ -1,24 +1,24 @@
 import '../local_db.dart';
-import 'bookings_adapter.dart';
-import 'payments_adapter.dart';
-import 'expenses_adapter.dart';
-import 'debts_adapter.dart';
-import 'rooms_adapter.dart';
-import 'nights_adapter.dart';
-import 'id_resolver.dart';
 import '../repositories/base_repository.dart';
+import 'audit_logs_adapter.dart';
+import 'booking_notes_adapter.dart';
+import 'booking_price_adjustments_adapter.dart';
+import 'bookings_adapter.dart';
+import 'cash_transactions_adapter.dart';
+import 'debts_adapter.dart';
 import 'employees_adapter.dart';
+import 'expenses_adapter.dart';
+import 'guest_infos_adapter.dart';
+import 'id_resolver.dart';
+import 'nights_adapter.dart';
+import 'payment_voids_adapter.dart';
+import 'payments_adapter.dart';
+import 'price_adjustments_adapter.dart';
+import 'rooms_adapter.dart';
 import 'salary_cycles_adapter.dart';
 import 'salary_payments_adapter.dart';
-import 'booking_notes_adapter.dart';
-import 'cash_transactions_adapter.dart';
-import 'shift_notes_adapter.dart';
-import 'price_adjustments_adapter.dart';
-import 'audit_logs_adapter.dart';
-import 'payment_voids_adapter.dart';
-import 'booking_price_adjustments_adapter.dart';
-import 'guest_infos_adapter.dart';
 import 'salary_withdrawals_adapter.dart';
+import 'shift_notes_adapter.dart';
 
 class AdapterRegistry {
   AdapterRegistry(this.db)

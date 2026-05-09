@@ -1,8 +1,9 @@
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
+
 import '../utils/time.dart';
-import 'local_db.dart';
 import 'appwrite_logger.dart';
+import 'local_db.dart';
 
 typedef DocumentMapper<T extends d.Insertable> =
     T? Function(
@@ -14,9 +15,9 @@ typedef DocumentMapper<T extends d.Insertable> =
 typedef DocumentValidator = bool Function(Map<String, dynamic> data);
 
 class SyncFieldsHelper {
-  final AppDatabase database;
 
   SyncFieldsHelper(this.database);
+  final AppDatabase database;
 
   d.Value<T?> nullableValue<T>(T? value) {
     return value == null ? const d.Value.absent() : d.Value(value);
@@ -91,10 +92,6 @@ class SyncFieldsHelper {
 }
 
 class SyncResult {
-  final int processed;
-  final int skipped;
-  final int failed;
-  final List<String> errors;
 
   SyncResult({
     required this.processed,
@@ -102,6 +99,10 @@ class SyncResult {
     required this.failed,
     required this.errors,
   });
+  final int processed;
+  final int skipped;
+  final int failed;
+  final List<String> errors;
 
   int get total => processed + skipped + failed;
   bool get hasErrors => errors.isNotEmpty;
@@ -112,11 +113,6 @@ class SyncResult {
 }
 
 class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
-  final AppDatabase database;
-  final SyncFieldsHelper helper;
-  final AppwriteLogger _logger;
-  final String tableName;
-  final d.TableInfo<T, dynamic> table;
 
   GenericSyncProcessor({
     required this.database,
@@ -124,6 +120,11 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
     required this.table,
   }) : helper = SyncFieldsHelper(database),
        _logger = AppwriteLogger();
+  final AppDatabase database;
+  final SyncFieldsHelper helper;
+  final AppwriteLogger _logger;
+  final String tableName;
+  final d.TableInfo<T, dynamic> table;
 
   Future<SyncResult> syncDocuments({
     required List<models.Document> documents,
@@ -247,9 +248,9 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
 }
 
 class SyncProcessorFactory {
-  final AppDatabase database;
 
   SyncProcessorFactory(this.database);
+  final AppDatabase database;
 
   GenericSyncProcessor<Rooms, RoomsCompanion> rooms() {
     return GenericSyncProcessor<Rooms, RoomsCompanion>(

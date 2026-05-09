@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/auto_backup_manager.dart';
-import '../../services/auto_backup_task.dart';
-import '../../services/alarm_backup.dart';
+
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
+import '../../services/alarm_backup.dart';
+import '../../services/auto_backup_manager.dart';
+import '../../services/auto_backup_task.dart';
 
 class AutoBackupSettingsScreen extends ConsumerStatefulWidget {
   const AutoBackupSettingsScreen({super.key});
@@ -172,7 +173,7 @@ class _AutoBackupSettingsScreenState
             ],
           ),
         ),
-        data: (status) => _buildSettingsUI(status),
+        data: _buildSettingsUI,
       ),
     );
   }

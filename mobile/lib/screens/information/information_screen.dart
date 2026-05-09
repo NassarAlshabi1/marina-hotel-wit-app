@@ -9,8 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../providers/repository_providers.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
 
@@ -145,7 +145,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         thumbVisibility: true,
         child: SingleChildScrollView(
           controller: scrollCtrl,
-          scrollDirection: Axis.vertical,
           child: _buildTable(sorted),
         ),
       ),
@@ -168,39 +167,39 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             DataColumn(label: SizedBox.shrink()),
             DataColumn(
               label: Text('الغرفة',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('اسم النزيل',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('الجنسية',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('رقم الهوية',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('نوع الهوية',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('تاريخ الإصدار',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('مكان الإصدار',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('المحافظة',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('الملاحظات',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
           ],
           rows: List.generate(entries.length, (index) {
@@ -235,10 +234,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                         child: Row(
                           children: [
                             Icon(Icons.delete_outline, size: 18,
-                                color: Colors.red),
+                                color: Colors.red,),
                             SizedBox(width: 8),
                             Text('حذف',
-                                style: TextStyle(color: Colors.red)),
+                                style: TextStyle(color: Colors.red),),
                           ],
                         ),
                       ),
@@ -248,7 +247,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 DataCell(Text(
                   info.roomNumber,
                   style: const TextStyle(fontWeight: FontWeight.bold),
-                )),
+                ),),
                 DataCell(Text(info.guestName)),
                 DataCell(Text(info.nationality)),
                 DataCell(Text(info.idNumber)),
@@ -274,7 +273,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       text: existing?.guestName ?? '',
     );
     final nationalityController = TextEditingController(
-      text: existing?.nationality.isNotEmpty == true
+      text: existing?.nationality.isNotEmpty ?? false
           ? existing!.nationality
           : 'يمني',
     );
@@ -453,7 +452,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         SnackBar(
           content: Text('فشل حفظ السجل: $e'),
           backgroundColor: Colors.red.shade900,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -492,7 +490,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         SnackBar(
           content: Text('فشل حذف السجل: $e'),
           backgroundColor: Colors.red.shade900,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -720,7 +717,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   Future<void> _pushToAppwrite() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await syncManager.sync(push: true, pull: false);
+      await syncManager.sync(pull: false);
     } catch (e) {
       debugPrint('⚠️ فشلت المزامنة الفورية: $e');
     }

@@ -8,10 +8,10 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
-import '../../services/booking_derived_fields_service.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
@@ -117,7 +117,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
     // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
     // وينتهي في 13:59:59 في تاريخ النهاية.
-    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14, 0, 0);
+    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
     final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
     
     final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
@@ -229,7 +229,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
-    final selectedRoomLabel = _selectedRoom?.isNotEmpty == true
+    final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false
         ? _selectedRoom!
         : '';
 
@@ -310,7 +310,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         ),
       ],
       fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
-    ));
+    ),);
   }
 
   @override
@@ -347,8 +347,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 SizedBox(
                   width: 140,
                   child: DropdownButtonFormField<String?>(
-                    value: _selectedRoom,
-                    isDense: true,
+                    initialValue: _selectedRoom,
                     decoration: const InputDecoration(
                       labelText: 'الغرفة',
                       isDense: true,
@@ -357,7 +356,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
                       DropdownMenuItem<String?>(
-                        value: null,
                         child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ),
                       ..._availableRooms.map(
@@ -562,7 +560,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold, 
             fontSize: isLarge ? 18 : 13, 
-            color: color
+            color: color,
           ),
         ),
         const SizedBox(height: 2),

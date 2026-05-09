@@ -1,12 +1,13 @@
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'google_drive_backup_service.dart';
-import 'local_backup_service.dart';
 import 'lark/lark_report_service.dart';
-import 'telegram/telegram_report_service.dart';
+import 'local_backup_service.dart';
 import 'telegram/telegram_config.dart';
-import 'package:flutter/widgets.dart';
+import 'telegram/telegram_report_service.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
@@ -23,7 +24,7 @@ class AlarmBackup {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    final initSettings = InitializationSettings(android: androidSettings);
+    const initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
     debugPrint('✅ Alarm system initialized');
 
@@ -142,7 +143,6 @@ class AlarmBackup {
       channelDescription: 'Backup notifications',
       importance: Importance.max,
       priority: Priority.high,
-      playSound: true,
     );
     const details = NotificationDetails(android: androidDetails);
     await _notif.show(

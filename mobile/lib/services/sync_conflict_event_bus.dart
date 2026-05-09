@@ -3,11 +3,6 @@ import 'package:flutter/foundation.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {
-  final String table;
-  final String localUuid;
-  final String winnerSide; // 'local' أو 'remote'
-  final String reason;
-  final DateTime timestamp;
 
   SyncConflictEvent({
     required this.table,
@@ -16,6 +11,11 @@ class SyncConflictEvent {
     required this.reason,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String table;
+  final String localUuid;
+  final String winnerSide; // 'local' أو 'remote'
+  final String reason;
+  final DateTime timestamp;
 
   @override
   String toString() =>
@@ -81,7 +81,7 @@ class SyncConflictEventBus {
       localUuid: localUuid,
       winnerSide: winnerSide,
       reason: reason,
-    ));
+    ),);
   }
 
   /// مسح الأحداث الأخيرة (بعد عرضها للمستخدم)

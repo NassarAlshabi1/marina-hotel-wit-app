@@ -8,12 +8,12 @@ import 'appwrite_service.dart';
 /// تسمح برفع الإعدادات من الجهاز إلى السحابة وتنزيلها على جهاز آخر
 /// ملاحظة: المجموعة app_settings تُنشأ عبر سكربت Python (create_app_settings_collection.py)
 class WhatsAppSettingsSync {
+
+  WhatsAppSettingsSync(this._appwrite);
   static const String _docId = 'whatsapp_settings';
   static const String _collectionId = 'app_settings';
 
   final AppwriteService _appwrite;
-
-  WhatsAppSettingsSync(this._appwrite);
 
   /// رفع إعدادات الواتساب الحالية إلى Appwrite
   Future<({bool success, String? error})> uploadToCloud() async {

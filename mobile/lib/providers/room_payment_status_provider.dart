@@ -1,20 +1,21 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../services/local_db.dart';
-import '../services/remote_config_service.dart';
 import '../utils/status_utils.dart';
 import 'repository_providers.dart';
 
 /// نموذج بيانات يجمع بين الغرفة وحالة تأخر السداد
 class RoomWithPaymentStatus {
-  final Room room;
-  final bool isPaymentOverdue;
 
   RoomWithPaymentStatus({
     required this.room,
     required this.isPaymentOverdue,
   });
+  final Room room;
+  final bool isPaymentOverdue;
 
   Color get roomColor {
     if (StatusUtils.isRoomAvailable(room.status)) {

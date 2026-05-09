@@ -10,17 +10,13 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
-import 'unified_sync_orchestrator.dart';
-import 'sync_locks.dart';
-import 'sync_constants.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
+import 'sync_constants.dart';
+import 'sync_locks.dart';
+import 'unified_sync_orchestrator.dart';
 
 class RetryConfig {
-  final int maxRetries;
-  final int baseDelaySeconds;
-  final int maxDelaySeconds;
-  final double backoffMultiplier;
 
   const RetryConfig({
     this.maxRetries = 5,
@@ -28,6 +24,10 @@ class RetryConfig {
     this.maxDelaySeconds = 300,
     this.backoffMultiplier = 2.0,
   });
+  final int maxRetries;
+  final int baseDelaySeconds;
+  final int maxDelaySeconds;
+  final double backoffMultiplier;
 
   int calculateDelay(int attemptNumber) {
     final delay =
@@ -37,14 +37,6 @@ class RetryConfig {
 }
 
 class AutoSyncEngineState {
-  final bool isRunning;
-  final bool hasNetworkConnection;
-  final bool isSignedIn;
-  final int pendingChangesCount;
-  final DateTime? lastSuccessfulSync;
-  final int failedAttempts;
-  final DateTime? nextRetryAt;
-  final String? lastError;
 
   const AutoSyncEngineState({
     required this.isRunning,
@@ -56,6 +48,14 @@ class AutoSyncEngineState {
     this.nextRetryAt,
     this.lastError,
   });
+  final bool isRunning;
+  final bool hasNetworkConnection;
+  final bool isSignedIn;
+  final int pendingChangesCount;
+  final DateTime? lastSuccessfulSync;
+  final int failedAttempts;
+  final DateTime? nextRetryAt;
+  final String? lastError;
 
   AutoSyncEngineState copyWith({
     bool? isRunning,
@@ -118,10 +118,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   static const String _prefsRetryEnabledKey = 'auto_sync_engine_retry_enabled';
 
   final RetryConfig _retryConfig = const RetryConfig(
-    maxRetries: 5,
-    baseDelaySeconds: 2,
-    maxDelaySeconds: 300,
-    backoffMultiplier: 2.0,
+    
   );
 
   Stream<AutoSyncEngineState> get stateStream => _stateController.stream;
@@ -219,7 +216,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
       // لتجنب تشغيل مزامنة Appwrite (outbox) عند بدء المحرك
       await _coordinator!.performSync(
         trigger: SyncTrigger.manual,
-        mode: SyncMode.smart,
       );
     }
 
@@ -399,8 +395,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
       if (_pendingChangesCount > 0) {
         _log('❤️ Health check: found pending changes - triggering sync');
         await _orchestrator!.syncNow(
-          push: true,
-          pull: true,
           reason: 'health_check',
         );
       }
@@ -409,7 +403,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
         _log('❤️ Health check: connection/auth restored - triggering pull');
         await _orchestrator!.syncNow(
           push: false,
-          pull: true,
           reason: 'health_check_pull',
         );
       }
@@ -444,10 +437,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     if (_pendingChangesCount > 0) {
       _log(
-        '📤 Syncing ${_pendingChangesCount} pending changes after network restore',
+        '📤 Syncing $_pendingChangesCount pending changes after network restore',
       );
       await _orchestrator!.syncNow(
-        push: true,
         pull: false,
         reason: 'network_restore_push',
       );
@@ -455,7 +447,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _log('📥 Checking for remote changes after network restore');
       await _orchestrator!.syncNow(
         push: false,
-        pull: true,
         reason: 'network_restore_pull',
       );
     }
@@ -524,7 +515,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _log('💾 App paused with pending changes - quick sync before background');
 
       _orchestrator!
-          .syncNow(push: true, pull: false, reason: 'app_paused')
+          .syncNow(pull: false, reason: 'app_paused')
           .then((result) {
             if (result) {
               _log('✅ Quick sync before background completed');
@@ -604,8 +595,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
       }
 
       await _orchestrator!.syncNow(
-        push: true,
-        pull: true,
         reason: 'auto_retry',
       );
     });
@@ -702,7 +691,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
 
     if (!_hasNetworkConnection) {
-      final message = 'لا يوجد اتصال بالإنترنت';
+      const message = 'لا يوجد اتصال بالإنترنت';
       _log('📴 $message');
       return SyncResult.failure(
         message: message,
@@ -712,7 +701,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     if (!_isSignedIn) {
-      final message = 'غير مسجل الدخول في Google Drive';
+      const message = 'غير مسجل الدخول في Google Drive';
       _log('🔐 $message');
       return SyncResult.failure(
         message: message,
@@ -722,8 +711,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     final ok = await _orchestrator!.syncNow(
-      push: true,
-      pull: true,
       reason: 'manual_force',
     );
 
