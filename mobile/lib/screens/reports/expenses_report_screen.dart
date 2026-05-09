@@ -262,8 +262,28 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     double totalAmount = 0;
     bool hasSalaryData = false;
 
-    // ─── إضافة مصروفات جدول expenses ───
+    // ─── جمع أرقام معرّفات المصروفات المرتبطة بسحوبات الرواتب ───
+    // لمنع العد المزدوج: المصروف المرتبط بـ salary_withdrawal لا يُضاف من جدول expenses
+    final swExpenseIds = <int>{};
+    if (showAll) {
+      for (final sw in salaryWithdrawals) {
+        if (sw.reason != null) {
+          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+          if (match != null) {
+            swExpenseIds.add(int.parse(match.group(1)!));
+          }
+        }
+      }
+    }
+
+    // ─── إضافة مصروفات جدول expenses (مع استبعاد المرتبطة بسحوبات الرواتب) ───
     for (final expense in expenses) {
+      // تخطّي المصروفات الرواتب التي لها سجل مقابل في salary_withdrawals
+      // لأنها ستُضاف من هناك (لمنع العد المزدوج)
+      if (showAll && _isSalaryType(expense.expenseType) && swExpenseIds.contains(expense.id)) {
+        hasSalaryData = true;
+        continue;
+      }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;

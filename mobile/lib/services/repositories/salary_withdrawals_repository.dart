@@ -86,18 +86,41 @@ class SalaryWithdrawalsRepository {
     // محاولة البحث عن سجل موجود مرتبط بنفس الموظف ونمط المصروف
     // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
     final existing = await (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.employeeId.equals(employeeId)
-              & t.reason.like('%exp_$expenseId%')
+          ..where((t) => t.reason.like('%exp_$expenseId%')
               & t.deletedAt.isNull()))
         .get();
 
     final matched = existing.where((w) =>
-        w.withdrawDate == date &&
         matchesExpenseRef(w.reason, expenseId)).firstOrNull;
 
     final now = Time.nowEpoch();
     // reason يحتوي فقط على علامة الربط بالمصروف
     final reasonText = 'exp_$expenseId';
+
+    // حذف السجلات القديمة غير المطابقة لمنع التكرار عند التعديل
+    // (مثلاً عند تغيير التاريخ أو الموظف)
+    final staleRecords = existing.where((w) =>
+        w.id != matched?.id &&
+        matchesExpenseRef(w.reason, expenseId));
+    for (final stale in staleRecords) {
+      await (_db.update(_db.salaryWithdrawals)
+            ..where((t) => t.id.equals(stale.id)))
+          .write(SalaryWithdrawalsCompanion(
+            deletedAt: d.Value(now),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+          ));
+      if (!originIsServer) {
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'delete',
+          localUuid: stale.localUuid,
+          serverId: stale.serverId,
+          payload: {'deletedAt': now},
+          clientTs: now,
+        );
+      }
+    }
 
     await _db.transaction(() async {
       if (matched != null) {
