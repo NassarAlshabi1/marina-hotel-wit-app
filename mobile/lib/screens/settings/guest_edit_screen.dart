@@ -186,7 +186,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final roomChanged = oldRoomNumber != newRoomNumber;
         final discountText =
             _discountControllers[booking.id]?.text.trim() ?? '';
-        final discount = double.tryParse(discountText) ?? 0;
+        final discount = _parseAmount(discountText);
         final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
         final discountStartDateText =
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
@@ -494,6 +494,35 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  double _parseAmount(String value) {
+    final normalized = _normalizeNumericInput(value);
+    return double.tryParse(normalized) ?? 0;
+  }
+
+  String _normalizeNumericInput(String value) {
+    var output = value.trim();
+    const arabicDigits = <String, String>{
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+    };
+    arabicDigits.forEach((arabic, latin) {
+      output = output.replaceAll(arabic, latin);
+    });
+    output = output
+        .replaceAll('،', '')
+        .replaceAll(',', '')
+        .replaceAll(' ', '');
+    return output;
   }
 
   String _formatDate(DateTime dt) {
@@ -1141,6 +1170,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           TextFormField(
                             controller: discountController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp('[0-9٠-٩.,،]'),
+                              ),
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'المبلغ',
                               prefixIcon: Icon(Icons.attach_money),
@@ -1208,7 +1242,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
     
-    final amount = double.tryParse(amountText)?.round() ?? 0;
+    final amount = _parseAmount(amountText).round();
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('الرجاء إدخال مبلغ صالح')),
@@ -1216,12 +1250,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
     
-    final startDate = startDateController.text.trim();
+    var startDate = startDateController.text.trim();
     if (startDate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الرجاء تحديد تاريخ البدء')),
-      );
-      return;
+      startDate = _formatDate(DateTime.now());
+      startDateController.text = startDate;
     }
     
     final type = _adjustmentTypeSelections[booking.id] ?? AdjustmentType.discount;
