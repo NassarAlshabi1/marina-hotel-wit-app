@@ -21,6 +21,15 @@ const List<String> kDefaultExpenseTypes = [
   'اخرى',
 ];
 
+/// أنواع المصروفات الفرعية المتعلقة بالرواتب — يجب استبعادها من القائمة المنسدلة
+/// لأنها تُعرض عبر مسار خاص (اختيار "رواتب" ← ثم نوع المعاملة)
+const Set<String> _salarySubTypes = {
+  'سحب راتب',
+  'سحب من الراتب',
+  'خصم من الراتب',
+  'خصم راتب',
+};
+
 /// Provides the list of expense type strings.
 ///
 /// This provider:
@@ -41,7 +50,12 @@ final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
     for (final row in query) {
       final value = row.data['expense_type'];
       if (value is String && value.trim().isNotEmpty) {
-        dbTypes.add(value.trim());
+        final trimmed = value.trim();
+        // استبعاد الأنواع الفرعية للرواتب (سحب راتب، خصم من الراتب، إلخ)
+        // فهذه تُعرض عبر مسار "رواتب" ← "نوع المعاملة" وليس كخيار مستقل
+        if (!_salarySubTypes.contains(trimmed)) {
+          dbTypes.add(trimmed);
+        }
       }
     }
 
