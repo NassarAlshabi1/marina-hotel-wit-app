@@ -1827,7 +1827,7 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final e in expenseDefaults) {
           await m.database.customStatement(
-            "INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) "
+            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
             "VALUES ('expense_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
           );
         }
@@ -1843,7 +1843,7 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final e in idTypeDefaults) {
           await m.database.customStatement(
-            "INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) "
+            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
             "VALUES ('id_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
           );
         }
@@ -1855,7 +1855,7 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final e in paymentMethodDefaults) {
           await m.database.customStatement(
-            "INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) "
+            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
             "VALUES ('payment_method', '${e[0]}', ${e[1]}, 1, ${e[2]})",
           );
         }

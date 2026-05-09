@@ -53,13 +53,6 @@ class CustomListItem {
     required this.isSystem,
   });
 
-  final int id;
-  final String listKey;
-  final String name;
-  final int sortOrder;
-  final bool isActive;
-  final bool isSystem;
-
   factory CustomListItem.fromRow(Map<String, dynamic> row) {
     return CustomListItem(
       id: row['id'] as int,
@@ -70,6 +63,13 @@ class CustomListItem {
       isSystem: (row['is_system'] as int) == 1,
     );
   }
+
+  final int id;
+  final String listKey;
+  final String name;
+  final int sortOrder;
+  final bool isActive;
+  final bool isSystem;
 }
 
 // ── Providers ────────────────────────────────────────────────────
@@ -80,9 +80,9 @@ final customListProvider =
   final db = ref.read(databaseProvider);
   try {
     final rows = await db.customSelect(
-      "SELECT * FROM custom_list_items "
+      'SELECT * FROM custom_list_items '
       "WHERE list_key = '$listKey' AND is_active = 1 "
-      "ORDER BY sort_order ASC, id ASC",
+      'ORDER BY sort_order ASC, id ASC',
     ).get();
     if (rows.isEmpty) {
       return _fallbackItems(listKey);
@@ -99,9 +99,9 @@ final customListAllProvider =
   final db = ref.read(databaseProvider);
   try {
     final rows = await db.customSelect(
-      "SELECT * FROM custom_list_items "
+      'SELECT * FROM custom_list_items '
       "WHERE list_key = '$listKey' "
-      "ORDER BY sort_order ASC, id ASC",
+      'ORDER BY sort_order ASC, id ASC',
     ).get();
     if (rows.isEmpty) {
       return _fallbackItems(listKey);
@@ -128,12 +128,12 @@ final addCustomListItemProvider =
   try {
     // حساب sort_order التالي
     final maxRow = await db.customSelect(
-      "SELECT MAX(sort_order) as max_order FROM custom_list_items "
+      'SELECT MAX(sort_order) as max_order FROM custom_list_items '
       "WHERE list_key = '${args.listKey}'",
     ).get();
     final nextOrder = (maxRow.first.data['max_order'] as int? ?? 0) + 1;
     await db.customStatement(
-      "INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) "
+      'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
       "VALUES ('${args.listKey}', '${args.name.replaceAll("'", "''")}', $nextOrder, 1, 0)",
     );
     ref.invalidate(customListProvider(args.listKey));
@@ -152,7 +152,7 @@ final updateCustomListItemProvider =
   try {
     await db.customStatement(
       "UPDATE custom_list_items SET name = '${args.newName.replaceAll("'", "''")}' "
-      "WHERE id = ${args.id}",
+      'WHERE id = ${args.id}',
     );
     ref.invalidate(customListProvider(args.listKey));
     ref.invalidate(customListAllProvider(args.listKey));
@@ -169,7 +169,7 @@ final deleteCustomListItemProvider =
   final db = ref.read(databaseProvider);
   try {
     await db.customStatement(
-      "DELETE FROM custom_list_items WHERE id = ${args.id}",
+      'DELETE FROM custom_list_items WHERE id = ${args.id}',
     );
     ref.invalidate(customListProvider(args.listKey));
     ref.invalidate(customListAllProvider(args.listKey));
@@ -186,8 +186,8 @@ final toggleCustomListItemProvider =
   final db = ref.read(databaseProvider);
   try {
     await db.customStatement(
-      "UPDATE custom_list_items SET is_active = ${args.active ? 1 : 0} "
-      "WHERE id = ${args.id}",
+      'UPDATE custom_list_items SET is_active = ${args.active ? 1 : 0} '
+      'WHERE id = ${args.id}',
     );
     ref.invalidate(customListProvider(args.listKey));
     ref.invalidate(customListAllProvider(args.listKey));
@@ -205,7 +205,7 @@ final reorderCustomListProvider =
   try {
     for (var i = 0; i < args.ids.length; i++) {
       await db.customStatement(
-        "UPDATE custom_list_items SET sort_order = ${i + 1} WHERE id = ${args.ids[i]}",
+        'UPDATE custom_list_items SET sort_order = ${i + 1} WHERE id = ${args.ids[i]}',
       );
     }
     ref.invalidate(customListProvider(args.listKey));

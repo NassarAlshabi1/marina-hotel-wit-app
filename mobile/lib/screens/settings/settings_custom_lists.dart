@@ -108,9 +108,9 @@ class _ListManagerState extends ConsumerState<_ListManager> {
           children: [
             // زر الإضافة
             FilledButton.icon(
-              onPressed: () => _showAddDialog(),
+              onPressed: _showAddDialog,
               icon: const Icon(Icons.add, size: 18),
-              label: Text('إضافة ${_listLabel} جديد'),
+              label: Text('إضافة $_listLabel جديد'),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(44),
               ),
@@ -135,7 +135,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
                 ),
               )
             else
-              ...activeItems.map((item) => _buildItemCard(item)),
+              ...activeItems.map(_buildItemCard),
 
             // العناصر المعطلة
             if (inactiveItems.isNotEmpty) ...[
@@ -165,7 +165,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
                 ),
               ),
               if (_showInactive)
-                ...inactiveItems.map((item) => _buildItemCard(item)),
+                ...inactiveItems.map(_buildItemCard),
             ],
           ],
         );
@@ -237,7 +237,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('إضافة ${_listLabel}'),
+        title: Text('إضافة $_listLabel'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -282,7 +282,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('تعديل ${_listLabel}'),
+        title: Text('تعديل $_listLabel'),
         content: TextField(
           controller: controller,
           autofocus: true,
