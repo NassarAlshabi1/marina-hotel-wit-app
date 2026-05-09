@@ -279,7 +279,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           type: expense.expenseType,
           description: expense.description,
           employee: employee,
-          isSalaryWithdrawal: false,
         ),
       );
     }
@@ -332,7 +331,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final toLabel = _toDate != null
         ? DateFormat('yyyy-MM-dd').format(_toDate!)
         : 'غير محدد';
-    final selectedTypeLabel = _selectedType?.isNotEmpty == true
+    final selectedTypeLabel = _selectedType?.isNotEmpty ?? false
         ? _selectedType!
         : 'الكل';
 
@@ -350,7 +349,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         _dateLabelFormat.format(row.date),
         EnhancedPdfUtils.formatNumber(row.amount),
         row.type,
-        row.description.isNotEmpty ? row.description : '-',
+        if (row.description.isNotEmpty) row.description else '-',
       ];
       if (showEmployeeCol) {
         cells.add(row.employee?.name ?? (row.isSalaryWithdrawal ? 'غير محدد' : '-'));
