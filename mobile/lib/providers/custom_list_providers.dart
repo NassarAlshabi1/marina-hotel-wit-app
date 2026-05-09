@@ -10,11 +10,6 @@ import 'repository_providers.dart';
 
 /// نموذج نوع المصروف
 class ExpenseTypeInfo {
-  final int id;
-  final String name;
-  final int sortOrder;
-  final bool isActive;
-  final bool isSystem;
 
   const ExpenseTypeInfo({
     required this.id,
@@ -33,6 +28,11 @@ class ExpenseTypeInfo {
       isSystem: (data['is_system'] as int) == 1,
     );
   }
+  final int id;
+  final String name;
+  final int sortOrder;
+  final bool isActive;
+  final bool isSystem;
 }
 
 /// Provides the list of **active** expense type names for dropdowns.
