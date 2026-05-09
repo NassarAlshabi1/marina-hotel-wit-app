@@ -62,13 +62,27 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   /// أنواع الهوية من القائمة الديناميكية
   List<String> get _idTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyIdType));
-    return asyncTypes.valueOrNull ?? kDefaultIdTypes;
+    final types = asyncTypes.valueOrNull ?? kDefaultIdTypes;
+    // التأكد من أن القيمة المحددة موجودة في القائمة
+    if (_idType.isNotEmpty && !types.contains(_idType)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _idType = types.isNotEmpty ? types.first : 'بطاقة شخصية');
+      });
+    }
+    return types;
   }
 
   /// طرق الدفع من القائمة الديناميكية
   List<String> get _paymentMethods {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyPaymentMethod));
-    return asyncTypes.valueOrNull ?? kDefaultPaymentMethods;
+    final methods = asyncTypes.valueOrNull ?? kDefaultPaymentMethods;
+    // التأكد من أن القيمة المحددة موجودة في القائمة
+    if (_paymentMethod.isNotEmpty && !methods.contains(_paymentMethod)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _paymentMethod = methods.isNotEmpty ? methods.first : 'نقدي');
+      });
+    }
+    return methods;
   }
 
   static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];

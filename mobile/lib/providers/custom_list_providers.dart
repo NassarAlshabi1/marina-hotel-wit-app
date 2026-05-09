@@ -129,6 +129,15 @@ Future<void> addCustomListItem(
   String name,
 ) async {
   final db = ref.read(databaseProvider);
+  // فحص التكرار: هل يوجد عنصر بنفس الاسم في نفس القائمة؟
+  final existing = await db.customSelect(
+    'SELECT id FROM custom_list_items '
+    'WHERE list_key = ? AND name = ?',
+    variables: [drift.Variable.withText(listKey), drift.Variable.withText(name)],
+  ).get();
+  if (existing.isNotEmpty) {
+    throw Exception('يوجد عنصر بنفس الاسم "$name" بالفعل');
+  }
   // حساب sort_order التالي
   final maxRow = await db.customSelect(
     'SELECT MAX(sort_order) as max_order FROM custom_list_items '
@@ -152,6 +161,19 @@ Future<void> updateCustomListItem(
   String newName,
 ) async {
   final db = ref.read(databaseProvider);
+  // فحص التكرار: هل يوجد عنصر آخر بنفس الاسم الجديد في نفس القائمة؟
+  final existing = await db.customSelect(
+    'SELECT id FROM custom_list_items '
+    'WHERE list_key = ? AND name = ? AND id != ?',
+    variables: [
+      drift.Variable.withText(listKey),
+      drift.Variable.withText(newName),
+      drift.Variable.withInt(id),
+    ],
+  ).get();
+  if (existing.isNotEmpty) {
+    throw Exception('يوجد عنصر آخر بنفس الاسم بالفعل');
+  }
   await db.customStatement(
     'UPDATE custom_list_items SET name = ? WHERE id = ?',
     [newName, id],
