@@ -65,7 +65,7 @@ class SalaryEntitlementService {
       hireDate = employee.hireDate.isNotEmpty
           ? DateTime.parse(employee.hireDate)
           : now;
-    } catch (e) {
+    } catch (Object) {
       hireDate = now;
     }
 

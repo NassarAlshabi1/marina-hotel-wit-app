@@ -575,7 +575,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   checkout: checkoutDt,
                                 );
                       final notes = _optionalText(_notes.text);
-                      const String? email = null;
+                      // email removed - unused
 
                       // فحص القائمة السوداء (مطابقة أول 3 أسماء)
                       final blacklist = ref.read(blacklistRepoProvider);
@@ -693,7 +693,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 paymentMethod: _paymentMethod,
                                 revenueType: 'deposit',
                               );
-                            } catch (e) {
+                            } catch (Object e) {
                               debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -713,8 +713,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ref.invalidate(roomsWithPaymentStatusProvider);
 
                         await syncNow();
-                        if (mounted) Navigator.pop(context);
-                      } on StateError catch (e) {
+                        if (mounted) Navigator.pop<void>(context);
+                      } on StateError catch (Object e) {
                         // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -725,7 +725,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                           );
                         }
-                      } catch (e) {
+                      } catch (Object e) {
                         // أي خطأ آخر (قاعدة بيانات، شبكة، إلخ)
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -965,7 +965,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         table: 'rooms',
         operation: 'batch_update_status',
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error refreshing room occupancy: $e');
     }
   }
@@ -1015,8 +1015,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
 
+  // ignore: unused_element
   void _showDiscardDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1025,14 +1026,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop<void>(ctx),
               child: const Text('لا'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(ctx);
+                Navigator.pop<void>(ctx);
                 await syncNow();
-                if (mounted) Navigator.pop(context);
+                if (mounted) Navigator.pop<void>(context);
               },
               child: const Text('نعم'),
             ),

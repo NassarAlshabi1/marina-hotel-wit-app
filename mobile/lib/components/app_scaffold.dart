@@ -93,7 +93,7 @@ class AppScaffold extends ConsumerWidget {
               onPressed: () {
                 Navigator.of(
                   context,
-                ).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+                ).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
               },
               tooltip: 'التنبيهات',
               icon: Stack(

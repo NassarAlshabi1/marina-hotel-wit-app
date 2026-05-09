@@ -116,7 +116,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
 
     query = query..limit(limit, offset: offset);
 
-    final results = await query.get();
+    final results = await query.get<dynamic>();
 
     return results.map((row) {
       final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;

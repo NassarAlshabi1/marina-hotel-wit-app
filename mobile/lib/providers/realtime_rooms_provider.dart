@@ -52,7 +52,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       _rooms = await _repository.getAll();
       _logger.info('Loaded ${_rooms.length} rooms', tag: 'ROOMS_PROVIDER');
       notifyListeners();
-    } catch (e) {
+    } catch (Object e) {
       _logger.error('Failed to load rooms', error: e, tag: 'ROOMS_PROVIDER');
       _setError(e.toString());
     } finally {
@@ -82,7 +82,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.info('Subscribed to rooms successfully', tag: 'ROOMS_PROVIDER');
-    } catch (e) {
+    } catch (Object e) {
       _logger.error('Failed to subscribe', error: e, tag: 'ROOMS_PROVIDER');
       _setError(e.toString());
     }
@@ -104,7 +104,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
       } else if (events.any((e) => e.contains('delete'))) {
         _handleRoomDeleted(payload);
       }
-    } catch (e) {
+    } catch (Object e) {
       _logger.error(
         'Failed to handle realtime update',
         error: e,
@@ -164,7 +164,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   Room? getRoomById(int id) {
     try {
       return _rooms.firstWhere((r) => r.id == id);
-    } catch (e) {
+    } catch (Object) {
       return null;
     }
   }
@@ -173,7 +173,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   Room? getRoomByNumber(String roomNumber) {
     try {
       return _rooms.firstWhere((r) => r.roomNumber == roomNumber);
-    } catch (e) {
+    } catch (Object) {
       return null;
     }
   }

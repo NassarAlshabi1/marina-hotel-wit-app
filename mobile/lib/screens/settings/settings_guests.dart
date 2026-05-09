@@ -295,7 +295,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),
@@ -483,13 +483,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     try {
       final date = DateTime.parse(dateStr);
       return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
+    } catch (Object) {
       return dateStr;
     }
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -529,7 +529,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إغلاق'),
             ),
           ],
@@ -539,7 +539,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestDetails(BuildContext context, GuestInfo guest) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -580,7 +580,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إغلاق'),
             ),
           ],
@@ -845,11 +845,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
+                onPressed: () => Navigator.pop<void>(dialogContext, false),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
-                onPressed: () => Navigator.pop(dialogContext, true),
+                onPressed: () => Navigator.pop<void>(dialogContext, true),
                 icon: const Icon(Icons.save, size: 18),
                 label: const Text('حفظ'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
@@ -889,7 +889,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -935,7 +935,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
+      MaterialPageRoute<void>(builder: (_) => GuestEditScreen(guest: guest)),
     );
     if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
@@ -959,11 +959,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop<void>(context, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop<void>(context, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('حذف'),
             ),
@@ -1009,7 +1009,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       for (final booking in guest.bookings) {
         final notes = await notesRepo.watchByBooking(booking.id).first;
         for (final note in notes) {
-          await notesRepo.delete(note.id);
+          await notesRepo.delete<dynamic>(note.id);
         }
       }
 
@@ -1017,7 +1017,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       for (final booking in guest.bookings) {
         final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
         for (final payment in payments) {
-          await paymentsRepo.delete(payment.id);
+          await paymentsRepo.delete<dynamic>(payment.id);
         }
       }
 
@@ -1025,13 +1025,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       for (final booking in guest.bookings) {
         final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
         for (final debt in bookingDebts) {
-          await debtsRepo.delete(debt.id);
+          await debtsRepo.delete<dynamic>(debt.id);
         }
       }
 
       // ─── 6. حذف الحجوزات نفسها (soft delete مع outbox للمزامنة مع Appwrite) ───
       for (final booking in guest.bookings) {
-        await bookingsRepo.delete(booking.id);
+        await bookingsRepo.delete<dynamic>(booking.id);
       }
 
       // ─── 7. تحرير الغرف المتبقية المرتبطة بالحجوزات غير النشطة ───
@@ -1051,7 +1051,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة')),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red),

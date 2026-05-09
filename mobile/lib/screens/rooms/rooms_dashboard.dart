@@ -129,7 +129,7 @@ class RoomsDashboard extends ConsumerWidget {
       _showRoomBookings(context, ref, room.roomNumber);
     } else {
       // للحالات الأخرى مثل الصيانة، نعرض التفاصيل
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           shape:
@@ -150,7 +150,7 @@ class RoomsDashboard extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إغلاق'),
             ),
           ],
@@ -175,9 +175,8 @@ class RoomsDashboard extends ConsumerWidget {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
     );
   }
@@ -209,12 +208,11 @@ class RoomsDashboard extends ConsumerWidget {
         return;
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => BookingPaymentScreen(booking: activeBooking),
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!context.mounted) {
         return;
       }

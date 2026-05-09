@@ -20,7 +20,7 @@ class AdminLayout extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? floatingActionButton;
   final PreferredSizeWidget? appBar;
-  final Function(String)? onRouteSelected;
+  final void Function(String)? onRouteSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +85,7 @@ class AdminLayout extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -216,7 +216,7 @@ class StatCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
-            colors: [color, color.withOpacity(0.8)],
+            colors: [color, color.withValues(alpha: 0.8)],
           ),
         ),
         child: Row(
@@ -238,7 +238,7 @@ class StatCard extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -247,7 +247,7 @@ class StatCard extends StatelessWidget {
                       subtitle!,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -257,7 +257,7 @@ class StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 32, color: Colors.white),
@@ -381,7 +381,7 @@ class _AdminTableState extends State<AdminTable> {
                   (entry) => DataRow(
                     color: widget.striped && (startIndex + entry.key) % 2 == 1
                         ? WidgetStateProperty.all(
-                            AppColors.lightGray.withOpacity(0.3),
+                            AppColors.lightGray.withValues(alpha: 0.3),
                           )
                         : null,
                     cells: entry.value.map(DataCell.new).toList(),

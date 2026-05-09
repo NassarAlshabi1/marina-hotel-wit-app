@@ -82,7 +82,7 @@ class AppwriteRealtimeSync {
 
     _subscription!.stream.listen(
       _onEvent,
-      onError: (e) {
+      onError: (Object e) {
         debugPrint('❌ Realtime error: $e');
         CrashlyticsService.instance.recordSyncError(
           operation: 'realtime_listen',
@@ -127,7 +127,7 @@ class AppwriteRealtimeSync {
         if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
-      } catch (e) {
+      } catch (Object) {
         debugPrint('⚠️ Realtime: could not parse update timestamp');
       }
     }
@@ -175,7 +175,7 @@ class AppwriteRealtimeSync {
         severity: CrashlyticsSeverity.info,
         context: {'deviceId': _currentDeviceId ?? 'unknown'},
       );
-      Future.delayed(const Duration(seconds: 5), () {
+      Future<void>.delayed(const Duration(seconds: 5), () {
         if (!_isListening) start();
       });
     }

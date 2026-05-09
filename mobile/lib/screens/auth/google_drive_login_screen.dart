@@ -65,7 +65,7 @@ class _GoogleDriveLoginScreenState
           final autoBackupManager = AutoBackupManager.instance;
           await autoBackupManager.setEnabled(true);
           debugPrint('✅ تم تفعيل المزامنة التلقائية');
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
         }
         if (mounted) {
@@ -82,7 +82,7 @@ class _GoogleDriveLoginScreenState
           });
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         setState(() {
           _errorMessage = 'خطأ في تسجيل الدخول: $e';
@@ -119,11 +119,11 @@ class _GoogleDriveLoginScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(context).pop<void>(false),
               child: const Text('العودة لتسجيل الدخول'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => Navigator.of(context).pop<void>(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warningColor,
               ),
@@ -157,7 +157,7 @@ class _GoogleDriveLoginScreenState
       await manager.initialize();
       // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
       await manager.pullAllDataWithDisabledFK();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Appwrite auto pull after skip error: $e');
     }
   }
@@ -217,7 +217,7 @@ class _GoogleDriveLoginScreenState
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.infoColor.withOpacity(0.1),
+                          color: AppColors.infoColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Column(
@@ -281,7 +281,7 @@ class _GoogleDriveLoginScreenState
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.dangerColor.withOpacity(0.1),
+                            color: AppColors.dangerColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(

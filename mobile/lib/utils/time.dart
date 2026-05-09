@@ -89,7 +89,7 @@ class Time {
       }
       final dateTime = DateTime.parse(isoString);
       return dateToString(dateTime);
-    } catch (e) {
+    } catch (Object) {
       return nowDateString();
     }
   }

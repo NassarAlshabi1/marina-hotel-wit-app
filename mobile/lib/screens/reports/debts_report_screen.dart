@@ -66,7 +66,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     try {
       final db = ref.read(databaseProvider);
       final query = db.select(db.debts);
-      final allDebts = await query.get();
+      final allDebts = await query.get<dynamic>();
       final filtered = <Debt>[];
       final fromFilter = _fromDate;
       final toFilter = _toDate;

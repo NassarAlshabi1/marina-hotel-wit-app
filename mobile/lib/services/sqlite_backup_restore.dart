@@ -54,7 +54,7 @@ class SqliteBackupRestore {
             await documentsTarget.create(recursive: true);
           }
           return documentsTarget;
-        } catch (e) {
+        } catch (Object e) {
           debugPrint(
             '⚠️ Failed to access default backup dir, falling back: $e',
           );
@@ -78,7 +78,7 @@ class SqliteBackupRestore {
         final downloadsDir = await getDownloadsDirectory();
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
     }
 
@@ -154,7 +154,7 @@ class SqliteBackupRestore {
       
       // حذف أي ملف مؤقت سابق
       if (await tmpFile.exists()) {
-        await tmpFile.delete();
+        await tmpFile.delete<dynamic>();
       }
       
       // نسخ الاحتياطي إلى الملف المؤقت
@@ -166,7 +166,7 @@ class SqliteBackupRestore {
         final backupFile = File(backupPath);
         // الاحتفاظ بنسخة أمان من DB الحالي قبل الحذف
         if (await backupFile.exists()) {
-          await backupFile.delete();
+          await backupFile.delete<dynamic>();
         }
         await dstFile.rename(backupPath);
       }

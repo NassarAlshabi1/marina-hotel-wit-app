@@ -26,7 +26,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
     }
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<Employee>> watchList({

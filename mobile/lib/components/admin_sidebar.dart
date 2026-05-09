@@ -10,7 +10,7 @@ class AdminSidebar extends ConsumerWidget {
     required this.onRouteSelected,
   });
   final String currentRoute;
-  final Function(String) onRouteSelected;
+  final void Function(String) onRouteSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,9 +24,9 @@ class AdminSidebar extends ConsumerWidget {
 
     const sidebarColor = Color(0xFF0F172A);
     const headerColor = Color(0xFF16213C);
-    final cardOverlay = Colors.white.withOpacity(0.08);
-    final dividerColor = Colors.white.withOpacity(0.12);
-    final inactiveColor = Colors.white.withOpacity(0.72);
+    final cardOverlay = Colors.white.withValues(alpha: 0.08);
+    final dividerColor = Colors.white.withValues(alpha: 0.12);
+    final inactiveColor = Colors.white.withValues(alpha: 0.72);
 
     return Container(
       width: 280,
@@ -81,7 +81,7 @@ class AdminSidebar extends ConsumerWidget {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         child: const Icon(Icons.person, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
@@ -253,9 +253,9 @@ class AdminSidebar extends ConsumerWidget {
                 try {
                   final isTablet = MediaQuery.of(context).size.width >= 768;
                   if (!isTablet && Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
+                    Navigator.of(context).pop<void>();
                   }
-                } catch (e) {
+                } catch (Object) {
                   // تجاهل الأخطاء
                 }
 
@@ -280,18 +280,18 @@ class AdminSidebar extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withOpacity(0.12) : Colors.transparent,
+        color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         leading: Icon(
           icon,
-          color: isActive ? Colors.white : Colors.white.withOpacity(0.72),
+          color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white.withOpacity(0.72),
+            color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -302,9 +302,9 @@ class AdminSidebar extends ConsumerWidget {
               // تحقق مما إذا كان هناك drawer مفتوح وأغلقه
               final isTablet = MediaQuery.of(context).size.width >= 768;
               if (!isTablet && Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop<void>();
               }
-            } catch (e) {
+            } catch (Object) {
               // تجاهل الأخطاء ومتابع
             }
           }

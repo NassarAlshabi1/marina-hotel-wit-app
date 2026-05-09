@@ -50,7 +50,7 @@ class _AppwriteSettingsScreenV2State
           tooltip: 'تحديث',
         ),
         IconButton(
-          onPressed: _showMenu,
+          onPressed: _showMenu<void>,
           icon: const Icon(Icons.more_vert),
           tooltip: 'المزيد',
         ),
@@ -99,8 +99,8 @@ class _AppwriteSettingsScreenV2State
     ).showSnackBar(const SnackBar(content: Text('جاري تحديث البيانات...')));
   }
 
-  void _showMenu() {
-    showModalBottomSheet(
+  void _showMenu<void>() {
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -113,7 +113,7 @@ class _AppwriteSettingsScreenV2State
               leading: const Icon(Icons.description),
               title: const Text('عرض السجلات'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 // Navigate to logs
               },
             ),
@@ -121,7 +121,7 @@ class _AppwriteSettingsScreenV2State
               leading: const Icon(Icons.bar_chart),
               title: const Text('إحصائيات المزامنة'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 // Navigate to stats
               },
             ),
@@ -129,14 +129,14 @@ class _AppwriteSettingsScreenV2State
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات متقدمة'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
               },
             ),
             ListTile(
               leading: const Icon(Icons.help_outline),
               title: const Text('مساعدة'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _showHelpDialog();
               },
             ),
@@ -147,7 +147,7 @@ class _AppwriteSettingsScreenV2State
   }
 
   void _showHelpDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مساعدة Appwrite'),
@@ -162,7 +162,7 @@ class _AppwriteSettingsScreenV2State
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('حسناً'),
           ),
         ],

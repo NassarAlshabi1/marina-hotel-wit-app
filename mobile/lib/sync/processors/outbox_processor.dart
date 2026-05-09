@@ -172,7 +172,7 @@ class OutboxProcessor {
 
   /// إلغاء تغيير محدد
   Future<void> cancel(String id) async {
-    await _storage.delete(id);
+    await _storage.delete<dynamic>(id);
     _notifyPendingCount();
     _notifyStatus();
   }

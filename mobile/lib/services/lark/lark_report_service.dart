@@ -226,7 +226,7 @@ class LarkReportService {
         totalExpensesCount: totalExpensesCount,
         unsettledDebts: unsettledDebts,
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Lark Report: خطأ في تجميع بيانات التقرير: $e');
       rethrow;
     }
@@ -577,14 +577,14 @@ class LarkReportService {
               content: card['card'] as Map<String, dynamic>? ?? {},
             );
             debugPrint('✅ Lark Report: تم إرسال نسخة للمجموعة $chatId');
-          } catch (e) {
+          } catch (Object e) {
             debugPrint('⚠️ Lark Report: فشل إرسال نسخة المجموعة: $e');
           }
         }
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Lark Report: خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
@@ -603,7 +603,7 @@ class LarkReportService {
         webhookUrl: webhookUrl,
         message: card,
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Lark Report: خطأ في إرسال التقرير: $e');
       return false;
     }
@@ -614,7 +614,7 @@ class LarkReportService {
     try {
       final data = await collectReportData();
       return _buildReportMarkdown(data);
-    } catch (e) {
+    } catch (Object e) {
       return 'خطأ في تجميع البيانات: $e';
     }
   }

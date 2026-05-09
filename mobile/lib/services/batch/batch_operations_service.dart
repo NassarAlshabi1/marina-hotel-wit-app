@@ -53,7 +53,7 @@ class BatchOperationsService {
             );
           });
           success += batch.length;
-        } catch (e) {
+        } catch (Object e) {
           fail += batch.length;
           failures.add(e);
         }
@@ -105,7 +105,7 @@ class BatchOperationsService {
             }
           });
           success += batch.length;
-        } catch (e) {
+        } catch (Object) {
           fail += batch.length;
         }
       }
@@ -165,7 +165,7 @@ class BatchOperationsService {
           // typed helpers (batchInsertRooms, batchInsertPayments, etc.)
           // for table-specific batch inserts with batch.insertAll.
           success += batch.length;
-        } catch (e) {
+        } catch (Object) {
           fail += batch.length;
         }
       }
@@ -194,7 +194,7 @@ class BatchOperationsService {
         try {
           await inserter(batch);
           success += batch.length;
-        } catch (e) {
+        } catch (Object) {
           fail += batch.length;
         }
       }

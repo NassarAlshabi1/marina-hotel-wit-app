@@ -31,12 +31,12 @@ class NeuCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: shadowDark.withOpacity(0.3),
+            color: shadowDark.withValues(alpha: 0.3),
             offset: const Offset(4, 4),
             blurRadius: 8,
           ),
           BoxShadow(
-            color: shadowLight.withOpacity(0.8),
+            color: shadowLight.withValues(alpha: 0.8),
             offset: const Offset(-4, -4),
             blurRadius: 8,
           ),
@@ -83,7 +83,7 @@ class NeuStatCard extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.12),
+              color: primaryColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             padding: const EdgeInsets.all(8),
@@ -95,7 +95,7 @@ class NeuStatCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: scheme.onSurface.withOpacity(0.75),
+              color: scheme.onSurface.withValues(alpha: 0.75),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -141,7 +141,7 @@ class NeuDateButton extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: scheme.primary.withOpacity(0.12),
+              color: scheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.all(6),
@@ -190,12 +190,12 @@ class NeuQuickFilterChip extends StatelessWidget {
           color: selected ? scheme.primary : scheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? scheme.primary : scheme.outline.withOpacity(0.3),
+            color: selected ? scheme.primary : scheme.outline.withValues(alpha: 0.3),
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: scheme.primary.withOpacity(0.3),
+                    color: scheme.primary.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -240,7 +240,7 @@ class NeuSectionHeader extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             padding: const EdgeInsets.all(8),
@@ -263,14 +263,14 @@ class NeuSectionHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: scheme.outline.withOpacity(0.3)),
+                border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
               ),
               child: Text(
                 trailing!,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: scheme.onSurface.withOpacity(0.8),
+                  color: scheme.onSurface.withValues(alpha: 0.8),
                 ),
               ),
             ),

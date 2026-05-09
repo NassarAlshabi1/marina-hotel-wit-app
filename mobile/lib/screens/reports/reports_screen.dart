@@ -25,8 +25,6 @@ class ReportsScreen extends ConsumerStatefulWidget {
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   /// مفاتيح الـ cache لكل نوع بيانات
-  static const _cacheKeyRooms = 'report_rooms';
-  static const _cacheKeyFinancials = 'report_financials';
 
   /// الذاكرة المؤقتة
   Map<String, dynamic>? _cachedRooms;
@@ -34,8 +32,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   bool _loading = true;
 
   /// RefreshableObject flag — للتحكم بإعادة التحميل
-  bool _forceRefresh = false;
-
   @override
   void initState() {
     super.initState();
@@ -44,7 +40,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Future<void> _loadData({bool force = false}) async {
     if (force) {
-      _forceRefresh = true;
     }
     setState(() => _loading = true);
 
@@ -132,7 +127,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _forceRefresh = false;
           // تخزين البيانات المعالجة للاستخدام في build
           _chartData = {
             'dailyOcc': daily,
@@ -385,7 +379,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   /// التنقل بأسلوب lazy — الـ WidgetBuilder لا يُنفذ إلا عند التنقل الفعلي
   void _navigate(WidgetBuilder builder) {
-    Navigator.push(context, MaterialPageRoute(builder: builder));
+    Navigator.push<void>(context, MaterialPageRoute(builder: builder));
   }
 }
 
@@ -413,7 +407,7 @@ class _ReportShortcut extends StatelessWidget {
         dense: true,
         leading: CircleAvatar(
           radius: 16,
-          backgroundColor: color.withOpacity(0.12),
+          backgroundColor: color.withValues(alpha: 0.12),
           child: Icon(icon, color: color, size: 18),
         ),
         title: Text(

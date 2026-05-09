@@ -129,7 +129,7 @@ class StatCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(UIConstants.spacingSM),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(UIConstants.radiusMD),
                     ),
                     child: Icon(
@@ -192,9 +192,9 @@ class StatusBadge extends StatelessWidget {
         vertical: UIConstants.spacingXS,
       ),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
+        color: badgeColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(UIConstants.radiusSM),
-        border: Border.all(color: badgeColor.withOpacity(0.3)),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

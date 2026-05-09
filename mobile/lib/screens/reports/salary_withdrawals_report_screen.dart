@@ -140,7 +140,7 @@ class _SalaryWithdrawalsReportScreenState
       query = query..where((tbl) => tbl.employeeId.equals(_selectedEmployeeId!));
     }
 
-    final withdrawals = await query.get();
+    final withdrawals = await query.get<dynamic>();
 
     // بناء خريطة الموظفين
     final employeeMap = <int, Employee>{};

@@ -295,7 +295,7 @@ class GeminiService {
       _isInitialized = true;
       _lastError = null;
       debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
       debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
       _initError = _describeInitError(e);
@@ -956,7 +956,7 @@ class GeminiService {
         }
       }
 
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
@@ -988,7 +988,7 @@ class GeminiService {
       if (elapsed < _minRequestInterval) {
         final waitTime = _minRequestInterval - elapsed;
         debugPrint('⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...');
-        await Future.delayed(waitTime);
+        await Future<void>.delayed(waitTime);
       }
     }
 
@@ -1014,7 +1014,7 @@ class GeminiService {
       String responseText;
       try {
         responseText = response.text ?? '';
-      } on FirebaseAIException catch (e) {
+      } on FirebaseAIException catch (Object e) {
         debugPrint('⚠️ response.text رمى استثناء: $e');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
         if ((e.message.contains('SAFETY') ?? false) ||
@@ -1053,7 +1053,7 @@ class GeminiService {
             command is! AiQueryCommand &&
             command is! AiNoActionCommand,
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في Gemini: $e');
       _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
@@ -1094,7 +1094,7 @@ class GeminiService {
       } else if (firebaseMsg.contains('No content') || firebaseMsg.contains('empty')) {
         return 'لم يتم توليد رد. حاول إعادة صياغة السؤال.';
       }
-          return 'خطأ من خدمة AI: ${firebaseMsg ?? "غير معروف"}';
+          return 'خطأ من خدمة AI: ${firebaseMsg}';
     }
     return 'حدث خطأ أثناء معالجة طلبك: $e';
   }
@@ -1110,7 +1110,7 @@ class GeminiService {
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       try {
         return await sendFn();
-      } catch (e) {
+      } catch (Object e) {
         final msg = e.toString();
         // فحص إذا كان الخطأ قابلاً لإعادة المحاولة
         final isRetryable = e is QuotaExceeded ||
@@ -1129,7 +1129,7 @@ class GeminiService {
 
         debugPrint('⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
 
-        await Future.delayed(actualDelay);
+        await Future<void>.delayed(actualDelay);
 
         // مضاعفة التأخير للمحاولة التالية
         delay = Duration(
@@ -1290,7 +1290,7 @@ class GeminiService {
           try {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(booking.id, forceRebuild: true);
-          } catch (e) {
+          } catch (Object e) {
             debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
           }
 
@@ -1446,7 +1446,7 @@ class GeminiService {
           try {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(activeBooking.id, forceRebuild: true);
-          } catch (e) {
+          } catch (Object e) {
             debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
             result = 'فشل إعادة حساب الحجز $roomNumber: $e';
             break;
@@ -1669,7 +1669,7 @@ class GeminiService {
       }
 
       return '✅ $result';
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تنفيذ الأمر: $e');
       return '❌ فشل تنفيذ الأمر: $e';
     }
@@ -1984,7 +1984,7 @@ class GeminiService {
         default:
           return 'نوع التقرير غير معروف: $reportType';
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('خطأ في توليد التقرير: $e');
       return 'فشل توليد التقرير: $e';
     }

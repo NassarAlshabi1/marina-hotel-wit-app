@@ -152,7 +152,7 @@ class ConflictManager {
               ),
             );
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل حفظ التعارض: $e');
     }
   }
@@ -200,7 +200,7 @@ class ConflictManager {
           SyncConflictsCompanion(resolution: Value(jsonEncode(resolution))),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل تحديث حل التعارض: $e');
     }
   }
@@ -226,7 +226,7 @@ class ConflictManager {
           if (row.resolution.isNotEmpty) {
             resolutionData = jsonDecode(row.resolution) as Map<String, dynamic>?;
           }
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
         }
 
@@ -244,7 +244,7 @@ class ConflictManager {
       }
 
       _conflictsController.add(_pendingConflicts);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل تحميل التعارضات المعلقة: $e');
     }
   }

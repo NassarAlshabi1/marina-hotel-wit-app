@@ -260,9 +260,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop<void>(context, true);
       }
-    } catch (error) {
+    } catch (Object error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -461,11 +461,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             child: const Text('متابعة'),
           ),
         ],
@@ -707,7 +707,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   }
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -716,13 +716,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop<void>(ctx, false),
               child: const Text('إلغاء'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).pop();
+                Navigator.pop<void>(ctx);
+                Navigator.of(context).pop<void>();
               },
               child: const Text('مغادرة'),
             ),
@@ -1257,7 +1257,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       discountController.clear();
       startDateController.clear();
       
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1278,11 +1278,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         content: Text('هل تريد إنهاء $type من اليوم؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop<void>(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('إنهاء'),
           ),
@@ -1307,7 +1307,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

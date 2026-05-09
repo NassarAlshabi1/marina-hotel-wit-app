@@ -74,7 +74,7 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp();
     debugPrint('✅ Firebase Core initialized');
-  } catch (e) {
+  } catch (Object e) {
     debugPrint('⚠️ Firebase Core initialization failed: $e');
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
@@ -179,7 +179,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ فشلت استعادة الجلسة: $e');
     }
 
@@ -339,7 +339,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
 }
 
 /// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
-StreamSubscription? _globalEngineMonitoringSub;
+StreamSubscription<void>? _globalEngineMonitoringSub;
 
 void _startEngineMonitoring(AutoSyncEngine engine) {
   _globalEngineMonitoringSub?.cancel();
@@ -362,7 +362,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
   bool _initialLocalSyncDone = false;
-  StreamSubscription? _localAutoSyncSub;
+  StreamSubscription<void>? _localAutoSyncSub;
   Timer? _localAutoSyncDebounce;
   DateTime? _lastLocalAutoSync;
   bool _localAutoSyncRunning = false;
@@ -396,7 +396,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _pendingDatabase = null;
     _isConfiguringSession = true;
-    Future.delayed(const Duration(milliseconds: 100), () async {
+    Future<void>.delayed(const Duration(milliseconds: 100), () async {
       try {
         if (_sessionConfigured) {
           await AppSessionManager.onAppCloseOrBackground();
@@ -427,7 +427,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   void _startRealtimeSync() {
-    Future.delayed(const Duration(seconds: 5), () async {
+    Future<void>.delayed(const Duration(seconds: 5), () async {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
@@ -435,14 +435,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // تسجيل الجهاز تلقائياً
         try {
           await syncManager.registerDevice();
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ Device registration error: $e');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ FCM initialization error: $e');
         }
 
@@ -481,7 +481,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             );
             debugPrint('✅ Initial sync on app start completed');
           }
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ Initial sync on app start failed: $e');
  }
 
@@ -501,7 +501,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         );
         await AppwriteRealtimeSync().start();
         debugPrint('📡 Realtime sync + auto sync started');
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('❌ Realtime sync init error: $e');
       }
     });
@@ -585,7 +585,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncRunning = true;
     try {
       await ref.read(syncServiceProvider).runSync();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Local auto sync error: $e');
     } finally {
       _lastLocalAutoSync = DateTime.now();
@@ -622,7 +622,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // pull: سحب أي تغييرات جديدة من السيرفر
       await syncManager.sync();
       debugPrint('✅ Sync on resume completed (push + pull)');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Sync on resume error: $e');
     }
   }
@@ -639,7 +639,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         const Duration(seconds: 10),
       );
       debugPrint('✅ Push on pause completed');
-    } catch (e) {
+    } catch (Object e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
       debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
     }
@@ -666,62 +666,62 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('🧹 Disposing singleton services...');
     try {
       await FcmService.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing FcmService: $e');
     }
     try {
       await BatteryOptimizer.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
     }
     try {
       await AppwriteRealtimeService.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
       await SmartSyncManager.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing SmartSyncManager: $e');
     }
     try {
       ConnectivityService.instance.dispose();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing ConnectivityService: $e');
     }
     try {
       HotelDayTicker.instance.dispose();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing HotelDayTicker: $e');
     }
     try {
       await AutoSyncEngine.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
       await UnifiedSyncOrchestrator.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
       await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
     }
     try {
       BackgroundSyncService.disposeInstance();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
     }
     debugPrint('✅ All singleton services disposed');
@@ -734,22 +734,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       debugPrint('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen().catchError(
-        (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
+      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => debugPrint('Error in onAppOpen: $e\n$s'),
       );
       ref
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
-          .catchError(
-            (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
+          .catchError((Object e, StackTrace s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
       // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
       unawaited(_syncOnResume());
-      UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      UnifiedSyncOrchestrator.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
-      SyncGuardian.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      SyncGuardian.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
@@ -760,8 +756,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         AppSessionManager.onAppCloseOrBackground,
-      ).catchError(
-        (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
+      ).catchError((Object e, StackTrace s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );
     }
   }
@@ -788,16 +783,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               // إنشاء المسارات بأسلوب lazy — الصفحة لا تُنشأ إلا عند التنقل إليها
               switch (settings.name) {
                 case '/employees':
-                  return MaterialPageRoute(builder: (_) => const EmployeesListScreen());
+                  return MaterialPageRoute<void>(builder: (_) => const EmployeesListScreen());
                 case '/expenses':
-                  return MaterialPageRoute(builder: (_) => const ExpensesListScreen());
+                  return MaterialPageRoute<void>(builder: (_) => const ExpensesListScreen());
                 case '/finance/cash-register':
                 case '/finance/cash-transactions':
-                  return MaterialPageRoute(builder: (_) => const FinanceScreen());
+                  return MaterialPageRoute<void>(builder: (_) => const FinanceScreen());
                 case '/debts':
-                  return MaterialPageRoute(builder: (_) => const DebtsListScreen());
+                  return MaterialPageRoute<void>(builder: (_) => const DebtsListScreen());
                 case '/reports':
-                  return MaterialPageRoute(builder: (_) => const ReportsScreen());
+                  return MaterialPageRoute<void>(builder: (_) => const ReportsScreen());
                 default:
                   return null;
               }
@@ -909,7 +904,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         onPressed: () {
           Navigator.of(
             context,
-          ).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+          ).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
         },
         tooltip: 'التنبيهات',
         icon: Stack(

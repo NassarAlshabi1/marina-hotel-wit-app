@@ -387,9 +387,9 @@ class SchemaComparisonScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -516,7 +516,7 @@ class SchemaComparisonScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: fix.color.withOpacity(0.1),
+        color: fix.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -648,7 +648,7 @@ class SchemaComparisonScreen extends StatelessWidget {
   }
 
   void _showInfoDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('معلومات المقارنة'),
@@ -671,7 +671,7 @@ class SchemaComparisonScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('حسناً'),
           ),
         ],

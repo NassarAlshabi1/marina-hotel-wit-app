@@ -83,7 +83,7 @@ void callbackDispatcher() {
         developer.log('❌ فشلت المزامنة في الخلفية: ${result.message}');
         return Future.value(false);
       }
-    } catch (e) {
+    } catch (Object e) {
       developer.log('❌ خطأ في مزامنة الخلفية: $e');
       return Future.value(false);
     }

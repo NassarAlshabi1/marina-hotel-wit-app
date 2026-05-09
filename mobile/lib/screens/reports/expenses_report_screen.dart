@@ -238,7 +238,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         if (toStr != null) {
           swQuery = swQuery..where((tbl) => tbl.withdrawDate.isSmallerOrEqualValue('${toStr}T23:59:59'));
         }
-        salaryWithdrawals = await swQuery.get();
+        salaryWithdrawals = await swQuery.get<dynamic>();
         // إضافة أرقام الموظفين من salary_withdrawals
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
@@ -965,7 +965,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           // الإجمالي الرئيسي - سطر واحد مصغّر
           Row(
             children: [
-              Icon(Icons.payments, color: Colors.orange, size: 14),
+              const Icon(Icons.payments, color: Colors.orange, size: 14),
               const SizedBox(width: 5),
               Text(
                 widget.totalSummaryLabel,

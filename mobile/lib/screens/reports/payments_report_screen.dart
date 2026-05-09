@@ -58,7 +58,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Future<void> _initializeDefaults() async {
     // الافتراضي: من بداية اليوم إلى نهاية اليوم التالي
-    final now = DateTime.now();
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;

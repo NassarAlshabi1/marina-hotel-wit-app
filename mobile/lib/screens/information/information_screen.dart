@@ -92,20 +92,20 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تغييرات غير محفوظة'),
         content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.of(context).pop();
+              Navigator.pop<void>(ctx);
+              Navigator.of(context).pop<void>();
             },
             child: const Text('مغادرة'),
           ),
@@ -393,13 +393,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
+              onPressed: () => Navigator.of(dialogContext).pop<void>(false),
               child: const Text('إلغاء'),
             ),
             FilledButton(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(true);
+                  Navigator.of(dialogContext).pop<void>(true);
                 }
               },
               child: const Text('حفظ'),
@@ -446,7 +446,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
       markDataChanged();
       _pushToAppwrite();
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -465,11 +465,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         content: Text('سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => Navigator.of(dialogContext).pop<void>(false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () => Navigator.of(dialogContext).pop<void>(true),
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('حذف'),
           ),
@@ -484,7 +484,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       markDataChanged();
       _showSnack('تم حذف السجل');
       _pushToAppwrite();
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -690,7 +690,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
       final filename = 'guest-info-$timestamp.pdf';
       await Printing.sharePdf(bytes: await doc.save(), filename: filename);
-    } catch (error) {
+    } catch (Object error) {
       _showSnack('فشل تصدير الملف: $error');
     } finally {
       if (mounted) {
@@ -718,7 +718,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.sync(pull: false);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ فشلت المزامنة الفورية: $e');
     }
   }

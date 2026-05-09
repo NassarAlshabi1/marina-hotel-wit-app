@@ -50,7 +50,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
     ]);
     if (limit != null) q.limit(limit, offset: offset ?? 0);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<Booking>> watchList({
@@ -166,7 +166,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.get();
+    return query.get<dynamic>();
   }
 
   Future<List<Booking>> getByRoomNumber(
@@ -178,7 +178,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.get();
+    return query.get<dynamic>();
   }
 
   Future<List<Booking>> getByStatus(
@@ -189,7 +189,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.get();
+    return query.get<dynamic>();
   }
 
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {

@@ -157,7 +157,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         // إشعار صامت بأن البيانات محدثة
         debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
     }
   }
@@ -319,10 +319,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   currencyFmt.format(total),
                   Icons.money_off_rounded,
                   Colors.red,
-                  onTap: () => Navigator.push(
+                  onTap: () => Navigator.push<void>(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const ExpensesReportScreen(),
+                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen(),
                     ),
                   ),
                 ),
@@ -519,7 +518,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomOptionsDialog(BuildContext context, Room room) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -540,7 +539,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    Navigator.pop(context);
+                    Navigator.pop<void>(context);
                     await _updateRoomStatus(room, 'صيانة');
                   },
                   icon: const Icon(Icons.build, color: Colors.white),
@@ -555,7 +554,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -577,7 +576,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -619,9 +618,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
     );
   }
@@ -649,13 +647,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       if (context.mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => BookingPaymentScreen(booking: activeBooking),
+        Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking),
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
@@ -665,7 +662,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomDetailsDialog(BuildContext context, Room room) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -681,13 +678,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
           if (!StatusUtils.isRoomOccupied(room.status))
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _navigateToNewBooking(context, room.roomNumber);
               },
               child: const Text('حجز جديد'),

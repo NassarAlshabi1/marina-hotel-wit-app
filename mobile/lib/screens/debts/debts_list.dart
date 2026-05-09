@@ -226,9 +226,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -243,7 +243,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -646,7 +646,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color),
       ),
@@ -685,7 +685,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   void _showQuickAddMenu(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
@@ -704,7 +704,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                 'اختر حجز وأنشئ دين بناء على الأيام المتبقية',
               ),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _createDebtFromBooking();
               },
             ),
@@ -716,7 +716,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               title: const Text('دين يدوي'),
               subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _openDebtForm(context);
               },
             ),
@@ -728,8 +728,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Future<void> _createDebtFromBooking() async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (context) => const CreateDebtFromBookingScreen(),
+      MaterialPageRoute<void>(builder: (context) => const CreateDebtFromBookingScreen(),
       ),
     );
 
@@ -751,11 +750,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         content: Text('هل تريد تسجيل دين "${debt.guestName}" كمسدد؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: const Text('تأكيد السداد'),
           ),
@@ -780,7 +779,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
           );
         }
-      } catch (e) {
+      } catch (Object e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1032,11 +1031,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
+                  onPressed: () => Navigator.pop<void>(dialogContext, false),
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
+                  onPressed: () => Navigator.pop<void>(dialogContext, true),
                   child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),
                 ),
               ],
@@ -1237,7 +1236,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         setState(() => _isSendingWhatsApp = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1261,11 +1260,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
+              onPressed: () => Navigator.pop<void>(dialogContext, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: () => Navigator.pop<void>(dialogContext, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('حذف'),
             ),
@@ -1278,7 +1277,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
     try {
       final repo = ref.read(debtsRepoProvider);
-      await repo.delete(debt.id);
+      await repo.delete<dynamic>(debt.id);
       markDataChanged();
 
       if (context.mounted) {
@@ -1286,7 +1285,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           context,
         ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
       }
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

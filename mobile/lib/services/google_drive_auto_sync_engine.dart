@@ -259,7 +259,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Future<void> restart() async {
     _log('🔄 Restarting Auto Sync Engine...');
     stop();
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     await start();
     _log('✅ Auto Sync Engine restarted');
   }
@@ -285,7 +285,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _retryTimer?.cancel();
         }
       },
-      onError: (error) {
+      onError: (Object error) {
         _log('❌ Connectivity listener error: $error', level: LogLevel.error);
       },
     );
@@ -347,7 +347,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
         _emitState();
       },
-      onError: (error) {
+      onError: (Object error) {
         _log('❌ Sync result listener error: $error', level: LogLevel.error);
       },
     );
@@ -429,7 +429,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('⚠️ Silent sign-in failed - user intervention needed');
           return;
         }
-      } catch (e) {
+      } catch (Object e) {
         _log('❌ Silent sign-in error: $e');
         return;
       }
@@ -493,16 +493,16 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _log('⚠️ Silent sign-in failed');
           return;
         }
-      } catch (e) {
+      } catch (Object e) {
         _log('❌ Silent sign-in error: $e');
         return;
       }
     }
 
-    Future.delayed(SyncConstants.appForegroundDelay, () async {
+    Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator!.onAppForeground();
-      } catch (e) {
+      } catch (Object e) {
         _log('❌ Error on app foreground sync: $e', level: LogLevel.error);
       }
     });
@@ -521,7 +521,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
               _log('✅ Quick sync before background completed');
             }
           })
-          .catchError((error) {
+          .catchError((Object error) {
             _log('⚠️ Quick sync before background failed: $error');
           });
     }
@@ -587,7 +587,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           }
           _isSignedIn = true;
           await _orchestrator!.onDriveSignInChanged(true);
-        } catch (e) {
+        } catch (Object e) {
           _log('❌ Retry sign-in error: $e');
           await _scheduleRetry();
           return;

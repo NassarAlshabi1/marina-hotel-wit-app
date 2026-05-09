@@ -19,7 +19,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     query.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return query.get();
+    return query.get<dynamic>();
   }
 
   Future<List<Debt>> listByBookingLocalId(
@@ -34,7 +34,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     query.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return query.get();
+    return query.get<dynamic>();
   }
 
   Stream<List<Debt>> watchList({bool includeDeleted = false}) {

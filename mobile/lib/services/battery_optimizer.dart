@@ -130,7 +130,7 @@ class BatteryOptimizer extends ChangeNotifier {
         '🔋 BatteryOptimizer initialized: $_batteryLevel% ($_batteryState)',
         name: 'BatteryOptimizer',
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log('⚠️ BatteryOptimizer init error: $e', name: 'BatteryOptimizer');
     }
   }

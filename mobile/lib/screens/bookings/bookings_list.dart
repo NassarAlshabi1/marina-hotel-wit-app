@@ -28,10 +28,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   Future<void> _navigateToAddBooking() async {
-    await Navigator.push(
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const BookingEditScreen(),
+      MaterialPageRoute<void>(builder: (_) => const BookingEditScreen(),
       ),
     );
   }
@@ -47,9 +46,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(
+              Navigator.push<void>(
                 context,
-                MaterialPageRoute(builder: (_) => const PaymentsMainScreen()),
+                MaterialPageRoute<void>(builder: (_) => const PaymentsMainScreen()),
               );
             },
             icon: const Icon(Icons.payments),
@@ -279,10 +278,9 @@ class _CompactBookingCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
-          await Navigator.push(
+          await Navigator.push<void>(
             context,
-            MaterialPageRoute(
-              builder: (_) => BookingPaymentScreen(booking: booking),
+            MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: booking),
             ),
           );
         },
@@ -339,7 +337,7 @@ class _CompactBookingCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
+                      color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -410,7 +408,7 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
     child: const Row(
       children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),
@@ -528,10 +526,9 @@ class _BookingRow extends ConsumerWidget {
           )
         : InkWell(
             onTap: () async {
-              await Navigator.push(
+              await Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => BookingPaymentScreen(booking: booking),
+                MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: booking),
                 ),
               );
             },
@@ -656,7 +653,7 @@ class _BookingRow extends ConsumerWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: statusColor),
                         ),

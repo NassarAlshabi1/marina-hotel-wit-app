@@ -180,7 +180,7 @@ class ConflictResolver {
         }
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ ConflictResolver: فشل تحليل timestamp: $e');
     }
 

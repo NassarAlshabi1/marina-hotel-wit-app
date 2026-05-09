@@ -18,7 +18,7 @@ class AutoBackupTask {
         isInDebugMode: kDebugMode,
       );
       debugPrint('✅ تم تهيئة AutoBackupTask');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تهيئة AutoBackupTask: $e');
     }
   }
@@ -46,7 +46,7 @@ class AutoBackupTask {
       );
 
       debugPrint('✅ تم جدولة النسخ اليومي في $time');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في جدولة النسخ اليومي: $e');
     }
   }
@@ -77,7 +77,7 @@ class AutoBackupTask {
       );
 
       debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في جدولة النسخ الأسبوعي: $e');
     }
   }
@@ -108,7 +108,7 @@ class AutoBackupTask {
       );
 
       debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في جدولة النسخ الشهري: $e');
     }
   }
@@ -118,7 +118,7 @@ class AutoBackupTask {
     try {
       await _cancelExisting();
       debugPrint('✅ تم إلغاء جميع مهام النسخ المجدولة');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إلغاء المهام المجدولة: $e');
     }
   }
@@ -222,7 +222,7 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       debugPrint('✅ تم تشغيل مهمة النسخ الفوري');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تشغيل مهمة النسخ الفوري: $e');
     }
   }
@@ -251,7 +251,7 @@ void callbackDispatcher() {
           debugPrint('📱 بدء النسخ الاحتياطي المحلي...');
           await localBackupService.createLocalBackup(format: backupFormat);
           debugPrint('✅ تم النسخ الاحتياطي المحلي بنجاح');
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي المحلي: $e');
           success = false;
         }
@@ -273,7 +273,7 @@ void callbackDispatcher() {
               '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
             );
           }
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');
           // عدم فشل المهمة إذا فشل النسخ السحابي فقط
         }
@@ -286,7 +286,7 @@ void callbackDispatcher() {
         debugPrint('❌ فشل في تنفيذ جميع أنواع النسخ');
         return Future.value(false);
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e');
 
       // إرجاع false سيؤدي إلى إعادة تشغيل المهمة

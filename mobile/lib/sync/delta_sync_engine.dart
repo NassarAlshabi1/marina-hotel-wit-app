@@ -88,7 +88,7 @@ class DeltaSyncEngine {
         conflictCount: result.conflicts.length,
       );
       
-    } catch (e) {
+    } catch (Object e) {
       stopwatch.stop();
       _emitEvent(SyncEventType.syncFailed);
       
@@ -132,7 +132,7 @@ class DeltaSyncEngine {
             result.successCount++;
           }
           
-        } catch (e) {
+        } catch (Object e) {
           result.errors.add('Failed to apply ${change.uuid}: $e');
         }
       }
@@ -146,7 +146,7 @@ class DeltaSyncEngine {
       // تحديث وقت آخر مزامنة
       await _outbox.updateLastSyncTimestamp(DateTime.now());
 
-    } catch (e) {
+    } catch (Object e) {
       result.errors.add('Pull failed: $e');
     }
 
@@ -274,7 +274,7 @@ class DeltaSyncEngine {
         }
       }
 
-    } catch (e) {
+    } catch (Object e) {
       result.errors.add('Push failed: $e');
     }
 

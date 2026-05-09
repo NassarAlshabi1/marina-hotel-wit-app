@@ -44,7 +44,7 @@ class _SyncPerformanceSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تطبيق ملف التعريف: $e'),
@@ -118,9 +118,9 @@ class _SyncPerformanceSettingsScreenState
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 '💡 النصيحة: ملف "متوازن" مُوصى به لمعظم الاستخدامات، بينما "توفير البطارية" مثالي للأجهزة القديمة أو الاستخدام المحدود.',
@@ -160,7 +160,7 @@ class _SyncPerformanceSettingsScreenState
           color: isSelected ? Colors.blue : Colors.grey.shade300,
           width: isSelected ? 2 : 1,
         ),
-        color: isSelected ? Colors.blue.withOpacity(0.05) : null,
+        color: isSelected ? Colors.blue.withValues(alpha: 0.05) : null,
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),

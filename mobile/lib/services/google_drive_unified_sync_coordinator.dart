@@ -107,7 +107,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   Timer? _debounceTimer;
   Timer? _periodicSyncTimer;
   Timer? _pullCheckTimer;
-  StreamSubscription? _outboxSubscription;
+  StreamSubscription<void>? _outboxSubscription;
 
   bool _isInitialized = false;
   bool _isSyncing = false;
@@ -412,7 +412,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       }
     }
 
-    Future.delayed(SyncConstants.appForegroundDelay, () async {
+    Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       await performSync(
         trigger: SyncTrigger.appForeground,
       );
@@ -582,7 +582,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       _log('✅ Sync completed [pushed=$pushed, pulled=$pulled]');
 
       return result;
-    } catch (error, stackTrace) {
+    } catch (Object error, StackTrace stackTrace) {
       final errorMessage = error.toString();
       _log('❌ Sync failed: $errorMessage', level: LogLevel.error);
       _log('Stack trace: $stackTrace', level: LogLevel.debug);
@@ -684,7 +684,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         _log('⚠️ Delta push failed: ${result.message}');
         return null;
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ Delta push error: $e');
       rethrow;
     }
@@ -720,7 +720,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         _log('ℹ️ No changes to pull');
         return 0;
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ Delta pull error: $e');
       rethrow;
     }
@@ -748,7 +748,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
       _log('✅ Full backup completed');
       return 1;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ Full backup error: $e');
       rethrow;
     }
@@ -870,7 +870,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         return true;
       }
       return false;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ Push failed: $e', level: LogLevel.error);
       return false;
     }
@@ -894,7 +894,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         return true;
       }
       return false;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ Pull failed: $e', level: LogLevel.error);
       return false;
     }

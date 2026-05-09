@@ -122,7 +122,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.indigo.withOpacity(0.3),
+            color: Colors.indigo.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -133,7 +133,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.calendar_today, color: Colors.white, size: 22),
@@ -166,7 +166,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: cutoff ? Colors.orange.withOpacity(0.9) : Colors.green.withOpacity(0.9),
+              color: cutoff ? Colors.orange.withValues(alpha: 0.9) : Colors.green.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -197,7 +197,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -653,10 +653,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             height: 30,
             child: ElevatedButton.icon(
               onPressed: () {
-                Navigator.push(
+                Navigator.push<void>(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => BookingCheckoutScreen(booking: booking),
+                  MaterialPageRoute<void>(builder: (_) => BookingCheckoutScreen(booking: booking),
                   ),
                 );
               },
@@ -682,7 +681,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final referenceController = TextEditingController();
     PaymentMethod selectedMethod = PaymentMethod.cash;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => Directionality(
@@ -774,7 +773,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop<void>(ctx),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
@@ -858,7 +857,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       );
 
       if (mounted) {
-        Navigator.pop(dialogContext);
+        Navigator.pop<void>(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -868,9 +867,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
-        Navigator.pop(dialogContext);
+        Navigator.pop<void>(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),

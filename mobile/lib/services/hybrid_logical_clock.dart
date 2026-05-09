@@ -113,7 +113,7 @@ class HybridLogicalClock {
         logicalCounter: int.parse(parts[1]),
         deviceId: parts[2],
       );
-    } catch (e) {
+    } catch (Object) {
       return null;
     }
   }

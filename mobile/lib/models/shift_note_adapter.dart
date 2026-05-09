@@ -88,7 +88,7 @@ class ShiftNoteAdapter {
           : ShiftType.all;
 
       return (priority, shiftType);
-    } catch (e) {
+    } catch (Object) {
       return (NotePriority.medium, ShiftType.all);
     }
   }

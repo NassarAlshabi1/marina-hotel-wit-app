@@ -265,7 +265,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   }
 
   void _showLogDetails(SyncLogEntry log) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -369,7 +369,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop<void>(context),
                   child: const Text('إغلاق'),
                 ),
               ),
@@ -429,7 +429,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -463,13 +463,13 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () {
                 setState(() {});
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
               },
               child: const Text('تطبيق'),
             ),

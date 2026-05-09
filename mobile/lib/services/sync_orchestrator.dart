@@ -244,7 +244,7 @@ class SyncOrchestrator {
   OrchestratorState _state = OrchestratorState.idle;
   Timer? _healthCheckTimer;
   Timer? _taskProcessorTimer;
-  StreamSubscription? _connectivitySubscription;
+  StreamSubscription<void>? _connectivitySubscription;
 
   final _stateController = StreamController<OrchestratorState>.broadcast();
   final _healthController = StreamController<SyncHealth>.broadcast();
@@ -395,7 +395,7 @@ class SyncOrchestrator {
         error: 'انتهت المهلة الزمنية',
         duration: duration,
       );
-    } catch (e) {
+    } catch (Object e) {
       final duration = DateTime.now().difference(startTime);
       _metrics.recordFailure(duration);
       return SyncTaskResult.failure(error: e.toString(), duration: duration);
@@ -526,7 +526,7 @@ class SyncOrchestrator {
             timestamp: DateTime.now(),
           ),
         );
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
       }
     }
@@ -546,7 +546,7 @@ class SyncOrchestrator {
         _metrics.totalRecordsProcessed = (data['totalRecordsProcessed'] as num?)?.toInt() ?? 0;
         _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
     }
   }
@@ -558,7 +558,7 @@ class SyncOrchestrator {
         'sync_orchestrator_metrics',
         jsonEncode(_metrics.toJson()),
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }
   }

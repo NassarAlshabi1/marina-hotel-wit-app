@@ -216,7 +216,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         decoration: BoxDecoration(
                           color: _getPaymentMethodColor(
                             payment.paymentMethod,
-                          ).withOpacity(0.2),
+                          ).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -390,7 +390,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           if (_toDate != null && paymentDate.isAfter(_toDate!)) {
             return false;
           }
-        } catch (e) { debugPrint('Date parse error in filter: $e'); }
+        } catch (Object e) { debugPrint('Date parse error in filter: $e'); }
       }
 
       return true;
@@ -398,7 +398,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -498,13 +498,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () => Navigator.of(ctx).pop<void>(),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () {
                   setState(() {});
-                  Navigator.of(ctx).pop();
+                  Navigator.of(ctx).pop<void>();
                 },
                 child: const Text('تطبيق الفلاتر'),
               ),
@@ -525,7 +525,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showPaymentDetails(Payment payment) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -553,7 +553,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
+              onPressed: () => Navigator.of(ctx).pop<void>(),
               child: const Text('إغلاق'),
             ),
           ],

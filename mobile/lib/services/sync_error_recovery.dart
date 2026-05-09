@@ -198,7 +198,7 @@ class SyncErrorRecovery {
         case RecoveryAction.retry:
           if (retryOperation != null) {
             error.retryCount++;
-            await Future.delayed(Duration(seconds: error.retryCount * 2));
+            await Future<void>.delayed(Duration(seconds: error.retryCount * 2));
             await retryOperation();
             return RecoveryResult(
               success: true,
@@ -257,7 +257,7 @@ class SyncErrorRecovery {
         message: 'لم يتم تنفيذ أي إجراء',
         duration: DateTime.now().difference(startTime),
       );
-    } catch (e) {
+    } catch (Object e) {
       return RecoveryResult(
         success: false,
         actionTaken: action,
@@ -290,7 +290,7 @@ class SyncErrorRecovery {
       }
 
       debugPrint('📍 [Recovery] نقطة استعادة: $description');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
     }
   }
@@ -308,7 +308,7 @@ class SyncErrorRecovery {
       await database.applyMergedData(point.snapshot);
       debugPrint('✅ [Recovery] تم الاستعادة من: ${point.description}');
       return true;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [Recovery] فشل الاستعادة: $e');
       return false;
     }

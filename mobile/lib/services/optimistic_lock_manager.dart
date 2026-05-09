@@ -83,7 +83,7 @@ class OptimisticLockManager {
           .getSingleOrNull();
 
       return result?.read<int?>('version');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في قراءة الإصدار: $e');
       return null;
     }
@@ -101,7 +101,7 @@ class OptimisticLockManager {
           d.Variable.withString(uuid),
         ],
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تحديث الإصدار: $e');
       rethrow;
     }
@@ -122,7 +122,7 @@ class OptimisticLockManager {
 
     try {
       return await operation(newVersion);
-    } catch (e) {
+    } catch (Object) {
       try {
         await db.customUpdate(
           'UPDATE $table SET version = ? WHERE local_uuid = ? AND version = ?',
@@ -132,7 +132,7 @@ class OptimisticLockManager {
             d.Variable.withInt(newVersion),
           ],
         );
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('⚠️ Version rollback failed after optimistic lock conflict: $e');
       }
       rethrow;

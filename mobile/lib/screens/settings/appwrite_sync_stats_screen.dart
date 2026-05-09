@@ -223,9 +223,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -581,7 +581,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     try {
       final dt = DateTime.parse(isoString);
       return DateFormat('yyyy-MM-dd HH:mm:ss').format(dt);
-    } catch (e) {
+    } catch (Object) {
       return '---';
     }
   }
@@ -601,7 +601,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
       } else {
         return 'الآن';
       }
-    } catch (e) {
+    } catch (Object) {
       return '---';
     }
   }

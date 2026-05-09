@@ -55,7 +55,7 @@ class ComprehensiveAppwriteBackupService {
   Future<File?> exportFullBackup(
     AppDatabase db, {
     String? deviceId,
-    Function(String, double)? onProgress,
+    void Function(String, double)? onProgress,
   }) async {
     try {
       final timestamp = DateTime.now().toUtc();
@@ -212,7 +212,7 @@ class ComprehensiveAppwriteBackupService {
   Future<void> restoreToAppwrite(
     File backupFile, {
     bool clearExisting = false,
-    Function(String, double)? onProgress,
+    void Function(String, double)? onProgress,
   }) async {
     try {
       // قراءة الملف
@@ -275,7 +275,7 @@ class ComprehensiveAppwriteBackupService {
                 documentId: documentId!,
                 data: cleanData,
               );
-            } on AppwriteException catch (e) {
+            } on AppwriteException catch (Object e) {
               // إذا كان موجوداً بالفعل، نقوم بالتحديث
               if (e.code == 409) {
                 await _appwriteService.databases.updateDocument(
@@ -296,7 +296,7 @@ class ComprehensiveAppwriteBackupService {
                 processedItems / totalItems,
               );
             }
-          } catch (e) {
+          } catch (Object e) {
             _logger.warning('Failed to restore item in $collectionId: $e');
             // نستمر في العمل مع باقي العناصر
           }

@@ -57,7 +57,7 @@ final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
       });
 
     return sorted;
-  } catch (e) {
+  } catch (Object) {
     // Fallback to defaults if DB query fails
     return kDefaultExpenseTypes;
   }

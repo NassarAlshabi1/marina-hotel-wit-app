@@ -40,7 +40,7 @@ class AppwriteNetworkHelper {
       try {
         _logger.debug('$opName - Attempt $attempt/$retries', tag: 'RETRY');
         return await operation();
-      } catch (e) {
+      } catch (Object e) {
         // التحقق من نوع الخطأ - هل قابل لإعادة المحاولة؟
         if (!_isRetriableError(e)) {
           _logger.warning('$opName - Non-retriable error: $e', tag: 'RETRY');
@@ -64,7 +64,7 @@ class AppwriteNetworkHelper {
           tag: 'RETRY',
         );
 
-        await Future.delayed(waitTime);
+        await Future<void>.delayed(waitTime);
         currentDelay = Duration(
           milliseconds: (currentDelay.inMilliseconds * multiplier).round(),
         );
@@ -103,7 +103,7 @@ class AppwriteNetworkHelper {
           );
         },
       );
-    } catch (e) {
+    } catch (Object e) {
       if (e is TimeoutException) {
         rethrow;
       }

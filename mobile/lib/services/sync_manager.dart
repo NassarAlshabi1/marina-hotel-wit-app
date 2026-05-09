@@ -475,7 +475,7 @@ class SyncManager {
 
         yield mappedBatch;
         offset += batchSize;
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('⚠️ Error streaming table $table at offset $offset: $e');
         break;
       }
@@ -824,7 +824,7 @@ class SyncManager {
                 if (remoteVc != null && remoteVc.isNotEmpty) {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
-              } catch (e) {
+              } catch (Object e) {
                 debugPrint('⚠️ VectorClock parse error for $table/$key: $e');
               }
 

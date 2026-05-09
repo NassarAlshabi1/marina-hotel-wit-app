@@ -577,7 +577,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.pop<void>(ctx, false),
                 child: const Text('إلغاء'),
               ),
               FilledButton(
@@ -602,7 +602,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     );
                     return;
                   }
-                  Navigator.pop(ctx, true);
+                  Navigator.pop<void>(ctx, true);
                 },
                 child: const Text('حفظ'),
               ),
@@ -693,7 +693,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           employees: availableEmployees,
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -742,7 +742,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             .calculateEmployeeEntitlement(employee);
         remainingText =
             'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('Error calculating remaining salary: $e');
       }
 
@@ -787,7 +787,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('WhatsApp salary notification error: $e');
     }
   }

@@ -33,7 +33,7 @@ class SyncActionButton extends ConsumerWidget {
                     duration: Duration(seconds: 2),
                   ),
                 );
-              } catch (e) {
+              } catch (Object e) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text('فشل في المزامنة: $e'),

@@ -19,7 +19,6 @@ class _AiChatScreenState extends State<AiChatScreen>
   bool _isLoading = false;
   String? _lastUserMessage;
   String _loadingText = 'يفكر...';
-  int? _cooldownSeconds;
 
   @override
   void initState() {
@@ -86,7 +85,7 @@ class _AiChatScreenState extends State<AiChatScreen>
       ),);
       _isLoading = true;
       _loadingText = 'يفكر...';
-      _cooldownSeconds = null;
+      // _cooldownSeconds removed
     });
     _scrollToBottom();
 
@@ -102,11 +101,11 @@ class _AiChatScreenState extends State<AiChatScreen>
                 response.requiresConfirmation ? response.command : null,
           ),);
           _isLoading = false;
-          _cooldownSeconds = null;
+          // _cooldownSeconds removed
         });
         _scrollToBottom();
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Chat Error: $e');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
@@ -192,7 +191,7 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   void _showAuditLog() {
     final log = GeminiService.instance.auditLog;
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -233,8 +232,8 @@ class _AiChatScreenState extends State<AiChatScreen>
                                         horizontal: 6, vertical: 2,),
                                     decoration: BoxDecoration(
                                       color: entry.wasConfirmed
-                                          ? Colors.green.withOpacity(0.15)
-                                          : Colors.orange.withOpacity(0.15),
+                                          ? Colors.green.withValues(alpha: 0.15)
+                                          : Colors.orange.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -255,7 +254,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                           horizontal: 6, vertical: 2,),
                                       decoration: BoxDecoration(
                                         color:
-                                            Colors.blue.withOpacity(0.1),
+                                            Colors.blue.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -310,7 +309,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               TextButton(
                 onPressed: () {
                   GeminiService.instance.clearAuditLog();
-                  Navigator.pop(ctx);
+                  Navigator.pop<void>(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('تم مسح السجل')),
                   );
@@ -319,7 +318,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     style: TextStyle(color: Colors.red),),
               ),
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop<void>(ctx),
               child: const Text('إغلاق'),
             ),
           ],
@@ -365,7 +364,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.15),
+                  color: Colors.green.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -519,7 +518,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         ),
         decoration: BoxDecoration(
           color: isUser
-              ? theme.colorScheme.primary.withOpacity(0.1)
+              ? theme.colorScheme.primary.withValues(alpha: 0.1)
               : theme.cardColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
@@ -529,7 +528,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -584,13 +583,13 @@ class _AiChatScreenState extends State<AiChatScreen>
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: message.executionResult!.startsWith('✅')
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: message.executionResult!.startsWith('✅')
-                        ? Colors.green.withOpacity(0.3)
-                        : Colors.red.withOpacity(0.3),
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.red.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -782,7 +781,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(color: theme.colorScheme.primary.withOpacity(0.5), width: 1.5),
+                    borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5), width: 1.5),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   isDense: true,

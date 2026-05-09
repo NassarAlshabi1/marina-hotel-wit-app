@@ -58,7 +58,7 @@ class AppwriteCacheManager {
   static final AppwriteCacheManager _instance =
       AppwriteCacheManager._internal();
 
-  final Map<String, CacheEntry> _cache = HashMap();
+  final Map<String, CacheEntry<dynamic>> _cache = HashMap<String, CacheEntry<dynamic>>();
   Timer? _cleanupTimer;
 
   int _hits = 0;

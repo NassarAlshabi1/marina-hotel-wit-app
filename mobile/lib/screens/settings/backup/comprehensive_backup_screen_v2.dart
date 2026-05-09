@@ -101,7 +101,7 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showSettingsMenu() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -114,7 +114,7 @@ class _ComprehensiveBackupScreenState
               leading: const Icon(Icons.settings),
               title: const Text('إعدادات النسخ الاحتياطي'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 // Navigate to settings
               },
             ),
@@ -122,7 +122,7 @@ class _ComprehensiveBackupScreenState
               leading: const Icon(Icons.help_outline),
               title: const Text('مساعدة'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _showHelpDialog();
               },
             ),
@@ -130,7 +130,7 @@ class _ComprehensiveBackupScreenState
               leading: const Icon(Icons.info_outline),
               title: const Text('حول'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _showAboutDialog();
               },
             ),
@@ -141,7 +141,7 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showHelpDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مساعدة'),
@@ -156,7 +156,7 @@ class _ComprehensiveBackupScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('حسناً'),
           ),
         ],
@@ -165,7 +165,7 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showAboutDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حول النسخ الاحتياطي'),
@@ -182,7 +182,7 @@ class _ComprehensiveBackupScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('حسناً'),
           ),
         ],

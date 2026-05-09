@@ -96,7 +96,7 @@ class EnhancedSyncButton extends ConsumerWidget {
   }
 
   void _showSyncOptions(BuildContext context, SyncOrchestrator orchestrator) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
@@ -107,7 +107,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               title: const Text('مزامنة كاملة'),
               subtitle: const Text('دفع + سحب'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 orchestrator.syncNow();
               },
             ),
@@ -116,7 +116,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               title: const Text('رفع التغييرات فقط'),
               subtitle: const Text('Push Only'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 orchestrator.pushOnly();
               },
             ),
@@ -125,7 +125,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               title: const Text('سحب التغييرات فقط'),
               subtitle: const Text('Pull Only'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 orchestrator.pullOnly();
               },
             ),

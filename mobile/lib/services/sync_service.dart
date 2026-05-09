@@ -95,7 +95,7 @@ class SyncService {
       _status.add(SyncStatus.idle);
 
       debugPrint('✅ تم إنجاز المزامنة بنجاح');
-    } catch (e) {
+    } catch (Object e) {
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
       debugPrint('❌ فشل في المزامنة: $e');
@@ -174,7 +174,7 @@ class SyncService {
           ),
         );
       });
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
@@ -239,7 +239,7 @@ class SyncService {
 
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
-        } catch (e) {
+        } catch (Object e) {
           debugPrint(
             '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
           );

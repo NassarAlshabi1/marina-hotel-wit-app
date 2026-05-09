@@ -180,7 +180,7 @@ class AppwriteService {
             operationName: 'deleteDocument($collectionId)',
           );
           deleted++;
-        } catch (e) {
+        } catch (Object e) {
           _logger.warning(
             'Failed to delete document ${doc.$id} from $collectionId',
             error: e,
@@ -189,7 +189,7 @@ class AppwriteService {
         }
       }
       return deleted;
-    } catch (e) {
+    } catch (Object e) {
       _logger.error(
         'Failed to delete all documents from $collectionId',
         error: e,
@@ -227,7 +227,7 @@ class AppwriteService {
         documentId: documentId,
         data: data,
       );
-    } on AppwriteException catch (e) {
+    } on AppwriteException catch (Object e) {
       // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
       if (e.code == 404 || e.toString().contains('document_not_found')) {
         return _networkHelper.withRetryAndTimeout(
@@ -257,7 +257,7 @@ class AppwriteService {
         ),
         operationName: 'deleteDocument',
       );
-    } on AppwriteException catch (e) {
+    } on AppwriteException catch (Object e) {
       if (e.code == 404) {
         // Already deleted, ignore
         return;
@@ -819,7 +819,7 @@ class AppwriteService {
 
       _logger.info('Quick connection test successful', tag: 'CONNECTION');
       return true;
-    } catch (e) {
+    } catch (Object e) {
       _logger.warning(
         'Quick connection test failed',
         error: e,
@@ -851,7 +851,7 @@ class AppwriteService {
           timeout: const Duration(seconds: 10),
         );
         results['tests']['rooms'] = true;
-      } catch (e) {
+      } catch (Object e) {
         results['tests']['rooms'] = false;
         results['tests']['rooms_error'] = e.toString();
       }
@@ -868,7 +868,7 @@ class AppwriteService {
           timeout: const Duration(seconds: 5),
         );
         results['tests']['bookings'] = true;
-      } catch (e) {
+      } catch (Object e) {
         results['tests']['bookings'] = false;
         results['tests']['bookings_error'] = e.toString();
       }
@@ -885,7 +885,7 @@ class AppwriteService {
           timeout: const Duration(seconds: 5),
         );
         results['tests']['devices'] = true;
-      } catch (e) {
+      } catch (Object e) {
         results['tests']['devices'] = false;
         results['tests']['devices_error'] = e.toString();
       }
@@ -905,7 +905,7 @@ class AppwriteService {
       }
 
       return results;
-    } catch (e) {
+    } catch (Object e) {
       _logger.error(
         'Full connection test fatal error',
         error: e,

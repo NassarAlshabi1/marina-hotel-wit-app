@@ -185,7 +185,7 @@ class FileManagementTab extends ConsumerWidget {
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: (isExport ? Colors.green : Colors.blue).withOpacity(0.1),
+            color: (isExport ? Colors.green : Colors.blue).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(

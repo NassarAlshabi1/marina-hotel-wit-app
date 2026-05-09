@@ -67,7 +67,7 @@ class SyncSafetyLayer {
         tables['sqliteBackupPath'] = dbBackupPath;
         debugPrint('✅ تم نسخ ملف SQLite إلى: $dbBackupPath');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في نسخ ملف SQLite: $e');
     }
 
@@ -211,7 +211,7 @@ class SyncSafetyLayer {
               );
             }
           } catch (_) {}
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
         }
       }
@@ -233,7 +233,7 @@ class SyncSafetyLayer {
     _activeSnapshots.remove(snapshot.key);
     final file = File(snapshot.filePath);
     if (await file.exists()) {
-      await file.delete();
+      await file.delete<dynamic>();
     }
   }
 
@@ -303,7 +303,7 @@ class SyncSafetyLayer {
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {
         await db.customStatement('DELETE FROM $table');
-      } on Exception catch (e) {
+      } on Exception catch (Object e) {
         if (e.toString().contains('no such table')) {
           debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
         } else {
@@ -379,7 +379,7 @@ class SyncSafetyLayer {
       if (await File(dbPath).exists()) {
         return dbPath;
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e');
     }
     return null;

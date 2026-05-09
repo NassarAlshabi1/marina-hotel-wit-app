@@ -165,14 +165,14 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           content: Text('هل أنت متأكد من حذف الموظف "${employee.name}"؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop<void>(ctx, false),
               child: const Text('إلغاء'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.dangerColor,
               ),
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop<void>(ctx, true),
               child: const Text('حذف'),
             ),
           ],
@@ -185,7 +185,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(employeesRepoProvider);
-      await repo.delete(employee.id);
+      await repo.delete<dynamic>(employee.id);
       markDataChanged();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -196,7 +196,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -437,13 +437,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop<void>(ctx, false),
               child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.pop(ctx, true);
+                  Navigator.pop<void>(ctx, true);
                 }
               },
               icon: const Icon(Icons.save),
@@ -507,7 +507,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         }
       }
       markDataChanged();
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

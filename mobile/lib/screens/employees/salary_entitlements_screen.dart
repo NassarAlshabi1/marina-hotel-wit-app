@@ -33,7 +33,7 @@ class _SalaryEntitlementsScreenState
     try {
       _summary = await _service.getSummary();
       _entitlements = _summary['entitlements'] as List<SalaryEntitlement>;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(

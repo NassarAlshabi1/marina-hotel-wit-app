@@ -164,7 +164,7 @@ class AppSessionManager {
       // --- نهاية منطق الذكاء ---
 
       // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
-      await Future.delayed(const Duration(seconds: 3));
+      await Future<void>.delayed(const Duration(seconds: 3));
 
       debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
 
@@ -184,7 +184,7 @@ class AppSessionManager {
       debugPrint(
         '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
     }
   }

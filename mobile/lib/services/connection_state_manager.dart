@@ -63,7 +63,7 @@ class ConnectionStateManager extends ChangeNotifier {
     // الاستماع لتغييرات الشبكة
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       _onConnectivityChanged,
-      onError: (error) {
+      onError: (Object error) {
         _logger.error(
           'Connectivity stream error',
           error: error,
@@ -112,7 +112,7 @@ class ConnectionStateManager extends ChangeNotifier {
 
       _updateStatus(ConnectionStatus.online);
       _lastCheckTime = DateTime.now();
-    } catch (e) {
+    } catch (Object e) {
       _logger.warning('Connection check failed', error: e, tag: 'CONNECTION');
       _updateStatus(ConnectionStatus.offline);
       _lastCheckTime = DateTime.now();

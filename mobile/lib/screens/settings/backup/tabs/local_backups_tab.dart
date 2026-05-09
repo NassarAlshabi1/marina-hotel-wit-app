@@ -298,7 +298,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: const Icon(Icons.file_present, color: Colors.green),
@@ -318,7 +318,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
                 vertical: 2,
               ),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -416,7 +416,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -513,7 +513,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _confirmRestore(LocalBackupFile backup) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الاستعادة'),
@@ -525,12 +525,12 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               _restoreBackup(backup);
             },
             style: ElevatedButton.styleFrom(
@@ -570,7 +570,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _confirmDelete(LocalBackupFile backup) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حذف نسخة احتياطية'),
@@ -580,12 +580,12 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               _deleteBackup(backup);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

@@ -94,7 +94,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حفظ إعدادات النسخ الاحتياطي')),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -122,7 +122,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -144,7 +144,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تنظيف النسخ القديمة')));
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل التنظيف: $e'), backgroundColor: Colors.red),
@@ -177,7 +177,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -240,7 +240,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -270,7 +270,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -306,7 +306,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -331,7 +331,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة'),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -354,7 +354,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('تم ضبط الفحص على كل $minutes دقيقة')),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -377,7 +377,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث استراتيجية حل التضارب')),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -400,7 +400,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تمت المزامنة اليدوية')));
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -425,7 +425,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         const SnackBar(content: Text('تم إنشاء النسخة الاحتياطية الشاملة')),
       );
       await _runAppwriteSync(triggeredByBackup: true);
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -455,7 +455,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         SnackBar(content: Text('$label (رفع $pushed / استقبل $pulled)')),
       );
       ref.invalidate(ap.syncStatsProvider);
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -816,10 +816,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: () {
-              Navigator.push(
+              Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const AppwriteSettingsScreen(),
+                MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen(),
                 ),
               );
             },

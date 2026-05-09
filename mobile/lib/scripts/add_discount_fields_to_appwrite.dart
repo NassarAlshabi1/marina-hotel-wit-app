@@ -77,7 +77,7 @@ Future<void> main(List<String> args) async {
     }
 
     // انتظار قليلاً قبل إضافة الحقل الثاني
-    await Future.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(seconds: 2));
 
     // 2. إضافة حقل discountStartDate
     print('\n2️⃣ إضافة حقل discountStartDate...');
@@ -101,7 +101,7 @@ Future<void> main(List<String> args) async {
     print('• الحقول قد تحتاج بضع ثوانٍ لتكون جاهزة (Indexing)');
     print('• تحقق من Appwrite Console للتأكد');
     print('• يمكنك الآن استخدام التطبيق بشكل طبيعي');
-  } catch (e) {
+  } catch (Object e) {
     print('\n❌ خطأ: $e');
     exit(1);
   } finally {
@@ -129,7 +129,7 @@ Future<bool> addStringAttribute({
   };
 
   try {
-    final response = await client.post(
+    final response = await client.post<dynamic>(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ Future<bool> addStringAttribute({
       print('   ❌ خطأ HTTP ${response.statusCode}: ${response.body}');
       return false;
     }
-  } catch (e) {
+  } catch (Object e) {
     print('   ❌ خطأ في الاتصال: $e');
     return false;
   }

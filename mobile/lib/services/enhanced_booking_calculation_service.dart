@@ -439,7 +439,7 @@ class EnhancedBookingCalculationService {
 
     await db.transaction(() async {
       if (shouldRebuild) {
-        await (db.delete(db.bookingNights)
+        await (db.delete<dynamic>(db.bookingNights)
               ..where((n) => n.bookingLocalId.equals(booking.id)))
             .go();
       }

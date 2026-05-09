@@ -123,7 +123,7 @@ class TelegramNotificationService {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Telegram: خطأ في إرسال الإشعار: $e');
       return false;
     }

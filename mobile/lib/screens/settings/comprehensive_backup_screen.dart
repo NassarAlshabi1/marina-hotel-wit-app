@@ -66,7 +66,7 @@ class _ComprehensiveBackupScreenState
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       setState(() {
         _statusMessage = 'حدث خطأ أثناء التصدير: $e';
         _isLoading = false;
@@ -99,11 +99,11 @@ class _ComprehensiveBackupScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.pop<void>(ctx, false),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () => Navigator.pop<void>(ctx, true),
                 child: const Text('بدء الرفع'),
               ),
             ],
@@ -141,7 +141,7 @@ class _ComprehensiveBackupScreenState
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       setState(() {
         _statusMessage = 'فشلت العملية: $e';
         _isLoading = false;
@@ -245,10 +245,10 @@ class _ComprehensiveBackupScreenState
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -259,7 +259,7 @@ class _ComprehensiveBackupScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 32),

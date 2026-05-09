@@ -84,7 +84,7 @@ class CrashlyticsService {
         '✅ CrashlyticsService initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
         name: 'CrashlyticsService',
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ Crashlytics Firebase failed — local logging active: $e',
         name: 'CrashlyticsService',

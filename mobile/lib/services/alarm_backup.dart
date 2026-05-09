@@ -78,7 +78,7 @@ class AlarmBackup {
   /// لإلغاء وإعادة جدولة — استخدمها عند تغيير الوقت
   static Future<void> rescheduleDaily(int hour, int minute) async {
     await AndroidAlarmManager.cancel(alarmId);
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleDailyAlarm(hour, minute);
     debugPrint('♻️ Alarm rescheduled to $hour:$minute');
   }
@@ -101,7 +101,7 @@ class AlarmBackup {
         try {
           await localService.createLocalBackup(format: format);
           debugPrint('✅ Local backup done from alarm');
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ Local backup error: $e');
         }
       }
@@ -119,11 +119,11 @@ class AlarmBackup {
             debugPrint('⚠️ Drive not signed in (alarm). Notifying user...');
             await _showOpenAppNotification();
           }
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ Drive backup error: $e');
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Alarm backup general error: $e');
     } finally {
       // أعد جدولة الإنذار لليوم التالي في نفس الوقت
@@ -199,7 +199,7 @@ class AlarmBackup {
   /// إعادة جدولة تقرير Lark
   static Future<void> rescheduleLarkReport(int hour, int minute) async {
     await AndroidAlarmManager.cancel(larkReportAlarmId);
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleLarkReportAlarm(hour, minute);
     debugPrint('♻️ Lark report alarm rescheduled to $hour:$minute');
   }
@@ -245,7 +245,7 @@ class AlarmBackup {
   /// إعادة جدولة تقرير Telegram
   static Future<void> rescheduleTelegramReport(int hour, int minute) async {
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleTelegramReportAlarm(hour, minute);
     debugPrint('♻️ Telegram report alarm rescheduled to $hour:$minute');
   }
@@ -277,7 +277,7 @@ class AlarmBackup {
           debugPrint('⚠️ Telegram report skipped: bot token or chat ID not configured');
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Telegram report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
@@ -311,7 +311,7 @@ class AlarmBackup {
           debugPrint('⚠️ Lark report skipped: no webhook URL configured');
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Lark report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي

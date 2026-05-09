@@ -1086,7 +1086,7 @@ class AppDatabase extends _$AppDatabase {
             'serverId column already exists in rooms table',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object) {
           // العمود غير موجود، نحتاج لإضافته
           try {
             await m.addColumn(rooms, rooms.serverId);
@@ -1119,7 +1119,7 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement(
               'SELECT server_id FROM $tableName LIMIT 1',
             );
-          } catch (e) {
+          } catch (Object) {
             // العمود غير موجود
             try {
               await m.database.customStatement(
@@ -1229,7 +1229,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE rooms SET price = CAST(ROUND(price) AS INTEGER) WHERE price IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: rooms.price conversion failed: $e', name: 'db.migration');
         }
         
@@ -1243,7 +1243,7 @@ class AppDatabase extends _$AppDatabase {
             'remaining_balance_cached = CAST(ROUND(remaining_balance_cached) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: bookings conversion failed: $e', name: 'db.migration');
         }
         
@@ -1252,7 +1252,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: employees conversion failed: $e', name: 'db.migration');
         }
         
@@ -1261,7 +1261,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: expenses conversion failed: $e', name: 'db.migration');
         }
         
@@ -1270,7 +1270,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: cash_transactions conversion failed: $e', name: 'db.migration');
         }
         
@@ -1279,7 +1279,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: payments conversion failed: $e', name: 'db.migration');
         }
         
@@ -1292,7 +1292,7 @@ class AppDatabase extends _$AppDatabase {
             'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: debts conversion failed: $e', name: 'db.migration');
         }
         
@@ -1301,29 +1301,29 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: booking_nights.nightly_rate conversion failed: $e', name: 'db.migration');
         }
         
         // إضافة أعمدة BookingNights الجديدة (baseRate, adjustment, finalRate)
         try {
           await m.addColumn(bookingNights, bookingNights.baseRate);
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: add baseRate failed: $e', name: 'db.migration');
         }
         try {
           await m.addColumn(bookingNights, bookingNights.adjustment);
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: add adjustment failed: $e', name: 'db.migration');
         }
         try {
           await m.addColumn(bookingNights, bookingNights.finalRate);
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: add finalRate failed: $e', name: 'db.migration');
         }
         try {
           await m.addColumn(bookingNights, bookingNights.appliedAdjustmentUuid);
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: add appliedAdjustmentUuid failed: $e', name: 'db.migration');
         }
         
@@ -1336,7 +1336,7 @@ class AppDatabase extends _$AppDatabase {
             'final_rate = COALESCE(nightly_rate, 0) '
             'WHERE base_rate IS NULL OR base_rate = 0',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: booking_nights defaults failed: $e', name: 'db.migration');
         }
         
@@ -1350,7 +1350,7 @@ class AppDatabase extends _$AppDatabase {
             'occupancy_rate = CAST(ROUND(occupancy_rate) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: hotel_day_ledger conversion failed: $e', name: 'db.migration');
         }
         
@@ -1362,7 +1362,7 @@ class AppDatabase extends _$AppDatabase {
             'new_value = CAST(ROUND(new_value) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: price_adjustments conversion failed: $e', name: 'db.migration');
         }
         
@@ -1371,7 +1371,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE payment_voids SET voided_amount = CAST(ROUND(voided_amount) AS INTEGER) WHERE voided_amount IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: payment_voids conversion failed: $e', name: 'db.migration');
         }
         
@@ -1384,7 +1384,7 @@ class AppDatabase extends _$AppDatabase {
             'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: salary_cycles conversion failed: $e', name: 'db.migration');
         }
         
@@ -1393,7 +1393,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: salary_payments conversion failed: $e', name: 'db.migration');
         }
         
@@ -1402,14 +1402,14 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: audit_logs conversion failed: $e', name: 'db.migration');
         }
         
         // إضافة حقل discountStartDate للحجوزات إذا لم يكن موجوداً
         try {
           await m.addColumn(bookings, bookings.discountStartDate);
-        } catch (e) {
+        } catch (Object e) {
           developer.log('Migration 24: add discountStartDate already exists or failed: $e', name: 'db.migration');
         }
       }
@@ -1419,7 +1419,7 @@ class AppDatabase extends _$AppDatabase {
             bookingNights,
             bookingNights.appliedAdjustmentsJson,
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 25: add appliedAdjustmentsJson failed: $e',
             name: 'db.migration',
@@ -1436,7 +1436,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 26: added adjustmentMode column to booking_price_adjustments',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 26: add adjustmentMode failed: $e',
             name: 'db.migration',
@@ -1451,7 +1451,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 27: created guest_infos table',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 27: create guest_infos failed: $e',
             name: 'db.migration',
@@ -1466,7 +1466,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 28: created salary_withdrawals table',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 28: create salary_withdrawals failed: $e',
             name: 'db.migration',
@@ -1481,7 +1481,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.discountAmount',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 29: add payments.discountAmount failed: $e',
             name: 'db.migration',
@@ -1493,7 +1493,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.discountStartDate',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 29: add payments.discountStartDate failed: $e',
             name: 'db.migration',
@@ -1505,7 +1505,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.isVoided',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 29: add payments.isVoided failed: $e',
             name: 'db.migration',
@@ -1517,7 +1517,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.voidedAt',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 29: add payments.voidedAt failed: $e',
             name: 'db.migration',
@@ -1529,7 +1529,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.voidedBy',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 29: add payments.voidedBy failed: $e',
             name: 'db.migration',
@@ -1544,7 +1544,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 30: added salary_withdrawals.withdrawalType',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 30: add salary_withdrawals.withdrawalType failed: $e',
             name: 'db.migration',
@@ -1556,7 +1556,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 30: added salary_withdrawals.description',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 30: add salary_withdrawals.description failed: $e',
             name: 'db.migration',
@@ -1587,7 +1587,7 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in perfIndexes) {
           try {
             await m.database.customStatement(sql);
-          } catch (e) {
+          } catch (Object e) {
             developer.log(
               'Migration 31: $sql failed: $e',
               name: 'db.migration',
@@ -1702,7 +1702,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 33: created $created missing salary_withdrawals records',
             name: 'db.migration',
           );
-        } catch (e) {
+        } catch (Object e) {
           developer.log(
             'Migration 33: failed - $e',
             name: 'db.migration',
@@ -1726,7 +1726,7 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in newIndexes) {
           try {
             await m.database.customStatement(sql);
-          } catch (e) {
+          } catch (Object e) {
             developer.log(
               'Migration 34: $sql failed: $e',
               name: 'db.migration',
@@ -1750,7 +1750,7 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in newIndexes) {
           try {
             await m.database.customStatement(sql);
-          } catch (e) {
+          } catch (Object e) {
             developer.log(
               'Migration 35: $sql failed: $e',
               name: 'db.migration',
@@ -1786,7 +1786,7 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in newIndexes) {
           try {
             await m.database.customStatement(sql);
-          } catch (e) {
+          } catch (Object e) {
             developer.log(
               'Migration 36: $sql failed: $e',
               name: 'db.migration',
@@ -2056,13 +2056,13 @@ class DatabaseManager {
     if (_onStopCallback != null) {
       try {
         await _onStopCallback!();
-      } catch (e) {
+      } catch (Object e) {
         developer.log('⚠️ Database stop callback error: $e', name: 'DatabaseManager');
       }
     }
     try {
       await _instance?.close();
-    } catch (e) {
+    } catch (Object e) {
       developer.log('⚠️ Database close error: $e', name: 'DatabaseManager');
     }
     _instance = null;
@@ -2074,7 +2074,7 @@ class DatabaseManager {
     if (_onRestartCallback != null) {
       try {
         await _onRestartCallback!();
-      } catch (e) {
+      } catch (Object e) {
         developer.log('⚠️ Database restart callback error: $e', name: 'DatabaseManager');
       }
     }

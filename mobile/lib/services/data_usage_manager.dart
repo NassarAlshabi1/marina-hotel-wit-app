@@ -35,7 +35,7 @@ class DataUsageManager {
       await _loadStoredData();
       _setupDailyReset();
       debugPrint('✅ تم تهيئة مدير استخدام البيانات بنجاح');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تهيئة مدير استخدام البيانات: $e');
     }
   }
@@ -100,7 +100,7 @@ class DataUsageManager {
       );
 
       debugPrint('🔄 تم إعادة تعيين الاستخدام اليومي للبيانات');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إعادة التعيين اليومي: $e');
     }
   }
@@ -116,7 +116,7 @@ class DataUsageManager {
       debugPrint(
         '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إضافة استخدام البيانات: $e');
     }
   }
@@ -130,7 +130,7 @@ class DataUsageManager {
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
 
       debugPrint('⚠️ تم تسجيل فشل متتالي: $_consecutiveFailures');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تسجيل الفشل: $e');
     }
   }
@@ -144,7 +144,7 @@ class DataUsageManager {
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
 
       debugPrint('✅ تم إعادة تعيين عداد الفشل المتتالي');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إعادة تعيين عداد الفشل: $e');
     }
   }
@@ -178,7 +178,7 @@ class DataUsageManager {
         'is_battery_low': isBatteryLow,
         'consecutive_failures': _consecutiveFailures,
       };
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في الحصول على إحصائيات الاستخدام: $e');
 
       // إرجاع قيم افتراضية في حالة الخطأ
@@ -218,7 +218,7 @@ class DataUsageManager {
       } else {
         return 'No Connection';
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في الحصول على نوع الاتصال: $e');
       return 'Unknown';
     }
@@ -232,7 +232,7 @@ class DataUsageManager {
 
       // نعتبر البطارية منخفضة إذا كانت أقل من 20%
       return batteryLevel < 20;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في فحص مستوى البطارية: $e');
       return false; // افتراض أن البطارية عادية في حالة الخطأ
     }
@@ -244,7 +244,7 @@ class DataUsageManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_keyDailyLimit, limitMB);
       debugPrint('⚙️ تم تعيين الحد اليومي للبيانات: $limitMB MB');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تعيين الحد اليومي: $e');
     }
   }
@@ -254,7 +254,7 @@ class DataUsageManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getInt(_keyDailyLimit) ?? 200;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في قراءة الحد اليومي: $e');
       return 200; // القيمة الافتراضية
     }

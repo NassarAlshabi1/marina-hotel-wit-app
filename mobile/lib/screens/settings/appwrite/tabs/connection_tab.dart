@@ -51,7 +51,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: (isConnected ? Colors.green : Colors.red).withOpacity(
+                color: (isConnected ? Colors.green : Colors.red).withValues(alpha: 
                   0.1,
                 ),
                 shape: BoxShape.circle,
@@ -232,7 +232,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.bug_report, color: Colors.orange),
@@ -247,7 +247,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.restore, color: Colors.red),
@@ -267,19 +267,19 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
   }
 
   void _showResetDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
         content: const Text('هل تريد إعادة تهيئة الاتصال؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               await ref.read(ap.appwriteServiceProvider).initialize();
               await _checkConnection();
             },
@@ -295,14 +295,14 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
   }
 
   void _showInfoDialog(String title, String value) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
         content: Text(value),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],

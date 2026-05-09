@@ -206,7 +206,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         setState(() => _filterLevel = selected ? level : null);
       },
       backgroundColor: Colors.white,
-      selectedColor: color.withOpacity(0.2),
+      selectedColor: color.withValues(alpha: 0.2),
       checkmarkColor: color,
       labelStyle: TextStyle(
         color: isSelected ? color : Colors.black87,
@@ -372,7 +372,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   }
 
   void _showLogDetails(LogEntry log) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -452,7 +452,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         actions: [
           TextButton(onPressed: () => _copyLog(log), child: const Text('نسخ')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -532,11 +532,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),

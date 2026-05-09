@@ -23,7 +23,7 @@ class ApiConfig {
       receiveTimeout: json['receiveTimeout'] as int? ?? 20,
       enableLogging: json['enableLogging'] as bool? ?? false,
       useSsl: json['useSsl'] as bool? ?? true,
-      customHeaders: Map<String, String>.from((json['customHeaders'] ?? {}) as Map),
+      customHeaders: Map<String, String>.from((json['customHeaders'] ?? <String, dynamic>{}) as Map),
     );
   }
   final String baseUrl;
@@ -95,7 +95,7 @@ class ApiConfigService {
         final json = jsonDecode(configJson) as Map<String, dynamic>;
         _currentConfig = ApiConfig.fromJson(json);
         configNotifier.value = _currentConfig;
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('خطأ في تحميل إعدادات API: $e');
       }
     }
@@ -112,7 +112,7 @@ class ApiConfigService {
         _serverList.addAll(
           list.map((e) => ServerInfo.fromJson(e as Map<String, dynamic>)),
         );
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('خطأ في تحميل قائمة السيرفرات: $e');
       }
     }

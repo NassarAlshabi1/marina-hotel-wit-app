@@ -43,8 +43,8 @@ class RoomCard extends StatelessWidget { // حالة تأخر السداد لل�
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                cardColor.withOpacity(0.05),
-                cardColor.withOpacity(0.15),
+                cardColor.withValues(alpha: 0.05),
+                cardColor.withValues(alpha: 0.15),
               ],
             ),
           ),
@@ -80,7 +80,7 @@ class RoomCard extends StatelessWidget { // حالة تأخر السداد لل�
                   room.type,
                   style: TextStyle(
                     fontSize: 10,
-                    color: cardColor.withOpacity(0.7),
+                    color: cardColor.withValues(alpha: 0.7),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -92,7 +92,7 @@ class RoomCard extends StatelessWidget { // حالة تأخر السداد لل�
                   CurrencyFormatter.formatAmount(room.price),
                   style: TextStyle(
                     fontSize: 9,
-                    color: cardColor.withOpacity(0.8),
+                    color: cardColor.withValues(alpha: 0.8),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -107,7 +107,7 @@ class RoomCard extends StatelessWidget { // حالة تأخر السداد لل�
       return cardContent
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
           .tint(
-            color: Colors.red.withOpacity(0.2),
+            color: Colors.red.withValues(alpha: 0.2),
             duration: 800.ms,
           )
           .scale(
@@ -151,14 +151,14 @@ class FloorHeader extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withOpacity(0.1),
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(12),
             topRight: Radius.circular(12),
           ),
           border: Border(
             bottom: BorderSide(
-              color: Theme.of(context).primaryColor.withOpacity(0.2),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
             ),
           ),
         ),
@@ -238,7 +238,7 @@ class FloorStats extends StatelessWidget {
         vertical: compact ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(compact ? 8 : 12),
         border: Border.all(color: color),
       ),
@@ -289,7 +289,7 @@ class RoomsGrid extends StatelessWidget {
     this.childAspectRatio = 1.2,
   });
   final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
-  final Function(Room) onRoomTap;
+  final void Function(Room) onRoomTap;
   final int crossAxisCount;
   final double childAspectRatio;
 
@@ -346,7 +346,7 @@ class FloorSection extends StatefulWidget {
   });
   final String floorNumber;
   final List<dynamic> rooms; // تغيير النوع
-  final Function(Room) onRoomTap;
+  final void Function(Room) onRoomTap;
   final bool isCollapsible;
   final bool initiallyExpanded;
 

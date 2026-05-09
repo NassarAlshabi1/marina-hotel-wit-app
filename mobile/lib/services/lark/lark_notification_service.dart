@@ -84,7 +84,7 @@ class LarkNotificationService {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Lark: خطأ في إرسال الإشعار: $e');
       return false;
     }

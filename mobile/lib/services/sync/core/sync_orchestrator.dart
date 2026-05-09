@@ -83,7 +83,7 @@ class SyncOrchestrator {
 
       _emitState(allSuccess ? SyncState.idle() : SyncState.error(result.message));
       return result;
-    } catch (e) {
+    } catch (Object e) {
       final errorResult = SyncResult.error('خطأ في المزامنة: $e');
       _emitState(SyncState.error(errorResult.message));
       return errorResult;

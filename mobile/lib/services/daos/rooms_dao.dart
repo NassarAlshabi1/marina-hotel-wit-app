@@ -26,7 +26,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.roomNumber.like(s) | t.type.like(s) | t.status.like(s));
     }
     if (limit != null) q.limit(limit, offset: offset ?? 0);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<Room>> watchList({String? search, bool includeDeleted = false}) {

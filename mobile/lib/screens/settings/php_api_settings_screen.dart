@@ -139,11 +139,11 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         content: Text('هل تريد حذف السيرفر "${server.name}"؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop<void>(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('حذف'),
           ),
@@ -630,7 +630,7 @@ class _AddServerDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop<void>(context),
           child: const Text('إلغاء'),
         ),
         FilledButton(
@@ -645,7 +645,7 @@ class _AddServerDialog extends StatelessWidget {
                   : apiKeyController.text.trim(),
               addedAt: DateTime.now(),
             );
-            Navigator.pop(context, server);
+            Navigator.pop<void>(context, server);
           },
           child: const Text('إضافة'),
         ),

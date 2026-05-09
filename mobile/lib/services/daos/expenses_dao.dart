@@ -36,7 +36,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<List<Expense>> listFiltered({
@@ -59,7 +59,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<Expense>> watchList({bool includeDeleted = false}) {
@@ -89,7 +89,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     final q = select(expenses);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     q.where((t) => t.date.like('$date%'));
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<List<Expense>> listByHotelDayKey(
@@ -104,7 +104,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
         expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
 
     q.where((t) => byKey | byDateFallback);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<Expense?> getById(int id) =>

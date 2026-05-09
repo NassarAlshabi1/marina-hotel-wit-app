@@ -35,7 +35,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
       setState(() {
         _validationReport = report;
       });
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -59,11 +59,11 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             child: const Text('إصلاح'),
           ),
         ],
@@ -102,7 +102,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,

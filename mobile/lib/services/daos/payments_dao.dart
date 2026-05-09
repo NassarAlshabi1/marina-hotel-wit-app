@@ -46,7 +46,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<List<Payment>> listForReport({
@@ -76,7 +76,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<Payment>> watchList({
@@ -125,7 +125,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) q.where((t) => t.isVoided.equals(false));
     q.where((t) => t.paymentDate.like('$date%'));
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<List<Payment>> listByHotelDayKey(
@@ -149,7 +149,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.revenueType.equals(revenueType));
     }
 
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<Payment?> getById(int id) =>

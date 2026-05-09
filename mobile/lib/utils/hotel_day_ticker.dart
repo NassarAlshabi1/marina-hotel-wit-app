@@ -9,7 +9,7 @@ import 'dart:async';
 ///
 /// ### في StatefulWidget (طريقة مباشرة):
 /// ```dart
-/// StreamSubscription? _tickerSub;
+/// StreamSubscription<void>? _tickerSub;
 ///
 /// @override
 /// void initState() {

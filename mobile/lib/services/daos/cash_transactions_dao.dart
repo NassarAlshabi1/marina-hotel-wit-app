@@ -34,7 +34,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       (t) =>
           OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Future<List<CashTransaction>> listByReference({
@@ -53,7 +53,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       (t) =>
           OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<CashTransaction>> watchList({bool includeDeleted = false}) {

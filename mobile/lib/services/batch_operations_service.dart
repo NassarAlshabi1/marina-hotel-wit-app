@@ -73,7 +73,7 @@ class BatchOperationsService {
               documentId: id,
             );
             return {'id': id, 'success': true};
-          } catch (e) {
+          } catch (Object e) {
             return {
               'id': id,
               'success': false,
@@ -100,7 +100,7 @@ class BatchOperationsService {
             documentId: id,
           );
           successfulItems.add(id);
-        } catch (e) {
+        } catch (Object e) {
           errors[id] = _errorHandler.handleError(e).message;
         }
       }
@@ -152,7 +152,7 @@ class BatchOperationsService {
               data: data,
             );
             return {'index': index, 'success': true, 'document': doc};
-          } catch (e) {
+          } catch (Object e) {
             return {
               'index': index,
               'success': false,
@@ -180,7 +180,7 @@ class BatchOperationsService {
             data: documents[i],
           );
           successfulItems.add(doc);
-        } catch (e) {
+        } catch (Object e) {
           errors['document_$i'] = _errorHandler.handleError(e).message;
         }
       }
@@ -232,7 +232,7 @@ class BatchOperationsService {
               data: data,
             );
             return {'id': id, 'success': true, 'document': doc};
-          } catch (e) {
+          } catch (Object e) {
             return {
               'id': id,
               'success': false,
@@ -263,7 +263,7 @@ class BatchOperationsService {
             data: data,
           );
           successfulItems.add(doc);
-        } catch (e) {
+        } catch (Object e) {
           errors[id] = _errorHandler.handleError(e).message;
         }
       }
@@ -284,7 +284,7 @@ class BatchOperationsService {
   /// تنفيذ عمليات مختلطة (إنشاء، تحديث، حذف)
   ///
   /// [operations] - قائمة العمليات
-  Future<Map<String, BatchResult>> executeMixedOperations({
+  Future<Map<String, BatchResult<dynamic>>> executeMixedOperations({
     required List<BatchOperation> operations,
     bool parallel = true,
   }) async {
@@ -293,7 +293,7 @@ class BatchOperationsService {
       tag: 'BATCH',
     );
 
-    final results = <String, BatchResult>{};
+    final results = <String, BatchResult<dynamic>>{};
 
     if (parallel) {
       final futures = operations.map((op) => op.execute());
@@ -315,7 +315,7 @@ class BatchOperationsService {
 /// عملية Batch
 abstract class BatchOperation {
   String get name;
-  Future<BatchResult> execute();
+  Future<BatchResult<dynamic>> execute();
 }
 
 /// عملية حذف Batch
@@ -334,7 +334,7 @@ class BatchDeleteOperation extends BatchOperation {
   String get name => 'delete_${collectionId}_${documentIds.length}';
 
   @override
-  Future<BatchResult> execute() {
+  Future<BatchResult<dynamic>> execute() {
     return BatchOperationsService().deleteDocuments(
       databaseId: databaseId,
       collectionId: collectionId,
@@ -359,7 +359,7 @@ class BatchCreateOperation extends BatchOperation {
   String get name => 'create_${collectionId}_${documents.length}';
 
   @override
-  Future<BatchResult> execute() {
+  Future<BatchResult<dynamic>> execute() {
     return BatchOperationsService().createDocuments(
       databaseId: databaseId,
       collectionId: collectionId,
