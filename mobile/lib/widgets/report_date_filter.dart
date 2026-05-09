@@ -341,12 +341,12 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
         runSpacing: 8,
         children: [
           _buildDefaultDateSelector(
-            label: 'من',
+            label: 'من (14:00)',
             value: _fromDate,
             onPressed: () => _pickDate(isFrom: true),
           ),
           _buildDefaultDateSelector(
-            label: 'إلى',
+            label: 'إلى (13:59)',
             value: _toDate,
             onPressed: () => _pickDate(isFrom: false),
           ),
@@ -355,16 +355,34 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
     }
 
     // ترتيب العناصر حسب التفضيل
+    final selectedRangeLabel =
+        'النطاق: ${DateFormat('yyyy-MM-dd').format(_fromDate)} 14:00'
+        ' - ${DateFormat('yyyy-MM-dd').format(_toDate)} 13:59';
+
     final children = widget.dateButtonsFirst
         ? [
             dateButtons,
             const SizedBox(height: 8),
             chipsRow,
+            const SizedBox(height: 6),
+            Text(
+              selectedRangeLabel,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
           ]
         : [
             chipsRow,
             const SizedBox(height: 8),
             dateButtons,
+            const SizedBox(height: 6),
+            Text(
+              selectedRangeLabel,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
           ];
 
     return Column(

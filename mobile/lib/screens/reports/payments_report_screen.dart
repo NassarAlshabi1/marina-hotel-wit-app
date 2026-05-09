@@ -355,6 +355,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
                       DropdownMenuItem<String?>(
+                        value: null,
                         child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ),
                       ..._availableRooms.map(
@@ -368,6 +369,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       setState(() {
                         _selectedRoom = value;
                       });
+                      _fetchReport();
                     },
                   ),
                 ),
