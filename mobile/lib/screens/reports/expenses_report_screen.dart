@@ -134,13 +134,24 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     await _fetchReport();
   }
 
+  /// أنواع المصروفات الفرعية للرواتب — يُستبعادون من القائمة المنسدلة
+  static const Set<String> _salarySubTypes = {
+    'سحب راتب',
+    'سحب من الراتب',
+    'خصم من الراتب',
+    'خصم راتب',
+  };
+
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(databaseProvider);
     final query = await db
         .customSelect('SELECT DISTINCT expense_type FROM expenses')
         .get();
-    final types =
-        query.map((row) => row.data['expense_type'] as String).toList()..sort();
+    final types = query
+        .map((row) => row.data['expense_type'] as String)
+        .where((type) => !_salarySubTypes.contains(type.trim()))
+        .toList()
+      ..sort();
     setState(() {
       _availableTypes
         ..clear()
