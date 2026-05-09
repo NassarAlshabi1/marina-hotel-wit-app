@@ -1353,7 +1353,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                        RegExp('[0-9٠-٩.,،]'),
+                        RegExp('[0-9٠-٩]'),
                       ),
                     ],
                   ),
