@@ -1,7 +1,4 @@
-# Name: Build Flutter Release APK
-#
-# This workflow is triggered on pull requests affecting files in the 'mobile/' directory,
-# or manually via the 'workflow_dispatch' event.
+# Build Flutter Release APK
 name: Build Flutter Release APK
 
 on:
@@ -18,7 +15,6 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'
-  # Allows manual triggering of the workflow from the GitHub Actions tab
   workflow_dispatch:
 
 concurrency:
@@ -27,17 +23,11 @@ concurrency:
 
 jobs:
   build-release-apk:
-    # Runs the job on the latest Ubuntu runner
     runs-on: ubuntu-latest
-    # Increase job timeout to allow build_runner and pub get more time
     timeout-minutes: 30
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-    defaults:
-      run:
-        # All commands will execute from the 'mobile' directory
-        working-directory: mobile
 
     steps:
       - name: Checkout repository
@@ -52,9 +42,21 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.3'
+          channel: 'stable'
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.38.3
+
+      - name: Verify Flutter & Working Directory
+        run: |
+          echo "Flutter version:"
+          flutter --version
+          echo ""
+          echo "Working directory: $(pwd)"
+          echo "Contents:"
+          ls -la
+          echo ""
+          echo "Checking pubspec.yaml:"
+          ls -la pubspec.yaml || echo "pubspec.yaml NOT FOUND in $(pwd)"
+        working-directory: mobile
 
       - name: Cache pub cache
         uses: actions/cache@v4
@@ -75,24 +77,22 @@ jobs:
             "ndk;27.0.12077973" \
             "cmake;3.22.1"
           ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --list | head -n 50
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
 
       - name: Verify Android Signing Files
-        # Local keystore and key.properties are committed to repo
-        # No secrets or base64 decoding needed
         run: |
           echo "Verifying local signing files..."
           ls -la android/app/release.keystore
           ls -la android/key.properties
           echo "Local signing files verified successfully."
+        working-directory: mobile
 
       - name: Clean build artifacts
         run: flutter clean
+        working-directory: mobile
 
       - name: Install dependencies
         run: flutter pub get
+        working-directory: mobile
 
       - name: Determine dynamic build version
         id: version
@@ -102,18 +102,19 @@ jobs:
           BUILD_NAME="${BASE_VERSION}.${BUILD_NUMBER}"
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+        working-directory: mobile
 
       - name: Build runner - clean generated files
         run: flutter pub run build_runner clean
+        working-directory: mobile
 
-      - name: Generate code (e.g., using Freezed, json_serializable)
-        # Use delete-conflicting-outputs and verbose logging to avoid conflicts and aid debugging
+      - name: Generate code (Freezed, json_serializable)
         run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
+        working-directory: mobile
 
       - name: Build release APK
-        # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
-        # Build only for arm64-v8a architecture (modern 64-bit Android devices)
         run: flutter build apk --release --target-platform android-arm64 --build-name ${{ steps.version.outputs.build_name }} --build-number ${{ steps.version.outputs.build_number }}
+        working-directory: mobile
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
@@ -121,11 +122,3 @@ jobs:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-
-      # Signing files preserved for debugging/reuse
-      # - name: Clean signing files
-      #   if: ${{ always() }}
-      #   run: |
-      #     echo "Cleaning up sensitive signing files..."
-      #     rm -f android/app/release.keystore
-      #     rm -f android/key.properties
