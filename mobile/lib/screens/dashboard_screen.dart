@@ -1,13 +1,11 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/repository_providers.dart';
-import '../providers/core_providers.dart';
 import '../utils/status_utils.dart';
-import '../utils/time.dart';
 
 import '../widgets/dashboard_sync_button.dart';
 import '../services/appwrite_delta_sync.dart';
@@ -174,23 +172,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: ui.TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 16),
-              _buildStatisticsCards(),
-              const SizedBox(height: 20),
-              _buildRoomsSection(),
-              const SizedBox(height: 12),
-              _buildColorInstructions(),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 16),
+            _buildStatisticsCards(),
+            const SizedBox(height: 20),
+            _buildRoomsSection(),
+            const SizedBox(height: 12),
+            _buildColorInstructions(),
+          ],
         ),
       ),
     );
@@ -357,7 +352,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: const Color(0x0D000000),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -412,7 +407,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color(0x0D000000),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -481,8 +476,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
     final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
     final String tooltipText = rws != null ? rws.room.status : 'غير مسجلة';
+    final bool isOverdue = rws?.isPaymentOverdue ?? false;
 
-    return Tooltip(
+    Widget button = Tooltip(
       message: tooltipText,
       child: GestureDetector(
         onLongPress: rws != null
@@ -508,6 +504,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     );
+
+    if (isOverdue) {
+      return button
+          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+          .tint(color: const Color(0x40FF9800), duration: 800.ms)
+          .scale(
+            begin: const Offset(1.0, 1.0),
+            end: const Offset(1.03, 1.03),
+            duration: 800.ms,
+            curve: Curves.easeInOut,
+          );
+    }
+
+    return button;
   }
 
   void _showRoomOptionsDialog(BuildContext context, Room room) {
@@ -692,18 +702,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildColorInstructions() {
     return Align(
       alignment: Alignment.centerRight,
-      child: Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
-            const SizedBox(width: 12),
-            _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
-            const SizedBox(width: 12),
-            _buildInstructionDot(_overdueColor(), 'تأخر سداد'),
-          ],
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
+          const SizedBox(width: 12),
+          _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
+          const SizedBox(width: 12),
+          _buildInstructionDot(Colors.red.shade600, 'وميض: تأخر سداد (11م-5ص)'),
+        ],
       ),
     );
   }

@@ -7,7 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../components/app_scaffold.dart';
 import '../../components/admin_layout.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -64,7 +64,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final query = db.select(db.debts);
       final allDebts = await query.get();
       final filtered = <Debt>[];

@@ -20,7 +20,35 @@ class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
 class _GoogleDriveLoginScreenState
     extends ConsumerState<GoogleDriveLoginScreen> {
   bool _isSigningIn = false;
+  bool _isCheckingSilent = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _trySilentSignIn();
+  }
+
+  /// محاولة تسجيل الدخول الصامت تلقائياً — إذا سبق تسجيل الدخول
+  /// يتم الانتقال مباشرة بدون إظهار أي واجهة
+  Future<void> _trySilentSignIn() async {
+    try {
+      await ref.read(backupStatusProvider.notifier).silentSignInToDrive();
+      final state = ref.read(backupStatusProvider);
+      if (state.isSignedIn && mounted) {
+        // نجح تسجيل الدخول الصامت — الانتقال مباشرة
+        try {
+          final autoBackupManager = AutoBackupManager.instance;
+          await autoBackupManager.setEnabled(true);
+        } catch (_) {}
+      }
+    } catch (_) {
+      // فشل الصامت — يظهر الواجهة العادية
+    }
+    if (mounted) {
+      setState(() => _isCheckingSilent = false);
+    }
+  }
 
   Future<void> _handleSignIn() async {
     setState(() {
@@ -136,6 +164,16 @@ class _GoogleDriveLoginScreenState
 
   @override
   Widget build(BuildContext context) {
+    // أثناء فحص تسجيل الدخول الصامت — إظهار مؤشر تحميل
+    if (_isCheckingSilent) {
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(

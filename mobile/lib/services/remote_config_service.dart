@@ -9,6 +9,8 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/env.dart';
+
 /// خدمة Remote Config لمشروع مارينا هوتل
 ///
 /// الاستخدام:
@@ -142,13 +144,13 @@ class RemoteConfigService {
   /// الافتراضي: '967773749389'
   /// الملف المرتبط: whatsapp_notification_service.dart:56
   String get whatsappPhone =>
-      _remoteConfig?.getString('whatsapp_phone') ?? '967773749389';
+      _remoteConfig?.getString('whatsapp_phone') ?? Env.whatsappPhoneNumber;
 
   /// مفتاح API CallMeBot
   /// الافتراضي: '7379268'
   /// الملف المرتبط: whatsapp_notification_service.dart:57
   String get whatsappApiKey =>
-      _remoteConfig?.getString('whatsapp_api_key') ?? '7379268';
+      _remoteConfig?.getString('whatsapp_api_key') ?? Env.whatsappApiKey;
 
   /// تفعيل/تعطيل إشعارات WhatsApp
   /// الافتراضي: true
@@ -166,7 +168,7 @@ class RemoteConfigService {
   /// الافتراضي: '9677734587456'
   /// الملف المرتبط: late_payment_whatsapp_screen.dart:92
   String get hotelContactPhone =>
-      _remoteConfig?.getString('hotel_contact_phone') ?? '9677734587456';
+      _remoteConfig?.getString('hotel_contact_phone') ?? Env.hotelContactPhone;
 
   // ═══════════════════════════════════════════════════════════════
   //  ⏰ مواعيد التقارير (4 مفاتيح)
@@ -296,11 +298,11 @@ class RemoteConfigService {
 
   static const Map<String, dynamic> _defaults = {
     // الإشعارات والاتصال
-    'whatsapp_phone': '967773749389',
-    'whatsapp_api_key': '7379268',
+    'whatsapp_phone': Env.whatsappPhoneNumber,
+    'whatsapp_api_key': Env.whatsappApiKey,
     'whatsapp_enabled': true,
     'lark_enabled': false,
-    'hotel_contact_phone': '9677734587456',
+    'hotel_contact_phone': Env.hotelContactPhone,
 
     // مواعيد التقارير
     'daily_backup_time': '21:00',

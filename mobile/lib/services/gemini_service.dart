@@ -113,6 +113,15 @@ class AiCheckoutCommand extends AiCommand {
   });
 }
 
+/// إصلاح دفعات غرفة — إعادة حساب الليالي والمستحقات والمدفوعات المخزّنة
+class AiFixPaymentsCommand extends AiCommand {
+  final String roomNumber;
+  const AiFixPaymentsCommand({
+    required this.roomNumber,
+    required super.description,
+  });
+}
+
 /// تسوية دين
 class AiSettleDebtCommand extends AiCommand {
   final int? debtId;
@@ -243,12 +252,30 @@ class GeminiService {
   final List<AiAuditLog> _auditLog = [];
   List<AiAuditLog> get auditLog => List.unmodifiable(_auditLog);
 
+  /// آخر خطأ في التهيئة (لعرضه في الواجهة)
+  String? _initError;
+  String? get initError => _initError;
+
+  /// آخر خطأ في الإرسال
+  String? _lastError;
+  String? get lastError => _lastError;
+
   /// تهيئة Gemini AI عبر Firebase AI Logic (بدون مفتاح API في الكود)
   /// يستخدم ChatSession لإدارة المحادثة تلقائياً — حسب نمط Firebase AI Logic الرسمي
-  Future<void> initialize() async {
-    if (_isInitialized) return;
+  /// [forceRetry] = true لإجبار إعادة التهيئة حتى لو نجحت سابقاً
+  Future<void> initialize({bool forceRetry = false}) async {
+    if (_isInitialized && !forceRetry) return;
+
+    // إعادة تعيين الحالة عند إعادة المحاولة
+    if (forceRetry) {
+      _model = null;
+      _chat = null;
+      _isInitialized = false;
+      _initError = null;
+    }
 
     try {
+      _initError = null;
       // FirebaseAI.googleAI() يستخدم مفتاح API المُدار من Firebase Console
       // لا حاجة لتخزين مفتاح API في الكود أو Remote Config
       final ai = FirebaseAI.googleAI();
@@ -264,11 +291,31 @@ class GeminiService {
       // إنشاء جلسة محادثة — startChat يدير سجل المحادثة تلقائياً
       _chat = _model!.startChat();
       _isInitialized = true;
+      _lastError = null;
       debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
     } catch (e) {
       debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
       debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
+      _initError = _describeInitError(e);
+      _lastError = _initError;
     }
+  }
+
+  /// وصف خطأ التهيئة بلغة واضحة
+  String _describeInitError(Object e) {
+    final msg = e.toString();
+    if (msg.contains('[core/no-app') || msg.contains('No Firebase')) {
+      return 'Firebase غير مهيأ — تأكد من استدعاء Firebase.initializeApp() في main()';
+    } else if (msg.contains('API_KEY') || msg.contains('api.key')) {
+      return 'مفتاح API غير صالح — تحقق من Firebase Console > Project Settings';
+    } else if (msg.contains('not enabled') || msg.contains('NOT_FOUND')) {
+      return 'Firebase AI غير مفعّل — فعّله من Firebase Console > AI Logic';
+    } else if (msg.contains('location') || msg.contains('region')) {
+      return 'الخدمة غير متاحة في منطقتك — تأكد أن Firebase AI مفعّل';
+    } else if (msg.contains('network') || msg.contains('socket') || msg.contains('connection')) {
+      return 'خطأ في الاتصال بالشبكة — تأكد من الإنترنت';
+    }
+    return 'فشل التهيئة: $e';
   }
 
   void reset() {
@@ -293,29 +340,73 @@ class GeminiService {
 
   // ───────────────────────────────────────────────────────────
   //  بناء سياق الفندق من قاعدة البيانات
+  //  محسّن: استعلام واحد موحد بدل N+1 + cache لمدة 30 ثانية
   // ───────────────────────────────────────────────────────────
 
+  /// ذاكرة مؤقتة للسياق — تُحدّث كل 30 ثانية فقط
+  String? _cachedContext;
+  DateTime? _contextBuiltAt;
+  static const _contextCacheDuration = Duration(seconds: 30);
+
   Future<String> _buildHotelContext() async {
+    // إعادة استخدام السياق المخزّن مؤقتاً
+    if (_cachedContext != null && _contextBuiltAt != null) {
+      final elapsed = DateTime.now().difference(_contextBuiltAt!);
+      if (elapsed < _contextCacheDuration) {
+        return _cachedContext!;
+      }
+    }
+
     final db = DatabaseManager.instance;
-    final lines = <String>[];
+    final s = StringBuffer();
+    final now = DateTime.now();
+    final today = now.toIso8601String().split('T')[0];
 
     try {
-      // --- إحصائيات سريعة ---
-      final allRooms = await db.select(db.rooms).get();
-      final available =
-          allRooms.where((r) => r.status == 'available' && r.deletedAt == null).length;
-      final occupied =
-          allRooms.where((r) => r.status == 'occupied' && r.deletedAt == null).length;
-      final maintenance =
-          allRooms.where((r) => r.status == 'maintenance' && r.deletedAt == null).length;
-      final cleaning =
-          allRooms.where((r) => r.status == 'cleaning' && r.deletedAt == null).length;
-      final total = allRooms.where((r) => r.deletedAt == null).length;
-      lines.add('إجمالي الغرف: $total');
-      lines.add(
-          'شاغرة: $available | محجوزة: $occupied | تنظيف: $cleaning | صيانة: $maintenance');
+      // ═══════════════════════════════════════════════════════════
+      //  1. بيانات الغرف الشاملة
+      // ═══════════════════════════════════════════════════════════
+      final allRooms = await (db.select(db.rooms)
+            ..where((r) => r.deletedAt.isNull()))
+          .get();
+      final roomMap = {for (final r in allRooms) r.roomNumber: r};
 
-      // --- الحجوزات النشطة ---
+      final available = allRooms.where((r) => r.status == 'available').length;
+      final occupied = allRooms.where((r) => r.status == 'occupied').length;
+      final maintenance = allRooms.where((r) => r.status == 'maintenance').length;
+      final cleaning = allRooms.where((r) => r.status == 'cleaning').length;
+      final total = allRooms.length;
+
+      // توزيع أنواع الغرف مع متوسط الأسعار
+      final typeStats = <String, List<double>>{};
+      for (final r in allRooms) {
+        typeStats.putIfAbsent(r.type, () => []).add(r.price);
+      }
+
+      s.writeln('═══ بيانات الغرف ($total غرفة) ═══');
+      s.writeln('الحالات: شاغرة $available | محجوزة $occupied | تنظيف $cleaning | صيانة $maintenance');
+      s.writeln('أنواع الغرف:');
+      for (final entry in typeStats.entries) {
+        final avg = entry.value.reduce((a, b) => a + b) / entry.value.length;
+        final min = entry.value.reduce((a, b) => a < b ? a : b);
+        final max = entry.value.reduce((a, b) => a > b ? a : b);
+        s.writeln('  ${entry.key}: ${entry.value.length} غرفة | متوسط ${avg.toStringAsFixed(0)} | أقل ${min.toStringAsFixed(0)} | أعلى ${max.toStringAsFixed(0)} ريال');
+      }
+
+      // الغرف الشاغرة مرتبة بالسعر
+      final availableRooms = allRooms.where((r) => r.status == 'available').toList()
+        ..sort((a, b) => a.price.compareTo(b.price));
+      if (availableRooms.isNotEmpty) {
+        s.writeln('');
+        s.writeln('الغرف الشاغرة (${availableRooms.length}):');
+        for (final r in availableRooms) {
+          s.writeln('  ${r.roomNumber}: ${r.type} | ${r.price.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  2. الحجوزات النشطة — بيانات شاملة ومُفصّلة
+      // ═══════════════════════════════════════════════════════════
       final activeBookings = await (db.select(db.bookings)
             ..where((b) => b.status.equals('checked_in'))
             ..where((b) => b.deletedAt.isNull())
@@ -323,80 +414,556 @@ class GeminiService {
           .get();
 
       if (activeBookings.isNotEmpty) {
-        lines.add('');
-        lines.add('الحجوزات النشطة (${activeBookings.length}):');
+        s.writeln('');
+        s.writeln('═══ الحجوزات النشطة (${activeBookings.length}) ═══');
         for (final b in activeBookings) {
-          final paid = await (db.select(db.payments)
-                ..where((p) => p.bookingLocalId.equals(b.id))
-                ..where((p) => p.isVoided.equals(false)))
-              .get();
-          final totalPaid = paid.fold<double>(0, (s, p) => s + p.amount);
-          final nights = b.expectedNights;
-          final room =
-              allRooms.where((r) => r.roomNumber == b.roomNumber).firstOrNull;
-          final pricePerNight = room?.price ?? 0;
-          final due = pricePerNight * nights;
-          final remaining = due - totalPaid;
+          final totalPaid = b.totalPaidCached;
+          final totalDue = b.totalDueCached;
+          final remaining = b.remainingBalanceCached;
+          final nights = b.calculatedNights;
+          final checkin = b.checkinDate.split('T').first;
+          final checkout = b.checkoutDate?.split('T').first ?? 'غير محدد';
+          final discount = b.discount;
+          final hasDiscount = discount > 0;
+          final room = roomMap[b.roomNumber];
+          final roomType = room?.type ?? '';
+          final roomPrice = room?.price ?? 0;
+          final nationality = b.guestNationality;
+          final isFullyPaid = b.isFullyPaid;
+          final isOverdue = b.isOverdue;
+          final stayDays = checkin != 'غير محدد'
+              ? now.difference(DateTime.parse(checkin)).inDays
+              : 0;
 
-          lines.add(
-            '- غرفة ${b.roomNumber}: ${b.guestName} | ${b.guestPhone} | $nights ليلة | مدفوع: ${totalPaid.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)}',
-          );
+          s.writeln('  [${b.roomNumber}] ${b.guestName} | $nationality | ${b.guestPhone}');
+          s.writeln('    النوع: $roomType | السعر: ${roomPrice.toStringAsFixed(0)} ريال/ليلة');
+          s.writeln('    دخول: $checkin | مغادرة: $checkout | $nights ليلة | أقام $stayDays يوم');
+          s.writeln('    مدفوع: ${totalPaid.toStringAsFixed(0)} | مستحق: ${totalDue.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)} ${isFullyPaid ? "(مكتمل)" : "(غير مكتمل)"}${isOverdue ? " ⚠️ متأخر" : ""}');
+          if (hasDiscount) {
+            final discountLabel = b.discountType == 'per_night' ? 'ل كل ليلة' : 'إجمالي';
+            s.writeln('    خصم: ${discount.toStringAsFixed(0)} ريال ($discountLabel)');
+          }
+        }
+
+        // إحصائيات الضيوف الحاليين
+        final nationalities = <String, int>{};
+        for (final b in activeBookings) {
+          nationalities[b.guestNationality] = (nationalities[b.guestNationality] ?? 0) + 1;
+        }
+        s.writeln('');
+        s.writeln('توزيع الجنسيات: ${nationalities.entries.map((e) => "${e.key}(${e.value})").join(", ")}');
+
+        // إحصائيات الدفع
+        final fullyPaid = activeBookings.where((b) => b.isFullyPaid).length;
+        final partialPaid = activeBookings.where((b) => b.totalPaidCached > 0 && !b.isFullyPaid).length;
+        final notPaid = activeBookings.where((b) => b.totalPaidCached == 0).length;
+        final overdueCount = activeBookings.where((b) => b.isOverdue).length;
+        s.writeln('حالة الدفع: مكتمل $fullyPaid | جزئي $partialPaid | لم يدفع $notPaid | متأخر $overdueCount');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  3. تنبيهات المغادرة — ضيوف يجب مغادرتهم اليوم أو غداً
+      // ═══════════════════════════════════════════════════════════
+      final tomorrow = now.add(const Duration(days: 1)).toIso8601String().split('T')[0];
+      final checkoutToday = activeBookings.where((b) => b.checkoutDate?.split('T').first == today).toList();
+      final checkoutTomorrow = activeBookings.where((b) => b.checkoutDate?.split('T').first == tomorrow).toList();
+
+      if (checkoutToday.isNotEmpty || checkoutTomorrow.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ تنبيهات المغادرة ═══');
+        if (checkoutToday.isNotEmpty) {
+          s.writeln('مغادرة اليوم (${checkoutToday.length}):');
+          for (final b in checkoutToday) {
+            final rem = b.remainingBalanceCached;
+            s.writeln('  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}');
+          }
+        }
+        if (checkoutTomorrow.isNotEmpty) {
+          s.writeln('مغادرة غداً (${checkoutTomorrow.length}):');
+          for (final b in checkoutTomorrow) {
+            final rem = b.remainingBalanceCached;
+            s.writeln('  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}');
+          }
         }
       }
 
-      // --- الغرف الشاغرة مع أسعارها ---
-      final availableRooms = allRooms
-          .where((r) => r.status == 'available' && r.deletedAt == null)
-          .toList();
-      if (availableRooms.isNotEmpty) {
-        lines.add('');
-        lines.add('الغرف الشاغرة:');
-        for (final r in availableRooms) {
-          lines.add(
-              '- ${r.roomNumber}: ${r.type} - ${r.price.toStringAsFixed(0)} ريال');
-        }
-      }
-
-      // --- الديون غير المسددة ---
+      // ═══════════════════════════════════════════════════════════
+      //  4. الديون غير المسددة — مع تفاصيل الرهن
+      // ═══════════════════════════════════════════════════════════
       final debts = await (db.select(db.debts)
             ..where((d) => d.isSettled.equals(0))
             ..where((d) => d.deletedAt.isNull())
             ..orderBy([(d) => OrderingTerm.desc(d.dateRecorded)]))
           .get();
       if (debts.isNotEmpty) {
-        lines.add('');
-        lines.add('الديون غير المسددة (${debts.length}):');
-        for (final d in debts.take(10)) {
-          lines.add(
-            '- ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال متبقي | سبب: ${d.debtReason}',
-          );
+        final totalDebt = debts.fold<double>(0, (s, d) => s + d.remainingAmount);
+        s.writeln('');
+        s.writeln('═══ الديون غير المسددة (${debts.length}) | إجمالي: ${totalDebt.toStringAsFixed(0)} ريال ═══');
+        for (final d in debts.take(15)) {
+          final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
+          s.writeln('  ${d.guestName}: متبقي ${d.remainingAmount.toStringAsFixed(0)} من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
         }
       }
 
-      // --- إيرادات ومصروفات اليوم ---
-      final today = DateTime.now().toIso8601String().split('T')[0];
+      // ═══════════════════════════════════════════════════════════
+      //  5. الإيرادات والمصروفات اليوم — مع تفصيل حسب النوع
+      // ═══════════════════════════════════════════════════════════
       final todayPayments = await (db.select(db.payments)
-            ..where((p) => p.paymentDate.equals(today))
+            ..where((p) => p.paymentDate.like('$today%'))
             ..where((p) => p.isVoided.equals(false)))
           .get();
       final todayExpenses = await (db.select(db.expenses)
-            ..where((e) => e.date.equals(today)))
+            ..where((e) => e.date.like('$today%'))
+            ..where((e) => e.deletedAt.isNull()))
           .get();
-      final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
-      final totalExpenses =
-          todayExpenses.fold<double>(0, (s, e) => s + e.amount);
 
-      lines.add('');
-      lines.add('ملخص اليوم ($today):');
-      lines.add('الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال');
-      lines.add('المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال');
-      lines.add('صافي: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+      final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
+      final totalExpenses = todayExpenses.fold<double>(0, (s, e) => s + e.amount);
+
+      s.writeln('');
+      s.writeln('═══ ملخص اليوم ($today) ═══');
+      s.writeln('الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} عملية)');
+      s.writeln('المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} عملية)');
+      s.writeln('صافي اليوم: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+
+      // تفصيل المدفوعات حسب نوع الإيراد
+      final revenueByType = <String, double>{};
+      for (final p in todayPayments) {
+        final type = p.revenueType;
+        revenueByType[type] = (revenueByType[type] ?? 0) + p.amount;
+      }
+      if (revenueByType.isNotEmpty) {
+        s.writeln('توزيع الإيرادات:');
+        for (final entry in revenueByType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // تفصيل المدفوعات حسب طريقة الدفع
+      final paymentsByMethod = <String, double>{};
+      for (final p in todayPayments) {
+        final method = p.paymentMethod;
+        paymentsByMethod[method] = (paymentsByMethod[method] ?? 0) + p.amount;
+      }
+      if (paymentsByMethod.isNotEmpty) {
+        s.writeln('طرق الدفع:');
+        for (final entry in paymentsByMethod.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // تفصيل المصروفات حسب الفئة
+      final expensesByType = <String, double>{};
+      for (final e in todayExpenses) {
+        final type = e.expenseType;
+        expensesByType[type] = (expensesByType[type] ?? 0) + e.amount;
+      }
+      if (expensesByType.isNotEmpty) {
+        s.writeln('توزيع المصروفات:');
+        for (final entry in expensesByType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  6. المؤشرات المالية الأساسية
+      // ═══════════════════════════════════════════════════════════
+      final occupancyRate = total > 0 ? (occupied / total * 100) : 0.0;
+      final totalRemaining = activeBookings.fold<double>(
+        0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+      );
+      final avgPayment = todayPayments.isNotEmpty ? totalIncome / todayPayments.length : 0.0;
+      final totalDueAll = activeBookings.fold<double>(0, (s, b) => s + b.totalDueCached);
+      final totalPaidAll = activeBookings.fold<double>(0, (s, b) => s + b.totalPaidCached);
+      final collectionRate = totalDueAll > 0 ? (totalPaidAll / totalDueAll * 100) : 0.0;
+
+      s.writeln('');
+      s.writeln('═══ المؤشرات المالية ═══');
+      s.writeln('نسبة الإشغال: ${occupancyRate.toStringAsFixed(0)}%');
+      s.writeln('إجمالي المتبقي المستحق: ${totalRemaining.toStringAsFixed(0)} ريال');
+      s.writeln('إجمالي المستحقات: ${totalDueAll.toStringAsFixed(0)} ريال');
+      s.writeln('إجمالي المحصّل: ${totalPaidAll.toStringAsFixed(0)} ريال');
+      s.writeln('نسبة التحصيل: ${collectionRate.toStringAsFixed(0)}%');
+      s.writeln('متوسط قيمة العملية اليوم: ${avgPayment.toStringAsFixed(0)} ريال');
+
+      // ═══════════════════════════════════════════════════════════
+      //  7. الإيرادات التاريخية — آخر 7 أيام (اتجاه الإيرادات)
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ اتجاه الإيرادات (آخر 7 أيام) ═══');
+      for (var i = 6; i >= 0; i--) {
+        final pastDate = now.subtract(Duration(days: i)).toIso8601String().split('T')[0];
+        final dayPayments = await (db.select(db.payments)
+              ..where((p) => p.paymentDate.like('$pastDate%'))
+              ..where((p) => p.isVoided.equals(false)))
+            .get();
+        final dayExpenses = await (db.select(db.expenses)
+              ..where((e) => e.date.like('$pastDate%'))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
+        final dayIncome = dayPayments.fold<double>(0, (s, p) => s + p.amount);
+        final dayExpense = dayExpenses.fold<double>(0, (s, e) => s + e.amount);
+        final dayNet = dayIncome - dayExpense;
+        final isToday = i == 0;
+        final marker = isToday ? ' ◄' : '';
+        s.writeln('  $pastDate: إيرادات ${dayIncome.toStringAsFixed(0)} | مصروفات ${dayExpense.toStringAsFixed(0)} | صافي ${dayNet.toStringAsFixed(0)}$marker');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  8. دفتر اليوم الفندقي — آخر 5 أيام
+      // ═══════════════════════════════════════════════════════════
+      final ledgerEntries = await (db.select(db.hotelDayLedger)
+            ..orderBy([(l) => OrderingTerm.desc(l.hotelDayKey)]))
+          .get();
+      if (ledgerEntries.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ دفتر اليوم الفندقي (آخر ${ledgerEntries.length.clamp(0, 5)} أيام) ═══');
+        for (final l in ledgerEntries.take(5)) {
+          s.writeln('  ${l.hotelDayKey}: دخل ${l.totalIncome.toStringAsFixed(0)} | مصروفات ${l.totalExpenses.toStringAsFixed(0)} | إشغال ${l.occupancyRate.toStringAsFixed(0)}% | حجوزات ${l.bookingsProcessed} | مدفوعات ${l.paymentsProcessed}');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  9. ملاحظات الوردية النشطة
+      // ═══════════════════════════════════════════════════════════
+      final activeNotes = await (db.select(db.shiftNotes)
+            ..where((n) => n.isRead.equals(0)))
+          .get();
+      if (activeNotes.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ ملاحظات وردية غير مقروءة (${activeNotes.length}) ═══');
+        for (final n in activeNotes.take(10)) {
+          final priorityLabel = n.priority == 'high' ? '🔴' : n.priority == 'medium' ? '🟡' : '🟢';
+          s.writeln('  $priorityLabel [${n.shiftType}] ${n.title}: ${n.content}');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  10. تعديلات الأسعار الأخيرة
+      // ═══════════════════════════════════════════════════════════
+      final recentAdjustments = await (db.select(db.priceAdjustments)
+            ..where((a) => a.isReversed.equals(false))
+            ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
+          .get();
+      if (recentAdjustments.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ تعديلات أسعار حديثة (آخر ${recentAdjustments.length.clamp(0, 5)}) ═══');
+        for (final a in recentAdjustments.take(5)) {
+          s.writeln('  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  11. المتوسطات والإحصائيات العامة
+      // ═══════════════════════════════════════════════════════════
+      if (activeBookings.isNotEmpty) {
+        final avgNights = activeBookings.fold<int>(0, (s, b) => s + b.calculatedNights) / activeBookings.length;
+        final avgDue = activeBookings.fold<double>(0, (s, b) => s + b.totalDueCached) / activeBookings.length;
+        s.writeln('');
+        s.writeln('═══ إحصائيات عامة ═══');
+        s.writeln('متوسط مدة الإقامة: ${avgNights.toStringAsFixed(1)} ليلة');
+        s.writeln('متوسط الفاتورة: ${avgDue.toStringAsFixed(0)} ريال');
+        s.writeln('إجمالي الحجوزات النشطة: ${activeBookings.length}');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  12. التحقق من صحة الحسابات — 4 فحوصات شاملة
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ التحقق من صحة الحسابات ═══');
+
+      // --- فحص 1: هل المتبقي = التكلفة - المدفوع ---
+      final balanceErrors = <String>[];
+      for (final b in activeBookings) {
+        final due = b.totalDueCached;
+        final paid = b.totalPaidCached;
+        final remaining = b.remainingBalanceCached;
+        final expectedRemaining = due - paid;
+        final diff = (remaining - expectedRemaining).abs();
+        if (diff > 0.5) {
+          // فرق أكبر من 0.5 ريال يُعتبر خطأ
+          balanceErrors.add(
+            '[${b.roomNumber}] ${b.guestName}: المتبقي المسجل ${remaining.toStringAsFixed(0)} ≠ المتوقع ${expectedRemaining.toStringAsFixed(0)} (تكلفة ${due.toStringAsFixed(0)} - مدفوع ${paid.toStringAsFixed(0)}) | فرق ${diff.toStringAsFixed(0)} ريال',
+          );
+        }
+      }
+      if (balanceErrors.isEmpty) {
+        s.writeln('✓ فحص توازن الحسابات: جميع الحسابات صحيحة — المتبقي = التكلفة - المدفوع');
+      } else {
+        s.writeln('✗ فحص توازن الحسابات: ${balanceErrors.length} خطأ في توازن الحسابات:');
+        for (final err in balanceErrors) {
+          s.writeln('  ✗ $err');
+        }
+      }
+
+      // --- فحص 2: هل يوجد رصيد سالب (مدفوع أكبر من التكلفة) ---
+      final negativeBalance = activeBookings.where((b) => b.remainingBalanceCached < -0.5).toList();
+      if (negativeBalance.isEmpty) {
+        s.writeln('✓ فحص الرصيد السالب: لا يوجد أرصدة سالبة');
+      } else {
+        s.writeln('✗ فحص الرصيد السالب: ${negativeBalance.length} حجز برصيد سالب (المدفوع exceeds التكلفة):');
+        for (final b in negativeBalance) {
+          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال (مدفوع ${b.totalPaidCached.toStringAsFixed(0)} exceeds مستحق ${b.totalDueCached.toStringAsFixed(0)})');
+        }
+      }
+
+      // --- فحص 3: هل يوجد دفعات أكبر من إجمالي التكلفة ---
+      final overpayments = activeBookings.where((b) => b.totalPaidCached > b.totalDueCached + 0.5).toList();
+      if (overpayments.isEmpty) {
+        s.writeln('✓ فحص الدفعات الزائدة: لا توجد دفعات تتجاوز التكلفة');
+      } else {
+        s.writeln('✗ فحص الدفعات الزائدة: ${overpayments.length} حجز بدفعات تتجاوز التكلفة:');
+        for (final b in overpayments) {
+          final overpay = b.totalPaidCached - b.totalDueCached;
+          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مدفوع ${b.totalPaidCached.toStringAsFixed(0)} > مستحق ${b.totalDueCached.toStringAsFixed(0)} | زيادة ${overpay.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // --- فحص 4: هل توجد غرفة محجوزة بدون أي دفعة ---
+      final noPayments = activeBookings.where((b) => b.totalPaidCached < 0.5).toList();
+      if (noPayments.isEmpty) {
+        s.writeln('✓ فحص الغرف بدون دفعات: جميع الغرف المحجوزة لديها دفعات مسجلة');
+      } else {
+        s.writeln('✗ فحص الغرف بدون دفعات: ${noPayments.length} غرفة محجوزة بدون أي دفعة:');
+        for (final b in noPayments) {
+          final stayDays = b.checkinDate.isNotEmpty
+              ? now.difference(DateTime.parse(b.checkinDate)).inDays
+              : 0;
+          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مستحق ${b.totalDueCached.toStringAsFixed(0)} ريال | مدفوع 0 | أقام $stayDays يوم ${stayDays >= 3 ? "⚠️ فترة طويلة بدون دفع!" : ""}');
+        }
+      }
+
+      // --- ملخص التحقق ---
+      final totalIssues = balanceErrors.length + negativeBalance.length + overpayments.length + noPayments.length;
+      s.writeln('');
+      if (totalIssues == 0) {
+        s.writeln('✓ ملخص التحقق: جميع الحسابات صحيحة — لا توجد مشاكل');
+      } else {
+        s.writeln('✗ ملخص التحقق: $totalIssues مشكلة تحتاج مراجعة');
+        s.writeln('  - أخطاء التوازن: ${balanceErrors.length}');
+        s.writeln('  - أرصدة سالبة: ${negativeBalance.length}');
+        s.writeln('  - دفعات زائدة: ${overpayments.length}');
+        s.writeln('  - غرف بدون دفعات: ${noPayments.length}');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  13. مفهوم اليوم الفندقي — كيفية الاحتساب
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ اليوم الفندقي (Hotel Day) ═══');
+      s.writeln('قاعدة الحسم: الساعة 14:00 (ظهراً)');
+      s.writeln('اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي');
+      s.writeln('التاريخ/الوقت الحالي: ${now.toIso8601String()}');
+      final currentHotelDay = today; // مبسّط — التطبيق يحسب بال HotelTimeEngine
+      s.writeln('اليوم الفندقي الحالي: $currentHotelDay');
+
+      // الغرف التي يتغير يومها الفندقي قريباً (تنبيه)
+      final timeToNext = DateTime(now.year, now.month, now.day, 14);
+      final actualNext = now.isAfter(timeToNext)
+          ? timeToNext.add(const Duration(days: 1))
+          : timeToNext;
+      final remaining = actualNext.difference(now);
+      s.writeln('الوقت المتبقي لبداية يوم فندقي جديد: ${remaining.inHours} ساعة و${remaining.inMinutes % 60} دقيقة');
+
+      // توزيع الحجوزات على أيام فندقية
+      final hotelDayMap = <String, int>{};
+      for (final b in activeBookings) {
+        final hd = b.hotelDayCheckin;
+        if (hd != null && hd.isNotEmpty) {
+          hotelDayMap[hd] = (hotelDayMap[hd] ?? 0) + 1;
+        }
+      }
+      if (hotelDayMap.isNotEmpty) {
+        s.writeln('');
+        s.writeln('توزيع الحجوزات حسب يوم الدخول الفندقي:');
+        for (final entry in hotelDayMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key))) {
+          s.writeln('  $entry.key: ${entry.value} حجز');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  14. الموظفين والرواتب
+      // ═══════════════════════════════════════════════════════════
+      final employees = await (db.select(db.employees)
+            ..where((e) => e.deletedAt.isNull()))
+          .get();
+
+      if (employees.isNotEmpty) {
+        s.writeln('');
+        s.writeln('═══ الموظفين والرواتب (${employees.length}) ═══');
+
+        final activeEmp = employees.where((e) => e.status == 'active').length;
+        final inactiveEmp = employees.where((e) => e.status != 'active').length;
+        s.writeln('نشط: $activeEmp | غير نشط: $inactiveEmp');
+
+        // رواتب الموظفين النشطين
+        for (final emp in employees.where((e) => e.status == 'active')) {
+          s.writeln('  [${emp.id}] ${emp.name} | ${emp.position} | الراتب: ${emp.basicSalary.toStringAsFixed(0)} ريال | ${emp.phone}');
+        }
+
+        // دورات الرواتب النشطة
+        final salaryCycles = await (db.select(db.salaryCycles)
+              ..where((c) => c.status.equals('draft')))
+            .get();
+        if (salaryCycles.isNotEmpty) {
+          s.writeln('');
+          s.writeln('دورات رواتب غير مكتملة (${salaryCycles.length}):');
+          for (final c in salaryCycles) {
+            final emp = employees.where((e) => e.id == c.employeeId).firstOrNull;
+            final empName = emp?.name ?? 'موظف محذوف';
+            s.writeln('  $empName | الدورة: ${c.cycleKey} | مستحق: ${c.expectedAmount} | مدفوع: ${c.actualPaid} | متبقي: ${c.remainingAmount}');
+          }
+        }
+
+        // المسحوبات الأخيرة
+        final recentWithdrawals = await (db.select(db.salaryWithdrawals)
+              ..orderBy([(w) => OrderingTerm.desc(w.id)]))
+            .get();
+        if (recentWithdrawals.isNotEmpty) {
+          s.writeln('');
+          s.writeln('آخر المسحوبات (${recentWithdrawals.length.clamp(0, 5)}):');
+          for (final w in recentWithdrawals.take(5)) {
+            final emp = employees.where((e) => e.id == w.employeeId).firstOrNull;
+            final empName = emp?.name ?? 'موظف محذوف';
+            s.writeln('  $empName | ${w.amount.toStringAsFixed(0)} ريال | ${w.withdrawalType ?? "عادي"} | ${w.reason ?? ""} | ${w.withdrawDate}');
+          }
+        }
+
+        // إجمالي الرواتب المستحقة
+        final totalSalaries = employees.where((e) => e.status == 'active')
+            .fold<double>(0, (s, e) => s + e.basicSalary);
+        s.writeln('');
+        s.writeln('إجمالي الرواتب الشهرية: ${totalSalaries.toStringAsFixed(0)} ريال');
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  15. التسويات المالية والاستحقاقات
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ التسويات المالية والاستحقاقات ═══');
+
+      // حركات الصندوق اليوم
+      final todayCashTransactions = await (db.select(db.cashTransactions)
+            ..where((t) => t.transactionTime.like('$today%')))
+          .get();
+      final cashIn = todayCashTransactions.where((t) => t.transactionType == 'income')
+          .fold<double>(0, (s, t) => s + t.amount);
+      final cashOut = todayCashTransactions.where((t) => t.transactionType == 'expense')
+          .fold<double>(0, (s, t) => s + t.amount);
+      s.writeln('حركة الصندوق اليوم: دخول ${cashIn.toStringAsFixed(0)} | خروج ${cashOut.toStringAsFixed(0)} | صافي ${(cashIn - cashOut).toStringAsFixed(0)} ريال');
+
+      // المدفوعات المعلقة (غير مُطابقة)
+      final pendingPayments = todayPayments.where((p) => p.isPendingBalance == true).toList();
+      if (pendingPayments.isNotEmpty) {
+        s.writeln('مدفوعات معلقة (غير مُطابقة): ${pendingPayments.length}');
+        for (final p in pendingPayments) {
+          s.writeln('  ${p.roomNumber ?? "?"} | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.notes ?? ""}');
+        }
+      } else {
+        s.writeln('مدفوعات معلقة: لا توجد');
+      }
+
+      // المدفوعات الملغاة اليوم
+      final voidedPayments = await (db.select(db.paymentVoids)
+            ..where((v) => v.voidedAtIso.like('$today%')))
+          .get();
+      if (voidedPayments.isNotEmpty) {
+        s.writeln('مدفوعات ملغاة اليوم: ${voidedPayments.length}');
+        for (final v in voidedPayments) {
+          s.writeln('  حجز ${v.bookingUuid} | ${v.voidedAmount} ريال | سبب: ${v.voidReason}');
+        }
+      }
+
+      // أرصدة الديون حسب الجنسية
+      if (debts.isNotEmpty) {
+        final debtByReason = <String, double>{};
+        for (final d in debts) {
+          final reason = d.debtReason.isNotEmpty ? d.debtReason : 'أخرى';
+          debtByReason[reason] = (debtByReason[reason] ?? 0) + d.remainingAmount;
+        }
+        s.writeln('');
+        s.writeln('توزيع الديون حسب السبب:');
+        for (final entry in debtByReason.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
+          s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      // استحقاقات الحجوزات (المتبقي المحصّل vs غير المحصّل)
+      final collectedRemaining = activeBookings
+          .where((b) => b.totalPaidCached > 0 && b.remainingBalanceCached < 0.5)
+          .length;
+      final uncollectedRemaining = activeBookings
+          .where((b) => b.remainingBalanceCached >= 0.5)
+          .length;
+      s.writeln('');
+      s.writeln('استحقاقات الحجوزات: مكتملة $collectedRemaining | غير مكتملة $uncollectedRemaining');
+
+      // ═══════════════════════════════════════════════════════════
+      //  16. ترحيل البيانات (Data Rollover & Sync)
+      // ═══════════════════════════════════════════════════════════
+      s.writeln('');
+      s.writeln('═══ ترحيل البيانات والمزامنة ═══');
+
+      // حالة دفتر اليوم الفندقي
+      final todayLedger = await (db.select(db.hotelDayLedger)
+            ..where((l) => l.hotelDayKey.equals(today)))
+          .getSingleOrNull();
+      if (todayLedger != null) {
+        s.writeln('دفتر اليوم ($today):');
+        s.writeln('  الحالة: ${todayLedger.status} | الدخل: ${todayLedger.totalIncome.toStringAsFixed(0)} | المصروفات: ${todayLedger.totalExpenses.toStringAsFixed(0)}');
+        s.writeln('  الأرصدة المعلقة: ${todayLedger.pendingBalances.toStringAsFixed(0)} | الإشغال: ${todayLedger.occupancyRate.toStringAsFixed(0)}%');
+        s.writeln('  حجوزات: ${todayLedger.bookingsProcessed} | مدفوعات: ${todayLedger.paymentsProcessed} | ديون: ${todayLedger.debtsProcessed} | مصروفات: ${todayLedger.expensesProcessed}');
+      } else {
+        s.writeln('دفتر اليوم ($today): لم يُرحّل بعد — يحتاج ترحيل');
+      }
+
+      // آخر عمليات AutoFix
+      final recentAutoFix = await (db.select(db.autoFixRuns)
+            ..orderBy([(a) => OrderingTerm.desc(a.startedAtEpoch)]))
+          .get();
+      if (recentAutoFix.isNotEmpty) {
+        s.writeln('');
+        s.writeln('آخر عمليات الإصلاح التلقائي:');
+        for (final run in recentAutoFix.take(3)) {
+          final statusLabel = run.status == 'completed' ? '✓' : run.status == 'running' ? '⟳' : '✗';
+          s.writeln('  $statusLabel ${run.source}: ${run.status} | ${run.startedAtIso}');
+        }
+      }
+
+      // حالة المزامنة
+      final pendingOutbox = await (db.select(db.outbox)
+            ..where((o) => o.processingStatus.equals('pending')))
+          .get();
+      final failedOutbox = await (db.select(db.outbox)
+            ..where((o) => o.processingStatus.equals('failed')))
+          .get();
+      s.writeln('');
+      s.writeln('حالة ترحيل البيانات للسيرفر:');
+      s.writeln('  بانتظار الرفع: ${pendingOutbox.length}');
+      s.writeln('  فشل الرفع: ${failedOutbox.length}');
+
+      // BookingNights — ليالي مرحّلة
+      final recentNights = await (db.select(db.bookingNights)
+            ..orderBy([(n) => OrderingTerm.desc(n.hotelDayKey)]))
+          .get();
+      if (recentNights.isNotEmpty) {
+        s.writeln('');
+        s.writeln('آخر الليالي المُرحّلة (أول 3):');
+        for (final n in recentNights.take(3)) {
+          s.writeln('  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال');
+        }
+      }
+
     } catch (e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
-      lines.add('(تعذر تحميل بعض البيانات)');
+      s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
 
-    return lines.join('\n');
+    // تخزين السياق في الذاكرة المؤقتة
+    _cachedContext = s.toString();
+    _contextBuiltAt = DateTime.now();
+
+    return _cachedContext!;
   }
 
   // ───────────────────────────────────────────────────────────
@@ -445,15 +1012,37 @@ class GeminiService {
       );
       _lastRequestTime = DateTime.now();
 
-      final responseText = response.text ?? '';
+      // ⚠️ response.text يرمي FirebaseAIException عند الحظر (لا يُرجع null!)
+      String responseText;
+      try {
+        responseText = response.text ?? '';
+      } on FirebaseAIException catch (e) {
+        debugPrint('⚠️ response.text رمى استثناء: $e');
+        // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
+        if (e.message?.contains('SAFETY') == true ||
+            e.message?.contains('blocked') == true) {
+          debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
+          try {
+            final retryResponse = await _sendWithRetry(
+              () => _chat!.sendMessage(Content.text(userMessage)),
+            );
+            responseText = retryResponse.text ?? '';
+          } catch (retryE) {
+            responseText = _friendlyErrorMessage(retryE);
+          }
+        } else {
+          responseText = _friendlyErrorMessage(e);
+        }
+      }
+      _lastError = null;
 
       // تحليل الأمر من الرد
       final command = _parseCommand(responseText);
       final cleanText = _stripJsonFromResponse(responseText);
 
-      // التقارير تُنفذ فوراً بدون تأكيد
-      if (command is AiReportCommand) {
-        final reportResult = await executeCommand(command);
+      // التقارير وإصلاح الدفعات تُنفذ فوراً بدون تأكيد
+      if (command is AiReportCommand || command is AiFixPaymentsCommand) {
+        final reportResult = await executeCommand(command!);
         return GeminiResponse(
           text: reportResult,
           command: null,
@@ -470,6 +1059,7 @@ class GeminiService {
       );
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
+      _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
@@ -502,13 +1092,19 @@ class GeminiService {
       return 'خدمة Gemini غير متاحة في منطقتك حالياً.';
     } else if (e is FirebaseAIException) {
       final firebaseMsg = e.message;
-      if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
-        return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
-      } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
-        return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
+      // e.message قد يكون null — فحص أمان
+      if (firebaseMsg != null) {
+        if (firebaseMsg.contains('SAFETY') || firebaseMsg.contains('blocked')) {
+          return 'تم حظر الرد لأسباب أمنية. حاول صياغة السؤال بشكل مختلف.';
+        } else if (firebaseMsg.contains('role') || firebaseMsg.contains('alternat')) {
+          return 'حدث خطأ في سجل المحادثة. تم مسح السجل — حاول مجدداً.';
+        } else if (firebaseMsg.contains('No content') || firebaseMsg.contains('empty')) {
+          return 'لم يتم توليد رد. حاول إعادة صياغة السؤال.';
+        }
       }
+      return 'خطأ من خدمة AI: ${firebaseMsg ?? "غير معروف"}';
     }
-    return 'حدث خطأ أثناء معالجة طلبك. حاول مجدداً.';
+    return 'حدث خطأ أثناء معالجة طلبك: $e';
   }
 
   /// إعادة محاولة تلقائية مع exponential backoff عند تجاوز حد الطلبات
@@ -836,6 +1432,70 @@ class GeminiService {
               'تم إنهاء حجز الغرفة $roomNumber وتسجيل خروج الضيف ${activeBooking.guestName}';
 
         // ═══════════════════════════════════════════════════
+        //  إصلاح دفعات غرفة — إعادة حساب كاملة
+        // ═══════════════════════════════════════════════════
+        case AiFixPaymentsCommand(:final roomNumber):
+          final bookings = await (db.select(db.bookings)
+            ..where((b) => b.roomNumber.equals(roomNumber))).get();
+          final activeBooking =
+              bookings.where((b) => b.status == 'checked_in').firstOrNull;
+          if (activeBooking == null) {
+            result = 'لا يوجد حجز نشط للغرفة $roomNumber';
+            break;
+          }
+
+          // حفظ القيم قبل الإصلاح
+          final oldPaid = activeBooking.totalPaidCached;
+          final oldDue = activeBooking.totalDueCached;
+          final oldRemaining = activeBooking.remainingBalanceCached;
+          final oldNights = activeBooking.calculatedNights;
+
+          // إعادة حساب كاملة عبر BookingDerivedFieldsService
+          try {
+            await BookingDerivedFieldsService(db)
+                .refreshForBookingId(activeBooking.id, forceRebuild: true);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            result = 'فشل إعادة حساب الحجز $roomNumber: $e';
+            break;
+          }
+
+          // قراءة القيم الجديدة بعد الإصلاح
+          final refreshed = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(activeBooking.id)))
+              .getSingleOrNull();
+
+          if (refreshed == null) {
+            result = 'فشل قراءة الحجد بعد الإصلاح';
+            break;
+          }
+
+          final newPaid = refreshed.totalPaidCached;
+          final newDue = refreshed.totalDueCached;
+          final newRemaining = refreshed.remainingBalanceCached;
+          final newNights = refreshed.calculatedNights;
+
+          final changes = <String>[];
+          if (oldNights != newNights) {
+            changes.add('الليالي: $oldNights -> $newNights');
+          }
+          if ((oldDue - newDue).abs() > 0.5) {
+            changes.add('المستحق: ${oldDue.toStringAsFixed(0)} -> ${newDue.toStringAsFixed(0)}');
+          }
+          if ((oldPaid - newPaid).abs() > 0.5) {
+            changes.add('المدفوع: ${oldPaid.toStringAsFixed(0)} -> ${newPaid.toStringAsFixed(0)}');
+          }
+          if ((oldRemaining - newRemaining).abs() > 0.5) {
+            changes.add('المتبقي: ${oldRemaining.toStringAsFixed(0)} -> ${newRemaining.toStringAsFixed(0)}');
+          }
+
+          if (changes.isEmpty) {
+            result = 'تم فحص الغرفة $roomNumber — الحسابات صحيحة لا تحتاج إصلاح';
+          } else {
+            result = 'تم إصلاح حسابات الغرفة $roomNumber (${refreshed.guestName}):\n${changes.join('\n')}';
+          }
+
+        // ═══════════════════════════════════════════════════
         //  تسوية دين
         // ═══════════════════════════════════════════════════
         case AiSettleDebtCommand(
@@ -1049,20 +1709,60 @@ class GeminiService {
   // ───────────────────────────────────────────────────────────
 
   String _buildSystemPrompt() {
-    return '''أنت مساعد ذكي لنظام إدارة فندق Marina. تتحدث باللغة العربية فقط.
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return '''أنت "ماريانا" — مساعد ذكي متقدم لنظام إدارة فندق Marina Hotel. أنت مستشار فندقي محترف يتحدث باللغة العربية فقط.
 
-مهمتك: فهم طلبات المستخدم باللغة العربية الطبيعية والرد بمعلومات مفيدة أو تنفيذ أوامر على النظام.
+═══ هويتك ومهمتك ═══
+أنت مساعد فندقي ذكي يعمل كمستشار مالي وإداري للفندق. تفهم بيانات الفندق في الوقت الفعلي وتقدم:
+- إجابات دقيقة على الأسئلة بناءً على البيانات الحية
+- تحليلات مالية وإحصائية ذكية
+- نصائح لتحسين الإيرادات وإدارة الغرف
+- تنبيهات تلقائية للمشاكل والفرص
+- تنفيذ الأوامر على النظام عند طلب المستخدم
 
-قواعد مهمة:
-- كن مختصراً ومفيداً — لا تزد على 3 أسطر إلا عند الحاجة
-- استخدم البيانات الحالية المقدمة لك للإجابة بدقة
+═══ قواعد الاستجابة ═══
+- كن مختصراً ومفيداً — أجب بتركيز عالٍ دون إطالة
+- استخدم البيانات الحالية المقدمة لك في كل طلب — لا تتخيل أرقاماً
+- عند تقديم نصائح، استخدم الأرقام الفعلية من البيانات
 - إذا طلب المستخدم تعديل بيانات، أجب بالشرح المختصر ثم أضف JSON للأمر في نهاية رسالتك
 - لا تنفذ أوامر خطيرة (تعديل/حذف) بدون تأكيد المستخدم
-- الصيغة: ردك المكتوب أولاً، ثم JSON للأمر في سطر منفصل
-- لا تضع JSON بين ``` فقط أرسله مباشرة
 - أوامر التقارير تُنفذ فوراً بدون تأكيد
+- لا تضع JSON بين ``` فقط أرسله مباشرة في سطر منفصل
+- المبالغ بالريال اليمني — الأرقام بدون فواصل (50000 وليس 50,000)
 
-صيغ JSON للأوامر المدعومة:
+═══ قدراتك التحليلية ═══
+بناءً على البيانات المقدمة لك، يمكنك:
+1. تحليل الأداء المالي: مقارنة الإيرادات اليومية، حساب متوسط الإيرادات، تحليل الصافي
+2. تحليل الإشغال: تحديد أنماط الإشغال، اقتراح أسعار ديناميكية
+3. إدارة الديون: تحديد الديون الخطرة، اقتراح أولويات التحصيل
+4. تحليل الضيوف: أنماط الجنسيات، متوسط مدة الإقامة، قيمة كل ضيف
+5. التنبؤات: تنبيه لمغادرة الضيوف، تنبيه للغرف المتأخرة، توقعات الإيرادات
+6. تحسين الإيرادات: اقتراح تعديل الأسعار بناءً على الطلب والإشغال
+7. إدارة المخاطر: تنبيه للحوادث المالية، اكتشاف الأنماط غير الطبيعية
+8. التحقق من الحسابات: مراجعة تلقائية لصحة الحسابات — تكتشف:
+   - عدم توازن الحسابات (المتبقي ≠ التكلفة - المدفوع)
+   - الأرصدة السالبة (المدفوع أكبر من المستحق)
+   - الدفعات الزائدة عن التكلفة
+   - الغرف المحجوزة بدون أي دفعة (مع تنبيه حسب مدة الإقامة)
+
+═══ تنسيق البيانات ═══
+يتم تزويدك ببيانات حية من الفندق تتضمن:
+- بيانات الغرف: الأنواع والأسعار والحالات وتوزيع الأسعار
+- الحجوزات النشطة: تفاصيل كاملة لكل ضيف مع الجنسية والمدفوعات
+- الديون: إجمالي وتفاصيل كل دين مع معلومات الرهن
+- الإيرادات والمصروفات: تفصيل حسب النوع وطريقة الدفع
+- المؤشرات المالية: نسبة الإشغال، نسبة التحصيل، المتوسطات
+- اتجاه الإيرادات: آخر 7 أيام لمقارنة الأداء
+- دفتر اليوم الفندقي: ملخص يومي شامل
+- ملاحظات الوردية: تنبيهات وملاحظات من الموظفين
+- تعديلات الأسعار: سجل التغييرات الأخيرة
+- التحقق من صحة الحسابات: 4 فحوصات تلقائية
+- اليوم الفندقي: قاعدة 14:00 وتوزيع الحجوزات حسب الأيام
+- الموظفين والرواتب: بيانات الموظفين ودورات الرواتب والمسحوبات
+- التسويات المالية: حركات الصندوق والمدفوعات المعلقة والملغاة
+- ترحيل البيانات: دفتر اليوم وAutoFix والمزامنة مع السيرفر
+
+═══ صيغ JSON للأوامر المدعومة ═══
 
 1. تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة تلقائياً):
 {"action": "update_room_price", "room_number": "101", "new_price": 50000, "reason": "زيادة بسبب الموسم"}
@@ -1071,12 +1771,10 @@ class GeminiService {
 {"action": "bulk_price_adjust", "room_type": "double", "mode": "percent_increase", "value": 10, "reason": "زيادة موسمية"}
 - mode: percent_increase, percent_decrease, fixed_increase, fixed_decrease
 - room_type اختياري (إذا لم يُحدد يُطبق على جميع الغرف)
-- أمثلة: "زِد جميع الأسعار 10%" | "خفّض غرف doubles 5000 ريال" | "زِد سعر الغرف 20%"
 
 3. تخفيض على حجز معين (خصم ليلي أو إجمالي):
 {"action": "booking_discount", "room_number": "101", "discount_amount": 5000, "discount_type": "per_night", "reason": "خصم خاص"}
 - discount_type: per_night (لكل ليلة) أو total (إجمالي)
-- أمثلة: "خفّض 5000 لكل ليلة للغرفة 101" | "خصم 10000 إجمالي على حجز الغرفة 202"
 
 4. تغيير حالة غرفة:
 {"action": "update_room_status", "room_number": "101", "new_status": "available"}
@@ -1090,26 +1788,39 @@ class GeminiService {
 7. إنهاء حجز (تسجيل خروج):
 {"action": "checkout", "room_number": "101"}
 
-8. تسوية دين:
+8. إصلاح دفعات غرفة (إعادة حساب كاملة — لا يحتاج تأكيد):
+{"action": "fix_payments", "room_number": "101"}
+- يعيد حساب: الليالي، المستحقات، المدفوعات المخزّنة، المتبقي
+- يُنفذ فوراً بدون تأكيد لأنه عملية مراجعة وليست تغييراً
+- مثال: "أصلح دفعات غرفة 101" | "راجع حسابات 202" | "فحص دفعات الغرفة 303"
+
+9. تسوية دين:
 {"action": "settle_debt", "guest_name": "أحمد", "amount": 30000}
 
-9. إضافة حجز جديد:
+10. إضافة حجز جديد:
 {"action": "add_booking", "room_number": "101", "guest_name": "أحمد محمد", "guest_phone": "777123456", "guest_nationality": "يمني", "checkin_date": "2025-01-15", "expected_nights": 2}
 
-10. تحديث بيانات ضيف:
+11. تحديث بيانات ضيف:
 {"action": "update_booking_guest", "room_number": "101", "guest_name": "الاسم الجديد", "extend_nights": 1}
 
-11. طلب تقرير (يُنفذ فوراً بدون تأكيد):
+12. طلب تقرير (يُنفذ فوراً بدون تأكيد):
 {"action": "report", "report_type": "daily"}
-- report_type: daily (يومي), revenue (إيرادات), occupancy (إشغال), debts (ديون), expenses (مصروفات), room_prices (أسعار الغرف)
-- أمثلة: "أعطني تقرير اليوم" | "كم الإيرادات هذا الشهر" | "كم نسبة الإشغال" | "تقرير الديون"
+- report_type: daily, revenue, occupancy, debts, expenses, room_prices
 
-حالات الغرف: available, occupied, cleaning, maintenance, reserved
-أنواع المصروفات: صيانة, طعام, كهرباء, ماء, تنظيف, نقل, أخرى
-أنواع الغرف: single, double, triple, suite, family
-المبالغ بالريال اليمني
-الأرقام بدون فواصل (50000 وليس 50,000)
-تاريخ اليوم الحالي: ${DateTime.now().toIso8601String().split('T')[0]}''';
+═══ مرجع البيانات ═══
+- حالات الغرف: available (شاغرة), occupied (محجوزة), cleaning (تنظيف), maintenance (صيانة), reserved (محجوزة مسبقاً)
+- أنواع المصروفات: صيانة, طعام, كهرباء, ماء, تنظيف, نقل, أخرى
+- أنواع الغرف: single, double, triple, suite, family
+- طرق الدفع: cash (نقدي), transfer (تحويل), card (بطاقة), other (أخرى)
+- أنواع الإيرادات: room_rent (إيجار غرفة), extra_services (خدمات إضافية), penalty (غرامات), other (أخرى)
+- اليوم الفندقي: يبدأ من 14:00 ظهراً وينتهي 14:00 من اليوم التالي (قاعدة الحسم 14:00)
+  - دخول قبل 14:00 يُحسب ضمن اليوم الفندقي السابق
+  - دخول بعد 14:00 يُحسب ضمن يوم فندقي جديد
+  - خروج بعد 14:00 يُحتسب كليالي إضافية
+  - المفتاح بصيغة YYYY-MM-DD (مثال: 2025-01-15)
+- ترحيل البيانات: كل يوم فندقي يُرحّل في دفتر اليوم (HotelDayLedger) الذي يخزن إجمالي الدخل والمصروفات والإشغال
+- AutoFix: إصلاح تلقائي يُعيد حساب الليالي والمدفوعات عند تغيير الأسعار أو detect أخطاء
+- تاريخ اليوم: $today''';
   }
 
   // ───────────────────────────────────────────────────────────
@@ -1186,6 +1897,12 @@ class GeminiService {
           return AiCheckoutCommand(
             roomNumber: json['room_number'] as String? ?? '',
             description: 'إنهاء حجز الغرفة ${json['room_number']}',
+          );
+
+        case 'fix_payments':
+          return AiFixPaymentsCommand(
+            roomNumber: json['room_number'] as String? ?? '',
+            description: 'إصلاح دفعات الغرفة ${json['room_number']} — إعادة حساب كاملة',
           );
 
         case 'settle_debt':

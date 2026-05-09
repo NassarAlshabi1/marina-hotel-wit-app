@@ -291,3 +291,46 @@ function convertDatesToEpoch($record, $dateFields = []) {
     }
     return $record;
 }
+
+/**
+ * إعادة حساب حالات جميع الغرف بناءً على الحجوزات الفعلية
+ * 
+ * تُستدعى بعد: إنشاء/تحديث/حذف حجز، عملية مزامنة push/pull
+ * لا تُغيّر الغرف ذات الحالات الخاصة (خارج الخدمة / تحت الصيانة)
+ * 
+ * @param mysqli $conn اتصال قاعدة البيانات
+ * @return int عدد الغرف التي تم تحديث حالتها
+ */
+function recalculateAllRoomStatuses($conn) {
+    // الغرف التي عليها حجز نشط (محجوزة) ← نحافظ عليها كـ "محجوزة"
+    $conn->query("
+        UPDATE rooms r
+        INNER JOIN (
+            SELECT DISTINCT room_number
+            FROM bookings
+            WHERE status IN ('محجوزة', 'محجوز')
+            AND deleted_at IS NULL
+        ) b ON r.room_number = b.room_number
+        SET r.status = 'محجوزة'
+        WHERE r.deleted_at IS NULL
+        AND r.status NOT IN ('خارج الخدمة', 'تحت الصيانة')
+    ");
+
+    // الغرف التي ليس عليها حجز نشط ← نعيدها لـ "شاغرة"
+    $conn->query("
+        UPDATE rooms r
+        LEFT JOIN (
+            SELECT DISTINCT room_number
+            FROM bookings
+            WHERE status IN ('محجوزة', 'محجوز')
+            AND deleted_at IS NULL
+        ) b ON r.room_number = b.room_number
+        SET r.status = 'شاغرة'
+        WHERE b.room_number IS NULL
+        AND r.deleted_at IS NULL
+        AND r.status NOT IN ('خارج الخدمة', 'تحت الصيانة')
+        AND r.status != 'شاغرة'
+    ");
+
+    return $conn->affected_rows;
+}

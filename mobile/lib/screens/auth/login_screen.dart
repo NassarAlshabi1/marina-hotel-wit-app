@@ -166,6 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _passwordCtrl.text,
           rememberMe: _rememberMe,
         );
+    if (!mounted) return;
     setState(() => _submitting = false);
     // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول
   }

@@ -84,32 +84,36 @@ final conflictResolverProvider = Provider<ConflictResolver>((ref) {
 // Data Source Providers (Abstract - Implementation Required)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Provider لـ OutboxDataSource - يجب تخصيصه في التطبيق
-final outboxDataSourceProvider = Provider<OutboxDataSource>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص outboxDataSourceProvider لاستخدام OutboxStorage المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص outboxDataSourceProvider قبل تفعيل delta sync')
+final outboxDataSourceProvider = Provider<OutboxDataSource?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
-/// Provider لـ InboxDataSource - يجب تخصيصه في التطبيق
-final inboxDataSourceProvider = Provider<InboxDataSource>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص inboxDataSourceProvider لاستخدام InboxStorage المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص inboxDataSourceProvider قبل تفعيل delta sync')
+final inboxDataSourceProvider = Provider<InboxDataSource?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
-/// Provider لـ RemoteDataSource - يجب تخصيصه في التطبيق
-final remoteDataSourceProvider = Provider<RemoteDataSource>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص remoteDataSourceProvider لاستخدام RemoteDataSource المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص remoteDataSourceProvider قبل تفعيل delta sync')
+final remoteDataSourceProvider = Provider<RemoteDataSource?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
-/// Provider لـ OutboxStorage - يجب تخصيصه في التطبيق
-final outboxStorageProvider = Provider<OutboxStorage>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص outboxStorageProvider لاستخدام OutboxStorage المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص outboxStorageProvider قبل تفعيل delta sync')
+final outboxStorageProvider = Provider<OutboxStorage?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

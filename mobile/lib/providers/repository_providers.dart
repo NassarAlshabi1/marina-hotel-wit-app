@@ -19,6 +19,7 @@ import '../services/sync_guardian.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 
 import '../services/whatsapp_service.dart';
+import '../utils/env.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
@@ -88,8 +89,8 @@ final whatsappSettingsProvider = FutureProvider<Map<String, String>>((ref) async
   return {
     'apiType': prefs.getString('wa_api_type') ?? 'custom',
     'baseUrl': prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
-    'instanceId': prefs.getString('wa_api_instance_id') ?? 'waInstance7103894450',
-    'token': prefs.getString('wa_api_token') ?? 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+    'instanceId': prefs.getString('wa_api_instance_id') ?? Env.whatsappInstanceId,
+    'token': prefs.getString('wa_api_token') ?? Env.whatsappApiToken,
     'customUrlTemplate': prefs.getString('wa_custom_url_template') ?? '',
   };
 });
@@ -109,8 +110,8 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
     final settings = settingsAsync.valueOrNull ?? const {
       'apiType': 'custom',
       'baseUrl': 'https://7103.api.greenapi.com',
-      'instanceId': 'waInstance7103894450',
-      'token': 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
+      'instanceId': Env.whatsappInstanceId,
+      'token': Env.whatsappApiToken,
       'customUrlTemplate': '',
     };
     return WhatsAppService(
@@ -198,18 +199,9 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  // watchAll() Stream يتحدث فوراً عند أي تغيير في expenses table
-  // الفلترة في Dart تتطابق مع منطق listByHotelDayKey الأصلي
-  return expensesRepo.watchAll().map((expenses) {
-    double total = 0;
-    for (final e in expenses) {
-      if (e.hotelDayKey == hotelDay) {
-        total += e.amount;
-      } else if (e.hotelDayKey == null && e.date.startsWith(hotelDay)) {
-        total += e.amount;
-      }
-    }
-    return total;
+  // الفلتر على مستوى قاعدة البيانات — لا نحمّل جميع المصروفات
+  return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
+    return expenses.fold<double>(0, (sum, e) => sum + e.amount);
   });
 });
 
@@ -220,29 +212,28 @@ final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
   final expenses = await repo.listFiltered(from: hotelDay, to: hotelDay);
   return (count: expenses.length, total: total);
 });
+final bookingPaymentsProvider = StreamProvider.family.autoDispose<List<Payment>, int>(
+  (ref, bookingId) {
+    final paymentsRepo = ref.watch(paymentsRepoProvider);
+    return paymentsRepo.paymentsByBooking(bookingId);
+  },
+);
+
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
-final pendingDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
-        (debts) => debts
-            .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
-            .toList(),
-      ),
-);
-final settledDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
-        (debts) => debts
-            .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
-            .toList(),
-      ),
-);
+final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
+      .toList();
+});
+final settledDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
+      .toList();
+});
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;

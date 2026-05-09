@@ -115,6 +115,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         bookings,
@@ -266,6 +267,26 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           lastModified: Value(booking.lastModified),
           version: Value(booking.version),
           origin: Value(booking.origin),
+          discount: Value(booking.discount),
+          discountType: Value(booking.discountType),
+          discountStartDate: Value(booking.discountStartDate),
+          totalNightsCached: Value(booking.totalNightsCached),
+          totalDueCached: Value(booking.totalDueCached),
+          totalPaidCached: Value(booking.totalPaidCached),
+          remainingBalanceCached: Value(booking.remainingBalanceCached),
+          isFullyPaid: Value(booking.isFullyPaid),
+          hotelDayCheckin: Value(booking.hotelDayCheckin),
+          hotelDayCheckout: Value(booking.hotelDayCheckout),
+          stayDurationIso: Value(booking.stayDurationIso),
+          lastNightEpoch: Value(booking.lastNightEpoch),
+          isOverdue: Value(booking.isOverdue),
+          needsCheckoutReview: Value(booking.needsCheckoutReview),
+          createdAtIso: Value(booking.createdAtIso),
+          updatedAtIso: Value(booking.updatedAtIso),
+          deletedAtIso: Value(booking.deletedAtIso),
+          createdAtEpoch: Value(booking.createdAtEpoch),
+          lastModifiedEpoch: Value(booking.lastModifiedEpoch),
+          vectorClock: Value(booking.vectorClock),
         ),
       );
     }

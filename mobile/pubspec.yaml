@@ -57,6 +57,7 @@ dependencies:
   uuid: ^4.5.1
   synchronized: ^3.1.0+1
   shimmer: ^3.0.0
+  flutter_animate: ^4.5.2
   # UI file picking is performed with file_picker from the UI layer
 
 dev_dependencies:

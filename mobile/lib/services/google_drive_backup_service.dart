@@ -897,19 +897,37 @@ class GoogleDriveBackupService {
 
       _log('🔄 بدء استعادة البيانات...');
 
-      await db.transaction(() async {
-        await db.customStatement('PRAGMA foreign_keys = OFF');
-        try {
-          // حذف جميع الجداول (الأبناء أولاً لتجنب قيود المفاتيح الأجنبية)
+      // ✅ إصلاح حرج: PRAGMA foreign_keys = OFF يجب أن يكون خارج المعاملة
+      // لأن SQLite يتجاهل هذا الأمر داخل transaction بصمت!
+      // https://www.sqlite.org/pragma.html#pragma_foreign_keys
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      _log('🔓 تم تعطيل FOREIGN KEYS قبل المعاملة');
+
+      try {
+        await db.transaction(() async {
+          // حذف جميع الجداول بالترتيب الصحيح (الأبناء قبل الآباء)
+          // Level 3 – أبناء بعيدة (تشير لأبناء أو آباء)
           await db.delete(db.bookingNotes).go();
           await db.delete(db.bookingNights).go();
+          await db.delete(db.bookingPriceAdjustments).go();
+          await db.delete(db.paymentVoids).go();
+          // Level 2 – أبناء مباشرة تشير للآباء الرئيسية
           await db.delete(db.payments).go();
           await db.delete(db.debts).go();
-          await db.delete(db.bookingPriceAdjustments).go();
+          await db.delete(db.salaryPayments).go();          // FK → employees, salaryCycles
+          await db.delete(db.salaryWithdrawals).go();      // FK → employees
+          await db.delete(db.expenses).go();
+          await db.delete(db.cashTransactions).go();
+          await db.delete(db.auditLogs).go();
+          await db.delete(db.guestInfos).go();
+          // Level 1 – آباء رئيسية (يُشار إليها من جداول أعلاه)
           await db.delete(db.bookings).go();
           await db.delete(db.rooms).go();
-          await db.delete(db.salaryPayments).go();
+          await db.delete(db.employees).go();
           await db.delete(db.salaryCycles).go();
+          // Level 0 – جداول مستقلة بدون FK صادرة
+          await db.delete(db.hotelDayLedger).go();
+          await db.delete(db.shiftNotes).go();
           await db.delete(db.integrityViolations).go();
           await db.delete(db.autoFixRuns).go();
           await db.delete(db.syncConflicts).go();
@@ -918,15 +936,6 @@ class GoogleDriveBackupService {
           await db.delete(db.syncState).go();
           await db.delete(db.restoreFixLog).go();
           await db.delete(db.appSessions).go();
-          await db.delete(db.hotelDayLedger).go();
-          await db.delete(db.shiftNotes).go();
-          await db.delete(db.employees).go();
-          await db.delete(db.expenses).go();
-          await db.delete(db.cashTransactions).go();
-          await db.delete(db.auditLogs).go();
-          await db.delete(db.paymentVoids).go();
-          await db.delete(db.guestInfos).go();
-          await db.delete(db.salaryWithdrawals).go();
 
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
@@ -1314,28 +1323,29 @@ class GoogleDriveBackupService {
           await fixService.runAutoFixAfterRestore(
             backupTimestamp: metadata.backupTimestamp,
           );
-        } finally {
-          await db.customStatement('PRAGMA foreign_keys = ON');
-          _log('🔓 تم إعادة تشغيل FOREIGN KEYS');
+        }); // نهاية db.transaction
+      } finally {
+        // ✅ إعادة تفعيل FOREIGN KEYS خارج المعاملة
+        await db.customStatement('PRAGMA foreign_keys = ON');
+        _log('🔓 تم إعادة تشغيل FOREIGN KEYS بعد المعاملة');
 
-          // التحقق من سلامة Foreign Keys بعد الاستعادة
-          try {
-            final violations = await db.customSelect(
-              'PRAGMA foreign_key_check',
-            ).get();
-            if (violations.isNotEmpty) {
-              _log('⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة');
-              for (final v in violations) {
-                _log('  ↳ FK violation: $v');
-              }
-            } else {
-              _log('✅ التحقق من FK: لا توجد انتهاكات');
+        // التحقق من سلامة Foreign Keys بعد الاستعادة
+        try {
+          final violations = await db.customSelect(
+            'PRAGMA foreign_key_check',
+          ).get();
+          if (violations.isNotEmpty) {
+            _log('⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة');
+            for (final v in violations) {
+              _log('  ↳ FK violation: $v');
             }
-          } catch (e) {
-            _log('⚠️ تعذر التحقق من سلامة FK: $e');
+          } else {
+            _log('✅ التحقق من FK: لا توجد انتهاكات');
           }
+        } catch (e) {
+          _log('⚠️ تعذر التحقق من سلامة FK: $e');
         }
-      });
+      }
 
       // مزامنة البيانات المستعادة مع Appwrite
       try {

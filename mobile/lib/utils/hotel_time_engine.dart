@@ -23,6 +23,31 @@ class HotelTimeEngine {
   /// ساعة بداية اليوم الفندقي (14:00)
   static const int boundaryHour = 14;
 
+  /// دالة لتحديد بداية ونهاية اليوم الفندقي لتاريخ معين.
+  /// اليوم الفندقي يبدأ الساعة 14:00 وينتهي في اليوم التالي الساعة 13:59:59.
+  static Map<String, DateTime> getHotelDayRange(DateTime date) {
+    DateTime hotelDayStart;
+    DateTime hotelDayEnd;
+
+    // إذا كان الوقت الحالي قبل الساعة 14:00
+    if (date.hour < boundaryHour) {
+      // اليوم الفندقي بدأ أمس الساعة 14:00
+      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour, 0, 0);
+      // وينتهي اليوم الساعة 13:59:59
+      hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour - 1, 59, 59, 999);
+    } else { // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:00
+      // اليوم الفندقي بدأ اليوم الساعة 14:00
+      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour, 0, 0);
+      // وينتهي غداً الساعة 13:59:59
+      hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour - 1, 59, 59, 999);
+    }
+
+    return {
+      'start': hotelDayStart,
+      'end': hotelDayEnd,
+    };
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // تحويل التاريخ إلى يوم فندقي
   // ═══════════════════════════════════════════════════════════════

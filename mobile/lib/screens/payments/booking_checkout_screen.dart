@@ -483,6 +483,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     String selectedMethod = 'نقدي';
     String selectedType = 'room';
 
+    try {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
@@ -619,6 +620,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       } finally {
         setState(() => _isProcessing = false);
       }
+    }
+    } finally {
+      amountController.dispose();
+      notesController.dispose();
     }
   }
 

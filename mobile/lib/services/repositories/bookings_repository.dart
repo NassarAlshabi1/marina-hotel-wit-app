@@ -11,14 +11,15 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
 class BookingsRepository {
-  BookingsRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = BookingsDao(db, OutboxDao(db)),
-      derivedFields = BookingDerivedFieldsService(db);
+  BookingsRepository(this.db) {
+    outbox = OutboxDao(db);
+    dao = BookingsDao(db, outbox);
+    derivedFields = BookingDerivedFieldsService(db);
+  }
   final AppDatabase db;
-  final OutboxDao outbox;
-  final BookingsDao dao;
-  final BookingDerivedFieldsService derivedFields;
+  late final OutboxDao outbox;
+  late final BookingsDao dao;
+  late final BookingDerivedFieldsService derivedFields;
 
   Stream<List<Booking>> watch({String? roomNumber, String? status}) =>
       dao.watchList(roomNumber: roomNumber, status: status);
@@ -60,42 +61,47 @@ class BookingsRepository {
     }
 
     try {
-    final result = await dao.insertOne(
-      BookingsCompanion(
-        roomNumber: d.Value(roomNumber),
-        guestName: d.Value(guestName),
-        guestPhone: d.Value(guestPhone),
-        guestIdType: d.Value(guestIdType),
-        guestIdNumber: d.Value(guestIdNumber),
-        guestIdIssueDate: d.Value(guestIdIssueDate),
-        guestIdIssuePlace: d.Value(guestIdIssuePlace),
-        guestNationality: d.Value(guestNationality),
-        guestEmail: d.Value(guestEmail),
-        guestAddress: d.Value(guestAddress),
-        checkinDate: d.Value(checkinDate),
-        checkoutDate: d.Value(checkoutDate),
-        actualCheckout: d.Value(actualCheckout),
-        status: d.Value(status),
-        notes: d.Value(notes),
-        expectedNights: d.Value(expectedNights),
-        calculatedNights: calculatedNights != null
-            ? d.Value(calculatedNights)
-            : const d.Value.absent(),
-        discount: d.Value(discount),
-        discountType: d.Value(discountType),
-        discountStartDate: d.Value(discountStartDate),
-      ),
-    );
-    await syncLegacyDiscountToAdjustments(result);
-    await derivedFields.refreshForBookingId(result);
-    AutoBackupManager.instance.onDataChange(
-      'bookings',
-      'INSERT',
-      recordData: {'id': result},
-    );
-    // إشعار Lark (غير متزامن — لا يبطئ العملية)
-    _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
-    return result;
+      // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
+      final result = await db.transaction(() async {
+        final id = await dao.insertOne(
+          BookingsCompanion(
+            roomNumber: d.Value(roomNumber),
+            guestName: d.Value(guestName),
+            guestPhone: d.Value(guestPhone),
+            guestIdType: d.Value(guestIdType),
+            guestIdNumber: d.Value(guestIdNumber),
+            guestIdIssueDate: d.Value(guestIdIssueDate),
+            guestIdIssuePlace: d.Value(guestIdIssuePlace),
+            guestNationality: d.Value(guestNationality),
+            guestEmail: d.Value(guestEmail),
+            guestAddress: d.Value(guestAddress),
+            checkinDate: d.Value(checkinDate),
+            checkoutDate: d.Value(checkoutDate),
+            actualCheckout: d.Value(actualCheckout),
+            status: d.Value(status),
+            notes: d.Value(notes),
+            expectedNights: d.Value(expectedNights),
+            calculatedNights: calculatedNights != null
+                ? d.Value(calculatedNights)
+                : const d.Value.absent(),
+            discount: d.Value(discount),
+            discountType: d.Value(discountType),
+            discountStartDate: d.Value(discountStartDate),
+          ),
+        );
+        await syncLegacyDiscountToAdjustments(id);
+        await derivedFields.refreshForBookingId(id);
+        return id;
+      });
+
+      AutoBackupManager.instance.onDataChange(
+        'bookings',
+        'INSERT',
+        recordData: {'id': result},
+      );
+      // إشعار Lark (غير متزامن — لا يبطئ العملية)
+      _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'BookingsRepository',
@@ -171,77 +177,84 @@ class BookingsRepository {
     }
 
     try {
-    final result = await dao.updateById(
-      id,
-      BookingsCompanion(
-        roomNumber: roomNumber != null
-            ? d.Value(roomNumber)
-            : const d.Value.absent(),
-        guestName: guestName != null
-            ? d.Value(guestName)
-            : const d.Value.absent(),
-        guestPhone: guestPhone != null
-            ? d.Value(guestPhone)
-            : const d.Value.absent(),
-        guestIdType: guestIdType != null
-            ? d.Value(guestIdType)
-            : const d.Value.absent(),
-        guestIdNumber: guestIdNumber != null
-            ? d.Value(guestIdNumber)
-            : const d.Value.absent(),
-        guestIdIssueDate: guestIdIssueDate != null
-            ? d.Value(guestIdIssueDate)
-            : const d.Value.absent(),
-        guestIdIssuePlace: guestIdIssuePlace != null
-            ? d.Value(guestIdIssuePlace)
-            : const d.Value.absent(),
-        guestNationality: guestNationality != null
-            ? d.Value(guestNationality)
-            : const d.Value.absent(),
-        guestEmail: guestEmail != null
-            ? d.Value(guestEmail)
-            : const d.Value.absent(),
-        guestAddress: guestAddress != null
-            ? d.Value(guestAddress)
-            : const d.Value.absent(),
-        checkinDate: checkinDate != null
-            ? d.Value(checkinDate)
-            : const d.Value.absent(),
-        checkoutDate: checkoutDate != null
-            ? d.Value(checkoutDate)
-            : const d.Value.absent(),
-        actualCheckout: actualCheckout != null
-            ? d.Value(actualCheckout)
-            : const d.Value.absent(),
-        status: status != null ? d.Value(status) : const d.Value.absent(),
-        notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-        expectedNights: expectedNights != null
-            ? d.Value(expectedNights)
-            : const d.Value.absent(),
-        calculatedNights: calculatedNights != null
-            ? d.Value(calculatedNights)
-            : const d.Value.absent(),
-        discount: discount != null ? d.Value(discount) : const d.Value.absent(),
-        discountType: discountType != null
-            ? d.Value(discountType)
-            : const d.Value.absent(),
-        discountStartDate: discountStartDate != null
-            ? d.Value(discountStartDate)
-            : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      await syncLegacyDiscountToAdjustments(id);
-      await derivedFields.refreshForBookingId(id);
-      AutoBackupManager.instance.onDataChange(
-        'bookings',
-        'UPDATE',
-        recordData: {'id': id},
-      );
-      // إشعار Lark عند تغيير حالة الحجز (fire-and-forget)
-      _notifyLarkBookingUpdate(id, status);
-    }
-    return result;
+      // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
+      final result = await db.transaction(() async {
+        final updated = await dao.updateById(
+          id,
+          BookingsCompanion(
+            roomNumber: roomNumber != null
+                ? d.Value(roomNumber)
+                : const d.Value.absent(),
+            guestName: guestName != null
+                ? d.Value(guestName)
+                : const d.Value.absent(),
+            guestPhone: guestPhone != null
+                ? d.Value(guestPhone)
+                : const d.Value.absent(),
+            guestIdType: guestIdType != null
+                ? d.Value(guestIdType)
+                : const d.Value.absent(),
+            guestIdNumber: guestIdNumber != null
+                ? d.Value(guestIdNumber)
+                : const d.Value.absent(),
+            guestIdIssueDate: guestIdIssueDate != null
+                ? d.Value(guestIdIssueDate)
+                : const d.Value.absent(),
+            guestIdIssuePlace: guestIdIssuePlace != null
+                ? d.Value(guestIdIssuePlace)
+                : const d.Value.absent(),
+            guestNationality: guestNationality != null
+                ? d.Value(guestNationality)
+                : const d.Value.absent(),
+            guestEmail: guestEmail != null
+                ? d.Value(guestEmail)
+                : const d.Value.absent(),
+            guestAddress: guestAddress != null
+                ? d.Value(guestAddress)
+                : const d.Value.absent(),
+            checkinDate: checkinDate != null
+                ? d.Value(checkinDate)
+                : const d.Value.absent(),
+            checkoutDate: checkoutDate != null
+                ? d.Value(checkoutDate)
+                : const d.Value.absent(),
+            actualCheckout: actualCheckout != null
+                ? d.Value(actualCheckout)
+                : const d.Value.absent(),
+            status: status != null ? d.Value(status) : const d.Value.absent(),
+            notes: notes != null ? d.Value(notes) : const d.Value.absent(),
+            expectedNights: expectedNights != null
+                ? d.Value(expectedNights)
+                : const d.Value.absent(),
+            calculatedNights: calculatedNights != null
+                ? d.Value(calculatedNights)
+                : const d.Value.absent(),
+            discount: discount != null ? d.Value(discount) : const d.Value.absent(),
+            discountType: discountType != null
+                ? d.Value(discountType)
+                : const d.Value.absent(),
+            discountStartDate: discountStartDate != null
+                ? d.Value(discountStartDate)
+                : const d.Value.absent(),
+          ),
+        );
+        if (updated > 0) {
+          await syncLegacyDiscountToAdjustments(id);
+          await derivedFields.refreshForBookingId(id);
+        }
+        return updated;
+      });
+
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'bookings',
+          'UPDATE',
+          recordData: {'id': id},
+        );
+        // إشعار Lark عند تغيير حالة الحجز (fire-and-forget)
+        _notifyLarkBookingUpdate(id, status);
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'BookingsRepository',
@@ -297,15 +310,27 @@ class BookingsRepository {
   }
 
   Future<int> delete(int id) async {
-    final result = await dao.softDelete(id);
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'bookings',
-        'DELETE',
-        recordData: {'id': id},
+    try {
+      final result = await dao.softDelete(id);
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'bookings',
+          'DELETE',
+          recordData: {'id': id},
+        );
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'BookingsRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
       );
+      rethrow;
     }
-    return result;
   }
 
   // دوال النسخ الاحتياطي

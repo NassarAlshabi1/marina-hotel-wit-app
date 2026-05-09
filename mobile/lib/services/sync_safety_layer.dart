@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -154,6 +155,9 @@ class SyncSafetyLayer {
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final localTables = Map<String, dynamic>.from(decoded['tables'] as Map);
 
+      // ✅ إصلاح: تعطيل FK خارج transaction لأن SQLite يتجاهل PRAGMA داخل transaction
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+
       try {
         await db.transaction(() async {
           await _clearAllTables(db);
@@ -193,6 +197,20 @@ class SyncSafetyLayer {
         try {
           await db.customStatement('PRAGMA foreign_keys = ON');
           debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+
+          // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+          try {
+            final violations = await db.customSelect(
+              'PRAGMA foreign_key_check',
+              readsFrom: Set.unmodifiable({}),
+            ).get();
+            if (violations.isNotEmpty) {
+              developer.log(
+                '⚠️ FK violations after sync: ${violations.length} rows',
+                name: 'SyncSafety',
+              );
+            }
+          } catch (_) {}
         } catch (e) {
           debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
         }
@@ -280,9 +298,7 @@ class SyncSafetyLayer {
   }
 
   Future<void> _clearAllTables(AppDatabase db) async {
-    // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
-    // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
-    await db.customStatement('PRAGMA foreign_keys = OFF');
+    // ملاحظة: FOREIGN KEYS يتم تعطيلها خارج transaction قبل استدعاء هذه الدالة
 
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {

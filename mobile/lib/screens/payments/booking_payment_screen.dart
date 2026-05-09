@@ -2061,6 +2061,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       double newRemaining = totals.remaining - amount;
       if (newRemaining < 0) newRemaining = 0;
 
+      if (cleanedPhone.isNotEmpty) {
+        // إرسال رسالة الواتساب قبل إغلاق الشاشة لضمان وجود السياق (Context)
+        // واستخدام رقم الهاتف الذي تم تنظيفه وتحديثه
+        await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
+      }
+
       Navigator.pop(context);
 
       if (mounted) {
@@ -2088,10 +2094,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
 
       _showReceiptDialog(receipt);
-
-      if (cleanedPhone.isNotEmpty) {
-        await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
-      }
 
       if (!mounted) {
         return;

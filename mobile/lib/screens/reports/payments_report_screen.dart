@@ -7,7 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
@@ -43,8 +43,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalOtherPaid = 0;
-  double _totalRemaining = 0;
-  double _totalDue = 0;
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -59,7 +57,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _initializeDefaults() async {
-    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    // الافتراضي: من بداية اليوم إلى نهاية اليوم التالي
+    final now = DateTime.now();
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
@@ -67,7 +66,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
     // لضمان دقة المجاميع في التقرير
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
       await derivedService.refreshAllActiveBookings();
     } catch (_) {}
@@ -75,7 +74,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _loadRooms() async {
-    final db = ref.read(coreProviders.dbProvider);
+    final db = ref.read(databaseProvider);
     final rooms = await db.select(db.rooms).get();
     setState(() {
       _availableRooms
@@ -94,7 +93,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final result = await _loadPaymentsReport(db);
       setState(() {
         _rows
@@ -102,8 +101,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
         _totalOtherPaid = result.totalOtherPaid;
-        _totalRemaining = result.totalRemaining;
-        _totalDue = result.totalDue;
       });
     } finally {
       if (mounted) {
@@ -117,19 +114,28 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? '${DateFormat('yyyy-MM-dd HH:mm:ss').format(_fromDate!)}'
-        : null;
-    final toStr = _toDate != null
-        ? '${DateFormat('yyyy-MM-dd HH:mm:ss').format(_toDate!)}'
-        : null;
-    final payments = await paymentsDao.listForReport(
+
+    // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
+    // وينتهي في 13:59:59 في تاريخ النهاية.
+    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14, 0, 0);
+    final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
+    
+    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
+    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+
+    // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
+    final payments = await paymentsDao.list(
       from: fromStr,
       to: toStr,
-      roomNumber: _selectedRoom,
+      excludeVoided: true,
+      excludePendingBalance: true,
     );
+    // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
+    final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
+        ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
+        : payments;
 
-    final bookingIds = payments
+    final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)
         .whereType<int>()
         .toSet();
@@ -141,7 +147,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final roomNumbers = <String>{};
-    for (final payment in payments) {
+    for (final payment in filteredPayments) {
       final room = payment.roomNumber;
       if (room != null) roomNumbers.add(room);
       final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
@@ -154,23 +160,33 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     double totalOtherPaid = 0;
     final relevantBookingIds = <int>{};
 
-    for (final payment in payments) {
+    for (final payment in filteredPayments) {
+      final paymentDate = _parseDateTime(payment.paymentDate);
+      
+      // التحقق الهندسي: هل التاريخ يقع فعلياً ضمن النطاق الفندقي؟
+      // (نفس منطق isWithinRange في تقرير الدخل)
+      if (paymentDate.isBefore(hotelStart) || paymentDate.isAfter(hotelEnd)) {
+        continue;
+      }
+
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
-      final paymentDate = _parseDateTime(payment.paymentDate);
       final bookingCode = booking != null
           ? _formatBookingCode(booking.id)
           : null;
+          
       if (_isRoomPayment(payment.revenueType)) {
         totalRoomPaid += payment.amount;
       } else {
         totalOtherPaid += payment.amount;
       }
+      
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
+      
       rows.add(
         _PaymentReportRow(
           paymentDate: paymentDate,
@@ -472,6 +488,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Widget _buildSummary() {
+    final totalAll = _totalPaid + _totalOtherPaid;
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -498,25 +515,12 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryTile(
-                    'إجمالي المستحق',
-                    _currencyFmt.format(_totalDue),
-                    Colors.purple,
-                  ),
-                ),
-                Container(width: 1, height: 28, color: Colors.grey.shade200),
-                Expanded(
-                  child: _buildSummaryTile(
-                    'المتبقي المستحق',
-                    _currencyFmt.format(_totalRemaining),
-                    Colors.red,
-                  ),
-                ),
-              ],
+            const Divider(height: 16),
+            _buildSummaryTile(
+              'إجمالي المدفوعات (الدخل)',
+              _currencyFmt.format(totalAll),
+              Colors.indigo,
+              isLarge: true,
             ),
           ],
         ),
@@ -550,17 +554,25 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     return r == 'room' || r == 'غرفة' || r == 'إقامة';
   }
 
-  Widget _buildSummaryTile(String label, String value, Color color) {
+  Widget _buildSummaryTile(String label, String value, Color color, {bool isLarge = false}) {
     return Column(
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: isLarge ? 18 : 13, 
+            color: color
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(fontSize: 10, color: Colors.grey),
+          style: TextStyle(
+            fontSize: isLarge ? 12 : 10, 
+            color: isLarge ? Colors.black87 : Colors.grey,
+            fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
       ],
     );

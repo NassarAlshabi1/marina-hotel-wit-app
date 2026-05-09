@@ -21,7 +21,7 @@ class _AutoSyncEngineMonitorScreenState
   @override
   Widget build(BuildContext context) {
     final engineState = ref.watch(autoSyncEngineStateProvider);
-    final syncHealth = ref.watch(syncHealthProvider);
+    final syncHealth = ref.watch(autoSyncHealthSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(

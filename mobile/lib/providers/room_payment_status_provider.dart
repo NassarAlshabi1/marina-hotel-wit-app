@@ -26,12 +26,8 @@ class RoomWithPaymentStatus {
     }
 
     // إذا كانت الغرفة محجوزة، نتحقق من حالة تأخر السداد
-    if (isPaymentOverdue) {
-      final hex = RemoteConfigService.instance.overdueRoomColor;
-      return Color(int.parse('FF$hex', radix: 16));
-    }
-
-    return Colors.red.shade600; // اللون الأحمر الافتراضي للمحجوز
+    // ملاحظة: تم إلغاء اللون البني (overdueRoomColor) والاعتماد على الوميض في الواجهة
+    return Colors.red.shade600; // اللون الأحمر للمحجوز والمتأخر في السداد
   }
 }
 
@@ -57,25 +53,27 @@ final roomsWithPaymentStatusProvider =
     final rooms = lastRooms!;
     final bookings = lastBookings!;
 
+    // بناء خريطة O(1) بدل التكرار O(R×B)
+    final bookingByRoom = <String, Booking>{};
+    for (final b in bookings) {
+      if (StatusUtils.isActiveBooking(b.status)) {
+        bookingByRoom[b.roomNumber] = b;
+      }
+    }
+
     final result = rooms.map((room) {
       bool isPaymentOverdue = false;
 
       if (StatusUtils.isRoomOccupied(room.status)) {
-        final activeBooking = bookings
-            .where(
-              (b) =>
-                  b.roomNumber == room.roomNumber &&
-                  StatusUtils.isActiveBooking(b.status),
-            )
-            .toList();
+        final activeBooking = bookingByRoom[room.roomNumber];
 
-        if (activeBooking.isNotEmpty) {
-          final booking = activeBooking.first;
-          final hasRemainingBalance = booking.remainingBalanceCached > 0.1;
+        if (activeBooking != null) {
+          final hasRemainingBalance = activeBooking.remainingBalanceCached > 0.1;
 
           if (hasRemainingBalance) {
             final hour = currentTime.hour;
-            if (hour >= 23 || hour < 6) {
+            // تأخر السداد يبدأ من الساعة 11 مساءً إلى 5 صباحاً
+            if (hour >= 23 || hour < 5) {
               isPaymentOverdue = true;
             }
           }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -899,11 +900,13 @@ class AppwriteSyncManager {
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
           // مزامنة إعدادات الواتساب (app_settings) — غير حرجة، لا تمنع Delta Sync
+          // ⚠️ app_settings لا يحتوي على حقل lastModified، لذا نستخدم queries فارغة
+          // (full pull) بدلاً من deltaQ لتجنب خطأ "Attribute not found in schema"
           try {
             recordsPulled += await _timePhase('syncAppSettings', () async {
               final docs = await appwriteService.listDocuments(
                 collectionId: 'app_settings',
-                queries: deltaQ,
+                queries: [], // بدون delta filter - app_settings لا يملك lastModified
               );
               final synced = await _syncAppSettings(docs);
               _logger.debug('Synced $synced app_settings', tag: 'SYNC');
@@ -931,6 +934,20 @@ class AppwriteSyncManager {
         } finally {
           // إعادة تفعيل Foreign Keys بعد انتهاء السحب
           await database.customStatement('PRAGMA foreign_keys=ON');
+
+          // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+          try {
+            final violations = await database.customSelect(
+              'PRAGMA foreign_key_check',
+              readsFrom: Set.unmodifiable({}),
+            ).get();
+            if (violations.isNotEmpty) {
+              developer.log(
+                '⚠️ FK violations after sync: ${violations.length} rows',
+                name: 'SyncSafety',
+              );
+            }
+          } catch (_) {}
         }
       }
 
@@ -2004,6 +2021,7 @@ class AppwriteSyncManager {
       'paidAmount': debt.paidAmount,
       // ── Required sync fields ──
       'vector_clock': debt.vectorClock,
+      'sync_vector_clock': debt.vectorClock,
       'sync_version': debt.version,
       'sync_origin': debt.origin,
       // ── Business fields ──
@@ -2062,6 +2080,55 @@ class AppwriteSyncManager {
     return []; // full fetch
   }
 
+  /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
+  /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
+  /// المنطق: إذا السحابة أرسلت هذا السجل فلا حاجة لإعادة إرساله عبر outbox.
+  Future<int> _cleanupOutboxAfterPull() async {
+    int totalRemoved = 0;
+
+    // الكيانات الرئيسية التي يتم مزامنتها مع جدول UUID المقابل
+    const entityUuidMap = {
+      'rooms': 'rooms',
+      'bookings': 'bookings',
+      'employees': 'employees',
+      'expenses': 'expenses',
+      'payments': 'payments',
+      'debts': 'debts',
+      'guest_infos': 'guest_infos',
+      'salary_withdrawals': 'salary_withdrawals',
+      'booking_price_adjustments': 'booking_price_adjustments',
+      'shift_notes': 'shift_notes',
+      'blacklist': 'blacklist',
+      'booking_notes': 'booking_notes',
+      'booking_nights': 'booking_nights',
+      'cash_transactions': 'cash_transactions',
+      'salary_cycles': 'salary_cycles',
+      'salary_payments': 'salary_payments',
+      'price_adjustments': 'price_adjustments',
+      'audit_logs': 'audit_logs',
+      'payment_voids': 'payment_voids',
+    };
+
+    for (final entity in entityUuidMap.keys) {
+      try {
+        // جلب UUIDs من outbox لهذا الكيان فقط
+        final outboxEntries = await (database.select(database.outbox)
+              ..where((t) => t.entity.equals(entity)))
+            .get();
+
+        if (outboxEntries.isEmpty) continue;
+
+        final uuids = outboxEntries.map((e) => e.localUuid).toList();
+        final removed = await outboxDao.removePulledEntities(uuids, entity: entity);
+        totalRemoved += removed;
+      } catch (e) {
+        _logger.warning('فشل تنظيف outbox للكيان $entity: $e', tag: 'SYNC');
+      }
+    }
+
+    return totalRemoved;
+  }
+
   /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
   Future<int> _getLastPullTs() async {
     try {
@@ -2076,12 +2143,15 @@ class AppwriteSyncManager {
   }
 
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
+  /// ✅ نستخدم insertOnConflictUpdate بدلاً من update فقط
+  /// لأن صف SyncState (id=1) قد لا يكون موجوداً بعد، مما يجعل UPDATE
+  /// لا يؤثر على أي صف — وبالتالي lastPullTs يبقى 0 للأبد،
+  /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
   Future<void> _updateLastPullTs(int ts) async {
     try {
-      await (database.update(database.syncState)
-            ..where((t) => t.id.equals(1)))
-          .write(
+      await database.into(database.syncState).insertOnConflictUpdate(
             SyncStateCompanion(
+              id: const drift.Value(1),
               lastPullTs: drift.Value(ts),
             ),
           );
@@ -2102,13 +2172,40 @@ class AppwriteSyncManager {
   }
 
   /// الحصول على قائمة الأجهزة المسجلة
-  Future<List<AppwriteDevice>> getRegisteredDevices() async {
+  /// [limit] عدد الأجهزة المطلوبة (افتراضياً 2)
+  /// يحاول الترتيب من الخادم أولاً، وإذا فشل (لا يوجد فهرس) يرجع للترتيب المحلي
+  Future<List<AppwriteDevice>> getRegisteredDevices({int limit = 2}) async {
     try {
-      final devices = await appwriteService.listDevices(useCache: false);
+      // محاولة جلب آخر الأجهزة مرتبة من الخادم (يتطلب فهرس على lastSeen)
+      final devices = await appwriteService.listDevices(
+        queries: [
+          Query.orderDesc('lastSeen'),
+          Query.limit(limit),
+        ],
+        useCache: false,
+      );
       return devices.map((doc) => AppwriteDevice.fromJson(doc.data)).toList();
     } catch (e) {
-      _logger.error('Failed to get registered devices', error: e, tag: 'SYNC');
-      return [];
+      // إذا فشل الترتيب (مثلاً لا يوجد فهرس على lastSeen)، نستخدم الطريقة البديلة
+      _logger.warning(
+        'orderDesc(lastSeen) failed, falling back to local sort: $e',
+        tag: 'SYNC',
+      );
+      try {
+        final devices = await appwriteService.listDevices(useCache: false);
+        final mapped = devices
+            .map((doc) => AppwriteDevice.fromJson(doc.data))
+            .toList();
+        mapped.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+        return mapped.take(limit).toList();
+      } catch (e2) {
+        _logger.error(
+          'Failed to get registered devices',
+          error: e2,
+          tag: 'SYNC',
+        );
+        return [];
+      }
     }
   }
 
@@ -2336,6 +2433,15 @@ class AppwriteSyncManager {
           await _updateLastPullTs(Time.nowEpoch());
         });
 
+        // تنظيف outbox بعد السحب الناجح: حذف عناصر outbox التي
+        // تم سحب نفس البيانات من السحابة (لا حاجة لإعادة إرسالها)
+        if (recordsPulled > 0) {
+          final removed = await _cleanupOutboxAfterPull();
+          if (removed > 0) {
+            _logger.info('🧹 تم حذف $removed عنصر من outbox بعد السحب', tag: 'SYNC');
+          }
+        }
+
         _lastSyncTime = DateTime.now();
         await _saveSettings();
 
@@ -2388,6 +2494,20 @@ class AppwriteSyncManager {
     } finally {
       // إعادة تفعيل FOREIGN KEY
       await database.customStatement('PRAGMA foreign_keys=ON');
+
+      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      try {
+        final violations = await database.customSelect(
+          'PRAGMA foreign_key_check',
+          readsFrom: Set.unmodifiable({}),
+        ).get();
+        if (violations.isNotEmpty) {
+          developer.log(
+            '⚠️ FK violations after sync: ${violations.length} rows',
+            name: 'SyncSafety',
+          );
+        }
+      } catch (_) {}
     }
   }
 

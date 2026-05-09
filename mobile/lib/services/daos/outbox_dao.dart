@@ -243,6 +243,33 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return rows;
   }
 
+  /// حذف عناصر outbox المطابقة لبيانات تم سحبها من السحابة.
+  /// يُستدعى بعد pull ناجح: إذا كان السحابة تحتوي على نفس entity + localUuid
+  /// فلا حاجة لإرسال هذا العنصر مرة أخرى.
+  ///
+  /// ✅ إصلاح: دمج شروط entity و localUuid في استعلام واحد بدلاً من إنشاء
+  /// استعلام جديد يفقد شرط localUuid (الخطأ السابق كان يُنشئ delete(outbox)
+  /// جديد عند وجود entity، مما يُلغي شرط localUuid.isIn(chunk)).
+  Future<int> removePulledEntities(List<String> uuids, {String? entity}) async {
+    if (uuids.isEmpty) return 0;
+    const batchSize = 500;
+    int totalRemoved = 0;
+    for (var i = 0; i < uuids.length; i += batchSize) {
+      final end = i + batchSize > uuids.length ? uuids.length : i + batchSize;
+      final chunk = uuids.sublist(i, end);
+      if (entity != null) {
+        totalRemoved += await (delete(outbox)
+              ..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity)))
+            .go();
+      } else {
+        totalRemoved += await (delete(outbox)
+              ..where((t) => t.localUuid.isIn(chunk)))
+            .go();
+      }
+    }
+    return totalRemoved;
+  }
+
   /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
   Future<List<ConflictRecord>> getConflicts() async {
     final failed = await (select(outbox)

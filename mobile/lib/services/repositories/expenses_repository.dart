@@ -4,15 +4,17 @@ import '../local_db.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/expenses_dao.dart';
 import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
 import '../../utils/time.dart';
 
 class ExpensesRepository {
-  ExpensesRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = ExpensesDao(db, OutboxDao(db));
+  ExpensesRepository(this.db) {
+    outbox = OutboxDao(db);
+    dao = ExpensesDao(db, outbox);
+  }
   final AppDatabase db;
-  final OutboxDao outbox;
-  final ExpensesDao dao;
+  late final OutboxDao outbox;
+  late final ExpensesDao dao;
 
   Stream<List<Expense>> watchAll() => dao.watchList();
   Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) =>
@@ -31,26 +33,38 @@ class ExpensesRepository {
     required double amount,
     required String date,
   }) async {
-    final normalizedDate = Time.safeIsoToDateString(date);
-    final hotelDayKey = normalizedDate.isNotEmpty
-        ? normalizedDate
-        : Time.hotelDayKey();
-    final result = await dao.insertOne(
-      ExpensesCompanion(
-        expenseType: d.Value(expenseType),
-        relatedId: d.Value(relatedId),
-        description: d.Value(description),
-        amount: d.Value(amount),
-        date: d.Value(normalizedDate),
-        hotelDayKey: d.Value(hotelDayKey),
-      ),
-    );
-    AutoBackupManager.instance.onDataChange(
-      'expenses',
-      'INSERT',
-      recordData: {'amount': amount},
-    );
-    return result;
+    try {
+      final normalizedDate = Time.safeIsoToDateString(date);
+      final hotelDayKey = normalizedDate.isNotEmpty
+          ? normalizedDate
+          : Time.hotelDayKey();
+      final result = await dao.insertOne(
+        ExpensesCompanion(
+          expenseType: d.Value(expenseType),
+          relatedId: d.Value(relatedId),
+          description: d.Value(description),
+          amount: d.Value(amount),
+          date: d.Value(normalizedDate),
+          hotelDayKey: d.Value(hotelDayKey),
+        ),
+      );
+      AutoBackupManager.instance.onDataChange(
+        'expenses',
+        'INSERT',
+        recordData: {'amount': amount},
+      );
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'ExpensesRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'expenseType': expenseType, 'amount': '$amount'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update(
@@ -61,48 +75,72 @@ class ExpensesRepository {
     double? amount,
     String? date,
   }) async {
-    final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
-    final result = await dao.updateById(
-      id,
-      ExpensesCompanion(
-        expenseType: expenseType != null
-            ? d.Value(expenseType)
-            : const d.Value.absent(),
-        relatedId: relatedId != null
-            ? d.Value(relatedId)
-            : const d.Value.absent(),
-        description: description != null
-            ? d.Value(description)
-            : const d.Value.absent(),
-        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-        date: normalizedDate != null
-            ? d.Value(normalizedDate)
-            : const d.Value.absent(),
-        hotelDayKey: normalizedDate != null
-            ? d.Value(normalizedDate)
-            : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'expenses',
-        'UPDATE',
-        recordData: {'id': id},
+    try {
+      final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
+      final result = await dao.updateById(
+        id,
+        ExpensesCompanion(
+          expenseType: expenseType != null
+              ? d.Value(expenseType)
+              : const d.Value.absent(),
+          relatedId: relatedId != null
+              ? d.Value(relatedId)
+              : const d.Value.absent(),
+          description: description != null
+              ? d.Value(description)
+              : const d.Value.absent(),
+          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+          date: normalizedDate != null
+              ? d.Value(normalizedDate)
+              : const d.Value.absent(),
+          hotelDayKey: normalizedDate != null
+              ? d.Value(normalizedDate)
+              : const d.Value.absent(),
+        ),
       );
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'expenses',
+          'UPDATE',
+          recordData: {'id': id},
+        );
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'ExpensesRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
+      );
+      rethrow;
     }
-    return result;
   }
 
   Future<int> delete(int id) async {
-    final result = await dao.softDelete(id);
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'expenses',
-        'DELETE',
-        recordData: {'id': id},
+    try {
+      final result = await dao.softDelete(id);
+      if (result > 0) {
+        AutoBackupManager.instance.onDataChange(
+          'expenses',
+          'DELETE',
+          recordData: {'id': id},
+        );
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'ExpensesRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.error,
+        extra: {'id': '$id'},
       );
+      rethrow;
     }
-    return result;
   }
 
   // دوال النسخ الاحتياطي
@@ -137,20 +175,21 @@ class ExpensesRepository {
 
   /// الحصول على إجمالي المصروفات لتاريخ محدد
   Future<double> getTotalByDate(String date) async {
-    final expenses = await dao.listByDate(date);
-    double total = 0;
-    for (final expense in expenses) {
-      total += expense.amount;
-    }
-    return total;
+    final result = await db.customSelect(
+      'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses WHERE date LIKE ? AND deleted_at IS NULL',
+      variables: [d.Variable.withString('$date%')],
+      readsFrom: {db.expenses},
+    ).getSingle();
+    return (result.data['total'] as num).toDouble();
   }
 
   Future<double> getTotalByHotelDayKey(String hotelDayKey) async {
-    final expenses = await dao.listByHotelDayKey(hotelDayKey);
-    double total = 0;
-    for (final expense in expenses) {
-      total += expense.amount;
-    }
-    return total;
+    final result = await db.customSelect(
+      'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses '
+      'WHERE deleted_at IS NULL AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND date LIKE ?))',
+      variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+      readsFrom: {db.expenses},
+    ).getSingle();
+    return (result.data['total'] as num).toDouble();
   }
 }

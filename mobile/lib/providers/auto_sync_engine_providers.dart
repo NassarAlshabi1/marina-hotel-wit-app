@@ -144,7 +144,9 @@ final lastSyncTimeProvider = Provider<DateTime?>((ref) {
   );
 });
 
-final syncHealthProvider = Provider<String>((ref) {
+/// ✅ إصلاح: إعادة تسمية من syncHealthProvider لتجنب التعارض مع
+/// StreamProvider<SyncHealthSnapshot> في repository_providers.dart
+final autoSyncHealthSummaryProvider = Provider<String>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) {

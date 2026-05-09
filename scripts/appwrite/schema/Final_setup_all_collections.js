@@ -9,7 +9,7 @@
  * ❌ لا تقم بتشغيله إذا كانت الـ collections موجودة مسبقاً
  * ✅ استخدمه فقط لإنشاء قاعدة بيانات جديدة من الصفر
  *
- * المجموع: 19 collection + 2 system collections (devices, sync_logs)
+ * المجموع: 19 collection + 3 system collections (devices, sync_logs, app_settings)
  * ============================================================================
  *
  * أنواع Appwrite المدعومة:
@@ -748,6 +748,44 @@ const sync_logs = {
 };
 
 
+// 22. APP_SETTINGS — إعدادات التطبيق (واتساب وغيرها — مزامنة بين الأجهزة)
+const app_settings = {
+  attributes: [
+    // ── WhatsApp ──
+    { key: 'wa_api_type',          type: 'string', required: false, size: 50,   default: 'greenapi' },
+    { key: 'wa_api_base_url',      type: 'string', required: false, size: 500,  default: '' },
+    { key: 'wa_api_instance_id',   type: 'string', required: false, size: 200,  default: '' },
+    { key: 'wa_api_token',         type: 'string', required: false, size: 500,  default: '' },
+    { key: 'wa_custom_url_template', type: 'string', required: false, size: 1000, default: '' },
+    { key: 'wa_sendzen_api_key',   type: 'string', required: false, size: 500,  default: '' },
+    { key: 'wa_sendzen_from_number', type: 'string', required: false, size: 30,  default: '' },
+    { key: 'wa_template',          type: 'string', required: false, size: 5000, default: '' },
+    // ── Telegram ──
+    { key: 'telegram_enabled',             type: 'boolean', required: false, default: false },
+    { key: 'telegram_bot_token',           type: 'string',  required: false, size: 500,  default: '' },
+    { key: 'telegram_chat_id',             type: 'string',  required: false, size: 100,  default: '' },
+    { key: 'telegram_notifications_enabled', type: 'boolean', required: false, default: true },
+    { key: 'telegram_daily_report_enabled',  type: 'boolean', required: false, default: false },
+    { key: 'telegram_daily_report_time',    type: 'string',  required: false, size: 10,   default: '08:00' },
+  ],
+};
+
+
+// 23. APP_USERS — مستخدمو التطبيق (مزامنة بين الأجهزة)
+const app_users = {
+  attributes: [
+    { key: 'username',   type: 'string',  required: false, size: 100,  default: '' },
+    { key: 'password',   type: 'string',  required: false, size: 500,  default: '' },
+    { key: 'full_name',  type: 'string',  required: false, size: 200,  default: '' },
+    { key: 'user_type',  type: 'string',  required: false, size: 50,   default: 'employee' },
+    { key: 'permissions', type: 'string', required: false, size: 2000, default: '[]' },
+    { key: 'active',     type: 'boolean', required: false, default: true },
+    { key: 'last_login', type: 'integer', required: false, default: 0 },
+    { key: 'credentials_version', type: 'integer', required: false, default: 1 },
+  ],
+};
+
+
 // ─── التشغيل الرئيسي ─────────────────────────────────────────────────────────
 
 async function main() {
@@ -794,6 +832,12 @@ async function main() {
     // مراجعة
     ['audit_logs',             'سجل المراجعة',             audit_logs],
     ['payment_voids',          'إلغاءات المدفوعات',        payment_voids],
+
+    // إعدادات
+    ['app_settings',           'إعدادات التطبيق',          app_settings],
+
+    // مستخدمين
+    ['app_users',              'مستخدمو التطبيق',          app_users],
   ];
 
   let success = 0;

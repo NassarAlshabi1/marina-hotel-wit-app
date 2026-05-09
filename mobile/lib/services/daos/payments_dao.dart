@@ -137,16 +137,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) q.where((t) => t.isVoided.equals(false));
 
-    final startIso = Time.hotelDayStartIso(hotelDayKey);
-    final endIso = Time.hotelDayEndIso(hotelDayKey);
-
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byRangeFallback =
+    final byDateFallback =
         payments.hotelDayKey.isNull() &
-        payments.paymentDate.isBiggerOrEqualValue(startIso) &
-        payments.paymentDate.isSmallerThanValue(endIso);
+        payments.paymentDate.like('${hotelDayKey}%');
 
-    q.where((t) => byKey | byRangeFallback);
+    q.where((t) => byKey | byDateFallback);
 
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
@@ -202,6 +198,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         payments,
