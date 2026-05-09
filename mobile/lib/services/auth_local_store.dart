@@ -217,7 +217,13 @@ class AuthLocalStore {
         final permsJson = account['permissions_json'] as String? ?? '[]';
         final parsed = jsonDecode(permsJson);
         perms = (parsed as List).map((e) => e.toString()).toList();
-      } catch (_) {
+      } catch (e, st) {
+        AppLogger.warning(
+          'فشل تحليل صلاحيات المستخدم السحابي، سيتم استخدام صلاحيات احتياطية',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
         perms = await getPermissions(normalized);
       }
       // حفظ credentials_version لمراقبة الجلسة
@@ -235,7 +241,14 @@ class AuthLocalStore {
             break;
           }
         }
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر حفظ credentials_version للمستخدم $normalized',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
     } else {
       perms = await getPermissions(normalized);
     }
@@ -508,8 +521,14 @@ class AuthLocalStore {
           });
         }
       });
-    } catch (_) {
+    } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
+      AppLogger.warning(
+        'فشل سحب الحسابات السحابية أثناء التجميع التفصيلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     result.sort((a, b) {
@@ -536,7 +555,13 @@ class AuthLocalStore {
         return json.map((key, value) => MapEntry(key.toString(), value));
       }
       return null;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning(
+        'بيانات المستخدم الحالي غير صالحة في التخزين المحلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return null;
     }
   }
@@ -590,7 +615,14 @@ class AuthLocalStore {
           return parsed.map((e) => e.toString()).toList();
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحميل الصلاحيات من السحابة للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     // 2️⃣ fallback: الصلاحيات المحلية
     final prefs = await SharedPreferences.getInstance();
@@ -605,7 +637,13 @@ class AuthLocalStore {
         }
       }
       return _fixedPermissions[username] ?? <String>[];
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحليل خريطة الأذونات المحلية للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return _fixedPermissions[username] ?? <String>[];
     }
   }
@@ -689,7 +727,14 @@ class AuthLocalStore {
     try {
       final cloudAccounts = await loadCloudAccounts();
       names.addAll(cloudAccounts.keys);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
     final list = names.toList();
     list.sort();
     return list;
