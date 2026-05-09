@@ -69,7 +69,7 @@ class WhatsAppService {
     final endpoint = Uri.parse('$baseUrl/$instanceId/sendMessage/$token');
 
     try {
-      final response = await _client.post(
+      final response = await _client.post<dynamic>(
         endpoint,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'chatId': chatId, 'message': message}),
@@ -95,7 +95,7 @@ class WhatsAppService {
         'WhatsApp send failed: ${response.statusCode} ${response.body}',
       );
       return (success: false, quotaMessage: null);
-    } catch (error, stackTrace) {
+    } catch (Object error, StackTrace stackTrace) {
       debugPrint('WhatsApp send error: $error');
       debugPrint('$stackTrace');
       return (success: false, quotaMessage: null);
@@ -122,7 +122,7 @@ class WhatsAppService {
           .replaceAll('[message]', Uri.encodeComponent(message));
 
       final endpoint = Uri.parse(urlStr);
-      final response = await _client.get(endpoint).timeout(
+      final response = await _client.get<dynamic>(endpoint).timeout(
         const Duration(seconds: 15),
       );
 
@@ -134,7 +134,7 @@ class WhatsAppService {
         'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
       );
       return (success: false, quotaMessage: null);
-    } catch (error, stackTrace) {
+    } catch (Object error, StackTrace stackTrace) {
       debugPrint('Custom WhatsApp send error: $error');
       debugPrint('$stackTrace');
       return (success: false, quotaMessage: null);
@@ -164,7 +164,7 @@ class WhatsAppService {
         statusCode: response.statusCode,
         body: response.body,
       );
-    } catch (e) {
+    } catch (Object e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
   }
@@ -187,7 +187,7 @@ class WhatsAppService {
           .replaceAll('[message]', Uri.encodeComponent('test'));
 
       final endpoint = Uri.parse(testUrl);
-      final response = await _client.get(endpoint).timeout(
+      final response = await _client.get<dynamic>(endpoint).timeout(
         const Duration(seconds: 15),
       );
 
@@ -197,7 +197,7 @@ class WhatsAppService {
         statusCode: response.statusCode,
         body: response.body,
       );
-    } catch (e) {
+    } catch (Object e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
   }

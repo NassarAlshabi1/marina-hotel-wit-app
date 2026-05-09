@@ -45,7 +45,7 @@ class DatabaseHealthTriggers {
       }
 
       return report;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [HealthTrigger] Error: $e');
       return null;
     }
@@ -77,7 +77,7 @@ class DatabaseHealthTriggers {
       }
 
       return true;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [HealthTrigger] Validation failed: $e');
       return false;
     }
@@ -108,7 +108,7 @@ class DatabaseHealthTriggers {
       }
 
       return report;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [HealthTrigger] Post-restore scan failed: $e');
       return HealthReport.error(e.toString());
     }
@@ -139,7 +139,7 @@ class DatabaseHealthTriggers {
           await _notifyIssuesFound(report);
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [HealthTrigger] Scheduled scan failed: $e');
     }
   }

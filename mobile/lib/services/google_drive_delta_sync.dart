@@ -197,7 +197,7 @@ class GoogleDriveDeltaSync {
         try {
           await RoomsRepository(_database!).refreshAllRoomOccupancy();
           debugPrint('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ فشل تحديث حالة الإشغال: $e');
         }
       }
@@ -268,7 +268,7 @@ class GoogleDriveDeltaSync {
   Future<Map<String, dynamic>?> _downloadDeltaFile(String fileId) async {
     try {
       return await _driveService!.downloadBackup(fileId);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في تحميل ملف المزامنة: $e');
       return null;
     }
@@ -402,72 +402,72 @@ class GoogleDriveDeltaSync {
   ) async {
     switch (entity) {
       case 'rooms':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.rooms,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'bookings':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.bookings,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'payments':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.payments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'expenses':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.expenses,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'debts':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.debts,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'employees':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.employees,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'booking_notes':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.bookingNotes,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'booking_nights':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.bookingNights,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'salary_cycles':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.salaryCycles,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'salary_payments':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.salaryPayments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'cash_transactions':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.cashTransactions,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'shift_notes':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.shiftNotes,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'price_adjustments':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.priceAdjustments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
       case 'payment_voids':
-        await (db.delete(
+        await (db.delete<dynamic>(
           db.paymentVoids,
         )..where((t) => t.localUuid.equals(localUuid))).go();
         return;
@@ -482,7 +482,7 @@ class GoogleDriveDeltaSync {
     Map<String, dynamic> data,
   ) async {
     if (operation == 'delete') {
-      await (db.delete(
+      await (db.delete<dynamic>(
         db.cashTransactions,
       )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
@@ -623,7 +623,7 @@ class GoogleDriveDeltaSync {
         await _driveService!.deleteBackup(file.fileId);
         debugPrint('🗑️ حذف ملف مزامنة قديم: ${file.fileName}');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في تنظيف ملفات المزامنة: $e');
     }
   }

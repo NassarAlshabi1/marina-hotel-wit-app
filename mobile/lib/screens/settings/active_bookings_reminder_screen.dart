@@ -47,7 +47,7 @@ class _ActiveBookingsReminderScreenState
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في التحديث التلقائي: $e');
       if (mounted) {
         setState(() => _isInitialLoading = false);
@@ -238,7 +238,7 @@ class _ActiveBookingsReminderScreenState
                   ),
                 );
               }
-            } catch (e) {
+            } catch (Object e) {
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
@@ -341,7 +341,7 @@ class _ActiveBookingsReminderScreenState
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       selected: isSelected,
       onSelected: (_) => setState(() => _filterStatus = value),
-      selectedColor: color.withOpacity(0.15),
+      selectedColor: color.withValues(alpha: 0.15),
       checkmarkColor: color,
       labelStyle: TextStyle(color: isSelected ? color : null),
     );
@@ -720,7 +720,7 @@ class _ActiveBookingsReminderScreenState
                               : isUnpaid
                                   ? Colors.orange
                                   : Colors.blue)
-                          .withOpacity(0.1),
+                          .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isOverdue
@@ -1044,11 +1044,11 @@ class _ActiveBookingsReminderScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop<void>(ctx, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop<void>(ctx, true),
               icon: const Icon(Icons.send, size: 16),
               label: const Text('إرسال'),
               style: ElevatedButton.styleFrom(
@@ -1063,7 +1063,7 @@ class _ActiveBookingsReminderScreenState
 
     if (confirmed != true || !mounted) return;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const AlertDialog(
@@ -1081,7 +1081,7 @@ class _ActiveBookingsReminderScreenState
     final success = await _sendSingleReminder(booking);
 
     if (mounted) {
-      Navigator.pop(context); // إغلاق مؤشر التحميل
+      Navigator.pop<void>(context); // إغلاق مؤشر التحميل
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1182,11 +1182,11 @@ class _ActiveBookingsReminderScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop<void>(ctx, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop<void>(ctx, true),
               icon: const Icon(Icons.send, size: 16),
               label: const Text('إرسال الكل'),
               style: ElevatedButton.styleFrom(

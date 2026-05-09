@@ -85,7 +85,7 @@ class ConnectivityService {
 
       _subscription = _connectivity.onConnectivityChanged.listen(
         _updateStatus,
-        onError: (error) {
+        onError: (Object error) {
           debugPrint('❌ [Connectivity] خطأ في مراقبة الاتصال: $error');
           _currentStatus = ConnectionStatus.offline();
           _statusController.add(_currentStatus);
@@ -94,7 +94,7 @@ class ConnectivityService {
 
       _initialized = true;
       debugPrint('✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [Connectivity] فشل في تهيئة خدمة الاتصال: $e');
       _currentStatus = ConnectionStatus.offline();
     }
@@ -118,7 +118,7 @@ class ConnectivityService {
       final results = await _connectivity.checkConnectivity();
       _updateStatus(results);
       return _currentStatus.isOnline;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [Connectivity] فشل في فحص الاتصال: $e');
       return false;
     }

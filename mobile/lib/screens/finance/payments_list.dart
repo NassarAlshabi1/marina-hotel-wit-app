@@ -311,7 +311,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  شريط الإحصائيات
   // ═══════════════════════════════════════════
 
-  Widget _buildStatsBar(List payments) {
+  Widget _buildStatsBar(List<dynamic> payments) {
     final total = payments.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
     final now = DateTime.now();
     final today = payments.where((p) {
@@ -342,7 +342,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFB74D).withOpacity(0.3),
+            color: const Color(0xFFFFB74D).withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -376,7 +376,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
         Text(
           label,
           style: TextStyle(
-            color: valueColor.withOpacity(0.8),
+            color: valueColor.withValues(alpha: 0.8),
             fontSize: 10,
           ),
         ),
@@ -388,7 +388,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  عداد النتائج
   // ═══════════════════════════════════════════
 
-  Widget _buildResultsCount(List payments) {
+  Widget _buildResultsCount(List<dynamic> payments) {
     final hasFilters = _filterMethod != null || _filterType != null || _searchQuery.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -447,7 +447,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: methodColor.withOpacity(0.1),
+                  color: methodColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(methodIcon, color: methodColor, size: 20),
@@ -473,7 +473,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2,),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFCC80).withOpacity(0.3),
+                            color: const Color(0xFFFFCC80).withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -610,7 +610,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     final formattedDate = _formatDate(payment.paymentDate as String);
     final isToday = _isToday(payment.paymentDate as String);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -624,7 +624,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: methodColor.withOpacity(0.1),
+                  color: methodColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -665,7 +665,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
+              onPressed: () => Navigator.of(ctx).pop<void>(),
               child: const Text('إغلاق'),
             ),
           ],
@@ -750,7 +750,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  فلاتر وترتيب
   // ═══════════════════════════════════════════
 
-  List _applyFilters(List payments) {
+  List<dynamic> _applyFilters(List<dynamic> payments) {
     final result = payments.where((p) {
       // فلتر البحث
       if (_searchQuery.isNotEmpty) {

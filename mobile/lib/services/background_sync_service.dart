@@ -51,7 +51,7 @@ class BackgroundSyncService {
         '✅ BackgroundSyncService initialized',
         name: 'BackgroundSyncService',
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ BackgroundSyncService init error: $e',
         name: 'BackgroundSyncService',
@@ -107,7 +107,7 @@ class BackgroundSyncService {
           'interval_minutes': _syncInterval.inMinutes,
         },
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ Failed to register periodic sync: $e',
         name: 'BackgroundSyncService',
@@ -141,7 +141,7 @@ class BackgroundSyncService {
         '✅ Scheduled one-time sync in ${delay.inMinutes} minutes',
         name: 'BackgroundSyncService',
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ Failed to schedule one-time sync: $e',
         name: 'BackgroundSyncService',
@@ -175,7 +175,7 @@ class BackgroundSyncService {
         '✅ Registered battery-aware sync',
         name: 'BackgroundSyncService',
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ Failed to register battery-aware sync: $e',
         name: 'BackgroundSyncService',
@@ -194,7 +194,7 @@ class BackgroundSyncService {
         '✅ Cancelled all background sync tasks',
         name: 'BackgroundSyncService',
       );
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ Failed to cancel syncs: $e',
         name: 'BackgroundSyncService',
@@ -208,7 +208,7 @@ class BackgroundSyncService {
 
     try {
       await Workmanager().cancelByUniqueName(uniqueName);
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         '⚠️ Failed to cancel sync $uniqueName: $e',
         name: 'BackgroundSyncService',
@@ -276,7 +276,7 @@ class BackgroundSyncService {
       );
 
       return true;
-    } catch (e) {
+    } catch (Object e) {
       stopwatch.stop();
 
       await analytics.logSyncFailure(

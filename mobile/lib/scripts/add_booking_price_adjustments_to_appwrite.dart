@@ -103,7 +103,7 @@ Future<void> main(List<String> args) async {
     int failCount = 0;
 
     for (final attr in attributes) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       
       final result = await addAttribute(client, apiKey, attr);
       
@@ -135,7 +135,7 @@ Future<void> main(List<String> args) async {
     print('• الحقول قد تحتاج بضع ثوانٍ لتكون جاهزة (Indexing)');
     print('• تحقق من Appwrite Console للتأكد');
     print('• يمكنك الآن استخدام التطبيق بشكل طبيعي');
-  } catch (e) {
+  } catch (Object e) {
     print('\n❌ خطأ: $e');
     exit(1);
   } finally {
@@ -147,7 +147,7 @@ Future<bool> createCollection(http.Client client, String apiKey) async {
   final url = Uri.parse('$endpoint/databases/$databaseId/collections');
 
   try {
-    final response = await client.post(
+    final response = await client.post<dynamic>(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -168,7 +168,7 @@ Future<bool> createCollection(http.Client client, String apiKey) async {
     );
 
     return response.statusCode == 201;
-  } catch (e) {
+  } catch (Object e) {
     print('   ❌ خطأ في إنشاء الـ Collection: $e');
     return false;
   }
@@ -207,7 +207,7 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
   );
 
   try {
-    final response = await client.post(
+    final response = await client.post<dynamic>(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -224,7 +224,7 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
     } else {
       return 'fail';
     }
-  } catch (e) {
+  } catch (Object) {
     return 'fail';
   }
 }
@@ -242,7 +242,7 @@ Future<void> createIndex(
   );
 
   try {
-    final response = await client.post(
+    final response = await client.post<dynamic>(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -264,7 +264,7 @@ Future<void> createIndex(
     } else {
       print('   ❌ Index: $indexKey (فشل: ${response.statusCode})');
     }
-  } catch (e) {
+  } catch (Object e) {
     print('   ❌ Index: $indexKey (خطأ: $e)');
   }
 }

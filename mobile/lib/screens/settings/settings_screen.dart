@@ -76,10 +76,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إضافة وتعديل بيانات الموظفين',
               icon: Icons.people,
               color: Colors.blue,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsEmployeesScreen(),
+                MaterialPageRoute<void>(builder: (context) => const SettingsEmployeesScreen(),
                 ),
               ),
             ),
@@ -88,10 +87,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'عرض تاريخ وإحصائيات الضيوف',
               icon: Icons.person,
               color: Colors.green,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsGuestsScreen(),
+                MaterialPageRoute<void>(builder: (context) => const SettingsGuestsScreen(),
                 ),
               ),
             ),
@@ -100,10 +98,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'مستخدمي النظام والصلاحيات',
               icon: Icons.admin_panel_settings,
               color: Colors.purple,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsUsersScreen(),
+                MaterialPageRoute<void>(builder: (context) => const SettingsUsersScreen(),
                 ),
               ),
             ),
@@ -112,10 +109,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'أدوات الصيانة والفحص',
               icon: Icons.build,
               color: Colors.orange,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsMaintenanceScreen(),
+                MaterialPageRoute<void>(builder: (context) => const SettingsMaintenanceScreen(),
                 ),
               ),
             ),
@@ -124,10 +120,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
               icon: Icons.gavel,
               color: Colors.red,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const BlacklistScreen(),
+                MaterialPageRoute<void>(builder: (context) => const BlacklistScreen(),
                 ),
               ),
             ),
@@ -143,10 +138,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
               icon: Icons.cloud,
               color: Colors.blue,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const GoogleDriveBackupScreen(),
+                MaterialPageRoute<void>(builder: (context) => const GoogleDriveBackupScreen(),
                 ),
               ),
             ),
@@ -155,10 +149,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'المزامنة السحابية',
               icon: Icons.cloud_sync,
               color: Colors.pink,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const AppwriteSettingsScreen(),
+                MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen(),
                 ),
               ),
             ),
@@ -167,10 +160,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إعدادات الخادم والاتصال',
               icon: Icons.api,
               color: Colors.indigo,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const PhpApiSettingsScreen(),
+                MaterialPageRoute<void>(builder: (context) => const PhpApiSettingsScreen(),
                 ),
               ),
             ),
@@ -179,10 +171,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'محلي · Google Drive · Appwrite',
               icon: Icons.backup,
               color: Colors.deepOrange,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
+                MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
                 ),
               ),
             ),
@@ -191,10 +182,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إعدادات المزامنة (Push/Pull)',
               icon: Icons.security,
               color: Colors.teal,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const DataProtectionScreen(),
+                MaterialPageRoute<void>(builder: (context) => const DataProtectionScreen(),
                 ),
               ),
             ),
@@ -210,10 +200,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
               icon: Icons.payment,
               color: Colors.blue,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const ActiveBookingsReminderScreen(),
+                MaterialPageRoute<void>(builder: (context) => const ActiveBookingsReminderScreen(),
                 ),
               ),
             ),
@@ -222,10 +211,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إرسال تنبيه واتساب للديون المتأخرة',
               icon: Icons.notifications_active,
               color: Colors.red,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const LatePaymentWhatsAppScreen(),
+                MaterialPageRoute<void>(builder: (context) => const LatePaymentWhatsAppScreen(),
                 ),
               ),
             ),
@@ -234,10 +222,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'تخصيص نص رسالة الدفع',
               icon: Icons.message,
               color: Colors.green,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const WhatsAppSettingsScreen(),
+                MaterialPageRoute<void>(builder: (context) => const WhatsAppSettingsScreen(),
                 ),
               ),
             ),
@@ -247,10 +234,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'الإشعارات الفورية والتقارير اليومية',
               icon: Icons.chat,
               color: const Color(0xFF25D366),
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const WhatsAppDailyReportScreen(),
+                MaterialPageRoute<void>(builder: (context) => const WhatsAppDailyReportScreen(),
                 ),
               ),
             ),
@@ -266,10 +252,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Gemini AI - تحكم ذكي بالبيانات',
               icon: Icons.smart_toy,
               color: Colors.amber.shade700,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const AiChatScreen(),
+                MaterialPageRoute<void>(builder: (context) => const AiChatScreen(),
                 ),
               ),
             ),
@@ -285,10 +270,9 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'تحكم عن بُعد بالإعدادات',
               icon: Icons.cloud_sync,
               color: Colors.blue.shade700,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const RemoteConfigSettingsScreen(),
+                MaterialPageRoute<void>(builder: (context) => const RemoteConfigSettingsScreen(),
                 ),
               ),
             ),
@@ -307,9 +291,9 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildQuickStatsCard(
     BuildContext context,
-    AsyncValue roomsAsync,
-    AsyncValue bookingsAsync,
-    AsyncValue employeesAsync,
+    AsyncValue<void> roomsAsync,
+    AsyncValue<void> bookingsAsync,
+    AsyncValue<void> employeesAsync,
     AsyncValue<int> usersCountAsync,
   ) {
     return Card(
@@ -349,7 +333,7 @@ class SettingsScreen extends ConsumerWidget {
                     'الحجوزات النشطة',
                     bookingsAsync.value
                             ?.where(
-                              (b) => StatusUtils.isActiveBooking(b.status as String),
+                              (dynamic b) => StatusUtils.isActiveBooking(b.status as String),
                             )
                             .length
                             .toString() ??
@@ -483,7 +467,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showAppSettingsDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Consumer(
         builder: (context, ref, _) {
@@ -509,7 +493,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop<void>(context),
                 child: const Text('إغلاق'),
               ),
             ],
@@ -549,7 +533,7 @@ class SettingsScreen extends ConsumerWidget {
       bgColor = Colors.orange.shade50;
     }
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -631,7 +615,7 @@ class SettingsScreen extends ConsumerWidget {
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: color.withOpacity(0.3)),
+                        border: Border.all(color: color.withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Column(
@@ -644,7 +628,7 @@ class SettingsScreen extends ConsumerWidget {
                                   horizontal: 6, vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.1),
+                                  color: color.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -699,7 +683,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await crashlytics.sendUnsentReports();
               if (context.mounted) {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم إرسال التقارير المعلقة'),
@@ -714,7 +698,7 @@ class SettingsScreen extends ConsumerWidget {
             TextButton(
               onPressed: () {
                 crashlytics.clearErrorHistory();
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم مسح سجل الأخطاء'),
@@ -724,7 +708,7 @@ class SettingsScreen extends ConsumerWidget {
               child: const Text('مسح السجل', style: TextStyle(color: Colors.red)),
             ),
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -733,7 +717,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showAboutDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => const AboutDialog(
         applicationName: 'تطبيق إدارة الفندق',

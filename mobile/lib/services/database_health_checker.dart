@@ -46,7 +46,7 @@ class DatabaseHealthChecker {
       } else {
         _updateHealth(DatabaseHealth.healthy(responseTime));
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Database health check failed: $e');
       _updateHealth(DatabaseHealth.error(e.toString()));
     }
@@ -71,7 +71,7 @@ class DatabaseHealthChecker {
       final db = DatabaseManager.instance;
       await db.customStatement('SELECT 1').timeout(timeout);
       return true;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Database health check failed: $e');
       return false;
     }

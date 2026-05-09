@@ -74,7 +74,7 @@ class RemoteConfigService {
           'Remote Config activated: $status',
           name: 'RemoteConfig',
         );
-      } catch (e) {
+      } catch (Object e) {
         developer.log(
           'Remote Config fetch failed (using defaults): $e',
           name: 'RemoteConfig',
@@ -124,7 +124,7 @@ class RemoteConfigService {
         name: 'RemoteConfig',
       );
       return status;
-    } catch (e) {
+    } catch (Object e) {
       _lastFetchStatus = 'error: $e';
       developer.log(
         'Remote Config force fetch error: $e',

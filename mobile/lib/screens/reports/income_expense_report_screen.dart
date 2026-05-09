@@ -247,7 +247,7 @@ class _IncomeExpenseReportScreenState
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (Object) {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -1979,7 +1979,7 @@ class _IncomeExpenseReportScreenState
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
@@ -2048,7 +2048,7 @@ class _IncomeExpenseReportScreenState
           text: 'تقرير الدخل والمصروفات',
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
@@ -2062,7 +2062,7 @@ class _IncomeExpenseReportScreenState
 
   // ===== نافذة خيارات التصدير =====
   void _showExportOptions() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -2140,7 +2140,7 @@ class _IncomeExpenseReportScreenState
                       title: 'تقرير يومي',
                       subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.pop<void>(context);
                         _exportDetailedGroupedPdf('daily');
                       },
                     ),
@@ -2151,7 +2151,7 @@ class _IncomeExpenseReportScreenState
                       title: 'تقرير شهري',
                       subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.pop<void>(context);
                         _exportDetailedGroupedPdf('monthly');
                       },
                     ),
@@ -2162,7 +2162,7 @@ class _IncomeExpenseReportScreenState
                       title: 'تقرير سنوي',
                       subtitle: 'تجميع حسب كل سنة',
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.pop<void>(context);
                         _exportDetailedGroupedPdf('yearly');
                       },
                     ),
@@ -2180,7 +2180,7 @@ class _IncomeExpenseReportScreenState
                 title: 'مشاركة PDF',
                 subtitle: 'إرسال التقرير العام عبر التطبيقات',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   _exportPdf();
                 },
               ),
@@ -2191,7 +2191,7 @@ class _IncomeExpenseReportScreenState
                 title: 'طباعة',
                 subtitle: 'طباعة التقرير مباشرة',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   _printPdf();
                 },
               ),
@@ -2202,7 +2202,7 @@ class _IncomeExpenseReportScreenState
                 title: 'حفظ في الجهاز',
                 subtitle: 'حفظ كملف PDF',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   _savePdf();
                 },
               ),
@@ -2213,7 +2213,7 @@ class _IncomeExpenseReportScreenState
                 title: 'تصدير CSV',
                 subtitle: 'ملف جدول بيانات لفتحه في Excel',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   _exportCsv();
                 },
               ),

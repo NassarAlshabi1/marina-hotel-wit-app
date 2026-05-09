@@ -217,10 +217,9 @@ class _AppwriteSettingsScreenState
               title: const Text('إعدادات الاتصال السحابي'),
               subtitle: const Text('تغيير Endpoint و Project و Database'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AppwriteConnectionSettingsScreen(),
+                MaterialPageRoute<void>(builder: (_) => const AppwriteConnectionSettingsScreen(),
                 ),
               ),
             ),
@@ -366,10 +365,9 @@ class _AppwriteSettingsScreenState
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.push<void>(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const AppwriteSyncStatsScreen(),
+                        MaterialPageRoute<void>(builder: (context) => const AppwriteSyncStatsScreen(),
                         ),
                       );
                     },
@@ -461,7 +459,7 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== قسم التخزين المؤقت ====================
-  Widget _buildCacheSection(BuildContext context, cacheStats) {
+  Widget _buildCacheSection(BuildContext context, Map<String, dynamic> cacheStats) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -664,10 +662,9 @@ class _AppwriteSettingsScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.push(
+                  Navigator.push<void>(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
+                    MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
                     ),
                   );
                 },
@@ -723,10 +720,9 @@ class _AppwriteSettingsScreenState
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.push<void>(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const AppwriteLogsScreen(),
+                        MaterialPageRoute<void>(builder: (context) => const AppwriteLogsScreen(),
                         ),
                       );
                     },
@@ -976,9 +972,9 @@ class _AppwriteSettingsScreenState
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
+        color: color.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1046,7 +1042,7 @@ class _AppwriteSettingsScreenState
     required String title,
     required String subtitle,
     required bool value,
-    required Function(bool) onChanged,
+    required void Function(bool) onChanged,
   }) {
     return SwitchListTile(
       title: Text(title),
@@ -1065,7 +1061,7 @@ class _AppwriteSettingsScreenState
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -1110,7 +1106,7 @@ class _AppwriteSettingsScreenState
     try {
       final dt = DateTime.parse(isoString);
       return DateFormat('yyyy-MM-dd HH:mm').format(dt);
-    } catch (e) {
+    } catch (Object) {
       return '---';
     }
   }
@@ -1144,7 +1140,7 @@ class _AppwriteSettingsScreenState
         );
         ref.invalidate(ap.syncStatsProvider);
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
@@ -1163,11 +1159,11 @@ class _AppwriteSettingsScreenState
         content: const Text('هل تريد مسح جميع البيانات المؤقتة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),
@@ -1193,11 +1189,11 @@ class _AppwriteSettingsScreenState
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),
@@ -1229,7 +1225,7 @@ class _AppwriteSettingsScreenState
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
@@ -1258,11 +1254,11 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             child: const Text('بدء النسخ'),
           ),
         ],
@@ -1297,7 +1293,7 @@ class _AppwriteSettingsScreenState
       final sortedCounts = result.counts.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key));
 
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('تم إنشاء النسخة الاحتياطية'),
@@ -1317,12 +1313,12 @@ class _AppwriteSettingsScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إغلاق'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 await Share.shareXFiles([XFile(result.file.path)]);
               },
               child: const Text('مشاركة'),
@@ -1330,7 +1326,7 @@ class _AppwriteSettingsScreenState
           ],
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1366,11 +1362,11 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             child: const Text('بدء الرفع'),
           ),
         ],
@@ -1392,7 +1388,7 @@ class _AppwriteSettingsScreenState
         );
         ref.invalidate(ap.syncStatsProvider);
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
@@ -1425,11 +1421,11 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             child: const Text('بدء السحب'),
           ),
         ],
@@ -1451,7 +1447,7 @@ class _AppwriteSettingsScreenState
         );
         ref.invalidate(ap.syncStatsProvider);
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
@@ -1474,11 +1470,11 @@ class _AppwriteSettingsScreenState
         content: const Text('هل تريد إعادة تعيين حالة المزامنة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('إعادة تعيين'),
           ),
@@ -1510,7 +1506,7 @@ class _AppwriteSettingsScreenState
 
   Future<void> _testCache() async {
     final stats = ref.read(ap.cacheStatsProvider);
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('نتائج اختبار الذاكرة المؤقتة'),
@@ -1530,7 +1526,7 @@ class _AppwriteSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],

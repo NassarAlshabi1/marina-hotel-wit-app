@@ -153,7 +153,7 @@ class ScreenSyncController {
         );
         return false;
       }
-    } on CircuitBreakerOpenException catch (e) {
+    } on CircuitBreakerOpenException catch (Object e) {
       debugPrint('🔌 [$screenId] Circuit breaker مفتوح: $e');
       _emitStatus(SyncStatus.error);
       return false;

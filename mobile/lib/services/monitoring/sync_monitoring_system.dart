@@ -152,7 +152,7 @@ class SyncAlert {
 /// try {
 ///   // ... المزامنة ...
 ///   monitor.recordSyncSuccess(recordsSynced: 100);
-/// } catch (e) {
+/// } catch (Object e) {
 ///   monitor.recordSyncFailure(error: e);
 /// }
 ///
@@ -452,7 +452,7 @@ class SyncMonitoringSystem {
       }
 
       await prefs.setStringList(key, existing);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e');
     }
   }
@@ -471,7 +471,7 @@ class SyncMonitoringSystem {
       }
 
       debugPrint('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
     }
   }
@@ -500,7 +500,7 @@ class SyncMonitoringSystem {
           '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
     }
   }

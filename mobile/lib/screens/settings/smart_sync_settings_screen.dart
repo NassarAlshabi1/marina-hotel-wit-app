@@ -44,7 +44,7 @@ class _SmartSyncSettingsScreenState
           backgroundColor: enabled ? Colors.green : Colors.orange,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة المزامنة: $e'),
@@ -71,7 +71,7 @@ class _SmartSyncSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير فترة المزامنة: $e'),
@@ -98,7 +98,7 @@ class _SmartSyncSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'),
@@ -125,7 +125,7 @@ class _SmartSyncSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ فشلت المزامنة اليدوية: $e'),
@@ -149,7 +149,7 @@ class _SmartSyncSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
@@ -176,7 +176,7 @@ class _SmartSyncSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
@@ -630,13 +630,13 @@ class _SmartSyncSettingsScreenState
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         explanation,
-        style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
+        style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8)),
       ),
     );
   }
@@ -699,9 +699,9 @@ class _SmartSyncSettingsScreenState
         ),
         subtitle: const Text('إحصائيات وتشخيص متقدم للنظام'),
         trailing: const Icon(Icons.chevron_left),
-        onTap: () => Navigator.push(
+        onTap: () => Navigator.push<void>(
           context,
-          MaterialPageRoute(builder: (_) => const SyncHealthDashboardScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SyncHealthDashboardScreen()),
         ),
       ),
     );
@@ -748,9 +748,9 @@ class _SmartSyncSettingsScreenState
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 '💡 نصيحة: استخدم فترة فحص قصيرة (1-5 دقائق) للمزامنة السريعة، أو فترة أطول (15-30 دقيقة) لتوفير البطارية.',

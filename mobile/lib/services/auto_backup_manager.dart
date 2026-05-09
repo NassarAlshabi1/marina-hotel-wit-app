@@ -250,7 +250,7 @@ class AutoBackupManager {
 
       // إشعار مدير المزامنة الذكية لمزامنة الأجهزة الأخرى
       await _notifySmartSync();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل النسخ التلقائي: $e');
     } finally {
       _isBackingUp = false;
@@ -300,7 +300,7 @@ class AutoBackupManager {
             debugPrint(
               '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',
             );
-          } catch (e) {
+          } catch (Object e) {
             debugPrint('❌ فشل حذف ${file.fileName}: $e');
           }
         }
@@ -309,7 +309,7 @@ class AutoBackupManager {
       } else {
         debugPrint('✨ لا توجد نسخ قديمة للحذف');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
@@ -429,7 +429,7 @@ class AutoBackupManager {
         debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
         await smartSync.onLocalBackupUploaded();
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
     }
   }
@@ -506,7 +506,7 @@ class AutoBackupManager {
           debugPrint(
             '✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}',
           );
-        } catch (e) {
+        } catch (Object e) {
           results['google_drive'] = {'error': e.toString()};
           results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Google Drive التفاضلية: $e');
@@ -533,7 +533,7 @@ class AutoBackupManager {
           debugPrint(
             '✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}',
           );
-        } catch (e) {
+        } catch (Object e) {
           results['appwrite'] = {'error': e.toString()};
           results['success'] = false;
           debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
@@ -543,7 +543,7 @@ class AutoBackupManager {
       debugPrint('✅ اكتملت المزامنة التفاضلية');
 
       await _autoRenewActiveBookings();
-    } catch (e) {
+    } catch (Object e) {
       results['success'] = false;
       results['error'] = e.toString();
       debugPrint('❌ خطأ في المزامنة التفاضلية: $e');
@@ -566,7 +566,7 @@ class AutoBackupManager {
       if (count > 0) {
         debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
     }
   }

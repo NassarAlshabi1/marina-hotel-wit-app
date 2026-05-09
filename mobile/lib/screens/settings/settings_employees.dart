@@ -20,9 +20,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       title: 'إدارة الموظفين',
       actions: [
         IconButton(
-          onPressed: () => Navigator.push(
+          onPressed: () => Navigator.push<void>(
             context,
-            MaterialPageRoute(builder: (_) => const SalaryEntitlementsScreen()),
+            MaterialPageRoute<void>(builder: (_) => const SalaryEntitlementsScreen()),
           ),
           icon: const Icon(Icons.account_balance_wallet),
           tooltip: 'استحقاقات الرواتب',
@@ -187,9 +187,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -203,7 +203,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -261,8 +261,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isActive ? Colors.green : Colors.red,
@@ -427,7 +427,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
     String status = employee?.status ?? 'نشط';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -511,7 +511,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
@@ -547,7 +547,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -557,7 +557,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       ),
                     ),
                   );
-                } catch (e) {
+                } catch (Object e) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
@@ -574,7 +574,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   Future<void> _showEmployeeEntitlement(BuildContext context, Employee employee) async {
     final service = SalaryEntitlementService(DatabaseManager.instance);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
@@ -582,12 +582,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
     try {
       final entitlement = await service.calculateEmployeeEntitlement(employee);
-      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) Navigator.pop<void>(context);
 
       if (!context.mounted) return;
 
       final isPositive = entitlement.netEntitlement >= 0;
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => Directionality(
           textDirection: TextDirection.rtl,
@@ -639,15 +639,15 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop<void>(context),
                 child: const Text('إغلاق'),
               ),
             ],
           ),
         ),
       );
-    } catch (e) {
-      if (context.mounted) Navigator.pop(context);
+    } catch (Object e) {
+      if (context.mounted) Navigator.pop<void>(context);
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -690,7 +690,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -724,13 +724,13 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () {
                 // TODO: تنفيذ عملية سحب الراتب
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('تم تسجيل سحب الراتب (قيد التطوير)'),
@@ -769,7 +769,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف'),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));

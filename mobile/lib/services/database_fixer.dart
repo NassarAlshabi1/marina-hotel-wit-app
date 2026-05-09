@@ -23,7 +23,7 @@ class DatabaseFixer {
       result.orphanExpensesFixed = await _fixOrphanExpenses();
 
       result.success = true;
-    } catch (e) {
+    } catch (Object e) {
       result.error = e.toString();
       result.success = false;
     }
@@ -101,7 +101,7 @@ class DatabaseFixer {
       }
 
       debugPrint('Fixed $fixed invalid serverId records');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error fixing serverId: $e');
     }
 
@@ -136,7 +136,7 @@ class DatabaseFixer {
       }
 
       debugPrint('Fixed $fixed orphan payments');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error fixing orphan payments: $e');
     }
 
@@ -191,7 +191,7 @@ class DatabaseFixer {
       }
 
       debugPrint('Fixed $fixed orphan expenses');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error fixing orphan expenses: $e');
     }
 
@@ -251,7 +251,7 @@ class DatabaseFixer {
           report.invalidServerIds > 0 ||
           report.orphanPayments > 0 ||
           report.orphanExpenses > 0;
-    } catch (e) {
+    } catch (Object e) {
       report.error = e.toString();
     }
 

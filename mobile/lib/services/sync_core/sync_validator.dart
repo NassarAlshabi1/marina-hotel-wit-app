@@ -37,7 +37,7 @@ class SyncValidator {
     if (data.containsKey('timestamp')) {
       try {
         DateTime.parse(data['timestamp'] as String);
-      } catch (e) {
+      } catch (Object) {
         return ValidationResult.invalid('timestamp غير صالح');
       }
     }
@@ -96,7 +96,7 @@ class SyncValidator {
       if (difference > const Duration(hours: 24)) {
         warnings.add('فرق كبير في التوقيت بين البيانات المحلية والسحابية');
       }
-    } catch (e) {
+    } catch (Object) {
       return ValidationResult.invalid('فشل تحليل timestamps');
     }
 

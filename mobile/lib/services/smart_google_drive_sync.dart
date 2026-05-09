@@ -180,7 +180,7 @@ class SmartGoogleDriveSync {
         _log('⚠️ فشل رفع التغييرات: ${result.message}');
         return false;
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
@@ -224,7 +224,7 @@ class SmartGoogleDriveSync {
         _log('⚠️ لا توجد تحديثات جديدة');
         return false;
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في سحب التحديثات: $e');
       return false;
     } finally {
@@ -274,7 +274,7 @@ class SmartGoogleDriveSync {
 
       _log('✅ تم إنشاء النسخة الاحتياطية الكاملة: $fileId');
       return true;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في النسخ الاحتياطي: $e');
       return false;
     } finally {

@@ -78,7 +78,7 @@ class _AutoBackupSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في حفظ الإعدادات: $e'),
@@ -109,7 +109,7 @@ class _AutoBackupSettingsScreenState
           backgroundColor: enabled ? Colors.green : Colors.orange,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة النسخ التلقائي: $e'),
@@ -134,7 +134,7 @@ class _AutoBackupSettingsScreenState
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تنظيف النسخ: $e'),
@@ -562,7 +562,7 @@ class _AutoBackupSettingsScreenState
       setState(() {
         _isScheduledBackupEnabled = enabled;
       });
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة النسخ المجدول: $e'),

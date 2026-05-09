@@ -92,7 +92,7 @@ class PriceAdjustmentService {
           booking.id,
           forceRebuild: true,
         );
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
       }
 

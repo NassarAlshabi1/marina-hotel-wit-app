@@ -75,7 +75,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
       try {
         await db.customStatement('SELECT server_id FROM rooms LIMIT 1');
         _addLog('✅ عمود serverId موجود في الجدول');
-      } catch (e) {
+      } catch (Object) {
         _addLog('❌ عمود serverId غير موجود!');
         _addLog('💡 يرجى إعادة تثبيت التطبيق أو الانتظار للتحديث التلقائي');
 
@@ -107,7 +107,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
 
           _updatedCount++;
           _addLog('✅ تم تحديث: $localUuid');
-        } catch (e) {
+        } catch (Object e) {
           _addLog('❌ خطأ في $localUuid: $e');
         }
       }
@@ -129,7 +129,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       _addLog('❌ خطأ عام: $e');
       setState(() {
         _status = 'فشل';

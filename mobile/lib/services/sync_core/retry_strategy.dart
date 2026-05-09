@@ -105,7 +105,7 @@ class RetryStrategy {
       try {
         debugPrint('🔄 [Retry] محاولة $attempt من ${config.maxAttempts}');
         return await operation();
-      } catch (error) {
+      } catch (Object error) {
         lastError = error;
         debugPrint('⚠️ [Retry] فشلت المحاولة $attempt: $error');
 
@@ -128,7 +128,7 @@ class RetryStrategy {
           onRetry(attempt, error);
         }
 
-        await Future.delayed(delay);
+        await Future<void>.delayed(delay);
       }
     }
 
@@ -147,7 +147,7 @@ class RetryStrategy {
         shouldRetry: shouldRetry,
         onRetry: onRetry,
       );
-    } catch (error) {
+    } catch (Object) {
       debugPrint('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
       return fallback();
     }

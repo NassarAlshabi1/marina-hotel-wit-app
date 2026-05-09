@@ -370,7 +370,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.sync, color: Colors.blue),
@@ -385,7 +385,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.refresh, color: Colors.orange),
@@ -400,7 +400,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.1),
+                color: Colors.teal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.bug_report, color: Colors.teal),
@@ -415,7 +415,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
+                color: Colors.purple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.cloud_upload, color: Colors.purple),
@@ -430,7 +430,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.delete_forever, color: Colors.red),
@@ -467,7 +467,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showIntervalDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
@@ -481,7 +481,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               onChanged: (value) {
                 setState(() => _syncInterval = value!);
                 _saveSettings();
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 if (_syncEnabled) {
                   _onSyncEnabledChanged(true);
                 }
@@ -491,7 +491,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -523,7 +523,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showFullSyncDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إعادة مزامنة كاملة'),
@@ -532,12 +532,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               await _runFullSync();
             },
             child: const Text('بدء المزامنة'),
@@ -563,7 +563,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showFullPushDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('رفع شامل إلى Appwrite'),
@@ -577,7 +577,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
@@ -586,7 +586,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               await _runFullPush();
             },
             child: const Text('رفع شامل'),
@@ -600,7 +600,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
     if (!mounted) return;
 
     // إظهار مؤشر التحميل
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -629,7 +629,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       if (!mounted) return;
 
       // إغلاق مؤشر التحميل
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
 
       final totalRecords = stats.entries
           .where((e) => e.key != 'errors')
@@ -645,7 +645,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       }
 
       // إظهار النتائج
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Row(
@@ -720,7 +720,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('حسناً'),
             ),
           ],
@@ -730,7 +730,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       if (!mounted) return;
 
       // إغلاق مؤشر التحميل في حالة الخطأ
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
 
       // طباعة الخطأ في console
       debugPrint('❌ خطأ في الرفع الشامل: $e');
@@ -767,7 +767,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   Future<void> _runDiagnosticTest() async {
     if (!mounted) return;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -847,16 +847,16 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
               '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
 
           debugPrint('✅ نجح الاختبار!');
-        } catch (e) {
+        } catch (Object e) {
           testResult = '❌ فشل رفع الغرفة:\n$e';
           debugPrint('❌ خطأ في رفع الغرفة: $e');
         }
       }
 
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
 
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -899,7 +899,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('حسناً'),
             ),
           ],
@@ -907,12 +907,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       );
     } catch (e, stackTrace) {
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
 
       debugPrint('❌ خطأ في الاختبار التشخيصي: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -925,7 +925,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           content: Text('حدث خطأ:\n$e'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('حسناً'),
             ),
           ],
@@ -935,19 +935,19 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showClearHistoryDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مسح سجل المزامنة (سحابي)'),
         content: const Text('سيتم مسح السجل من Appwrite ومن السجل المحلي.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               await _clearCloudSyncLogs();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

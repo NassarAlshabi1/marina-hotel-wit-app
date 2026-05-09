@@ -313,7 +313,7 @@ class DeltaSyncService {
             issues.add('${config.entity}: hash mismatch for $uuid');
           }
         }
-      } catch (e) {
+      } catch (Object e) {
         issues.add('${config.entity}: validation error - $e');
       }
     }
@@ -362,7 +362,7 @@ class DeltaSyncService {
         debugPrint(
           '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
         );
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
     }

@@ -63,7 +63,7 @@ class AppwriteFullPull {
             '✅ تم سحب $count سجل من ${entity.name}',
             tag: 'FULL_PULL',
           );
-        } catch (e) {
+        } catch (Object e) {
           _logger.error('❌ فشل سحب ${entity.name}: $e', tag: 'FULL_PULL');
           result.failedEntities.add(entity.name);
         }
@@ -289,7 +289,7 @@ class AppwriteFullPull {
             // حفظ السجل (upsert)
             await entity.repo!.upsertFromJson(remoteData, src: Source.appwrite);
             totalCount++;
-          } catch (e) {
+          } catch (Object e) {
             errorCount++;
             _logger.warning(
               '⚠️ فشل حفظ سجل من ${entity.name}: $e',
@@ -305,7 +305,7 @@ class AppwriteFullPull {
         if (documents.length < _batchSize) {
           break;
         }
-      } catch (e) {
+      } catch (Object e) {
         _logger.error(
           '❌ خطأ في جلب دفعة من ${entity.name}: $e',
           tag: 'FULL_PULL',
@@ -376,7 +376,7 @@ class AppwriteFullPull {
       }
 
       _logger.info('🔄 تم تحديث حالة إشغال الغرف', tag: 'FULL_PULL');
-    } catch (e) {
+    } catch (Object e) {
       _logger.warning('⚠️ فشل تحديث حالة الإشغال: $e', tag: 'FULL_PULL');
     }
   }

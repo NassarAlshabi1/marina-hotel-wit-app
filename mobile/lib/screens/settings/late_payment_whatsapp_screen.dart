@@ -276,7 +276,7 @@ class _LatePaymentWhatsAppScreenState
       label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       selected: isSelected,
       onSelected: (_) => setState(() => _filterStatus = value),
-      selectedColor: color.withOpacity(0.15),
+      selectedColor: color.withValues(alpha: 0.15),
       checkmarkColor: color,
       labelStyle: TextStyle(color: isSelected ? color : null),
     );
@@ -570,7 +570,7 @@ class _LatePaymentWhatsAppScreenState
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: statusColor),
                     ),
@@ -768,11 +768,11 @@ class _LatePaymentWhatsAppScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop<void>(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: const Text('إرسال'),
             style: ElevatedButton.styleFrom(
@@ -786,7 +786,7 @@ class _LatePaymentWhatsAppScreenState
 
     if (confirmed != true || !mounted) return;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const AlertDialog(
@@ -803,7 +803,7 @@ class _LatePaymentWhatsAppScreenState
     final success = await _sendSingleReminder(debt, booking);
 
     if (mounted) {
-      Navigator.pop(context); // إغلاق مؤشر التحميل
+      Navigator.pop<void>(context); // إغلاق مؤشر التحميل
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -907,11 +907,11 @@ class _LatePaymentWhatsAppScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop<void>(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: const Text('إرسال الكل'),
             style: ElevatedButton.styleFrom(

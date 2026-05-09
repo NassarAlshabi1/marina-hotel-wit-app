@@ -21,7 +21,7 @@ class SafeDatabaseOperations {
       // التحقق من حالة الاستعادة
       if (DatabaseManager.isRestoring) {
         debugPrint('⏸️ Operation $opName paused: database is being restored');
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         if (DatabaseManager.isRestoring) {
           throw StateError(
             'Database is being restored. Please try again later.',
@@ -125,7 +125,7 @@ class SafeDatabaseOperations {
           // التحقق من حالة الاستعادة
           if (DatabaseManager.isRestoring) {
             debugPrint('⏸️ Stream $opName paused: database is being restored');
-            Future.delayed(const Duration(milliseconds: 200), () {
+            Future<void>.delayed(const Duration(milliseconds: 200), () {
               if (!isClosed && !DatabaseManager.isRestoring) {
                 setupStream();
               }
@@ -140,7 +140,7 @@ class SafeDatabaseOperations {
             try {
               // محاولة الحصول على instance لتهيئة قاعدة البيانات
               final _ = DatabaseManager.instance;
-            } catch (e) {
+            } catch (Object e) {
               controller.addError(
                 StateError('Failed to initialize database for $opName: $e'),
               );
@@ -175,7 +175,7 @@ class SafeDatabaseOperations {
                   debugPrint(
                     '⏸️ Database is being restored, will retry after restore completes',
                   );
-                  Future.delayed(const Duration(seconds: 1), () {
+                  Future<void>.delayed(const Duration(seconds: 1), () {
                     if (!isClosed && !DatabaseManager.isRestoring) {
                       setupStream();
                     }
@@ -183,7 +183,7 @@ class SafeDatabaseOperations {
                   return;
                 }
 
-                Future.delayed(const Duration(milliseconds: 500), () async {
+                Future<void>.delayed(const Duration(milliseconds: 500), () async {
                   try {
                     debugPrint(
                       '🔄 Attempting to reopen database for stream...',
@@ -191,7 +191,7 @@ class SafeDatabaseOperations {
                     await DatabaseManager.reopen();
                     debugPrint('✅ Database reopened. Recreating stream...');
                     setupStream();
-                  } catch (e) {
+                  } catch (Object e) {
                     if (!isClosed) {
                       controller.addError(e, stackTrace);
                     }

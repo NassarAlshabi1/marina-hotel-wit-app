@@ -470,7 +470,7 @@ class WhatsAppTemplateManager {
         count++;
       }
       return count;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('خطأ في استيراد النماذج: $e');
       return 0;
     }

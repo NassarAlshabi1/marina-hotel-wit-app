@@ -68,7 +68,7 @@ class RealtimeSyncNotifier {
         await _saveLastProcessedSyncId(syncId);
         debugPrint('🔔 تم اكتشاف تغييرات جديدة');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في التحقق من المزامنة الجديدة: $e');
     }
   }
@@ -88,7 +88,7 @@ class RealtimeSyncNotifier {
       };
 
       debugPrint('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ فشل إرسال الإشعار: $e');
     }
   }

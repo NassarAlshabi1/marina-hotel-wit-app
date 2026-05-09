@@ -30,7 +30,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
 
   Future<void> _loadSettings() async {
     // انتظار حتى ينهي Provider التهيئة
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     final state = ref.read(telegramProvider);
     _botTokenController.text = state.botToken;
     _chatIdController.text = state.chatId;
@@ -122,8 +122,8 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: state.isEnabled
-                        ? const Color(0xFF0088cc).withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? const Color(0xFF0088cc).withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -164,7 +164,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -252,7 +252,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -271,7 +271,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -312,9 +312,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0088cc).withOpacity(0.05),
+                  color: const Color(0xFF0088cc).withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF0088cc).withOpacity(0.2)),
+                  border: Border.all(color: const Color(0xFF0088cc).withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
@@ -323,7 +323,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     Expanded(
                       child: Text(
                         'كيف تحصل على Bot Token و Chat ID؟ اضغط هنا',
-                        style: TextStyle(fontSize: 12, color: const Color(0xFF0088cc).withOpacity(0.8)),
+                        style: TextStyle(fontSize: 12, color: const Color(0xFF0088cc).withValues(alpha: 0.8)),
                       ),
                     ),
                   ],
@@ -352,7 +352,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: state.isNotificationsEnabled ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: state.isNotificationsEnabled ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -429,7 +429,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: state.isDailyReportEnabled ? const Color(0xFF0088cc).withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: state.isDailyReportEnabled ? const Color(0xFF0088cc).withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -493,7 +493,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     children: [
                       const Icon(Icons.check_circle, color: Colors.green, size: 16),
@@ -623,7 +623,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
           duration: Duration(seconds: 2),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       setState(() => _isSaving = false);
 
       if (!mounted) return;
@@ -666,7 +666,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
   }
 
   void _showSetupGuide(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -696,7 +696,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop<void>(ctx),
             child: const Text('فهمت'),
           ),
         ],
@@ -737,9 +737,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
     );
@@ -754,10 +754,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isSuccess
-            ? Colors.green.withOpacity(0.1)
+            ? Colors.green.withValues(alpha: 0.1)
             : isError
-                ? Colors.red.withOpacity(0.1)
-                : Colors.blue.withOpacity(0.1),
+                ? Colors.red.withValues(alpha: 0.1)
+                : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

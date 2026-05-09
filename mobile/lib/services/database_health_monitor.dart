@@ -30,7 +30,7 @@ class DatabaseHealthMonitor {
         status: _determineStatus(metrics),
         scanType: ScanType.quick,
       );
-    } catch (e) {
+    } catch (Object e) {
       return HealthReport.error(e.toString());
     }
   }
@@ -65,7 +65,7 @@ class DatabaseHealthMonitor {
       await _saveToHistory(report);
 
       return report;
-    } catch (e) {
+    } catch (Object e) {
       return HealthReport.error(e.toString());
     }
   }
@@ -76,7 +76,7 @@ class DatabaseHealthMonitor {
   }) async* {
     while (true) {
       yield await quickScan();
-      await Future.delayed(interval);
+      await Future<void>.delayed(interval);
     }
   }
 
@@ -94,7 +94,7 @@ class DatabaseHealthMonitor {
         orphanPayments: results[1],
         orphanExpenses: results[2],
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error collecting metrics: $e');
       return HealthMetrics(
         invalidServerIds: 0,
@@ -116,7 +116,7 @@ class DatabaseHealthMonitor {
       ''').getSingle();
 
       return result.data['total'] as int? ?? 0;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error counting invalid serverIds: $e');
       return 0;
     }
@@ -135,7 +135,7 @@ class DatabaseHealthMonitor {
       ''').getSingle();
 
       return result.data['count'] as int? ?? 0;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error counting orphan payments: $e');
       return 0;
     }
@@ -152,7 +152,7 @@ class DatabaseHealthMonitor {
       ''').getSingle();
 
       return result.data['count'] as int? ?? 0;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error counting orphan expenses: $e');
       return 0;
     }
@@ -203,7 +203,7 @@ class DatabaseHealthMonitor {
       );
 
       await _cleanOldHistory();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error saving health history: $e');
     }
   }
@@ -216,7 +216,7 @@ class DatabaseHealthMonitor {
         'DELETE FROM database_health_log WHERE scanned_at < ?',
         variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error cleaning old history: $e');
     }
   }
@@ -250,7 +250,7 @@ class DatabaseHealthMonitor {
           status: row.data['status'] as String,
         );
       }).toList();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error getting history: $e');
       return [];
     }

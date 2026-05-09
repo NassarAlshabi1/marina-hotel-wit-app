@@ -88,7 +88,7 @@ class LocalBackupService {
         }
       }
       return true; // على iOS أو منصات أخرى
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في التحقق من الأذونات: $e');
       return false;
     }
@@ -122,7 +122,7 @@ class LocalBackupService {
       await prefs.setString(_prefsLocalBackupPathKey, _backupDirectory!.path);
 
       return _backupDirectory!;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
       rethrow;
     }
@@ -249,7 +249,7 @@ class LocalBackupService {
               .toList(),
           'sync_state': syncStateData.isNotEmpty
               ? syncStateData.first.toJson()
-              : {},
+              : <String, dynamic>{},
         };
 
         final filePath = '${backupDir.path}/$baseName.json.gz';
@@ -327,7 +327,7 @@ class LocalBackupService {
       throw UnsupportedError(
         'تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}',
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       rethrow;
     }
@@ -420,7 +420,8 @@ class LocalBackupService {
         final format = extension == '.sqlite'
             ? BackupFormat.sqlite
             : BackupFormat.json;
-        final isGz = extension == '.gz';
+        // ignore: unused_local_variable
+    final isGz = extension == '.gz';
 
         try {
           BackupMetadata? metadata;
@@ -456,7 +457,7 @@ class LocalBackupService {
           backupFiles.add(
             LocalBackupFile.fromFile(file, metadata: metadata, format: format),
           );
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('⚠️ خطأ في قراءة ملف النسخة الاحتياطية ${file.path}: $e');
           backupFiles.add(LocalBackupFile.fromFile(file, format: format));
         }
@@ -467,7 +468,7 @@ class LocalBackupService {
 
       debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية محلية');
       return backupFiles;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في جلب قائمة النسخ الاحتياطية المحلية: $e');
       return [];
     }
@@ -495,7 +496,7 @@ class LocalBackupService {
       throw UnsupportedError(
         'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       rethrow;
     }
@@ -544,15 +545,15 @@ class LocalBackupService {
     try {
       // حذف جميع الجداول بالترتيب الصحيح (من الأطفال إلى الآباء)
       // لتجنب FOREIGN KEY constraint errors
-      await db.delete(db.payments).go(); // يعتمد على bookings
-      await db.delete(db.debts).go(); // يعتمد على bookings
-      await db.delete(db.bookingNotes).go(); // يعتمد على bookings
-      await db.delete(db.cashTransactions).go(); // يعتمد على bookings
-      await db.delete(db.bookings).go(); // يعتمد على rooms
-      await db.delete(db.expenses).go(); // يعتمد على employees
-      await db.delete(db.employees).go();
-      await db.delete(db.rooms).go();
-      await db.delete(db.syncState).go();
+      await db.delete<dynamic>(db.payments).go(); // يعتمد على bookings
+      await db.delete<dynamic>(db.debts).go(); // يعتمد على bookings
+      await db.delete<dynamic>(db.bookingNotes).go(); // يعتمد على bookings
+      await db.delete<dynamic>(db.cashTransactions).go(); // يعتمد على bookings
+      await db.delete<dynamic>(db.bookings).go(); // يعتمد على rooms
+      await db.delete<dynamic>(db.expenses).go(); // يعتمد على employees
+      await db.delete<dynamic>(db.employees).go();
+      await db.delete<dynamic>(db.rooms).go();
+      await db.delete<dynamic>(db.syncState).go();
 
       Future<void> insertList<T>(
         String key,
@@ -567,22 +568,22 @@ class LocalBackupService {
         }
       }
 
-      await insertList('rooms', (json) async {
+      await insertList<dynamic>('rooms', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Room.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.rooms).insertOnConflictUpdate(data);
       });
-      await insertList('employees', (json) async {
+      await insertList<dynamic>('employees', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Employee.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.employees).insertOnConflictUpdate(data);
       });
-      await insertList('bookings', (json) async {
+      await insertList<dynamic>('bookings', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Booking.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.bookings).insertOnConflictUpdate(data);
       });
-      await insertList('booking_notes', (json) async {
+      await insertList<dynamic>('booking_notes', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = BookingNote.fromJson(
           map,
@@ -590,7 +591,7 @@ class LocalBackupService {
         );
         await db.into(db.bookingNotes).insertOnConflictUpdate(data);
       });
-      await insertList('cash_transactions', (json) async {
+      await insertList<dynamic>('cash_transactions', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = CashTransaction.fromJson(
           map,
@@ -598,17 +599,17 @@ class LocalBackupService {
         );
         await db.into(db.cashTransactions).insertOnConflictUpdate(data);
       });
-      await insertList('expenses', (json) async {
+      await insertList<dynamic>('expenses', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Expense.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.expenses).insertOnConflictUpdate(data);
       });
-      await insertList('payments', (json) async {
+      await insertList<dynamic>('payments', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Payment.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.payments).insertOnConflictUpdate(data);
       });
-      await insertList('debts', (json) async {
+      await insertList<dynamic>('debts', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Debt.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.debts).insertOnConflictUpdate(data);
@@ -676,7 +677,7 @@ class LocalBackupService {
 
     try {
       await deleteDatabase(dbPath);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ تعذر حذف قاعدة البيانات الحالية: $e');
     }
 
@@ -705,8 +706,8 @@ class LocalBackupService {
       final file = File('$dbPath$suffix');
       if (await file.exists()) {
         try {
-          await file.delete();
-        } catch (e) {
+          await file.delete<dynamic>();
+        } catch (Object e) {
           debugPrint('⚠️ تعذر حذف الملف المساعد $suffix: $e');
         }
       }
@@ -731,7 +732,7 @@ class LocalBackupService {
       );
 
       debugPrint('✅ تم مشاركة النسخة الاحتياطية: $fileName');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -826,7 +827,7 @@ class LocalBackupService {
           await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
           debugPrint('✅ تم استيراد النسخة الاحتياطية (SQLite): $newFilePath');
           return newFilePath;
-        } catch (e) {
+        } catch (Object) {
           try {
             await File(newFilePath).delete();
           } catch (e, st) {
@@ -840,7 +841,7 @@ class LocalBackupService {
       }
 
       throw UnsupportedError('تنسيق الملف غير مدعوم للاستيراد: $extension');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -851,10 +852,10 @@ class LocalBackupService {
     try {
       final file = File(filePath);
       if (await file.exists()) {
-        await file.delete();
+        await file.delete<dynamic>();
         debugPrint('✅ تم حذف النسخة الاحتياطية: $filePath');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -910,7 +911,7 @@ class LocalBackupService {
 
       debugPrint('✅ تم تصدير النسخة الاحتياطية إلى: $exportPath');
       return exportPath;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -981,7 +982,7 @@ class LocalBackupService {
       }
 
       debugPrint('✅ تم تنظيف ${backupsToDelete.length} نسخة احتياطية قديمة');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
@@ -991,7 +992,7 @@ class LocalBackupService {
     try {
       final backups = await listLocalBackups();
       return backups.fold<int>(0, (total, backup) => total + backup.sizeBytes);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في حساب حجم النسخ: $e');
       return 0;
     }
@@ -1011,7 +1012,7 @@ class LocalBackupService {
         'total_size_bytes': totalSize,
         'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),
       };
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في الحصول على معلومات مجلد النسخ: $e');
       return {};
     }

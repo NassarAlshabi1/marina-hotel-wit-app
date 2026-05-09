@@ -91,7 +91,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
+    } catch (Object e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     return BlacklistEntry(
       id: row.id,
       name: row.title,
@@ -199,7 +199,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
+    } catch (Object e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     payload['active'] = active;
     final now = Time.nowEpoch();
     final updated =

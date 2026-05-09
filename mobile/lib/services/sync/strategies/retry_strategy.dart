@@ -29,7 +29,7 @@ class ExponentialBackoffStrategy implements RetryStrategy {
     while (attempt < maxAttempts) {
       try {
         return await operation();
-      } catch (e) {
+      } catch (Object e) {
         attempt++;
         
         if (attempt >= maxAttempts) {
@@ -40,7 +40,7 @@ class ExponentialBackoffStrategy implements RetryStrategy {
         final jitter = Random().nextInt(1000);
         final delayWithJitter = currentDelay + Duration(milliseconds: jitter);
         
-        await Future.delayed(delayWithJitter);
+        await Future<void>.delayed(delayWithJitter);
         
         // زيادة المدة للمحاولة التالية
         currentDelay = Duration(
@@ -88,7 +88,7 @@ class CircuitBreakerStrategy implements RetryStrategy {
       final result = await operation();
       _onSuccess();
       return result;
-    } catch (e) {
+    } catch (Object) {
       _onFailure();
       rethrow;
     }

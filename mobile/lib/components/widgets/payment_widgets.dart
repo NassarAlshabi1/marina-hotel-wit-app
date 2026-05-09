@@ -131,9 +131,9 @@ class PaymentSummaryWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -147,7 +147,7 @@ class PaymentSummaryWidget extends StatelessWidget {
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 8, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 8, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -189,7 +189,7 @@ class PaymentCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 18,
-                    backgroundColor: payment.method.color.withOpacity(0.15),
+                    backgroundColor: payment.method.color.withValues(alpha: 0.15),
                     child: Icon(
                       payment.method.icon,
                       color: payment.method.color,
@@ -367,7 +367,7 @@ class PaymentStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.1),
+        color: status.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: status.color),
       ),
@@ -403,7 +403,7 @@ class PaymentMethodChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? method.color : method.color.withOpacity(0.1),
+          color: isSelected ? method.color : method.color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: method.color, width: isSelected ? 2 : 1),
         ),
@@ -508,9 +508,9 @@ class PaymentStatsWidget extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -546,10 +546,10 @@ class PaymentStatsWidget extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: entry.key.color.withOpacity(0.1),
+                      color: entry.key.color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: entry.key.color.withOpacity(0.3),
+                        color: entry.key.color.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -586,9 +586,9 @@ class PaymentStatsWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -604,7 +604,7 @@ class PaymentStatsWidget extends StatelessWidget {
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 9, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -623,7 +623,7 @@ class PaymentMethodSelector extends StatelessWidget {
     this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
   });
   final PaymentMethod? selectedMethod;
-  final Function(PaymentMethod) onMethodSelected;
+  final void Function(PaymentMethod) onMethodSelected;
   final List<PaymentMethod> availableMethods;
 
   @override
@@ -657,7 +657,7 @@ class PaymentMethodSelector extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? method.color
-                      : method.color.withOpacity(0.1),
+                      : method.color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: method.color,

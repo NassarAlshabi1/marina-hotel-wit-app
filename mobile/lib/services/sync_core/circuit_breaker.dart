@@ -52,13 +52,13 @@ class CircuitBreaker {
       final result = await operation().timeout(config.timeout);
       _onSuccess();
       return result;
-    } on TimeoutException catch (e) {
+    } on TimeoutException catch (Object e) {
       _onFailure();
       throw CircuitBreakerTimeoutException(
         'Circuit breaker [$name] تجاوز المهلة الزمنية',
         originalException: e,
       );
-    } catch (e) {
+    } catch (Object) {
       _onFailure();
       rethrow;
     }
@@ -70,10 +70,10 @@ class CircuitBreaker {
   }) async {
     try {
       return await execute(operation);
-    } on CircuitBreakerOpenException catch (e) {
+    } on CircuitBreakerOpenException catch (Object e) {
       debugPrint('⚠️ [CircuitBreaker] $e');
       return defaultValue;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ [CircuitBreaker] خطأ: $e');
       return defaultValue;
     }

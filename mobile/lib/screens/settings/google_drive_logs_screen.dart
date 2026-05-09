@@ -195,7 +195,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
         setState(() => _filterLevel = selected ? level : null);
       },
       backgroundColor: Colors.white,
-      selectedColor: color.withOpacity(0.2),
+      selectedColor: color.withValues(alpha: 0.2),
       checkmarkColor: color,
       labelStyle: TextStyle(
         color: isSelected ? color : Colors.black87,
@@ -252,7 +252,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                     ),
                     child: Text(
                       log.tag,
@@ -332,7 +332,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   }
 
   void _showLogDetails(LogEntry log) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -360,7 +360,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     icon: const Icon(Icons.copy),
                     onPressed: () {
                       _copyLog(log);
-                      Navigator.pop(context);
+                      Navigator.pop<void>(context);
                     },
                   ),
                 ],

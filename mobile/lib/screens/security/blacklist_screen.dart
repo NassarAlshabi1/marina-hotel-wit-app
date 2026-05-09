@@ -108,8 +108,8 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
                           color: e.active
-                              ? Colors.red.withOpacity(0.3)
-                              : Colors.grey.withOpacity(0.3),
+                              ? Colors.red.withValues(alpha: 0.3)
+                              : Colors.grey.withValues(alpha: 0.3),
                         ),
                       ),
                       child: InkWell(
@@ -244,7 +244,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         await _showDeleteConfirmDialog(context, e.name);
                                     if (confirmed ?? false) {
                                       try {
-                                        await repo.delete(e.id);
+                                        await repo.delete<dynamic>(e.id);
                                         if (!mounted) return;
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
@@ -332,7 +332,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -347,7 +347,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
 
   void _showSearchDialog(BuildContext context) {
     final controller = TextEditingController(text: _filterText);
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('بحث في القائمة السوداء'),
@@ -360,7 +360,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           ),
           onSubmitted: (value) {
             setState(() => _filterText = value);
-            Navigator.pop(ctx);
+            Navigator.pop<void>(ctx);
           },
         ),
         actions: [
@@ -368,18 +368,18 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
             TextButton(
               onPressed: () {
                 setState(() => _filterText = '');
-                Navigator.pop(ctx);
+                Navigator.pop<void>(ctx);
               },
               child: const Text('مسح البحث'),
             ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop<void>(ctx),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
               setState(() => _filterText = controller.text);
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
             },
             child: const Text('بحث'),
           ),
@@ -397,12 +397,12 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
         content: Text('هل أنت متأكد من حذف "$name" من القائمة السوداء؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop<void>(ctx, true),
             child: const Text('حذف', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -429,7 +429,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
         TextEditingController(text: isEdit ? (entry.notes ?? '') : '');
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isEdit ? 'تعديل بيانات الشخص' : 'إضافة إلى القائمة السوداء'),
@@ -503,7 +503,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop<void>(ctx),
             child: const Text('إلغاء'),
           ),
           FilledButton.icon(
@@ -531,7 +531,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     notes: notesCtrl.text,
                   );
                 }
-                navigator.pop();
+                navigator.pop<void>();
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -541,7 +541,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     backgroundColor: isEdit ? Colors.blue : Colors.green,
                   ),
                 );
-              } catch (e) {
+              } catch (Object e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

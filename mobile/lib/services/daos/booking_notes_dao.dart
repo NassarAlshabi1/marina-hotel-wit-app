@@ -19,7 +19,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     final q = select(bookingNotes);
     if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
     if (bookingId != null) q.where((t) => t.bookingId.equals(bookingId));
-    return q.get();
+    return q.get<dynamic>();
   }
 
   Stream<List<BookingNote>> watchByBooking(

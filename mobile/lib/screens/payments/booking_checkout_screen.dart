@@ -30,7 +30,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   String get screenId => 'booking_checkout';
   bool _isProcessing = false;
-  StreamSubscription? _hotelDayTickerSub;
+  StreamSubscription<void>? _hotelDayTickerSub;
 
   @override
   void initState() {
@@ -552,11 +552,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () => Navigator.of(ctx).pop<void>(false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
+              onPressed: () => Navigator.of(ctx).pop<void>(true),
               child: const Text('حفظ'),
             ),
           ],
@@ -615,7 +615,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             ),
           ),
         );
-      } catch (e) {
+      } catch (Object e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
@@ -641,11 +641,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () => Navigator.of(ctx).pop<void>(false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
+              onPressed: () => Navigator.of(ctx).pop<void>(true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               child: const Text('إتمام'),
             ),
@@ -694,9 +694,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               ),
             ),
           );
-          Navigator.of(context).pop();
+          Navigator.of(context).pop<void>();
         }
-      } catch (e) {
+      } catch (Object e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),

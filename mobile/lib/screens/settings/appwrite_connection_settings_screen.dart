@@ -100,7 +100,7 @@ class _AppwriteConnectionSettingsScreenState
 
         _showRestartDialog();
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         SnackBarHelper.showError(context, 'خطأ في حفظ الإعدادات: $e');
       }
@@ -112,7 +112,7 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   void _showRestartDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -127,7 +127,7 @@ class _AppwriteConnectionSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('حسناً'),
           ),
         ],
@@ -145,11 +145,11 @@ class _AppwriteConnectionSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('إعادة تعيين'),
           ),
@@ -192,7 +192,7 @@ class _AppwriteConnectionSettingsScreenState
     setState(() => _isTesting = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

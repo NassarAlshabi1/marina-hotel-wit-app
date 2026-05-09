@@ -11,7 +11,7 @@ class VectorClock {
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
       return VectorClock(map.map((k, v) => MapEntry(k, v as int)));
-    } catch (e) {
+    } catch (Object) {
       return VectorClock.empty();
     }
   }
@@ -75,14 +75,14 @@ class VectorClock {
       identical(this, other) ||
       other is VectorClock &&
           runtimeType == other.runtimeType &&
-          const MapEquality().equals(clocks, other.clocks);
+          const MapEquality<String, dynamic>().equals(clocks, other.clocks);
 
   @override
-  int get hashCode => const MapEquality().hash(clocks);
+  int get hashCode => const MapEquality<String, dynamic>().hash(clocks);
 }
 
 class MapEquality<K, V> {
-  const MapEquality();
+  const MapEquality<String, dynamic>();
 
   bool equals(Map<K, V>? a, Map<K, V>? b) {
     if (identical(a, b)) return true;

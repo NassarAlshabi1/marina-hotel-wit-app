@@ -165,7 +165,7 @@ class BackupOverviewTab extends ConsumerWidget {
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: (isCloud ? Colors.blue : Colors.green).withOpacity(0.1),
+            color: (isCloud ? Colors.blue : Colors.green).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(
@@ -254,7 +254,7 @@ class BackupOverviewTab extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(UIConstants.spacingMD),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: UIConstants.iconSizeLG),

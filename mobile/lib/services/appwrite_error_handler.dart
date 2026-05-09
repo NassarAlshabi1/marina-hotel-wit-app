@@ -181,7 +181,7 @@ class AppwriteErrorHandler {
 
   /// عرض Dialog للخطأ
   void showErrorDialog(BuildContext context, AppwriteError error) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -218,7 +218,7 @@ class AppwriteErrorHandler {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('حسناً'),
           ),
         ],

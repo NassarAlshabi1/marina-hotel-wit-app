@@ -454,7 +454,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
                   Text('حدث خطأ في إنشاء PDF: ${snapshot.error}'),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop<void>(context),
                     child: const Text('رجوع'),
                   ),
                 ],
@@ -481,10 +481,9 @@ class PdfPreviewHelper {
     required Booking booking,
     required String receivedBy,
   }) {
-    Navigator.push(
+    Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (context) => EnhancedPdfPreviewScreen(
+      MaterialPageRoute<void>(builder: (context) => EnhancedPdfPreviewScreen(
           title: 'إيصال دفع محسّن',
           pdfGenerator: () async {
             final receipt = EnhancedPaymentReceipt(

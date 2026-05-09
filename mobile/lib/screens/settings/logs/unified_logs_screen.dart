@@ -345,7 +345,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: levelColor.withOpacity(0.1),
+            color: levelColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(levelIcon, color: levelColor, size: 20),
@@ -397,7 +397,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _showFilterDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تصفية السجلات'),
@@ -411,7 +411,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                 },
               ),
             ),
@@ -422,7 +422,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                 },
               ),
             ),
@@ -433,7 +433,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                 },
               ),
             ),
@@ -444,7 +444,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                 },
               ),
             ),
@@ -455,7 +455,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
                 groupValue: _selectedLevel,
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                 },
               ),
             ),
@@ -463,7 +463,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -472,7 +472,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _showLogDetails(Map<String, String> log) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تفاصيل السجل'),
@@ -493,7 +493,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -529,7 +529,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _clearLogs() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
@@ -538,12 +538,12 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('تم مسح جميع السجلات')),
               );
@@ -557,7 +557,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _showSettingsDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إعدادات السجلات'),
@@ -580,7 +580,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],

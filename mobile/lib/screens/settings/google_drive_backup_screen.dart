@@ -21,8 +21,8 @@ class GoogleDriveBackupScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const GoogleDriveLogsScreen()),
+            Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(builder: (_) => const GoogleDriveLogsScreen()),
             );
           },
           icon: const Icon(Icons.article_outlined),
@@ -112,7 +112,7 @@ class _GoogleDriveBackupContentState
     }
 
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -476,7 +476,7 @@ class _GoogleDriveBackupContentState
         ? 'SQLite'
         : 'JSON';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الاستعادة'),
@@ -504,12 +504,12 @@ class _GoogleDriveBackupContentState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context).pop<void>(),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(context).pop<void>();
               ref
                   .read(backupStatusProvider.notifier)
                   .restoreFromBackup(backup.fileId);
@@ -549,8 +549,8 @@ class _GoogleDriveBackupContentState
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: syncEnabled
-                        ? Colors.teal.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.teal.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -595,9 +595,9 @@ class _GoogleDriveBackupContentState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.08),
+                  color: Colors.orange.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -693,7 +693,7 @@ class _GoogleDriveBackupContentState
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحديد التكرار'),
@@ -707,7 +707,7 @@ class _GoogleDriveBackupContentState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context).pop<void>(),
             child: const Text('إلغاء'),
           ),
         ],
@@ -726,7 +726,7 @@ class _GoogleDriveBackupContentState
       groupValue: currentSettings.frequency,
       onChanged: (selectedValue) {
         if (selectedValue != null) {
-          Navigator.of(context).pop();
+          Navigator.of(context).pop<void>();
           ref
               .read(backupStatusProvider.notifier)
               .updateAutoBackupSettings(

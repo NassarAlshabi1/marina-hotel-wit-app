@@ -22,7 +22,7 @@ class CacheEntry<T> {
 
 class LayeredCacheService {
   // ─── Tier 1: Memory Cache ───
-  static final Map<String, CacheEntry<dynamic>> _memoryCache = {};
+  static final Map<String, CacheEntry<void>> _memoryCache = {};
   static const int _maxMemoryEntries = 100;
   static final _memoryAccessOrder = <String>[]; // LRU
   
@@ -125,7 +125,7 @@ class LayeredCacheService {
       // For objects (decode JSON)
       final map = jsonDecode(json) as Map<String, dynamic>;
       return map as T; // Cast based on actual type
-    } catch (e) {
+    } catch (Object) {
       return null;
     }
   }
@@ -142,7 +142,7 @@ class LayeredCacheService {
       }
       
       await prefs.setString('cache_v1_$key', json);
-    } catch (e) {
+    } catch (Object) {
       // Disk cache failure - continue without disk cache
     }
   }

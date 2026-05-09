@@ -113,13 +113,13 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
+              color: AppColors.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(50),
             ),
             child: Icon(
               Icons.hotel,
               size: 50,
-              color: AppColors.primaryColor.withOpacity(0.7),
+              color: AppColors.primaryColor.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -225,7 +225,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   void _showRoomActions(BuildContext context, WidgetRef ref, Room room, bool canEdit) {
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
     
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Directionality(
@@ -254,7 +254,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withOpacity(0.1),
+                      color: AppColors.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.edit, color: AppColors.primaryColor),
@@ -262,7 +262,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   title: const Text('تعديل الغرفة'),
                   subtitle: const Text('تغيير السعر والنوع والحالة'),
                   onTap: () {
-                    Navigator.pop(ctx);
+                    Navigator.pop<void>(ctx);
                     _editRoom(context, ref, existing: room);
                   },
                 ),
@@ -270,7 +270,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (isAvailable ? AppColors.dangerColor : AppColors.successColor).withOpacity(0.1),
+                      color: (isAvailable ? AppColors.dangerColor : AppColors.successColor).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -281,7 +281,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   title: Text(isAvailable ? 'تحويل إلى محجوزة' : 'تحويل إلى شاغرة'),
                   subtitle: const Text('تغيير حالة الغرفة بسرعة'),
                   onTap: () async {
-                    Navigator.pop(ctx);
+                    Navigator.pop<void>(ctx);
                     await _quickStatusChange(room, isAvailable ? 'محجوزة' : 'شاغرة');
                   },
                 ),
@@ -290,7 +290,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.infoColor.withOpacity(0.1),
+                    color: AppColors.infoColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.info_outline, color: AppColors.infoColor),
@@ -298,7 +298,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 title: const Text('تفاصيل الغرفة'),
                 subtitle: const Text('عرض المعلومات الكاملة'),
                 onTap: () {
-                  Navigator.pop(ctx);
+                  Navigator.pop<void>(ctx);
                   // هنا يمكن فتح شاشة التفاصيل
                 },
               ),
@@ -320,7 +320,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.hotel, color: color),
@@ -344,7 +344,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -404,7 +404,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -501,13 +501,13 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop<void>(ctx, false),
               child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.pop(ctx, true);
+                  Navigator.pop<void>(ctx, true);
                 }
               },
               icon: const Icon(Icons.save),
@@ -564,7 +564,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         }
       }
       markDataChanged();
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -609,7 +609,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.warningColor.withOpacity(0.1),
+                  color: AppColors.warningColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.price_change, color: AppColors.warningColor),
@@ -681,8 +681,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تطبيق على الحجوزات')),
+            TextButton(onPressed: () => Navigator.pop<void>(ctx, false), child: const Text('إلغاء')),
+            FilledButton(onPressed: () => Navigator.pop<void>(ctx, true), child: const Text('تطبيق على الحجوزات')),
           ],
         ),
       ),
@@ -759,7 +759,7 @@ class _FloorExpansionTile extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.1),
+            color: AppColors.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(Icons.apartment, color: AppColors.primaryColor, size: 20),
@@ -792,10 +792,10 @@ class _RoomGridCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: cardColor.withOpacity(0.3), width: 1.5),
+            border: Border.all(color: cardColor.withValues(alpha: 0.3), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: cardColor.withOpacity(0.1),
+                color: cardColor.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -808,7 +808,7 @@ class _RoomGridCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: cardColor.withOpacity(0.1),
+                  color: cardColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -830,7 +830,7 @@ class _RoomGridCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: cardColor.withOpacity(0.1),
+                  color: cardColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -890,9 +890,9 @@ class _RoomListCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Center(
                   child: Text(
@@ -924,7 +924,7 @@ class _RoomListCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.infoColor.withOpacity(0.1),
+                              color: AppColors.infoColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -958,7 +958,7 @@ class _RoomListCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -988,7 +988,7 @@ class _RoomListCard extends StatelessWidget {
                   icon: const Icon(Icons.edit, size: 20),
                   color: AppColors.primaryColor,
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor.withOpacity(0.1),
+                    backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1),
                   ),
                 ),
               ],

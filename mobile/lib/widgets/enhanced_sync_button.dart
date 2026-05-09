@@ -129,7 +129,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       final error = SyncErrorRecovery.instance.createError(
         operation: 'manual_sync',
         table: 'all',
@@ -169,7 +169,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showErrorDetails(SyncError error) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -205,13 +205,13 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           if (error.isRetriable)
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _triggerSync();
               },
               child: const Text('إعادة المحاولة'),
             ),
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -232,7 +232,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showSyncOptions() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -262,7 +262,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('رفع التغييرات'),
                 subtitle: const Text('رفع التغييرات المحلية إلى السحابة'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   await _pushOnly();
                 },
               ),
@@ -271,7 +271,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('سحب التحديثات'),
                 subtitle: const Text('تحميل آخر التحديثات من السحابة'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   await _pullOnly();
                 },
               ),
@@ -280,7 +280,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('مزامنة كاملة'),
                 subtitle: const Text('رفع وسحب جميع البيانات'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   await _triggerSync();
                 },
               ),
@@ -289,7 +289,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 title: const Text('فحص سلامة البيانات'),
                 subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   await _verifyIntegrity();
                 },
               ),
@@ -301,7 +301,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                     '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
                   ),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop<void>(context);
                     _showErrorLog();
                   },
                 ),
@@ -327,9 +327,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: healthColor.withOpacity(0.1),
+        color: healthColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: healthColor.withOpacity(0.3)),
+        border: Border.all(color: healthColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,7 +371,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -411,7 +411,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -454,7 +454,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في سحب التحديثات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -479,7 +479,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   Future<void> _verifyIntegrity() async {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -495,9 +495,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
     try {
       final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
 
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -527,15 +527,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إغلاق'),
             ),
           ],
         ),
       );
-    } catch (e) {
+    } catch (Object) {
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
@@ -548,7 +548,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   void _showErrorLog() {
     final errors = SyncErrorRecovery.instance.recentErrors;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -597,12 +597,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           TextButton(
             onPressed: () {
               SyncErrorRecovery.instance.clearErrors();
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
             },
             child: const Text('مسح السجل'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
         ],
@@ -652,14 +652,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [buttonColor.withOpacity(0.8), buttonColor],
+                  colors: [buttonColor.withValues(alpha: 0.8), buttonColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: buttonColor.withOpacity(0.3),
+                    color: buttonColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),

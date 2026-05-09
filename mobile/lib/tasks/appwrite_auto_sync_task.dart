@@ -34,7 +34,7 @@ void appwriteAutoSyncCallbackDispatcher() {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object) {
       return false;
     }
   });

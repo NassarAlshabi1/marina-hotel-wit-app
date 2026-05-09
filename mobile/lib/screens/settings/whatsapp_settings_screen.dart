@@ -207,7 +207,7 @@ class _WhatsAppSettingsScreenState
               : 'تحقق من الإعدادات وحاول مرة أخرى.',
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       setState(() => _isTesting = false);
       _showTestResult(false, 'فشل الاتصال', e.toString());
@@ -222,7 +222,7 @@ class _WhatsAppSettingsScreenState
   }
 
   void _showTestResult(bool success, String title, String detail) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -273,7 +273,7 @@ class _WhatsAppSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop<void>(ctx),
             child: const Text('إغلاق'),
           ),
         ],
@@ -303,7 +303,7 @@ class _WhatsAppSettingsScreenState
           subtitle: result.error ?? 'حدث خطأ غير معروف',
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       setState(() => _isSyncing = false);
       _showSyncResult(
@@ -336,11 +336,11 @@ class _WhatsAppSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop<void>(ctx, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop<void>(ctx, true),
             icon: const Icon(Icons.download, size: 18),
             label: const Text('تنزيل'),
             style: ElevatedButton.styleFrom(
@@ -382,7 +382,7 @@ class _WhatsAppSettingsScreenState
           subtitle: result.error ?? 'حدث خطأ غير معروف',
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       setState(() => _isSyncing = false);
       _showSyncResult(
@@ -817,7 +817,7 @@ class _WhatsAppSettingsScreenState
     required String title,
     required String subtitle,
   }) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
@@ -850,7 +850,7 @@ class _WhatsAppSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop<void>(ctx),
             child: const Text('حسناً'),
           ),
         ],

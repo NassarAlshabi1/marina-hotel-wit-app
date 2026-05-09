@@ -458,9 +458,9 @@ class _CreateDebtFromBookingScreenState
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop<void>();
       }
-    } catch (e) {
+    } catch (Object e) {
       _showError('حدث خطأ: $e');
     } finally {
       if (mounted) {
@@ -494,7 +494,7 @@ class _CreateDebtFromBookingScreenState
       _notesController.text.isNotEmpty;
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -503,13 +503,13 @@ class _CreateDebtFromBookingScreenState
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop<void>(ctx),
               child: const Text('لا'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).pop();
+                Navigator.pop<void>(ctx);
+                Navigator.of(context).pop<void>();
               },
               child: const Text('نعم'),
             ),

@@ -638,7 +638,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _performManualSync(BuildContext context) async {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -655,7 +655,7 @@ class _AutoSyncEngineMonitorScreenState
     try {
       final result = await AutoSyncEngine.instance.forceSyncNow();
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop<void>();
 
       if (mounted) {
         final message = result.success
@@ -665,14 +665,14 @@ class _AutoSyncEngineMonitorScreenState
             : '❌ ${result.message}\n'
                   '${result.error ?? ""}';
 
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: Text(result.success ? 'نجح!' : 'فشل'),
             content: Text(message),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop<void>(context),
                 child: const Text('حسناً'),
               ),
             ],
@@ -681,8 +681,8 @@ class _AutoSyncEngineMonitorScreenState
       }
 
       ref.invalidate(autoSyncEngineStateProvider);
-    } catch (e) {
-      if (mounted) Navigator.of(context).pop();
+    } catch (Object e) {
+      if (mounted) Navigator.of(context).pop<void>();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
@@ -709,7 +709,7 @@ class _AutoSyncEngineMonitorScreenState
 
     statusAsync.when(
       data: (status) {
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('الحالة الكاملة (JSON)'),
@@ -721,7 +721,7 @@ class _AutoSyncEngineMonitorScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop<void>(context),
                 child: const Text('إغلاق'),
               ),
             ],
@@ -761,7 +761,7 @@ class _AutoSyncEngineMonitorScreenState
           return;
         }
 
-        showModalBottomSheet(
+        showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           builder: (context) => DraggableScrollableSheet(
@@ -830,7 +830,7 @@ class _AutoSyncEngineMonitorScreenState
         );
       },
       loading: () {
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => const AlertDialog(
             content: Row(
@@ -865,7 +865,7 @@ class _AutoSyncEngineMonitorScreenState
         (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
 
     if (mounted) {
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط Debouncing'),
@@ -883,7 +883,7 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setDebounceSeconds(value);
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) Navigator.pop<void>(context);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -910,7 +910,7 @@ class _AutoSyncEngineMonitorScreenState
         (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
 
     if (mounted) {
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط فترة Pull'),
@@ -928,7 +928,7 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setPullInterval(value);
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) Navigator.pop<void>(context);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -954,7 +954,7 @@ class _AutoSyncEngineMonitorScreenState
     final currentStrategy = await resolver.getStrategy();
 
     if (mounted) {
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('استراتيجية حل التضارب'),
@@ -970,7 +970,7 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setConflictStrategy(value);
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) Navigator.pop<void>(context);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

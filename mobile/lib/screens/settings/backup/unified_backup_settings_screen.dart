@@ -58,7 +58,6 @@ class _UnifiedBackupSettingsScreenState
   }
 
   Widget _buildOverviewSection(BackupState state) {
-    final lastBackup = state.lastBackupTime ?? state.lastLocalBackupTime;
     final dbSize = state.databaseSizeBytes;
     final totalBackups =
         state.availableBackups.length + state.localBackups.length;
@@ -246,8 +245,8 @@ class _UnifiedBackupSettingsScreenState
                   ),
                   decoration: BoxDecoration(
                     color: state.isSignedIn
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -485,7 +484,7 @@ class _UnifiedBackupSettingsScreenState
   }
 
   void _showBackupFrequencyDialog(AutoBackupSettings current) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تكرار النسخ الاحتياطي'),
@@ -499,7 +498,7 @@ class _UnifiedBackupSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
         ],
@@ -519,13 +518,13 @@ class _UnifiedBackupSettingsScreenState
         value: value,
         groupValue: current,
         onChanged: (v) {
-          Navigator.pop(context);
+          Navigator.pop<void>(context);
           final settings = ref.read(backupStatusProvider).autoSettings;
           _updateAutoSettings(settings.copyWith(frequency: value));
         },
       ),
       onTap: () {
-        Navigator.pop(context);
+        Navigator.pop<void>(context);
         final settings = ref.read(backupStatusProvider).autoSettings;
         _updateAutoSettings(settings.copyWith(frequency: value));
       },
@@ -533,7 +532,7 @@ class _UnifiedBackupSettingsScreenState
   }
 
   void _confirmSignOut() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تسجيل الخروج من Google Drive'),
@@ -542,12 +541,12 @@ class _UnifiedBackupSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               ref.read(backupStatusProvider.notifier).signOut();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -605,11 +604,11 @@ class _UnifiedBackupSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             child: const Text('تنظيف'),
           ),
         ],

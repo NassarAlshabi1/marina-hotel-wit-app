@@ -127,7 +127,7 @@ class BookingDerivedFieldsService {
         }
         await refreshForBooking(booking, now: moment, forceRebuild: true);
         return (promoted: didPromote, refreshed: true);
-      } catch (e) {
+      } catch (Object e) {
         debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         return (promoted: false, refreshed: false);
       }
@@ -149,6 +149,7 @@ class BookingDerivedFieldsService {
         .write(const BookingsCompanion(status: d.Value('محجوزة')));
   }
 
+  // ignore: unused_element
   double _calculateNightlyRate(
     DateTime segmentStart,
     double baseRate,
@@ -209,6 +210,7 @@ class BookingDerivedFieldsService {
     }
   }
 
+  // ignore: unused_element
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {

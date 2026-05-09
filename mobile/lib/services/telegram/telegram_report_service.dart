@@ -100,7 +100,7 @@ class TelegramReportService {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp: خطأ في التقرير اليومي: $e');
       return false;
     }
@@ -124,7 +124,7 @@ class TelegramReportService {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp: خطأ في إرسال التقرير: $e');
       return false;
     }
@@ -270,7 +270,7 @@ class TelegramReportService {
         unsettledDebts: unsettledDebts,
         alerts: alerts,
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
@@ -296,7 +296,7 @@ class TelegramReportService {
       final timeout = Duration(
         seconds: RemoteConfigService.instance.whatsappApiTimeout,
       );
-      final response = await _httpClient.get(url).timeout(timeout);
+      final response = await _httpClient.get<dynamic>(url).timeout(timeout);
       final body = response.body;
 
       if (response.statusCode == 200) {
@@ -318,7 +318,7 @@ class TelegramReportService {
       }
       debugPrint('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
       return false;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp (CallMeBot): خطأ — $e');
       return false;
     }

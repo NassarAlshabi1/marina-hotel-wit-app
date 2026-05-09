@@ -109,7 +109,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
+                color: Colors.amber.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.amber),
               ),
@@ -195,7 +195,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
     String? localError;
     bool saving = false;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -325,7 +325,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                  onPressed: saving ? null : () => Navigator.pop<void>(dialogContext),
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
@@ -356,7 +356,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                                   permissions: selectedPerms.toList(),
                                 );
                             if (mounted) {
-                              Navigator.pop(dialogContext);
+                              Navigator.pop<void>(dialogContext);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('تم إضافة المستخدم بنجاح'),
@@ -364,7 +364,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                               );
                               _refreshAccounts();
                             }
-                          } catch (e) {
+                          } catch (Object e) {
                             setStateDialog(() {
                               saving = false;
                               localError = e.toString().replaceAll(
@@ -481,7 +481,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
     bool saving = false;
     bool deleteRequested = false;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -610,7 +610,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
+                            color: Colors.orange.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.orange),
                           ),
@@ -667,7 +667,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                             .read(authProvider.notifier)
                             .deleteCloudUser(docId: widget.docId!);
                         if (mounted && success) {
-                          Navigator.pop(dialogContext);
+                          Navigator.pop<void>(dialogContext);
                           widget.onDeleted?.call();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -675,7 +675,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                     'تم حذف المستخدم ${widget.username}',),),
                           );
                         }
-                      } catch (e) {
+                      } catch (Object e) {
                         setDialog(() {
                           saving = false;
                           deleteRequested = false;
@@ -695,7 +695,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   TextButton(
                     onPressed: saving
                         ? null
-                        : () => Navigator.pop(dialogContext),
+                        : () => Navigator.pop<void>(dialogContext),
                     child: const Text('إلغاء'),
                   ),
                   ElevatedButton(
@@ -728,7 +728,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                         : selectedPerms,
                                   );
                               if (mounted && success) {
-                                Navigator.pop(dialogContext);
+                                Navigator.pop<void>(dialogContext);
                                 widget.onUpdated?.call();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -745,7 +745,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                   localError = 'فشل التحديث — تحقق من الاتصال';
                                 });
                               }
-                            } catch (e) {
+                            } catch (Object e) {
                               setDialog(() {
                                 saving = false;
                                 localError = e.toString();
@@ -810,7 +810,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 2,),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),

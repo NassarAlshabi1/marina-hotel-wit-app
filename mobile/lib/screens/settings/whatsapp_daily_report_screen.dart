@@ -24,7 +24,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
   }
 
   Future<void> _loadSettings() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     final state = ref.read(whatsappDailyReportProvider);
     _reportTimeController.text = state.dailyReportTime;
     setState(() => _isLoading = false);
@@ -39,7 +39,6 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(whatsappDailyReportProvider);
-    final theme = Theme.of(context);
     const whatsappGreen = Color(0xFF25D366);
 
     return AppScaffold(
@@ -112,7 +111,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: state.isEnabled ? whatsappGreen.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: state.isEnabled ? whatsappGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -153,7 +152,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -191,9 +190,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: whatsappGreen.withOpacity(0.05),
+                color: whatsappGreen.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: whatsappGreen.withOpacity(0.2)),
+                border: Border.all(color: whatsappGreen.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -202,7 +201,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                   Expanded(
                     child: Text(
                       'يتم الإرسال عبر CallMeBot WhatsApp API',
-                      style: TextStyle(fontSize: 12, color: whatsappGreen.withOpacity(0.8)),
+                      style: TextStyle(fontSize: 12, color: whatsappGreen.withValues(alpha: 0.8)),
                     ),
                   ),
                 ],
@@ -297,7 +296,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -320,9 +319,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: whatsappGreen.withOpacity(0.05),
+                  color: whatsappGreen.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: whatsappGreen.withOpacity(0.2)),
+                  border: Border.all(color: whatsappGreen.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
@@ -331,7 +330,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                     Expanded(
                       child: Text(
                         'كيف تعمل خدمة CallMeBot؟ اضغط هنا',
-                        style: TextStyle(fontSize: 12, color: whatsappGreen.withOpacity(0.8)),
+                        style: TextStyle(fontSize: 12, color: whatsappGreen.withValues(alpha: 0.8)),
                       ),
                     ),
                   ],
@@ -360,7 +359,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: state.isNotificationsEnabled ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: state.isNotificationsEnabled ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -425,9 +424,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
     );
@@ -449,7 +448,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: state.isDailyReportEnabled ? whatsappGreen.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: state.isDailyReportEnabled ? whatsappGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -513,7 +512,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     children: [
                       const Icon(Icons.check_circle, color: Colors.green, size: 16),
@@ -642,7 +641,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
   }
 
   void _showSetupGuide(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -674,7 +673,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop<void>(ctx),
             child: const Text('فهمت'),
           ),
         ],
@@ -704,10 +703,10 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isSuccess
-            ? Colors.green.withOpacity(0.1)
+            ? Colors.green.withValues(alpha: 0.1)
             : isError
-                ? Colors.red.withOpacity(0.1)
-                : Colors.blue.withOpacity(0.1),
+                ? Colors.red.withValues(alpha: 0.1)
+                : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

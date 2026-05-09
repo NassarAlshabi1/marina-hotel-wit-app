@@ -64,7 +64,7 @@ class FcmService {
 
       _isInitialized = true;
       debugPrint('✅ FCM Service initialized');
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ FCM initialization error: $e');
       // لا نمنع التطبيق من العمل إذا فشل FCM
     }
@@ -101,7 +101,7 @@ class FcmService {
         );
       }
       return token;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Failed to get FCM token: $e');
       return null;
     }
@@ -178,7 +178,7 @@ class FcmService {
         await syncManager.sync(push: false);
         debugPrint('✅ FCM: pull completed');
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ FCM: pull error: $e');
     }
   }

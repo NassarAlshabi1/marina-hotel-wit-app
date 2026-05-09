@@ -117,7 +117,7 @@ class WhatsAppNotificationService {
       final timeout = Duration(
         seconds: RemoteConfigService.instance.whatsappApiTimeout,
       );
-      final response = await _httpClient.get(url).timeout(timeout);
+      final response = await _httpClient.get<dynamic>(url).timeout(timeout);
       final body = response.body;
 
       if (response.statusCode == 200) {
@@ -138,7 +138,7 @@ class WhatsAppNotificationService {
       }
       debugPrint('⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
       return false;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp: خطأ في الإرسال — $e');
       return false;
     }
@@ -192,7 +192,7 @@ class WhatsAppNotificationService {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
       return false;
     }
@@ -401,7 +401,7 @@ class WhatsAppNotificationService {
         '&apikey=$_apiKey',
       );
 
-      final response = await _httpClient.get(url);
+      final response = await _httpClient.get<dynamic>(url);
       final success = response.statusCode == 200;
       if (success) {
         debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
@@ -409,7 +409,7 @@ class WhatsAppNotificationService {
         debugPrint('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
       }
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
@@ -440,9 +440,9 @@ class WhatsAppNotificationService {
         '&apikey=$_apiKey',
       );
 
-      final response = await _httpClient.get(url);
+      final response = await _httpClient.get<dynamic>(url);
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
       return false;
     }

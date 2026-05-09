@@ -53,7 +53,8 @@ class _GuestPaymentsDetailReportScreenState
   }
 
   /// حساب الأيام المتبقية حتى تاريخ المغادرة المخطط
-  int _getDaysUntilCheckout(Booking b) {
+  // ignore: unused_element
+int _getDaysUntilCheckout(Booking b) {
     if (b.checkoutDate == null || b.checkoutDate!.isEmpty) return 0;
     final checkout = DateTime.tryParse(b.checkoutDate!);
     if (checkout == null) return 0;
@@ -73,7 +74,8 @@ class _GuestPaymentsDetailReportScreenState
 
   /// حساب التكلفة الفعلية حتى الآن (مع مراعاة تعديلات الأسعار)
   /// يُستخدم consumedCost من StayBalanceCalculator بدلاً من حساب بسيط
-  double _getConsumedCost(Booking b) {
+  // ignore: unused_element
+double _getConsumedCost(Booking b) {
     final coverage = _calculateCoverage(b);
     return coverage.consumedCost;
   }
@@ -98,7 +100,8 @@ class _GuestPaymentsDetailReportScreenState
   }
 
   /// تكلفة أيام التأخير
-  double _getOverdueCost(Booking b) {
+  // ignore: unused_element
+double _getOverdueCost(Booking b) {
     final days = _getOverdueDays(b);
     if (days <= 0) return 0;
     return _getAverageNightlyRate(b) * days;
@@ -135,7 +138,7 @@ class _GuestPaymentsDetailReportScreenState
           _adjustmentsByBookingId = grouped;
         });
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('Error refreshing data: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -397,7 +400,6 @@ class _GuestPaymentsDetailReportScreenState
     final coverage = _calculateCoverage(b);
     final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
     final plannedCheckout = coverage.autoCheckoutDate;
-    final paidNights = coverage.totalPaidNights;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
     final autoOverdueCost = autoOverdueDays * nightlyRate;
@@ -478,7 +480,6 @@ class _GuestPaymentsDetailReportScreenState
 
   Widget _buildDatesSection(Booking b, StayBalanceResult coverage) {
     final plannedCheckout = coverage.autoCheckoutDate;
-    final paidNights = coverage.totalPaidNights;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
 
@@ -738,7 +739,6 @@ class _GuestPaymentsDetailReportScreenState
 
         // ─── قسم المغادرة المخططة (محسوبة من المدفوعات) + التمديد عند التجاوز ───
         final plannedCheckout = coverage.autoCheckoutDate;
-        final paidNights = coverage.totalPaidNights;
         final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
         final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
         final autoOverdueCost = autoOverdueDays * nightlyRate;

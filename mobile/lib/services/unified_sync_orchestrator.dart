@@ -71,7 +71,7 @@ class UnifiedSyncOrchestrator {
   SmartSyncManager? _smart;
   AppDatabase? _database;
 
-  StreamSubscription? _appwriteSub;
+  StreamSubscription<void>? _appwriteSub;
   StreamSubscription<SyncResult>? _driveSub;
   Timer? _debounceTimer;
 
@@ -243,7 +243,7 @@ class UnifiedSyncOrchestrator {
       }
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في الرفع التلقائي: $e');
       return false;
     } finally {
@@ -306,7 +306,7 @@ class UnifiedSyncOrchestrator {
       );
 
       return success;
-    } catch (e) {
+    } catch (Object e) {
       _emit(
         _state.copyWith(
           phase: 'error',
@@ -534,7 +534,7 @@ class UnifiedSyncOrchestrator {
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       _emit(
         _state.copyWith(
           phase: 'error',

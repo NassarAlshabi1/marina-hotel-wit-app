@@ -26,7 +26,7 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       return _dateTimeFormat.format(date);
-    } catch (e) {
+    } catch (Object) {
       return 'تاريخ غير صالح';
     }
   }
@@ -38,7 +38,7 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       return _dateFormat.format(date);
-    } catch (e) {
+    } catch (Object) {
       return 'تاريخ غير صالح';
     }
   }
@@ -50,7 +50,7 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       return _timeFormat.format(date);
-    } catch (e) {
+    } catch (Object) {
       return 'وقت غير صالح';
     }
   }
@@ -62,7 +62,7 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       return _dateTimeFullFormat.format(date);
-    } catch (e) {
+    } catch (Object) {
       return 'تاريخ غير صالح';
     }
   }
@@ -74,7 +74,7 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       return _arabicDateFormat.format(date);
-    } catch (e) {
+    } catch (Object) {
       return 'تاريخ غير صالح';
     }
   }
@@ -86,7 +86,7 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       return _arabicDateTimeFormat.format(date);
-    } catch (e) {
+    } catch (Object) {
       return 'تاريخ غير صالح';
     }
   }
@@ -126,7 +126,7 @@ class DateTimeFormatter {
         final years = (difference.inDays / 365).floor();
         return 'منذ $years ${years == 1 ? 'سنة' : 'سنوات'}';
       }
-    } catch (e) {
+    } catch (Object) {
       return 'تاريخ غير صالح';
     }
   }
@@ -151,7 +151,7 @@ class DateTimeFormatter {
       } else {
         return '${(difference.inDays / 365).floor()}سنة';
       }
-    } catch (e) {
+    } catch (Object) {
       return '-';
     }
   }
@@ -166,7 +166,7 @@ class DateTimeFormatter {
       return date.year == now.year &&
           date.month == now.month &&
           date.day == now.day;
-    } catch (e) {
+    } catch (Object) {
       return false;
     }
   }
@@ -181,7 +181,7 @@ class DateTimeFormatter {
       return date.year == yesterday.year &&
           date.month == yesterday.month &&
           date.day == yesterday.day;
-    } catch (e) {
+    } catch (Object) {
       return false;
     }
   }

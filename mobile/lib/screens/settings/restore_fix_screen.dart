@@ -451,7 +451,7 @@ class RestoreFixScreen extends ConsumerWidget {
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ غير متوقع: $e'),
@@ -490,7 +490,7 @@ class RestoreFixScreen extends ConsumerWidget {
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في التصدير: $e'),

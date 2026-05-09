@@ -207,7 +207,7 @@ class SyncConflictResolver {
         '📝 تم تسجيل تعارض #$id في $table/$localUuid للمراجعة اليدوية',
       );
       return id;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ فشل تسجيل التعارض $table/$localUuid: $e');
       rethrow;
     }
@@ -332,7 +332,7 @@ class SyncConflictResolver {
     try {
       final state = await db.select(db.syncState).getSingleOrNull();
       return state?.lastPullTs ?? 0;
-    } catch (e) {
+    } catch (Object e) {
       _log('⚠️ فشل قراءة lastPullTs: $e');
       return 0;
     }
@@ -368,7 +368,7 @@ class SyncConflictResolver {
           .getSingleOrNull();
 
       return result?.data;
-    } catch (e) {
+    } catch (Object e) {
       _log('⚠️ فشل البحث عن سجل محلي في $table/$localUuid: $e');
       return null;
     }

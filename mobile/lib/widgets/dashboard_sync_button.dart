@@ -73,7 +73,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           _pendingChangesCount = count;
         });
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
@@ -91,7 +91,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       } else {
         _appwriteEnabled = enabled;
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
@@ -109,7 +109,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     String? deviceId;
     try {
       deviceId = await _getDeviceId();
-    } catch (e) {
+    } catch (Object) {
       deviceId = 'unknown';
     }
 
@@ -260,7 +260,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ),
         );
       }
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في سحب التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
@@ -307,7 +307,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     String? deviceId;
     try {
       deviceId = await _getDeviceId();
-    } catch (e) {
+    } catch (Object) {
       deviceId = 'unknown';
     }
 
@@ -452,7 +452,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               'pushed': _pendingChangesCount,
             };
           }
-        } catch (e) {
+        } catch (Object e) {
           results['Appwrite'] = {
             'success': false,
             'pushed': 0,
@@ -470,7 +470,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'success': result,
             'pushed': _pendingChangesCount,
           };
-        } catch (e) {
+        } catch (Object e) {
           results['Google Drive'] = {
             'success': false,
             'pushed': 0,
@@ -606,7 +606,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       ref.invalidate(smartSyncStatusProvider);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ فشل رفع التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
@@ -703,7 +703,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             );
           }
           return false;
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
           return false;
         }
@@ -712,7 +712,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       debugPrint('✅ تم حل $resolvedCount تعارض');
       return resolvedCount;
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في حل التعارضات: $e');
       return 0;
     }
@@ -728,7 +728,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         await prefs.setString('device_id', deviceId);
       }
       return deviceId;
-    } catch (e) {
+    } catch (Object) {
       return 'unknown_device';
     }
   }
@@ -784,14 +784,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             duration: const Duration(milliseconds: 300),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor.withOpacity(0.85), buttonColor],
+                colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: buttonColor.withOpacity(pullEnabled ? 0.4 : 0.1),
+                  color: buttonColor.withValues(alpha: pullEnabled ? 0.4 : 0.1),
                   blurRadius: pullEnabled ? 8 : 4,
                   offset: const Offset(0, 2),
                 ),
@@ -851,7 +851,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withOpacity(0.5),
+                      color: Colors.blue.withValues(alpha: 0.5),
                       blurRadius: 6,
                       spreadRadius: 1,
                     ),
@@ -911,14 +911,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             duration: const Duration(milliseconds: 300),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor.withOpacity(0.85), buttonColor],
+                colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: buttonColor.withOpacity(pushEnabled ? 0.4 : 0.1),
+                  color: buttonColor.withValues(alpha: pushEnabled ? 0.4 : 0.1),
                   blurRadius: pushEnabled ? 8 : 4,
                   offset: const Offset(0, 2),
                 ),
@@ -978,7 +978,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.red.withOpacity(0.5),
+                      color: Colors.red.withValues(alpha: 0.5),
                       blurRadius: 6,
                       spreadRadius: 1,
                     ),

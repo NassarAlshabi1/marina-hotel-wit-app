@@ -173,7 +173,7 @@ class AuthLocalStore {
         );
       }
       return cloudAccounts;
-    } catch (e) {
+    } catch (Object e) {
       AppLogger.warning(
         'Failed to load cloud users (fallback to local only)',
         tag: 'AUTH',
@@ -316,7 +316,7 @@ class AuthLocalStore {
         },
       );
       AppLogger.debug('User $username pushed to cloud', tag: 'AUTH');
-    } catch (e) {
+    } catch (Object e) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
@@ -369,7 +369,7 @@ class AuthLocalStore {
         tag: 'AUTH',
       );
       return true;
-    } catch (e) {
+    } catch (Object e) {
       AppLogger.error(
         'Failed to update cloud user $username',
         tag: 'AUTH',
@@ -392,7 +392,7 @@ class AuthLocalStore {
       );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
       return true;
-    } catch (e) {
+    } catch (Object e) {
       AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
       return false;
     }
@@ -452,7 +452,7 @@ class AuthLocalStore {
         }
       }
       return true;
-    } catch (e) {
+    } catch (Object e) {
       AppLogger.warning('Session check failed (ignoring)', tag: 'AUTH', error: e);
       return true;
     }
@@ -658,7 +658,7 @@ class AuthLocalStore {
         'Permissions updated for $username in cloud',
         tag: 'AUTH',
       );
-    } catch (e) {
+    } catch (Object e) {
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',

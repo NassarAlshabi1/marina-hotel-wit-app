@@ -105,7 +105,7 @@ class AppwriteRealtimeService {
         (response) {
           _handleRealtimeResponse(response, collectionId, handler);
         },
-        onError: (error) {
+        onError: (Object error) {
           _logger.error(
             'Realtime subscription error for $collectionId',
             error: error,
@@ -172,7 +172,7 @@ class AppwriteRealtimeService {
         (response) {
           _handleRealtimeResponse(response, collectionId, handler);
         },
-        onError: (error) {
+        onError: (Object error) {
           _logger.error(
             'Realtime subscription error for document $documentId',
             error: error,
@@ -229,7 +229,7 @@ class AppwriteRealtimeService {
           collectionId: collectionId,
           handler: handler,
         );
-      } catch (e) {
+      } catch (Object e) {
         _logger.warning(
           'Failed to subscribe to $collectionId, continuing...',
           error: e,
@@ -370,7 +370,7 @@ class AppwriteRealtimeService {
           // لا شيء
           break;
       }
-    } catch (e) {
+    } catch (Object e) {
       _logger.warning(
         'Failed to update cache on Realtime event',
         error: e,

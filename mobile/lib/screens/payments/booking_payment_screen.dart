@@ -45,7 +45,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
-  StreamSubscription? _hotelDayTickerSub;
+  StreamSubscription<void>? _hotelDayTickerSub;
 
 
   Payment _mapDbPaymentToUi(db.Payment p) {
@@ -209,14 +209,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       canPop: !_isSavingPayment,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('جاري الحفظ'),
             content: const Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop<void>(ctx),
                 child: const Text('حسناً'),
               ),
             ],
@@ -227,10 +227,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       title: 'معالجة المدفوعات',
       actions: [
         IconButton(
-          onPressed: () => Navigator.push(
+          onPressed: () => Navigator.push<void>(
             context,
-            MaterialPageRoute(
-              builder: (context) =>
+            MaterialPageRoute<void>(builder: (context) =>
                   PaymentHistoryScreen(bookingId: widget.booking.localUuid),
             ),
           ),
@@ -635,8 +634,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: summary.isFullyPaid
-                      ? Colors.green.withOpacity(0.2)
-                      : Colors.orange.withOpacity(0.2),
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.orange.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: summary.isFullyPaid ? Colors.green : Colors.orange,
@@ -877,9 +876,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -893,7 +892,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -912,9 +911,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.08),
+        color: chipColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: chipColor.withOpacity(0.2)),
+        border: Border.all(color: chipColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1091,7 +1090,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: method.color.withOpacity(0.3)),
+            border: Border.all(color: method.color.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1155,10 +1154,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         'عرض تاريخ جميع المدفوعات',
         Icons.history,
         Colors.purple,
-        () => Navigator.push(
+        () => Navigator.push<void>(
           context,
-          MaterialPageRoute(
-            builder: (context) =>
+          MaterialPageRoute<void>(builder: (context) =>
                 PaymentHistoryScreen(bookingId: widget.booking.localUuid),
           ),
         ),
@@ -1262,7 +1260,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: color.withOpacity(0.15),
+                backgroundColor: color.withValues(alpha: 0.15),
                 child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(height: 10),
@@ -1328,7 +1326,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final cardDigitsController = TextEditingController();
     final bankController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -1414,7 +1412,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
@@ -1637,7 +1635,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
     final perNight = nights > 0 ? (amount / nights).round() : 0;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -1676,7 +1674,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
@@ -1711,7 +1709,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
 
-    Navigator.pop(context);
+    Navigator.pop<void>(context);
 
     // حساب المتبقي الجديد
     final roomsRepo = ref.read(roomsRepoProvider);
@@ -1973,11 +1971,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.pop<void>(ctx, false),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () => Navigator.pop<void>(ctx, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
                 child: const Text('تأكيد التمديد والدفع'),
               ),
@@ -2066,7 +2064,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
       }
 
-      Navigator.pop(context);
+      Navigator.pop<void>(context);
 
       if (mounted) {
         setState(() {
@@ -2109,7 +2107,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2130,7 +2128,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   void _showReceiptDialog(Payment payment) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تم تسجيل الدفعة بنجاح'),
@@ -2146,12 +2144,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إغلاق'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               _generateReceipt(payment);
             },
             child: const Text('طباعة إيصال'),
@@ -2175,7 +2173,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         generatedAt: DateTime.now(),
       );
       await receipt.generatePDF();
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(content: Text('خطأ في إنشاء الإيصال: $e')),
@@ -2216,7 +2214,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         generatedAt: DateTime.now(),
       );
       await invoice.generatePDF();
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(content: Text('خطأ في إنشاء الفاتورة: $e')),
@@ -2229,7 +2227,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   void _showCheckoutConfirmation(BookingPaymentSummary summary) {
     final hasRemaining = summary.remainingAmount > 0;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -2292,12 +2290,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop<void>(context);
               _processCheckout();
             },
             style: ElevatedButton.styleFrom(
@@ -2369,7 +2367,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (!mounted) return;
 
     final dateFmt = DateFormat('dd/MM/yyyy');
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -2445,13 +2443,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
           if (refundAmount > 0)
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _processEarlyCheckout(
                   refundAmount.round(),
                   unusedNights,
@@ -2465,7 +2463,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           if (refundAmount <= 0)
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _processCheckout();
               },
               icon: const Icon(Icons.check_circle, size: 18),
@@ -2560,7 +2558,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في المغادرة المبكرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2643,8 +2641,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-      Navigator.pop(context);
-    } catch (e) {
+      Navigator.pop<void>(context);
+    } catch (Object e) {
       debugPrint('❌ خطأ في تسجيل المغادرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2666,7 +2664,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final hotelDay = Time.hotelDayKey();
 
     // عرض نافذة التأكيد مع تفاصيل الدفعات
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => FutureBuilder<List<db.Payment>>(
         future: paymentsRepo.paymentsByBooking(widget.booking.id).first,
@@ -2698,7 +2696,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop<void>(context),
                   child: const Text('إغلاق'),
                 ),
               ],
@@ -2797,12 +2795,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop<void>(context),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   _processCancelTodayPayments(todayPayments);
                 },
                 icon: const Icon(Icons.check_circle, size: 18),
@@ -2826,7 +2824,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // حذف (soft delete) دفعات اليوم الفندقي عبر PaymentsRepository
       // الذي يكتب إلى outbox تلقائياً عبر dao.softDelete → _mergeOutbox
       for (final p in paymentsToCancel) {
-        await paymentsRepo.delete(p.id);
+        await paymentsRepo.delete<dynamic>(p.id);
       }
 
       // ✅ تسجيل تغيير المزامنة (نفس النمط الموجود في _processCheckout)
@@ -2848,7 +2846,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في إلغاء دفعات اليوم: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2875,7 +2873,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final messagePreview = _buildAccountStatementMessage(summary);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -3016,12 +3014,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop<void>(context);
                 _performSendAccountStatement(summary);
               },
               icon: const Icon(Icons.send, size: 18),
@@ -3227,7 +3225,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3300,7 +3298,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3318,7 +3316,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final nightsController = TextEditingController(text: '1');
     final notesController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => StreamBuilder<db.Room?>(
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
@@ -3384,12 +3382,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop<void>(context),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                   _processExtendStay(
                     int.tryParse(nightsController.text) ?? 1,
                     roomRate,
@@ -3490,7 +3488,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
       );
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('❌ خطأ في تمديد الإقامة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3542,7 +3540,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     try {
       final date = DateTime.parse(dateStr);
       return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
+    } catch (Object) {
       return dateStr;
     }
   }

@@ -497,10 +497,10 @@ class AppwriteSchemaVerifier {
 
     final databases = Databases(client);
     final results = <String, dynamic>{
-      'collections': {},
-      'missing': [],
-      'errors': [],
-      'summary': {},
+      'collections': <String, dynamic>{},
+      'missing': <Map<String, dynamic>>[],
+      'errors': <String>[],
+      'summary': <String, dynamic>{},
     };
 
     int totalCollections = 0;
@@ -531,7 +531,7 @@ class AppwriteSchemaVerifier {
         };
 
         debugPrint('   📄 عدد المستندات: ${response.total}');
-      } catch (e) {
+      } catch (Object e) {
         missingCollections++;
         debugPrint('   ❌ غير موجود: $collectionId');
         results['missing'].add(collectionId);

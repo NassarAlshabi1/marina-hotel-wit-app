@@ -108,7 +108,7 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
           _result = buffer.toString();
         });
       }
-    } catch (e) {
+    } catch (Object e) {
       setState(() {
         _result = '❌ خطأ: $e';
       });
@@ -143,8 +143,8 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: _result!.contains('✅')
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _result!.contains('✅') ? Colors.green : Colors.orange,

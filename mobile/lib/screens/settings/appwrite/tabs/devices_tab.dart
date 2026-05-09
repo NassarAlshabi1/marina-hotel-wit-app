@@ -55,7 +55,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(UIConstants.spacingLG),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -155,7 +155,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: (isActive ? Colors.green : Colors.grey).withOpacity(0.1),
+            color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(

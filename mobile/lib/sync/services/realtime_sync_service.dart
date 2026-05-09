@@ -25,8 +25,8 @@ class RealtimeSyncService {
   final RealtimeConfig _config;
 
   WebSocketChannel? _channel;
-  StreamSubscription? _messageSubscription;
-  StreamSubscription? _connectivitySubscription;
+  StreamSubscription<void>? _messageSubscription;
+  StreamSubscription<void>? _connectivitySubscription;
   Timer? _reconnectTimer;
   Timer? _pingTimer;
 
@@ -189,7 +189,7 @@ class RealtimeSyncService {
     // بدلاً من تطبيق التغيير مباشرة، نستخدم DeltaSyncEngine لضمان السلامة
     try {
       await _orchestrator.pullOnly();
-    } catch (e) {
+    } catch (Object e) {
       developer.log(
         'Failed to sync on remote change',
         name: 'RealtimeSync',
@@ -199,7 +199,7 @@ class RealtimeSyncService {
   }
 
   /// معالجة خطأ
-  void _handleError(error) {
+  void _handleError(Object error) {
     developer.log('WebSocket error: $error', name: 'RealtimeSync');
     _handleDisconnect();
   }
@@ -291,7 +291,7 @@ class RealtimeSyncService {
 
     try {
       _channel!.sink.add(jsonEncode(message));
-    } catch (e) {
+    } catch (Object e) {
       developer.log('Failed to send message: $e', name: 'RealtimeSync');
     }
   }

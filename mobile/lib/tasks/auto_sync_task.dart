@@ -39,7 +39,7 @@ void autoSyncCallbackDispatcher() {
       }
 
       return success;
-    } catch (error, stackTrace) {
+    } catch (Object error, StackTrace stackTrace) {
       developer.log(
         'Auto-sync background task failed',
         name: 'AutoSyncTask',

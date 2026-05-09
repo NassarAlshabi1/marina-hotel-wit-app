@@ -96,7 +96,7 @@ class SmartSyncManager {
               iosInfo.identifierForVendor ??
               'ios-${DateTime.now().millisecondsSinceEpoch}';
         }
-      } catch (e) {
+      } catch (Object) {
         deviceIdentifier = 'device-${DateTime.now().millisecondsSinceEpoch}';
       }
 
@@ -174,7 +174,7 @@ class SmartSyncManager {
 
       // تسجيل نجاح المزامنة
       optimizer.recordSyncSuccess();
-    } catch (e) {
+    } catch (Object) {
       // تسجيل فشل المزامنة
       optimizer.recordSyncFailure();
       rethrow;
@@ -258,7 +258,7 @@ class SmartSyncManager {
 
       // تحديث timestamp آخر فحص
       await _updateLastSyncTime();
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في فحص المزامنة: $e');
     } finally {
       await SyncLocks.smartSyncLock.synchronized(() async {
@@ -297,7 +297,7 @@ class SmartSyncManager {
       SyncPerformanceOptimizer.instance.recordSyncSuccess();
 
       _log('✅ تمت المزامنة بنجاح');
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في مزامنة البيانات: $e');
 
       // تسجيل فشل المزامنة
@@ -343,7 +343,7 @@ class SmartSyncManager {
       await _mergeBackupData(backupData);
 
       _log('✅ تم دمج البيانات بنجاح');
-    } catch (e) {
+    } catch (Object) {
       _log('❌ خطأ في دمج البيانات، استعادة النسخة المحلية...');
       // استعادة البيانات المحلية في حالة الخطأ
       await _restoreLocalBackup(localBackupData);
@@ -499,7 +499,7 @@ class SmartSyncManager {
                   lastNoteTitle = (noteData['title'] as String?) ?? 'بدون عنوان';
                   noteCreator = (noteData['created_by'] as String?) ?? 'مسؤول';
                 }
-              } catch (e) {
+              } catch (Object e) {
                 _log('⚠️ تعذر تحليل تاريخ الملاحظة: $createdAtStr - $e');
               }
             }
@@ -519,7 +519,7 @@ class SmartSyncManager {
           );
         }
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('⚠️ خطأ في فحص الملاحظات الجديدة: $e');
     }
   }
@@ -568,7 +568,7 @@ class SmartSyncManager {
         title: '🔄 تحديث جديد من $deviceId',
         body: 'تم استلام تغييرات جديدة وتحديث البيانات',
       );
-    } catch (e) {
+    } catch (Object e) {
       _log('⚠️ فشل إرسال الإشعار: $e');
     }
   }
@@ -613,7 +613,7 @@ class SmartSyncManager {
       await pullRemoteChanges();
       _log('✅ تمت المزامنة الفورية بنجاح');
       return true;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ فشل في المزامنة الفورية: $e');
       return false;
     }
@@ -728,7 +728,7 @@ class SmartSyncManager {
 
       _log('✅ لا توجد تغييرات محلية معلقة');
       return false;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في فحص التغييرات المحلية: $e');
       return false;
     }
@@ -757,7 +757,7 @@ class SmartSyncManager {
         () => _isSyncing,
       );
       if (!isSyncing) break;
-      await Future.delayed(SyncConstants.shortPollingDelay);
+      await Future<void>.delayed(SyncConstants.shortPollingDelay);
       retries++;
     }
 
@@ -804,7 +804,7 @@ class SmartSyncManager {
         _log('❌ فشل Delta Sync: ${deltaResult.message}');
         return false;
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في رفع التغييرات: $e');
       return false;
     } finally {
@@ -897,7 +897,7 @@ class SmartSyncManager {
 
       _log('ℹ️ لا توجد تغييرات جديدة');
       return false;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في سحب التغييرات: $e');
       return false;
     } finally {

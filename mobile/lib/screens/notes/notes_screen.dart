@@ -225,7 +225,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         try {
           await repo.markAsRead(note.id);
           _refreshData();
-        } catch (e) {
+        } catch (Object e) {
           debugPrint('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
         }
       case 'edit':
@@ -251,11 +251,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         content: const Text('هل تريد حذف هذه الملاحظة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<void>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<void>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف'),
           ),
@@ -267,7 +267,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       try {
         await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
         _refreshData();
-      } catch (e) {
+      } catch (Object e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -285,7 +285,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     var priority = note?.priority.name ?? 'medium';
     final shiftType = note?.shiftType.name ?? 'all';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -328,7 +328,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop<void>(context),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
@@ -342,7 +342,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
                     priority,
                     shiftType,
                   );
-                  Navigator.pop(context);
+                  Navigator.pop<void>(context);
                 }
               },
               child: Text(note == null ? 'إضافة' : 'تحديث'),
@@ -384,7 +384,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
 
       markDataChanged();
       _refreshData();
-    } catch (e) {
+    } catch (Object e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

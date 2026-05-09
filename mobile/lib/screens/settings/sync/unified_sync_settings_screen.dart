@@ -363,7 +363,7 @@ class _UnifiedSyncSettingsScreenState
   }
 
   void _showSyncIntervalDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
@@ -373,28 +373,28 @@ class _UnifiedSyncSettingsScreenState
             ListTile(
               title: const Text('5 دقائق'),
               leading: Radio(value: 5, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
+              onTap: () => Navigator.pop<void>(context),
             ),
             ListTile(
               title: const Text('15 دقيقة'),
               leading: Radio(value: 15, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
+              onTap: () => Navigator.pop<void>(context),
             ),
             ListTile(
               title: const Text('30 دقيقة'),
               leading: Radio(value: 30, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
+              onTap: () => Navigator.pop<void>(context),
             ),
             ListTile(
               title: const Text('ساعة واحدة'),
               leading: Radio(value: 60, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
+              onTap: () => Navigator.pop<void>(context),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop<void>(context),
             child: const Text('إلغاء'),
           ),
         ],

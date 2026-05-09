@@ -103,7 +103,7 @@ class AnalyticsService {
       _analytics = FirebaseAnalytics.instance;
       await _analytics!.setAnalyticsCollectionEnabled(true);
       developer.log('✅ AnalyticsService initialized', name: 'AnalyticsService');
-    } catch (e) {
+    } catch (Object e) {
       developer.log('⚠️ Analytics initialization failed: $e', name: 'AnalyticsService');
       // لا نوقف التطبيق بسبب فشل التحليلات
     }
@@ -145,7 +145,7 @@ class AnalyticsService {
         name: eventName,
         parameters: allParameters,
       );
-    } catch (e) {
+    } catch (Object) {
       // لا نوقف التطبيق بسبب فشل إرسال التحليلات
     }
   }
@@ -357,7 +357,7 @@ class AnalyticsService {
         screenName: screenName,
         screenClass: screenClass ?? screenName,
       );
-    } catch (e) {
+    } catch (Object) {
       // تجاهل أخطاء التحليلات
     }
   }
@@ -374,7 +374,7 @@ class AnalyticsService {
         name: name,
         parameters: parameters.map((key, value) => MapEntry(key, value as Object)),
       );
-    } catch (e) {
+    } catch (Object) {
       // تجاهل الأخطاء
     }
   }

@@ -121,7 +121,7 @@ class _SyncHealthDashboardScreenState
     final statusText = _getStatusText(status);
 
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -750,7 +750,7 @@ class StatusIndicator extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color, width: 2),
       ),
@@ -809,7 +809,7 @@ class CircuitBreakerCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -837,9 +837,9 @@ class CircuitBreakerCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               statusText,

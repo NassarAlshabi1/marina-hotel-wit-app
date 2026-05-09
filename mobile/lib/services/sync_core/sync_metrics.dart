@@ -217,7 +217,7 @@ class SyncMetrics {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = _history.map((s) => jsonEncode(s.toJson())).toList();
       await prefs.setStringList(_prefsKey, jsonList);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ SyncMetrics: فشل حفظ السجل: $e');
     }
   }
@@ -236,7 +236,7 @@ class SyncMetrics {
 
       debugPrint('📊 SyncMetrics: تم تحميل ${_history.length} سجل');
       _updateStats();
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ SyncMetrics: فشل تحميل السجل: $e');
     }
   }

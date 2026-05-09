@@ -84,7 +84,7 @@ class _SettingsMaintenanceScreenState
     try {
       final info = await _collectSystemInfo();
       if (mounted) setState(() => _info = info);
-    } catch (e) {
+    } catch (Object e) {
       debugPrint('⚠️ Failed to load system info: $e');
     } finally {
       if (mounted) setState(() => _isLoadingInfo = false);
@@ -424,7 +424,7 @@ class _SettingsMaintenanceScreenState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.15),
+          backgroundColor: color.withValues(alpha: 0.15),
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -439,9 +439,9 @@ class _SettingsMaintenanceScreenState
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.08),
+        color: Colors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.red.withOpacity(0.2)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,7 +471,7 @@ class _SettingsMaintenanceScreenState
 
   void _showLoading(String message) {
     setState(() => _isWorking = true);
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -488,7 +488,7 @@ class _SettingsMaintenanceScreenState
 
   void _hideLoading() {
     setState(() => _isWorking = false);
-    Navigator.of(context, rootNavigator: true).pop();
+    Navigator.of(context, rootNavigator: true).pop<void>();
   }
 
   void _showSnack(String message, {Color? color}) {
@@ -506,7 +506,7 @@ class _SettingsMaintenanceScreenState
   // ─── تنظيف البيانات المؤقتة ───────────────────────────
 
   void _showCleanupDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تنظيف البيانات المؤقتة'),
@@ -519,10 +519,10 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري التنظيف...');
               try {
                 await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
@@ -530,7 +530,7 @@ class _SettingsMaintenanceScreenState
                 _hideLoading();
                 _showSnack('تم التنظيف بنجاح', color: Colors.green);
                 _loadSystemInfo();
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -545,22 +545,22 @@ class _SettingsMaintenanceScreenState
   // ─── فحص قاعدة البيانات ──────────────────────────────
 
   void _showDatabaseCheckDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('فحص قاعدة البيانات'),
         content: const Text('سيتم التحقق من سلامة الجداول وبياناتها.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري فحص قاعدة البيانات...');
               try {
                 final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
                 _hideLoading();
                 if (mounted) _showIntegrityResults(checks);
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ في الفحص: $e', color: Colors.red);
               }
@@ -573,7 +573,7 @@ class _SettingsMaintenanceScreenState
   }
 
   void _showIntegrityResults(List<dynamic> checks) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -616,7 +616,7 @@ class _SettingsMaintenanceScreenState
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إغلاق')),
         ],
       ),
     );
@@ -625,7 +625,7 @@ class _SettingsMaintenanceScreenState
   // ─── VACUUM ─────────────────────────────────────────────
 
   void _showVacuumDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('ضغط قاعدة البيانات'),
@@ -642,10 +642,10 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
               try {
                 final db = ref.read(databaseProvider);
@@ -659,7 +659,7 @@ class _SettingsMaintenanceScreenState
                   color: Colors.green,
                 );
                 _loadSystemInfo();
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ في الضغط: $e', color: Colors.red);
               }
@@ -684,7 +684,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين المزامنة ─────────────────────────────
 
   void _showResetSyncDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة تعيين المزامنة'),
@@ -698,10 +698,10 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري إعادة تعيين المزامنة...');
               try {
                 await ref.read(appwriteSyncManagerProvider).resetSyncState();
@@ -712,7 +712,7 @@ class _SettingsMaintenanceScreenState
                 _hideLoading();
                 _showSnack('تم إعادة تعيين المزامنة بنجاح', color: Colors.green);
                 _loadSystemInfo();
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
               }
@@ -727,7 +727,7 @@ class _SettingsMaintenanceScreenState
   // ─── معالجة الرصيد التراكمي ──────────────────────────
 
   void _showProcessPendingBalanceDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -742,10 +742,10 @@ class _SettingsMaintenanceScreenState
           'إلى مدفوعات فعلية مع إعادة حساب الأرصدة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري معالجة الرصيد التراكمي...');
               try {
                 final result = await _processPendingBalances(ref);
@@ -755,7 +755,7 @@ class _SettingsMaintenanceScreenState
                 } else if (mounted) {
                   _showProcessingResultDialog(context, result);
                 }
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -814,7 +814,7 @@ class _SettingsMaintenanceScreenState
   ) {
     final totalAmount = results.fold<double>(0, (s, r) => s + (r['amount'] as double));
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -832,7 +832,7 @@ class _SettingsMaintenanceScreenState
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.1),
+                  color: Colors.teal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -863,7 +863,7 @@ class _SettingsMaintenanceScreenState
                       dense: true,
                       leading: CircleAvatar(
                         radius: 14,
-                        backgroundColor: Colors.teal.withOpacity(0.1),
+                        backgroundColor: Colors.teal.withValues(alpha: 0.1),
                         child: Text(
                           r['roomNumber'] as String,
                           style: const TextStyle(
@@ -888,7 +888,7 @@ class _SettingsMaintenanceScreenState
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+            TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إغلاق')),
           ],
         ),
       ),
@@ -898,7 +898,7 @@ class _SettingsMaintenanceScreenState
   // ─── مسح Outbox ───────────────────────────────────────
 
   void _showOutboxResetDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('مسح Outbox المعطّل'),
@@ -907,10 +907,10 @@ class _SettingsMaintenanceScreenState
           'إلى حالة "معلقة" للمحاولة مرة أخرى.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري إعادة تعيين Outbox...');
               try {
                 final db = ref.read(databaseProvider);
@@ -923,7 +923,7 @@ class _SettingsMaintenanceScreenState
                   color: Colors.green,
                 );
                 _loadSystemInfo();
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -939,7 +939,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تشغيل الخدمات ──────────────────────────────
 
   void _showRestartDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة تشغيل الخدمات'),
@@ -948,10 +948,10 @@ class _SettingsMaintenanceScreenState
           'قد يستغرق ذلك بضع ثوانٍ.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري إعادة تشغيل الخدمات...');
               try {
                 await SyncGuardian.instance.restart();
@@ -959,7 +959,7 @@ class _SettingsMaintenanceScreenState
                 _hideLoading();
                 _showSnack('تم إعادة تشغيل الخدمات بنجاح', color: Colors.green);
                 _loadSystemInfo();
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ: $e', color: Colors.red);
               }
@@ -975,7 +975,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين التطبيق ─────────────────────────────
 
   void _showResetAppDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -990,10 +990,10 @@ class _SettingsMaintenanceScreenState
           'سيتم حذف جميع البيانات المحلية نهائياً وإعادة التهيئة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showConfirmResetDialog(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -1005,7 +1005,7 @@ class _SettingsMaintenanceScreenState
   }
 
   void _showConfirmResetDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تأكيد نهائي'),
@@ -1013,10 +1013,10 @@ class _SettingsMaintenanceScreenState
           'هل أنت متأكد تماماً؟\nسيتم فقدان جميع البيانات.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop<void>(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              Navigator.pop<void>(ctx);
               _showLoading('جاري إعادة تعيين التطبيق...');
               try {
                 await DatabaseManager.close();
@@ -1033,7 +1033,7 @@ class _SettingsMaintenanceScreenState
                 _hideLoading();
                 _showSnack('تم إعادة تعيين التطبيق بنجاح', color: Colors.green);
                 _loadSystemInfo();
-              } catch (e) {
+              } catch (Object e) {
                 _hideLoading();
                 _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
               }

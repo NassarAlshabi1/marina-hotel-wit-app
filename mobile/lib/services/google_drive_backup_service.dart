@@ -187,7 +187,7 @@ class GoogleDriveBackupService {
     if (account == null) {
       try {
         account = await _googleSignIn?.signInSilently();
-      } catch (e) {
+      } catch (Object e) {
         _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
     }
@@ -204,7 +204,7 @@ class GoogleDriveBackupService {
     await _ensureDriveClient();
     try {
       return await action();
-    } on drive.DetailedApiRequestError catch (e) {
+    } on drive.DetailedApiRequestError catch (Object e) {
       if (e.status == 401) {
         _log(
           '⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...',
@@ -244,7 +244,7 @@ class GoogleDriveBackupService {
       }
 
       return account;
-    } catch (e) {
+    } catch (Object e) {
       final arabicError = _getArabicErrorMessage(e);
       _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
       _log('❌ تفاصيل الخطأ التقنية: $e');
@@ -277,7 +277,7 @@ class GoogleDriveBackupService {
         _log('ℹ️ لا توجد جلسة محفوظة');
         return null;
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('⚠️ فشلت استعادة الجلسة: $e');
       return null;
     }
@@ -299,7 +299,7 @@ class GoogleDriveBackupService {
 
       _log('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
       return false;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ signInSilently error: $e');
       return false;
     }
@@ -312,7 +312,7 @@ class GoogleDriveBackupService {
       _backupFolderId = null;
       _log('✅ تم تسجيل الخروج من Google Drive');
       _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في تسجيل الخروج: $e');
       rethrow;
     }
@@ -352,7 +352,7 @@ class GoogleDriveBackupService {
         }
 
         return _backupFolderId!;
-      } catch (e) {
+      } catch (Object e) {
         _log('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
         rethrow;
       }
@@ -364,30 +364,30 @@ class GoogleDriveBackupService {
       final db = DatabaseManager.instance;
 
       // تحميل البيانات على دفعات لتجنب استهلاك الذاكرة في قواعد البيانات الكبيرة
-      final roomsData = await _loadTableBatched(db.rooms);
-      final bookingsData = await _loadTableBatched(db.bookings);
-      final bookingNotesData = await _loadTableBatched(db.bookingNotes);
-      final bookingNightsData = await _loadTableBatched(db.bookingNights);
-      final ledgerData = await _loadTableBatched(db.hotelDayLedger);
-      final shiftNotesData = await _loadTableBatched(db.shiftNotes);
-      final employeesData = await _loadTableBatched(db.employees);
-      final expensesData = await _loadTableBatched(db.expenses);
-      final cashTransactionsData = await _loadTableBatched(db.cashTransactions);
-      final paymentsData = await _loadTableBatched(db.payments);
-      final debtsData = await _loadTableBatched(db.debts);
-      final salaryCyclesData = await _loadTableBatched(db.salaryCycles);
-      final salaryPaymentsData = await _loadTableBatched(db.salaryPayments);
-      final priceAdjustmentsData = await _loadTableBatched(db.priceAdjustments);
-      final bookingPriceAdjData = await _loadTableBatched(db.bookingPriceAdjustments);
-      final auditLogsData = await _loadTableBatched(db.auditLogs);
-      final paymentVoidsData = await _loadTableBatched(db.paymentVoids);
-      final guestInfosData = await _loadTableBatched(db.guestInfos);
-      final salaryWithdrawalsData = await _loadTableBatched(db.salaryWithdrawals);
+      final roomsData = await _loadTableBatched<dynamic>(db.rooms);
+      final bookingsData = await _loadTableBatched<dynamic>(db.bookings);
+      final bookingNotesData = await _loadTableBatched<dynamic>(db.bookingNotes);
+      final bookingNightsData = await _loadTableBatched<dynamic>(db.bookingNights);
+      final ledgerData = await _loadTableBatched<dynamic>(db.hotelDayLedger);
+      final shiftNotesData = await _loadTableBatched<dynamic>(db.shiftNotes);
+      final employeesData = await _loadTableBatched<dynamic>(db.employees);
+      final expensesData = await _loadTableBatched<dynamic>(db.expenses);
+      final cashTransactionsData = await _loadTableBatched<dynamic>(db.cashTransactions);
+      final paymentsData = await _loadTableBatched<dynamic>(db.payments);
+      final debtsData = await _loadTableBatched<dynamic>(db.debts);
+      final salaryCyclesData = await _loadTableBatched<dynamic>(db.salaryCycles);
+      final salaryPaymentsData = await _loadTableBatched<dynamic>(db.salaryPayments);
+      final priceAdjustmentsData = await _loadTableBatched<dynamic>(db.priceAdjustments);
+      final bookingPriceAdjData = await _loadTableBatched<dynamic>(db.bookingPriceAdjustments);
+      final auditLogsData = await _loadTableBatched<dynamic>(db.auditLogs);
+      final paymentVoidsData = await _loadTableBatched<dynamic>(db.paymentVoids);
+      final guestInfosData = await _loadTableBatched<dynamic>(db.guestInfos);
+      final salaryWithdrawalsData = await _loadTableBatched<dynamic>(db.salaryWithdrawals);
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
       final blacklistQuery = db.select(db.shiftNotes)
         ..where((t) => t.createdBy.equals('blacklist'));
-      final blacklistData = await blacklistQuery.get();
+      final blacklistData = await blacklistQuery.get<dynamic>();
 
       final totalRecords =
           roomsData.length +
@@ -497,7 +497,7 @@ class GoogleDriveBackupService {
 
       _log('✅ تم تصدير البيانات: $totalRecords سجل');
       return backupData;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في تصدير البيانات: $e');
       rethrow;
     }
@@ -519,7 +519,7 @@ class GoogleDriveBackupService {
       // تحويل الجدول إلى TableInfo لاستخدامه مع select
       final tableInfo = table as TableInfo;
       final query = db.select(tableInfo)..limit(batchSize, offset: offset);
-      final batch = await query.get();
+      final batch = await query.get<dynamic>();
       if (batch.isEmpty) break;
       allData.addAll(batch.cast<T>());
       offset += batchSize;
@@ -652,7 +652,7 @@ class GoogleDriveBackupService {
         _log('✅ تم رفع $typeLabel بنجاح: ${uploadedFile.id}');
         partialFileId = null; // تم بنجاح، لا حاجة للتنظيف
         return uploadedFile.id!;
-      } catch (e) {
+      } catch (Object e) {
         _log('❌ خطأ في رفع النسخة الاحتياطية: $e');
 
         // حذف النسخة الجزئية إذا كانت موجودة
@@ -703,7 +703,7 @@ class GoogleDriveBackupService {
   ) async {
     try {
       final file =
-          await _driveApi!.files.get(
+          await _driveApi!.files.get<dynamic>(
                 fileId,
                 $fields: 'id,name,size,appProperties',
               )
@@ -735,7 +735,7 @@ class GoogleDriveBackupService {
         'message': 'النسخة مكتملة',
         'actual_size': actualSize,
       };
-    } catch (e) {
+    } catch (Object e) {
       return {'is_complete': false, 'message': 'فشل التحقق: $e'};
     }
   }
@@ -810,7 +810,7 @@ class GoogleDriveBackupService {
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
     return _runWithAuth<Map<String, dynamic>>(() async {
       final media =
-          await _driveApi!.files.get(
+          await _driveApi!.files.get<dynamic>(
                 fileId,
                 downloadOptions: drive.DownloadOptions.fullMedia,
               )
@@ -906,35 +906,35 @@ class GoogleDriveBackupService {
         await db.transaction(() async {
           // حذف جميع الجداول بالترتيب الصحيح (الأبناء قبل الآباء)
           // Level 3 – أبناء بعيدة (تشير لأبناء أو آباء)
-          await db.delete(db.bookingNotes).go();
-          await db.delete(db.bookingNights).go();
-          await db.delete(db.bookingPriceAdjustments).go();
-          await db.delete(db.paymentVoids).go();
+          await db.delete<dynamic>(db.bookingNotes).go();
+          await db.delete<dynamic>(db.bookingNights).go();
+          await db.delete<dynamic>(db.bookingPriceAdjustments).go();
+          await db.delete<dynamic>(db.paymentVoids).go();
           // Level 2 – أبناء مباشرة تشير للآباء الرئيسية
-          await db.delete(db.payments).go();
-          await db.delete(db.debts).go();
-          await db.delete(db.salaryPayments).go();          // FK → employees, salaryCycles
-          await db.delete(db.salaryWithdrawals).go();      // FK → employees
-          await db.delete(db.expenses).go();
-          await db.delete(db.cashTransactions).go();
-          await db.delete(db.auditLogs).go();
-          await db.delete(db.guestInfos).go();
+          await db.delete<dynamic>(db.payments).go();
+          await db.delete<dynamic>(db.debts).go();
+          await db.delete<dynamic>(db.salaryPayments).go();          // FK → employees, salaryCycles
+          await db.delete<dynamic>(db.salaryWithdrawals).go();      // FK → employees
+          await db.delete<dynamic>(db.expenses).go();
+          await db.delete<dynamic>(db.cashTransactions).go();
+          await db.delete<dynamic>(db.auditLogs).go();
+          await db.delete<dynamic>(db.guestInfos).go();
           // Level 1 – آباء رئيسية (يُشار إليها من جداول أعلاه)
-          await db.delete(db.bookings).go();
-          await db.delete(db.rooms).go();
-          await db.delete(db.employees).go();
-          await db.delete(db.salaryCycles).go();
+          await db.delete<dynamic>(db.bookings).go();
+          await db.delete<dynamic>(db.rooms).go();
+          await db.delete<dynamic>(db.employees).go();
+          await db.delete<dynamic>(db.salaryCycles).go();
           // Level 0 – جداول مستقلة بدون FK صادرة
-          await db.delete(db.hotelDayLedger).go();
-          await db.delete(db.shiftNotes).go();
-          await db.delete(db.integrityViolations).go();
-          await db.delete(db.autoFixRuns).go();
-          await db.delete(db.syncConflicts).go();
-          await db.delete(db.syncLog).go();
-          await db.delete(db.syncQueue).go();
-          await db.delete(db.syncState).go();
-          await db.delete(db.restoreFixLog).go();
-          await db.delete(db.appSessions).go();
+          await db.delete<dynamic>(db.hotelDayLedger).go();
+          await db.delete<dynamic>(db.shiftNotes).go();
+          await db.delete<dynamic>(db.integrityViolations).go();
+          await db.delete<dynamic>(db.autoFixRuns).go();
+          await db.delete<dynamic>(db.syncConflicts).go();
+          await db.delete<dynamic>(db.syncLog).go();
+          await db.delete<dynamic>(db.syncQueue).go();
+          await db.delete<dynamic>(db.syncState).go();
+          await db.delete<dynamic>(db.restoreFixLog).go();
+          await db.delete<dynamic>(db.appSessions).go();
 
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
@@ -1271,7 +1271,7 @@ class GoogleDriveBackupService {
               for (final key in keys) {
                 if (settings.containsKey(key) && settings[key] != null) {
                   final val = settings[key];
-                  final currentVal = prefs.get(key);
+                  final currentVal = prefs.get<dynamic>(key);
 
                   if (val != currentVal) {
                     if (val is bool) await prefs.setBool(key, val);
@@ -1312,7 +1312,7 @@ class GoogleDriveBackupService {
                   await AutoBackupTask.cancelScheduled();
                 }
               }
-            } catch (e) {
+            } catch (Object e) {
               _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
             }
           }
@@ -1341,7 +1341,7 @@ class GoogleDriveBackupService {
           } else {
             _log('✅ التحقق من FK: لا توجد انتهاكات');
           }
-        } catch (e) {
+        } catch (Object e) {
           _log('⚠️ تعذر التحقق من سلامة FK: $e');
         }
       }
@@ -1401,7 +1401,7 @@ class GoogleDriveBackupService {
         );
         debugPrint('Stack trace: $st');
       }
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;
     }
@@ -1451,7 +1451,7 @@ class GoogleDriveBackupService {
 
     try {
       await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
       await AutoBackupTask.initialize();
 
       await Workmanager().registerPeriodicTask(
@@ -1468,7 +1468,7 @@ class GoogleDriveBackupService {
       );
 
       _log('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في جدولة النسخ التلقائي: $e');
     }
   }
@@ -1477,7 +1477,7 @@ class GoogleDriveBackupService {
     try {
       await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
       _log('✅ تم إلغاء النسخ التلقائي');
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في إلغاء النسخ التلقائي: $e');
     }
   }
@@ -1495,7 +1495,7 @@ class GoogleDriveBackupService {
       final fileId = await uploadBackup(backupData);
 
       _log('✅ تم النسخ التلقائي بنجاح: $fileId');
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في النسخ التلقائي: $e');
     }
   }
@@ -1562,7 +1562,7 @@ class GoogleDriveBackupService {
       final backupData = await exportDatabaseToJson();
       final jsonString = const JsonEncoder().convert(backupData);
       return utf8.encode(jsonString).length;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في تقدير حجم قاعدة البيانات: $e');
       return 0;
     }
@@ -1570,7 +1570,7 @@ class GoogleDriveBackupService {
 
   Future<void> deleteBackupFile(String fileId) async {
     await _runWithAuth<void>(() async {
-      await _driveApi!.files.delete(fileId);
+      await _driveApi!.files.delete<dynamic>(fileId);
       _log('🗑️ تم حذف النسخة الاحتياطية: $fileId');
     });
   }
@@ -1647,7 +1647,7 @@ class GoogleDriveBackupService {
           try {
             await deleteBackupFile(backup.fileId);
             deletedCount++;
-          } catch (e) {
+          } catch (Object e) {
             _log('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
           }
         }
@@ -1668,7 +1668,7 @@ class GoogleDriveBackupService {
       }
 
       return deletedCount;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في تنظيف النسخ القديمة: $e');
       rethrow;
     }
@@ -1718,7 +1718,7 @@ class GoogleDriveBackupService {
             incompleteBackups.add(backup);
             continue;
           }
-        } catch (e) {
+        } catch (Object e) {
           _log('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
           incompleteBackups.add(backup);
           continue;
@@ -1742,14 +1742,14 @@ class GoogleDriveBackupService {
         try {
           await deleteBackupFile(backup.fileId);
           deletedCount++;
-        } catch (e) {
+        } catch (Object e) {
           _log('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
         }
       }
 
       _log('✅ تم حذف $deletedCount نسخة ناقصة');
       return deletedCount;
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في فحص النسخ الناقصة: $e');
       return 0;
     }
@@ -1794,7 +1794,7 @@ class GoogleDriveBackupService {
         'oldest_backup_name': backups.last.fileName,
         'newest_backup_name': backups.first.fileName,
       };
-    } catch (e) {
+    } catch (Object e) {
       _log('❌ خطأ في الحصول على إحصائيات النسخ: $e');
       return {};
     }

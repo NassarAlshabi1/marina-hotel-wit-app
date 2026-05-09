@@ -158,7 +158,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       try {
         final date = DateTime.parse(p.paymentDate);
         return date.isAfter(startOfMonth);
-      } catch (e) {
+      } catch (Object) {
         return false;
       }
     }).toList();
@@ -456,10 +456,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     ),
                     trailing: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.push(
+                        Navigator.push<void>(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) =>
+                          MaterialPageRoute<void>(builder: (context) =>
                                 BookingCheckoutScreen(booking: booking),
                           ),
                         );
@@ -524,7 +523,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     PaymentMethod selectedMethod = PaymentMethod.cash;
 
     try {
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => Directionality(
@@ -628,7 +627,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop<void>(ctx),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
@@ -709,7 +708,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       );
 
       if (mounted) {
-        Navigator.pop(dialogContext);
+        Navigator.pop<void>(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -728,7 +727,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         extra: {'amount': amountText, 'method': method.name},
       );
       if (mounted) {
-        Navigator.pop(dialogContext);
+        Navigator.pop<void>(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),

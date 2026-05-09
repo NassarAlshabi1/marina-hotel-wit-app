@@ -177,7 +177,7 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
             .into(table)
             .insert(companion, mode: d.InsertMode.insertOrReplace);
         processed++;
-      } catch (e) {
+      } catch (Object e) {
         failed++;
         final errorMsg = 'Failed to sync $tableName ${doc.$id}: $e';
         errors.add(errorMsg);
@@ -229,7 +229,7 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
 
             batch.insert(table, companion, mode: d.InsertMode.insertOrReplace);
             processed++;
-          } catch (e) {
+          } catch (Object e) {
             failed++;
             final errorMsg = 'Failed to sync $tableName ${doc.$id}: $e';
             errors.add(errorMsg);
