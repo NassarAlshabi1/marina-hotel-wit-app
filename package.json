@@ -15,12 +15,12 @@
     "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.44.0",
+    "@playwright/test": "^1.59.1",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@daytonaio/sdk": "^0.21.5",
+    "@daytonaio/sdk": "^0.173.0",
     "node-appwrite": "^20.3.0"
   }
 }
