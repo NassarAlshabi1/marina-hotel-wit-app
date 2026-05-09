@@ -544,8 +544,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
 
     return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -555,7 +555,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: summary.isFullyPaid
               ? Colors.green.shade200
@@ -568,16 +568,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Row(
             children: [
               CircleAvatar(
+                radius: 13,
                 backgroundColor: Colors.blue,
                 child: Text(
                   widget.booking.roomNumber,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    fontSize: 10,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -585,35 +587,35 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     Text(
                       widget.booking.guestName,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 9,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
                     ),
                     Text(
                       identityLine,
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
                     ),
                     Text(
                       'الجنسية: ${widget.booking.guestNationality}',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
                     ),
                     Text(
                       'الوصول: $checkinText',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
                     ),
                     if (plannedText != null)
                       Text(
                         'المغادرة المخطط: $plannedText',
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 9,
                           color: Colors.grey,
                         ),
                       ),
@@ -634,14 +636,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           : '';
                       return Text(
                         'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        style: const TextStyle(fontSize: 8, color: Colors.grey),
                       );
                     },),
                     if (actualText != null)
                       Text(
                         'المغادرة الفعلي: $actualText',
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 9,
                           color: Colors.green,
                         ),
                       ),
@@ -649,12 +651,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: summary.isFullyPaid
                       ? Colors.green.withValues(alpha: 0.2)
                       : Colors.orange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: summary.isFullyPaid ? Colors.green : Colors.orange,
                   ),
@@ -662,7 +664,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 child: Text(
                   summary.isFullyPaid ? 'مكتمل الدفع' : 'دفع جزئي',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                     color: summary.isFullyPaid ? Colors.green : Colors.orange,
                   ),
@@ -670,10 +672,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 1),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 3,
+            runSpacing: 3,
             children: [
               _buildDetailChip(
                 context,
@@ -700,23 +702,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               if (hasNotCheckedOut && nowIsAfterCutoff && actualNightsDynamic > expectedNights)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 6,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: Colors.orange.shade400),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.schedule, size: 14, color: Colors.orange.shade700),
-                      const SizedBox(width: 4),
+                      Icon(Icons.schedule, size: 12, color: Colors.orange.shade700),
+                      const SizedBox(width: 3),
                       Text(
                         '+${actualNightsDynamic - expectedNights} ليلة بعد 14:00',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.orange.shade700,
                           fontWeight: FontWeight.bold,
                         ),
@@ -727,23 +729,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               if (_debtAmount > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 6,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: Colors.red.shade300),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.warning, size: 14, color: Colors.red.shade700),
-                      const SizedBox(width: 4),
+                      Icon(Icons.warning, size: 12, color: Colors.red.shade700),
+                      const SizedBox(width: 3),
                       Text(
                         'يوجد دين ${_currencyFmt.format(_debtAmount)}',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.red.shade700,
                           fontWeight: FontWeight.bold,
                         ),
@@ -787,7 +789,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 1),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -798,24 +800,24 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     'تقدم الدفع',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: 9,
                     ),
                   ),
                   Text(
                     '${summary.paidPercentage.toStringAsFixed(1)}%',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: 9,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 1),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: progressPercentage,
-                  minHeight: 4,
+                  minHeight: 2,
                   backgroundColor: Colors.grey.shade300,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     summary.isFullyPaid ? Colors.green : Colors.blue,
@@ -824,7 +826,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 1),
           Row(
             children: [
               Expanded(
@@ -834,7 +836,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   Colors.blue,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 3),
               Expanded(
                 child: _buildAmountChip(
                   'المدفوع',
@@ -842,7 +844,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   Colors.green,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 3),
               Expanded(
                 child: _buildAmountChip(
                   'المتبقي',
@@ -850,7 +852,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   Colors.red,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 3),
               Expanded(
                 child: _buildAmountChip(
                   'مدفوع اليوم',
@@ -860,7 +862,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 2),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -870,17 +872,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 'رصيد تراكمي للنزيل',
                 true,
               ),
-              icon: const Icon(Icons.account_balance_wallet),
+              icon: const Icon(Icons.account_balance_wallet, size: 14),
               label: const Text(
                 'إضافة دفعة رصيد تراكمي',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.indigo,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
@@ -892,10 +894,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildAmountChip(String label, double amount, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -903,14 +905,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Text(
             _currencyFmt.format(amount),
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
+            style: TextStyle(fontSize: 7, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -927,27 +929,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }) {
     final chipColor = color ?? Theme.of(context).colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
         color: chipColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: chipColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: chipColor),
-          const SizedBox(width: 6),
+          Icon(icon, size: 10, color: chipColor),
+          const SizedBox(width: 3),
           Text(
             label,
             style: TextStyle(
               color: chipColor,
               fontWeight: FontWeight.bold,
-              fontSize: 10,
+              fontSize: 8,
             ),
           ),
-          const SizedBox(width: 6),
-          Text(value, style: TextStyle(color: chipColor, fontSize: 11)),
+          const SizedBox(width: 2),
+          Text(value, style: TextStyle(color: chipColor, fontSize: 8)),
         ],
       ),
     );
@@ -984,15 +986,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       onRefresh: _refreshBookingNights,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'إضافة دفعة جديدة',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // نموذج إضافة الدفعة
           _buildPaymentForm(summary, nights: nights, remainingAmount: remainingAmount, roomRate: roomRate),
@@ -1034,9 +1036,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                childAspectRatio: 3.2,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
               ),
               itemCount: 2,
               itemBuilder: (context, index) {
@@ -1047,15 +1049,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             );
           },
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         const Align(
           alignment: Alignment.centerRight,
           child: Text(
             'دفعات سريعة',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -1065,7 +1067,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 summary,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: _buildQuickPaymentButton(
                 '50%',
@@ -1073,7 +1075,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 summary,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: _buildQuickPaymentButton(
                 '75%',
@@ -1081,7 +1083,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 summary,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: _buildQuickPaymentButton(
                 '100%',
@@ -1100,27 +1102,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildPaymentMethodCard(PaymentMethod method) {
     return Card(
-      elevation: 2,
+      elevation: 1,
       child: InkWell(
         onTap: () => _showPaymentDialog(method),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: method.color.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(method.icon, color: method.color, size: 20),
-              const SizedBox(width: 8),
+              Icon(method.icon, color: method.color, size: 14),
+              const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   method.displayName,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: method.color,
+                    fontSize: 11,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1144,14 +1147,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
           Text(
             _currencyFmt.format(amount),
-            style: const TextStyle(fontSize: 12),
+            style: const TextStyle(fontSize: 9),
           ),
         ],
       ),
@@ -1210,7 +1214,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1218,9 +1222,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.1,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.6,
             children: actions,
           ),
           const SizedBox(height: 12),
@@ -1266,36 +1270,36 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     VoidCallback onTap,
   ) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(6),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircleAvatar(
-                radius: 24,
+                radius: 14,
                 backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 15),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               Text(
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 10,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 1),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 8, color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
