@@ -68,8 +68,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   ];
   // أنواع المصروفات تُقرأ من الإعدادات المخصصة
   List<String> _expenseTypes = [];
-  // هل تم تحميل أنواع المصروفات بنجاح؟
-  bool _expenseTypesLoaded = false;
 
   @override
   void initState() {
@@ -79,26 +77,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Future<void> _loadExpenseTypes() async {
-    try {
-      final types = await ref.read(expenseTypesProvider.future);
-      if (mounted) {
-        setState(() {
-          _expenseTypes = types;
-          _expenseTypesLoaded = true;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading expense types: $e');
-      if (mounted) {
-        setState(() {
-          _expenseTypes = const [
-            'رواتب', 'صيانة', 'مواد تنظيف', 'كهرباء وماء',
-            'اتصالات وإنترنت', 'تسويق وإعلان', 'ضيافة',
-            'مواصلات', 'ايجار', 'اخرى',
-          ];
-          _expenseTypesLoaded = true;
-        });
-      }
+    final types = await ref.read(expenseTypesProvider.future);
+    if (mounted) {
+      setState(() {
+        _expenseTypes = types;
+      });
     }
   }
 
@@ -464,15 +447,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
-    // تأكد من أن النوع المحدد موجود في القائمة، وإلا استخدم 'اخرى'
-    final existingType = existing?.expenseType;
-    if (existingType != null && _expenseTypes.contains(existingType)) {
-      selectedType = existingType;
-    } else if (existingType != null && _isSalaryAction(existingType)) {
-      selectedType = _salaryType;
-    } else {
-      selectedType = _expenseTypes.isNotEmpty ? _expenseTypes.last : 'اخرى';
-    }
+    selectedType = existing?.expenseType ?? 'اخرى';
 
     if (existing != null && _isSalaryAction(existing.expenseType)) {
       selectedType = _salaryType;
@@ -499,10 +474,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _expenseTypes.contains(selectedType) ? selectedType : null,
+                    value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
-                    hint: const Text('اختر نوع المصروف'),
                     items: _expenseTypes
                         .map(
                           (type) => DropdownMenuItem<String>(
@@ -515,13 +489,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       if (value == null) return;
                       setState(() {
                         selectedType = value;
-                        dialogSalaryAction = _salaryWithdrawAction;
                         if (selectedType == _salaryType) {
                           if (availableEmployees.isNotEmpty) {
                             selectedEmployeeId ??= availableEmployees.first.id;
                           }
                         } else {
                           selectedEmployeeId = null;
+                          dialogSalaryAction = _salaryWithdrawAction;
                         }
                       });
                     },
