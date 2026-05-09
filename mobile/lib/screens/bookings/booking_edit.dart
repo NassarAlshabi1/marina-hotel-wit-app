@@ -56,12 +56,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   // متغيرات الدفع المتقدم
   bool _hasAdvancePayment = false;
   final _advancePayment = TextEditingController();
-  String _paymentMethod = 'نقداً';
+  String _paymentMethod = 'نقدي';
   final _paymentNotes = TextEditingController();
 
-  // القوائم الديناميكية
-  List<String> _idTypes = kDefaultIdTypes;
-  List<String> _paymentMethods = kDefaultPaymentMethods;
+  /// أنواع الهوية من القائمة الديناميكية
+  List<String> get _idTypes {
+    final asyncTypes = ref.watch(customListNamesProvider(kListKeyIdType));
+    return asyncTypes.valueOrNull ?? kDefaultIdTypes;
+  }
+
+  /// طرق الدفع من القائمة الديناميكية
+  List<String> get _paymentMethods {
+    final asyncTypes = ref.watch(customListNamesProvider(kListKeyPaymentMethod));
+    return asyncTypes.valueOrNull ?? kDefaultPaymentMethods;
+  }
 
   static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];
 
@@ -118,22 +126,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _recalculateExpectedNights(),
     );
-    _loadCustomLists();
-  }
-
-  Future<void> _loadCustomLists() async {
-    try {
-      final idTypes = await ref.read(customListNamesProvider(kListKeyIdType).future);
-      final paymentMethods = await ref.read(customListNamesProvider(kListKeyPaymentMethod).future);
-      if (mounted) {
-        setState(() {
-          _idTypes = idTypes;
-          _paymentMethods = paymentMethods;
-        });
-      }
-    } catch (_) {
-      // keep defaults
-    }
   }
 
   @override

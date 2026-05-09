@@ -66,6 +66,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   PaymentMethod _mapDbMethodToUi(String m) {
     switch (m) {
       case 'نقدي':
+      case 'نقداً':
         return PaymentMethod.cash;
       case 'بطاقة':
       case 'بطاقة ائتمان':

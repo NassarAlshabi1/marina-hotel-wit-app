@@ -5,6 +5,7 @@
 /// (e.g. 'expense_type', 'id_type', 'payment_method').
 library;
 
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'repository_providers.dart';
@@ -37,7 +38,7 @@ const List<String> kDefaultIdTypes = [
 ];
 
 const List<String> kDefaultPaymentMethods = [
-  'نقداً',
+  'نقدي',
   'تحويل بنكي',
 ];
 
@@ -72,7 +73,7 @@ class CustomListItem {
   final bool isSystem;
 }
 
-// ── Providers ────────────────────────────────────────────────────
+// ── Providers (للقراءة فقط) ─────────────────────────────────────
 
 /// جلب جميع عناصر قائمة معينة (النشطة فقط للعرض)
 final customListProvider =
@@ -81,8 +82,9 @@ final customListProvider =
   try {
     final rows = await db.customSelect(
       'SELECT * FROM custom_list_items '
-      "WHERE list_key = '$listKey' AND is_active = 1 "
+      'WHERE list_key = ? AND is_active = 1 '
       'ORDER BY sort_order ASC, id ASC',
+      variables: [drift.Variable.withText(listKey)],
     ).get();
     if (rows.isEmpty) {
       return _fallbackItems(listKey);
@@ -94,21 +96,20 @@ final customListProvider =
 });
 
 /// جلب جميع عناصر قائمة معينة (بما فيها المعطلة) لإدارة الإعدادات
+/// ملاحظة: لا يستخدم fallback — إذا كان الجدول فارغاً يُعرض فارغاً
 final customListAllProvider =
     FutureProvider.family<List<CustomListItem>, String>((ref, listKey) async {
   final db = ref.read(databaseProvider);
   try {
     final rows = await db.customSelect(
       'SELECT * FROM custom_list_items '
-      "WHERE list_key = '$listKey' "
+      'WHERE list_key = ? '
       'ORDER BY sort_order ASC, id ASC',
+      variables: [drift.Variable.withText(listKey)],
     ).get();
-    if (rows.isEmpty) {
-      return _fallbackItems(listKey);
-    }
     return rows.map((r) => CustomListItem.fromRow(r.data)).toList();
   } catch (e) {
-    return _fallbackItems(listKey);
+    return const [];
   }
 });
 
@@ -119,103 +120,96 @@ final customListNamesProvider =
   return items.map((e) => e.name).toList();
 });
 
-// ── إجراءات CRUD ────────────────────────────────────────────────
+// ── إجراءات CRUD (دوال async مباشرة — ليست Providers) ──────────
 
 /// إضافة عنصر جديد إلى قائمة
-final addCustomListItemProvider =
-    FutureProvider.family<AsyncValue<void>, _AddItemArgs>((ref, args) async {
+Future<void> addCustomListItem(
+  Ref ref,
+  String listKey,
+  String name,
+) async {
   final db = ref.read(databaseProvider);
-  try {
-    // حساب sort_order التالي
-    final maxRow = await db.customSelect(
-      'SELECT MAX(sort_order) as max_order FROM custom_list_items '
-      "WHERE list_key = '${args.listKey}'",
-    ).get();
-    final nextOrder = (maxRow.first.data['max_order'] as int? ?? 0) + 1;
-    await db.customStatement(
-      'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-      "VALUES ('${args.listKey}', '${args.name.replaceAll("'", "''")}', $nextOrder, 1, 0)",
-    );
-    ref.invalidate(customListProvider(args.listKey));
-    ref.invalidate(customListAllProvider(args.listKey));
-    ref.invalidate(customListNamesProvider(args.listKey));
-    return const AsyncValue.data(null);
-  } catch (e, st) {
-    return AsyncValue.error(e, st);
-  }
-});
+  // حساب sort_order التالي
+  final maxRow = await db.customSelect(
+    'SELECT MAX(sort_order) as max_order FROM custom_list_items '
+    'WHERE list_key = ?',
+    variables: [drift.Variable.withText(listKey)],
+  ).get();
+  final nextOrder = (maxRow.first.data['max_order'] as int? ?? 0) + 1;
+  await db.customStatement(
+    'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
+    'VALUES (?, ?, ?, 1, 0)',
+    [listKey, name, nextOrder],
+  );
+  _invalidateAll(ref, listKey);
+}
 
 /// تعديل اسم عنصر في القائمة
-final updateCustomListItemProvider =
-    FutureProvider.family<AsyncValue<void>, _UpdateItemArgs>((ref, args) async {
+Future<void> updateCustomListItem(
+  Ref ref,
+  String listKey,
+  int id,
+  String newName,
+) async {
   final db = ref.read(databaseProvider);
-  try {
-    await db.customStatement(
-      "UPDATE custom_list_items SET name = '${args.newName.replaceAll("'", "''")}' "
-      'WHERE id = ${args.id}',
-    );
-    ref.invalidate(customListProvider(args.listKey));
-    ref.invalidate(customListAllProvider(args.listKey));
-    ref.invalidate(customListNamesProvider(args.listKey));
-    return const AsyncValue.data(null);
-  } catch (e, st) {
-    return AsyncValue.error(e, st);
-  }
-});
+  await db.customStatement(
+    'UPDATE custom_list_items SET name = ? WHERE id = ?',
+    [newName, id],
+  );
+  _invalidateAll(ref, listKey);
+}
 
 /// حذف عنصر من القائمة
-final deleteCustomListItemProvider =
-    FutureProvider.family<AsyncValue<void>, _DeleteItemArgs>((ref, args) async {
+Future<void> deleteCustomListItem(
+  Ref ref,
+  String listKey,
+  int id,
+) async {
   final db = ref.read(databaseProvider);
-  try {
-    await db.customStatement(
-      'DELETE FROM custom_list_items WHERE id = ${args.id}',
-    );
-    ref.invalidate(customListProvider(args.listKey));
-    ref.invalidate(customListAllProvider(args.listKey));
-    ref.invalidate(customListNamesProvider(args.listKey));
-    return const AsyncValue.data(null);
-  } catch (e, st) {
-    return AsyncValue.error(e, st);
-  }
-});
+  await db.customStatement(
+    'DELETE FROM custom_list_items WHERE id = ?',
+    [id],
+  );
+  _invalidateAll(ref, listKey);
+}
 
 /// تفعيل/تعطيل عنصر
-final toggleCustomListItemProvider =
-    FutureProvider.family<AsyncValue<void>, _ToggleItemArgs>((ref, args) async {
+Future<void> toggleCustomListItem(
+  Ref ref,
+  String listKey,
+  int id,
+  bool active,
+) async {
   final db = ref.read(databaseProvider);
-  try {
-    await db.customStatement(
-      'UPDATE custom_list_items SET is_active = ${args.active ? 1 : 0} '
-      'WHERE id = ${args.id}',
-    );
-    ref.invalidate(customListProvider(args.listKey));
-    ref.invalidate(customListAllProvider(args.listKey));
-    ref.invalidate(customListNamesProvider(args.listKey));
-    return const AsyncValue.data(null);
-  } catch (e, st) {
-    return AsyncValue.error(e, st);
-  }
-});
+  await db.customStatement(
+    'UPDATE custom_list_items SET is_active = ? WHERE id = ?',
+    [active ? 1 : 0, id],
+  );
+  _invalidateAll(ref, listKey);
+}
 
 /// إعادة ترتيب العناصر
-final reorderCustomListProvider =
-    FutureProvider.family<AsyncValue<void>, _ReorderArgs>((ref, args) async {
+Future<void> reorderCustomListItems(
+  Ref ref,
+  String listKey,
+  List<int> ids,
+) async {
   final db = ref.read(databaseProvider);
-  try {
-    for (var i = 0; i < args.ids.length; i++) {
-      await db.customStatement(
-        'UPDATE custom_list_items SET sort_order = ${i + 1} WHERE id = ${args.ids[i]}',
-      );
-    }
-    ref.invalidate(customListProvider(args.listKey));
-    ref.invalidate(customListAllProvider(args.listKey));
-    ref.invalidate(customListNamesProvider(args.listKey));
-    return const AsyncValue.data(null);
-  } catch (e, st) {
-    return AsyncValue.error(e, st);
+  for (var i = 0; i < ids.length; i++) {
+    await db.customStatement(
+      'UPDATE custom_list_items SET sort_order = ? WHERE id = ?',
+      [i + 1, ids[i]],
+    );
   }
-});
+  _invalidateAll(ref, listKey);
+}
+
+/// إعادة تحميل جميع providers المرتبطة بقائمة معينة
+void _invalidateAll(Ref ref, String listKey) {
+  ref.invalidate(customListProvider(listKey));
+  ref.invalidate(customListAllProvider(listKey));
+  ref.invalidate(customListNamesProvider(listKey));
+}
 
 // ── Provider قديم متوافق (أنواع المصروفات) ────────────────────
 
@@ -227,48 +221,6 @@ final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
     return kDefaultExpenseTypes;
   }
 });
-
-// ── فئات المساعدة ───────────────────────────────────────────────
-
-class _AddItemArgs {
-  const _AddItemArgs({required this.listKey, required this.name});
-  final String listKey;
-  final String name;
-}
-
-class _UpdateItemArgs {
-  const _UpdateItemArgs({
-    required this.listKey,
-    required this.id,
-    required this.newName,
-  });
-  final String listKey;
-  final int id;
-  final String newName;
-}
-
-class _DeleteItemArgs {
-  const _DeleteItemArgs({required this.listKey, required this.id});
-  final String listKey;
-  final int id;
-}
-
-class _ToggleItemArgs {
-  const _ToggleItemArgs({
-    required this.listKey,
-    required this.id,
-    required this.active,
-  });
-  final String listKey;
-  final int id;
-  final bool active;
-}
-
-class _ReorderArgs {
-  const _ReorderArgs({required this.listKey, required this.ids});
-  final String listKey;
-  final List<int> ids;
-}
 
 // ── Fallback ─────────────────────────────────────────────────────
 

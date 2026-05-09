@@ -1850,7 +1850,7 @@ class AppDatabase extends _$AppDatabase {
 
         // بذر طرق الدفع الافتراضية
         const paymentMethodDefaults = [
-          ['نقداً', '1', '0'],
+          ['نقدي', '1', '0'],
           ['تحويل بنكي', '2', '0'],
         ];
         for (final e in paymentMethodDefaults) {
