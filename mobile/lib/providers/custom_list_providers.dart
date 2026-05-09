@@ -4,6 +4,7 @@
 /// expense types from the local database, combining stored types with
 /// sensible defaults so the expenses list always has a working set of
 /// categories.
+library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
