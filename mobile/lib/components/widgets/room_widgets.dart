@@ -5,12 +5,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 
 /// Widget لعرض بطاقة غرفة واحدة
-class RoomCard extends StatelessWidget {
-  final Room room;
-  final VoidCallback? onTap;
-  final bool compact;
-  final Color? customColor; // إضافة لون مخصص
-  final bool isPaymentOverdue; // حالة تأخر السداد للوميض
+class RoomCard extends StatelessWidget { // حالة تأخر السداد للوميض
 
   const RoomCard({
     super.key,
@@ -20,6 +15,11 @@ class RoomCard extends StatelessWidget {
     this.customColor,
     this.isPaymentOverdue = false,
   });
+  final Room room;
+  final VoidCallback? onTap;
+  final bool compact;
+  final Color? customColor; // إضافة لون مخصص
+  final bool isPaymentOverdue;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class RoomCard extends StatelessWidget {
     // استخدام اللون المخصص إذا وجد، وإلا استخدام الألوان الافتراضية
     final cardColor = customColor ?? (isAvailable ? Colors.green : Colors.red);
 
-    Widget cardContent = GestureDetector(
+    final Widget cardContent = GestureDetector(
       onTap: onTap,
       child: Card(
         elevation: compact ? 2 : 4,
@@ -124,13 +124,6 @@ class RoomCard extends StatelessWidget {
 
 /// Widget لعرض عنوان الطابق مع الإحصائيات
 class FloorHeader extends StatelessWidget {
-  final String floorNumber;
-  final int totalRooms;
-  final int occupiedRooms;
-  final int availableRooms;
-  final bool isCollapsible;
-  final bool isExpanded;
-  final VoidCallback? onToggle;
 
   const FloorHeader({
     super.key,
@@ -142,6 +135,13 @@ class FloorHeader extends StatelessWidget {
     this.isExpanded = true,
     this.onToggle,
   });
+  final String floorNumber;
+  final int totalRooms;
+  final int occupiedRooms;
+  final int availableRooms;
+  final bool isCollapsible;
+  final bool isExpanded;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +159,6 @@ class FloorHeader extends StatelessWidget {
           border: Border(
             bottom: BorderSide(
               color: Theme.of(context).primaryColor.withOpacity(0.2),
-              width: 1,
             ),
           ),
         ),
@@ -203,10 +202,6 @@ class FloorHeader extends StatelessWidget {
 
 /// Widget لعرض إحصائيات الطابق
 class FloorStats extends StatelessWidget {
-  final int occupied;
-  final int available;
-  final int total;
-  final bool compact;
 
   const FloorStats({
     super.key,
@@ -215,6 +210,10 @@ class FloorStats extends StatelessWidget {
     required this.total,
     this.compact = false,
   });
+  final int occupied;
+  final int available;
+  final int total;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +240,7 @@ class FloorStats extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(compact ? 8 : 12),
-        border: Border.all(color: color, width: 1),
+        border: Border.all(color: color),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -281,10 +280,6 @@ class FloorStats extends StatelessWidget {
 
 /// Widget لعرض شبكة الغرف
 class RoomsGrid extends StatelessWidget {
-  final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
-  final Function(Room) onRoomTap;
-  final int crossAxisCount;
-  final double childAspectRatio;
 
   const RoomsGrid({
     super.key,
@@ -293,6 +288,10 @@ class RoomsGrid extends StatelessWidget {
     this.crossAxisCount = 4,
     this.childAspectRatio = 1.2,
   });
+  final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
+  final Function(Room) onRoomTap;
+  final int crossAxisCount;
+  final double childAspectRatio;
 
   @override
   Widget build(BuildContext context) {
@@ -336,11 +335,6 @@ class RoomsGrid extends StatelessWidget {
 
 /// Widget لعرض قسم طابق كامل
 class FloorSection extends StatefulWidget {
-  final String floorNumber;
-  final List<dynamic> rooms; // تغيير النوع
-  final Function(Room) onRoomTap;
-  final bool isCollapsible;
-  final bool initiallyExpanded;
 
   const FloorSection({
     super.key,
@@ -350,6 +344,11 @@ class FloorSection extends StatefulWidget {
     this.isCollapsible = false,
     this.initiallyExpanded = true,
   });
+  final String floorNumber;
+  final List<dynamic> rooms; // تغيير النوع
+  final Function(Room) onRoomTap;
+  final bool isCollapsible;
+  final bool initiallyExpanded;
 
   @override
   State<FloorSection> createState() => _FloorSectionState();
@@ -399,7 +398,7 @@ class _FloorSectionState extends State<FloorSection>
   @override
   Widget build(BuildContext context) {
     // حساب الإحصائيات
-    int total = widget.rooms.length;
+    final int total = widget.rooms.length;
     int occupied = 0;
     int available = 0;
 

@@ -43,13 +43,10 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
             switch (value) {
               case 'export':
                 _exportLogs();
-                break;
               case 'share':
                 _shareLogs(filteredLogs);
-                break;
               case 'clear':
                 _clearLogs();
-                break;
             }
           },
           itemBuilder: (context) => const [

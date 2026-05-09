@@ -61,7 +61,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
                 icon: const Icon(Icons.refresh),
                 onPressed: backupState.isWorking
                     ? null
-                    : () => _refreshLocalBackups(),
+                    : _refreshLocalBackups,
               ),
             ),
 
@@ -160,7 +160,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           child: ElevatedButton.icon(
             onPressed: backupState.isWorking
                 ? null
-                : () => _createLocalBackup(),
+                : _createLocalBackup,
             icon: backupState.isWorking
                 ? const SizedBox(
                     width: 16,
@@ -184,7 +184,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           child: OutlinedButton.icon(
             onPressed: backupState.isWorking
                 ? null
-                : () => _importBackup(),
+                : _importBackup,
             icon: const Icon(Icons.file_download),
             label: const Text('استيراد نسخة'),
             style: OutlinedButton.styleFrom(
@@ -262,7 +262,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         child: Column(
           children: [
             Icon(Icons.backup_outlined,
-                size: 48, color: Colors.grey.shade400),
+                size: 48, color: Colors.grey.shade400,),
             const SizedBox(height: UIConstants.spacingMD),
             Text(
               'لا توجد نسخ احتياطية محلية',
@@ -293,7 +293,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
@@ -338,7 +338,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
             const SizedBox(height: 4),
             Text(
               DateTimeFormatter.formatDateTime(
-                  backup.createdTime.toIso8601String()),
+                  backup.createdTime.toIso8601String(),),
               style: const TextStyle(fontSize: 12),
             ),
             Row(
@@ -455,7 +455,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
 
   // ─── الأفعال ───
 
-  void _createLocalBackup() async {
+  Future<void> _createLocalBackup() async {
     await ref.read(backupStatusProvider.notifier).createLocalBackup();
     if (mounted) {
       final state = ref.read(backupStatusProvider);
@@ -477,7 +477,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     }
   }
 
-  void _importBackup() async {
+  Future<void> _importBackup() async {
     await ref.read(backupStatusProvider.notifier).importBackupFromFile();
     if (mounted) {
       final state = ref.read(backupStatusProvider);
@@ -499,19 +499,16 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     }
   }
 
-  void _handleBackupAction(String action, LocalBackupFile backup) async {
+  Future<void> _handleBackupAction(String action, LocalBackupFile backup) async {
     switch (action) {
       case 'restore':
         _confirmRestore(backup);
-        break;
       case 'share':
         await ref
             .read(backupStatusProvider.notifier)
             .shareLocalBackup(backup.filePath);
-        break;
       case 'delete':
         _confirmDelete(backup);
-        break;
     }
   }
 
@@ -547,7 +544,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     );
   }
 
-  void _restoreBackup(LocalBackupFile backup) async {
+  Future<void> _restoreBackup(LocalBackupFile backup) async {
     await ref
         .read(backupStatusProvider.notifier)
         .restoreFromLocalBackup(backup.filePath);
@@ -559,7 +556,6 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           const SnackBar(
             content: Text('تمت الاستعادة بنجاح - سيتم تحديث البيانات'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
           ),
         );
       } else if (state.status == BackupStatus.error) {
@@ -600,7 +596,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     );
   }
 
-  void _deleteBackup(LocalBackupFile backup) async {
+  Future<void> _deleteBackup(LocalBackupFile backup) async {
     await ref
         .read(backupStatusProvider.notifier)
         .deleteLocalBackup(backup.filePath);

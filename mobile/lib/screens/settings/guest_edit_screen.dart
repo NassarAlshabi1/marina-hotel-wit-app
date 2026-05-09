@@ -40,7 +40,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final _idNumberFormatter = FilteringTextInputFormatter.allow(
-    RegExp(r'[0-9]'),
+    RegExp('[0-9]'),
   );
 
   bool _saving = false;
@@ -333,7 +333,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           amount: 0,
           transactionTime: nowIso,
           description: Value(description),
-          referenceType: Value('booking'),
+          referenceType: const Value('booking'),
           referenceId: Value(bookingId),
           createdAtIso: Value(nowIso),
           updatedAtIso: Value(nowIso),
@@ -405,9 +405,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'سيتم نقل البيانات المالية إلى الغرفة (الغرف) الجديدة:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -418,9 +418,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
               '• التعديلات النشطة (تخفيضات/زيادات): $totalAdjustments',
               style: const TextStyle(fontSize: 13),
             ),
-            Text(
+            const Text(
               '• الديون: مرتبطة بالحجز تلقائياً',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: Colors.grey),
             ),
             if (changedRooms.length == 1) ...[
               const SizedBox(height: 8),
@@ -603,7 +603,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: _idType,
+                        initialValue: _idType,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -848,7 +848,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      value: currentValue,
+                      initialValue: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
@@ -1087,7 +1087,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentType>(
-                            value: _adjustmentTypeSelections[booking.id],
+                            initialValue: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -1113,7 +1113,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentMode>(
-                            value: _adjustmentModeSelections[booking.id],
+                            initialValue: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),
@@ -1237,7 +1237,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         type: type,
         mode: mode,
         effectiveHotelDay: startDate,
-        endHotelDay: null,
         reason: '${type == AdjustmentType.discount ? 'تخفيض' : 'زيادة'} من شاشة تعديل الضيف',
         appliedBy: 'admin',
       );

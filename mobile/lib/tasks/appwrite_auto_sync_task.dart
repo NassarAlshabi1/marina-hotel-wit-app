@@ -24,8 +24,6 @@ void appwriteAutoSyncCallbackDispatcher() {
       }
 
       final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        push: true,
-        pull: true,
         reason: 'appwrite_background_task',
       );
 
@@ -114,8 +112,6 @@ class AppwriteAutoSyncTask {
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
     if (!pending && !force) return;
     await UnifiedSyncOrchestrator.instance.syncNow(
-      push: true,
-      pull: true,
       reason: 'pending_appwrite_sync',
     );
     await prefs.setBool(_kPendingFlagKey, false);

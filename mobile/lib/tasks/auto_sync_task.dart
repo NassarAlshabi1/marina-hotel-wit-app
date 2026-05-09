@@ -29,8 +29,6 @@ void autoSyncCallbackDispatcher() {
       }
 
       final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        push: true,
-        pull: true,
         reason: 'google_drive_background_task',
       );
 
@@ -131,8 +129,6 @@ class AutoSyncTask {
       return;
     }
     await UnifiedSyncOrchestrator.instance.syncNow(
-      push: true,
-      pull: true,
       reason: 'pending_sync',
     );
     await prefs.setBool(_kPendingFlagKey, false);

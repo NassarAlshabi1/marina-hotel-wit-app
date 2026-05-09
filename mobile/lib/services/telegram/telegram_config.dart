@@ -4,6 +4,8 @@ import '../../utils/env.dart';
 
 /// مفاتيح التخزين المحلي لإعدادات Telegram
 class TelegramConfig {
+
+  TelegramConfig._();
   static const String _enabledKey = 'telegram_enabled';
   static const String _botTokenKey = 'telegram_bot_token';
   static const String _chatIdKey = 'telegram_chat_id';
@@ -17,8 +19,6 @@ class TelegramConfig {
   static const String telegramApiBase = 'https://api.telegram.org';
   static const String defaultBotToken = Env.telegramBotToken;
   static const String defaultChatId = Env.telegramChatId;
-
-  TelegramConfig._();
 
   /// التحقق من تفعيل Telegram/WhatsApp — مفعّل افتراضياً
   static Future<bool> isEnabled() async {

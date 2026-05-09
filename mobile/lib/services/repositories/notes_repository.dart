@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
+
 import '../daos/booking_notes_dao.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class NotesRepository {
   NotesRepository(this.db)
@@ -76,7 +77,6 @@ class NotesRepository {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
         List<Map<String, dynamic>>.from(data['data'] as List),
-        clearExisting: false,
       );
     }
   }
@@ -88,6 +88,6 @@ class NotesRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 }

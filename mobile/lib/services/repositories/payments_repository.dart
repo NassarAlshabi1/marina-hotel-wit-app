@@ -1,14 +1,14 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
+
+import '../../utils/time.dart';
+import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
-import '../local_db.dart';
+import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
-import '../auto_backup_manager.dart';
 import '../lark/lark_notification_service.dart';
+import '../local_db.dart';
 import '../telegram/whatsapp_notification_service.dart';
-import '../crashlytics_service.dart';
-import '../../utils/time.dart';
 
 class PaymentsRepository {
   PaymentsRepository(this.db) {
@@ -240,7 +240,6 @@ class PaymentsRepository {
         action: 'update',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -277,7 +276,6 @@ class PaymentsRepository {
         action: 'delete',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -299,7 +297,6 @@ class PaymentsRepository {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
         List<Map<String, dynamic>>.from(data['data'] as List),
-        clearExisting: false,
       );
     }
   }
@@ -311,7 +308,7 @@ class PaymentsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   /// الحصول على إجمالي المدفوعات لتاريخ محدد

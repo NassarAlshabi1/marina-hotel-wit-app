@@ -1,16 +1,18 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'logging/log_models.dart';
 
 export 'logging/log_models.dart';
 
 /// نظام التسجيل المتقدم
 class AppwriteLogger {
-  static final AppwriteLogger _instance = AppwriteLogger._internal();
   factory AppwriteLogger() => _instance;
   AppwriteLogger._internal();
+  static final AppwriteLogger _instance = AppwriteLogger._internal();
 
   final List<LogEntry> _logs = [];
   static const int _maxLogEntries = 100;
@@ -127,7 +129,7 @@ class AppwriteLogger {
   }
 
   void info(String message, {String tag = 'APPWRITE'}) {
-    log(message, level: LogLevel.info, tag: tag);
+    log(message, tag: tag);
   }
 
   void warning(

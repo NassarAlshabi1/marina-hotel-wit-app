@@ -140,7 +140,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع ملاحظات الحجوزات إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final notesList = await list(includeDeleted: false);
+    final notesList = await list();
     return notesList.map((note) => note.toJson()).toList();
   }
 

@@ -2,27 +2,29 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'appwrite_config.dart';
+import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
-import 'appwrite_logger.dart';
 
 /// خدمة النسخ الاحتياطي والاستعادة الشاملة لـ Appwrite
 /// تتيح هذه الخدمة تصدير جميع البيانات من قاعدة البيانات المحلية إلى ملف JSON
 /// واستيرادها إلى Appwrite (Overwrite أو Merge)
 class ComprehensiveAppwriteBackupService {
-  static final ComprehensiveAppwriteBackupService _instance =
-      ComprehensiveAppwriteBackupService._internal();
 
   factory ComprehensiveAppwriteBackupService() => _instance;
 
   ComprehensiveAppwriteBackupService._internal();
+  static final ComprehensiveAppwriteBackupService _instance =
+      ComprehensiveAppwriteBackupService._internal();
 
   final AppwriteService _appwriteService = AppwriteService();
   final AppwriteLogger _logger = AppwriteLogger();

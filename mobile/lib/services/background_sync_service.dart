@@ -4,11 +4,13 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'package:workmanager/workmanager.dart';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:workmanager/workmanager.dart';
+
+import 'analytics_service.dart';
 import 'battery_optimizer.dart';
 import 'smart_sync_manager.dart';
-import 'analytics_service.dart';
 
 /// معرف مهمة المزامنة في الخلفية
 const String backgroundSyncTask = 'marina-hotel-background-sync';
@@ -17,9 +19,9 @@ const String batteryAwareSyncTask = 'marina-hotel-battery-aware-sync';
 
 /// فئة المزامنة في الخلفية
 class BackgroundSyncService {
-  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
   factory BackgroundSyncService() => _instance;
   BackgroundSyncService._internal();
+  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
 
   bool _isInitialized = false;
   final BatteryOptimizer _batteryOptimizer = BatteryOptimizer();
@@ -30,7 +32,7 @@ class BackgroundSyncService {
   bool _requireCharging = false;
   bool _requireNetworkTypeUnmetered = false;
   bool _requiresBatteryNotLow = true;
-  bool _requiresStorageNotLow = true;
+  final bool _requiresStorageNotLow = true;
 
   /// تهيئة خدمة المزامنة في الخلفية
   Future<void> initialize() async {
@@ -39,7 +41,6 @@ class BackgroundSyncService {
     try {
       await Workmanager().initialize(
         _callbackDispatcher,
-        isInDebugMode: false,
       );
 
       await _batteryOptimizer.initialize();
@@ -322,7 +323,7 @@ void _callbackDispatcher() {
       case periodicSyncTask:
       case backgroundSyncTask:
       case batteryAwareSyncTask:
-        return await BackgroundSyncService.executeBackgroundSync();
+        return BackgroundSyncService.executeBackgroundSync();
       default:
         developer.log(
           '⚠️ Unknown task: $task',
@@ -335,13 +336,6 @@ void _callbackDispatcher() {
 
 /// إعدادات متقدمة للمزامنة في الخلفية
 class BackgroundSyncSettings {
-  final Duration interval;
-  final bool requireCharging;
-  final bool requireUnmeteredNetwork;
-  final bool requiresBatteryNotLow;
-  final bool requiresStorageNotLow;
-  final bool enableRetry;
-  final int maxRetries;
 
   const BackgroundSyncSettings({
     this.interval = const Duration(minutes: 15),
@@ -352,25 +346,26 @@ class BackgroundSyncSettings {
     this.enableRetry = true,
     this.maxRetries = 3,
   });
+  final Duration interval;
+  final bool requireCharging;
+  final bool requireUnmeteredNetwork;
+  final bool requiresBatteryNotLow;
+  final bool requiresStorageNotLow;
+  final bool enableRetry;
+  final int maxRetries;
 
   static const BackgroundSyncSettings conservative = BackgroundSyncSettings(
     interval: Duration(minutes: 30),
-    requireCharging: false,
     requireUnmeteredNetwork: true,
-    requiresBatteryNotLow: true,
   );
 
   static const BackgroundSyncSettings aggressive = BackgroundSyncSettings(
     interval: Duration(minutes: 5),
-    requireCharging: false,
-    requireUnmeteredNetwork: false,
     requiresBatteryNotLow: false,
   );
 
   static const BackgroundSyncSettings overnight = BackgroundSyncSettings(
     interval: Duration(hours: 1),
     requireCharging: true,
-    requireUnmeteredNetwork: false,
-    requiresBatteryNotLow: true,
   );
 }

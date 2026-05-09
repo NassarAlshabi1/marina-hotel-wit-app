@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../providers/appwrite_providers.dart' as ap;
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../providers/smart_sync_provider.dart';
-import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/alarm_backup.dart';
 import '../../services/auto_backup_manager.dart';
-import '../../services/smart_sync_manager.dart';
 import '../../services/google_drive_unified_sync_coordinator.dart';
+import '../../services/smart_sync_manager.dart';
 import 'appwrite_settings_screen.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
@@ -776,7 +777,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _appwriteBusy ? null : () => _runAppwriteSync(),
+                onPressed: _appwriteBusy ? null : _runAppwriteSync,
                 icon: _appwriteBusy
                     ? const SizedBox(
                         width: 16,
@@ -847,7 +848,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     return statusAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => _buildErrorCard('تعذر تحميل إعدادات المزامنة'),
-      data: (status) => _buildSyncContent(status),
+      data: _buildSyncContent,
     );
   }
 
@@ -964,7 +965,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           const SizedBox(height: 12),
           _buildCard(
             DropdownButtonFormField<int>(
-              value: _intervalOptions.contains(syncInterval)
+              initialValue: _intervalOptions.contains(syncInterval)
                   ? syncInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -991,7 +992,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             Column(
               children: [
                 DropdownButtonFormField<ConflictResolution>(
-                  value: resolution,
+                  initialValue: resolution,
                   decoration: const InputDecoration(
                     labelText: 'استراتيجية حل التضارب',
                     prefixIcon: Icon(Icons.merge_type),
@@ -1074,7 +1075,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _retentionDaysController.text = retentionDays.toString();
     }
     final statusMessage = backupState.message;
-    final double? progress = backupState.progress?.clamp(0.0, 1.0).toDouble();
+    final double? progress = backupState.progress?.clamp(0.0, 1.0);
     final bool isErrorMessage = backupState.status == BackupStatus.error;
     final bool isSuccessMessage = backupState.status == BackupStatus.success;
     final lastLocalBackup = backupState.lastLocalBackupTime;

@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../components/app_scaffold.dart';
-import '../../providers/repository_providers.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../services/whatsapp_settings_sync.dart';
@@ -214,7 +215,7 @@ class _WhatsAppSettingsScreenState
   }
 
   String _sanitizeResponseBody(String body) {
-    var cleaned = body.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    var cleaned = body.replaceAll(RegExp('<[^>]*>'), '').trim();
     cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
     if (RegExp(r'^[\s\n]*$').hasMatch(cleaned)) return '';
     return cleaned;
@@ -351,7 +352,7 @@ class _WhatsAppSettingsScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await _downloadFromCloud();
     }
   }
@@ -500,9 +501,9 @@ class _WhatsAppSettingsScreenState
                     onSelectionChanged: (selection) {
                       setState(() => _selectedApiType = selection.first);
                     },
-                    style: ButtonStyle(
+                    style: const ButtonStyle(
                       visualDensity: VisualDensity.compact,
-                      textStyle: const WidgetStatePropertyAll(
+                      textStyle: WidgetStatePropertyAll(
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                     ),

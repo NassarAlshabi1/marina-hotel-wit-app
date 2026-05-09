@@ -42,10 +42,10 @@ enum CrashlyticsSeverity {
 /// );
 /// ```
 class CrashlyticsService {
-  static final CrashlyticsService _instance = CrashlyticsService._internal();
   factory CrashlyticsService() => _instance;
-  static CrashlyticsService get instance => _instance;
   CrashlyticsService._internal();
+  static final CrashlyticsService _instance = CrashlyticsService._internal();
+  static CrashlyticsService get instance => _instance;
 
   FirebaseCrashlytics? _crashlytics;
   bool _isEnabled = true;
@@ -283,7 +283,6 @@ class CrashlyticsService {
         error,
         stackTrace ?? StackTrace.current,
         reason: context ?? 'unexpected_error',
-        fatal: false,
       );
     } catch (_) {}
   }

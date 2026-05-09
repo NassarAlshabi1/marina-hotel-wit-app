@@ -4,20 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../utils/status_utils.dart';
-
-import '../widgets/dashboard_sync_button.dart';
+import '../providers/room_payment_status_provider.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
-import '../services/sync_constants.dart';
-import '../services/remote_config_service.dart';
-import '../providers/appwrite_providers.dart';
-import '../providers/room_payment_status_provider.dart';
 import '../services/local_db.dart';
+import '../services/remote_config_service.dart';
+import '../services/sync_constants.dart';
+import '../utils/status_utils.dart';
+import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
-import 'reports/expenses_report_screen.dart';
 import 'payments/booking_payment_screen.dart';
+import 'reports/expenses_report_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -85,8 +84,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: const [
+            content: const Row(
+              children: [
                 SizedBox(
                   width: 20,
                   height: 20,
@@ -120,7 +119,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         pulledCount = result.recordsPulled;
       } else {
         final syncManager = ref.read(appwriteSyncManagerProvider);
-        final result = await syncManager.sync(push: false, pull: true);
+        final result = await syncManager.sync(push: false);
         pulledCount = result.recordsPulled;
       }
 
@@ -152,7 +151,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 4),
           ),
         );
       } else if (mounted) {
@@ -263,7 +261,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               return _buildStatCard(
                 balance >= 0 ? 'المتبقي' : 'عجز',
-                '${currencyFmt.format(balance.abs())}',
+                currencyFmt.format(balance.abs()),
                 balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
                 balance >= 0 ? Colors.indigo : Colors.orange,
               );
@@ -350,11 +348,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: const Color(0x0D000000),
+              color: Color(0x0D000000),
               blurRadius: 10,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),
@@ -389,7 +387,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return roomsWithStatusAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('خطأ: $e')),
-          data: (roomsWithStatus) => _buildRoomsCard(roomsWithStatus),
+          data: _buildRoomsCard,
         );
       },
     );
@@ -405,11 +403,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: const Color(0x0D000000),
+            color: Color(0x0D000000),
             blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -478,7 +476,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final String tooltipText = rws != null ? rws.room.status : 'غير مسجلة';
     final bool isOverdue = rws?.isPaymentOverdue ?? false;
 
-    Widget button = Tooltip(
+    final Widget button = Tooltip(
       message: tooltipText,
       child: GestureDetector(
         onLongPress: rws != null
@@ -591,7 +589,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  void _handleRoomTap(
+  Future<void> _handleRoomTap(
     BuildContext context,
     String roomNumber,
     Room? room,

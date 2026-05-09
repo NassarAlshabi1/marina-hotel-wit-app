@@ -84,7 +84,7 @@ class DiagnosticsLogger extends ChangeNotifier {
   }
 
   void info(String message, {String tag = 'APP'}) {
-    log(message, tag: tag, level: LogLevel.info);
+    log(message, tag: tag);
   }
 
   void warning(String message, {String tag = 'APP', Object? error}) {

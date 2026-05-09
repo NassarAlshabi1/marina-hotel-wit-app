@@ -1,8 +1,4 @@
 class OptimisticLockException implements Exception {
-  final String table;
-  final String uuid;
-  final int expectedVersion;
-  final int? actualVersion;
 
   OptimisticLockException({
     required this.table,
@@ -10,6 +6,10 @@ class OptimisticLockException implements Exception {
     required this.expectedVersion,
     this.actualVersion,
   });
+  final String table;
+  final String uuid;
+  final int expectedVersion;
+  final int? actualVersion;
 
   @override
   String toString() =>

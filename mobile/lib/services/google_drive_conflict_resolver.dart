@@ -16,16 +16,6 @@ enum ConflictResolutionStrategy {
 }
 
 class ConflictDetails {
-  final String tableName;
-  final String localUuid;
-  final Map<String, dynamic> localRecord;
-  final Map<String, dynamic> remoteRecord;
-  final DateTime localTimestamp;
-  final DateTime remoteTimestamp;
-  final int localVersion;
-  final int remoteVersion;
-  final String? localDeviceId;
-  final String? remoteDeviceId;
 
   const ConflictDetails({
     required this.tableName,
@@ -39,6 +29,16 @@ class ConflictDetails {
     this.localDeviceId,
     this.remoteDeviceId,
   });
+  final String tableName;
+  final String localUuid;
+  final Map<String, dynamic> localRecord;
+  final Map<String, dynamic> remoteRecord;
+  final DateTime localTimestamp;
+  final DateTime remoteTimestamp;
+  final int localVersion;
+  final int remoteVersion;
+  final String? localDeviceId;
+  final String? remoteDeviceId;
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
   bool get isRemoteNewer => remoteTimestamp.isAfter(localTimestamp);
@@ -58,10 +58,6 @@ class ConflictDetails {
 }
 
 class ConflictResolutionResult {
-  final bool resolved;
-  final Map<String, dynamic>? selectedRecord;
-  final String? reason;
-  final bool requiresManualReview;
 
   const ConflictResolutionResult({
     required this.resolved,
@@ -99,6 +95,10 @@ class ConflictResolutionResult {
       reason: reason,
     );
   }
+  final bool resolved;
+  final Map<String, dynamic>? selectedRecord;
+  final String? reason;
+  final bool requiresManualReview;
 }
 
 class GoogleDriveConflictResolver {
@@ -210,7 +210,7 @@ class GoogleDriveConflictResolver {
 
             conflicts.add(conflict);
             _log(
-              '⚠️ Detected conflict: ${conflict.toString()}',
+              '⚠️ Detected conflict: $conflict',
               level: LogLevel.warning,
             );
           }
@@ -230,7 +230,7 @@ class GoogleDriveConflictResolver {
     final strategy = await getStrategy();
 
     _log('🔧 Resolving conflict using strategy: ${strategy.name}');
-    _log('   ${conflict.toString()}');
+    _log('   $conflict');
 
     switch (strategy) {
       case ConflictResolutionStrategy.newerWins:
@@ -249,7 +249,7 @@ class GoogleDriveConflictResolver {
         );
 
       case ConflictResolutionStrategy.devicePriorityBased:
-        return await _resolveByDevicePriority(conflict);
+        return _resolveByDevicePriority(conflict);
 
       case ConflictResolutionStrategy.manualReview:
         return ConflictResolutionResult.needsManualReview(
@@ -342,9 +342,9 @@ class GoogleDriveConflictResolver {
           );
 
           if (existingIndex >= 0) {
-            recordsList[existingIndex] = entry.selectedRecord!;
+            recordsList[existingIndex] = entry.selectedRecord;
           } else {
-            recordsList.add(entry.selectedRecord!);
+            recordsList.add(entry.selectedRecord);
           }
 
           merged[tableName] = recordsList;

@@ -125,7 +125,6 @@ class ReportPdfBuilder {
       decoration: const pw.BoxDecoration(color: PdfColors.primary),
       padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
           pw.Text(
             'فندق مارينا بلازا',
@@ -178,7 +177,6 @@ class ReportPdfBuilder {
   /// ```
   static pw.Widget buildPageFooter(ArabicPdfFonts fonts, pw.Context context) {
     return pw.Align(
-      alignment: pw.Alignment.center,
       child: pw.Text(
         'صفحة ${context.pageNumber} من ${context.pagesCount}',
         style: pw.TextStyle(font: fonts.regular, fontSize: 10),
@@ -200,7 +198,7 @@ class ReportPdfBuilder {
 
   /// بناء رأس التقرير الافتراضي من الإعدادات
   static pw.Widget _buildDefaultHeader(
-      ArabicPdfFonts fonts, ReportPdfConfig config) {
+      ArabicPdfFonts fonts, ReportPdfConfig config,) {
     final fromLabel = config.fromDate != null
         ? DateFormat('yyyy-MM-dd').format(config.fromDate!)
         : 'غير محدد';

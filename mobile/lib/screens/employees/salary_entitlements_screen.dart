@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
-import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
@@ -75,7 +76,7 @@ class _SalaryEntitlementsScreenState
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ..._entitlements.map((e) => _buildEmployeeCard(e)),
+        ..._entitlements.map(_buildEmployeeCard),
       ],
     );
   }

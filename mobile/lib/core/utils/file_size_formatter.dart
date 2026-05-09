@@ -37,8 +37,9 @@ class FileSizeFormatter {
     if (bytes <= 0) return '0';
     if (bytes < 1024) return '${bytes}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}K';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}M';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}G';
   }
 
@@ -76,7 +77,7 @@ class FileSizeFormatter {
   /// Calculate percentage
   static String formatPercentage(int current, int total, {int decimals = 1}) {
     if (total == 0) return '0%';
-    final percentage = (current / total * 100);
+    final percentage = current / total * 100;
     return '${percentage.toStringAsFixed(decimals)}%';
   }
 

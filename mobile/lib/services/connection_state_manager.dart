@@ -1,8 +1,10 @@
 import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'appwrite_service.dart';
+
 import 'appwrite_logger.dart';
+import 'appwrite_service.dart';
 
 /// حالة الاتصال
 enum ConnectionStatus { online, offline, checking, unknown }
@@ -12,10 +14,10 @@ enum ConnectionStatus { online, offline, checking, unknown }
 /// يتتبع حالة الاتصال بالإنترنت و Appwrite Server
 /// ويوفر stream للاستماع للتغييرات
 class ConnectionStateManager extends ChangeNotifier {
-  static final ConnectionStateManager _instance =
-      ConnectionStateManager._internal();
   factory ConnectionStateManager() => _instance;
   ConnectionStateManager._internal();
+  static final ConnectionStateManager _instance =
+      ConnectionStateManager._internal();
 
   final _logger = AppwriteLogger();
   final _connectivity = Connectivity();

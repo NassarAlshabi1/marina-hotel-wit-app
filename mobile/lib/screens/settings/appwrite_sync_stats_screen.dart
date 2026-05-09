@@ -1,11 +1,12 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
-import '../../services/providers.dart';
 import '../../services/daos/outbox_dao.dart';
+import '../../services/providers.dart';
 
 class AppwriteSyncStatsScreen extends ConsumerWidget {
   const AppwriteSyncStatsScreen({super.key});
@@ -29,9 +30,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.error, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'خطأ في تحميل الإحصائيات',
-                  style: const TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -121,7 +122,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 final db = ref.read(databaseProvider);
                 final dao = OutboxDao(db);
                 await dao.resetErrors();
-                await dao.clearStale(attemptsThreshold: 3);
+                await dao.clearStale();
                 ref.invalidate(syncStatsProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +155,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.bar_chart, color: Colors.blue, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -259,8 +260,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.pie_chart, color: Colors.green, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -339,8 +340,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.swap_vert, color: Colors.purple, size: 24),
                 SizedBox(width: 8),
                 Text(
@@ -359,7 +360,6 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                   maxY: maxValue > 0 ? maxValue * 1.2 : 10,
                   barTouchData: BarTouchData(enabled: true),
                   titlesData: FlTitlesData(
-                    show: true,
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
@@ -399,14 +399,13 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                       ),
                     ),
                     topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                      
                     ),
                     rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                      
                     ),
                   ),
                   gridData: FlGridData(
-                    show: true,
                     drawVerticalLine: false,
                     horizontalInterval: maxValue > 0 ? maxValue / 5 : 1,
                   ),
@@ -492,8 +491,8 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.history, color: Colors.teal, size: 24),
                 SizedBox(width: 8),
                 Text(

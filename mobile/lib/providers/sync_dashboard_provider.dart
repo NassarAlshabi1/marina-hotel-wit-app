@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/local_db.dart';
 import '../services/sync_guardian.dart';
 import '../services/sync_health_monitor.dart';
+import '../services/sync_integrity_checker.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_queue_service.dart';
-import '../services/sync_integrity_checker.dart';
-import '../services/local_db.dart';
 import 'repository_providers.dart';
 
 final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
@@ -53,12 +54,6 @@ final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
 });
 
 class SyncDashboardData {
-  final SyncHealthSnapshot guardianHealth;
-  final SyncHealth orchestratorHealth;
-  final SyncMetricsData? orchestratorMetrics;
-  final QueueStats queueStats;
-  final SyncHealthMetrics healthMetrics;
-  final IntegrityReport? integrityReport;
 
   const SyncDashboardData({
     required this.guardianHealth,
@@ -68,4 +63,10 @@ class SyncDashboardData {
     required this.healthMetrics,
     this.integrityReport,
   });
+  final SyncHealthSnapshot guardianHealth;
+  final SyncHealth orchestratorHealth;
+  final SyncMetricsData? orchestratorMetrics;
+  final QueueStats queueStats;
+  final SyncHealthMetrics healthMetrics;
+  final IntegrityReport? integrityReport;
 }

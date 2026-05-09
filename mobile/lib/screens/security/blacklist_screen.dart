@@ -55,7 +55,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     e.name.toLowerCase().contains(query) ||
                     (e.nationalId?.toLowerCase().contains(query) ?? false) ||
                     (e.phone?.toLowerCase().contains(query) ?? false) ||
-                    (e.nationality?.toLowerCase().contains(query) ?? false))
+                    (e.nationality?.toLowerCase().contains(query) ?? false),)
                 .toList();
           }
           if (entries.isEmpty) {
@@ -110,7 +110,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                           color: e.active
                               ? Colors.red.withOpacity(0.3)
                               : Colors.grey.withOpacity(0.3),
-                          width: 1,
                         ),
                       ),
                       child: InkWell(
@@ -216,7 +215,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                 switch (value) {
                                   case 'edit':
                                     _openEntryDialog(context, repo, entry: e);
-                                    break;
                                   case 'toggle':
                                     try {
                                       await repo.updateActive(e.id, !e.active);
@@ -241,11 +239,10 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         ),
                                       );
                                     }
-                                    break;
                                   case 'delete':
                                     final confirmed =
                                         await _showDeleteConfirmDialog(context, e.name);
-                                    if (confirmed == true) {
+                                    if (confirmed ?? false) {
                                       try {
                                         await repo.delete(e.id);
                                         if (!mounted) return;
@@ -265,7 +262,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         );
                                       }
                                     }
-                                    break;
                                 }
                               },
                               itemBuilder: (context) => [
@@ -445,10 +441,10 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
               children: [
                 TextFormField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'الاسم الكامل *',
-                    prefixIcon: const Icon(Icons.person),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
                   ),
                   validator: (v) =>
                       v == null || v.trim().isEmpty ? 'مطلوب' : null,
@@ -456,47 +452,47 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: nationalityCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'الجنسية',
-                    prefixIcon: const Icon(Icons.flag),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.flag),
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: nationalIdCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'رقم الهوية',
-                    prefixIcon: const Icon(Icons.badge),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.badge),
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: phoneCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'رقم الهاتف',
-                    prefixIcon: const Icon(Icons.phone),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                    border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: reasonCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'السبب',
-                    prefixIcon: const Icon(Icons.warning),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.warning),
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: notesCtrl,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'ملاحظات',
-                    prefixIcon: const Icon(Icons.notes),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.notes),
+                    border: OutlineInputBorder(),
                     alignLabelWithHint: true,
                   ),
                   maxLines: 2,

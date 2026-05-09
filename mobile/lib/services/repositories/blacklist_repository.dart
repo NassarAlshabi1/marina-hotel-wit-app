@@ -2,10 +2,11 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();
@@ -36,16 +37,6 @@ bool _tripleMatch(List<String> a, List<String> b) {
 }
 
 class BlacklistEntry {
-  final int id;
-  final String name;
-  final String? nationality;
-  final String? nationalId;
-  final String? phone;
-  final String? reason;
-  final String? notes;
-  final String reportedBy;
-  final bool active;
-  final DateTime createdAt;
 
   const BlacklistEntry({
     required this.id,
@@ -59,6 +50,16 @@ class BlacklistEntry {
     this.active = true,
     required this.createdAt,
   });
+  final int id;
+  final String name;
+  final String? nationality;
+  final String? nationalId;
+  final String? phone;
+  final String? reason;
+  final String? notes;
+  final String reportedBy;
+  final bool active;
+  final DateTime createdAt;
 }
 
 class BlacklistRepository {
@@ -171,7 +172,6 @@ class BlacklistRepository {
       entity: 'blacklist',
       op: 'create',
       localUuid: uuid,
-      serverId: null,
       payload: {
         'name': name.trim(),
         'nationality': nationality?.trim() ?? '',
@@ -242,7 +242,7 @@ class BlacklistRepository {
       db.shiftNotes,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     if (row == null) return false;
-    final oldPayload = (jsonDecode(row.content) as Map<String, dynamic>);
+    final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
     final now = Time.nowEpoch();
     final updated =
         await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
@@ -309,7 +309,7 @@ class BlacklistRepository {
           deletedAtIso: d.Value(nowIso),
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
-        ));
+        ),);
 
     if (updated > 0) {
       await _outboxDao.merge(

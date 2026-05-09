@@ -1,29 +1,26 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
-import 'local_db.dart';
-import '../utils/app_logger.dart';
+
 import '../providers/repository_providers.dart';
-import 'google_drive_backup_service.dart';
-export 'google_drive_backup_service.dart' show BackupFormat;
+import '../utils/app_logger.dart';
 import 'backup_serializers.dart';
+import 'google_drive_backup_service.dart';
+import 'local_db.dart';
+
+export 'google_drive_backup_service.dart' show BackupFormat;
 
 class LocalBackupFile {
-  final String fileName;
-  final String filePath;
-  final DateTime createdTime;
-  final int sizeBytes;
-  final BackupMetadata? metadata;
-  final BackupFormat format;
 
   LocalBackupFile({
     required this.fileName,
@@ -49,6 +46,12 @@ class LocalBackupFile {
       format: format,
     );
   }
+  final String fileName;
+  final String filePath;
+  final DateTime createdTime;
+  final int sizeBytes;
+  final BackupMetadata? metadata;
+  final BackupFormat format;
 }
 
 class LocalBackupService {
@@ -193,7 +196,6 @@ class LocalBackupService {
           backupTimestamp: timestamp,
           totalRecords: totalRecords,
           deviceInfo: deviceLabel,
-          format: BackupFormat.json,
         );
 
         final backupData = {
@@ -255,7 +257,7 @@ class LocalBackupService {
 
         // JSON مضغوط بدون مسافات + gzip level 6
         final jsonBytes = utf8.encode(jsonEncode(backupData));
-        final compressedBytes = GZipCodec(level: 6).encode(jsonBytes);
+        final compressedBytes = GZipCodec().encode(jsonBytes);
         await file.writeAsBytes(compressedBytes);
 
         debugPrint(
@@ -743,7 +745,6 @@ class LocalBackupService {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json', 'sqlite', 'gz'],
-        allowMultiple: false,
       );
 
       if (result == null || result.files.isEmpty) {

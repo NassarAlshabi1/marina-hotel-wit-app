@@ -1,32 +1,34 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as drift;
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
-import 'appwrite_service.dart';
-import 'appwrite_logger.dart';
-import 'appwrite_error_handler.dart';
-import 'appwrite_models.dart';
-import 'appwrite_config.dart';
-import 'local_db.dart';
-import 'daos/outbox_dao.dart';
-import 'sync_mutex.dart';
-import 'sync_enums.dart';
-import 'sync_constants.dart';
-import 'sync_core/sync_metrics.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
-import 'repositories/bookings_repository.dart';
+import 'appwrite_config.dart';
+import 'appwrite_error_handler.dart';
+import 'appwrite_logger.dart';
+import 'appwrite_models.dart';
+import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
+import 'daos/outbox_dao.dart';
+import 'local_db.dart';
+import 'repositories/bookings_repository.dart';
+import 'sync_constants.dart';
+import 'sync_core/sync_metrics.dart';
+import 'sync_enums.dart';
+import 'sync_mutex.dart';
 import 'telegram/whatsapp_notification_service.dart';
 
 /// حالة المزامنة
@@ -34,13 +36,6 @@ enum SyncStatus { idle, syncing, success, failed, partial }
 
 /// نتيجة المزامنة
 class SyncResult {
-  final SyncStatus status;
-  final int recordsPushed;
-  final int recordsPulled;
-  final int conflicts;
-  final String? errorMessage;
-  final DateTime timestamp;
-  final Duration duration;
 
   SyncResult({
     required this.status,
@@ -51,6 +46,13 @@ class SyncResult {
     required this.timestamp,
     required this.duration,
   });
+  final SyncStatus status;
+  final int recordsPushed;
+  final int recordsPulled;
+  final int conflicts;
+  final String? errorMessage;
+  final DateTime timestamp;
+  final Duration duration;
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
@@ -60,14 +62,6 @@ class SyncResult {
 
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
-  static AppwriteSyncManager? _instance;
-
-  final AppwriteService appwriteService;
-  final AppDatabase database;
-  final OutboxDao outboxDao;
-  late final BookingsRepository _bookingsRepository;
-  late final AdapterRegistry _adapterRegistry;
-  final SyncMutex _mutex = SyncMutex();
 
   factory AppwriteSyncManager({
     required AppwriteService appwriteService,
@@ -87,6 +81,14 @@ class AppwriteSyncManager {
     _adapterRegistry = AdapterRegistry(database);
     _bookingsRepository = BookingsRepository(database);
   }
+  static AppwriteSyncManager? _instance;
+
+  final AppwriteService appwriteService;
+  final AppDatabase database;
+  final OutboxDao outboxDao;
+  late final BookingsRepository _bookingsRepository;
+  late final AdapterRegistry _adapterRegistry;
+  final SyncMutex _mutex = SyncMutex();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -179,7 +181,6 @@ class AppwriteSyncManager {
         operation: 'initial_seed',
         error: e.toString(),
         stackTrace: stackTrace,
-        severity: CrashlyticsSeverity.error,
       );
     }
   }
@@ -290,7 +291,6 @@ class AppwriteSyncManager {
           );
           final currentRemoteVersion = _asInt(
             existingDoc.data['version'],
-            fallback: 0,
           );
           if (_deviceVersion == null ||
               _deviceVersion! <= currentRemoteVersion) {
@@ -407,7 +407,7 @@ class AppwriteSyncManager {
           );
 
           // محاولة رفعها فوراً
-          final result = await sync(push: true, pull: false);
+          final result = await sync(pull: false);
           if (result.status == SyncStatus.success) {
             debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
           }
@@ -425,13 +425,13 @@ class AppwriteSyncManager {
       _debounceWindow = window;
     }
     _outboxSubscription?.cancel();
-    _outboxSubscription = (database.select(database.outbox)).watch().listen(
+    _outboxSubscription = database.select(database.outbox).watch().listen(
       (_) {
         _debouncePushTimer?.cancel();
         _debouncePushTimer = Timer(_debounceWindow, () async {
           _logger.debug('Debounced push triggered', tag: 'SYNC');
           try {
-            final result = await sync(push: true, pull: false);
+            final result = await sync(pull: false);
             if (result.status != SyncStatus.success) {
               _logger.warning(
                 'Debounced push sync failed: ${result.errorMessage ?? ''}',
@@ -514,7 +514,7 @@ class AppwriteSyncManager {
     final phaseMs = <String, int>{};
     int recordsPushed = 0;
     int recordsPulled = 0;
-    final int conflicts = 0;
+    const int conflicts = 0;
     String? errorMessage;
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
@@ -604,7 +604,7 @@ class AppwriteSyncManager {
               return 1;
             }
             return 0;
-          }, phaseMs);
+          }, phaseMs,);
         } catch (e, st) {
           _logger.error('❌ فشل رفع app_settings', error: e, stackTrace: st, tag: 'SYNC');
         }
@@ -615,7 +615,7 @@ class AppwriteSyncManager {
         await database.customStatement('PRAGMA foreign_keys=OFF');
         try {
           _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
-          final _failedCollections = <String>[];
+          final failedCollections = <String>[];
 
           // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
           final lastPullTs = await _getLastPullTs();
@@ -637,13 +637,12 @@ class AppwriteSyncManager {
               final roomsSynced = await _syncRooms(rooms);
               _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
               return roomsSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('rooms');
+            failedCollections.add('rooms');
             _logger.error('❌ فشل سحب rooms', error: e, stackTrace: st, tag: 'SYNC');
             await CrashlyticsService.instance.recordSyncError(
-              operation: 'pull_rooms', error: e.toString(), stackTrace: st,
-              severity: CrashlyticsSeverity.error, context: {'phase': 'sync'},
+              operation: 'pull_rooms', error: e.toString(), stackTrace: st, context: {'phase': 'sync'},
             );
           }
 
@@ -653,9 +652,9 @@ class AppwriteSyncManager {
               final bookingsSynced = await _syncBookings(bookings);
               _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
               return bookingsSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('bookings');
+            failedCollections.add('bookings');
             _logger.error('❌ فشل سحب bookings', error: e, stackTrace: st, tag: 'SYNC');
             await CrashlyticsService.instance.recordSyncError(
               operation: 'pull_bookings', error: e.toString(), stackTrace: st,
@@ -672,13 +671,12 @@ class AppwriteSyncManager {
               final employeesSynced = await _syncEmployees(employees);
               _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
               return employeesSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('employees');
+            failedCollections.add('employees');
             _logger.error('❌ فشل سحب employees', error: e, stackTrace: st, tag: 'SYNC');
             await CrashlyticsService.instance.recordSyncError(
-              operation: 'pull_employees', error: e.toString(), stackTrace: st,
-              severity: CrashlyticsSeverity.error, context: {'phase': 'sync'},
+              operation: 'pull_employees', error: e.toString(), stackTrace: st, context: {'phase': 'sync'},
             );
           }
 
@@ -688,9 +686,9 @@ class AppwriteSyncManager {
               final expensesSynced = await _syncExpenses(expenses);
               _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
               return expensesSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('expenses');
+            failedCollections.add('expenses');
             _logger.error('❌ فشل سحب expenses', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -700,9 +698,9 @@ class AppwriteSyncManager {
               final paymentsSynced = await _syncPayments(payments);
               _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
               return paymentsSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('payments');
+            failedCollections.add('payments');
             _logger.error('❌ فشل سحب payments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -712,9 +710,9 @@ class AppwriteSyncManager {
               final debtsSynced = await _syncDebts(debts);
               _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
               return debtsSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('debts');
+            failedCollections.add('debts');
             _logger.error('❌ فشل سحب debts', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -724,9 +722,9 @@ class AppwriteSyncManager {
               final synced = await _syncGuestInfos(guestInfos);
               _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('guest_infos');
+            failedCollections.add('guest_infos');
             _logger.error('❌ فشل سحب guest_infos', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -736,9 +734,9 @@ class AppwriteSyncManager {
               final synced = await _syncSalaryWithdrawals(salaryWithdrawals);
               _logger.debug('Synced $synced salary_withdrawals', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('salary_withdrawals');
+            failedCollections.add('salary_withdrawals');
             _logger.error('❌ فشل سحب salary_withdrawals', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -751,9 +749,9 @@ class AppwriteSyncManager {
               final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
               _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
               return adjustmentsSynced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('booking_price_adjustments');
+            failedCollections.add('booking_price_adjustments');
             _logger.error('❌ فشل سحب booking_price_adjustments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -774,9 +772,9 @@ class AppwriteSyncManager {
               await _updateBookingNightsPullTs(Time.nowEpoch());
               _logger.debug('Synced $synced booking nights', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('booking_nights');
+            failedCollections.add('booking_nights');
             _logger.error('❌ فشل سحب booking_nights', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -786,9 +784,9 @@ class AppwriteSyncManager {
               final synced = await _syncBookingNotes(bookingNotes);
               _logger.debug('Synced $synced booking notes', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('booking_notes');
+            failedCollections.add('booking_notes');
             _logger.error('❌ فشل سحب booking_notes', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -798,9 +796,9 @@ class AppwriteSyncManager {
               final synced = await _syncCashTransactions(cashTransactions);
               _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('cash_transactions');
+            failedCollections.add('cash_transactions');
             _logger.error('❌ فشل سحب cash_transactions', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -810,9 +808,9 @@ class AppwriteSyncManager {
               final synced = await _syncShiftNotes(shiftNotes);
               _logger.debug('Synced $synced shift notes', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('shift_notes');
+            failedCollections.add('shift_notes');
             _logger.error('❌ فشل سحب shift_notes', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -822,9 +820,9 @@ class AppwriteSyncManager {
               final synced = await _syncBlacklist(blacklistDocs);
               _logger.debug('Synced $synced blacklist entries', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('blacklist');
+            failedCollections.add('blacklist');
             _logger.error('❌ فشل سحب blacklist', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -834,9 +832,9 @@ class AppwriteSyncManager {
               final synced = await _syncSalaryCycles(salaryCycles);
               _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('salary_cycles');
+            failedCollections.add('salary_cycles');
             _logger.error('❌ فشل سحب salary_cycles', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -846,9 +844,9 @@ class AppwriteSyncManager {
               final synced = await _syncSalaryPayments(salaryPayments);
               _logger.debug('Synced $synced salary payments', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('salary_payments');
+            failedCollections.add('salary_payments');
             _logger.error('❌ فشل سحب salary_payments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -861,9 +859,9 @@ class AppwriteSyncManager {
               final synced = await _syncPriceAdjustments(docs);
               _logger.debug('Synced $synced price adjustments', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('price_adjustments');
+            failedCollections.add('price_adjustments');
             _logger.error('❌ فشل سحب price_adjustments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -876,9 +874,9 @@ class AppwriteSyncManager {
               final synced = await _syncAuditLogs(docs);
               _logger.debug('Synced $synced audit logs', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('audit_logs');
+            failedCollections.add('audit_logs');
             _logger.error('❌ فشل سحب audit_logs', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -891,9 +889,9 @@ class AppwriteSyncManager {
               final synced = await _syncPaymentVoids(docs);
               _logger.debug('Synced $synced payment voids', tag: 'SYNC');
               return synced;
-            }, phaseMs);
+            }, phaseMs,);
           } catch (e, st) {
-            _failedCollections.add('payment_voids');
+            failedCollections.add('payment_voids');
             _logger.error('❌ فشل سحب payment_voids', error: e, stackTrace: st, tag: 'SYNC');
           }
 
@@ -911,8 +909,8 @@ class AppwriteSyncManager {
               final synced = await _syncAppSettings(docs);
               _logger.debug('Synced $synced app_settings', tag: 'SYNC');
               return synced;
-            }, phaseMs);
-          } catch (e, st) {
+            }, phaseMs,);
+          } catch (e) {
             // ⚠️ app_settings غير حرجة — لا تمنع تحديث lastPullTs
             // إعدادات واتساب ليست بيانات فندقية أساسية
             _logger.warning(
@@ -923,11 +921,11 @@ class AppwriteSyncManager {
 
           // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
           // إذا فشل بعضها، لا نحدّث timestamp حتى نتمكن من سحبها في المرة القادمة
-          if (_failedCollections.isEmpty) {
+          if (failedCollections.isEmpty) {
             await _updateLastPullTs(Time.nowEpoch());
           } else {
             _logger.warning(
-              '⚠️ ${_failedCollections.length} collections فشل سحبها: ${_failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
+              '⚠️ ${failedCollections.length} collections فشل سحبها: ${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
               tag: 'SYNC',
             );
           }
@@ -1061,7 +1059,6 @@ class AppwriteSyncManager {
     if (finalStatus == SyncStatus.success) {
       metrics.recordSuccess(
         recordsSynced: recordsPushed + recordsPulled,
-        conflictsResolved: conflicts,
       );
     } else {
       metrics.recordFailure(errorMessage ?? 'Appwrite sync failed');
@@ -1080,7 +1077,7 @@ class AppwriteSyncManager {
       var encoded = jsonEncode(payload, toEncodable: (v) => v.toString());
       if (encoded.length > SyncConstants.maxMetricsPayloadLength) {
         const ellipsis = '…';
-        final maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
+        const maxLen = SyncConstants.maxMetricsPayloadLength - ellipsis.length;
         if (maxLen > 0) {
           encoded = String.fromCharCodes(encoded.runes.take(maxLen)) + ellipsis;
         } else {
@@ -1102,7 +1099,6 @@ class AppwriteSyncManager {
       status: finalStatus,
       recordsPushed: recordsPushed,
       recordsPulled: recordsPulled,
-      conflicts: conflicts,
       errorMessage: errorMessage,
       timestamp: endTime,
       duration: duration,
@@ -1116,7 +1112,7 @@ class AppwriteSyncManager {
       // جلب سجلات المزامنة الخاصة بهذا الجهاز فقط لتقليل حجم البيانات المسحوبة
       final syncLogs = await appwriteService.listSyncLogs(
         queries: [
-          if (_currentDeviceId != null) Query.equal('deviceId', _currentDeviceId!),
+          if (_currentDeviceId != null) Query.equal('deviceId', _currentDeviceId),
           Query.orderDesc('timestamp'),
           Query.limit(1),
         ],
@@ -2212,7 +2208,7 @@ class AppwriteSyncManager {
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   Future<bool> pushLocalChanges() async {
     try {
-      final result = await sync(push: true, pull: false);
+      final result = await sync(pull: false);
       return result.status == SyncStatus.success;
     } catch (e, stackTrace) {
       _logger.error(
@@ -2223,7 +2219,6 @@ class AppwriteSyncManager {
       );
       await CrashlyticsService.instance.recordSyncError(
         operation: 'pushLocalChanges', error: e.toString(), stackTrace: stackTrace,
-        severity: CrashlyticsSeverity.error,
       );
       return false;
     }
@@ -2466,7 +2461,7 @@ class AppwriteSyncManager {
         );
         return false;
       }
-    }, timeout: const Duration(minutes: 5)) ?? false;
+    }, timeout: const Duration(minutes: 5),) ?? false;
   }
 
   /// رفع جميع البيانات المحلية
@@ -3166,7 +3161,7 @@ class AppwriteSyncManager {
     return (database.select(database.shiftNotes)
           ..where((t) =>
               t.localUuid.equals(uuid) &
-              t.createdBy.equals('blacklist'))
+              t.createdBy.equals('blacklist'),)
           ..limit(1))
         .getSingleOrNull();
   }
@@ -3795,8 +3790,8 @@ class AppwriteSyncManager {
         'appwrite_log_file': prefs.getBool('appwrite_log_file') ?? false,
       };
 
-      final docId = 'whatsapp_settings';
-      final collectionId = 'app_settings';
+      const docId = 'whatsapp_settings';
+      const collectionId = 'app_settings';
 
       // محاولة تحديث، إذا لم يكن موجوداً ننشئه
       try {

@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart' show AppDatabase, BookingNotesCompanion;
+
+import '../../models/shift_note_adapter.dart';
 import '../daos/booking_notes_dao.dart';
 import '../daos/outbox_dao.dart';
-import '../../models/shift_note_adapter.dart';
+import '../local_db.dart' show AppDatabase, BookingNotesCompanion;
 
 /// Repository للملاحظات العامة (ملاحظات النوبات)
 /// يستخدم جدول BookingNotes مع bookingId = -1 للملاحظات العامة
@@ -27,7 +28,6 @@ class ShiftNotesRepository {
   Future<List<ShiftNote>> listAllActive() async {
     final bookingNotes = await dao.list(
       bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID,
-      includeDeleted: false,
     );
     return bookingNotes
         .where((note) => note.isActive == 1)
@@ -39,7 +39,6 @@ class ShiftNotesRepository {
   Future<List<ShiftNote>> listUnread() async {
     final bookingNotes = await dao.list(
       bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID,
-      includeDeleted: false,
     );
     return bookingNotes
         .where((note) => note.isActive == 1) // غير مقروءة = نشطة
@@ -58,9 +57,9 @@ class ShiftNotesRepository {
   /// إنشاء ملاحظة جديدة
   Future<int> create(ShiftNote note) async {
     final data = ShiftNoteAdapter.toBookingNoteData(note);
-    return await dao.insertOne(
+    return dao.insertOne(
       BookingNotesCompanion(
-        bookingId: d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
+        bookingId: const d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
         noteText: d.Value(data['note_text'] as String),
         alertType: d.Value(data['alert_type'] as String),
         alertUntil: data['alert_until'] != null

@@ -35,11 +35,6 @@ abstract class SyncAdapter {
 
 /// معلومات حالة المحول
 class AdapterStatus {
-  final bool isConnected;
-  final bool isAuthenticated;
-  final DateTime? lastSyncTime;
-  final int pendingChanges;
-  final String? errorMessage;
 
   AdapterStatus({
     required this.isConnected,
@@ -48,6 +43,11 @@ class AdapterStatus {
     this.pendingChanges = 0,
     this.errorMessage,
   });
+  final bool isConnected;
+  final bool isAuthenticated;
+  final DateTime? lastSyncTime;
+  final int pendingChanges;
+  final String? errorMessage;
 
   bool get isReady => isConnected && isAuthenticated;
   bool get hasError => errorMessage != null;

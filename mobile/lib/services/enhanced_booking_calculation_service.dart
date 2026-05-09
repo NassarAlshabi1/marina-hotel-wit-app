@@ -7,15 +7,6 @@ import '../utils/time.dart';
 import 'local_db.dart';
 
 class BookingCalculationResult {
-  final List<NightlyBreakdown> breakdown;
-  final FinancialSummary financialSummary;
-  final DateTime checkin;
-  final DateTime checkout;
-  final bool bookingActive;
-  final String stayDurationIso;
-  final int? lastNightEpoch;
-  final String hotelDayCheckin;
-  final String hotelDayCheckout;
 
   const BookingCalculationResult({
     required this.breakdown,
@@ -28,6 +19,15 @@ class BookingCalculationResult {
     required this.hotelDayCheckin,
     required this.hotelDayCheckout,
   });
+  final List<NightlyBreakdown> breakdown;
+  final FinancialSummary financialSummary;
+  final DateTime checkin;
+  final DateTime checkout;
+  final bool bookingActive;
+  final String stayDurationIso;
+  final int? lastNightEpoch;
+  final String hotelDayCheckin;
+  final String hotelDayCheckout;
 }
 
 class EnhancedBookingCalculationService {
@@ -241,8 +241,6 @@ class EnhancedBookingCalculationService {
               uuid: 'legacy_discount',
               type: 'legacy_discount',
               amount: signed,
-              reason: null,
-              appliedBy: null,
             ),
           );
         }
@@ -584,7 +582,7 @@ class EnhancedBookingCalculationService {
     if (v.isEmpty) return null;
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+        normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -608,7 +606,7 @@ class EnhancedBookingCalculationService {
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
+    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(

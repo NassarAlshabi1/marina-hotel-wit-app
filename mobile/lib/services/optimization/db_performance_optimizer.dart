@@ -4,15 +4,15 @@
 /// Creates composite indexes for better query performance
 /// Runs automatically on app startup
 /// ============================================================
+library;
 
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import '../local_db.dart' as local_db;
 
 class DatabaseOptimizer {
-  final local_db.AppDatabase db;
   
   DatabaseOptimizer(this.db);
+  final local_db.AppDatabase db;
   
   /// Run all optimizations
   Future<void> optimizeAll() async {

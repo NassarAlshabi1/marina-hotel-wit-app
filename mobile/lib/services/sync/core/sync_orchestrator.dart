@@ -2,17 +2,17 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/sync_state.dart';
-import '../strategies/retry_strategy.dart';
 import '../adapters/sync_adapter.dart';
 import '../models/sync_result.dart';
+import '../models/sync_state.dart';
+import '../strategies/retry_strategy.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
-  static SyncOrchestrator? _instance;
-  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   SyncOrchestrator._();
+  static SyncOrchestrator? _instance;
+  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   final List<SyncAdapter> _adapters = [];
   final StreamController<SyncState> _stateController = StreamController<SyncState>.broadcast();
@@ -49,7 +49,7 @@ class SyncOrchestrator {
     }
 
     _isSyncing = true;
-    _emitState(SyncState.syncing(progress: 0));
+    _emitState(SyncState.syncing());
 
     final results = <String, SyncResult>{};
     int completed = 0;
@@ -61,7 +61,7 @@ class SyncOrchestrator {
         _emitState(SyncState.syncing(
           progress: (completed / _adapters.length * 100).toInt(),
           message: 'مزامنة ${adapter.name}...',
-        ));
+        ),);
 
         final result = await _syncWithRetry(adapter, push: push, pull: pull);
         results[adapter.name] = result;
@@ -99,18 +99,18 @@ class SyncOrchestrator {
     required bool pull,
   }) async {
     return _retryStrategy.execute(() async {
-      return await adapter.sync(push: push, pull: pull);
+      return adapter.sync(push: push, pull: pull);
     });
   }
 
   /// دفع التغييرات المحلية فقط (بدون سحب)
   Future<SyncResult> pushOnly() async {
-    return syncNow(push: true, pull: false);
+    return syncNow(pull: false);
   }
 
   /// سحب التغييرات من السحابة فقط (بدون دفع)
   Future<SyncResult> pullOnly() async {
-    return syncNow(push: false, pull: true);
+    return syncNow(push: false);
   }
 
   /// الحصول على حالة المزامنة الحالية

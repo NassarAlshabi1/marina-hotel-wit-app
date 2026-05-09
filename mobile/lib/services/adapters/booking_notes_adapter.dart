@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart' as d;
 
-import '../local_db.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
@@ -36,7 +36,6 @@ class BookingNotesAdapter
         _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
     final resolvedId = await resolver.resolveBooking(
       localId: bookingLocalId,
-      serverId: null,
       uuid: bookingUuid,
     );
     final createdAt = _epoch(json, 'createdAt', src);

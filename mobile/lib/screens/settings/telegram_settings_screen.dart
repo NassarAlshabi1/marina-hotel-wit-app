@@ -154,7 +154,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 Switch(
                   value: state.isEnabled,
                   onChanged: (value) => ref.read(telegramProvider.notifier).setEnabled(value),
-                  activeColor: const Color(0xFF0088cc),
+                  activeThumbColor: const Color(0xFF0088cc),
                 ),
               ],
             ),
@@ -258,7 +258,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 14),
+                        const Icon(Icons.check_circle, color: Colors.green, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           'مُعدّ',
@@ -277,7 +277,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.cloud_off, color: Colors.grey, size: 14),
+                        const Icon(Icons.cloud_off, color: Colors.grey, size: 14),
                         const SizedBox(width: 4),
                         Text('غير مُعدّ', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
                       ],
@@ -318,7 +318,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.help_outline, color: const Color(0xFF0088cc), size: 20),
+                    const Icon(Icons.help_outline, color: Color(0xFF0088cc), size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -378,7 +378,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 Switch(
                   value: state.isNotificationsEnabled,
                   onChanged: (value) => ref.read(telegramProvider.notifier).setNotificationsEnabled(value),
-                  activeColor: Colors.green,
+                  activeThumbColor: Colors.green,
                 ),
               ],
             ),
@@ -455,7 +455,7 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 Switch(
                   value: state.isDailyReportEnabled,
                   onChanged: (value) => ref.read(telegramProvider.notifier).setDailyReportEnabled(value),
-                  activeColor: const Color(0xFF0088cc),
+                  activeThumbColor: const Color(0xFF0088cc),
                 ),
               ],
             ),
@@ -496,12 +496,12 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
                       const SizedBox(width: 6),
                       Expanded(child: Text('آخر تقرير: ${state.lastReportSent}', style: TextStyle(color: Colors.green[700], fontSize: 12))),
                       TextButton(
                         onPressed: () => ref.read(telegramProvider.notifier).resetLastReport(),
-                        child: Text('إعادة إرسال', style: TextStyle(color: const Color(0xFF0088cc), fontSize: 11)),
+                        child: const Text('إعادة إرسال', style: TextStyle(color: Color(0xFF0088cc), fontSize: 11)),
                       ),
                     ],
                   ),
@@ -647,8 +647,8 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
   Future<void> _selectReportTime(BuildContext context) async {
     final state = ref.read(telegramProvider);
     final parts = state.dailyReportTime.split(':');
-    int hour = int.parse(parts[0]);
-    int minute = int.parse(parts[1]);
+    final int hour = int.parse(parts[0]);
+    final int minute = int.parse(parts[1]);
 
     if (!context.mounted) return;
 

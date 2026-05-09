@@ -48,6 +48,21 @@ class DriveSyncShard {
     required this.version,
   });
 
+  factory DriveSyncShard.fromJson(Map<String, dynamic> json) {
+    return DriveSyncShard(
+      fileId: json['fileId'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      index: json['index'] as int? ?? 0,
+      totalParts: json['totalParts'] as int? ?? 1,
+      size: json['size'] as int? ?? 0,
+      checksum: json['checksum'] as String? ?? '',
+      modifiedAt:
+          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      version: json['version'] as int? ?? 1,
+    );
+  }
+
   final String fileId;
   final String name;
   final int index;
@@ -69,21 +84,6 @@ class DriveSyncShard {
       'version': version,
     };
   }
-
-  factory DriveSyncShard.fromJson(Map<String, dynamic> json) {
-    return DriveSyncShard(
-      fileId: json['fileId'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      index: json['index'] as int? ?? 0,
-      totalParts: json['totalParts'] as int? ?? 1,
-      size: json['size'] as int? ?? 0,
-      checksum: json['checksum'] as String? ?? '',
-      modifiedAt:
-          DateTime.tryParse(json['modifiedAt'] as String? ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0),
-      version: json['version'] as int? ?? 1,
-    );
-  }
 }
 
 /// ملف فهرس الأجزاء لتسهيل إعادة البناء
@@ -98,6 +98,25 @@ class DriveSyncIndex {
     required this.shards,
     required this.snapshotSize,
   });
+
+  factory DriveSyncIndex.fromJson(Map<String, dynamic> json) {
+    final rawShards = (json['shards'] as List<dynamic>? ?? [])
+        .map(
+          (item) =>
+              DriveSyncShard.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+    return DriveSyncIndex(
+      version: json['version'] as int? ?? 1,
+      checksum: json['checksum'] as String? ?? '',
+      lastDeviceId: json['lastDeviceId'] as String? ?? '',
+      lastSyncId: json['lastSyncId'] as String? ?? '',
+      updatedAt: json['updatedAt'] as String? ?? '',
+      totalParts: json['totalParts'] as int? ?? rawShards.length,
+      snapshotSize: json['snapshotSize'] as int? ?? 0,
+      shards: rawShards,
+    );
+  }
 
   final int version;
   final String checksum;
@@ -119,25 +138,6 @@ class DriveSyncIndex {
       'snapshotSize': snapshotSize,
       'shards': shards.map((s) => s.toJson()).toList(),
     };
-  }
-
-  factory DriveSyncIndex.fromJson(Map<String, dynamic> json) {
-    final rawShards = (json['shards'] as List<dynamic>? ?? [])
-        .map(
-          (item) =>
-              DriveSyncShard.fromJson(Map<String, dynamic>.from(item as Map)),
-        )
-        .toList();
-    return DriveSyncIndex(
-      version: json['version'] as int? ?? 1,
-      checksum: json['checksum'] as String? ?? '',
-      lastDeviceId: json['lastDeviceId'] as String? ?? '',
-      lastSyncId: json['lastSyncId'] as String? ?? '',
-      updatedAt: json['updatedAt'] as String? ?? '',
-      totalParts: json['totalParts'] as int? ?? rawShards.length,
-      snapshotSize: json['snapshotSize'] as int? ?? 0,
-      shards: rawShards,
-    );
   }
 }
 
@@ -206,7 +206,7 @@ class GoogleDriveSyncService {
   Future<GoogleSignInAccount?> signIn() async {
     try {
       final account =
-          await _googleSignIn.signInSilently(suppressErrors: true) ??
+          await _googleSignIn.signInSilently() ??
           await _googleSignIn.signIn();
       if (account == null) {
         return null;
@@ -424,7 +424,7 @@ class GoogleDriveSyncService {
     }
 
     final account =
-        await _googleSignIn.signInSilently(suppressErrors: true) ??
+        await _googleSignIn.signInSilently() ??
         (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
 
     if (account == null) {

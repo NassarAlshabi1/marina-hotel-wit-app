@@ -1,18 +1,21 @@
 /// Drift Outbox Storage Implementation
 /// تطبيق OutboxStorage باستخدام Drift
+library;
 
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+
 import '../../services/local_db.dart';
-import '../processors/outbox_processor.dart';
 import '../models/sync_models.dart';
+import '../processors/outbox_processor.dart';
 
 /// تطبيق OutboxStorage باستخدام Drift
 class DriftOutboxStorage implements OutboxStorage {
-  final AppDatabase _db;
 
   DriftOutboxStorage(this._db);
+  final AppDatabase _db;
 
   /// تحويل OutboxData إلى DeltaChange
   DeltaChange _toDeltaChange(OutboxData record) {
@@ -38,8 +41,6 @@ class DriftOutboxStorage implements OutboxStorage {
         isUtc: true,
       ),
       vectorClock: '',
-      checksum: null,
-      deviceId: null,
       retryCount: record.attempts,
       lastError: record.lastError,
       nextRetryAt: record.processingStartedAt != null
@@ -132,7 +133,7 @@ class DriftOutboxStorage implements OutboxStorage {
     await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
         .write(const OutboxCompanion(
       processingStatus: Value('synced'),
-    ));
+    ),);
   }
 
   @override
@@ -146,7 +147,7 @@ class DriftOutboxStorage implements OutboxStorage {
         .write(OutboxCompanion(
       processingStatus: const Value('failed'),
       lastError: Value(error),
-    ));
+    ),);
   }
 
   @override
@@ -168,7 +169,7 @@ class DriftOutboxStorage implements OutboxStorage {
       processingStatus: const Value('pending'),
       processingStartedAt:
           Value(nextRetryAt.millisecondsSinceEpoch ~/ 1000),
-    ));
+    ),);
   }
 
   @override

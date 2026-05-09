@@ -87,9 +87,8 @@ class EnhancedSyncButton extends ConsumerWidget {
               : () => _showSyncOptions(context, orchestrator),
         );
       },
-      loading: () => const _SyncButtonContent(state: null, onPressed: null),
+      loading: () => const _SyncButtonContent(),
       error: (_, __) => _SyncButtonContent(
-        state: null,
         onPressed: () => _showSyncOptions(context, orchestrator),
         isError: true,
       ),
@@ -138,15 +137,15 @@ class EnhancedSyncButton extends ConsumerWidget {
 }
 
 class _SyncButtonContent extends StatelessWidget {
-  final SyncState? state;
-  final VoidCallback? onPressed;
-  final bool isError;
 
   const _SyncButtonContent({
     this.state,
     this.onPressed,
     this.isError = false,
   });
+  final SyncState? state;
+  final VoidCallback? onPressed;
+  final bool isError;
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +157,7 @@ class _SyncButtonContent extends StatelessWidget {
       icon = Icons.sync_problem;
       color = Colors.orange;
       tooltip = 'خطأ في المزامنة';
-    } else if (state?.isSyncing == true) {
+    } else if (state?.isSyncing ?? false) {
       icon = Icons.sync;
       color = Colors.blue;
       tooltip = 'جاري المزامنة...';
@@ -166,7 +165,7 @@ class _SyncButtonContent extends StatelessWidget {
       icon = Icons.sync;
       color = Colors.orange;
       tooltip = '${state!.pendingChanges} تغييرات معلقة';
-    } else if (state?.isOffline == true) {
+    } else if (state?.isOffline ?? false) {
       icon = Icons.offline_bolt;
       color = Colors.grey;
       tooltip = 'وضع عدم الاتصال';
@@ -179,7 +178,7 @@ class _SyncButtonContent extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: IconButton(
-        icon: state?.isSyncing == true
+        icon: state?.isSyncing ?? false
             ? SizedBox(
                 width: 20,
                 height: 20,

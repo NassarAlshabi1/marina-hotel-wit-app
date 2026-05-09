@@ -4,5 +4,5 @@
 /// `exp_10`, `exp_100`, etc.
 bool matchesExpenseRef(String? reason, int expenseId) {
   if (reason == null) return false;
-  return RegExp(r'exp_' + expenseId.toString() + r'(?!\d)').hasMatch(reason);
+  return RegExp('exp_' + expenseId.toString() + r'(?!\d)').hasMatch(reason);
 }

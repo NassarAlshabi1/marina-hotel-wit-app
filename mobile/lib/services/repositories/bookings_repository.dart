@@ -1,14 +1,15 @@
 import 'package:drift/drift.dart' as d;
-import '../booking_derived_fields_service.dart';
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
-import '../daos/bookings_dao.dart';
-import '../auto_backup_manager.dart';
-import '../lark/lark_notification_service.dart';
-import '../telegram/whatsapp_notification_service.dart';
-import '../crashlytics_service.dart';
+
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import '../auto_backup_manager.dart';
+import '../booking_derived_fields_service.dart';
+import '../crashlytics_service.dart';
+import '../daos/bookings_dao.dart';
+import '../daos/outbox_dao.dart';
+import '../lark/lark_notification_service.dart';
+import '../local_db.dart';
+import '../telegram/whatsapp_notification_service.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db) {
@@ -261,7 +262,6 @@ class BookingsRepository {
         action: 'update',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id', 'newStatus': status ?? '', 'newRoom': roomNumber ?? ''},
       );
       rethrow;
@@ -288,7 +288,6 @@ class BookingsRepository {
             guestPhone: booking.guestPhone,
             expectedNights: booking.expectedNights,
           );
-          break;
         case 'مكتمل':
           LarkNotificationService.instance.notifyCheckOut(
             roomNumber: booking.roomNumber,
@@ -304,7 +303,6 @@ class BookingsRepository {
             totalPaid: booking.totalPaidCached,
             remaining: booking.remainingBalanceCached,
           );
-          break;
       }
     });
   }
@@ -326,7 +324,6 @@ class BookingsRepository {
         action: 'delete',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -348,7 +345,6 @@ class BookingsRepository {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
         List<Map<String, dynamic>>.from(data['data'] as List),
-        clearExisting: false,
       );
     }
   }
@@ -360,7 +356,7 @@ class BookingsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   /// مزامنة التخفيض القديم (legacy discount) مع جدول التعديلات.
@@ -419,7 +415,7 @@ class BookingsRepository {
 
   /// الحصول على أي حجز نشط للغرفة (التحقق من جميع حالات الحجز النشط)
   Future<Booking?> getActiveBookingForRoom(String roomNumber) async {
-    return await (db.select(db.bookings)
+    return (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
           ..where((b) => b.deletedAt.isNull())
           ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))

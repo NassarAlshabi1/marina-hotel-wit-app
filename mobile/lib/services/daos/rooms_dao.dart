@@ -70,7 +70,6 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           entity: 'rooms',
           op: 'create',
           localUuid: uu,
-          serverId: null,
           payload: _payloadFromRoom(comp),
           clientTs: now,
         );
@@ -187,7 +186,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع الغرف إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final roomsList = await list(includeDeleted: false);
+    final roomsList = await list();
     return roomsList.map((room) => room.toJson()).toList();
   }
 

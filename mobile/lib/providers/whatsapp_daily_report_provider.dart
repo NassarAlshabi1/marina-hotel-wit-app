@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/alarm_backup.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
-import '../services/alarm_backup.dart';
 import '../utils/env.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
@@ -18,15 +18,6 @@ enum WhatsAppReportStatus {
 
 /// حالة التقرير اليومي عبر واتساب
 class WhatsAppDailyReportState {
-  final WhatsAppReportStatus status;
-  final String? message;
-  final bool isEnabled;
-  final bool isNotificationsEnabled;
-  final bool isDailyReportEnabled;
-  final String dailyReportTime;
-  final String? lastReportSent;
-  final String phoneNumber;
-  final String apiKey;
 
   const WhatsAppDailyReportState({
     this.status = WhatsAppReportStatus.idle,
@@ -39,6 +30,15 @@ class WhatsAppDailyReportState {
     this.phoneNumber = Env.whatsappPhoneNumber,
     this.apiKey = Env.whatsappApiKey,
   });
+  final WhatsAppReportStatus status;
+  final String? message;
+  final bool isEnabled;
+  final bool isNotificationsEnabled;
+  final bool isDailyReportEnabled;
+  final String dailyReportTime;
+  final String? lastReportSent;
+  final String phoneNumber;
+  final String apiKey;
 
   WhatsAppDailyReportState copyWith({
     WhatsAppReportStatus? status,
@@ -185,7 +185,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     } catch (e) {
       state = state.copyWith(
         status: WhatsAppReportStatus.error,
-        message: 'خطأ في الاتصال: ${e.toString()}',
+        message: 'خطأ في الاتصال: $e',
       );
     }
 
@@ -216,7 +216,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     } catch (e) {
       state = state.copyWith(
         status: WhatsAppReportStatus.error,
-        message: 'خطأ في إرسال التقرير: ${e.toString()}',
+        message: 'خطأ في إرسال التقرير: $e',
       );
     }
 
@@ -239,7 +239,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
       if (!_mounted) return;
       if (state.status == WhatsAppReportStatus.success ||
           state.status == WhatsAppReportStatus.error) {
-        state = state.copyWith(status: WhatsAppReportStatus.idle, message: null);
+        state = state.copyWith(status: WhatsAppReportStatus.idle);
       }
     });
   }
@@ -253,7 +253,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
   /// مسح حالة آخر تقرير
   Future<void> resetLastReport() async {
     await TelegramConfig.clearLastReport();
-    state = state.copyWith(lastReportSent: null);
+    state = state.copyWith();
   }
 }
 

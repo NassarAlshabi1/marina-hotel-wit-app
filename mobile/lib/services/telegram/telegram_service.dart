@@ -7,10 +7,10 @@ import 'telegram_config.dart';
 
 /// عميل API للتواصل مع Telegram Bot API
 class TelegramApiClient {
-  static TelegramApiClient? _instance;
-  static TelegramApiClient get instance => _instance ??= TelegramApiClient._();
 
   TelegramApiClient._();
+  static TelegramApiClient? _instance;
+  static TelegramApiClient get instance => _instance ??= TelegramApiClient._();
 
   final http.Client _client = http.Client();
 
@@ -27,7 +27,7 @@ class TelegramApiClient {
 
   /// بناء رابط API
   String _apiUrl(String method) {
-    return '${TelegramConfig.telegramApiBase}/bot${_cachedToken}/$method';
+    return '${TelegramConfig.telegramApiBase}/bot$_cachedToken/$method';
   }
 
   String _cachedToken = '';
@@ -100,11 +100,11 @@ class TelegramApiClient {
   }) {
     final buffer = StringBuffer();
     buffer.writeln('<b>$title</b>');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.write(body);
     if (footer != null) {
-      buffer.writeln('');
-      buffer.writeln('');
+      buffer.writeln();
+      buffer.writeln();
       buffer.writeln('<i>$footer</i>');
     }
 

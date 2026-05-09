@@ -1,11 +1,12 @@
 import 'package:drift/drift.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'payments_dao.g.dart';
 
@@ -109,7 +110,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       (t) => t.hotelDayKey.equals(hotelDayKey) |
           // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
           (t.hotelDayKey.isNull() &
-              t.paymentDate.like('${hotelDayKey}%')),
+              t.paymentDate.like('$hotelDayKey%')),
     );
     return q.watch();
   }
@@ -140,7 +141,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
     final byDateFallback =
         payments.hotelDayKey.isNull() &
-        payments.paymentDate.like('${hotelDayKey}%');
+        payments.paymentDate.like('$hotelDayKey%');
 
     q.where((t) => byKey | byDateFallback);
 
@@ -272,7 +273,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع المدفوعات إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final paymentsList = await list(includeDeleted: false);
+    final paymentsList = await list();
     return paymentsList.map((payment) => payment.toJson()).toList();
   }
 

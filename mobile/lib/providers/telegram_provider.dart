@@ -2,11 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/alarm_backup.dart';
 import '../services/telegram/telegram_config.dart';
-import '../services/telegram/telegram_service.dart';
 import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
-import '../services/alarm_backup.dart';
+import '../services/telegram/telegram_service.dart';
 import '../utils/env.dart';
 
 /// حالة إعداد Telegram
@@ -20,16 +20,6 @@ enum TelegramSetupStatus {
 
 /// حالة Telegram الكاملة
 class TelegramState {
-  final TelegramSetupStatus status;
-  final String? message;
-  final bool isEnabled;
-  final bool isConfigured;
-  final bool isNotificationsEnabled;
-  final bool isDailyReportEnabled;
-  final String botToken;
-  final String chatId;
-  final String dailyReportTime;
-  final String? lastReportSent;
 
   const TelegramState({
     this.status = TelegramSetupStatus.idle,
@@ -43,6 +33,16 @@ class TelegramState {
     this.dailyReportTime = '02:00',
     this.lastReportSent,
   });
+  final TelegramSetupStatus status;
+  final String? message;
+  final bool isEnabled;
+  final bool isConfigured;
+  final bool isNotificationsEnabled;
+  final bool isDailyReportEnabled;
+  final String botToken;
+  final String chatId;
+  final String dailyReportTime;
+  final String? lastReportSent;
 
   TelegramState copyWith({
     TelegramSetupStatus? status,
@@ -218,7 +218,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     } catch (e) {
       state = state.copyWith(
         status: TelegramSetupStatus.error,
-        message: '❌ خطأ في الاتصال: ${e.toString()}',
+        message: '❌ خطأ في الاتصال: $e',
       );
     }
 
@@ -249,7 +249,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     } catch (e) {
       state = state.copyWith(
         status: TelegramSetupStatus.error,
-        message: '❌ خطأ في إرسال التقرير: ${e.toString()}',
+        message: '❌ خطأ في إرسال التقرير: $e',
       );
     }
 
@@ -272,7 +272,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
       if (!_mounted) return;
       if (state.status == TelegramSetupStatus.success ||
           state.status == TelegramSetupStatus.error) {
-        state = state.copyWith(status: TelegramSetupStatus.idle, message: null);
+        state = state.copyWith(status: TelegramSetupStatus.idle);
       }
     });
   }
@@ -286,7 +286,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   /// مسح حالة آخر تقرير
   Future<void> resetLastReport() async {
     await TelegramConfig.clearLastReport();
-    state = state.copyWith(lastReportSent: null);
+    state = state.copyWith();
   }
 }
 

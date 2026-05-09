@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/sync_service.dart';
 import '../../services/local_db.dart';
+import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/theme.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
@@ -202,7 +203,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             content: Text('فشل حذف الموظف: $e'),
             backgroundColor: AppColors.dangerColor,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -389,7 +389,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),
@@ -442,7 +442,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             ),
             FilledButton.icon(
               onPressed: () {
-                if (formKey.currentState?.validate() == true) {
+                if (formKey.currentState?.validate() ?? false) {
                   Navigator.pop(ctx, true);
                 }
               },
@@ -514,7 +514,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           content: Text('فشل حفظ الموظف: $e'),
           backgroundColor: AppColors.dangerColor,
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -524,15 +523,15 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
 }
 
 class _EmployeeCard extends StatelessWidget {
-  final Employee employee;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
 
   const _EmployeeCard({
     required this.employee,
     required this.onTap,
     required this.onDelete,
   });
+  final Employee employee;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -543,7 +542,7 @@ class _EmployeeCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: statusColor.withValues(alpha: 0.2), width: 1),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.2)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -627,7 +626,7 @@ class _EmployeeCard extends StatelessWidget {
                         // المنصب
                         if (employee.position.isNotEmpty &&
                             employee.position != 'موظف') ...[
-                          Icon(
+                          const Icon(
                             Icons.badge,
                             size: 13,
                             color: AppColors.textSecondary,
@@ -635,7 +634,7 @@ class _EmployeeCard extends StatelessWidget {
                           const SizedBox(width: 3),
                           Text(
                             employee.position,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
                             ),
@@ -644,7 +643,7 @@ class _EmployeeCard extends StatelessWidget {
                           const SizedBox(width: 10),
                         ],
                         // الراتب
-                        Icon(
+                        const Icon(
                           Icons.attach_money,
                           size: 13,
                           color: AppColors.textSecondary,
@@ -652,7 +651,7 @@ class _EmployeeCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Text(
                           CurrencyFormatter.formatAmount(employee.basicSalary),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
@@ -664,7 +663,7 @@ class _EmployeeCard extends StatelessWidget {
                     if (employee.phone.isNotEmpty) ...[
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.phone,
                             size: 13,
                             color: AppColors.textSecondary,
@@ -672,7 +671,7 @@ class _EmployeeCard extends StatelessWidget {
                           const SizedBox(width: 3),
                           Text(
                             employee.phone,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
                             ),

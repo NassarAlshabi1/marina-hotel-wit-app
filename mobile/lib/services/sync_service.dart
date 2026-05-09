@@ -1,24 +1,26 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/repository_providers.dart';
 import '../utils/time.dart';
 import 'api_service.dart';
-import 'local_db.dart';
-import 'daos/outbox_dao.dart';
-import 'daos/rooms_dao.dart';
-import 'daos/bookings_dao.dart';
 import 'daos/booking_notes_dao.dart';
+import 'daos/bookings_dao.dart';
+import 'daos/cash_transactions_dao.dart';
 import 'daos/employees_dao.dart';
 import 'daos/expenses_dao.dart';
-import 'daos/cash_transactions_dao.dart';
+import 'daos/outbox_dao.dart';
 import 'daos/payments_dao.dart';
-import '../providers/repository_providers.dart';
-import 'sync_performance_optimizer.dart';
+import 'daos/rooms_dao.dart';
 import 'delta_sync_service.dart';
+import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
-import 'package:flutter/material.dart';
-import 'sync_mutex.dart';
 import 'sync_config.dart';
+import 'sync_mutex.dart';
+import 'sync_performance_optimizer.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -162,7 +164,7 @@ class SyncService {
         final state = await (db.select(
           db.syncState,
         )..where((t) => t.id.equals(1))).getSingleOrNull();
-        await (db.into(db.syncState)).insertOnConflictUpdate(
+        await db.into(db.syncState).insertOnConflictUpdate(
           SyncStateCompanion(
             id: const d.Value(1),
             lastServerTs: d.Value(state?.lastServerTs ?? 0),
@@ -202,7 +204,7 @@ class SyncService {
     if (res['success'] != true) return;
     final data = List<Map<String, dynamic>>.from(res['data']['data'] as List);
 
-    const Map<String, int> _entityPriority = {
+    const Map<String, int> entityPriority = {
       'rooms': 0,
       'employees': 1,
       'cash_transactions': 1,
@@ -214,11 +216,11 @@ class SyncService {
       'debts': 5,
       'hotel_day_ledger': 6,
     };
-    int _priority(String entity) => _entityPriority[entity] ?? 10;
+    int priority(String entity) => entityPriority[entity] ?? 10;
     data.sort((a, b) {
       final ea = (a['entity'] as String?) ?? '';
       final eb = (b['entity'] as String?) ?? '';
-      return _priority(ea).compareTo(_priority(eb));
+      return priority(ea).compareTo(priority(eb));
     });
 
     await db.transaction(() async {
@@ -245,7 +247,7 @@ class SyncService {
       }
 
       final now = Time.nowEpoch();
-      await (db.into(db.syncState)).insertOnConflictUpdate(
+      await db.into(db.syncState).insertOnConflictUpdate(
         SyncStateCompanion(
           id: const d.Value(1),
           lastServerTs: d.Value(maxTs),
@@ -281,7 +283,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'bookings':
         final row = await (db.select(
           db.bookings,
@@ -297,7 +298,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'booking_notes':
         final rowN = await (db.select(
           db.bookingNotes,
@@ -312,7 +312,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'employees':
         final rowE = await (db.select(
           db.employees,
@@ -327,7 +326,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'expenses':
         final rowX = await (db.select(
           db.expenses,
@@ -342,7 +340,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'cash_transactions':
         final rowC = await (db.select(
           db.cashTransactions,
@@ -357,7 +354,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'payments':
         final rowP = await (db.select(
           db.payments,
@@ -373,7 +369,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'debts':
         final rowD = await (db.select(
           db.debts,
@@ -386,7 +381,6 @@ class SyncService {
             ),
           );
         }
-        break;
     }
   }
 
@@ -443,7 +437,6 @@ class SyncService {
         if (op == 'delete' || data['deleted_at'] != null) {
           await roomsDao.softDelete(rn, originIsServer: true);
         }
-        break;
       case 'bookings':
         final sbid = data['booking_id'] as int?;
         Booking? local;
@@ -558,7 +551,6 @@ class SyncService {
             await bookingsDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'booking_notes':
         final nid = data['note_id'] as int?;
         BookingNote? ln;
@@ -606,7 +598,6 @@ class SyncService {
             await notesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'employees':
         final sid = data['id'] as int?;
         Employee? le;
@@ -654,7 +645,6 @@ class SyncService {
             await employeesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'expenses':
         final xid = data['id'] as int?;
         Expense? lx;
@@ -706,7 +696,6 @@ class SyncService {
             await expensesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'cash_transactions':
         final cid = data['id'] as int?;
         final lc = cid != null
@@ -765,7 +754,6 @@ class SyncService {
             await cashDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'payments':
         final pid = data['payment_id'] as int?;
         final lp = pid != null
@@ -828,13 +816,10 @@ class SyncService {
             await paymentsDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'booking_nights':
         await _applyBookingNight(op, serverTs, data);
-        break;
       case 'hotel_day_ledger':
         await _applyHotelDayLedger(op, serverTs, data);
-        break;
     }
   }
 

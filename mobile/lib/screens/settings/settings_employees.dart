@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../employees/salary_entitlements_screen.dart';
-import '../../services/salary_entitlement_service.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -229,7 +230,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: isActive ? Colors.green : Colors.red,
-                  child: Icon(Icons.person, color: Colors.white, size: 24),
+                  child: const Icon(Icons.person, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -265,7 +266,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isActive ? Colors.green : Colors.red,
-                      width: 1,
                     ),
                   ),
                   child: Text(
@@ -494,7 +494,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
                     border: OutlineInputBorder(),
@@ -571,7 +571,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _showEmployeeEntitlement(BuildContext context, Employee employee) async {
+  Future<void> _showEmployeeEntitlement(BuildContext context, Employee employee) async {
     final service = SalaryEntitlementService(DatabaseManager.instance);
 
     showDialog(
@@ -745,7 +745,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _toggleEmployeeStatus(
+  Future<void> _toggleEmployeeStatus(
     BuildContext context,
     WidgetRef ref,
     Employee employee,

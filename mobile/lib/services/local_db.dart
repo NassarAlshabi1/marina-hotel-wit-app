@@ -1189,16 +1189,16 @@ class AppDatabase extends _$AppDatabase {
               Variable<String>(row.data['created_by'] as String),
               Variable<String>(row.data['expires_at'] as String?),
               Variable<String>(uuid),
-              Variable<int>(null),
+              const Variable<int>(null),
               Variable<int>(createdTimestamp),
               Variable<int>(createdTimestamp),
-              Variable<int>(null),
+              const Variable<int>(null),
               Variable<int>(createdTimestamp),
               Variable<String>(isoDate),
               Variable<String>(isoDate),
-              Variable<String>(null),
-              Variable<int>(1),
-              Variable<String>('local'),
+              const Variable<String>(null),
+              const Variable<int>(1),
+              const Variable<String>('local'),
             ],
           );
         }
@@ -1638,12 +1638,12 @@ class AppDatabase extends _$AppDatabase {
             final relatedId = row.read<int>('related_id');
             final amount = row.read<double>('amount');
             final date = row.read<String>('date');
-            final hotelDayKey = row.read<String?>(('hotel_day_key'));
+            final hotelDayKey = row.read<String?>('hotel_day_key');
             final expenseType = row.read<String>('expense_type');
-            final description = row.read<String?>(('description'));
+            final description = row.read<String?>('description');
 
             // توليد UUID فريد
-            final uuid = 'mig33_${expId}_${now}';
+            final uuid = 'mig33_${expId}_$now';
 
             await m.database.customInsert(
               '''
@@ -1656,7 +1656,7 @@ class AppDatabase extends _$AppDatabase {
               ''',
               variables: [
                 Variable<String>(uuid),
-                Variable<Object>(null),
+                const Variable<Object>(null),
                 Variable<int>(relatedId),
                 Variable<double>(amount),
                 Variable<String>(date),
@@ -1666,7 +1666,7 @@ class AppDatabase extends _$AppDatabase {
                 Variable<String>(description ?? ''),
                 Variable<int>(now),
                 Variable<int>(now),
-                Variable<Object>(null),
+                const Variable<Object>(null),
                 Variable<int>(now),
                 Variable<int>(now),
                 Variable<int>(now),
@@ -1688,10 +1688,10 @@ class AppDatabase extends _$AppDatabase {
                 const Variable<String>('salary_withdrawals'),
                 const Variable<String>('create'),
                 Variable<String>(uuid),
-                Variable<Object>(null),
+                const Variable<Object>(null),
                 const Variable<String>('{}'),
                 Variable<int>(now),
-                Variable<String>('mig33_${expId}'),
+                Variable<String>('mig33_$expId'),
                 const Variable<String>('pending'),
               ],
             );
@@ -1900,87 +1900,87 @@ class AppDatabase extends _$AppDatabase {
         await replaceTableIfNonEmpty<Room>(
           rooms,
           'rooms',
-          (row) => Room.fromJson(row),
+          Room.fromJson,
         );
         await replaceTableIfNonEmpty<Booking>(
           bookings,
           'bookings',
-          (row) => Booking.fromJson(row),
+          Booking.fromJson,
         );
         await replaceTableIfNonEmpty<BookingNote>(
           bookingNotes,
           'booking_notes',
-          (row) => BookingNote.fromJson(row),
+          BookingNote.fromJson,
         );
         await replaceTableIfNonEmpty<ShiftNote>(
           shiftNotes,
           'shift_notes',
-          (row) => ShiftNote.fromJson(row),
+          ShiftNote.fromJson,
         );
         await replaceTableIfNonEmpty<Employee>(
           employees,
           'employees',
-          (row) => Employee.fromJson(row),
+          Employee.fromJson,
         );
         await replaceTableIfNonEmpty<Expense>(
           expenses,
           'expenses',
-          (row) => Expense.fromJson(row),
+          Expense.fromJson,
         );
         await replaceTableIfNonEmpty<CashTransaction>(
           cashTransactions,
           'cash_transactions',
-          (row) => CashTransaction.fromJson(row),
+          CashTransaction.fromJson,
         );
         await replaceTableIfNonEmpty<Payment>(
           payments,
           'payments',
-          (row) => Payment.fromJson(row),
+          Payment.fromJson,
         );
         await replaceTableIfNonEmpty<Debt>(
           debts,
           'debts',
-          (row) => Debt.fromJson(row),
+          Debt.fromJson,
         );
         await replaceTableIfNonEmpty<BookingNight>(
           bookingNights,
           'booking_nights',
-          (row) => BookingNight.fromJson(row),
+          BookingNight.fromJson,
         );
         await replaceTableIfNonEmpty<HotelDayLedgerEntry>(
           hotelDayLedger,
           'hotel_day_ledger',
-          (row) => HotelDayLedgerEntry.fromJson(row),
+          HotelDayLedgerEntry.fromJson,
         );
         await replaceTableIfNonEmpty<AutoFixRun>(
           autoFixRuns,
           'auto_fix_runs',
-          (row) => AutoFixRun.fromJson(row),
+          AutoFixRun.fromJson,
         );
         await replaceTableIfNonEmpty<IntegrityViolation>(
           integrityViolations,
           'integrity_violations',
-          (row) => IntegrityViolation.fromJson(row),
+          IntegrityViolation.fromJson,
         );
         await replaceTableIfNonEmpty<AppSession>(
           appSessions,
           'app_sessions',
-          (row) => AppSession.fromJson(row),
+          AppSession.fromJson,
         );
         await replaceTableIfNonEmpty<SalaryCycle>(
           salaryCycles,
           'salary_cycles',
-          (row) => SalaryCycle.fromJson(row),
+          SalaryCycle.fromJson,
         );
         await replaceTableIfNonEmpty<SalaryPayment>(
           salaryPayments,
           'salary_payments',
-          (row) => SalaryPayment.fromJson(row),
+          SalaryPayment.fromJson,
         );
         await replaceTableIfNonEmpty<BookingPriceAdjustment>(
           bookingPriceAdjustments,
           'booking_price_adjustments',
-          (row) => BookingPriceAdjustment.fromJson(row),
+          BookingPriceAdjustment.fromJson,
         );
       }); // نهاية transaction
     } finally {
@@ -2007,13 +2007,12 @@ LazyDatabase _open() {
     final file = File(p.join(dbDir, _dbFileName));
     return NativeDatabase.createInBackground(
       file,
-      logStatements: false,
     );
   });
 }
 
 extension EmployeeX on Employee {
-  double get salary => basicSalary.toDouble();
+  double get salary => basicSalary;
 }
 
 /// Singleton manager for the Drift database to support clean close/reopen during file-based restores
@@ -2120,7 +2119,7 @@ class SyncAuditDao {
                       },
                     )
                     .toList(),
-              )),
+              ),),
               checksumMatched: Value(checksumMatched ? 1 : 0),
               createdAt: createdAt,
               completedAt: Value(createdAt),

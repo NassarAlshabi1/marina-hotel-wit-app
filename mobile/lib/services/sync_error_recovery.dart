@@ -7,16 +7,6 @@ enum RecoveryAction { retry, skip, rollback, escalate, pause }
 enum ErrorSeverity { low, medium, high, critical }
 
 class SyncError {
-  final String id;
-  final String operation;
-  final String table;
-  final String? recordId;
-  final String message;
-  final String? stackTrace;
-  final ErrorSeverity severity;
-  final bool isRetriable;
-  final DateTime timestamp;
-  int retryCount;
 
   SyncError({
     required this.id,
@@ -30,6 +20,16 @@ class SyncError {
     DateTime? timestamp,
     this.retryCount = 0,
   }) : timestamp = timestamp ?? DateTime.now();
+  final String id;
+  final String operation;
+  final String table;
+  final String? recordId;
+  final String message;
+  final String? stackTrace;
+  final ErrorSeverity severity;
+  final bool isRetriable;
+  final DateTime timestamp;
+  int retryCount;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -45,10 +45,6 @@ class SyncError {
 }
 
 class RecoveryResult {
-  final bool success;
-  final RecoveryAction actionTaken;
-  final String? message;
-  final Duration duration;
 
   const RecoveryResult({
     required this.success,
@@ -56,13 +52,13 @@ class RecoveryResult {
     this.message,
     required this.duration,
   });
+  final bool success;
+  final RecoveryAction actionTaken;
+  final String? message;
+  final Duration duration;
 }
 
 class RollbackPoint {
-  final String id;
-  final String description;
-  final DateTime timestamp;
-  final Map<String, List<Map<String, dynamic>>> snapshot;
 
   const RollbackPoint({
     required this.id,
@@ -70,13 +66,17 @@ class RollbackPoint {
     required this.timestamp,
     required this.snapshot,
   });
+  final String id;
+  final String description;
+  final DateTime timestamp;
+  final Map<String, List<Map<String, dynamic>>> snapshot;
 }
 
 class SyncErrorRecovery {
-  static SyncErrorRecovery? _instance;
-  static SyncErrorRecovery get instance => _instance ??= SyncErrorRecovery._();
 
   SyncErrorRecovery._();
+  static SyncErrorRecovery? _instance;
+  static SyncErrorRecovery get instance => _instance ??= SyncErrorRecovery._();
 
   final List<SyncError> _errorLog = [];
   final List<RollbackPoint> _rollbackPoints = [];
@@ -207,7 +207,6 @@ class SyncErrorRecovery {
               duration: DateTime.now().difference(startTime),
             );
           }
-          break;
 
         case RecoveryAction.rollback:
           if (rollbackOperation != null) {
@@ -226,7 +225,6 @@ class SyncErrorRecovery {
               duration: DateTime.now().difference(startTime),
             );
           }
-          break;
 
         case RecoveryAction.skip:
           return RecoveryResult(

@@ -18,12 +18,6 @@ enum BatteryOptimizationLevel {
 
 /// إعدادات المزامنة بناءً على مستوى البطارية
 class BatterySyncSettings {
-  final Duration syncInterval;
-  final int batchSize;
-  final bool syncOnBattery;
-  final int minBatteryPercentage;
-  final bool reduceAnimations;
-  final bool compressData;
 
   const BatterySyncSettings({
     required this.syncInterval,
@@ -33,6 +27,25 @@ class BatterySyncSettings {
     required this.reduceAnimations,
     required this.compressData,
   });
+
+  factory BatterySyncSettings.fromLevel(BatteryOptimizationLevel level) {
+    switch (level) {
+      case BatteryOptimizationLevel.none:
+        return none;
+      case BatteryOptimizationLevel.light:
+        return light;
+      case BatteryOptimizationLevel.moderate:
+        return moderate;
+      case BatteryOptimizationLevel.aggressive:
+        return aggressive;
+    }
+  }
+  final Duration syncInterval;
+  final int batchSize;
+  final bool syncOnBattery;
+  final int minBatteryPercentage;
+  final bool reduceAnimations;
+  final bool compressData;
 
   static const BatterySyncSettings none = BatterySyncSettings(
     syncInterval: Duration(minutes: 5),
@@ -69,26 +82,13 @@ class BatterySyncSettings {
     reduceAnimations: true,
     compressData: true,
   );
-
-  factory BatterySyncSettings.fromLevel(BatteryOptimizationLevel level) {
-    switch (level) {
-      case BatteryOptimizationLevel.none:
-        return none;
-      case BatteryOptimizationLevel.light:
-        return light;
-      case BatteryOptimizationLevel.moderate:
-        return moderate;
-      case BatteryOptimizationLevel.aggressive:
-        return aggressive;
-    }
-  }
 }
 
 /// خدمة تحسين استهلاك البطارية
 class BatteryOptimizer extends ChangeNotifier {
-  static final BatteryOptimizer _instance = BatteryOptimizer._internal();
   factory BatteryOptimizer() => _instance;
   BatteryOptimizer._internal();
+  static final BatteryOptimizer _instance = BatteryOptimizer._internal();
 
   final Battery _battery = Battery();
   final Connectivity _connectivity = Connectivity();

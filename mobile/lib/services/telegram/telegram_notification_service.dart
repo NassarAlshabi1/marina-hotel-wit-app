@@ -22,13 +22,6 @@ enum TelegramEventType {
 
 /// بيانات الحدث
 class TelegramEvent {
-  final TelegramEventType type;
-  final String roomNumber;
-  final String? guestName;
-  final String? guestPhone;
-  final String? details;
-  final DateTime? eventTime;
-  final double? amount;
 
   const TelegramEvent({
     required this.type,
@@ -39,15 +32,22 @@ class TelegramEvent {
     this.eventTime,
     this.amount,
   });
+  final TelegramEventType type;
+  final String roomNumber;
+  final String? guestName;
+  final String? guestPhone;
+  final String? details;
+  final DateTime? eventTime;
+  final double? amount;
 }
 
 /// خدمة إشعارات Telegram الفورية
 class TelegramNotificationService {
+
+  TelegramNotificationService._();
   static TelegramNotificationService? _instance;
   static TelegramNotificationService get instance =>
       _instance ??= TelegramNotificationService._();
-
-  TelegramNotificationService._();
 
   final TelegramApiClient _api = TelegramApiClient.instance;
 
@@ -102,18 +102,18 @@ class TelegramNotificationService {
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
-        buffer.writeln('');
-        buffer.writeln(event.details!);
+        buffer.writeln();
+        buffer.writeln(event.details);
       }
 
       if (event.eventTime != null) {
-        buffer.writeln('');
+        buffer.writeln();
         buffer.writeln(
           '🕐 ${event.eventTime!.hour.toString().padLeft(2, '0')}:${event.eventTime!.minute.toString().padLeft(2, '0')}',
         );
       }
 
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('<i>Marina Hotel App 🏨</i>');
 
       final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
@@ -156,7 +156,7 @@ class TelegramNotificationService {
       guestPhone: guestPhone,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل دخول
@@ -176,7 +176,7 @@ class TelegramNotificationService {
       guestPhone: guestPhone,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل خروج
@@ -200,7 +200,7 @@ class TelegramNotificationService {
       guestName: guestName,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار استلام دفعة
@@ -228,7 +228,7 @@ class TelegramNotificationService {
       amount: amount,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار طلب صيانة
@@ -243,7 +243,7 @@ class TelegramNotificationService {
       guestName: reportedBy,
       details: description,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار إلغاء حجز
@@ -258,7 +258,7 @@ class TelegramNotificationService {
       guestName: guestName,
       details: reason,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تأخير مغادرة
@@ -280,7 +280,7 @@ class TelegramNotificationService {
       guestName: guestName,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار مصروف جديد
@@ -301,6 +301,6 @@ class TelegramNotificationService {
       amount: amount,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 }

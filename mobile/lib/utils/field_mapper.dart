@@ -296,14 +296,14 @@ class FieldMapper {
 
   static String _camelToSnake(String input) {
     return input.replaceAllMapped(
-      RegExp(r'[A-Z]'),
+      RegExp('[A-Z]'),
       (match) => '_${match.group(0)!.toLowerCase()}',
     );
   }
 
   static String _snakeToCamel(String input) {
     return input.replaceAllMapped(
-      RegExp(r'_([a-z])'),
+      RegExp('_([a-z])'),
       (match) => match.group(1)!.toUpperCase(),
     );
   }
@@ -432,11 +432,11 @@ class FieldMapper {
 }
 
 class FieldMappingException implements Exception {
+
+  FieldMappingException(this.message, {this.entity, this.field});
   final String message;
   final String? entity;
   final String? field;
-
-  FieldMappingException(this.message, {this.entity, this.field});
 
   @override
   String toString() {

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../services/sync_service.dart';
-import 'rooms_list.dart';
 import 'rooms_dashboard.dart';
+import 'rooms_list.dart';
 
 /// شاشة رئيسية للغرف مع إمكانية التبديل بين العرض التقليدي وعرض الطوابق
 class RoomsMainScreen extends ConsumerStatefulWidget {
@@ -46,7 +47,7 @@ class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(25),
             ),
             child: TabBar(

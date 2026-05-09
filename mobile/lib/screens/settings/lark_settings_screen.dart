@@ -179,7 +179,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   value: state.isEnabled,
                   onChanged: (value) =>
                       ref.read(larkProvider.notifier).setEnabled(value),
-                  activeColor: Colors.blue,
+                  activeThumbColor: Colors.blue,
                 ),
               ],
             ),
@@ -235,11 +235,11 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _webhookController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'https://open.larksuite.com/open-apis/bot/v2/hook/...',
-                prefixIcon: const Icon(Icons.link, size: 20),
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
+                prefixIcon: Icon(Icons.link, size: 20),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
                 ),
@@ -320,7 +320,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 14),
+                        const Icon(Icons.check_circle, color: Colors.green, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           'متصل',
@@ -346,7 +346,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.cloud_off, color: Colors.grey, size: 14),
+                        const Icon(Icons.cloud_off, color: Colors.grey, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           'غير متصل',
@@ -528,7 +528,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   onChanged: (value) => ref
                       .read(larkProvider.notifier)
                       .setNotificationsEnabled(value),
-                  activeColor: Colors.green,
+                  activeThumbColor: Colors.green,
                 ),
               ],
             ),
@@ -629,7 +629,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   onChanged: (value) => ref
                       .read(larkProvider.notifier)
                       .setDailyReportEnabled(value),
-                  activeColor: Colors.blue,
+                  activeThumbColor: Colors.blue,
                 ),
               ],
             ),
@@ -676,11 +676,11 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
 
               // Chat ID لإرسال التقرير عبر Bot API
               const SizedBox(height: 16),
-              Row(
+              const Row(
                 children: [
-                  const Icon(Icons.chat, size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.chat, size: 20),
+                  SizedBox(width: 8),
+                  Text(
                     'Chat ID (اختياري):',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -761,7 +761,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -808,9 +808,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text('📊 حالة الغرف (مشغولة/متاحة/تنظيف/صيانة)'),
                     SizedBox(height: 4),
                     Text('📋 حجوزات اليوم (جديدة/دخول/خروج/نشطة)'),
@@ -855,7 +855,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     : const Icon(Icons.wifi_tethering),
                 label: Text(state.status == LarkSetupStatus.testing
                     ? 'جاري الاختبار...'
-                    : 'اختبار الاتصال'),
+                    : 'اختبار الاتصال',),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.blue,
                   side: const BorderSide(color: Colors.blue),
@@ -885,7 +885,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     : const Icon(Icons.send),
                 label: Text(state.status == LarkSetupStatus.sendingReport
                     ? 'جاري الإرسال...'
-                    : 'إرسال تقرير تجريبي'),
+                    : 'إرسال تقرير تجريبي',),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
@@ -1025,8 +1025,8 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
   Future<void> _selectReportTime(BuildContext context) async {
     final state = ref.read(larkProvider);
     final parts = state.dailyReportTime.split(':');
-    int hour = int.parse(parts[0]);
-    int minute = int.parse(parts[1]);
+    final int hour = int.parse(parts[0]);
+    final int minute = int.parse(parts[1]);
 
     if (!context.mounted) return;
 

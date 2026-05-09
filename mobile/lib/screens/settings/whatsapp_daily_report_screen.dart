@@ -40,7 +40,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
   Widget build(BuildContext context) {
     final state = ref.watch(whatsappDailyReportProvider);
     final theme = Theme.of(context);
-    final whatsappGreen = const Color(0xFF25D366);
+    const whatsappGreen = Color(0xFF25D366);
 
     return AppScaffold(
       title: 'واتساب — الإشعارات والتقارير',
@@ -143,7 +143,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Switch(
                   value: state.isEnabled,
                   onChanged: (value) => ref.read(whatsappDailyReportProvider.notifier).setEnabled(value),
-                  activeColor: whatsappGreen,
+                  activeThumbColor: whatsappGreen,
                 ),
               ],
             ),
@@ -242,7 +242,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   const Spacer(),
-                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
                   const SizedBox(width: 4),
                   Text('مُعدّ', style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
@@ -284,7 +284,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   const Spacer(),
-                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
                   const SizedBox(width: 4),
                   Text('مُعدّ', style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
@@ -303,7 +303,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 14),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 14),
                   const SizedBox(width: 4),
                   Text(
                     'الإعدادات مكتملة — جاهز للإرسال',
@@ -386,7 +386,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Switch(
                   value: state.isNotificationsEnabled,
                   onChanged: (value) => ref.read(whatsappDailyReportProvider.notifier).setNotificationsEnabled(value),
-                  activeColor: whatsappGreen,
+                  activeThumbColor: whatsappGreen,
                 ),
               ],
             ),
@@ -475,7 +475,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Switch(
                   value: state.isDailyReportEnabled,
                   onChanged: (value) => ref.read(whatsappDailyReportProvider.notifier).setDailyReportEnabled(value),
-                  activeColor: whatsappGreen,
+                  activeThumbColor: whatsappGreen,
                 ),
               ],
             ),
@@ -516,7 +516,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                   decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
                       const SizedBox(width: 6),
                       Expanded(child: Text('آخر تقرير: ${state.lastReportSent}', style: TextStyle(color: Colors.green[700], fontSize: 12))),
                       TextButton(
@@ -623,8 +623,8 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
   Future<void> _selectReportTime(BuildContext context) async {
     final state = ref.read(whatsappDailyReportProvider);
     final parts = state.dailyReportTime.split(':');
-    int hour = int.parse(parts[0]);
-    int minute = int.parse(parts[1]);
+    final int hour = int.parse(parts[0]);
+    final int minute = int.parse(parts[1]);
 
     if (!context.mounted) return;
 

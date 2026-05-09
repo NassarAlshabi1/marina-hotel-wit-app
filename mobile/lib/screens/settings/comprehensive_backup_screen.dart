@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
-import '../../components/app_scaffold.dart';
-import '../../services/comprehensive_appwrite_backup_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/comprehensive_appwrite_backup_service.dart';
 
 class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
   const ComprehensiveBackupScreen({super.key});
@@ -58,7 +59,7 @@ class _ComprehensiveBackupScreenState
                 onPressed: () {
                   Share.shareXFiles([
                     XFile(file.path),
-                  ], text: 'نسخة احتياطية Marina Hotel');
+                  ], text: 'نسخة احتياطية Marina Hotel',);
                 },
               ),
             ),
@@ -213,7 +214,7 @@ class _ComprehensiveBackupScreenState
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _statusMessage?.contains('خطأ') == true
+                        color: _statusMessage?.contains('خطأ') ?? false
                             ? Colors.red
                             : Colors.black87,
                       ),

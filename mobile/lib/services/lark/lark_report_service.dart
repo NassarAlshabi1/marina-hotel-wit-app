@@ -1,34 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+import '../../utils/time.dart';
+import '../local_db.dart';
 import 'lark_api_client.dart';
 import 'lark_config.dart';
-import '../local_db.dart';
-import '../../utils/time.dart';
 
 /// نموذج بيانات التقرير اليومي
 class DailyReportData {
-  final String hotelDayKey;
-  final String reportDate;
-  final int totalRooms;
-  final int occupiedRooms;
-  final int availableRooms;
-  final int cleaningRooms;
-  final int maintenanceRooms;
-  final double occupancyRate;
-
-  final int newBookingsToday;
-  final int checkInsToday;
-  final int checkOutsToday;
-  final int activeBookings;
-  final int overstayBookings;
-
-  final double totalIncome;
-  final double totalExpenses;
-  final double netRevenue;
-
-  final int totalPayments;
-  final int totalExpensesCount;
-  final int unsettledDebts;
 
   DailyReportData({
     required this.hotelDayKey,
@@ -51,6 +29,28 @@ class DailyReportData {
     required this.totalExpensesCount,
     required this.unsettledDebts,
   });
+  final String hotelDayKey;
+  final String reportDate;
+  final int totalRooms;
+  final int occupiedRooms;
+  final int availableRooms;
+  final int cleaningRooms;
+  final int maintenanceRooms;
+  final double occupancyRate;
+
+  final int newBookingsToday;
+  final int checkInsToday;
+  final int checkOutsToday;
+  final int activeBookings;
+  final int overstayBookings;
+
+  final double totalIncome;
+  final double totalExpenses;
+  final double netRevenue;
+
+  final int totalPayments;
+  final int totalExpensesCount;
+  final int unsettledDebts;
 
   Map<String, dynamic> toJson() => {
     'hotelDayKey': hotelDayKey,
@@ -78,11 +78,11 @@ class DailyReportData {
 /// خدمة التقارير اليومية التلقائية
 /// تجمع بيانات اليوم الفندقي وترسلها عبر Lark في الوقت المحدد
 class LarkReportService {
+
+  LarkReportService._();
   static LarkReportService? _instance;
   static LarkReportService get instance =>
       _instance ??= LarkReportService._();
-
-  LarkReportService._();
 
   final LarkApiClient _api = LarkApiClient.instance;
 
@@ -237,13 +237,13 @@ class LarkReportService {
     final buffer = StringBuffer();
 
     buffer.writeln('**📅 التاريخ:** ${data.reportDate}');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
 
     // قسم الغرف
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('**🏨 حالة الغرف**');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln(
       '| الإجمالي | صيانة | تنظيف | متاحة | مشغولة |',
     );
@@ -253,18 +253,18 @@ class LarkReportService {
     buffer.writeln(
       '| ${data.totalRooms} | ${data.maintenanceRooms} | ${data.cleaningRooms} | ${data.availableRooms} | ${data.occupiedRooms} |',
     );
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln(
       '**نسبة الإشغال:** ${data.occupancyRate.toStringAsFixed(1)}%',
     );
 
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
 
     // قسم الحجوزات
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('**📋 الحجوزات**');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('- **حجوزات جديدة اليوم:** ${data.newBookingsToday}');
     buffer.writeln('- **تسجيلات دخول:** ${data.checkInsToday}');
     buffer.writeln('- **تسجيلات خروج:** ${data.checkOutsToday}');
@@ -274,13 +274,13 @@ class LarkReportService {
       buffer.writeln('- ⚠️ **تأخير مغادرة:** ${data.overstayBookings}');
     }
 
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
 
     // قسم المالية
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('**💰 المالية**');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln(
       '| المصروفات | صافي الربح | الإيرادات | البند |',
     );
@@ -292,13 +292,13 @@ class LarkReportService {
       '\$${data.netRevenue.toStringAsFixed(2)} | '
       '\$${data.totalIncome.toStringAsFixed(2)} | **المبالغ** |',
     );
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln(
       '| ${data.totalExpensesCount} مصروف | ${data.totalPayments} دفعة | **العدد** |',
     );
 
     if (data.unsettledDebts > 0) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('⚠️ **ديون غير مسددة:** ${data.unsettledDebts}');
     }
 
@@ -309,8 +309,9 @@ class LarkReportService {
   Map<String, dynamic> _buildReportCard(DailyReportData data) {
     // تحديد لون البطاقة حسب الأداء
     String themeColor = 'blue';
-    if (data.occupancyRate >= 80) themeColor = 'green';
-    else if (data.occupancyRate >= 50) themeColor = 'blue';
+    if (data.occupancyRate >= 80) {
+      themeColor = 'green';
+    } else if (data.occupancyRate >= 50) themeColor = 'blue';
     else if (data.occupancyRate >= 30) themeColor = 'orange';
     else themeColor = 'red';
 
@@ -339,7 +340,7 @@ class LarkReportService {
           'is_short': true,
           'text': {
             'tag': 'lark_md',
-            'content': '**${occupancyEmoji} الإشغال**\n${data.occupancyRate.toStringAsFixed(1)}%',
+            'content': '**$occupancyEmoji الإشغال**\n${data.occupancyRate.toStringAsFixed(1)}%',
           },
         },
       ],

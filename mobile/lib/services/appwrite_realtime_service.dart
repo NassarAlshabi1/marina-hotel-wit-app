@@ -1,19 +1,16 @@
 import 'dart:async';
+
 import 'package:appwrite/appwrite.dart';
+
+import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
-import 'appwrite_cache_manager.dart';
 
 /// نوع الحدث في Realtime
 enum RealtimeEventType { create, update, delete, unknown }
 
 /// حدث Realtime
 class RealtimeEvent {
-  final RealtimeEventType type;
-  final String collection;
-  final String documentId;
-  final Map<String, dynamic>? data;
-  final DateTime timestamp;
 
   RealtimeEvent({
     required this.type,
@@ -22,6 +19,11 @@ class RealtimeEvent {
     this.data,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+  final RealtimeEventType type;
+  final String collection;
+  final String documentId;
+  final Map<String, dynamic>? data;
+  final DateTime timestamp;
 
   @override
   String toString() =>
@@ -33,10 +35,10 @@ typedef RealtimeEventHandler = void Function(RealtimeEvent event);
 
 /// خدمة Appwrite Realtime - التحديثات الفورية
 class AppwriteRealtimeService {
-  static final AppwriteRealtimeService _instance =
-      AppwriteRealtimeService._internal();
   factory AppwriteRealtimeService() => _instance;
   AppwriteRealtimeService._internal();
+  static final AppwriteRealtimeService _instance =
+      AppwriteRealtimeService._internal();
 
   late final Realtime _realtime;
   final _logger = AppwriteLogger();
@@ -358,13 +360,11 @@ class AppwriteRealtimeService {
           }
           // مسح قائمة المستندات للتحديث
           _cache.clearByPattern('^${event.collection}_all');
-          break;
 
         case RealtimeEventType.delete:
           // حذف من الذاكرة المؤقتة
           _cache.remove(cacheKey);
           _cache.clearByPattern('^${event.collection}_all');
-          break;
 
         case RealtimeEventType.unknown:
           // لا شيء

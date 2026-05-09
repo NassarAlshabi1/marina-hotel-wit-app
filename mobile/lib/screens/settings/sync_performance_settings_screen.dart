@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../services/data_usage_manager.dart';
 import '../../services/sync_performance_optimizer.dart';
 import '../../services/sync_performance_settings.dart';
-import '../../services/data_usage_manager.dart';
 
 class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
   const SyncPerformanceSettingsScreen({super.key});
@@ -193,8 +194,8 @@ class _SyncPerformanceSettingsScreenState
           ],
         ),
         trailing: isSelected
-            ? Icon(Icons.check_circle, color: Colors.blue)
-            : Icon(Icons.radio_button_unchecked, color: Colors.grey),
+            ? const Icon(Icons.check_circle, color: Colors.blue)
+            : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
         onTap: _isLoading ? null : () => _applyProfile(key),
       ),
     );

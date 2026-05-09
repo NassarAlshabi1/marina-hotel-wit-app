@@ -6,10 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../services/daos/outbox_dao.dart';
-import '../services/daos/sync_log_dao.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/daos/sync_log_dao.dart';
 import '../services/sync_core/conflict_resolver.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -209,7 +209,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       } else {
         // 2️⃣ بديل: سحب عبر appwriteSyncManager
         final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-        final pullResult = await appwriteSyncManager.sync(push: false, pull: true);
+        final pullResult = await appwriteSyncManager.sync(push: false);
         pulledCount = pullResult.recordsPulled;
       }
 
@@ -238,11 +238,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.cloud_done, color: Colors.white),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.cloud_done, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
                       '✅ تم سحب التغييرات بنجاح!',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
@@ -283,12 +283,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('تعذر سحب التغييرات: ${e.toString()}'),
+                  child: Text('تعذر سحب التغييرات: $e'),
                 ),
               ],
             ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -410,7 +409,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           SnackBar(
             content: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
@@ -418,7 +417,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...',
@@ -427,7 +426,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -522,7 +521,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
                       Icon(Icons.cloud_done, color: Colors.white),
                       SizedBox(width: 8),
@@ -534,25 +533,24 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '⬆️ أُرسل: $totalPushed',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   Text(
                     '☁️ عبر: ${successTargets.join(' + ')}',
-                    style: TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
             ),
           );
         } else if (successTargets.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Row(
+              content: const Row(
                 children: [
                   Icon(Icons.error_outline, color: Colors.white),
                   SizedBox(width: 8),
@@ -564,7 +562,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
               action: SnackBarAction(
                 label: 'إعادة',
                 textColor: Colors.white,
@@ -579,31 +576,30 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       Icon(Icons.warning, color: Colors.white),
                       SizedBox(width: 8),
                       Text('⚠️ نجح جزئياً'),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '✅ نجح: ${successTargets.join(', ')}',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   Text(
                     '❌ فشل: ${failedTargets.join(', ')}',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   if (totalPushed > 0)
                     Text(
                       '⬆️ أُرسل: $totalPushed',
-                      style: TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 11),
                     ),
                 ],
               ),
               backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
             ),
           );
         }
@@ -628,7 +624,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.error_outline, color: Colors.white),
                 SizedBox(width: 8),
@@ -640,7 +636,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
             action: SnackBarAction(
               label: 'إعادة',
               textColor: Colors.white,
@@ -671,7 +666,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       final resolver = ConflictResolver(
         deviceId: await _getDeviceId(),
-        strategy: ConflictStrategy.newerWins,
       );
 
       // معالجة التعارضات بالتوازي باستخدام Future.wait بدلاً من التسلسل
@@ -713,7 +707,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
           return false;
         }
-      }));
+      }),);
       resolvedCount = resolveResults.where((r) => r).length;
 
       debugPrint('✅ تم حل $resolvedCount تعارض');

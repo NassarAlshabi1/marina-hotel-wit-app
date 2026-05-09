@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart' as d;
 
-import '../local_db.dart';
 import '../../utils/expense_reason_matcher.dart';
-import '../daos/outbox_dao.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db) : _outboxDao = OutboxDao(_db);
@@ -52,7 +52,6 @@ class SalaryWithdrawalsRepository {
         entity: 'salary_withdrawals',
         op: 'create',
         localUuid: uuid,
-        serverId: null,
         payload: {
           'employeeId': employeeId,
           'amount': amount,
@@ -87,11 +86,11 @@ class SalaryWithdrawalsRepository {
     // SQL WHERE يضيق النتائج قبل الفلترة بالـ regex في Dart
     final existing = await (_db.select(_db.salaryWithdrawals)
           ..where((t) => t.reason.like('%exp_$expenseId%')
-              & t.deletedAt.isNull()))
+              & t.deletedAt.isNull(),))
         .get();
 
     final matched = existing.where((w) =>
-        matchesExpenseRef(w.reason, expenseId)).firstOrNull;
+        matchesExpenseRef(w.reason, expenseId),).firstOrNull;
 
     final now = Time.nowEpoch();
     // reason يحتوي فقط على علامة الربط بالمصروف
@@ -101,7 +100,7 @@ class SalaryWithdrawalsRepository {
     // (مثلاً عند تغيير التاريخ أو الموظف)
     final staleRecords = existing.where((w) =>
         w.id != matched?.id &&
-        matchesExpenseRef(w.reason, expenseId)).toList();
+        matchesExpenseRef(w.reason, expenseId),).toList();
 
     await _db.transaction(() async {
       // ─── حذف السجلات القديمة داخل المعاملة لضمان اتساق المزامنة ───
@@ -113,7 +112,7 @@ class SalaryWithdrawalsRepository {
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
           version: d.Value(stale.version + 1),
-        ));
+        ),);
 
         if (!originIsServer) {
           await _outboxDao.merge(
@@ -146,7 +145,7 @@ class SalaryWithdrawalsRepository {
               updatedAt: d.Value(now),
               lastModified: d.Value(now),
               version: d.Value(matched.version + 1),
-            ));
+            ),);
 
         if (!originIsServer) {
           await _outboxDao.merge(
@@ -197,7 +196,6 @@ class SalaryWithdrawalsRepository {
             entity: 'salary_withdrawals',
             op: 'create',
             localUuid: uuid,
-            serverId: null,
             payload: {
               'employeeId': employeeId,
               'amount': amount,
@@ -239,7 +237,7 @@ class SalaryWithdrawalsRepository {
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
           version: d.Value(item.version + 1),
-        ));
+        ),);
 
         await _outboxDao.merge(
           entity: 'salary_withdrawals',

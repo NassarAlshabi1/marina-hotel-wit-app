@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../providers/repository_providers.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
-import '../../providers/repository_providers.dart';
 import 'sync_health_dashboard_screen.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
@@ -92,7 +93,7 @@ class _SmartSyncSettingsScreenState
       ref.invalidate(smartSyncStatusProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('🤝 تم تغيير استراتيجية حل التضارب'),
           backgroundColor: Colors.green,
         ),
@@ -530,7 +531,7 @@ class _SmartSyncSettingsScreenState
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _intervalOptions.contains(currentInterval)
+              initialValue: _intervalOptions.contains(currentInterval)
                   ? currentInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -580,7 +581,7 @@ class _SmartSyncSettingsScreenState
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<ConflictResolution>(
-              value: currentEnum,
+              initialValue: currentEnum,
               decoration: const InputDecoration(
                 labelText: 'استراتيجية حل التضارب',
                 prefixIcon: Icon(Icons.merge_type),
@@ -616,17 +617,14 @@ class _SmartSyncSettingsScreenState
         explanation =
             '💡 البيانات الأحدث تاريخياً ستحل محل الأقدم. هذا الخيار آمن ومُوصى به.';
         color = Colors.green;
-        break;
       case ConflictResolution.manualResolve:
         explanation =
             '⚠️ سيتم إيقاف المزامنة التلقائية وطلب تدخلك لحل التضارب يدوياً.';
         color = Colors.orange;
-        break;
       case ConflictResolution.devicePriority:
         explanation =
             '📱 الجهاز الرئيسي له الأولوية. يتطلب تحديد الجهاز الرئيسي مسبقاً.';
         color = Colors.blue;
-        break;
     }
 
     return Container(

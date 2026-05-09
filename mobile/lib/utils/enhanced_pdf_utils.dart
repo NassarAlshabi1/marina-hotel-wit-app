@@ -130,8 +130,8 @@ class EnhancedPdfUtils {
       width: double.infinity,
       decoration: pw.BoxDecoration(
         gradient: showGradient
-            ? pw.LinearGradient(
-                colors: const [PdfColors.primary, PdfColors.accent],
+            ? const pw.LinearGradient(
+                colors: [PdfColors.primary, PdfColors.accent],
                 begin: pw.Alignment.topLeft,
                 end: pw.Alignment.bottomRight,
               )
@@ -169,7 +169,7 @@ class EnhancedPdfUtils {
                     horizontal: 12,
                     vertical: 6,
                   ),
-                  decoration: pw.BoxDecoration(color: PdfColors.secondary),
+                  decoration: const pw.BoxDecoration(color: PdfColors.secondary),
                   child: pw.Text(
                     title.isNotEmpty ? title : 'وثيقة رسمية',
                     style: pw.TextStyle(
@@ -197,14 +197,14 @@ class EnhancedPdfUtils {
             pw.Container(
               width: 80,
               height: 80,
-              decoration: pw.BoxDecoration(color: PdfColors.textWhite),
+              decoration: const pw.BoxDecoration(color: PdfColors.textWhite),
               child: pw.Image(logo, fit: pw.BoxFit.cover),
             )
           else
             pw.Container(
               width: 80,
               height: 80,
-              decoration: pw.BoxDecoration(color: PdfColors.secondary),
+              decoration: const pw.BoxDecoration(color: PdfColors.secondary),
               child: pw.Center(
                 child: pw.Text(
                   'M',
@@ -226,7 +226,7 @@ class EnhancedPdfUtils {
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(color: PdfColors.backgroundCard),
+      decoration: const pw.BoxDecoration(color: PdfColors.backgroundCard),
       child: pw.Column(
         children: [
           pw.Row(
@@ -372,7 +372,7 @@ class EnhancedPdfUtils {
         columnWidths: columnWidths != null
             ? Map.fromIterables(
                 List.generate(headers.length, (index) => index),
-                columnWidths.map((w) => pw.FixedColumnWidth(w)),
+                columnWidths.map(pw.FixedColumnWidth.new),
               )
             : null,
         children: [
@@ -548,7 +548,7 @@ class EnhancedPdfUtils {
       width: size,
       height: size,
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.textLight, width: 1),
+        border: pw.Border.all(color: PdfColors.textLight),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
       ),
       child: pw.Center(

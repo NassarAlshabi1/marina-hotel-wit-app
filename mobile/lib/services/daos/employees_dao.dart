@@ -1,10 +1,11 @@
 import 'package:drift/drift.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
-import '../local_db.dart';
-import 'outbox_dao.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
+import '../local_db.dart';
+import 'outbox_dao.dart';
 
 part 'employees_dao.g.dart';
 
@@ -201,7 +202,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
 
   Future<Employee?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return Future.value(null);
+    if (parsedServerId == null) return Future.value();
     return (select(
       employees,
     )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
@@ -246,7 +247,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع الموظفين إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final employeesList = await list(includeDeleted: false);
+    final employeesList = await list();
     return employeesList.map((employee) => employee.toJson()).toList();
   }
 

@@ -1,25 +1,10 @@
 import 'package:drift/drift.dart' as d;
 import 'package:intl/intl.dart';
-import '../models/financial_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
 /// نموذج تفصيلي لحسابات المدفوعات والأيام للنزيل الواحد
 class GuestPaymentCalculation {
-  final Booking booking;
-  final List<Payment> payments;
-  final int actualDaysSpent;
-  final int plannedDaysRemaining;
-  final double nightlyRate;
-  final double costSoFar;
-  final double totalPlannedCost;
-  final double totalPaid;
-  final double remainingBalance;
-  final bool isOverdue;
-  final int overdueDays;
-  final double overdueCost;
-  final bool hasCredit;
-  final int creditDays;
 
   GuestPaymentCalculation({
     required this.booking,
@@ -37,6 +22,20 @@ class GuestPaymentCalculation {
     required this.hasCredit,
     required this.creditDays,
   });
+  final Booking booking;
+  final List<Payment> payments;
+  final int actualDaysSpent;
+  final int plannedDaysRemaining;
+  final double nightlyRate;
+  final double costSoFar;
+  final double totalPlannedCost;
+  final double totalPaid;
+  final double remainingBalance;
+  final bool isOverdue;
+  final int overdueDays;
+  final double overdueCost;
+  final bool hasCredit;
+  final int creditDays;
 
   /// هل تم دفع كل التكاليف الحالية؟
   bool get isCurrentlyFullyPaid => totalPaid >= costSoFar;
@@ -53,7 +52,7 @@ class GuestPaymentCalculation {
       return 'له رصيد: ${remainingBalance.abs()} ريال';
     }
     if (remainingBalance > 0) {
-      return 'عليه: ${remainingBalance} ريال';
+      return 'عليه: $remainingBalance ريال';
     }
     return 'مسدد';
   }
@@ -70,20 +69,20 @@ class GuestPaymentCalculation {
     buffer.writeln('الغرفة: ${booking.roomNumber}');
     buffer.writeln('الدخول: ${checkinDate != null ? df.format(checkinDate) : "---"}');
     buffer.writeln('المغادرة المتوقعة: ${checkoutDate != null ? df.format(checkoutDate) : "---"}');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('--- الأيام والتكاليف ---');
     buffer.writeln('الأيام المقضية: $actualDaysSpent يوم');
     buffer.writeln('الأيام المتبقية: $plannedDaysRemaining يوم');
     buffer.writeln('سعر الليلة: $nightlyRate ريال');
     buffer.writeln('التكلفة حتى الآن: $costSoFar ريال');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('--- المدفوعات ---');
     buffer.writeln('إجمالي المدفوع: $totalPaid ريال');
     buffer.writeln('الرصيد المتبقي: $remainingBalance ريال');
     buffer.writeln('نسبة الدفع: ${paymentPercentage.toStringAsFixed(1)}%');
     
     if (isOverdue && overdueDays > 0) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('⚠️ التأخير: $overdueDays يوم');
       buffer.writeln('تكلفة التأخير: $overdueCost ريال');
     }
@@ -120,8 +119,8 @@ class GuestPaymentCalculationService {
           ..where((p) =>
               p.revenueType.equals('room') |
               p.revenueType.equals('') |
-              p.revenueType.isNull())
-          ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate, mode: d.OrderingMode.asc)]))
+              p.revenueType.isNull(),)
+          ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
         .get();
 
     // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00
@@ -143,7 +142,7 @@ class GuestPaymentCalculationService {
     }
 
     // حساب سعر الليلة الواحدة بناءً على السعر المخزن في الغرفة
-    final nightlyRate = (room?.price ?? 0).toDouble();
+    final nightlyRate = room?.price ?? 0;
 
     // حساب التكلفة حتى الآن (الأيام المقضية فقط)
     final costSoFar = actualDaysSpent * nightlyRate;
@@ -235,14 +234,6 @@ class GuestPaymentCalculationService {
 
 /// نموذج تقرير ملخص المدفوعات
 class PaymentsSummaryReport {
-  final DateTime generatedAt;
-  final int totalGuests;
-  final double totalPaid;
-  final double totalRemaining;
-  final double totalCredit;
-  final int overdueCount;
-  final int fullyPaidCount;
-  final List<GuestPaymentCalculation> calculations;
 
   PaymentsSummaryReport({
     required this.generatedAt,
@@ -254,6 +245,14 @@ class PaymentsSummaryReport {
     required this.fullyPaidCount,
     required this.calculations,
   });
+  final DateTime generatedAt;
+  final int totalGuests;
+  final double totalPaid;
+  final double totalRemaining;
+  final double totalCredit;
+  final int overdueCount;
+  final int fullyPaidCount;
+  final List<GuestPaymentCalculation> calculations;
 
   /// نسبة الحجوزات المسددة بالكامل
   double get fullyPaidPercentage => totalGuests > 0 ? (fullyPaidCount / totalGuests * 100) : 0;
@@ -268,13 +267,13 @@ class PaymentsSummaryReport {
     
     buffer.writeln('=== تقرير ملخص المدفوعات ===');
     buffer.writeln('تم الإنشاء: ${df.format(generatedAt)}');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('--- الإحصائيات العامة ---');
     buffer.writeln('عدد النزلاء: $totalGuests');
     buffer.writeln('إجمالي المحصل: $totalPaid ريال');
     buffer.writeln('إجمالي المتبقي: $totalRemaining ريال');
     buffer.writeln('إجمالي الأرصدة (للنزلاء): $totalCredit ريال');
-    buffer.writeln('');
+    buffer.writeln();
     buffer.writeln('--- الحالات ---');
     buffer.writeln('المسددة بالكامل: $fullyPaidCount (${fullyPaidPercentage.toStringAsFixed(1)}%)');
     buffer.writeln('المتأخرة: $overdueCount (${overduePercentage.toStringAsFixed(1)}%)');

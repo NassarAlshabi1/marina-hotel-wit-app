@@ -1,10 +1,11 @@
 import 'package:drift/drift.dart' as d;
+
 import '../../utils/status_utils.dart';
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
-import '../daos/rooms_dao.dart';
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
+import '../daos/outbox_dao.dart';
+import '../daos/rooms_dao.dart';
+import '../local_db.dart';
 
 class RoomsRepository {
   RoomsRepository(this.db) {
@@ -88,7 +89,6 @@ class RoomsRepository {
         action: 'update',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'id': '$id'},
       );
       rethrow;
@@ -126,7 +126,6 @@ class RoomsRepository {
         action: 'updateByRoomNumber',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'roomNumber': roomNumber},
       );
       rethrow;
@@ -163,7 +162,6 @@ class RoomsRepository {
         action: 'delete',
         error: e,
         stackTrace: stack,
-        severity: CrashlyticsSeverity.error,
         extra: {'roomNumber': roomNumber},
       );
       rethrow;
@@ -189,7 +187,6 @@ class RoomsRepository {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
         List<Map<String, dynamic>>.from(data['data'] as List),
-        clearExisting: false,
       );
     }
   }
@@ -201,7 +198,7 @@ class RoomsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   Future<void> refreshAllRoomOccupancy() async {

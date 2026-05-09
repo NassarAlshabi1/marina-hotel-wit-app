@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/price_adjustment_service.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/theme.dart';
 import '../../utils/status_utils.dart';
-
-import '../../providers/auth_provider.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
+import '../../utils/theme.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -52,7 +52,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final roomsStream = ref.watch(roomsWithPaymentStatusProvider);
     final auth = ref.watch(authProvider);
     final canRooms =
-        auth.currentUser?.permissions.contains('all') == true ||
+        (auth.currentUser?.permissions.contains('all') ?? false) ||
         auth.currentUser?.userType == 'admin' ||
         (auth.currentUser?.permissions.contains('rooms') ?? false);
 
@@ -230,7 +230,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Container(
+        child: DecoratedBox(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -391,7 +391,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
     final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
     String status = existing?.status ?? 'شاغرة';
-    String? imageUrl = existing?.imageUrl;
+    final String? imageUrl = existing?.imageUrl;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -464,7 +464,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),
@@ -506,7 +506,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             ),
             FilledButton.icon(
               onPressed: () {
-                if (formKey.currentState?.validate() == true) {
+                if (formKey.currentState?.validate() ?? false) {
                   Navigator.pop(ctx, true);
                 }
               },
@@ -570,7 +570,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         SnackBar(
           content: Text('فشل حفظ الغرفة: $e'),
           backgroundColor: Colors.red.shade900,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -689,7 +688,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       ),
     );
 
-    if (apply == true) {
+    if (apply ?? false) {
       final auth = ref.read(authProvider);
       final userName = auth.currentUser?.name ?? auth.currentUser?.username ?? 'موظف';
       
@@ -724,11 +723,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 }
 
 class _FloorExpansionTile extends StatelessWidget {
-  final String floorNumber;
-  final int totalRooms;
-  final int availableRooms;
-  final List<Widget> children;
-  final bool initiallyExpanded;
 
   const _FloorExpansionTile({
     required this.floorNumber,
@@ -737,6 +731,11 @@ class _FloorExpansionTile extends StatelessWidget {
     required this.children,
     this.initiallyExpanded = false,
   });
+  final String floorNumber;
+  final int totalRooms;
+  final int availableRooms;
+  final List<Widget> children;
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -772,10 +771,10 @@ class _FloorExpansionTile extends StatelessWidget {
 }
 
 class _RoomGridCard extends StatelessWidget {
-  final RoomWithPaymentStatus roomData; // تغيير النوع
-  final VoidCallback onTap;
 
   const _RoomGridCard({required this.roomData, required this.onTap});
+  final RoomWithPaymentStatus roomData; // تغيير النوع
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -789,7 +788,7 @@ class _RoomGridCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -864,11 +863,11 @@ class _RoomGridCard extends StatelessWidget {
 }
 
 class _RoomListCard extends StatelessWidget {
+
+  const _RoomListCard({required this.roomData, required this.onTap, this.onEdit});
   final RoomWithPaymentStatus roomData; // تغيير النوع
   final VoidCallback onTap;
   final VoidCallback? onEdit;
-
-  const _RoomListCard({required this.roomData, required this.onTap, this.onEdit});
 
   @override
   Widget build(BuildContext context) {

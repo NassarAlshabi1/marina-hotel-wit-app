@@ -1,11 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PerformanceMetrics {
-  final String operation;
-  final Duration duration;
-  final int recordsProcessed;
-  final DateTime timestamp;
   
   PerformanceMetrics({
     required this.operation,
@@ -13,21 +9,25 @@ class PerformanceMetrics {
     required this.recordsProcessed,
     required this.timestamp,
   });
+  final String operation;
+  final Duration duration;
+  final int recordsProcessed;
+  final DateTime timestamp;
   
   double get opsPerSecond => recordsProcessed / duration.inMilliseconds * 1000;
   String get durationMs => '${duration.inMilliseconds}ms';
 }
 
 class PerformanceState {
-  final List<PerformanceMetrics> metrics;
-  final Map<String, double> averageTimings;
-  final bool isMonitoring;
   
   PerformanceState({
     required this.metrics,
     required this.averageTimings,
     required this.isMonitoring,
   });
+  final List<PerformanceMetrics> metrics;
+  final Map<String, double> averageTimings;
+  final bool isMonitoring;
   
   PerformanceState copyWith({
     List<PerformanceMetrics>? metrics,
@@ -47,7 +47,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
     metrics: [],
     averageTimings: {},
     isMonitoring: kDebugMode,
-  ));
+  ),);
   
   void recordOperation(PerformanceMetrics metric) {
     if (!state.isMonitoring) return;
@@ -75,7 +75,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
       byOperation.putIfAbsent(m.operation, () => []).add(m.duration.inMilliseconds.toDouble());
     }
     return { for (final e in byOperation.entries) 
-      e.key: e.value.reduce((a, b) => a + b) / e.value.length 
+      e.key: e.value.reduce((a, b) => a + b) / e.value.length, 
     };
   }
   
@@ -93,7 +93,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
         'operation': m.operation,
         'duration': m.durationMs,
         'records': m.recordsProcessed,
-      }).toList(),
+      },).toList(),
     };
   }
   
@@ -111,10 +111,6 @@ final performanceProvider = StateNotifierProvider<PerformanceNotifier, Performan
 });
 
 class PerformanceTimer {
-  final String operation;
-  final PerformanceNotifier notifier;
-  final int recordsProcessed;
-  final Stopwatch _stopwatch = Stopwatch();
   
   PerformanceTimer({
     required this.operation,
@@ -123,6 +119,10 @@ class PerformanceTimer {
   }) {
     _stopwatch.start();
   }
+  final String operation;
+  final PerformanceNotifier notifier;
+  final int recordsProcessed;
+  final Stopwatch _stopwatch = Stopwatch();
   
   void stop() {
     _stopwatch.stop();
@@ -131,7 +131,7 @@ class PerformanceTimer {
       duration: _stopwatch.elapsed,
       recordsProcessed: recordsProcessed,
       timestamp: DateTime.now(),
-    ));
+    ),);
   }
   
   static Future<T> measure<T>(
@@ -155,6 +155,6 @@ extension PerformanceExtension on PerformanceNotifier {
     Future<T> Function() fn, {
     int records = 0,
   }) async {
-    return await PerformanceTimer.measure(operation, this, fn, recordsProcessed: records);
+    return PerformanceTimer.measure(operation, this, fn, recordsProcessed: records);
   }
 }

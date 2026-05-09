@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/smart_sync_provider.dart';
 import '../providers/backup_provider.dart';
+import '../providers/smart_sync_provider.dart';
 import '../screens/settings/smart_sync_settings_screen.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
@@ -36,14 +36,13 @@ class SmartSyncStatusWidget extends ConsumerWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSyncing ? Colors.blue : Colors.green,
-              width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isSyncing) ...[
-                SizedBox(
+                const SizedBox(
                   width: 12,
                   height: 12,
                   child: CircularProgressIndicator(
@@ -74,9 +73,9 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-  final Widget child;
 
   const SmartSyncNotificationListener({super.key, required this.child});
+  final Widget child;
 
   @override
   ConsumerState<SmartSyncNotificationListener> createState() =>
@@ -279,9 +278,9 @@ class _SmartSyncDashboardCardState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
+                        const Text(
                           'المزامنة بين الأجهزة',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),

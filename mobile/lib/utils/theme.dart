@@ -49,14 +49,9 @@ ThemeData buildTheme() {
     colorScheme: const ColorScheme.light(
       primary: AppColors.primaryColor,
       secondary: AppColors.infoColor,
-      surface: AppColors.surfaceColor,
-      background: AppColors.backgroundColor,
       error: AppColors.dangerColor,
-      onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: AppColors.textPrimary,
-      onBackground: AppColors.textPrimary,
-      onError: Colors.white,
     ),
 
     // AppBar theme - main accent color
@@ -128,7 +123,7 @@ ThemeData buildTheme() {
 
     // Table theme
     dataTableTheme: const DataTableThemeData(
-      headingRowColor: MaterialStatePropertyAll(AppColors.darkGray),
+      headingRowColor: WidgetStatePropertyAll(AppColors.darkGray),
       headingTextStyle: TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.w600,
@@ -175,12 +170,10 @@ ThemeData buildDarkTheme() {
       primary: darkPrimary,
       secondary: Color(0xFF5BACD4), // Lighter blue for dark mode
       surface: darkSurface,
-      background: darkBackground,
       error: Color(0xFFEF5350), // Lighter red for dark mode
       onPrimary: Colors.white,
       onSecondary: Colors.white,
-      onSurface: Color(0xFFE0E0E0), // Soft white text
-      onBackground: Color(0xFFE0E0E0),
+      onSurface: Color(0xFFE0E0E0),
       onError: Colors.white,
     ),
 
@@ -200,11 +193,11 @@ ThemeData buildDarkTheme() {
     ),
 
     // Dark cards with purple tinted border
-    cardTheme: CardThemeData(
+    cardTheme: const CardThemeData(
       color: darkSurface,
       elevation: 1,
-      margin: const EdgeInsets.all(8),
-      shape: const RoundedRectangleBorder(
+      margin: EdgeInsets.all(8),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(8)),
         side: BorderSide(color: Color(0xFF3D2048)), // Dark purple border for dark mode
       ),
@@ -234,27 +227,27 @@ ThemeData buildDarkTheme() {
     ),
 
     // Dark inputs - purple tinted focus
-    inputDecorationTheme: InputDecorationTheme(
-      border: const OutlineInputBorder(
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
         borderSide: BorderSide(color: darkInputBorder),
       ),
-      enabledBorder: const OutlineInputBorder(
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
         borderSide: BorderSide(color: darkInputBorder),
       ),
-      focusedBorder: const OutlineInputBorder(
+      focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(6)),
         borderSide: BorderSide(color: darkPrimary, width: 2),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-      labelStyle: const TextStyle(color: Colors.white70),
-      hintStyle: const TextStyle(color: Colors.white54),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+      labelStyle: TextStyle(color: Colors.white70),
+      hintStyle: TextStyle(color: Colors.white54),
     ),
 
     // Dark table
     dataTableTheme: const DataTableThemeData(
-      headingRowColor: MaterialStatePropertyAll(Color(0xFF2C2C2C)),
+      headingRowColor: WidgetStatePropertyAll(Color(0xFF2C2C2C)),
       headingTextStyle: TextStyle(
         color: Color(0xFFE0D5F0), // Light purple heading text
         fontWeight: FontWeight.w600,
@@ -289,7 +282,7 @@ MaterialColor _createMaterialColor(Color color) {
   for (int i = 1; i < 10; i++) {
     strengths.add(0.1 * i);
   }
-  for (var strength in strengths) {
+  for (final strength in strengths) {
     final double ds = 0.5 - strength;
     swatch[(strength * 1000).round()] = Color.fromRGBO(
       r + ((ds < 0 ? r : (255 - r)) * ds).round(),

@@ -10,20 +10,10 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
-import 'logging/log_models.dart';
 import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
-  final String phase;
-  final String message;
-  final DateTime timestamp;
-  final String? checksum;
-  final int outboxCount;
-  final String? lastError;
-  final DateTime? lastPushAt;
-  final DateTime? lastPullAt;
-  final DateTime? lastSnapshotAt;
 
   const UnifiedSyncState({
     required this.phase,
@@ -36,6 +26,15 @@ class UnifiedSyncState {
     this.lastPullAt,
     this.lastSnapshotAt,
   });
+  final String phase;
+  final String message;
+  final DateTime timestamp;
+  final String? checksum;
+  final int outboxCount;
+  final String? lastError;
+  final DateTime? lastPushAt;
+  final DateTime? lastPullAt;
+  final DateTime? lastSnapshotAt;
 
   UnifiedSyncState copyWith({
     String? phase,
@@ -86,7 +85,6 @@ class UnifiedSyncOrchestrator {
     phase: 'idle',
     message: 'جاهز',
     timestamp: DateTime.now(),
-    outboxCount: 0,
   );
 
   Future<void> initialize({
@@ -131,7 +129,6 @@ class UnifiedSyncOrchestrator {
                 timestamp: DateTime.now(),
               ),
             );
-            break;
           case SyncStatus.success:
             _emit(
               _state.copyWith(
@@ -142,7 +139,6 @@ class UnifiedSyncOrchestrator {
               ),
             );
             await _snapshotIfNeeded();
-            break;
           case SyncStatus.failed:
             _emit(
               _state.copyWith(
@@ -152,7 +148,6 @@ class UnifiedSyncOrchestrator {
                 lastError: 'Appwrite sync failed',
               ),
             );
-            break;
           case SyncStatus.idle:
           case SyncStatus.partial:
             _emit(
@@ -162,7 +157,6 @@ class UnifiedSyncOrchestrator {
                 timestamp: DateTime.now(),
               ),
             );
-            break;
         }
       });
     }
@@ -328,7 +322,7 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> onAppForeground() async {
-    await syncNow(push: false, pull: true, reason: 'app_foreground');
+    await syncNow(push: false, reason: 'app_foreground');
   }
 
   Future<void> onDriveSignInChanged(bool isSignedIn) async {
@@ -384,17 +378,17 @@ class UnifiedSyncOrchestrator {
   Future<String> _computeUnifiedChecksum() async {
     final db = _database!;
     final results = await Future.wait([
-      (db.select(db.rooms)).get(),
-      (db.select(db.bookings)).get(),
-      (db.select(db.bookingNotes)).get(),
-      (db.select(db.employees)).get(),
-      (db.select(db.expenses)).get(),
-      (db.select(db.cashTransactions)).get(),
-      (db.select(db.payments)).get(),
-      (db.select(db.debts)).get(),
-      (db.select(db.bookingNights)).get(),
-      (db.select(db.hotelDayLedger)).get(),
-      (db.select(db.shiftNotes)).get(),
+      db.select(db.rooms).get(),
+      db.select(db.bookings).get(),
+      db.select(db.bookingNotes).get(),
+      db.select(db.employees).get(),
+      db.select(db.expenses).get(),
+      db.select(db.cashTransactions).get(),
+      db.select(db.payments).get(),
+      db.select(db.debts).get(),
+      db.select(db.bookingNights).get(),
+      db.select(db.hotelDayLedger).get(),
+      db.select(db.shiftNotes).get(),
     ]);
 
     final snapshot = {
@@ -420,7 +414,7 @@ class UnifiedSyncOrchestrator {
     }
 
     if (push && pull) {
-      final result = await manager.sync(push: true, pull: true);
+      final result = await manager.sync();
       return result.isSuccess;
     }
 
@@ -463,9 +457,7 @@ class UnifiedSyncOrchestrator {
       }
       final logger = GoogleDriveLogger();
       await logger.initialize(
-        minLevel: LogLevel.info,
-        enableConsole: true,
-        enableFile: false,
+        
       );
       final db = _database ?? DatabaseManager.instance;
       _database ??= db;
@@ -479,7 +471,6 @@ class UnifiedSyncOrchestrator {
     if (push && pull) {
       final result = await coordinator.performSync(
         trigger: SyncTrigger.manual,
-        mode: SyncMode.smart,
       );
       return result.success;
     }
@@ -487,7 +478,6 @@ class UnifiedSyncOrchestrator {
     if (push && !pull) {
       final result = await coordinator.performSync(
         trigger: SyncTrigger.localChange,
-        mode: SyncMode.smart,
       );
       return result.success;
     }
