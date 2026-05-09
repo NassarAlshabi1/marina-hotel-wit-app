@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
@@ -73,7 +74,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     _salaryWithdrawAction,
     _salaryDeductionAction,
   ];
-  static const List<String> availableTypes = [
+  /// الأنواع الافتراضية كاحتياط فقط — القائمة الرئيسية تحمل ديناميكياً
+  static const List<String> _fallbackTypes = [
     'رواتب',
     'ديزل',
     'صيانة',
@@ -479,33 +481,43 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: selectedType,
-                    decoration: const InputDecoration(labelText: 'نوع المصروف'),
-                    style: dropdownTextStyle,
-                    items: availableTypes
-                        .map(
-                          (type) => DropdownMenuItem<String>(
-                            value: type,
-                            child: Text(type, style: dropdownTextStyle),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() {
-                        selectedType = value;
-                        if (selectedType == _salaryType) {
-                          if (availableEmployees.isNotEmpty) {
-                            selectedEmployeeId ??= availableEmployees.first.id;
+                  Builder(
+                    builder: (context) {
+                      final typesAsync = ref.watch(expenseTypesProvider);
+                      final dropdownTypes = typesAsync.valueOrNull ?? _fallbackTypes;
+                      // تأكد أن القيمة المحددة موجودة في القائمة
+                      final validSelectedType = dropdownTypes.contains(selectedType)
+                          ? selectedType
+                          : (dropdownTypes.isNotEmpty ? dropdownTypes.first : null);
+                      return DropdownButtonFormField<String>(
+                        value: validSelectedType,
+                        decoration: const InputDecoration(labelText: 'نوع المصروف'),
+                        style: dropdownTextStyle,
+                        items: dropdownTypes
+                            .map(
+                              (type) => DropdownMenuItem<String>(
+                                value: type,
+                                child: Text(type, style: dropdownTextStyle),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
                           }
-                        } else {
-                          selectedEmployeeId = null;
-                          dialogSalaryAction = _salaryWithdrawAction;
-                        }
-                      });
+                          setState(() {
+                            selectedType = value;
+                            if (selectedType == _salaryType) {
+                              if (availableEmployees.isNotEmpty) {
+                                selectedEmployeeId ??= availableEmployees.first.id;
+                              }
+                            } else {
+                              selectedEmployeeId = null;
+                              dialogSalaryAction = _salaryWithdrawAction;
+                            }
+                          });
+                        },
+                      );
                     },
                   ),
                   if (selectedType == _salaryType) ...[

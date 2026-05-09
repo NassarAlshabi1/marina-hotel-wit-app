@@ -9,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -135,12 +136,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<void> _loadExpenseTypes() async {
-    final db = ref.read(databaseProvider);
-    final query = await db
-        .customSelect('SELECT DISTINCT expense_type FROM expenses')
-        .get();
-    final types =
-        query.map((row) => row.data['expense_type'] as String).toList()..sort();
+    // تحميل الأنواع ديناميكياً من جدول expense_types
+    final types = ref.read(expenseTypesProvider).valueOrNull ??
+        const [
+          'رواتب',
+          'ديزل',
+          'صيانة',
+          'فواتير كهرباء ومياه',
+          'مستلزمات',
+          'مساعدة محتاج',
+          'اخرى',
+        ];
     setState(() {
       _availableTypes
         ..clear()

@@ -19,6 +19,7 @@ import 'late_payment_whatsapp_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
 import 'settings_employees.dart';
+import 'settings_expense_types.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
@@ -113,6 +114,17 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(builder: (context) => const SettingsMaintenanceScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'أنواع المصروفات',
+              subtitle: 'إضافة وتعديل أنواع المصروفات',
+              icon: Icons.category,
+              color: Colors.teal,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const SettingsExpenseTypesScreen(),
                 ),
               ),
             ),

@@ -772,7 +772,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1795,6 +1795,43 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 36: additional indexes created successfully',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 37: جدول أنواع المصروفات (expense_types) ===
+      if (from < 37) {
+        await m.database.customStatement('''
+          CREATE TABLE IF NOT EXISTS expense_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            is_system INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+        // بذر الأنواع الافتراضية
+        const defaultTypes = [
+          ('رواتب', 0, 1),
+          ('ديزل', 1, 0),
+          ('صيانة', 2, 0),
+          ('فواتير كهرباء ومياه', 3, 0),
+          ('مستلزمات', 4, 0),
+          ('مساعدة محتاج', 5, 0),
+          ('اخرى', 6, 0),
+        ];
+        for (final entry in defaultTypes) {
+          await m.database.customInsert(
+            'INSERT INTO expense_types (name, sort_order, is_active, is_system) VALUES (?, ?, 1, ?)',
+            variables: [
+              Variable<String>(entry.$1),
+              Variable<int>(entry.$2),
+              Variable<int>(entry.$3),
+            ],
+          );
+        }
+        developer.log(
+          'Migration 37: expense_types table created and seeded',
           name: 'db.migration',
         );
       }
