@@ -1021,6 +1021,72 @@ class AppwriteService {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Convenience Aliases (used by sync managers, delta sync, auth_local_store)
+  // These delegate to the existing generic methods above.
+  // ---------------------------------------------------------------------------
+
+  /// Alias for [listRows] — used by callers expecting `listDocuments` name.
+  Future<List<models.Document>> listDocuments({
+    required String collectionId,
+    List<String>? queries,
+    bool useCache = true,
+  }) {
+    return listRows(
+      collectionId: collectionId,
+      queries: queries,
+      useCache: useCache,
+    );
+  }
+
+  /// Alias for [getRow] — used by callers expecting `getDocument` name.
+  Future<models.Document> getDocument({
+    required String collectionId,
+    required String documentId,
+  }) {
+    return getRow(
+      collectionId: collectionId,
+      documentId: documentId,
+    );
+  }
+
+  /// Alias for [updateRow] — used by callers expecting `updateDocument` name.
+  Future<models.Document> updateDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) {
+    return updateRow(
+      collectionId: collectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  /// Alias for [createRow] — used by callers expecting `createDocument` name.
+  Future<models.Document> createDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) {
+    return createRow(
+      collectionId: collectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  /// Alias for [deleteRow] — used by callers expecting `deleteDocument` name.
+  Future<void> deleteDocument({
+    required String collectionId,
+    required String documentId,
+  }) {
+    return deleteRow(
+      collectionId: collectionId,
+      documentId: documentId,
+    );
+  }
+
   /// الحصول على معلومات المشروع
   Map<String, String> getProjectInfo() {
     return {

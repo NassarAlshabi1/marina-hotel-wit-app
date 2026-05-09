@@ -3272,7 +3272,7 @@ class AppwriteSyncManager {
                 ..where((t) => t.localUuid.equals(localUuid)))
               .getSingleOrNull();
           if (existing != null) {
-            await (database.delete<dynamic>(database.shiftNotes)
+            await (database.delete(database.shiftNotes)
                   ..where((t) => t.localUuid.equals(localUuid)))
                 .go();
           }
