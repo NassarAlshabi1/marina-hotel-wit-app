@@ -196,7 +196,7 @@ class BookingPriceAdjustmentService {
           mode: mode,
           totalNights: nightsInRange.length,
         );
-        finalRate = (baseRate + adjustmentAmount).clamp(0.0, baseRate * 3);
+        finalRate = (baseRate + adjustmentAmount).clamp(0.0, baseRate * 3).toDouble();
         nightsAffected++;
       }
 

@@ -268,7 +268,7 @@ class ShimmerTableRow extends StatelessWidget {
                 end: isLast ? 0 : 8.0,
               ),
               child: FractionallySizedBox(
-                widthFactor: widthFraction.clamp(0.1, 1.0),
+                widthFactor: widthFraction.clamp(0.1, 1.0).toDouble(),
                 alignment: isLast
                     ? AlignmentDirectional.centerEnd
                     : AlignmentDirectional.centerStart,

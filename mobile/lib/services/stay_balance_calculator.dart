@@ -112,7 +112,7 @@ class StayBalanceResult {
     if (totalNeeded <= 0) {
       return 1.0;
     }
-    return (totalPaidNights / totalNeeded).clamp(0.0, 1.0);
+    return (totalPaidNights / totalNeeded).clamp(0.0, 1.0).toDouble();
   }
 
   /// الأيام غير المغطاة حتى التاريخ اليدوي
@@ -249,7 +249,7 @@ class StayBalanceCalculator {
       final key = Time.dateToString(currentNight);
       final adjustment = adjMap[key] ?? 0.0;
       final effectiveRate =
-          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0);
+          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0).toDouble();
       final effectiveRateMinor = toMinor(effectiveRate);
 
       if (effectiveRateMinor <= 0) {
@@ -278,7 +278,7 @@ class StayBalanceCalculator {
       final nightRate = (baseRate + adjustment).clamp(
         0.0,
         baseRate > 0 ? baseRate * 3 : 0,
-      );
+      ).toDouble();
       consumedCostMinor += toMinor(nightRate);
       consumedNight = consumedNight.add(const Duration(days: 1));
     }

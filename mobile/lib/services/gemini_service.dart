@@ -1231,11 +1231,11 @@ class GeminiService {
                 newPrice = oldPrice * (1 + value / 100);
               case 'percent_decrease':
                 newPrice = (oldPrice * (1 - value / 100))
-                    .clamp(0.0, double.infinity);
+                    .clamp(0.0, double.infinity).toDouble();
               case 'fixed_increase':
                 newPrice = oldPrice + value;
               case 'fixed_decrease':
-                newPrice = (oldPrice - value).clamp(0.0, double.infinity);
+                newPrice = (oldPrice - value).clamp(0.0, double.infinity).toDouble();
               default:
                 newPrice = oldPrice;
             }
@@ -1525,7 +1525,7 @@ class GeminiService {
               paidAmount: Value(newPaid),
               remainingAmount: Value(
                 (targetDebt.totalAmount - newPaid)
-                    .clamp(0.0, double.infinity),
+                    .clamp(0.0, double.infinity).toDouble(),
               ),
               isSettled: Value(isFullySettled ? 1 : 0),
               paymentDate: Value(now.toIso8601String().split('T')[0]),

@@ -157,7 +157,7 @@ class DataUsageManager {
 
       // حساب النسبة المئوية للاستخدام
       final usagePercentage = dailyLimitMB > 0
-          ? (_todayUsageMB / dailyLimitMB * 100).clamp(0.0, 100.0)
+          ? (_todayUsageMB / dailyLimitMB * 100).clamp(0.0, 100.0).toDouble()
           : 0.0;
 
       // التحقق من تجاوز الحد

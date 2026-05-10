@@ -154,11 +154,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                             discountStartDate,
                           );
                           final fullNights = (actualNights - discountedNights)
-                              .clamp(0, actualNights);
+                              .clamp(0, actualNights).toInt();
                           final discountedRate = (roomPrice - discount).clamp(
                             0.0,
                             roomPrice,
-                          );
+                          ).toDouble();
                           return (fullNights * roomPrice) +
                               (discountedNights * discountedRate);
                         }
@@ -166,7 +166,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       })();
 
                 final totalDue = discount > 0 && discountType == 'total'
-                    ? (nightTotal - discount).clamp(0.0, nightTotal)
+                    ? (nightTotal - discount).clamp(0.0, nightTotal).toDouble()
                     : nightTotal;
 
                 return Padding(
@@ -434,7 +434,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                         ) ??
                                     0.0;
                                 final remainingAmount = (totalDue - totalPaid)
-                                    .clamp(0, totalDue);
+                                    .clamp(0, totalDue).toDouble();
                                 return ElevatedButton.icon(
                                   onPressed:
                                       _isProcessing || remainingAmount > 0

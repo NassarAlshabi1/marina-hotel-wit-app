@@ -323,7 +323,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         final fullNightsRaw = actualNights - discountedNights;
                         final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
                         final discountedRate = (roomRate - discount)
-                            .clamp(0, roomRate);
+                            .clamp(0, roomRate).toDouble();
                         return (fullNights * roomRate) +
                             (discountedNights * discountedRate);
                       }
@@ -331,7 +331,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     })();
 
               final double totalAmount = discount > 0 && discountType == 'total'
-                  ? (nightTotal - discount).clamp(0, nightTotal)
+                  ? (nightTotal - discount).clamp(0, nightTotal).toDouble()
                   : nightTotal;
 
               int discountedNights = 0;
@@ -1877,7 +1877,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               final fullNightsRaw = actualNights - discountedNights;
               final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
               final discountedRate =
-                  (roomRate - discount).clamp(0, roomRate);
+                  (roomRate - discount).clamp(0, roomRate).toDouble();
               return (fullNights * roomRate) +
                   (discountedNights * discountedRate);
             }
@@ -1885,7 +1885,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           })();
 
     final double totalAmount = discount > 0 && discountType == 'total'
-        ? (nightTotal - discount).clamp(0, nightTotal)
+        ? (nightTotal - discount).clamp(0, nightTotal).toDouble()
         : nightTotal;
     final payments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
@@ -2395,7 +2395,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // تكلفة الليالي الفعلية المستخدمة
     double actualNightsCost = 0;
     if (nights.isNotEmpty) {
-      final effectiveCount = actualNights.clamp(0, nights.length);
+      final effectiveCount = actualNights.clamp(0, nights.length).toInt();
       for (int i = 0; i < effectiveCount; i++) {
         actualNightsCost +=
             nights[i].finalRate > 0 ? nights[i].finalRate : nights[i].nightlyRate;
@@ -2408,7 +2408,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     final totalPaid = summary.paidAmount;
-    final refundAmount = (totalPaid - actualNightsCost).clamp(0.0, totalPaid);
+    final refundAmount = (totalPaid - actualNightsCost).clamp(0.0, totalPaid).toDouble();
 
     if (!mounted) {
       return;

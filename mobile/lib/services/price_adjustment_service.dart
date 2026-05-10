@@ -224,7 +224,7 @@ class PriceAdjustmentService {
 
         double adjustedRate = newPrice;
         if (booking.discount > 0 && booking.discountType != 'total') {
-          adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice);
+          adjustedRate = (newPrice - booking.discount).clamp(0.0, newPrice).toDouble();
         }
         bookingNewTotal += adjustedRate;
       }
