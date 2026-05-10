@@ -217,12 +217,14 @@ Future<void> reorderCustomListItems(
   List<int> ids,
 ) async {
   final db = ref.read(databaseProvider);
-  for (var i = 0; i < ids.length; i++) {
-    await db.customStatement(
-      'UPDATE custom_list_items SET sort_order = ? WHERE id = ?',
-      [i + 1, ids[i]],
-    );
-  }
+  await db.transaction(() async {
+    for (var i = 0; i < ids.length; i++) {
+      await db.customStatement(
+        'UPDATE custom_list_items SET sort_order = ? WHERE id = ?',
+        [i + 1, ids[i]],
+      );
+    }
+  });
   _invalidateAll(ref, listKey);
 }
 
