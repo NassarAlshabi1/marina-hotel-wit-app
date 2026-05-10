@@ -53,11 +53,11 @@ class PaymentsRepository {
   /// يتضمن المدفوعات التي لها hotelDayKey مطابق أو التي hotelDayKey فارغ وتاريخها ضمن اليوم
   Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
     return dao.watchByHotelDayKey(hotelDayKey).map((payments) {
-      int totalMinor = 0;
+      int totalAmount = 0;
       for (final p in payments) {
-        totalMinor += (p.amount * 100).round();
+        totalAmount += p.amount.round();
       }
-      return totalMinor / 100.0;
+      return totalAmount.toDouble();
     });
   }
 

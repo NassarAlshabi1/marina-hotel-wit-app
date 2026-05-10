@@ -72,7 +72,7 @@ final roomsWithPaymentStatusProvider =
 
         if (activeBooking != null) {
           final hasRemainingBalance =
-              (activeBooking.remainingBalanceCached * 100).round() > 0;
+              activeBooking.remainingBalanceCached.round() > 0;
 
           if (hasRemainingBalance) {
             final hour = currentTime.hour;

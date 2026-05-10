@@ -237,8 +237,8 @@ class StayBalanceCalculator {
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
     final coveredDates = <DateTime>[];
-    int toMinor(double amount) => (amount * 100).round();
-    double fromMinor(int amount) => amount / 100.0;
+    int toMinor(double amount) => amount.round();
+    double fromMinor(int amount) => amount.toDouble();
 
     final totalPaidMinor = toMinor(booking.totalPaidCached);
     int remainingBalanceMinor = totalPaidMinor;
